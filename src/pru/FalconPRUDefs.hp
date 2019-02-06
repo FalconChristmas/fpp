@@ -1,5 +1,5 @@
-#ifndef _ws281x_HP_
-#define _ws281x_HP_
+#ifndef _FalconPRUDefs_HP_
+#define _FalconPRUDefs_HP_
 
 
 #define AM33XX
@@ -119,4 +119,4 @@
 // ***************************************
 
 
-#endif //_ws281x_HP_
+#endif 

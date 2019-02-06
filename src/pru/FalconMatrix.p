@@ -17,7 +17,7 @@
 .origin 0
 .entrypoint START
 
-#include "FalconWS281x.hp"
+#include "FalconPRUDefs.hp"
 #include "FalconUtils.hp"
 
 /** Mappings of the GPIO devices */

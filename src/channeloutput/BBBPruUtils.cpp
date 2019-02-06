@@ -32,6 +32,9 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) : pru_num(pru) {
         prussdrv_init();
         prussdrv_open(PRU_EVTOUT_0);
     }
+    if (pru) {
+        prussdrv_open(PRU_EVTOUT_1);
+    }
     prussUseCount++;
     tpruss_intc_initdata pruss_intc_initdata = PRUSS_INTC_INITDATA;
     prussdrv_pruintc_init(&pruss_intc_initdata);
@@ -96,9 +99,9 @@ int BBBPru::run(const std::string &program) {
 }
 void BBBPru::stop(bool force) {
     if (!force) {
-        prussdrv_pru_wait_event(pru_num);
+        prussdrv_pru_wait_event(pru_num == 0 ? PRU_EVTOUT0 : PRU_EVTOUT1);
     }
-    prussdrv_pru_clear_event(PRU_EVTOUT0,
+    prussdrv_pru_clear_event(pru_num == 0 ? PRU_EVTOUT0 : PRU_EVTOUT1,
                              pru_num == 0 ? PRU0_ARM_INTERRUPT : PRU1_ARM_INTERRUPT);
     prussdrv_pru_disable(pru_num);
 }

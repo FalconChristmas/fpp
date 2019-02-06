@@ -50,27 +50,13 @@
 #define T1_TIME_GPIO0     T1_TIME
 #define LOW_TIME_GPIO0    LOW_TIME
 
-
+#ifndef RUNNING_ON_PRU0
 #define RUNNING_ON_PRU1
-
-#if defined F4B
-#include "F4B.hp"
-#elif defined F8B
-#include "F8B.hp"
-#elif defined F8Bv2
-#include "F8Bv2.hp"
-#elif defined F8PB
-#include "F8PB.hp"
-#elif defined RGBCape48C
-#include "RGBCape48C.hp"
-#elif defined RGBCape48F
-#include "RGBCape48F.hp"
-#elif defined RGBCape24
-#include "RGBCape24.hp"
-#else
-#include "F16B.hp"
 #endif
 
+#if __has_include("/tmp/PinConfiguration.hp")
+# include "/tmp/PinConfiguration.hp"
+#endif
 #include "FalconUtils.hp"
 
 //register allocations for data
@@ -127,7 +113,7 @@
 .origin 0
 .entrypoint START
 
-#include "FalconWS281x.hp"
+#include "FalconPRUDefs.hp"
 
 /** Mappings of the GPIO devices */
 #define GPIO0 (0x44E07000 + 0x100)
@@ -172,6 +158,12 @@
 
 
 #include "FalconWS281xOutputs.hp"
+
+#ifdef RUNNING_ON_PRU1
+#define SCRATCH_PAD 11
+#else
+#define SCRATCH_PAD 10
+#endif
 
 
 .macro DISABLE_GPIO_PIN_INTERRUPTS
@@ -235,7 +227,11 @@ skip:
     QBBS USESHAREDRAM,  bit_flags.t2
 
     QBBS USERAM2, bit_flags.t1
+#ifdef RUNNING_ON_PRU1
         LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+#else
+        LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+#endif
         ADD     sram_offset, sram_offset, OUTPUTS
         MOV     r8, 8142 //8k - 50
         QBLT DATALOADED, r8, sram_offset
@@ -245,7 +241,12 @@ skip:
             SET bit_flags.t1
             QBA DATALOADED
     USERAM2:
+#ifdef RUNNING_ON_PRU1
         LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+#else
+        LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+#endif
+
         ADD     sram_offset, sram_offset, OUTPUTS
         MOV     r8, 8142 //8k - 50
         QBLT    DATALOADED, r8, sram_offset
@@ -268,8 +269,6 @@ skip:
     DATALOADED:
     ADD data_addr, data_addr, OUTPUTS
 .endm
-
-
 
 
 #if __has_include("/tmp/OutputLengths.hp")
@@ -363,7 +362,7 @@ START:
     SETOUTPUT48MASK
 
     // save the led masks to the scratch pad as we'll modify these during output
-    XOUT 12, gpio0_led_mask, 16
+    XOUT SCRATCH_PAD, gpio0_led_mask, 16
 
     DISABLE_PIN_INTERRUPTS
 
@@ -386,7 +385,7 @@ _LOOP:
 	QBEQ	EXIT, r1, #0xFF
 
     // store the address and such
-    XOUT    10, data_addr, 12
+    XOUT    SCRATCH_PAD, data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
 
@@ -398,7 +397,7 @@ _LOOP:
     SET_FIRST_CHECK
 
     //restore the led masks
-    XIN 12, gpio0_led_mask, 16
+    XIN SCRATCH_PAD, gpio0_led_mask, 16
 
     // reset command to 0 so ARM side will send more data
     LDI     r2, 0
@@ -536,7 +535,7 @@ _LOOP:
     // do a second pass for GPIO0 only
 
     // restore the address and such
-    XIN    10, data_addr, 12
+    XIN    SCRATCH_PAD, data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
 	MOV	data_len, DATA_LEN
@@ -547,7 +546,7 @@ _LOOP:
     SET_FIRST_CHECK
 
     //restore the led masks
-    XIN 12, gpio0_led_mask, 16
+    XIN SCRATCH_PAD, gpio0_led_mask, 16
 
 	WORD_LOOP_PASS2:
     LOOP WORD_LOOP_DONE_PASS2, data_len
@@ -618,8 +617,8 @@ _LOOP:
 	QBA	_LOOP
 
 EXIT:
-	// Write a 0xFF into the response field so that they know we're done
-	MOV r2, #0xFF
+	// Write a 0xFFFF into the response field so that they know we're done
+	MOV r2, #0xFFFF
 	SBCO r2, CONST_PRUDRAM, 8, 4
 
 #ifdef AM33XX

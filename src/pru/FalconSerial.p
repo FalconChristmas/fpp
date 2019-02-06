@@ -8,13 +8,13 @@
  * 
  */
 
-#include "FalconSerial.hp"
+#include "/tmp/SerialPinConfiguration.hp"
 
 
 .origin 0
 .entrypoint START
 
-#include "FalconWS281x.hp"
+#include "FalconPRUDefs.hp"
 #include "FalconUtils.hp"
 
 #ifdef PIXELNET
@@ -122,9 +122,11 @@
 
 .macro CLEAR_ALL_BITS
     CLR r30, ser1_pru30
+#if NUMOUT > 1
     CLR r30, ser2_pru30
     CLR r30, ser3_pru30
     CLR r30, ser4_pru30
+#endif
 #if NUMOUT == 8
     CLR r30, ser5_pru30
     CLR r30, ser6_pru30
@@ -134,9 +136,11 @@
 .endm
 .macro SET_ALL_BITS
     SET r30, ser1_pru30
+#if NUMOUT > 1
     SET r30, ser2_pru30
     SET r30, ser3_pru30
     SET r30, ser4_pru30
+#endif
 #if NUMOUT == 8
     SET r30, ser5_pru30
     SET r30, ser6_pru30
@@ -212,9 +216,11 @@ START:
 #ifdef USE_SLOW_GPIO
     LDI gpio3_serial_mask, 0
 	SET	GPIO_MASK(ser1_gpio), ser1_pin
+#if NUMOUT > 1
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
 	SET	GPIO_MASK(ser3_gpio), ser3_pin
 	SET	GPIO_MASK(ser4_gpio), ser4_pin
+#endif
 #if NUMOUT == 8
 	SET	GPIO_MASK(ser5_gpio), ser5_pin
 	SET	GPIO_MASK(ser6_gpio), ser6_pin
@@ -301,9 +307,11 @@ _OUTPUTANYWAY:
         BEFORE_SET_BITS
 
         SET_BIT(1, r10.b0, r12)
-        SET_BIT(2, r10.b1, r12)
-        SET_BIT(3, r10.b2, r12)
-        SET_BIT(4, r10.b3, r12)
+        #if NUMOUT > 1
+            SET_BIT(2, r10.b1, r12)
+            SET_BIT(3, r10.b2, r12)
+            SET_BIT(4, r10.b3, r12)
+        #endif
         #if NUMOUT == 8
             SET_BIT(5, r11.b0, r12)
             SET_BIT(6, r11.b1, r12)
@@ -346,8 +354,8 @@ _OUTPUTANYWAY:
 	QBA	_LOOP
 
 EXIT:
-	// Write a 0xFF into the response field so that they know we're done
-	MOV r2, #0xFF
+	// Write a 0xFFFF into the response field so that they know we're done
+	MOV r2, #0xFFFF
 	SBCO r2, CONST_PRUDRAM, 8, 4
 
 #ifdef AM33XX

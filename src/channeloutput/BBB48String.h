@@ -64,16 +64,13 @@ class BBB48StringOutput : public ChannelOutputBase {
 
   private:
     void StopPRU(bool wait = true);
-    int StartPRU();
+    int StartPRU(bool both);
 
     std::string                m_subType;
     int                        m_maxStringLen;
     int                        m_numStrings;
     size_t                     m_frameSize;
     std::vector<PixelString*>  m_strings;
-    std::string                m_pruProgram;
-    void ApplyPinMap(const int *map);
-    int MapPins(void);
     
     uint8_t            *m_lastData;
     uint8_t            *m_curData;
@@ -82,6 +79,9 @@ class BBB48StringOutput : public ChannelOutputBase {
  
     BBBPru             *m_pru;
     BBB48StringData    *m_pruData;
+
+    BBBPru             *m_pru0;
+    BBB48StringData    *m_pru0Data;
 };
 
 #endif /* _BBB48STRING_H */

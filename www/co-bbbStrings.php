@@ -1,3 +1,44 @@
+
+<script type="text/javascript">
+var KNOWN_CAPES = {
+<?
+    
+    function sortByLongName($a, $b) {
+        return strcmp($a['longName'], $b['longName']);
+    }
+    
+$capedir = "/opt/fpp/capes/bbb/strings/";
+if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
+    $capedir = "/opt/fpp/capes/pb/strings/";
+}
+$capes = array();
+// Open a directory, and read its contents
+if (is_dir($capedir)){
+    if ($dh = opendir($capedir)){
+        while (($file = readdir($dh)) !== false){
+            $string = "";
+            if (substr($file, 0, 1) == '.') {
+                $string = "";
+            } else {
+                $string = file_get_contents($capedir . $file);
+            }
+
+            if ($string != "") {
+                echo "'" . $file . "': " . $string . ",\n";
+                
+                if (strpos($file, '-v2') === false) {
+                    $capes[$file] = json_decode($string, true);
+                }
+            }
+        }
+        closedir($dh);
+    }
+}
+    usort($capes, 'sortByLongName');
+?>
+};
+</script>
+
 <style>
 .serialOutputTable {
     background: #F0F0F0;
@@ -33,106 +74,48 @@ include_once('co-pixelStrings.php');
 var PixelStringLoaded = false;
 
 
-function GetBBB48StringRequiresVersion() {
-    <?
-    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
-    {
-    ?>
-
+function GetBBB48StringCapeFileName() {
     var subType = $('#BBB48StringSubType').val();
-    if (subType == 'F8-B'
-        || subType == 'F8-B-16'
-        || subType == 'F8-B-20'
-        || subType == 'F8-B-EXP'
-        || subType == 'F8-B-EXP-32'
-        || subType == 'F8-B-EXP-36') {
-        return true;
+    subType += ".json";
+    return subType;
+}
+
+
+function GetBBB48StringRequiresVersion() {
+    var subType = $('#BBB48StringSubType').val();
+    subType += "-v2.json";
+    if (KNOWN_CAPES[subType] == null) {
+        return false;
     }
-    <?
-    }
-    ?>
-    return false;
+    return true;
 }
 
 function GetBBB48StringRows()
 {
-	var subType = $('#BBB48StringSubType').val();
-	var rows = 48;
-
-	if (subType == 'F16-B')
-		rows = 16;
-	else if (subType == 'F16-B-32')
-		rows = 32;
-    else if (subType == 'F16-B-40')
-        rows = 40;
-	else if (subType == 'F16-B-48')
-		rows = 48;
-	else if (subType == 'F4-B')
-		rows = 4;
-    else if (subType == 'F8-B')
-        rows = 12;
-    else if (subType == 'F8-B-16')
-        rows = 16;
-    else if (subType == 'F8-B-20')
-        rows = 20;
-    else if (subType == 'F8-B-EXP')
-        rows = 28;
-    else if (subType == 'F8-B-EXP-32')
-        rows = 32;
-    else if (subType == 'F8-B-EXP-36')
-        rows = 36;
-    else if (subType == 'F32-B')
-        rows = 40;
-    else if (subType == 'F32-B-48')
-        rows = 48;
-    else if (subType == 'RGBCape24')
-        rows = 24;
-	else if (subType == 'RGBCape48C')
-		rows = 48;
-    else if (subType == 'RGBCape48F')
-        rows = 48;
-
-	return rows;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    return val["outputs"].length;
 }
 
 function ShouldAddBreak(subType, s) {
-    if (subType == 'F8-B-EXP') {
-       if (s == 12 || s == 8) {
-           return true;
-       }
-    } else if (subType == 'F8-B-EXP-32' && (s == 16 || s == 12 || s == 8)) {
-        return true;
-    } else if (subType == 'F8-B-EXP-36') {
-        if (s == 20 || s == 16 || s == 12 || s == 8) {
+    if (s == 0) {
+        return false;
+    }
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if (s == instance["start"]) {
             return true;
         }
-    } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
-        return true;
-    } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
-        return true;
-    } else if (subType == 'F8-B' && s == 8) {
-        return true;
-    } else if (subType == 'F32-B' && s == 36) {
-        return true;
-    } else if (subType == 'F32-B-48' && (s == 36 || s == 40 || s == 44) ) {
-        return true;
-    } else if (s && ((s % 16) == 0)) {
-        return true;
     }
+    return false;
 }
 
 function HasSerial(subType) {
-    if ((subType == 'F16-B-48')
-        || (subType == 'F8-B-20')
-        || (subType == 'F8-B-EXP-36')
-        || (subType == 'F32-B-48')
-        || (subType == 'RGBCape24')
-        || (subType == 'RGBCape48C')
-        || (subType == 'RGBCape48F'))
-    {
-        return false;
-    }
-    return true;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    return val["numSerial"] > 0;
 }
 
 
@@ -160,12 +143,9 @@ function SetupBBBSerialPorts()
         $('#BBBSerialOutputs').hide();
     }
     
-	if (subType == 'F4-B')
-		maxPorts = 1;
-    else if ((subType == 'F8-B-16') || (subType == 'F8-B-EXP-32'))
-        maxPorts = 4;
-	else
-		maxPorts = 8;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    maxPorts = val["serial"].length;
 
 	for (var i = 1; i <= 8; i++)
 	{
@@ -183,6 +163,7 @@ function addSerialOutputJSON(postData) {
 
 	config.type = "BBBSerial";
 	config.enabled = 0;
+    config.pinoutVersion = MapPixelStringSubTypeVersion($this.attr('type'));
 	config.subType = $('#BBBSerialMode').val();
 	config.startChannel = 0;
 	config.channelCount = 0;
@@ -199,7 +180,7 @@ function addSerialOutputJSON(postData) {
         config.enabled = 0;
 
 
-
+    var count = 0;
 	var i = 1;
 	for (i = 1; i <= 8; i++)
 	{
@@ -208,6 +189,9 @@ function addSerialOutputJSON(postData) {
 
 		output.outputNumber = i - 1;
 		output.startChannel = parseInt($('#BBBSerialStartChannel' + i).val());
+        if (output.startChannel > 0) {
+            count = count + 1;
+        }
 
 		if (output.startChannel < startChannel)
 			startChannel = output.startChannel;
@@ -229,6 +213,11 @@ function addSerialOutputJSON(postData) {
 	config.startChannel = startChannel;
 	config.channelCount = endChannel - startChannel + 1;
 
+    if (config.enabled == 0 || count == 0) {
+        //add a hint to BBB48String that the serial isn't being used so it can
+        //use the PRU if it wants to
+        postData.channelOutputs[0].serialInUse = false;
+    }
     postData.channelOutputs.push(config);
 	return postData;
 }
@@ -398,7 +387,23 @@ function saveBBBOutputs() {
 }
 
 
+function populateCapeList() {
+    var select = document.getElementById("BBB48StringSubType");
+    var option;
+    <?
+    foreach ($capes as $x => $x_value) {
+    ?>        
+        option = document.createElement("option");
+        option.text = '<? print_r($x_value["longName"]) ?>';
+        option.value = '<? print_r($x_value["name"]) ?>';
+        select.appendChild(option);
+    <?
+    }
+    ?>
+}
+
 $(document).ready(function(){
+    populateCapeList();
     loadBBBOutputs();
 });
 </script>
@@ -420,28 +425,7 @@ $(document).ready(function(){
 						<tr>
 							<td><b>Cape Type:</b></td>
 							<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
-								<option value='F8-B'>F8-B (8 serial)</option>
-								<option value='F8-B-16'>F8-B (4 serial)</option>
-								<option value='F8-B-20'>F8-B (No serial)</option>
-								<option value='F8-B-EXP'>F8-B w/ Expansion (8 serial)</option>
-								<option value='F8-B-EXP-32'>F8-B w/ Expansion (4 serial)</option>
-								<option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
-<?
-    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
-    {
-?>
-                                <option value='F16-B'>F16-B</option>
-                                <option value='F16-B-32'>F16-B w/ 32 outputs</option>
-                                <option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
-                                <option value='F4-B'>F4-B</option>
-								<option value='F32-B'>F32-B</option>
-								<option value='F32-B-48'>F32-B (No Serial)</option>
-								<option value='RGBCape24'>RGBCape24</option>
-								<option value='RGBCape48C'>RGBCape48C</option>
-								<option value='RGBCape48F'>RGBCape48F</option>
-<?
-    }
-?>
+
 								</select>
 
 							</td>

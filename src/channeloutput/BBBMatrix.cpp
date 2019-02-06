@@ -68,8 +68,8 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
     pid_t compilePid = fork();
     if (compilePid == 0) {
         char * args[sargs.size() + 3];
-        args[0] = "/bin/bash";
-        args[1] = "/opt/fpp/src/pru/compileMatrix.sh";
+        args[0] = (char *)"/bin/bash";
+        args[1] = (char *)"/opt/fpp/src/pru/compileMatrix.sh";
         
         for (int x = 0; x < sargs.size(); x++) {
             args[x + 2] = (char*)sargs[x].c_str();
@@ -82,7 +82,11 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
     }
 }
 
+static void configureV1Pins() {
+    configBBBAllGPIOPins();
+}
 static void configurePSPins() {
+    configBBBAllGPIOPins();
     configBBBPin("P1_29", 3, 21, "pruout");  //OE
     configBBBPin("P1_36", 3, 14, "pruout");  //LATCH
     configBBBPin("P1_33", 3, 15, "gpio");    //CLOCK
@@ -93,6 +97,7 @@ static void configurePSPins() {
     configBBBPin("P2_28", 3, 20, "pruout");  //SEL4
 }
 static void configureV2Pins() {
+    configBBBAllGPIOPins();
     configBBBPin("P8_45", 2, 6, "pruout");  //OE
     configBBBPin("P8_46", 2, 7, "pruout");  //LATCH
     configBBBPin("P8_43", 2, 8, "gpio");    //CLOCK
@@ -450,6 +455,7 @@ int BBBMatrix::Init(Json::Value config)
         compileArgs.push_back("-DPOCKETSCROLLER_V1");
         configurePSPins();
     } else {
+        configureV1Pins();
         compileArgs.push_back("-DOCTO_V1");
     }
     
@@ -702,6 +708,10 @@ int BBBMatrix::SendData(unsigned char *channelData)
         memcpy(m_pru->ddr, m_outputFrame, len);
         m_pruData->address_dma = m_pru->ddr_addr;
     }
+    
+    //make sure memory is flushed before command is set to 1
+    __asm__ __volatile__("":::"memory");
+
     m_pruData->command = 1;
     
     /*

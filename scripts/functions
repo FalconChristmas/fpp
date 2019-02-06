@@ -1053,10 +1053,10 @@ configureBBBGPIOPins() {
 
 
 configureGPIOPins() {
-    if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-    then
-        configureBBBGPIOPins
-    fi
+   # if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+   # then
+   #     configureBBBGPIOPins
+   # fi
 }
 
 #############################################################################

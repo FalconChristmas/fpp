@@ -25,6 +25,8 @@ inline int configBBBPin(int kgpio, const std::string& mode) {
     return configBBBPin(kgpio, mode, "out");
 }
 
+void configBBBAllGPIOPins();
+
 
 enum BeagleBoneType {
     Black,
@@ -42,17 +44,21 @@ BeagleBoneType getBeagleBoneType();
 class PinCapabilities {
 public:
     PinCapabilities(const std::string &n, uint8_t k);
-    PinCapabilities(const std::string &n, uint8_t k, uint8_t pru);
+    PinCapabilities(const std::string &n, uint8_t k, uint8_t pru, uint8_t prupin);
     std::string name;
     uint8_t kernelGpio;
     uint8_t gpio;
     uint8_t pin;
-    int8_t pruout;
-    
+    uint8_t pruout;
+    uint8_t prupin;
+
     int8_t pwm;
     int8_t subPwm;
     
     PinCapabilities& setPwm(int pwm, int sub);
+    
+    void configPin(const std::string& mode = "gpio",
+                   const std::string &direction = "out") const;
 };
 
 const PinCapabilities &getBBBPinByName(const std::string &name);

@@ -12,7 +12,7 @@
 .entrypoint START
 
 #include "FalconUtils.hp"
-#include "FalconWS281x.hp"
+#include "FalconPRUDefs.hp"
 
 #define data_addr       r1
 #define endVal          r2

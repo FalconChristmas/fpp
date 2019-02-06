@@ -10,8 +10,8 @@
 #include <vector>
 
 static const std::vector<PinCapabilities> PB_PINS = {
-    PinCapabilities("P1-02", 87, 1),
-    PinCapabilities("P1-04", 89, 1),
+    PinCapabilities("P1-02", 87, 1, 9),
+    PinCapabilities("P1-04", 89, 1, 11),
     PinCapabilities("P1-06", 5),
     PinCapabilities("P1-08", 2).setPwm(0, 0),
     PinCapabilities("P1-10", 3).setPwm(0, 1),
@@ -19,14 +19,14 @@ static const std::vector<PinCapabilities> PB_PINS = {
     PinCapabilities("P1-20", 20),
     PinCapabilities("P1-26", 12),
     PinCapabilities("P1-28", 13),
-    PinCapabilities("P1-29", 117, 0),
-    PinCapabilities("P1-30", 43, 1),
-    PinCapabilities("P1-31", 114, 0),
-    PinCapabilities("P1-32", 42, 1),
-    PinCapabilities("P1-33", 111, 0).setPwm(0, 1),
+    PinCapabilities("P1-29", 117, 0, 7),
+    PinCapabilities("P1-30", 43, 1, 15),
+    PinCapabilities("P1-31", 114, 0, 4),
+    PinCapabilities("P1-32", 42, 1, 14),
+    PinCapabilities("P1-33", 111, 0, 1).setPwm(0, 1),
     PinCapabilities("P1-34", 26),
-    PinCapabilities("P1-35", 88, 1),
-    PinCapabilities("P1-36", 110, 0).setPwm(0, 0),
+    PinCapabilities("P1-35", 88, 1, 10),
+    PinCapabilities("P1-36", 110, 0, 0).setPwm(0, 0),
     PinCapabilities("P2-01", 50).setPwm(1, 0),
     PinCapabilities("P2-02", 59),
     PinCapabilities("P2-03", 23).setPwm(2, 1),
@@ -43,17 +43,17 @@ static const std::vector<PinCapabilities> PB_PINS = {
     PinCapabilities("P2-19", 27),
     PinCapabilities("P2-20", 64),
     PinCapabilities("P2-22", 46),
-    PinCapabilities("P2-24", 44, 0),
+    PinCapabilities("P2-24", 44, 0, 14),
     PinCapabilities("P2-25", 41),
     PinCapabilities("P2-27", 40),
-    PinCapabilities("P2-28", 116, 0),
+    PinCapabilities("P2-28", 116, 0, 6),
     PinCapabilities("P2-29", 7),
-    PinCapabilities("P2-30", 113, 0),
+    PinCapabilities("P2-30", 113, 0, 3),
     PinCapabilities("P2-31", 19),
-    PinCapabilities("P2-32", 112, 0),
-    PinCapabilities("P2-33", 45, 0),
-    PinCapabilities("P2-34", 115, 0),
-    PinCapabilities("P2-35", 86, 1)
+    PinCapabilities("P2-32", 112, 0, 2),
+    PinCapabilities("P2-33", 45, 0, 15),
+    PinCapabilities("P2-34", 115, 0, 5),
+    PinCapabilities("P2-35", 86, 1, 8)
 };
 static const std::vector<PinCapabilities> BBB_PINS = {
     PinCapabilities("P8-03", 38),
@@ -64,8 +64,8 @@ static const std::vector<PinCapabilities> BBB_PINS = {
     PinCapabilities("P8-08", 67),
     PinCapabilities("P8-09", 69),
     PinCapabilities("P8-10", 68),
-    PinCapabilities("P8-11", 45, 0),
-    PinCapabilities("P8-12", 44, 0),
+    PinCapabilities("P8-11", 45, 0, 15),
+    PinCapabilities("P8-12", 44, 0, 14),
     PinCapabilities("P8-13", 23).setPwm(2, 1),
     PinCapabilities("P8-14", 26),
     PinCapabilities("P8-15", 47),
@@ -73,17 +73,17 @@ static const std::vector<PinCapabilities> BBB_PINS = {
     PinCapabilities("P8-17", 27),
     PinCapabilities("P8-18", 65),
     PinCapabilities("P8-19", 22).setPwm(2, 0),
-    PinCapabilities("P8-20", 63, 1),
-    PinCapabilities("P8-21", 62, 1),
+    PinCapabilities("P8-20", 63, 1, 13),
+    PinCapabilities("P8-21", 62, 1, 12),
     PinCapabilities("P8-22", 37),
     PinCapabilities("P8-23", 36),
     PinCapabilities("P8-24", 33),
     PinCapabilities("P8-25", 32),
     PinCapabilities("P8-26", 61),
-    PinCapabilities("P8-27", 86, 1),
-    PinCapabilities("P8-28", 88, 1),
-    PinCapabilities("P8-29", 87, 1),
-    PinCapabilities("P8-30", 89, 1),
+    PinCapabilities("P8-27", 86, 1, 8),
+    PinCapabilities("P8-28", 88, 1, 10),
+    PinCapabilities("P8-29", 87, 1, 9),
+    PinCapabilities("P8-30", 89, 1, 11),
     PinCapabilities("P8-31", 10),
     PinCapabilities("P8-32", 11),
     PinCapabilities("P8-33", 9),
@@ -92,14 +92,14 @@ static const std::vector<PinCapabilities> BBB_PINS = {
     PinCapabilities("P8-36", 80).setPwm(1, 0),
     PinCapabilities("P8-37", 78),
     PinCapabilities("P8-38", 79),
-    PinCapabilities("P8-39", 76, 1),
-    PinCapabilities("P8-40", 77, 1),
-    PinCapabilities("P8-41", 74, 1),
-    PinCapabilities("P8-42", 75, 1),
-    PinCapabilities("P8-43", 72, 1),
-    PinCapabilities("P8-44", 73, 1),
-    PinCapabilities("P8-45", 70, 1).setPwm(2, 0),
-    PinCapabilities("P8-46", 71, 1).setPwm(2, 1),
+    PinCapabilities("P8-39", 76, 1, 6),
+    PinCapabilities("P8-40", 77, 1, 7),
+    PinCapabilities("P8-41", 74, 1, 4),
+    PinCapabilities("P8-42", 75, 1, 5),
+    PinCapabilities("P8-43", 72, 1, 2),
+    PinCapabilities("P8-44", 73, 1, 3),
+    PinCapabilities("P8-45", 70, 1, 0).setPwm(2, 0),
+    PinCapabilities("P8-46", 71, 1, 1).setPwm(2, 1),
     PinCapabilities("P9-11", 30),
     PinCapabilities("P9-12", 60),
     PinCapabilities("P9-13", 31),
@@ -114,23 +114,23 @@ static const std::vector<PinCapabilities> BBB_PINS = {
     PinCapabilities("P9-22", 2).setPwm(0, 0),
     PinCapabilities("P9-23", 49),
     PinCapabilities("P9-24", 15),
-    PinCapabilities("P9-25", 117, 0),
+    PinCapabilities("P9-25", 117, 0, 7),
     PinCapabilities("P9-26", 14),
-    PinCapabilities("P9-27", 115, 0),
-    PinCapabilities("P9-28", 113, 0),
-    PinCapabilities("P9-29", 111, 0).setPwm(0, 1),
-    PinCapabilities("P9-30", 112, 0),
-    PinCapabilities("P9-31", 110, 0).setPwm(0, 0),
+    PinCapabilities("P9-27", 115, 0, 5),
+    PinCapabilities("P9-28", 113, 0, 3),
+    PinCapabilities("P9-29", 111, 0, 1).setPwm(0, 1),
+    PinCapabilities("P9-30", 112, 0, 2),
+    PinCapabilities("P9-31", 110, 0, 0).setPwm(0, 0),
     PinCapabilities("P9-41", 20),
-    PinCapabilities("P9-91", 116, 0),
+    PinCapabilities("P9-91", 116, 0, 6),
     PinCapabilities("P9-42", 7),
-    PinCapabilities("P9-92", 114, 0),
+    PinCapabilities("P9-92", 114, 0, 4),
 };
 
 static BeagleBoneType BBB_TYPE = Unknown;
 
-PinCapabilities::PinCapabilities(const std::string &n, uint8_t k, uint8_t pru)
-: name(n), kernelGpio(k), pruout(pru), pwm(-1), subPwm(-1)
+PinCapabilities::PinCapabilities(const std::string &n, uint8_t k, uint8_t pru, uint8_t ppin)
+: name(n), kernelGpio(k), pruout(pru), prupin(ppin), pwm(-1), subPwm(-1)
 {
     gpio = k / 32;
     pin = k % 32;
@@ -145,6 +145,11 @@ PinCapabilities& PinCapabilities::setPwm(int p, int s) {
     pwm = p;
     subPwm = s;
     return *this;
+}
+
+void PinCapabilities::configPin(const std::string& mode,
+                                const std::string &direction) const {
+    configBBBPin(name, gpio, pin, mode, direction);
 }
 
 
@@ -306,6 +311,17 @@ const PinCapabilities &getBBBPinKgpio(int i) {
     }
 }
 
+void configBBBAllGPIOPins() {
+    if (getBeagleBoneType() == PocketBeagle) {
+        for (auto &a : PB_PINS) {
+            a.configPin();
+        }
+    } else {
+        for (auto &a : BBB_PINS) {
+            a.configPin();
+        }
+    }
+}
 
 
 int configBBBPin(const std::string &name,

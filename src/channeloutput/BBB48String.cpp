@@ -51,29 +51,6 @@
 #include "BBB48String.h"
 #include "settings.h"
 
-/////////////////////////////////////////////////////////////////////////////
-// Map the 48 ports to positions in LEDscape code
-// - Array index is output port number configured in UI
-// - Value is position to use in LEDscape code
-
-static const int PinMapLEDscape[] = {
-	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
-	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-	20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-	30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-	40, 41, 42, 43, 44, 45, 46, 47
-};
-
-static const int PinMapRGBCape48C[] = {
-	14, 15,  1,  2,  5,  6,  9, 10, 32, 33,
-	34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-	44, 45, 46, 47, 11,  8,  7,  4,  3,  0,
-	16, 20, 19, 17, 22, 23, 12, 25, 13, 30,
-	31, 28, 29, 26, 27, 24, 21, 18
-};
-
-/////////////////////////////////////////////////////////////////////////////
-
 /*
  *
  */
@@ -86,6 +63,8 @@ BBB48StringOutput::BBB48StringOutput(unsigned int startChannel,
     m_curFrame(0),
     m_pru(NULL),
     m_pruData(NULL),
+    m_pru0(NULL),
+    m_pru0Data(NULL),
     m_stallCount(0)
 {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::BBB48StringOutput(%u, %u)\n",
@@ -102,29 +81,47 @@ BBB48StringOutput::~BBB48StringOutput()
     if (m_lastData) free(m_lastData);
     if (m_curData) free(m_curData);
     if (m_pru) delete m_pru;
+    if (m_pru0) delete m_pru0;
 }
 
 
-static void compilePRUCode(std::vector<std::string> &sargs) {
+static void compilePRUCode(const char * program, const std::vector<std::string> &sargs, const std::vector<std::string> &args1) {
     std::string log;
+    
+    char * args[sargs.size() + 3 + args1.size()];
+    int idx = 0;
+    args[idx++] = (char *)"/bin/bash";
+    args[idx++] = (char *)program;
+    log = args[1];
+    for (int x = 0; x < sargs.size(); x++) {
+        args[idx++] = (char*)sargs[x].c_str();
+        log += " " + sargs[x];
+    }
+    for (int x = 0; x < args1.size(); x++) {
+        args[idx++] = (char*)args1[x].c_str();
+        log += " " + args1[x];
+    }
+    args[idx] = NULL;
+    LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n", log.c_str());
+    
     pid_t compilePid = fork();
     if (compilePid == 0) {
-        char * args[sargs.size() + 3];
-        args[0] = "/bin/bash";
-        args[1] = "/opt/fpp/src/pru/compileWS2811x.sh";
-        log = args[1];
-
-        for (int x = 0; x < sargs.size(); x++) {
-            args[x + 2] = (char*)sargs[x].c_str();
-            log += " " + sargs[x];
-        }
-        args[sargs.size() + 2] = NULL;
-        LogDebug(VB_CHANNELOUT, "BBB48StringOutput::compilePRUCode() args: %s\n", log.c_str());
-
-        
         execvp("/bin/bash", args);
     } else {
         wait(NULL);
+    }
+}
+
+static void compilePRUCode(const std::vector<std::string> &sargs,
+                           const std::vector<std::string> &args0,
+                           const std::vector<std::string> &args1,
+                           bool split) {
+    
+    if (!split) {
+        compilePRUCode("/opt/fpp/src/pru/compileWS2811x.sh", sargs, std::vector<std::string>());
+    } else {
+        compilePRUCode("/opt/fpp/src/pru/compileWS2811x.sh", sargs, args1);
+        compilePRUCode("/opt/fpp/src/pru/compileWS2811x_gpio0.sh", sargs, args0);
     }
 }
 
@@ -251,11 +248,6 @@ int BBB48StringOutput::Init(Json::Value config)
         m_strings.push_back(newString);
     }
     
-    if (!MapPins()) {
-        LogErr(VB_CHANNELOUT, "Unable to map pins\n");
-        return 0;
-    }
-
     if (m_maxStringLen == 0) {
         LogErr(VB_CHANNELOUT, "No pixels configured in any string\n");
         return 0;
@@ -276,79 +268,77 @@ int BBB48StringOutput::Init(Json::Value config)
     maxString++;
     
     std::vector<std::string> args;
-    std::string postf = "B";
+    std::vector<std::string> split0args;
+    split0args.push_back("-DRUNNING_ON_PRU0");
+    std::vector<std::string> split1args;
+    std::string dirname = "bbb";
+    std::string verPostf = "";
     if (getBeagleBoneType() == PocketBeagle) {
-        postf = "PB";
-    } else if (config["pinoutVersion"].asString() == "2.x") {
-        postf = "Bv2";
+        dirname = "pb";
+    }
+    if (config["pinoutVersion"].asString() == "2.x") {
+        verPostf = "-v2";
     }
     
-    if (m_subType == "F4-B") {
-        args.push_back("-DF4B");
-        mapSize(4, maxString, m_numStrings, args);
-    } else if (m_subType == "F16-B") {
-        args.push_back("-DF16B");
-        mapSize(16, maxString, m_numStrings, args);
-    } else if (m_subType == "F16-B-32" || m_subType == "F16-B-40") {
-        args.push_back("-DF16B");
-        mapSize(40, maxString, m_numStrings, args);
-    } else if (m_subType == "F32-B") {
-        args.push_back("-DF32B");
-        mapSize(40, maxString, m_numStrings, args);
-    } else if (m_subType == "F32-B-48") {
-        args.push_back("-DF32B");
-        mapSize(48, maxString, m_numStrings, args);
-    } else if (m_subType == "F16-B-48") {
-        args.push_back("-DF16B");
-        mapSize(48, maxString, m_numStrings, args);
-	} else if (m_subType == "F8-B") {
-        args.push_back("-DF8" + postf);
-        mapSize(12, maxString, m_numStrings, args);
-    } else if (m_subType == "F8-B-16") {
-        args.push_back("-DF8" + postf);
-        args.push_back("-DPORTA");
-        mapSize(16, maxString, m_numStrings, args);
-    } else if (m_subType == "F8-B-20") {
-        args.push_back("-DF8" + postf);
-        args.push_back("-DPORTA");
-        args.push_back("-DPORTB");
-        mapSize(20, maxString, m_numStrings, args);
-    } else if (m_subType == "F8-B-EXP") {
-        args.push_back("-DF8" + postf);
-        args.push_back("-DF8B_EXP=1");
-        mapSize(28, maxString, m_numStrings, args);
-    } else if (m_subType == "F8-B-EXP-32") {
-        args.push_back("-DF8" + postf);
-        args.push_back("-DF8B_EXP=1");
-        args.push_back("-DPORTA");
-        mapSize(32, maxString, m_numStrings, args);
-    } else if (m_subType == "F8-B-EXP-36") {
-        args.push_back("-DF8" + postf);
-        args.push_back("-DF8B_EXP=1");
-        args.push_back("-DPORTA");
-        args.push_back("-DPORTB");
-        mapSize(36, maxString, m_numStrings, args);
-    } else if (m_subType == "RGBCape24") {
-        args.push_back("-DRGBCape24=1");
-        mapSize(24, maxString, m_numStrings, args);
-    } else if (m_subType == "RGBCape48C") {
-        args.push_back("-DRGBCape48C=1");
-        mapSize(48, maxString, m_numStrings, args);
-    } else if (m_subType == "RGBCape48F") {
-        args.push_back("-DRGBCape48F=1");
-        mapSize(48, maxString, m_numStrings, args);
+    bool hasSerial = true;
+    if (config.isMember("serialInUse")) {
+        hasSerial = config["serialInUse"].asBool();
     }
+    Json::Reader reader;
+    Json::Value root;
+    char filename[256];
+    sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), m_subType.c_str(), verPostf.c_str());
+    int maxGPIO0 = 0;
+    int maxGPIO13 = 0;
     
-    for (int x = 0; x < m_numStrings; x++) {
-        if (x >= m_strings.size() || m_strings[x]->m_outputChannels == 0) {
-            std::string v = "-DNOOUT";
-            v += std::to_string(x+1);
-            args.push_back(v);
+    if (FileExists(filename)) {
+        std::ifstream t(filename);
+        if (!reader.parse(t, root)) {
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
+            return 0;
         }
+        
+        mapSize(root["outputs"].size(), maxString, m_numStrings, args);
+        std::ofstream outputFile;
+        outputFile.open("/tmp/PinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
+        for (int x = 0; x < m_numStrings; x++) {
+            if (x >= m_strings.size() || m_strings[x]->m_outputChannels == 0) {
+                std::string v = "-DNOOUT";
+                v += std::to_string(x+1);
+                args.push_back(v);
+            } else {
+                //need to output this pin, configure it
+                const PinCapabilities &pin = getBBBPinByName(root["outputs"][x]["pin"].asString());
+                pin.configPin();
+                if (pin.gpio == 0) {
+                    maxGPIO0 = std::max(maxGPIO0, m_strings[x]->m_outputChannels);
+                    std::string v = "-DNOOUT";
+                    v += std::to_string(x+1);
+                    split1args.push_back(v);
+                } else {
+                    maxGPIO13 = std::max(maxGPIO13, m_strings[x]->m_outputChannels);
+                    std::string v = "-DNOOUT";
+                    v += std::to_string(x+1);
+                    split0args.push_back(v);
+                }
+                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpio) << "\n";
+                outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.pin) << "\n\n";
+            }
+        }
+        outputFile.close();
+    } else {
+        LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
+        return 0;
     }
+    
     createOutputLengths(m_strings, m_maxStringLen);
     
-    if (m_maxStringLen < 1000) {
+    if (!maxGPIO0) {
+        //no GPIO0 output so no need for the second PRU to be used
+        hasSerial = true;
+    }
+    
+    if (hasSerial && ((maxGPIO0 + maxGPIO13) < 2000)) {
         //if there is plenty of time to output the GPIO0 stuff
         //after the other GPIO's, let's do that
         args.push_back("-DSPLIT_GPIO0");
@@ -358,9 +348,8 @@ int BBB48StringOutput::Init(Json::Value config)
     v += std::to_string(m_maxStringLen);
     args.push_back(v);
     
-    compilePRUCode(args);
-    m_pruProgram = "/tmp/FalconWS281x.bin";
-    if (!StartPRU()) {
+    compilePRUCode(args, split0args, split1args, !hasSerial);
+    if (!StartPRU(!hasSerial)) {
         return 0;
     }
     m_frameSize = m_maxStringLen * m_numStrings;
@@ -369,11 +358,12 @@ int BBB48StringOutput::Init(Json::Value config)
 
     for (int x = 0; x < MAX_WS2811_TIMINGS; x++) {
         m_pruData->timings[x] = 0;
+        if (m_pru0Data) m_pru0Data->timings[x] = 0;
     }
     return retVal;
 }
 
-int BBB48StringOutput::StartPRU()
+int BBB48StringOutput::StartPRU(bool both)
 {
     m_curFrame = 0;
     int pruNumber = BBB_PRU;
@@ -382,20 +372,50 @@ int BBB48StringOutput::StartPRU()
     m_pruData = (BBB48StringData*)m_pru->data_ram;
     m_pruData->command = 0;
     m_pruData->address_dma = m_pru->ddr_addr;
-    m_pru->run(m_pruProgram);
+    m_pru->run("/tmp/FalconWS281x.bin");
+    
+    if (both) {
+        m_pru0 = new BBBPru(!pruNumber, true, true);
+        m_pru0Data = (BBB48StringData*)m_pru0->data_ram;
+        m_pru0Data->command = 0;
+        m_pru0Data->address_dma = m_pru0->ddr_addr;
+        m_pru0->run("/tmp/FalconWS281x_gpio0.bin");
+    }
+    
     return 1;
 }
 void BBB48StringOutput::StopPRU(bool wait)
 {
     // Send the stop command
+    m_pruData->response = 0;
     m_pruData->command = 0xFF;
-    
-    if (wait) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    if (m_pru0Data) {
+        m_pru0Data->response = 0;
+        m_pru0Data->command = 0xFF;
     }
-    m_pru->stop(!wait);
+    __asm__ __volatile__("":::"memory");
+    
+    int cnt = 0;
+    while (wait && cnt < 25 && m_pruData->response != 0xFFFF) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        cnt++;
+    }
+    printf("%X   %d\n", m_pruData->response, cnt);
+    m_pru->stop(m_pruData->response != 0xFFFF ? !wait : 1);
     delete m_pru;
+    
+    if (m_pru0) {
+        cnt = 0;
+        while (wait && cnt < 25 && m_pru0Data->response != 0xFFFF) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            cnt++;
+        }
+        printf("%X   %d\n", m_pru0Data->response, cnt);
+        m_pru0->stop(m_pru0Data->response != 0xFFFF ? !wait : 1);
+        delete m_pru0;
+    }
     m_pru = NULL;
+    m_pru0 = NULL;
 }
 /*
  *
@@ -553,35 +573,16 @@ int BBB48StringOutput::SendData(unsigned char *channelData)
     
     // Map
     m_pruData->address_dma = m_pru->ddr_addr + m_frameSize * frame;
-
+    if (m_pru0Data) m_pru0Data->address_dma = m_pru->ddr_addr + m_frameSize * frame;
+    
+    //make sure memory is flushed before command is set to 1
+    __asm__ __volatile__("":::"memory");
+    
     // Send the start command
     m_pruData->command = 1;
-
+    if (m_pru0Data) m_pru0Data->command = 1;
+    
     return m_channelCount;
-}
-
-/*
- *
- */
-void BBB48StringOutput::ApplyPinMap(const int *map)
-{
-    int origPortNumber = 0;
-
-    for (int i = 0; i < m_strings.size(); i++) {
-        origPortNumber = m_strings[i]->m_portNumber;
-        m_strings[i]->m_portNumber = map[origPortNumber];
-    }
-}
-
-/*
- *
- */
-int BBB48StringOutput::MapPins(void)
-{
-    if (m_subType == "RGBCape48C") {
-        ApplyPinMap(PinMapRGBCape48C);
-    }
-    return 1;
 }
 
 /*
