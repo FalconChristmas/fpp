@@ -186,7 +186,7 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 		ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
 	}
 
-	m_virtualDisplay = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+	m_virtualDisplay = (unsigned char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
 	if ((char *)m_virtualDisplay == (char *)-1)
 	{

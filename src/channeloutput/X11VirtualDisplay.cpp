@@ -71,7 +71,7 @@ int X11VirtualDisplayOutput::Init(Json::Value config)
 	if (!VirtualDisplayOutput::Init(config))
 		return 0;
 
-	m_virtualDisplay = new char[m_width * m_height * m_bytesPerPixel];
+	m_virtualDisplay = new unsigned char[m_width * m_height * m_bytesPerPixel];
 	if (!m_virtualDisplay)
 	{
 		LogDebug(VB_CHANNELOUT, "Unable to allocate image data\n");
@@ -92,7 +92,7 @@ int X11VirtualDisplayOutput::Init(Json::Value config)
 	m_screen = DefaultScreen(m_display);
 
 	m_image = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-		m_virtualDisplay, m_width, m_height, 32, m_width * m_bytesPerPixel);
+		(char *)m_virtualDisplay, m_width, m_height, 32, m_width * m_bytesPerPixel);
 
 	int win_x = 100;
 	int win_y = 100;

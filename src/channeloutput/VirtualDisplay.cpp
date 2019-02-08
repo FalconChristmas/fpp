@@ -60,6 +60,7 @@ VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 	m_scale(1.0),
 	m_previewWidth(800),
 	m_previewHeight(600),
+	m_colorOrder("RGB"),
 	m_virtualDisplay(NULL),
 	m_pixelSize(2),
 	m_rgb565map(nullptr)
@@ -165,6 +166,8 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 	int rowOffset = 0;
 	int colOffset = 0;
 	int first = 1;
+	int i = 0;
+	int found = 0;
 	VirtualPixelColor vpc = kVPC_RGB;
 
 	while ((read = getline(&line, &len, file)) != -1)
@@ -187,6 +190,19 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			{
 				m_previewWidth  = atoi(parts[0].c_str());
 				m_previewHeight = atoi(parts[1].c_str());
+
+				if ((m_width == -1) || (m_height == -1))
+				{
+					m_width = m_previewWidth;
+					m_height = m_previewHeight;
+
+					m_virtualDisplay = (unsigned char *)malloc(m_width * m_height * m_bytesPerPixel);
+					if (!m_virtualDisplay)
+					{
+						LogErr(VB_CHANNELOUT, "Unable to malloc buffer\n");
+						return 0;
+					}
+				}
 
 				if ((1.0 * m_width / m_previewWidth) > (1.0 * m_height / m_previewHeight))
 				{
@@ -279,7 +295,15 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			else if (parts[4] == "White")
 				vpc = kVPC_White;
 
-			m_pixels.push_back({ x, y, ch, r, g, b, atoi(parts[3].c_str()), vpc });
+			found = 0;
+			for (i = 0; i < m_pixels.size() && !found; i++)
+			{
+				if ((m_pixels[i].x == x) && (m_pixels[i].y == y))
+					found = 1;
+			}
+
+			if (!found)
+				m_pixels.push_back({ x, y, ch, r, g, b, atoi(parts[3].c_str()), vpc });
 		}
 	}
 
@@ -506,79 +530,7 @@ void VirtualDisplayOutput::DrawPixels(unsigned char *channelData)
 	{
 		pixel = m_pixels[i];
 
-		if ((pixel.cpp == 3) ||
-			((pixel.cpp == 4) && (channelData[pixel.ch + 3] == 0)))
-		{
-			if (pixel.vpc == kVPC_RGB)
-			{
-				r = channelData[pixel.ch    ];
-				g = channelData[pixel.ch + 1];
-				b = channelData[pixel.ch + 2];
-			}
-			else if (pixel.vpc == kVPC_RBG)
-			{
-				r = channelData[pixel.ch    ];
-				g = channelData[pixel.ch + 2];
-				b = channelData[pixel.ch + 1];
-			}
-			else if (pixel.vpc == kVPC_GRB)
-			{
-				r = channelData[pixel.ch + 1];
-				g = channelData[pixel.ch    ];
-				b = channelData[pixel.ch + 2];
-			}
-			else if (pixel.vpc == kVPC_GBR)
-			{
-				r = channelData[pixel.ch + 2];
-				g = channelData[pixel.ch    ];
-				b = channelData[pixel.ch + 1];
-			}
-			else if (pixel.vpc == kVPC_BRG)
-			{
-				r = channelData[pixel.ch + 1];
-				g = channelData[pixel.ch + 2];
-				b = channelData[pixel.ch    ];
-			}
-			else if (pixel.vpc == kVPC_BGR)
-			{
-				r = channelData[pixel.ch + 2];
-				g = channelData[pixel.ch + 1];
-				b = channelData[pixel.ch    ];
-			}
-		}
-		else if (pixel.cpp == 4)
-		{
-			r = channelData[pixel.ch + 3];
-			g = channelData[pixel.ch + 3];
-			b = channelData[pixel.ch + 3];
-		}
-		else if (pixel.cpp == 1)
-		{
-			if (pixel.vpc == kVPC_Red)
-			{
-				r = channelData[pixel.ch];
-				g = 0;
-				b = 0;
-			}
-			else if (pixel.vpc == kVPC_Green)
-			{
-				r = 0;
-				g = channelData[pixel.ch];
-				b = 0;
-			}
-			else if (pixel.vpc == kVPC_Blue)
-			{
-				r = 0;
-				g = 0;
-				b = channelData[pixel.ch];
-			}
-			else if (pixel.vpc == kVPC_White)
-			{
-				r = channelData[pixel.ch];
-				g = channelData[pixel.ch];
-				b = channelData[pixel.ch];
-			}
-		}
+		GetPixelRGB(pixel, channelData, r, g, b);
 
 		if (m_pixelSize == 2)
 		{

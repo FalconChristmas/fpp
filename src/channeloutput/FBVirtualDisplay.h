@@ -53,4 +53,4 @@ class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
 	struct fb_fix_screeninfo m_fInfo;
 };
 
-#endif /* _VIRTUALDISPLAY_H */
+#endif /* _FBVIRTUALDISPLAY_H */
