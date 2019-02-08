@@ -1053,6 +1053,7 @@ configureBBBGPIOPins() {
 
 
 configureGPIOPins() {
+   echo > /dev/null
    # if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
    # then
    #     configureBBBGPIOPins
