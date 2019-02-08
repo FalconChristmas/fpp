@@ -102,30 +102,28 @@
     OUTPUT_GPIO_WITH_BASE_REG data, mask, gpio_base
 .endm
 
-#if defined OCTO_V1
-#include "OctoscrollerV1.hp"
-#include "OctoscrollerCommon.hp"
-#elif defined OCTO_V2
-#include "OctoscrollerV2.hp"
-#include "OctoscrollerCommon.hp"
-#elif defined POCKETSCROLLER_V1
-#include "PocketScrollerV1.hp"
-#else
-#include "OctoscrollerV1.hp"
-#include "OctoscrollerCommon.hp"
-#endif
+#include "/tmp/PanelPinConfiguration.hp"
+#include "FalconMatrixCommon.p"
 
 
+.macro OUTPUT_GPIOS
+.mparam d0, d1, d2, d3
+    #ifdef PANEL_USE_GPIO0
+        OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
+    #endif
+    #ifdef PANEL_USE_GPIO1
+        OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
+    #endif
+    #ifdef PANEL_USE_GPIO2
+        OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
+    #endif
+    #ifdef PANEL_USE_GPIO3
+        OUTPUT_GPIO d3, gpio3_led_mask, GPIO3
+    #endif
+.endm
 
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
 #define CONFIGURE_PIN(a) SET GPIO_MASK(a##_gpio), a##_pin
-#define CONFIGURE_OUTPUT(a) CONFIGURE_PIN( r##a##1 ) ; \
-    CONFIGURE_PIN( g##a##1 ) ; \
-    CONFIGURE_PIN( b##a##1 ) ; \
-    CONFIGURE_PIN( r##a##2 ) ; \
-    CONFIGURE_PIN( g##a##2 ) ; \
-    CONFIGURE_PIN( b##a##2 ) ;
-
 
 .macro DISABLE_GPIO_PIN_INTERRUPTS
 .mparam ledMask, gpio
@@ -145,10 +143,12 @@
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
 
     ZERO &gpio3_set, 4
-    SET gpio3_set, gpio_sel0
-    SET gpio3_set, gpio_sel1
-    SET gpio3_set, gpio_sel2
-    SET gpio3_set, gpio_sel3
+    #ifdef gpio_sel0
+        SET gpio3_set, gpio_sel0
+        SET gpio3_set, gpio_sel1
+        SET gpio3_set, gpio_sel2
+        SET gpio3_set, gpio_sel3
+    #endif
     #ifdef gpio_clock
         SET gpio3_set, gpio_clock
     #endif
@@ -220,33 +220,35 @@
 .mparam bit
     ZERO &gpio0_set, 16
 
-    OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2, bit)
-    OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1, bit)
-    #if OUTPUTS > 1
+    #ifndef NO_OUTPUT_1
+        OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2, bit)
+        OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1, bit)
+    #endif
+    #ifndef NO_OUTPUT_2
         OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0, bit)
         OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3, bit)
     #endif
-    #if OUTPUTS > 2
+    #ifndef NO_OUTPUT_3
         OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2, bit)
         OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1, bit)
     #endif
-    #if OUTPUTS > 3
+    #ifndef NO_OUTPUT_4
         OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0, bit)
         OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3, bit)
     #endif
-    #if OUTPUTS > 4
+    #ifndef NO_OUTPUT_5
         OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2, bit)
         OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1, bit)
     #endif
-    #if OUTPUTS > 5
+    #ifndef NO_OUTPUT_6
         OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0, bit)
         OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3, bit)
     #endif
-    #if OUTPUTS > 6
+    #ifndef NO_OUTPUT_7
         OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2, bit)
         OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1, bit)
     #endif
-    #if OUTPUTS > 7
+    #ifndef NO_OUTPUT_8
         OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0, bit)
         OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3, bit)
     #endif
@@ -301,9 +303,15 @@ START:
     LBCO  data_addr, CONST_PRUDRAM, 0, 4
 
 
-    CONFIGURE_OUTPUT(1)
-
-#if OUTPUTS > 1
+#ifndef NO_OUTPUT_1
+    CONFIGURE_PIN(r11)
+    CONFIGURE_PIN(g11)
+    CONFIGURE_PIN(b11)
+    CONFIGURE_PIN(r12)
+    CONFIGURE_PIN(g12)
+    CONFIGURE_PIN(b12)
+#endif
+#ifndef NO_OUTPUT_2
     CONFIGURE_PIN(r21)
     CONFIGURE_PIN(g21)
     CONFIGURE_PIN(b21)
@@ -311,7 +319,7 @@ START:
     CONFIGURE_PIN(g22)
     CONFIGURE_PIN(b22)
 #endif
-#if OUTPUTS > 2
+#ifndef NO_OUTPUT_3
     CONFIGURE_PIN(r31)
     CONFIGURE_PIN(g31)
     CONFIGURE_PIN(b31)
@@ -319,7 +327,7 @@ START:
     CONFIGURE_PIN(g32)
     CONFIGURE_PIN(b32)
 #endif
-#if OUTPUTS > 3
+#ifndef NO_OUTPUT_4
     CONFIGURE_PIN(r41)
     CONFIGURE_PIN(g41)
     CONFIGURE_PIN(b41)
@@ -327,7 +335,7 @@ START:
     CONFIGURE_PIN(g42)
     CONFIGURE_PIN(b42)
 #endif
-#if OUTPUTS > 4
+#ifndef NO_OUTPUT_5
     CONFIGURE_PIN(r51)
     CONFIGURE_PIN(g51)
     CONFIGURE_PIN(b51)
@@ -335,7 +343,7 @@ START:
     CONFIGURE_PIN(g52)
     CONFIGURE_PIN(b52)
 #endif
-#if OUTPUTS > 5
+#ifndef NO_OUTPUT_6
     CONFIGURE_PIN(r61)
     CONFIGURE_PIN(g61)
     CONFIGURE_PIN(b61)
@@ -343,7 +351,7 @@ START:
     CONFIGURE_PIN(g62)
     CONFIGURE_PIN(b62)
 #endif
-#if OUTPUTS > 6
+#ifndef NO_OUTPUT_7
     CONFIGURE_PIN(r71)
     CONFIGURE_PIN(g71)
     CONFIGURE_PIN(b71)
@@ -351,7 +359,7 @@ START:
     CONFIGURE_PIN(g72)
     CONFIGURE_PIN(b72)
 #endif
-#if OUTPUTS > 7
+#ifndef NO_OUTPUT_8
     CONFIGURE_PIN(r81)
     CONFIGURE_PIN(g81)
     CONFIGURE_PIN(b81)

@@ -24,6 +24,8 @@
 #include <strings.h>
 #include <string>
 #include <cmath>
+#include <iostream>
+#include <fstream>
 
 
 #include "BBBMatrix.h"
@@ -54,13 +56,15 @@ uint32_t v2Timings[8][16] = {
     { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
     { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
 };
-uint32_t psTimings[6][16] = {
+uint32_t psTimings[8][16] = {
     { 0x440,  0x820,  0xC30, 0x1000, 0x1400, 0x17F1, 0x1C00, 0x2000, 0x2400, 0x2800, 0x2C00, 0x3000, 0x3400, 0x3800, 0x3C00, 0x4000},
     { 0x940, 0x12C0, 0x1C80, 0x25C0, 0x2F40, 0x3900, 0x4240, 0x4C00, 0x5540, 0x5EC0, 0x6850, 0x71C0, 0x7B40, 0x84C0, 0x8E80, 0x97CE},
     { 0xB70, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB7F0},
     { 0xB80, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB800},
     { 0xB90, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB800},
     { 0xB90, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB800},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
+    { 0xC88, 0x1906, 0x2588, 0x320D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
 };
 
 
@@ -82,53 +86,22 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
     }
 }
 
-static void configureV1Pins() {
-    configBBBAllGPIOPins();
-}
-static void configurePSPins() {
-    configBBBAllGPIOPins();
-    configBBBPin("P1_29", 3, 21, "pruout");  //OE
-    configBBBPin("P1_36", 3, 14, "pruout");  //LATCH
-    configBBBPin("P1_33", 3, 15, "gpio");    //CLOCK
-    configBBBPin("P2_32", 3, 16, "pruout");  //SEL0
-    configBBBPin("P2_30", 3, 17, "pruout");  //SEL1
-    configBBBPin("P1_31", 3, 18, "pruout");  //SEL2
-    configBBBPin("P2_34", 3, 19, "pruout");  //SEL3
-    configBBBPin("P2_28", 3, 20, "pruout");  //SEL4
-}
-static void configureV2Pins() {
-    configBBBAllGPIOPins();
-    configBBBPin("P8_45", 2, 6, "pruout");  //OE
-    configBBBPin("P8_46", 2, 7, "pruout");  //LATCH
-    configBBBPin("P8_43", 2, 8, "gpio");    //CLOCK
-}
-static void resetPSPins() {
-    configBBBPin("P1_29", 3, 21, "gpio");  //OE
-    configBBBPin("P1_36", 3, 14, "gpio");  //LATCH
-    configBBBPin("P1_33", 3, 15, "gpio");  //CLOCK
-    configBBBPin("P2_32", 3, 16, "gpio");  //SEL0
-    configBBBPin("P2_30", 3, 17, "gpio");  //SEL1
-    configBBBPin("P1_31", 3, 18, "gpio");  //SEL2
-    configBBBPin("P2_34", 3, 19, "gpio");  //SEL3
-    configBBBPin("P2_28", 3, 20, "gpio");  //SEL4
-}
-static void resetV2Pins() {
-    configBBBPin("P8_45", 2, 6, "gpio");  //OE
-    configBBBPin("P8_46", 2, 7, "gpio");  //LATCH
-    configBBBPin("P8_43", 2, 8, "gpio");  //CLOCK
-}
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", m_longestChain, m_outputs, m_brightness, m_panelScan, m_panelHeight, m_panelWidth);
     
     
     uint32_t max = 0xB00;
-    if (m_pinout == BBBMatrix::POCKETSCROLLERv1) {
-        max = psTimings[m_outputs-1][m_longestChain-1];
-    } else if (m_pinout == BBBMatrix::V1) {
-        max = v1Timings[m_outputs-1][m_longestChain-1];
-    } else if (m_pinout == BBBMatrix::V2) {
-        max = v2Timings[m_outputs-1][m_longestChain-1];
+    switch (m_timing) {
+        case 2:
+            max = psTimings[m_outputs-1][m_longestChain-1];
+        break;
+        case 1:
+            max = v2Timings[m_outputs-1][m_longestChain-1];
+        break;
+        default:
+            max = v1Timings[m_outputs-1][m_longestChain-1];
+        break;
     }
     
     //timings are based on 32 pixel wide panels
@@ -308,7 +281,7 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
     m_colorDepth(8),
     m_interleave(0),
     m_panelScan(8),
-    m_pinout(V1),
+    m_timing(0),
     m_printStats(false),
     m_handler(nullptr)
 {
@@ -324,6 +297,40 @@ BBBMatrix::~BBBMatrix()
     if (m_pruCopy) delete m_pruCopy;
     if (m_handler) delete m_handler;
 }
+
+static void configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {
+    std::string type = root["controls"][ctype]["type"].asString();
+    if (type != "none") {
+        const PinCapabilities &pin = getBBBPinByName(root["controls"][ctype]["pin"].asString());
+        pin.configPin(type);
+        if (type == "pruout") {
+            outputFile << "#define pru_" << ctype << " " << std::to_string(pin.prupin) << "\n";
+        } else {
+            outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.pin) << "\n";
+        }
+    }
+}
+
+static void configurePanelPin(int x, const std::string &color, const std::string& row, Json::Value &root, std::ofstream &outputFile, int *minPort) {
+    const PinCapabilities &pin = getBBBPinByName(root["outputs"][x]["pins"][color + row].asString());
+    pin.configPin();
+    int gpio = pin.gpio;
+    minPort[gpio] = std::min(minPort[gpio], (int)pin.pin);
+    outputFile << "#define " << color << std::to_string(x+1) << row << "_gpio " << std::to_string(pin.gpio) << "\n";
+    outputFile << "#define " << color << std::to_string(x+1) << row << "_pin  " << std::to_string(pin.pin) << "\n";
+}
+
+static void configurePanelPins(int x, Json::Value &root, std::ofstream &outputFile, int *minPort) {
+    configurePanelPin(x, "r", "1", root, outputFile, minPort);
+    configurePanelPin(x, "g", "1", root, outputFile, minPort);
+    configurePanelPin(x, "b", "1", root, outputFile, minPort);
+    outputFile << "\n";
+    configurePanelPin(x, "r", "2", root, outputFile, minPort);
+    configurePanelPin(x, "g", "2", root, outputFile, minPort);
+    configurePanelPin(x, "b", "2", root, outputFile, minPort);
+    outputFile << "\n";
+}
+
 
 int BBBMatrix::Init(Json::Value config)
 {
@@ -347,6 +354,12 @@ int BBBMatrix::Init(Json::Value config)
         LogErr(VB_CHANNELOUT, "BBBMatrix: Unable to create PanelMatrix\n");
         return 0;
     }
+    bool usesOutput[16] = {
+        false, false, false, false,
+        false, false, false, false,
+        false, false, false, false,
+        false, false, false, false
+    };
     for (int i = 0; i < config["panels"].size(); i++) {
         Json::Value p = config["panels"][i];
         char orientation = 'N';
@@ -365,6 +378,7 @@ int BBBMatrix::Init(Json::Value config)
         
         if (p["outputNumber"].asInt() > m_outputs)
             m_outputs = p["outputNumber"].asInt();
+        usesOutput[p["outputNumber"].asInt()] = true;
         
         if (p["panelNumber"].asInt() > m_longestChain)
             m_longestChain = p["panelNumber"].asInt();
@@ -443,20 +457,85 @@ int BBBMatrix::Init(Json::Value config)
 
     std::vector<std::string> compileArgs;
     
-    int pru = 0;
-    m_pinout = V1;
+    
+    std::string dirname = "bbb";
+    std::string name = "Octoscroller-v1";
+    if (getBeagleBoneType() == PocketBeagle) {
+        dirname = "pb";
+        name = "PocketScroller";
+    }
     if (config["wiringPinout"] == "v2") {
-        m_pinout = V2;
-        compileArgs.push_back("-DOCTO_V2");
-        pru = 1;
-        configureV2Pins();
-    } else if (config["wiringPinout"] == "PocketScroller1x") {
-        m_pinout = POCKETSCROLLERv1;
-        compileArgs.push_back("-DPOCKETSCROLLER_V1");
-        configurePSPins();
+        name = "Octoscroller-v2";
+    }
+    Json::Reader reader;
+    Json::Value root;
+    char filename[256];
+    sprintf(filename, "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
+    int minPort[4] = {99, 99, 99, 99};
+    int pru = 0;
+    
+    if (!FileExists(filename)) {
+        LogErr(VB_CHANNELOUT, "No output pin configuration for %s\n", name.c_str());
+        return 0;
     } else {
-        configureV1Pins();
-        compileArgs.push_back("-DOCTO_V1");
+        std::ifstream t(filename);
+        if (!reader.parse(t, root)) {
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", name.c_str());
+            return 0;
+        }
+        std::ofstream outputFile;
+        outputFile.open("/tmp/PanelPinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
+        
+        //kind of a hack, ideally the timing info would go into the json as well
+        m_timing = root["timing"].asInt();
+        
+        pru = root["pru"].asInt();
+        configureControlPin("latch", root, outputFile);
+        outputFile << "\n";
+        configureControlPin("oe", root, outputFile);
+        outputFile << "\n";
+        configureControlPin("clock", root, outputFile);
+        outputFile << "\n";
+        configureControlPin("sel0", root, outputFile);
+        configureControlPin("sel1", root, outputFile);
+        configureControlPin("sel2", root, outputFile);
+        configureControlPin("sel3", root, outputFile);
+        if (m_panelScan == 32) {
+            //1:32 scan panels need the "E" line
+            configureControlPin("sel4", root, outputFile);
+            compileArgs.push_back("-DE_SCAN_LINE");
+        }
+        outputFile << "\n";
+        int controlGpio = root["controls"]["gpio"].asInt();
+        outputFile << "#define CONTROLS_GPIO_BASE GPIO" << std::to_string(controlGpio) << "\n";
+        outputFile << "#define gpio_controls_led_mask gpio" << std::to_string(controlGpio) << "_led_mask\n";
+        outputFile << "\n";
+        if (m_outputs > root["outputs"].size()) {
+            m_outputs = root["outputs"].size();
+        }
+        for (int x = 0; x < 8; x++) {
+            if (usesOutput[x] && x < m_outputs) {
+                configurePanelPins(x, root, outputFile, minPort);
+            } else {
+                outputFile << "#define NO_OUTPUT_" << std::to_string(x + 1) << "\n";
+                outputFile << "\n";
+            }
+        }
+        outputFile << "\n";
+        for (int x = 0; x < 4; x++) {
+            if (minPort[x] != 99) {
+                outputFile << "#define PANEL_USE_GPIO" << std::to_string(x) << "\n";
+            }
+        }
+        outputFile << "\n";
+        if (minPort[controlGpio] == 99) {
+            //not outputting anything on the GPIO the controls are using
+            //we need to make sure the controls are set/cleared indepentent of the panel data
+            outputFile << "#define NO_CONTROLS_WITH_DATA\n";
+        }
+        outputFile << "\n";
+
+        outputFile.close();
     }
     
     char buf[200];
@@ -482,11 +561,6 @@ int BBBMatrix::Init(Json::Value config)
         // Normal addressing would be 1 bit, 0 for row 1, 1 for row 2
         compileArgs.push_back("-DADDRESSING_AB=1");
     }
-    if (m_panelScan == 32) {
-        //1:32 scan panels need the "E" line
-        compileArgs.push_back("-DE_SCAN_LINE");
-    }
-    
     
     calcBrightnessFlags(compileArgs);
     if (m_printStats) {

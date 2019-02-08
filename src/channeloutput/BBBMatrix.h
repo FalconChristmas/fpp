@@ -50,12 +50,6 @@ typedef struct {
 
 class BBBMatrix : public ChannelOutputBase {
   public:
-    enum ScollerPinout {
-        V1 = 1,
-        V2,
-        POCKETSCROLLERv1
-    };
-    
     BBBMatrix(unsigned int startChannel, unsigned int channelCount);
     virtual ~BBBMatrix();
     
@@ -101,7 +95,7 @@ class BBBMatrix : public ChannelOutputBase {
     
     bool         m_evenFrame;
     
-    ScollerPinout m_pinout;
+    int          m_timing;
     InterleaveHandler *m_handler;
     
     uint32_t     brightnessValues[8];
