@@ -326,10 +326,10 @@ int parseArguments(int argc, char **argv)
 				}
 				break;
 			case 'f': //foreground
-				settings.daemonize = false;
+				settings.daemonize = 0;
 				break;
 			case 'd': //daemonize
-				settings.daemonize = true;
+				settings.daemonize = 1;
 				break;
 			case 'v': //volume
 				setVolume (atoi(optarg));
@@ -431,15 +431,7 @@ int parseSetting(char *key, char *value)
 
 	if ( strcmp(key, "daemonize") == 0 )
 	{
-		if ( strcmp(value, "false") == 0 )
-			settings.daemonize = false;
-		else if ( strcmp(value, "true") == 0 )
-			settings.daemonize = true;
-		else
-		{
-			fprintf(stderr, "Failed to apply daemonize setting\n");
-			exit(EXIT_FAILURE);
-		}
+		settings.daemonize = atoi(value);
 	}
 	else if ( strcmp(key, "fppMode") == 0 )
 	{
