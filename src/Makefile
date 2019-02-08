@@ -54,6 +54,7 @@ OBJECTS_fppd = \
 	channeloutput/GenericSerial.o \
 	channeloutput/GPIO.o \
 	channeloutput/GPIO595.o \
+	channeloutput/HTTPVirtualDisplay.o \
 	channeloutput/UDPOutput.o \
 	channeloutput/Linsn-RV9.o \
 	channeloutput/LOR.o \

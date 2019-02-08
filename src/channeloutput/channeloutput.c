@@ -44,6 +44,7 @@
 #include "FBVirtualDisplay.h"
 #include "FPD.h"
 #include "GenericSerial.h"
+#include "HTTPVirtualDisplay.h"
 #include "Linsn-RV9.h"
 #include "log.h"
 #include "Sequence.h"
@@ -378,6 +379,8 @@ int InitializeChannelOutputs(void) {
 #endif
 				} else if (type == "FBVirtualDisplay") {
 					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
+				} else if (type == "HTTPVirtualDisplay") {
+					channelOutputs[i].output = (ChannelOutputBase*)new HTTPVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 				} else if (type == "RHLDVIE131") {
 					channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
 				} else if (type == "USBRelay") {
