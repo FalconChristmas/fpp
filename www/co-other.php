@@ -1108,7 +1108,7 @@ function LOROutputConfig(config) {
     if (!val) {
         val = 1;
     }
-    result += "&nbsp;&nbsp;First Controller ID: <input class='firstControllerId' style='opacity: 1' id='firstControllerId' type='number' value='" + val + "' min='1' max='32' />";
+    result += "&nbsp;&nbsp;First Controller ID: <input class='firstControllerId' style='opacity: 1' id='firstControllerId' type='number' value='" + val + "' min='1' max='240' />";
 	return result;
 }
 
