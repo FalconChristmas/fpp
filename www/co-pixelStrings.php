@@ -265,7 +265,10 @@ function setPixelStringsStartChannelOnNextRow()
         var nextStart = startChannel + (chanPerNode * pixelCount)/groupCount;
         
         $('#pixelOutputs table tr').removeClass('selectedEntry');
-        
+
+        if (nextRow.html().indexOf('<hr>') != -1)
+            nextRow = nextRow.next('tr');
+
         nextRow.find('.vsStartChannel').val(nextStart);
         nextRow.addClass('selectedEntry');
         updateRowEndChannel(nextRow);
