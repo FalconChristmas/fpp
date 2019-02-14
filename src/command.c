@@ -209,7 +209,7 @@ char *ProcessCommand(char *command, char *response)
                     getVolume(),
                     pl["name"].asString().c_str(),
                     pl["currentEntry"]["type"].asString().c_str(),
-                    pl["currentEntry"]["sequence"]["sequenceName"].asString().c_str(),
+                    pl["currentEntry"]["sequenceName"].asString().c_str(),
                     "",
 //							pl["currentEntry"]["entryID"].asInt() + 1,
                     playlist->GetPosition(),

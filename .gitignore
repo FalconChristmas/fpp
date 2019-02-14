@@ -7,6 +7,7 @@ lib/librgbmatrix.so
 src/fpp
 src/fppmm
 src/fppd
+src/fppoled
 src/fppversion.c
 src/fsequtils
 src/util/seqdump

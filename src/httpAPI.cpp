@@ -41,12 +41,15 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
+#include <ctime>
 
 #include "stdlib.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <jsoncpp/json/json.h>
 
+#include "mediaoutput/mediaoutput.h"
 /*
  *
  */
@@ -208,7 +211,9 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	http_response resp = http_response_builder(resultStr.c_str(), responseCode).string_response();
+	http_response resp = http_response_builder(resultStr.c_str(), responseCode)
+        .with_header("Content-Type", "application/json")
+        .string_response();
 
 	LogResponse(req, resp);
 
@@ -435,7 +440,9 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
+    http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt())
+        .with_header("Content-Type", "application/json")
+        .string_response();
 
 	LogResponse(req, resp);
 
@@ -595,6 +602,20 @@ void PlayerResource::GetLogSettings(Json::Value &result)
 	result["log"] = log;
 }
 
+inline std::string toStdStringAndFree(char * v) {
+    std::string s = v;
+    free(v);
+    return s;
+}
+inline std::string secondsToTime(int i) {
+    std::stringstream sstr;
+    int min = i / 60;
+    int sec = i % 60;
+    sstr << std::setw(2) << std::setfill('0') << min;
+    sstr << ":";
+    sstr << std::setw(2) << std::setfill('0') << sec;
+    return sstr.str();
+}
 /*
  *
  */
@@ -602,8 +623,132 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 {
 	LogDebug(VB_HTTP, "API - Getting fppd status\n");
 
+    int mode = getFPPmode();
     result["fppd"] = "running";
-    result["status"] = 0;    
+    result["mode"] = mode;
+    result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
+    result["status"] = FPPstatus;
+    result["status_name"] = FPPstatus == 0 ? "idle" : (FPPstatus == 1 ? "playing" : "stopping gracefully");
+    result["volume"] = getVolume();
+
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::stringstream sstr;
+    sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
+    std::string str = sstr.str();
+    result["time"] = str;
+    
+    if (mode == 1) {
+        //bridge mode only returns the base information
+        return;
+    }
+
+    // base data returned by all the other modes
+    result["current_playlist"]["playlist"] = "";
+    result["current_playlist"]["type"] = "";
+    result["current_playlist"]["index"] = "0";
+    result["current_playlist"]["count"] = "0";
+    result["current_sequence"] = "";
+    result["current_song"] = "";
+    result["seconds_played"] = "0";
+    result["seconds_remaining"] = "0";
+    result["time_elapsed"] = "00:00";
+    result["time_remaining"] = "00:00";
+
+    char NextPlaylist[128] = "No playlist scheduled.";
+    char NextScheduleStartText[64] = "";
+    scheduler->GetNextScheduleStartText(NextScheduleStartText);
+    scheduler->GetNextPlaylistText(NextPlaylist);
+    
+    if (getFPPmode() == REMOTE_MODE) {
+        int secsElapsed = 0;
+        int secsRemaining = 0;
+        std::string seqFilename;
+        std::string mediaFilename;
+        if (sequence->IsSequenceRunning()) {
+            seqFilename = sequence->m_seqFilename;
+            secsElapsed = sequence->m_seqSecondsElapsed;
+            secsRemaining = sequence->m_seqSecondsRemaining;
+        }
+        if (mediaOutput) {
+            mediaFilename = mediaOutput->m_mediaFilename;
+            secsElapsed = mediaOutputStatus.secondsElapsed;
+            secsRemaining = mediaOutputStatus.secondsRemaining;
+        }
+        
+        if (seqFilename != "" || mediaFilename != "") {
+            result["status"] = 1;
+            result["status_name"] = "playing";
+        }
+        
+        result["playlist"] = seqFilename;
+        result["sequence_filename"] = seqFilename;
+        result["media_filename"] = mediaFilename;
+        result["current_sequence"] = seqFilename;
+        result["current_song"] = mediaFilename;
+        result["seconds_played"] = std::to_string(secsElapsed);
+        result["seconds_elapsed"] = std::to_string(secsElapsed);
+        result["seconds_remaining"] = std::to_string(secsRemaining);
+        result["time_elapsed"] = secondsToTime(secsElapsed);
+        result["time_remaining"] = secondsToTime(secsRemaining);
+    } else if (FPPstatus == FPP_STATUS_IDLE) {
+        result["next_playlist"]["playlist"] = NextPlaylist;
+        result["next_playlist"]["start_time"] = NextScheduleStartText;
+        result["repeat_mode"] = "0";
+    } else {
+        Json::Value pl = playlist->GetInfo();
+        if (pl["currentEntry"].isMember("dynamic")) {
+            pl["currentEntry"] = pl["currentEntry"]["dynamic"];
+        }
+        result["repeat_mode"] = pl["repeat"].asInt();
+        result["next_playlist"]["playlist"] = NextPlaylist;
+        result["next_playlist"]["start_time"] = NextScheduleStartText;
+
+        std::string plname = pl["name"].asString();
+        plname = plname.substr(plname.find_last_of("\\/") + 1);
+        plname = plname.substr(0, plname.find_last_of("."));
+        result["current_playlist"]["playlist"] = plname;
+        result["current_playlist"]["index"] = std::to_string(playlist->GetPosition());
+        result["current_playlist"]["count"] = std::to_string(pl["size"].asInt());
+        result["current_playlist"]["type"] = pl["currentEntry"]["type"].asString();
+
+        int secsElapsed = 0;
+        int secsRemaining = 0;
+  
+        std::string currentSeq;
+        std::string currentSong;
+
+        if ((pl["currentEntry"]["type"] == "both") ||
+            (pl["currentEntry"]["type"] == "media")) {
+            
+            currentSeq = pl["currentEntry"]["type"].asString() == "both"
+                ? pl["currentEntry"]["sequence"]["sequenceName"].asString() : "";
+            currentSong = pl["currentEntry"]["type"].asString() == "both"
+                ? pl["currentEntry"]["media"]["mediaFilename"].asString()
+                : pl["currentEntry"]["mediaFilename"].asString();
+
+            secsElapsed = pl["currentEntry"]["type"].asString() == "both"
+                ? pl["currentEntry"]["media"]["secondsElapsed"].asInt()
+                : pl["currentEntry"]["secondsElapsed"].asInt();
+            secsRemaining = pl["currentEntry"]["type"].asString() == "both"
+                ? pl["currentEntry"]["media"]["secondsRemaining"].asInt()
+                : pl["currentEntry"]["secondsRemaining"].asInt();
+        } else if (pl["currentEntry"]["type"] == "sequence") {
+            currentSeq = pl["currentEntry"]["sequenceName"].asString();
+            secsElapsed = sequence->m_seqSecondsElapsed;
+            secsRemaining = sequence->m_seqSecondsRemaining;
+        } else {
+            secsElapsed = pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["duration"].asInt() - pl["currentEntry"]["remaining"].asInt() : 0;
+            secsRemaining = pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["remaining"].asInt() : 0;
+        }
+        result["current_sequence"] = currentSeq;
+        result["current_song"] = currentSong;
+        result["seconds_played"] = std::to_string(secsElapsed);
+        result["seconds_elapsed"] = std::to_string(secsElapsed);
+        result["seconds_remaining"] = std::to_string(secsRemaining);
+        result["time_elapsed"] = secondsToTime(secsElapsed);
+        result["time_remaining"] = secondsToTime(secsRemaining);
+    }
 }
 
 /*

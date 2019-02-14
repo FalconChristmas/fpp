@@ -37,6 +37,22 @@ LIBS_fppmm = \
 	-ljsoncpp \
 	$(NULL)
 
+
+OBJECTS_fppoled = \
+	common.o \
+	log.o \
+	fppversion.o \
+	oled/I2C.o \
+	oled/SSD1306_OLED.o \
+	oled/FPPOLEDUtils.o \
+    oled/fppoled.o
+
+LIBS_fppoled = \
+	-ljsoncpp \
+	-lpthread \
+	-lcurl \
+	$(NULL)
+
 OBJECTS_fppd = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/ThreadedChannelOutputBase.o \
@@ -349,6 +365,9 @@ fppd: $(DEPS_fppd) $(OBJECTS_fppd)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fsequtils: $(OBJECTS_fsequtils)
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+
+fppoled: $(OBJECTS_fppoled)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
