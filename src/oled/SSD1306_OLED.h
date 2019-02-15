@@ -105,7 +105,7 @@ extern int SSD1306_LCDHEIGHT;
 #define SSD1306_PG_END_ADDR                                        7
 #define SSD1306_CHARGE_PUMP_EN                                     0x14
 #define SSD1306_CONFIG_COM_PINS_64                                 0x12
-#define z                                 0x02
+#define SSD1306_CONFIG_COM_PINS_32                                 0x02
 //Enable COM left to right Re-map
 #define SSD1306_CONTRAST_VAL                                       0xCF                         //207
 #define SSD1306_PRECHARGE_VAL                                      0xF1
