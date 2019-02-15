@@ -23,13 +23,10 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "channeloutput/FPD.h"
-#include "falcon.h"
+
 #include "settings.h"
-#include "fppd.h"
 #include "fppversion.h"
 #include "log.h"
-#include "mediaoutput.h"
 
 #include <errno.h>
 #include <libgen.h>
@@ -45,10 +42,12 @@
 
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
-static struct config settings = { 0 };
+
+struct config settings = { 0 };
 
 /* Prototypes for functions below */
 int findSettingIndex(char *setting);
+
 
 /*
  *
@@ -187,240 +186,6 @@ char *modeToString(int mode)
 	return NULL;
 }
 
-void usage(char *appname)
-{
-printf("Usage: %s [OPTION...]\n"
-"\n"
-"fppd is the Falcon Player daemon.  It runs and handles playback of sequences,\n"
-"audio, etc.  Normally it is kicked off by a startup task and daemonized,\n"
-"however you can optionally kill the automatically started daemon and invoke it\n"
-"manually via the command line or via the web interface.  Configuration is\n"
-"supported for developers by specifying command line options, or editing a\n"
-"config file that controls most settings.  For more information on that, read\n"
-"the source code, it will not likely be documented any time soon.\n"
-"\n"
-"Options:\n"
-"  -c, --config-file FILENAME    - Location of alternate configuration file\n"
-"  -f, --foreground              - Don't daemonize the application.  In the\n"
-"                                  foreground, all logging will be on the\n"
-"                                  console instead of the log file\n"
-"  -d, --daemonize               - Daemonize even if the config file says not to.\n"
-"  -v, --volume VOLUME           - Set a volume (over-written by config file)\n"
-"  -m, --mode MODE               - Set the mode: \"player\", \"bridge\",\n"
-"                                  \"master\", or \"remote\"\n"
-"  -B, --media-directory DIR     - Set the media directory\n"
-"  -M, --music-directory DIR     - Set the music directory\n"
-"  -S, --sequence-directory DIR  - Set the sequence directory\n"
-"  -P, --playlist-directory DIR  - Set the playlist directory\n"
-"  -u, --universe-file FILENAME  - Set the universe file\n"
-"  -p, --pixelnet-file FILENAME  - Set the pixelnet file\n"
-"  -s, --schedule-file FILENAME  - Set the schedule-file\n"
-"  -l, --log-file FILENAME       - Set the log file\n"
-"  -b, --bytes-file FILENAME     - Set the bytes received file\n"
-"  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
-"  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
-"  -h, --help                    - This menu.\n"
-"      --log-level LEVEL         - Set the log output level:\n"
-"                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
-"      --log-mask LIST           - Set the log output mask, where LIST is a\n"
-"                                  comma-separated list made up of one or more\n"
-"                                  of the following items:\n"
-"                                    channeldata - channel data itself\n"
-"                                    channelout  - channel output code\n"
-"                                    command     - command processing\n"
-"                                    control     - Control socket debugging\n"
-"                                    e131bridge  - E1.31 bridge\n"
-"                                    effect      - Effects sequences\n"
-"                                    event       - Event handling\n"
-"                                    general     - general messages\n"
-"                                    gpio        - GPIO Input handling\n"
-"                                    http        - HTTP API requests\n"
-"                                    mediaout    - Media file handling\n"
-"                                    playlist    - Playlist handling\n"
-"                                    plugin      - Plugin handling\n"
-"                                    schedule    - Playlist scheduling\n"
-"                                    sequence    - Sequence parsing\n"
-"                                    setting     - Settings parsing\n"
-"                                    sync        - Master/Remote Synchronization\n"
-"                                    all         - ALL log messages\n"
-"                                    most        - Most excluding \"channeldata\"\n"
-"                                  The default logging is:\n"
-"                                    '--log-level info --log-mask most'\n"
-	, appname);
-}
-
-int parseArguments(int argc, char **argv)
-{
-	char *s = NULL;
-	int c;
-	while (1)
-	{
-		int this_option_optind = optind ? optind : 1;
-		int option_index = 0;
-		static struct option long_options[] =
-		{
-			{"displayvers",			no_argument,		0, 'V'},
-			{"config-file",			required_argument,	0, 'c'},
-			{"foreground",			no_argument,		0, 'f'},
-			{"daemonize",			no_argument,		0, 'd'},
-			{"volume",				required_argument,	0, 'v'},
-			{"mode",				required_argument,	0, 'm'},
-			{"media-directory",		required_argument,	0, 'B'},
-			{"music-directory",		required_argument,	0, 'M'},
-			{"sequence-directory",	required_argument,	0, 'S'},
-			{"playlist-directory",	required_argument,	0, 'P'},
-			{"event-directory",		required_argument,	0, 'E'},
-			{"video-directory",		required_argument,	0, 'F'},
-			{"universe-file",		required_argument,	0, 'u'},
-			{"pixelnet-file",		required_argument,	0, 'p'},
-			{"schedule-file",		required_argument,	0, 's'},
-			{"log-file",			required_argument,	0, 'l'},
-			{"bytes-file",			required_argument,	0, 'b'},
-			{"detect-hardware",		no_argument,		0, 'H'},
-			{"configure-hardware",		no_argument,		0, 'C'},
-			{"help",				no_argument,		0, 'h'},
-			{"silence-music",		required_argument,	0,	1 },
-			{"log-level",			required_argument,	0,  2 },
-			{"log-mask",			required_argument,	0,  3 },
-			{0,						0,					0,	0}
-		};
-
-		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:HChV",
-		long_options, &option_index);
-		if (c == -1)
-			break;
-
-		switch (c)
-		{
-			case 'V':
-				printVersionInfo();
-				exit(0);
-			case 1: //silence-music
-				free(settings.silenceMusic);
-				settings.silenceMusic = strdup(optarg);
-				break;
-			case 2: // log-level
-				if (SetLogLevel(optarg)) {
-					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", logLevel, optarg);
-				}
-				break;
-			case 3: // log-mask
-				if (SetLogMask(optarg)) {
-					LogInfo(VB_SETTING, "Log Mask set to %d (%s)\n", logMask, optarg);
-				}
-				break;
-			case 'c': //config-file
-				if (FileExists(optarg))
-				{
-					if (loadSettings(optarg) != 0 )
-					{
-						LogErr(VB_SETTING, "Failed to load settings file given as argument: '%s'\n", optarg);
-					}
-					else
-					{
-						free(settings.settingsFile);
-						settings.settingsFile = strdup(optarg);
-					}
-				} else {
-					fprintf(stderr, "Settings file specified does not exist: '%s'\n", optarg);
-				}
-				break;
-			case 'f': //foreground
-				settings.daemonize = 0;
-				break;
-			case 'd': //daemonize
-				settings.daemonize = 1;
-				break;
-			case 'v': //volume
-				setVolume (atoi(optarg));
-				break;
-			case 'm': //mode
-				if ( strcmp(optarg, "player") == 0 )
-					settings.fppMode = PLAYER_MODE;
-				else if ( strcmp(optarg, "bridge") == 0 )
-					settings.fppMode = BRIDGE_MODE;
-				else if ( strcmp(optarg, "master") == 0 )
-					settings.fppMode = MASTER_MODE;
-				else if ( strcmp(optarg, "remote") == 0 )
-					settings.fppMode = REMOTE_MODE;
-				else
-				{
-					fprintf(stderr, "Error parsing mode\n");
-					exit(EXIT_FAILURE);
-				}
-				break;
-			case 'B': //media-directory
-				free(settings.mediaDirectory);
-				settings.mediaDirectory = strdup(optarg);
-				break;
-			case 'M': //music-directory
-				free(settings.musicDirectory);
-				settings.musicDirectory = strdup(optarg);
-				break;
-			case 'S': //sequence-directory
-				free(settings.sequenceDirectory);
-				settings.sequenceDirectory = strdup(optarg);
-				break;
-			case 'E': //event-directory
-				free(settings.eventDirectory);
-				settings.eventDirectory = strdup(optarg);
-				break;
-			case 'F': //video-directory
-				free(settings.videoDirectory);
-				settings.videoDirectory = strdup(optarg);
-				break;
-			case 'P': //playlist-directory
-				free(settings.playlistDirectory);
-				settings.playlistDirectory = strdup(optarg);
-				break;
-			case 'u': //universe-file
-				free(settings.universeFile);
-				settings.universeFile = strdup(optarg);
-				break;
-			case 'p': //pixelnet-file
-				free(settings.pixelnetFile);
-				settings.pixelnetFile = strdup(optarg);
-				break;
-			case 's': //schedule-file
-				free(settings.scheduleFile);
-				settings.scheduleFile = strdup(optarg);
-				break;
-			case 'l': //log-file
-				free(settings.logFile);
-				settings.logFile = strdup(optarg);
-				break;
-			case 'b': //bytes-file
-				free(settings.bytesFile);
-				settings.bytesFile = strdup(optarg);
-				break;
-			case 'H': //Detect Falcon hardware
-			case 'C': //Configure Falcon hardware
-				SetLogFile("");
-				SetLogLevel("debug");
-				SetLogMask("setting");
-				if (DetectFalconHardware((c == 'C') ? 1 : 0))
-					exit(1);
-				else
-					exit(0);
-				break;
-			case 'h': //help
-				usage(argv[0]);
-				exit(EXIT_SUCCESS);
-				break;
-			default:
-				usage(argv[0]);
-				exit(EXIT_FAILURE);
-		}
-	}
-
-	if (getDaemonize())
-		SetLogFile(getLogFile());
-	else
-		SetLogFile("");
-
-	return 0;
-}
-
 int parseSetting(char *key, char *value)
 {
 	int sIndex = findSettingIndex(key);
@@ -448,13 +213,6 @@ int parseSetting(char *key, char *value)
 			fprintf(stderr, "Error parsing mode\n");
 			exit(EXIT_FAILURE);
 		}
-	}
-	else if ( strcmp(key, "volume") == 0 )
-	{
-		if ( strlen(value) )
-			setVolume(atoi(value));
-		else
-			fprintf(stderr, "Failed to apply volume setting\n");
 	}
 	else if ( strcmp(key, "alwaysTransmit") == 0 )
 	{
@@ -817,12 +575,6 @@ FPPMode getFPPmode(void)
 	return settings.fppMode;
 }
 
-int getVolume(void)
-{
-	// Default of 0 is also a settable value, just return our data
-	return settings.volume;
-}
-
 #ifndef __GNUG__
 inline
 #endif
@@ -921,51 +673,6 @@ unsigned int getControlMinor(void)
 	return settings.controlMinor;
 }
 
-void setVolume(int volume)
-{
-	char buffer [60];
-	
-	if ( volume < 0 )
-		settings.volume = 0;
-	else if ( volume > 100 )
-		settings.volume = 100;
-	else
-		settings.volume = volume;
-
-	const char *mixerDevice = getSetting("AudioMixerDevice");
-	int   audioOutput = getSettingInt("AudioOutput");
-
-	// audioOutput is 0 on Pi where we need to apply volume adjustment formula.
-	// This may break non-Pi, non-BBB platforms, but there aren't any yet.
-	// The same assumption is made in fppxml.php SetVolume()
-	if (audioOutput == 0)
-	{
-		if (mixerDevice)
-			snprintf(buffer, 60, "amixer set %s %.2f%% >/dev/null 2>&1",
-				 mixerDevice, (50 + (settings.volume / 2.0)));
-		else
-			snprintf(buffer, 60, "amixer set PCM %.2f%% >/dev/null 2>&1",
-				 (50 + (settings.volume / 2.0)));
-	}
-	else
-	{
-		if (mixerDevice)
-			snprintf(buffer, 60, "amixer set %s %d%% >/dev/null 2>&1",
-				 mixerDevice, settings.volume);
-		else
-			snprintf(buffer, 60, "amixer set PCM %d%% >/dev/null 2>&1",
-				 settings.volume);
-	}
-
-	LogDebug(VB_SETTING,"Volume change: %d \n", settings.volume);	
-	system(buffer);
-
-	pthread_mutex_lock(&mediaOutputLock);
-	if (mediaOutput)
-		mediaOutput->SetVolume(settings.volume);
-
-	pthread_mutex_unlock(&mediaOutputLock);
-}
 
 /*
 int saveSettingsFile(void)
@@ -1137,11 +844,6 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 			exit(EXIT_FAILURE);
 		}
 		free(cmd);
-	}
-	if(!FileExists(getPixelnetFile()))
-	{
-		LogWarn(VB_SETTING, "Pixelnet file does not exist, creating it.\n");
-		CreatePixelnetDMXfile(getPixelnetFile());
 	}
 
 	if(!FileExists(getScheduleFile()))

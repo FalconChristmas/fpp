@@ -111,6 +111,14 @@ $backgroundColors['Silver']    = "C0C0C0";
 $backgroundColors['Teal']      = "008080";
 $backgroundColors['White']     = "FFFFFF";
     
+    
+$ledTypes = Array();
+    $ledTypes['Disabled'] = 0;
+    $ledTypes['128x64 I2C'] = 1;
+    $ledTypes['128x32 I2C'] = 2;
+    $ledTypes['128x64 Flipped I2C'] = 3;
+    $ledTypes['128x32 Flipped I2C'] = 4;
+
 function PrintStorageDeviceSelect($platform)
 {
 	global $SUDO;
@@ -467,6 +475,11 @@ function ToggleTetherMode()
     <tr>
       <td>External Storage Device:</td>
       <td><? PrintStorageDeviceSelect($settings['Platform']); ?></td>
+    </tr>
+    <tr>
+        <td>OLED Status Display:</td>
+        <td><? PrintSettingSelect("OLED Status Display", "LEDDisplayType", 0, 1, isset($settings['LEDDisplayType']) ? $settings['LEDDisplayType'] : "", $ledTypes); ?>
+        </td>
     </tr>
     <tr>
       <td>Log Level:</td>

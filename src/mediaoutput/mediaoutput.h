@@ -46,5 +46,8 @@ void UpdateMasterMediaPosition(float seconds);
 /* If try, filename will be updated with the media filename */
 bool HasVideoForMedia(char *filename);
 
+//volume control
+void setVolume(int volume);
+int  getVolume(void);
 #endif /* _MEDIAOUTPUT_H */
 

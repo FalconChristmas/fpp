@@ -4,7 +4,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
 
-TARGETS = fpp fppmm fsequtils fppd
+TARGETS = fpp fppmm fsequtils fppd fppoled
 SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -41,6 +41,7 @@ LIBS_fppmm = \
 OBJECTS_fppoled = \
 	common.o \
 	log.o \
+	settings.o \
 	fppversion.o \
 	oled/I2C.o \
 	oled/SSD1306_OLED.o \

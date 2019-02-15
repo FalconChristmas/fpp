@@ -40,37 +40,35 @@ typedef enum fppMode {
 
 struct config
 {
-	int		daemonize;
-	FPPMode	fppMode;
-	int		volume;
-	int		alwaysTransmit;
-	char    *binDirectory;
-	char	*fppDirectory;
-	char	*mediaDirectory;
-	char	*musicDirectory;
-	char	*sequenceDirectory;
-	char	*eventDirectory;
-	char	*videoDirectory;
-	char	*effectDirectory;
-	char	*scriptDirectory;
-	char	*pluginDirectory;
-	char	*playlistDirectory;
-	char	*universeFile;
-	char	*pixelnetFile;
-	char	*scheduleFile;
-	char	*logFile;
-	char	*silenceMusic;
-	char	*settingsFile;
-	char	*bytesFile;
-	char	*E131interface;
-
-	unsigned int controlMajor;
-	unsigned int controlMinor;
-
-	char *keys[1024];
-	char *values[1024];
+    int        daemonize;
+    FPPMode    fppMode;
+    int        alwaysTransmit;
+    char    *binDirectory;
+    char    *fppDirectory;
+    char    *mediaDirectory;
+    char    *musicDirectory;
+    char    *sequenceDirectory;
+    char    *eventDirectory;
+    char    *videoDirectory;
+    char    *effectDirectory;
+    char    *scriptDirectory;
+    char    *pluginDirectory;
+    char    *playlistDirectory;
+    char    *universeFile;
+    char    *pixelnetFile;
+    char    *scheduleFile;
+    char    *logFile;
+    char    *silenceMusic;
+    char    *settingsFile;
+    char    *bytesFile;
+    char    *E131interface;
+    
+    unsigned int controlMajor;
+    unsigned int controlMinor;
+    
+    char *keys[1024];
+    char *values[1024];
 };
-
 
 // Helpers
 void initSettings(int argc, char **argv);
@@ -93,7 +91,6 @@ int   getSettingInt(const char *setting);
 
 int getDaemonize(void);
 FPPMode getFPPmode(void);
-int  getVolume(void);
 int  getAlwaysTransmit(void);
 char *getBinDirectory(void);
 char *getFPPDirectory(void);
@@ -116,10 +113,6 @@ char *getSettingsFile(void);
 char *getE131interface(void);
 unsigned int getControlMajor(void);
 unsigned int getControlMinor(void);
-
-
-// Setters
-void setVolume(int volume);
 
 
 #endif //__SETTINGS_H__

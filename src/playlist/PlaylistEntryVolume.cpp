@@ -26,6 +26,7 @@
 #include "log.h"
 #include "PlaylistEntryVolume.h"
 #include "settings.h"
+#include "mediaoutput/mediaoutput.h"
 
 /*
  *

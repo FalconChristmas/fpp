@@ -59,17 +59,9 @@ SOFTWARE.
 #define SSD1306_CNTRL_CMD                                          0x00
 #define SSD1306_CNTRL_DATA                                         0x40
 
-
-/*-----------------------Enable the WxL of the Display ---------------------------*/
-#define SSD1306_128_64
-//#define SSD1306_128_32
-//#define SSD1306_96_16
-/*--------------------------------------------------------------------------------*/
-
 /* LCD HxW i.e. 64x128 || WxL i.e. 128x64 */
 extern int SSD1306_LCDWIDTH;
 extern int SSD1306_LCDHEIGHT;
-
 
 /* SSD1306 Commands */
 #define SSD1306_DISPLAY_OFF                                        0xAE
@@ -112,7 +104,9 @@ extern int SSD1306_LCDHEIGHT;
 #define SSD1306_PG_START_ADDR                                      0x00
 #define SSD1306_PG_END_ADDR                                        7
 #define SSD1306_CHARGE_PUMP_EN                                     0x14
-#define SSD1306_CONFIG_COM_PINS                                    0x12                         //Enable COM left to right Re-map
+#define SSD1306_CONFIG_COM_PINS_64                                 0x12
+#define z                                 0x02
+//Enable COM left to right Re-map
 #define SSD1306_CONTRAST_VAL                                       0xCF                         //207
 #define SSD1306_PRECHARGE_VAL                                      0xF1
 #define SSD1306_VCOMH_VAL                                          0x40

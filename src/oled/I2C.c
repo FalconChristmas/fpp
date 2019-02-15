@@ -251,10 +251,10 @@ void config_i2c_struct(const char *i2c_dev_path, unsigned char slave_addr, I2C_D
  * Returns       : 0 on success, -1 on failure
  * Params        @slave_addr: Slave device address
  ****************************************************************/
-int init_i2c_dev2(unsigned char slave_address)
+int init_i2c_dev2(const char *i2cPath, unsigned char slave_address)
 {
-	config_i2c_struct(I2C_DEV2_PATH, slave_address, &I2C_DEV_2);
-	if(Open_device(I2C_DEV_2.i2c_dev_path, &I2C_DEV_2.fd_i2c) == -1)
+	config_i2c_struct(i2cPath, slave_address, &I2C_DEV_2);
+	if (Open_device(I2C_DEV_2.i2c_dev_path, &I2C_DEV_2.fd_i2c) == -1)
 	{
 		perror("I2C: Failed to open device |");
 		return -1;

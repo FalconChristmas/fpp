@@ -41,6 +41,7 @@
 #include "log.h"
 #include "MultiSync.h"
 #include "omxplayer.h"
+#include "mediaoutput.h"
 #include "settings.h"
 #include "Sequence.h"
 

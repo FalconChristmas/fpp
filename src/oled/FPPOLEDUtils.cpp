@@ -29,7 +29,7 @@ static inline int iw_get_ext(
     return(ioctl(skfd, request, pwrq));
 }
 
-static int getSignalInfo(char *iwname){
+int FPPOLEDUtils::getSignalStrength(char *iwname) {
     
     int sigLevel = 0;
 
@@ -37,9 +37,6 @@ static int getSignalInfo(char *iwname){
     int           has_stats;
     iw_range      range;
     int           has_range;
-
-    //have to use a socket for ioctl
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     
     struct iwreq  wrq;
@@ -73,9 +70,10 @@ static int getSignalInfo(char *iwname){
     sigLevel = stats.qual.qual;
     sigLevel *= 100;
     sigLevel /= range.max_qual.qual;
-    close(sockfd);
     return sigLevel;
 }
+
+static bool debug = false;
 
 static int writer(char *data, size_t size, size_t nmemb,
                   std::string *writerData)
@@ -107,9 +105,13 @@ FPPOLEDUtils::FPPOLEDUtils(int ledType) : _ledType(ledType) {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
+    
+    //have to use a socket for ioctl
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 }
 FPPOLEDUtils::~FPPOLEDUtils() {
     curl_easy_cleanup(curl);
+    close(sockfd);
 }
 
 void FPPOLEDUtils::outputNetwork(int idx, int y) {
@@ -128,51 +130,80 @@ void FPPOLEDUtils::outputNetwork(int idx, int y) {
     }
 }
 
-inline std::string getLine(int i,  Json::Value &result, bool nextIfBlank) {
-    std::string line;
-    switch (i) {
-        case 0:
-            line = result["current_sequence"].asString();
-            if (line != "" || !nextIfBlank) {
-                return line;
-            }
-        case 1:
-            line = result["current_song"].asString();
-            if (line != "" || !nextIfBlank) {
-                return line;
-            }
-        case 2:
-            line = result["time_elapsed"].asString();
-            if (line != "") {
-                line = "Elapsed: " + line;
-                return line;
-            }
-            if (!nextIfBlank) {
-                return line;
-            }
-        case 3:
-            line = result["time_remaining"].asString();
-            if (line != "") {
-                line = "Remaining: " + line;
-                return line;
-            }
-            if (!nextIfBlank) {
-                return line;
-            }
-        case 4:
-            line = result["current_playlist"]["playlist"].asString();
-            break;
-    };
-    return line;
+inline void getLines(std::vector<std::string> &lines,  Json::Value &result, bool allowBlank) {
+    std::string line = result["current_sequence"].asString();
+    if (line != "" || allowBlank) {
+        lines.push_back(line);
+    }
+    line = result["current_song"].asString();
+    if (line != "" || allowBlank) {
+        lines.push_back(line);
+    }
+    line = result["time_elapsed"].asString();
+    if (line != "" || allowBlank) {
+        if (line != "") {
+            line = "Elapsed: " + line;
+        }
+        lines.push_back(line);
+    }
+    line = result["time_remaining"].asString();
+    if (line != "" || allowBlank) {
+        if (line != "") {
+            line = "Remaining: " + line;
+        }
+        lines.push_back(line);
+    }
+    line = result["current_playlist"]["playlist"].asString();
+    if (line != "" || allowBlank) {
+        if (line != "") {
+            line = "PL: " + line;
+        }
+        lines.push_back(line);
+    }
 }
 
 void FPPOLEDUtils::doIteration(int count) {
-    networks.clear();
-    if ((count % 30) == 0 || networks.empty()) {
+    if ((count % 30) == 0 || networks.size() <= 1) {
         //every 30 seconds, rescan network for new connections
         fillInNetworks();
     }
     clearDisplay();
+    
+    int startY = 0;
+    setTextSize(1);
+    setTextColor(WHITE);
+    setCursor(0,0);
+    if (networks.size() > 1) {
+        int idx = count % networks.size();
+        if (networks.size() == 2 && SSD1306_LCDHEIGHT == 64) {
+            idx = 0;
+        }
+        outputNetwork(idx, 0);
+        startY += 8;
+        if (SSD1306_LCDHEIGHT == 64) {
+            if (networks.size() > 1) {
+                idx++;
+                if (idx >= networks.size()) {
+                    idx = 0;
+                }
+                outputNetwork(idx, startY);
+            }
+            startY += 8;
+        }
+    } else {
+        if (count < 30) {
+            print_str("FPP Booting...");
+        } else {
+            print_str("No Network");
+        }
+        startY += 8;
+        if (SSD1306_LCDHEIGHT == 64) {
+            startY += 8;
+        }
+    }
+    drawLine(0, startY, 127, startY, WHITE);
+    startY++;
+    
     buffer.clear();
     bool gotStatus = false;
     if (curl_easy_perform(curl) == CURLE_OK) {
@@ -183,7 +214,8 @@ void FPPOLEDUtils::doIteration(int count) {
             gotStatus = true;
             setTextSize(1);
             setTextColor(WHITE);
-            setCursor(0, 17);
+
+            setCursor(0, startY);
 
             std::string status = result["status_name"].asString();
             std::string mode = result["mode_name"].asString();
@@ -199,62 +231,73 @@ void FPPOLEDUtils::doIteration(int count) {
                 isIdle = false;
                 maxLines = 4;
             }
-            
             if (line.length() > 21) {
                 line.resize(21);
             }
             print_str(line.c_str());
+            startY += 8;
             
             if (!isIdle) {
+                std::vector<std::string> lines;
+                getLines(lines, result, SSD1306_LCDHEIGHT == 64);
+                if (maxLines > lines.size()) {
+                    maxLines = lines.size();
+                }
                 if (SSD1306_LCDHEIGHT == 64) {
                     for (int x = 0; x < maxLines; x++) {
-                        setCursor(0, 25 + x * 8);
-                        line = getLine(x, result, false);
+                        setCursor(0, startY);
+                        startY += 8;
+                        line = lines[x];
                         if (line.length() > 21) {
                             line.resize(21);
                         }
                         print_str(line.c_str());
                     }
                 } else {
-                    setCursor(0, 25);
-                    line = getLine(count % maxLines, result, true);
+                    setCursor(0, startY);
+                    int idx = count % maxLines;
+                    line = lines[idx];
+                    if (line.length() > 21) {
+                        line.resize(21);
+                    }
+                    print_str(line.c_str());
+                    startY += 8;
+                    idx++;
+                    if (idx == maxLines) {
+                        idx = 0;
+                    }
+                    setCursor(0, startY);
+                    line = lines[idx];
                     if (line.length() > 21) {
                         line.resize(21);
                     }
                     print_str(line.c_str());
                 }
             }
+        } else if (debug) {
+            printf("Invalid json\n");
         }
+    } else if (debug) {
+        printf("Curl returned bad status\n");
     }
     if (!gotStatus) {
         setTextSize(1);
         setTextColor(WHITE);
-        setCursor(0, 18);
-        print_str("FPPD is not");
-        setCursor(0, 26);
-        print_str("running ...");
-    }
-    
-    setTextSize(1);
-    setTextColor(WHITE);
-    setCursor(0,0);
-    if (networks.size() > 1) {
-        int idx = count / 2;
-        idx %= networks.size();
-        if (networks.size() == 2) {
-            idx = 0;
+        setCursor(0, startY);
+        print_str("FPPD is not running..");
+        startY += 8;
+        if (count < 45) {
+            //if less than 45 seconds since start, we'll assume we are booting up
+            setCursor(10, startY);
+            std::string line = "Booting.";
+            int idx = count % 5;
+            for (int i = 0; i < idx; i++) {
+                line += ".";
+            }
+            print_str(line.c_str());
         }
-        outputNetwork(idx, 0);
-        idx++;
-        if (idx >= networks.size()) {
-            idx = 0;
-        }
-        outputNetwork(idx, 8);
-    } else {
-        print_str("No Network");
     }
-    drawLine(0, 16, 127, 16, WHITE);
-    
+        
     Display();
 }
 
@@ -285,7 +328,7 @@ void FPPOLEDUtils::fillInNetworks() {
                     hn += ":";
                     hn += addressBuf;
                     networks.push_back(hn);
-                    int i = getSignalInfo(tmp->ifa_name);
+                    int i = getSignalStrength(tmp->ifa_name);
                     signalStrength.push_back(i);
                 }
             }

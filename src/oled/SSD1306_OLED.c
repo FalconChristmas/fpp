@@ -53,8 +53,6 @@ SOFTWARE.
 int SSD1306_LCDWIDTH = 128;
 int SSD1306_LCDHEIGHT = 64;
 
-// max we do is 128x64 at this point
-#define DISPLAY_BUFF_SIZE  (64*128/8)
 
 /* static Variables */
 static unsigned char _rotation = 0,textsize = 0;
@@ -73,7 +71,11 @@ static GFXfontPtr gfxFont;
 extern I2C_DeviceT I2C_DEV_2;
 
 /* Chunk Buffer */
-static unsigned char chunk[17] = {0};
+#define MAX_CHUNK_SIZE 129
+static unsigned char chunk[MAX_CHUNK_SIZE] = {0};
+
+// max we do is 128x64 at this point
+#define DISPLAY_BUFF_SIZE  ((64*128/8)+MAX_CHUNK_SIZE)
 
 /* Memory buffer for displaying data on LCD - This is an Apple - Fruit */
 static unsigned char screen[DISPLAY_BUFF_SIZE] ={0};
@@ -593,7 +595,8 @@ int display_Init_seq()
     }
 
     /* Send display COM command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_CONFIG_COM_PINS) == I2C_TWO_BYTES)
+    int COMPINS = SSD1306_LCDHEIGHT == 32 ? SSD1306_CONFIG_COM_PINS_32 : SSD1306_CONFIG_COM_PINS_64;
+    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, COMPINS) == I2C_TWO_BYTES)
     {
 #ifdef SSD1306_DBG
         printf("Display COM Command Parameter Passed\r\n");
@@ -769,12 +772,14 @@ int transfer()
 {
     short loop_1 = 0, loop_2 = 0;
     short index = 0x00;
+    int max = _height * _width / 8;
     for (loop_1 = 0; loop_1 < 1024; loop_1++)
     {
         chunk[0] = 0x40;
-        for(loop_2 = 1; loop_2 < 17; loop_2++)
+        for(loop_2 = 1; loop_2 < MAX_CHUNK_SIZE; loop_2++)
             chunk[loop_2] = screen[index++];
-        if(i2c_multiple_writes(I2C_DEV_2.fd_i2c, 17, chunk) == 17)
+        
+        if(i2c_multiple_writes(I2C_DEV_2.fd_i2c, MAX_CHUNK_SIZE, chunk) == MAX_CHUNK_SIZE)
         {
 #ifdef SSD1306_DBG
             printf("Chunk written to RAM - Completed\r\n");
@@ -788,8 +793,8 @@ int transfer()
             return 1;
         }
 
-        memset(chunk,0x00,17);
-        if(index == 1024)
+        memset(chunk,0x00,MAX_CHUNK_SIZE);
+        if (index == max)
             break;
     }
     return 0;

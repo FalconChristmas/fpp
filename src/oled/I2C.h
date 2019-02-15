@@ -40,6 +40,7 @@ SOFTWARE.
 
 /*Definitions specific to i2c-x */
 #define I2C_DEV0_PATH                     "/dev/i2c-0"
+#define I2C_DEV1_PATH                     "/dev/i2c-1"
 #define I2C_DEV2_PATH                     "/dev/i2c-2"
 
 /*I2C device configuration structure*/
@@ -63,6 +64,6 @@ extern int i2c_multiple_writes(int fd, int num, unsigned char *Ptr_buff);
 extern int i2c_write_register(int fd, unsigned char reg_addr_or_cntrl, unsigned char val);
 
 /* Exposed I2C-x Specific Functions */
-extern int init_i2c_dev2(unsigned char slave_address);
+extern int init_i2c_dev2(const char *i2cPath, unsigned char slave_address);
 
 #endif /* I2C_H_ */

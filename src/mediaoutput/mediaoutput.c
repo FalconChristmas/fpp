@@ -113,6 +113,9 @@ void InitMediaOutput(void)
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = MediaOutput_sigchld_handler;
 	sigaction(SIGCHLD, &sa, NULL);
+    
+    int vol = getSettingInt("volume");
+    setVolume(vol);
 }
 
 /*
@@ -124,6 +127,57 @@ void CleanupMediaOutput(void)
 
 	pthread_mutex_destroy(&mediaOutputLock);
 }
+
+static int volume = 100;
+int getVolume() {
+    return volume;
+}
+
+void setVolume(int vol)
+{
+    char buffer [60];
+    
+    if ( vol < 0 )
+        vol = 0;
+    else if ( vol > 100 )
+        vol = 100;
+    volume = vol;
+    
+    const char *mixerDevice = getSetting("AudioMixerDevice");
+    int   audioOutput = getSettingInt("AudioOutput");
+    
+    // audioOutput is 0 on Pi where we need to apply volume adjustment formula.
+    // This may break non-Pi, non-BBB platforms, but there aren't any yet.
+    // The same assumption is made in fppxml.php SetVolume()
+    if (audioOutput == 0)
+    {
+        if (mixerDevice)
+            snprintf(buffer, 60, "amixer set %s %.2f%% >/dev/null 2>&1",
+                     mixerDevice, (50 + (volume / 2.0)));
+        else
+            snprintf(buffer, 60, "amixer set PCM %.2f%% >/dev/null 2>&1",
+                     (50 + (volume / 2.0)));
+    }
+    else
+    {
+        if (mixerDevice)
+            snprintf(buffer, 60, "amixer set %s %d%% >/dev/null 2>&1",
+                     mixerDevice, volume);
+        else
+            snprintf(buffer, 60, "amixer set PCM %d%% >/dev/null 2>&1",
+                     volume);
+    }
+    
+    LogDebug(VB_SETTING,"Volume change: %d \n", volume);
+    system(buffer);
+    
+    pthread_mutex_lock(&mediaOutputLock);
+    if (mediaOutput)
+        mediaOutput->SetVolume(volume);
+    
+    pthread_mutex_unlock(&mediaOutputLock);
+}
+
 
 std::string GetVideoFilenameForMedia(const std::string &filename, std::string &ext) {
     ext = "";

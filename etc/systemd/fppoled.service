@@ -1,0 +1,14 @@
+[Unit]
+Description=FPP OLED Status Display
+Documentation=FPP
+After=syslog.target
+Before=fppinit.target network.target multi-user.target apache2.target
+Wants=network-pre.target home-fpp-media.mount
+
+[Service]
+ExecStart=/opt/fpp/src/fppoled
+Type=simple
+StandardOutput=syslog+console
+
+[Install]
+WantedBy=default.target

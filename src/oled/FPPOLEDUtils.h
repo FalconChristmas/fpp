@@ -15,7 +15,7 @@ public:
     
 private:
     void fillInNetworks();
-    
+    int getSignalStrength(char *iwname);
     void outputNetwork(int idx, int y);
     
     int _ledType;
@@ -24,6 +24,7 @@ private:
     
     CURL *curl;
     std::string buffer;
+    int sockfd;
 };
 
 #endif
