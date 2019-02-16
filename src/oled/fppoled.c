@@ -43,12 +43,15 @@ int main (int argc, char *argv[]) {
     if (ledType == 0) {
         exit(0);
     }
-    ledType -= 1;
-    SSD1306_LCDWIDTH = 128;
-    if (ledType & 0x1) {
-        SSD1306_LCDHEIGHT = 32;
+    LED_DISPLAY_WIDTH = 128;
+    if (ledType == 3 || ledType == 4) {
+        LED_DISPLAY_HEIGHT = 32;
     } else {
-        SSD1306_LCDHEIGHT = 64;
+        LED_DISPLAY_HEIGHT = 64;
+    }
+
+    if (ledType == 5 || ledType == 6) {
+        LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SH1106;
     }
     
     if (init_i2c_dev2(I2C_DEV_PATH, SSD1306_OLED_ADDR) != 0) {

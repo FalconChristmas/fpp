@@ -59,9 +59,13 @@ SOFTWARE.
 #define SSD1306_CNTRL_CMD                                          0x00
 #define SSD1306_CNTRL_DATA                                         0x40
 
+#define LED_DISPLAY_TYPE_SSD1306 0
+#define LED_DISPLAY_TYPE_SH1106  1
+
 /* LCD HxW i.e. 64x128 || WxL i.e. 128x64 */
-extern int SSD1306_LCDWIDTH;
-extern int SSD1306_LCDHEIGHT;
+extern int LED_DISPLAY_WIDTH;
+extern int LED_DISPLAY_HEIGHT;
+extern int LED_DISPLAY_TYPE;
 
 /* SSD1306 Commands */
 #define SSD1306_DISPLAY_OFF                                        0xAE
@@ -100,7 +104,7 @@ extern int SSD1306_LCDHEIGHT;
 #define SSD1306_MULT_64                                            0x3F
 #define SSD1306_DISP_OFFSET_VAL                                    0x00
 #define SSD1306_COL_START_ADDR                                     0x00                          //Reset to = 0
-#define SSD1306_COL_END_ADDR                                       (SSD1306_LCDWIDTH - 1)        //Reset to = 127
+#define SSD1306_COL_END_ADDR                                       (LED_DISPLAY_WIDTH - 1)        //Reset to = 127
 #define SSD1306_PG_START_ADDR                                      0x00
 #define SSD1306_PG_END_ADDR                                        7
 #define SSD1306_CHARGE_PUMP_EN                                     0x14
@@ -110,7 +114,7 @@ extern int SSD1306_LCDHEIGHT;
 #define SSD1306_CONTRAST_VAL                                       0xCF                         //207
 #define SSD1306_PRECHARGE_VAL                                      0xF1
 #define SSD1306_VCOMH_VAL                                          0x40
-#define SSD1306_MULT_DAT                                           (SSD1306_LCDHEIGHT - 1)
+#define SSD1306_MULT_DAT                                           (LED_DISPLAY_HEIGHT - 1)
 #define SSD1306_HOR_MM                                             0x00
 
 /*SSD1306 Display API's */

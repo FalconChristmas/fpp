@@ -114,10 +114,12 @@ $backgroundColors['White']     = "FFFFFF";
     
 $ledTypes = Array();
     $ledTypes['Disabled'] = 0;
-    $ledTypes['128x64 I2C'] = 1;
-    $ledTypes['128x32 I2C'] = 2;
-    $ledTypes['128x64 Flipped I2C'] = 3;
-    $ledTypes['128x32 Flipped I2C'] = 4;
+    $ledTypes['128x64 I2C (SSD1306)'] = 1;
+    $ledTypes['128x64 Flipped I2C (SSD1306)'] = 2;
+    $ledTypes['128x32 I2C (SSD1306)'] = 3;
+    $ledTypes['128x32 Flipped I2C (SSD1306)'] = 4;
+    $ledTypes['128x64 I2C (SH1106)'] = 5;
+    $ledTypes['128x64 Flipped I2C (SH1106)'] = 6;
 
 function PrintStorageDeviceSelect($platform)
 {

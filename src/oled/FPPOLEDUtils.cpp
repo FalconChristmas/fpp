@@ -85,15 +85,9 @@ static int writer(char *data, size_t size, size_t nmemb,
     return size * nmemb;
 }
 FPPOLEDUtils::FPPOLEDUtils(int ledType) : _ledType(ledType) {
-    if (_ledType & 0x1) {
-        SSD1306_LCDWIDTH = 128;
-        SSD1306_LCDHEIGHT = 32;
-    } else {
-        SSD1306_LCDWIDTH = 128;
-        SSD1306_LCDHEIGHT = 64;
-    }
     
-    if (_ledType & 0x2) {
+    
+    if (_ledType == 2 || _ledType == 4 || _ledType == 6) {
         setRotation(2);
     } else {
         setRotation(0);
@@ -175,12 +169,12 @@ void FPPOLEDUtils::doIteration(int count) {
     setCursor(0,0);
     if (networks.size() > 1) {
         int idx = count % networks.size();
-        if (networks.size() == 2 && SSD1306_LCDHEIGHT == 64) {
+        if (networks.size() == 2 && LED_DISPLAY_HEIGHT == 64) {
             idx = 0;
         }
         outputNetwork(idx, 0);
         startY += 8;
-        if (SSD1306_LCDHEIGHT == 64) {
+        if (LED_DISPLAY_HEIGHT == 64) {
             if (networks.size() > 1) {
                 idx++;
                 if (idx >= networks.size()) {
@@ -197,12 +191,16 @@ void FPPOLEDUtils::doIteration(int count) {
             print_str("No Network");
         }
         startY += 8;
-        if (SSD1306_LCDHEIGHT == 64) {
+        if (LED_DISPLAY_HEIGHT == 64) {
             startY += 8;
         }
     }
-    drawLine(0, startY, 127, startY, WHITE);
-    startY++;
+    if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
+        drawLine(0, startY, 127, startY, WHITE);
+        startY++;
+    } else {
+        drawLine(0, startY - 1, 127, startY - 1, WHITE);
+    }
     
     buffer.clear();
     bool gotStatus = false;
@@ -239,11 +237,11 @@ void FPPOLEDUtils::doIteration(int count) {
             
             if (!isIdle) {
                 std::vector<std::string> lines;
-                getLines(lines, result, SSD1306_LCDHEIGHT == 64);
+                getLines(lines, result, LED_DISPLAY_HEIGHT == 64);
                 if (maxLines > lines.size()) {
                     maxLines = lines.size();
                 }
-                if (SSD1306_LCDHEIGHT == 64) {
+                if (LED_DISPLAY_HEIGHT == 64) {
                     for (int x = 0; x < maxLines; x++) {
                         setCursor(0, startY);
                         startY += 8;

@@ -50,14 +50,15 @@ SOFTWARE.
 #define pgm_read_pointer(addr) ((void *)pgm_read_word(addr))
 
 
-int SSD1306_LCDWIDTH = 128;
-int SSD1306_LCDHEIGHT = 64;
+int LED_DISPLAY_WIDTH = 128;
+int LED_DISPLAY_HEIGHT = 64;
+int LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SSD1306;
 
 
 /* static Variables */
 static unsigned char _rotation = 0,textsize = 0;
-static short _width = SSD1306_LCDWIDTH;
-static short _height = SSD1306_LCDHEIGHT;
+static short _width = LED_DISPLAY_WIDTH;
+static short _height = LED_DISPLAY_HEIGHT;
 static short cursor_x = 0, cursor_y = 0, textcolor = 0, textbgcolor = 0;
 static bool _cp437 = false, wrap = true;
 
@@ -370,375 +371,228 @@ int display_Init_seq()
     /* Add the reset code, If needed */
 
     /* Send display OFF command */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAY_OFF) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display OFF Command Passed\r\n");
-#endif
-    }
-    else
-    {
+    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAY_OFF) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display OFF Command Failed\r\n");
 #endif
         return 1;
     }
-
-    /* Set display clock frequency */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_CLK) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display CLK Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display CLK Command Failed\r\n");
-#endif
-        return 1;
-    }
-
-    /* Send display CLK command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPCLK_DIV) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display CLK Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display CLK Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
-
     /* Set display multiplex */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_MULTIPLEX) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display MULT Command Passed\r\n");
-#endif
-    }
-    else
-    {
+    if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_MULTIPLEX) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display MULT Command Failed\r\n");
 #endif
         return 1;
     }
-
     /* Send display MULT command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_MULT_DAT) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display MULT Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
+    if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_MULT_DAT) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display MULT Command Parameter Failed\r\n");
 #endif
         return 1;
     }
 
-    /* Set display OFFSET */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_OFFSET) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display OFFSET Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display OFFSET Command Failed\r\n");
-#endif
-        return 1;
-    }
+    
+    if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
+        /* Set display clock frequency */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_CLK) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display CLK Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Send display OFFSET command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISP_OFFSET_VAL) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display OFFSET Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display OFFSET Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Send display CLK command parameter */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPCLK_DIV) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display CLK Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Set display START LINE - Check this command if something weird happens */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_START_LINE) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display START LINE Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display START LINE Command Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Set display OFFSET */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_OFFSET) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display OFFSET Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Enable CHARGEPUMP*/
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_CONFIG_CHARGE_PUMP) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display CHARGEPUMP Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display CHARGEPUMP Command Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Send display OFFSET command parameter */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISP_OFFSET_VAL) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display OFFSET Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Send display CHARGEPUMP command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_CHARGE_PUMP_EN) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display CHARGEPUMP Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display CHARGEPUMP Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Set display START LINE - Check this command if something weird happens */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_START_LINE) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display START LINE Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Set display MEMORYMODE */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_MEM_ADDR_MODE) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display MEMORYMODE Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display MEMORYMODE Command Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Enable CHARGEPUMP*/
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_CONFIG_CHARGE_PUMP) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display CHARGEPUMP Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Send display HORIZONTAL MEMORY ADDR MODE command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_HOR_MM) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display HORIZONTAL MEMORY ADDR MODE Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display HORIZONTAL MEMORY ADDR MODE Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Send display CHARGEPUMP command parameter */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_CHARGE_PUMP_EN) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display CHARGEPUMP Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Set display SEG_REMAP */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SEG_REMAP) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display SEG_REMAP Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display SEG_REMAP Command Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Set display MEMORYMODE */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_MEM_ADDR_MODE) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display MEMORYMODE Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Set display DIR */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMSCANDEC) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display DIR Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display DIR Command Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Send display HORIZONTAL MEMORY ADDR MODE command parameter */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_HOR_MM) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display HORIZONTAL MEMORY ADDR MODE Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Set display COM */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMPINS) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display COM Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display COM Command Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Set display SEG_REMAP */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SEG_REMAP) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display SEG_REMAP Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
-    /* Send display COM command parameter */
-    int COMPINS = SSD1306_LCDHEIGHT == 32 ? SSD1306_CONFIG_COM_PINS_32 : SSD1306_CONFIG_COM_PINS_64;
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, COMPINS) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display COM Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display COM Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
+        /* Set display DIR */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMSCANDEC) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display DIR Command Failed\r\n");
+    #endif
+            return 1;
+        }
 
+        /* Set display COM */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMPINS) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display COM Command Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Send display COM command parameter */
+        int COMPINS = LED_DISPLAY_HEIGHT == 32 ? SSD1306_CONFIG_COM_PINS_32 : SSD1306_CONFIG_COM_PINS_64;
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, COMPINS) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display COM Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Set display PRECHARGE */
+        if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_PRECHARGE) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display PRECHARGE Command Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Send display PRECHARGE command parameter */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_PRECHARGE_VAL) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display PRECHARGE Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Set display VCOMH */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_VCOMDETECT) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display VCOMH Command Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Send display VCOMH command parameter */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_VCOMH_VAL) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display VCOMH Command Parameter Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Set display ALL-ON */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYALLON_RESUME) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display ALL-ON Command Failed\r\n");
+    #endif
+            return 1;
+        }
+
+        /* Set display to NORMAL-DISPLAY */
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_NORMAL_DISPLAY) != I2C_TWO_BYTES) {
+    #ifdef SSD1306_DBG
+            printf("Display NORMAL-DISPLAY Command Failed\r\n");
+    #endif
+            return 1;
+        }
+    } else {
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x02) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x10) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_START_LINE) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xB0) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SEG_REMAP) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_NORMAL_DISPLAY) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xad) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x8b) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x30) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMSCANDEC) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_OFFSET) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x00) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_CLK) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x80) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_PRECHARGE) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x1f) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMPINS) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x12) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_VCOMDETECT) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x40) != I2C_TWO_BYTES) { return 1; }
+    }
+    
     /* Set display CONTRAST */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_CONTRAST) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display CONTRAST Command Passed\r\n");
-#endif
-    }
-    else
-    {
+    if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_CONTRAST) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display CONTRAST Command Failed\r\n");
 #endif
         return 1;
     }
-
+    
     /* Send display CONTRAST command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_CONTRAST_VAL) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display CONTRAST Command Parameter Passed\r\n");
-#endif
+    int CONTRAST = LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306 ? SSD1306_CONTRAST_VAL : 0x80;
+    if (LED_DISPLAY_HEIGHT == 32) {
+        CONTRAST = 0x8F;
     }
-    else
-    {
+    if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, CONTRAST) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display CONTRAST Command Parameter Failed\r\n");
 #endif
         return 1;
     }
+    
 
-    /* Set display PRECHARGE */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_PRECHARGE) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display PRECHARGE Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display PRECHARGE Command Failed\r\n");
-#endif
-        return 1;
-    }
-
-    /* Send display PRECHARGE command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_PRECHARGE_VAL) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display PRECHARGE Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display PRECHARGE Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
-
-    /* Set display VCOMH */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_VCOMDETECT) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display VCOMH Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display VCOMH Command Failed\r\n");
-#endif
-        return 1;
-    }
-
-    /* Send display VCOMH command parameter */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_VCOMH_VAL) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display VCOMH Command Parameter Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display VCOMH Command Parameter Failed\r\n");
-#endif
-        return 1;
-    }
-
-    /* Set display ALL-ON */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYALLON_RESUME) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display ALL-ON Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display ALL-ON Command Failed\r\n");
-#endif
-        return 1;
-    }
-
-    /* Set display to NORMAL-DISPLAY */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_NORMAL_DISPLAY) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display NORMAL-DISPLAY Command Passed\r\n");
-#endif
-    }
-    else
-    {
-#ifdef SSD1306_DBG
-        printf("Display NORMAL-DISPLAY Command Failed\r\n");
-#endif
-        return 1;
-    }
 
     /* Set display to DEACTIVATE_SCROLL */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DEACTIVATE_SCROLL) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display DEACTIVATE_SCROLL Command Passed\r\n");
-#endif
-    }
-    else
-    {
+    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DEACTIVATE_SCROLL) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display DEACTIVATE_SCROLL Command Failed\r\n");
 #endif
@@ -746,14 +600,7 @@ int display_Init_seq()
     }
 
     /* Set display to TURN-ON */
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYON) == I2C_TWO_BYTES)
-    {
-#ifdef SSD1306_DBG
-        printf("Display TURN-ON Command Passed\r\n");
-#endif
-    }
-    else
-    {
+    if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_DISPLAYON) != I2C_TWO_BYTES) {
 #ifdef SSD1306_DBG
         printf("Display TURN-ON Command Failed\r\n");
 #endif
@@ -773,29 +620,51 @@ int transfer()
     short loop_1 = 0, loop_2 = 0;
     short index = 0x00;
     int max = _height * _width / 8;
-    for (loop_1 = 0; loop_1 < 1024; loop_1++)
-    {
-        chunk[0] = 0x40;
-        for(loop_2 = 1; loop_2 < MAX_CHUNK_SIZE; loop_2++)
-            chunk[loop_2] = screen[index++];
-        
-        if(i2c_multiple_writes(I2C_DEV_2.fd_i2c, MAX_CHUNK_SIZE, chunk) == MAX_CHUNK_SIZE)
-        {
-#ifdef SSD1306_DBG
-            printf("Chunk written to RAM - Completed\r\n");
-#endif
-        }
-        else
-        {
-#ifdef SSD1306_DBG
-            printf("Chunk written to RAM - Failed\r\n");
-#endif
-            return 1;
-        }
+    if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
+        for (loop_1 = 0; loop_1 < 1024; loop_1++) {
+            chunk[0] = 0x40;
+            for(loop_2 = 1; loop_2 < MAX_CHUNK_SIZE; loop_2++)
+                chunk[loop_2] = screen[index++];
+            
+            if (i2c_multiple_writes(I2C_DEV_2.fd_i2c, MAX_CHUNK_SIZE, chunk) != MAX_CHUNK_SIZE) {
+    #ifdef SSD1306_DBG
+                printf("Chunk written to RAM - Failed\r\n");
+    #endif
+                return 1;
+            }
 
-        memset(chunk,0x00,MAX_CHUNK_SIZE);
-        if (index == max)
-            break;
+            memset(chunk,0x00,MAX_CHUNK_SIZE);
+            if (index == max)
+                break;
+        }
+    } else {
+        chunk[0] = 0x40;
+        
+        for (uint8_t k=0; k < 8; k++) {
+            //set page addressSSD_Data_Mode;
+            if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xB0+k) != I2C_TWO_BYTES) {
+                return 1;
+            }
+            //set lower column address
+            if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x02) != I2C_TWO_BYTES) {
+                return 1;
+            }
+            //set higher column address
+            if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x10) != I2C_TWO_BYTES) {
+                return 1;
+            }
+            for (int i = 0; i < 8; i++) {
+                for (int x = 1; x <= 16; x++) {
+                    chunk[x] = screen[index++];
+                }
+                if (i2c_multiple_writes(I2C_DEV_2.fd_i2c, 17, chunk) != 17) {
+#ifdef SSD1306_DBG
+                    printf("Chunk written to RAM - Failed\r\n");
+#endif
+                    return 1;
+                }
+            }
+        }
     }
     return 0;
 }
@@ -936,13 +805,13 @@ void setRotation(unsigned char x)
     {
     case 0:
     case 2:
-        _width = SSD1306_LCDWIDTH;
-        _height = SSD1306_LCDHEIGHT;
+        _width = LED_DISPLAY_WIDTH;
+        _height = LED_DISPLAY_HEIGHT;
         break;
     case 1:
     case 3:
-        _width = SSD1306_LCDHEIGHT;
-        _height = SSD1306_LCDWIDTH;
+        _width = LED_DISPLAY_HEIGHT;
+        _height = LED_DISPLAY_WIDTH;
         break;
     }
 }
@@ -1245,7 +1114,7 @@ int startscrolldiagright(unsigned char start, unsigned char stop)
         return 1;
     }
 
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_LCDHEIGHT) == I2C_TWO_BYTES)
+    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, LED_DISPLAY_HEIGHT) == I2C_TWO_BYTES)
     {
 #ifdef SSD1306_DBG
         printf("DIAG_SR Param_2 Passed\r\n");
@@ -1402,7 +1271,7 @@ int startscrolldiagleft(unsigned char start, unsigned char stop)
         return 1;
     }
 
-    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_LCDHEIGHT) == I2C_TWO_BYTES)
+    if(i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, LED_DISPLAY_HEIGHT) == I2C_TWO_BYTES)
     {
 #ifdef SSD1306_DBG
         printf("DIAG_SR Param_2 Passed\r\n");
@@ -1608,9 +1477,9 @@ signed char drawPixel(short x, short y, short color)
     /* x is the column */
     switch(color)
     {
-    case WHITE:   screen[x+ (y/8)*SSD1306_LCDWIDTH] |=  (1 << (y&7)); break;
-    case BLACK:   screen[x+ (y/8)*SSD1306_LCDWIDTH] &= ~(1 << (y&7)); break;
-    case INVERSE: screen[x+ (y/8)*SSD1306_LCDWIDTH] ^=  (1 << (y&7)); break;
+    case WHITE:   screen[x+ (y/8)*LED_DISPLAY_WIDTH] |=  (1 << (y&7)); break;
+    case BLACK:   screen[x+ (y/8)*LED_DISPLAY_WIDTH] &= ~(1 << (y&7)); break;
+    case INVERSE: screen[x+ (y/8)*LED_DISPLAY_WIDTH] ^=  (1 << (y&7)); break;
     }
     return 0;
 }
