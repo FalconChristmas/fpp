@@ -164,15 +164,18 @@ void FPPOLEDUtils::doIteration(int count) {
     clearDisplay();
     
     int startY = 0;
+    if (_ledType == 6) {
+        startY++;
+    }
     setTextSize(1);
     setTextColor(WHITE);
-    setCursor(0,0);
+    setCursor(0,startY);
     if (networks.size() > 1) {
         int idx = count % networks.size();
         if (networks.size() == 2 && LED_DISPLAY_HEIGHT == 64) {
             idx = 0;
         }
-        outputNetwork(idx, 0);
+        outputNetwork(idx, startY);
         startY += 8;
         if (LED_DISPLAY_HEIGHT == 64) {
             if (networks.size() > 1) {
