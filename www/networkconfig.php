@@ -255,7 +255,7 @@ function CheckDNSCallback(data) {
 	   } else {
                 $('#dnsWarning').html("");
 	   }
-	} else if ($('#eth_static').is(':checked')) {
+	} else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
 	   $('#dnsWarning').html("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
 	} else {
 	$('#dnsWarning').html("");
@@ -265,15 +265,14 @@ function CheckDNSCallback(data) {
 
 function CheckDNS() {
 	var iface = $('#selInterfaces').val();
+	var selIndex = $("#selInterfaces").prop('selectedIndex');
 
-	if (iface == 'eth0')
+	if ($("#selInterfaces option").length > 1)
 	{
-		// FIXME, check the size of #selInterfaces here to be > 1
-		iface = 'wlan0';
-	}
-	else if (iface == 'wlan0')
-	{
-		iface = 'eth0';
+		if (selIndex == 0)
+			iface = $("#selInterfaces").find('option:eq(1)').val();
+		else
+			iface = $("#selInterfaces").find('option:eq(0)').val();
 	}
 
 	var url = "fppjson.php?command=getInterfaceInfo&interface=" + iface;
