@@ -265,14 +265,15 @@ function CheckDNSCallback(data) {
 
 function CheckDNS() {
 	var iface = $('#selInterfaces').val();
-	var selIndex = $("#selInterfaces").prop('selectedIndex');
 
-	if ($("#selInterfaces option").length > 1)
+	if (iface == 'eth0')
 	{
-		if (selIndex == 0)
-			iface = $("#selInterfaces").find('option:eq(1)').val();
-		else
-			iface = $("#selInterfaces").find('option:eq(0)').val();
+		// FIXME, check the size of #selInterfaces here to be > 1
+		iface = 'wlan0';
+	}
+	else if (iface == 'wlan0')
+   	{
+		iface = 'eth0';
 	}
 
 	var url = "fppjson.php?command=getInterfaceInfo&interface=" + iface;
