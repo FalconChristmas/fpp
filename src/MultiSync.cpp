@@ -1581,7 +1581,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
         isInstance = false;
     }
 
-	snprintf(addrStr, 15, "%d.%d.%d.%d", extraData[8], extraData[9],
+	snprintf(addrStr, 16, "%d.%d.%d.%d", extraData[8], extraData[9],
 		extraData[10], extraData[11]);
 
 	std::string address = addrStr;
