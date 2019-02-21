@@ -101,6 +101,7 @@ OBJECTS_fppd = \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
     fseq/FSEQFile.o \
+    sensors/Sensors.o \
     ping.o \
 	command.o \
 	common.o \

@@ -1,5 +1,13 @@
 
 <script type="text/javascript">
+
+<?
+$currentCape = "";
+if (file_exists("/home/fpp/media/cape-info.json")) {
+    $string = file_get_contents("/home/fpp/media/cape-info.json");
+    $currentCape = json_decode($string, true)["id"];
+}
+?>
 var KNOWN_CAPES = {
 <?
     
@@ -24,10 +32,15 @@ if (is_dir($capedir)){
             }
 
             if ($string != "") {
-                echo "'" . $file . "': " . $string . ",\n";
+                $json = json_decode($string, true);
                 
-                if (strpos($file, '-v2') === false) {
-                    $capes[$file] = json_decode($string, true);
+                if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
+                    echo "'" . $file . "': " . $string . ",\n";
+                    $file = str_replace('-v2.j', '.j', $file);
+                    $file = str_replace('-v3.j', '.j', $file);
+                    if (!isset($capes[$file])) {
+                        $capes[$file] = $json;
+                    }
                 }
             }
         }
@@ -76,15 +89,34 @@ var PixelStringLoaded = false;
 
 function GetBBB48StringCapeFileName() {
     var subType = $('#BBB48StringSubType').val();
+    var ver = $('#BBB48StringSubTypeVersion').val();
+    if (ver == "2.x") {
+        subType += "-v2";
+    }
+    if (ver == "3.x") {
+        subType += "-v3";
+    }
     subType += ".json";
     return subType;
 }
 
 
 function GetBBB48StringRequiresVersion() {
-    var subType = $('#BBB48StringSubType').val();
-    subType += "-v2.json";
-    if (KNOWN_CAPES[subType] == null) {
+    var mainType = $('#BBB48StringSubType').val();
+    var v2SubType = mainType + "-v2.json";
+    var v3SubType = mainType + "-v3.json";
+    mainType += ".json";
+    var count = 0;
+    if (KNOWN_CAPES[mainType] != null)  {
+        count++;
+    }
+    if (KNOWN_CAPES[v2SubType] != null)  {
+        count++;
+    }
+    if (KNOWN_CAPES[v3SubType] != null)  {
+        count++;
+    }
+    if (count <= 1) {
         return false;
     }
     return true;
@@ -233,7 +265,9 @@ function populatePixelStringOutputs(data) {
                 var subType = output.subType;
                 $('#BBB48StringSubType').val(subType);
                 var version = output.pinoutVersion;
-                if (version == '2.x') {
+                if (version == '3.x') {
+                    $('#BBB48StringSubTypeVersion').val("3.x");
+                } else if (version == '2.x') {
                     $('#BBB48StringSubTypeVersion').val("2.x");
                 } else {
                     $('#BBB48StringSubTypeVersion').val("1.x");
@@ -356,12 +390,30 @@ function loadBBBOutputs() {
     defaultData.channelOutputs = [];
     var output = {};
     output.type = 'BBB48String';
-    output.subType = 'F8-B';
+    <?
+    if (isset($capes["F8-B"])) {
+        echo 'output.subType = "F8-B";';
+    } else {
+        echo 'output.subType = "' . $capes[0]['name'] . '";';
+        if (isset($capes[0]['pinoutVersion'])) {
+            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        }
+    }
+    ?>
     defaultData.channelOutputs.push(output);
 
     var output = {};
     output.type = 'BBBSerial';
-    output.device = 'F8-B';
+    <?
+    if (isset($capes["F8-B"])) {
+        echo 'output.subType = "F8-B";';
+    } else {
+        echo 'output.subType = "' . $capes[0]['name'] . '";';
+        if (isset($capes[0]['pinoutVersion'])) {
+            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        }
+    }
+    ?>
     output.subType = 'off';
     defaultData.channelOutputs.push(output);
     
@@ -433,6 +485,7 @@ $(document).ready(function(){
                             <td><select id='BBB48StringSubTypeVersion'>
                                     <option value='1.x'>1.x</option>
                                     <option value='2.x'>2.x</option>
+                                    <option value='3.x'>3.x</option>
                                 </select>
                             </td>
 						</tr>

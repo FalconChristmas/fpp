@@ -1,0 +1,38 @@
+{
+    "id": "F8-Bv3",
+    "version": "3.0",
+    "name": "F8-B",
+    "defaultSettings": {
+        "piRTC": "4"
+    },
+    "sensors": [
+        {
+            "label": "Temp1: ",
+            "type": "i2c",
+            "address": "0x48",
+            "driver": "lm75",
+            "path": "/sys/class/i2c-dev/i2c-2/device/2-0048/hwmon/hwmon0/temp1_input",
+            "multiplier": 0.001,
+            "prefix": "",
+            "postfix": "C"
+        },
+        {
+            "label": "Temp2: ",
+            "type": "ain",
+            "address": "4",
+            "prefix": "",
+            "postfix": "C",
+            "min": -50.0,
+            "max": 131.0
+        },
+        {
+            "label": "VIN: ",
+            "type": "ain",
+            "address": "0",
+            "prefix": "",
+            "postfix": "V",
+            "min": 0,
+            "max": 24.2
+        }        
+    ]
+}

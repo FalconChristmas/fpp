@@ -60,13 +60,15 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <execinfo.h>
+#include <fstream>
+#include <sstream>
 
 #include "channeloutput/FPD.h"
 #include "falcon.h"
 #include "mediaoutput.h"
 #include "fppd.h"
 #include <getopt.h>
-
+#include "sensors/Sensors.h"
 
 #include <curl/curl.h>
 
@@ -184,6 +186,23 @@ inline void WriteRuntimeInfoFile(Json::Value v) {
     }
 }
 
+static void initCape() {
+    if (FileExists("/home/fpp/media/cape-info.json")) {
+        std::ifstream t("/home/fpp/media/cape-info.json");
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            std::string cname = root["name"].asString();
+            std::string cver = root["version"].asString();
+            LogDebug(VB_ALL, "Found cape:  %s %s\n", cname.c_str(), cver.c_str());
+            Sensors::INSTANCE.addSensors(root["sensors"]);
+        }
+    }
+}
 
 void usage(char *appname)
 {
@@ -467,6 +486,8 @@ int main(int argc, char *argv[])
 
 	if (!multiSync->Init())
 		exit(EXIT_FAILURE);
+    
+    initCape();
 
     int fd = -1;
     if ((fd = open ("/dev/spidev0.0", O_RDWR)) < 0) {

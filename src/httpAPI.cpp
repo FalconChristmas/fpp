@@ -50,6 +50,8 @@
 #include <jsoncpp/json/json.h>
 
 #include "mediaoutput/mediaoutput.h"
+#include "sensors/Sensors.h"
+
 /*
  *
  */
@@ -749,6 +751,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
     }
+    Sensors::INSTANCE.reportSensors(result);
 }
 
 /*

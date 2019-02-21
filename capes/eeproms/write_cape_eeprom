@@ -1,0 +1,34 @@
+#! /usr/bin/php
+<?php
+
+// detect and initialize the eeprom, only support 24c256 chips for now
+if (!file_exists("/sys/bus/i2c/devices/2-0050/eeprom")) {
+    file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device", "24c256 0x50");
+}
+
+$fp = fopen('/sys/bus/i2c/devices/2-0050/eeprom', 'wb');
+$header = pack("a6", "FPP02");
+fwrite($fp, $header);
+
+$cape = pack("a26", $argv[1]);
+fwrite($fp, $cape);
+$capev = pack("a10", $argv[2]);
+fwrite($fp, $capev);
+
+$serial = pack("a16", $argv[3]);
+fwrite($fp, $serial);
+
+$jsonlen = filesize($argv[4]);
+$jsonLenStr = sprintf("%d", $jsonlen);
+fwrite($fp, pack("a6", $jsonLenStr));
+fwrite($fp, pack("a64", "cape-info.json"));
+
+$json = file_get_contents($argv[4]);
+fwrite($fp, $json);
+
+fwrite($fp, pack("a6", "0"));
+
+fclose($fp);
+
+?>
+

@@ -354,26 +354,18 @@ function GetFPPStatusJson()
 	}
 	else
 	{
-        $command = "s";
-        if (isset($args['counter'])) {
-            $command = "s," . $args['counter'];
-        }
-        $status = SendCommand($command);
-        if ($status === false || $status == "") {
-            // status are safe to re-request on failure
-            $status = SendCommand($command);
-        }
-
-		if ($status == false || $status == 'false') {
-     	
-			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
-
+        //go through the new API to get the status
+        $request_content = @file_get_contents("http://localhost/api/fppd/status");
+        if ($request_content === FALSE) {
+            $status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+            
             $default_return_json['fppd'] = "Not Running";
             $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
-
+            
             returnJSON($default_return_json);
-		}
-		$data = parseStatus($status);
+            exit(0);
+        }
+		$data = json_decode($request_content);
 
 		//Check to see if we should also get the systemInfo for multiSync Expert view
 		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
@@ -390,110 +382,6 @@ function GetFPPStatusJson()
 
         returnJSON($data);
 	}
-}
-
-function parseStatus($status) 
-{
-	$modes = [
-		0 => 'unknown',
-        1 => 'bridge',
-        2 => 'player',
-        6 => 'master',
-        8 => 'remote'
-        ];
-
-    $statuses = [
-    	0 => 'idle',
-    	1 => 'playing',
-    	2 => 'stopping gracefully'
-    ];
-
-	$status = explode(',', $status, 14);
-	$mode = (int) $status[0]; 
-	$fppStatus = (int) $status[1];
-
-	if($mode == 1) {
-		return [
-			'fppd'   => 'running',
-			'mode'   => $mode,
-			'mode_name' => $modes[$mode],
-			'status' => $fppStatus,
-			'time'   => exec('date'),
-		];
-	}
-
-	$baseData = [
-		'fppd'        => 'running',
-		'mode'        => $mode,
-		'mode_name'   => $modes[$mode],
-		'status'      => $fppStatus,
-		'status_name' => $statuses[$fppStatus],
-		'volume'      => (int) $status[2],
-		'time'        => exec('date'),
-		'current_playlist' => [
-			'playlist' => '',
-			'type'     => '',
-			'index'    => '0',
-			'count'    => '0'
-		],
-		'current_sequence'  => '',
-		'current_song'      => '',
-		'seconds_played'    => '0',
-		'seconds_remaining' => '0',
-		'time_elapsed'      => '00:00',
-		'time_remaining'    => '00:00',
-   ];
-
-	if($mode == 8) {
-		$data = [
-			'playlist'          => $status[3],
-			'sequence_filename' => $status[3],
-			'media_filename'    => $status[4],
-			'seconds_elapsed'   => $status[5],
-			'seconds_remaining' => $status[6],
-			'time_elapsed' 		=> parseTimeFromSeconds((int)$status[5]),
-			'time_remaining'	=> parseTimeFromSeconds((int)$status[6]),
-	    ];
-
-	} else {
-
-		if($fppStatus == 0) {
-			$data = [
-				'next_playlist'     => [
-					'playlist'   => $status[3],
-					'start_time' => $status[4]
-				],
-				'repeat_mode' => 0,
-			];
-		} else {
-
-			if ($status[4] == 's')
-				$status[6] = '';
-
-			$data = [
-				'current_playlist' => [
-					'playlist' => pathinfo($status[3])['filename'],
-					'type'     => $status[4],
-					'index'    => $status[7],
-					'count'    => $status[8]
-					],
-				'current_sequence'  => $status[5],
-				'current_song'      => $status[6],
-				'seconds_played'    => $status[9],
-				'seconds_remaining' => $status[10],
-				'time_elapsed' 		=> parseTimeFromSeconds((int)$status[9]),
-				'time_remaining' 	=> parseTimeFromSeconds((int)$status[10]),
-				'next_playlist'     => [
-					'playlist'   => $status[11],
-					'start_time' => $status[12]
-				],
-				'repeat_mode' => (int)$status[13],
-			];
-		}
-	}
-
-	return array_merge($baseData, $data);
-
 }
 
 function parseTimeFromSeconds($seconds) {

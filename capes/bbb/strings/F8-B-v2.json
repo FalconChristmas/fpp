@@ -1,6 +1,6 @@
 {
     "name": "F8-B",
-    "longName": "F8-B",
+    "longName": "F8-B (8 Serial)",
     "numSerial": 8,
     "outputs": [
         {  "pin": "P8-28" },

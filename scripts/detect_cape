@@ -1,0 +1,36 @@
+#! /usr/bin/php
+<?php
+
+if (file_exists("/home/fpp/media/cape-info.json")) {
+    unlink("/home/fpp/media/cape-info.json");
+}
+
+// detect and initialize the eeprom, only support 24c256 chips for now
+if (!file_exists("/sys/bus/i2c/devices/2-0050/eeprom")) {
+    file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device", "24c256 0x50");
+}
+
+$fp = fopen('/sys/bus/i2c/devices/2-0050/eeprom', 'rb');
+$header = fread($fp, 6); // should be FPP02 + null
+$cape = fread($fp, 26); // cape name + nulls
+$capev = fread($fp, 10); // cape version + nulls
+$capev = fread($fp, 16); // cape serial# + nulls
+
+$flen = fread($fp, 6); //length of the file
+$flen = intval($flen);
+while ($flen != 0) {
+    $fname = fread($fp, 64);
+    $fname = trim($fname);
+    $fdata = fread($fp, $flen);
+    $path = '/home/fpp/media/' . $fname;
+    $fout = fopen($path, "wb");
+    fwrite($fout, $fdata);
+    fclose($fout);
+
+    $flen = fread($fp, 6); //length of the file
+    $flen = intval($flen);
+}
+
+fclose($fp);
+
+?>

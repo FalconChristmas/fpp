@@ -1,0 +1,13 @@
+[Unit]
+Description=FPP Cape Detection
+Documentation=FPP
+After=syslog.target
+Before=fppinit.target network.target multi-user.target apache2.target
+Wants=home-fpp-media.mount
+
+[Service]
+ExecStart=/opt/fpp/scripts/detect_cape
+Type=oneshot
+
+[Install]
+WantedBy=default.target fppinit.target fppoled.target

@@ -143,6 +143,7 @@ include 'common/menuHead.inc';
           <td id = "fppTime" colspan = "3"></td>
         </tr>
       </table>
+        <hr>
     </div>
     <div id="bytesTransferred"><H3>E1.31 Packets and Bytes Received</H3>
       <table style='width: 100%'>
@@ -158,7 +159,8 @@ include 'common/menuHead.inc';
       <div class="clear"></div>
     </div>
     <div id="playerInfo">
-      <hr>
+<table width="100%">
+<tr><td width="100%">
       <div id="remoteStatus">
 	  		<table>
 	  			<tr><td>Remote Status:</td>
@@ -201,8 +203,6 @@ include 'common/menuHead.inc';
           </tr>
       </table>
       </div>
-		</div>
-
     <div id="volumeControls">
 			<table width="100%">
           <tr>
@@ -216,6 +216,15 @@ include 'common/menuHead.inc';
 		  </tr>
 			</table>
 		</div>
+</td>
+<td>
+<div id="sensorData">
+</div>
+</td>
+</tr>
+</table>
+		</div>
+
 
     	<div id="playerStatusBottom">
       <div id="statusPlaylist"  class="unselectable">
@@ -258,7 +267,7 @@ include 'common/menuHead.inc';
         <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
        </div>
     </div>
-    <div id= "nextPlaylist">
+    <div id="nextPlaylist">
       <table  width="100%">
         <tr>
           <td class='controlHeader'> Next Playlist: </td>

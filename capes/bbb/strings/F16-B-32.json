@@ -1,6 +1,6 @@
 {
     "name": "F16-B-32",
-    "longName": "F16-B w/ 32 Outputs",
+    "longName": "F16-B w/ 32 Outputs (8 Serial)",
     "numSerial": 8,
     "outputs": [
         {  "pin": "P8-08" },

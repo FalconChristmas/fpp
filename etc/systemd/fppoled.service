@@ -11,4 +11,4 @@ Type=simple
 StandardOutput=syslog+console
 
 [Install]
-WantedBy=default.target
+WantedBy=default.target fppinit.target
