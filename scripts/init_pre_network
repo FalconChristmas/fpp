@@ -20,12 +20,6 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
-if [ "${FPPPLATFORM}" = "BeagleBone Black" -o "${FPPPLATFORM}" = "Raspberry Pi" ]
-then
-	echo "FPP - Configuring RTC"
-	${BINDIR}/piRTC
-fi
-
 checkAudioConfig
 
 aplay -l 2>&1 | grep -q "no soundcards"

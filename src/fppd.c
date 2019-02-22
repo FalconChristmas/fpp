@@ -186,9 +186,9 @@ inline void WriteRuntimeInfoFile(Json::Value v) {
     }
 }
 
-static void initCape() {
-    if (FileExists("/home/fpp/media/cape-info.json")) {
-        std::ifstream t("/home/fpp/media/cape-info.json");
+static void initCapeFromFile(const char *f) {
+    if (FileExists(f)) {
+        std::ifstream t(f);
         std::stringstream buffer;
         buffer << t.rdbuf();
         std::string config = buffer.str();
@@ -202,6 +202,10 @@ static void initCape() {
             Sensors::INSTANCE.addSensors(root["sensors"]);
         }
     }
+}
+static void initCape() {
+    initCapeFromFile("/home/fpp/media/tmp/cape-info.json");
+    initCapeFromFile("/home/fpp/media/config/cape-info.json");
 }
 
 void usage(char *appname)

@@ -98,31 +98,24 @@ SetupFPPNetworkConfigViaConnMann() {
 	unset GATEWAY
 	unset NETMASK
 	unset ADDRESS
+    unset DOWAIT
         . ${f}
 
+
+        DOWAIT=0
         echo "[service_$INTERFACE]" >> ${TMPFILE}
         if [ "x$SSID" != "x" ]
         then
             echo "Name=${SSID}" >> $TMPFILE
+            DOWAIT=1
         fi
         if [ "x$PSK" != "x" ]
         then
             echo "Security=psk" >> $TMPFILE
             echo "Passphrase=${PSK}" >> $TMPFILE
+            DOWAIT=1
         fi
 
-        for i in {1..10}
-        do 
-            # wait up to 10 seconds for interface to become available
-            if [ ! -f "/sys/class/net/${INTERFACE}/address" ]; then
-                sleep 1
-            fi
-        done
-
-        if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
-             MACA=$(<"/sys/class/net/${INTERFACE}/address")
-            echo "MAC=${MACA}" >> $TMPFILE
-        fi
         if [[ "$INTERFACE" == "wlan"* ]] ; then
             echo "Type=wifi"  >> $TMPFILE
             if [ "$HIDDEN" == "1" ]; then
@@ -137,18 +130,34 @@ SetupFPPNetworkConfigViaConnMann() {
                 echo "Nameservers=${DNS}" >> $TMPFILE
             fi
         else
+            DOWAIT=1
             if [ "x$GATEWAY" != "x" ]; then
-		DEFGW="$GATEWAY"
+                DEFGW="$GATEWAY"
                 echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
                 if [ "x$DNS" != "x" ]; then
                     echo "Nameservers=${DNS}" >> $TMPFILE
                 fi
-	    elif [ "$DEFGW" == "none" ]; then
+            elif [ "$DEFGW" == "none" ]; then
                 echo "IPv4=$ADDRESS/$NETMASK" >> $TMPFILE
             else
                 echo "IPv4=$ADDRESS/$NETMASK/$DEFGW" >> $TMPFILE
             fi
         fi
+        if [ "$DOWAIT" == "1" ]; then
+            for i in {1..10}
+            do
+                # wait up to 10 seconds for interface to become available
+                if [ ! -f "/sys/class/net/${INTERFACE}/address" ]; then
+                    echo "Waiting for ${INTERFACE} to be available..."
+                    sleep 1
+                fi
+            done
+        fi
+        if [ -f "/sys/class/net/${INTERFACE}/address" ]; then
+            MACA=$(<"/sys/class/net/${INTERFACE}/address")
+            echo "MAC=${MACA}" >> $TMPFILE
+        fi
+
         echo ""  >> $TMPFILE
         echo ""  >> $TMPFILE
     done
@@ -158,7 +167,6 @@ SetupFPPNetworkConfigViaConnMann() {
     if [ -f "$TMPFILE" ]; then
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
-
     TetherEnabled=$(getSetting EnableTethering)
     if [ "$TetherEnabled" != "1" ]; then
         # make sure tethering is off

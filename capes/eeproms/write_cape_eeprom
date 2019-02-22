@@ -21,7 +21,8 @@ fwrite($fp, $serial);
 $jsonlen = filesize($argv[4]);
 $jsonLenStr = sprintf("%d", $jsonlen);
 fwrite($fp, pack("a6", $jsonLenStr));
-fwrite($fp, pack("a64", "cape-info.json"));
+fwrite($fp, pack("a2", "1"));
+fwrite($fp, pack("a64", "tmp/cape-info.json"));
 
 $json = file_get_contents($argv[4]);
 fwrite($fp, $json);

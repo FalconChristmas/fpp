@@ -1,8 +1,11 @@
 #! /usr/bin/php
 <?php
 
-if (file_exists("/home/fpp/media/cape-info.json")) {
-    unlink("/home/fpp/media/cape-info.json");
+if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
+    unlink("/home/fpp/media/tmp/cape-info.json");
+}
+if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
+     mkdir("/home/fpp/media/tmp");
 }
 
 // detect and initialize the eeprom, only support 24c256 chips for now
@@ -10,6 +13,9 @@ if (!file_exists("/sys/bus/i2c/devices/2-0050/eeprom")) {
     file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device", "24c256 0x50");
 }
 
+if (!file_exists("/sys/bus/i2c/devices/2-0050/eeprom")) {
+    exit(0);    
+}
 $fp = fopen('/sys/bus/i2c/devices/2-0050/eeprom', 'rb');
 $header = fread($fp, 6); // should be FPP02 + null
 $cape = fread($fp, 26); // cape name + nulls
@@ -19,6 +25,7 @@ $capev = fread($fp, 16); // cape serial# + nulls
 $flen = fread($fp, 6); //length of the file
 $flen = intval($flen);
 while ($flen != 0) {
+    $flags = fread($fp, 2);
     $fname = fread($fp, 64);
     $fname = trim($fname);
     $fdata = fread($fp, $flen);
@@ -26,6 +33,15 @@ while ($flen != 0) {
     $fout = fopen($path, "wb");
     fwrite($fout, $fdata);
     fclose($fout);
+
+    if ($fname == "tmp/cape-info.json") {
+	$json = json_decode($fdata);
+        foreach ($json->defaultSettings as $key => $value) {
+            if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
+                file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
+            }
+        }
+    }
 
     $flen = fread($fp, 6); //length of the file
     $flen = intval($flen);
