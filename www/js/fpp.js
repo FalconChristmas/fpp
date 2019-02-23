@@ -2066,17 +2066,20 @@ if (1) {
 			$('#fppTime').html(jsonStatus.time);
             
 		}
-        var sensorText = "<table id='sensorTable'>";
-        for (var i = 0; i < jsonStatus.sensors.length; i++) {
-            sensorText += "<tr><td>";
-            sensorText += jsonStatus.sensors[i].label;
-            sensorText += "</td><td>";
-            sensorText += jsonStatus.sensors[i].formatted;
-            sensorText += "</td></tr>";
+
+        if (jsonStatus.hasOwnProperty('sensors')) {
+            var sensorText = "<table id='sensorTable'>";
+            for (var i = 0; i < jsonStatus.sensors.length; i++) {
+                sensorText += "<tr><td>";
+                sensorText += jsonStatus.sensors[i].label;
+                sensorText += "</td><td>";
+                sensorText += jsonStatus.sensors[i].formatted;
+                sensorText += "</td></tr>";
+            }
+            sensorText += "</table>";
+            var sensorData = document.getElementById("sensorData");
+            sensorData.innerHTML = sensorText;
         }
-        sensorText += "</table>";
-        var sensorData = document.getElementById("sensorData");
-        sensorData.innerHTML = sensorText;
 
 		firstStatusLoad = 0;
 	}
