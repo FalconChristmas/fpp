@@ -45,15 +45,17 @@ if ($f) {
 			continue;
 
 		$line = trim($line);
-		$entry = explode(",", $line, 5);
+		$entry = explode(",", $line, 6);
 
 		$ox = $entry[0];
 		$oy = $previewHeight - $entry[1];
+		$oz = $entry[2];
 		$x = (int)($ox * $scale);
 		$y = (int)($oy * $scale);
-		$ch = $entry[2];
-		$colors = $entry[3];
-		$type = $entry[4];
+		$z = (int)($oz * $scale);
+		$ch = $entry[3];
+		$colors = $entry[4];
+		$type = $entry[5];
 		$iy = $canvasHeight - $y;
 
 		if (($ox >= 4096) || ($oy >= 4096))

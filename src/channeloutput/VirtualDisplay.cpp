@@ -158,6 +158,7 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 	std::vector<std::string> parts;
 	int x = 0;
 	int y = 0;
+	int z = 0;
 	int ch = 0;
 	int s = 0;
 	int r = 0;
@@ -226,11 +227,12 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			continue;
 		}
 
-		if (parts.size() >= 3)
+		if (parts.size() >= 4)
 		{
 			x  = atoi(parts[0].c_str());
 			y  = atoi(parts[1].c_str());
-			ch = atoi(parts[2].c_str());
+			z  = atoi(parts[2].c_str());
+			ch = atoi(parts[3].c_str());
 
 			s = ((m_height - (int)(y * m_scale) - 1) * m_width
 					+ (int)(x * m_scale + colOffset)) * m_bytesPerPixel;
@@ -272,38 +274,38 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 				b = s + 0;
 			}
 
-			if (parts[4] == "RGB")
+			if (parts[5] == "RGB")
 				vpc = kVPC_RGB;
-			else if (parts[4] == "RBG")
+			else if (parts[5] == "RBG")
 				vpc = kVPC_RBG;
-			else if (parts[4] == "GRB")
+			else if (parts[5] == "GRB")
 				vpc = kVPC_GRB;
-			else if (parts[4] == "GBR")
+			else if (parts[5] == "GBR")
 				vpc = kVPC_GBR;
-			else if (parts[4] == "BRG")
+			else if (parts[5] == "BRG")
 				vpc = kVPC_BRG;
-			else if (parts[4] == "BGR")
+			else if (parts[5] == "BGR")
 				vpc = kVPC_BGR;
-			else if (parts[4] == "RGBW")
+			else if (parts[5] == "RGBW")
 				vpc = kVPC_RGBW;
-			else if (parts[4] == "Red")
+			else if (parts[5] == "Red")
 				vpc = kVPC_Red;
-			else if (parts[4] == "Green")
+			else if (parts[5] == "Green")
 				vpc = kVPC_Green;
-			else if (parts[4] == "Blue")
+			else if (parts[5] == "Blue")
 				vpc = kVPC_Blue;
-			else if (parts[4] == "White")
+			else if (parts[5] == "White")
 				vpc = kVPC_White;
 
 			found = 0;
 			for (i = 0; i < m_pixels.size() && !found; i++)
 			{
-				if ((m_pixels[i].x == x) && (m_pixels[i].y == y))
+				if ((m_pixels[i].x == x) && (m_pixels[i].y == y) && (m_pixels[i].z == z))
 					found = 1;
 			}
 
 			if (!found)
-				m_pixels.push_back({ x, y, ch, r, g, b, atoi(parts[3].c_str()), vpc });
+				m_pixels.push_back({ x, y, z, ch, r, g, b, atoi(parts[4].c_str()), vpc });
 		}
 	}
 

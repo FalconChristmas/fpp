@@ -9,6 +9,9 @@ send_header("Access-Control-Allow-Origin: *");
 
 dispatch_get   ('/help', 'help_help');
 
+dispatch_get   ('/configfile/:FileName', 'DownloadConfigFile');
+dispatch_post  ('/configfile/:FileName', 'UploadConfigFile');
+
 dispatch_post  ('/models/raw', 'post_models_raw');
 
 dispatch_get   ('/playlists', 'playlist_list');

@@ -49,6 +49,7 @@ typedef enum virtualPixelColor {
 typedef struct virtualDisplayPixel {
 	int x;
 	int y;
+	int z;
 	int ch;
 	int r;
 	int g;
