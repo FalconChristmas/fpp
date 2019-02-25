@@ -52,7 +52,7 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
     <fieldset>
     <legend>Email Setup</legend>
       Outbound email requires a Gmail account to relay mail thru.  Nothing is stored in/on your
-      Gmail account.  Gmail accounts are free by going to <a href="gmail.com" target="new">Gmail.com</a>.  By routing thru Gmail we go
+      Gmail account.  Gmail accounts are free by going to <a href="https://gmail.com" target="new">Gmail.com</a>.  By routing thru Gmail we go
       around when ISPs block outbound port 25 making you route email thru them.<br /><br />
       To send email from a script:<br />
       1.  Create your message to a temp file of your chosing<br>
