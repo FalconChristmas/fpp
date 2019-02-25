@@ -64,24 +64,23 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
         <table width="75%" border="0" align="center" cellspacing='2' id='email'>
           <tr>
             <td width="50%" align="right">Enable Email System:</td>
-            <td>
-              <?php PrintSettingCheckbox("Email System: ", "emailenable", 0, 1, "1", "0"); ?>
+            <td><?php PrintSettingCheckbox("Email System: ", "emailenable", 0, 1, "1", "0"); ?></td>
           </tr>
           <tr>
             <td width="50%" align="right">Gmail Username:</td>
-            <td><input name="emailguser" type="text" size="50" maxlength="30" value="<?php echo $emailguser; ?>"></td>
+            <td><? PrintSettingTextSaved("emailguser", 0, 0, 50, 30); ?></td>
           </tr>
           <tr>
             <td align="right">Gmail Password:</td>
-            <td><input name="emailgpass" type="password" size="50" maxlength="30" value="<?php echo $emailgpass; ?>"></td>
+            <td><? PrintSettingPasswordSaved("emailgpass", 0, 0, 50, 30); ?></td>
           </tr>
           <tr>
             <td align="right">Destination From Text:</td>
-            <td><input name="emailfromtext" type="text" size="50" maxlength="30" value="<?php echo $emailfromtext; ?>"></td>
+            <td><? PrintSettingTextSaved("emailfromtext", 0, 0, 50, 30); ?></td>
           </tr>
           <tr>
             <td align="right">Destination To Email:</td>
-            <td><input name="emailtoemail" type="text" size="50" maxlength="30" value="<?php echo $emailtoemail; ?>"></td>
+            <td><? PrintSettingTextSaved("emailtoemail", 0, 0, 50, 30); ?></td>
           </tr>
           <tr>
             <td colspan="2" align="center"><div id="submit">
