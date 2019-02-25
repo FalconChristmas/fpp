@@ -281,8 +281,8 @@ include 'common/menuHead.inc';
     </div>
 		</div>
   </fieldset>
-</div>
 <?php	include 'common/footer.inc'; ?>
+</div>
 </div>
 </body>
 </html>

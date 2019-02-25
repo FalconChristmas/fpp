@@ -555,11 +555,11 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
         </div>
   </fieldset>
 
-</div>
-</div>
 <div id="dialog-confirm" style="display: none">
 	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
 </div>
 <?php include 'common/footer.inc'; ?>
+</div>
+</div>
 </body>
 </html>
