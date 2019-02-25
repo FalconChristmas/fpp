@@ -6,37 +6,16 @@ require_once("config.php");
 require_once("common.php");
 require_once('common/menuHead.inc');
 
-function print_if_match($one, $two, $print)
+if (isset($_POST['action']))
 {
-  if ( $one == $two )
-    return $print;
-}
-if ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) )
-{
-  $emailguser = $_POST['emailguser'];
-  WriteSettingToFile("emailguser",$emailguser);
-}
-if ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) )
-{
-  $emailgpass = $_POST['emailgpass'];
-  WriteSettingToFile("emailgpass",$emailgpass);
-}
-if ( isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext']) )
-{
-  $emailfromtext = $_POST['emailfromtext'];
-  WriteSettingToFile("emailfromtext",$emailfromtext);
-}
-if ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) )
-{
-  $emailtoemail = $_POST['emailtoemail'];
-  WriteSettingToFile("emailtoemail",$emailtoemail);
-}
-if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
-   ( isset($_POST['emailgpass']) && !empty($_POST['emailgpass']) ) &&
-   ( isset($_POST['emailfromtext']) && !empty($_POST['emailfromtext']) ) &&
-   ( isset($_POST['emailtoemail']) && !empty($_POST['emailtoemail']) ))
-{
-    SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+	if ($_POST['action'] == 'configureemail')
+	{
+		SaveEmailConfig($settings['emailguser'], $settings['emailgpass'], $settings['emailfromtext'], $settings['emailtoemail']);
+	}
+	else if ($_POST['action'] == 'testemail')
+	{
+		system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" root@localhost');
+	}
 }
 
 ?>
@@ -60,7 +39,6 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
       3.  If you need to attach a file also you can use the -a attachment_file param<br>
 	  All outbound email via scripts needs to be sent to <b>root@localhost</b>.
       <hr>
-      <form name="email_form" action="<?php echo $_SERVER['PHP_SELF'] ?>" method="POST">
         <table width="75%" border="0" align="center" cellspacing='2' id='email'>
           <tr>
             <td width="50%" align="right">Enable Email System:</td>
@@ -84,7 +62,15 @@ if ( ( isset($_POST['emailguser']) && !empty($_POST['emailguser']) ) &&
           </tr>
           <tr>
             <td colspan="2" align="center"><div id="submit">
-                <input id="submit_button" name="submit_button" type="submit" class="buttons" value="Save">
+              <form name="email_form" action="<?php echo $_SERVER['PHP_SELF'] ?>" method="POST">
+                <input type='hidden' name='action' value='configureemail'>
+                <input id="submit_button" name="submit_button" type="submit" class="buttons" value="Configure mail">
+              </form>
+              &nbsp;&nbsp;
+              <form name="email_form" action="<?php echo $_SERVER['PHP_SELF'] ?>" method="POST">
+                <input type='hidden' name='action' value='testemail'>
+                <input id="submit_button" name="submit_button" type="submit" class="buttons" value="Test mail">
+              </form>
               </div></td>
           </tr>
         </table>
