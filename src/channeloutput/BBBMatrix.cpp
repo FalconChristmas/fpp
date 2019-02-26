@@ -247,14 +247,17 @@ public:
             if ((y & 0x2) == 0) {
                 offInInt = m_interleave - 1 - offInInt;
             }
+        } else if (m_interleave == 4) {
+            if ((whichInt & 0x1) == 1) {
+                mult = (y < m_panelScan ? y + m_panelScan : y - m_panelScan) / m_panelScan;
+            }
         } else {
             int tmp = (y * 2) / m_panelScan;
             if ((tmp & 0x2) == 0) {
                 offInInt = m_interleave - 1 - offInInt;
             }
         }
-        
-        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
+        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult) + offInInt;
     }
     
 private:
@@ -418,6 +421,9 @@ int BBBMatrix::Init(Json::Value config)
             zigZagInterleave = true;
         } else if (config["panelInterleave"].asString() == "16z") {
             m_interleave = 16;
+            zigZagInterleave = true;
+        } else if (config["panelInterleave"].asString() == "4z") {
+            m_interleave = 4;
             zigZagInterleave = true;
         } else {
             m_interleave = std::stoi(config["panelInterleave"].asString());

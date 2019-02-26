@@ -132,7 +132,9 @@
     ADD out_clr, out_clr, pru_sel0
 
     OR r30, r30, PRU_SEL_MASK   //all the sel's high
+#ifdef pru_sel4
     CLR r30, pru_sel4           //keep E line low
+#endif
     CLR r30, out_clr            //lower the line we need
 #else
     LSL out_set, row, pru_sel0

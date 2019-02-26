@@ -1869,6 +1869,7 @@ function RemovePlaylistEntry()	{
 			$("#nextPlaylist").hide();
 			$("#bytesTransferred").show();
 			$("#remoteStatus").hide();
+            $("#playerStatusBottom").hide();
 		}
 		else
 		{
