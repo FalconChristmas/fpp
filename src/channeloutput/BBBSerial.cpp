@@ -169,11 +169,17 @@ int BBBSerialOutput::Init(Json::Value config)
     if (config["pinoutVersion"].asString() == "2.x") {
         verPostf = "-v2";
     }
+    if (config["pinoutVersion"].asString() == "3.x") {
+        verPostf = "-v3";
+    }
     Json::Reader reader;
     Json::Value root;
     char filename[256];
     std::string device = config["device"].asString();
-    sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), device.c_str(), verPostf.c_str());
+    sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", device.c_str(), verPostf.c_str());
+    if (!FileExists(filename)) {
+        sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), device.c_str(), verPostf.c_str());
+    }
     int maxOut = 8;
     int countOut = 0;
     if (FileExists(filename)) {

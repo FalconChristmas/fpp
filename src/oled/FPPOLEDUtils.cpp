@@ -8,12 +8,18 @@
 #include <ifaddrs.h>
 #include <string.h>
 #include <strings.h>
+#include <fstream>
+#include <sstream>
+
+#include <fcntl.h>
+#include <poll.h>
 
 #include "common.h"
 #include "I2C.h"
 #include "SSD1306_OLED.h"
 
 #include "FPPOLEDUtils.h"
+#include "channeloutput/BBBUtils.h"
 
 #include <linux/wireless.h>
 #include <sys/ioctl.h>
@@ -84,7 +90,7 @@ static int writer(char *data, size_t size, size_t nmemb,
     writerData->append(data, size*nmemb);
     return size * nmemb;
 }
-FPPOLEDUtils::FPPOLEDUtils(int ledType) : _ledType(ledType) {
+FPPOLEDUtils::FPPOLEDUtils(int ledType) : _ledType(ledType), _currentTest(0) {
     
     
     if (_ledType == 2 || _ledType == 4 || _ledType == 6) {
@@ -222,7 +228,7 @@ void FPPOLEDUtils::doIteration(int count) {
             std::string mode = result["mode_name"].asString();
             mode[0] = toupper(mode[0]);
             std::string line = mode;
-            bool isIdle = (status == "idle");
+            bool isIdle = (status == "idle" || status == "testing");
             int maxLines = 5;
             if (mode != "bridge") {
                 //bridge is always "idle" which isn't really true
@@ -341,6 +347,127 @@ void FPPOLEDUtils::fillInNetworks() {
         tmp = tmp->ifa_next;
     }
     freeifaddrs(interfaces);
+}
+void FPPOLEDUtils::cycleTest() {
+    _currentTest++;
+    Json::Value val;
+    val["cycleMS"] = 1000;
+    val["enabled"] = 1;
+    val["channelSet"] = "1-1048576";
+    val["channelSetType"] = "channelRange";
+
+    switch (_currentTest) {
+        case 1:
+            val["mode"] = "SingleChase";
+            val["chaseSize"] = 3;
+            val["chaseValue"] = 255;
+            break;
+        case 2:
+            val["mode"] = "RGBChase";
+            val["subMode"] = "RGBChase-RGBA";
+            val["colorPattern"] = "FF000000FF000000FFFFFFFF";
+            break;
+        default:
+            val["mode"] = "SingleChase";
+            val["chaseSize"] = 3;
+            val["chaseValue"] = 255;
+            val["enabled"] = 0;
+            _currentTest = 0;
+            break;
+    }
+    
+    Json::FastWriter writer;
+    std::string data = writer.write(val);
+
+    buffer.clear();
+    CURL *curl = curl_easy_init();
+    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/fppjson.php");
+    data = "command=setTestMode&data=" + data;
+    
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
+    curl_easy_setopt(curl, CURLOPT_POST, 1);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, -1L);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
+    curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+}
+
+
+void FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputAction> &actions) {
+    char vbuffer[256];
+    if (FileExists(file)) {
+        std::ifstream t(file);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            for (int x = 0; x < root["inputs"].size(); x++) {
+                InputAction action;
+                action.pin = root["inputs"][x]["pin"].asString();
+                action.mode = root["inputs"][x]["mode"].asString();
+                action.edge = root["inputs"][x]["edge"].asString();
+                action.action = root["inputs"][x]["type"].asString();
+                action.actionValue = (action.edge == "falling" ? 0 : 1);
+                action.lastActionTime = 0;
+#ifdef PLATFORM_BBB
+                printf("Configuring pin %s as input of type %s   (mode: %s)\n", action.pin.c_str(), action.action.c_str(), action.mode.c_str());
+
+                action.file = getBBBPinByName(action.pin).configPin(action.mode, "in").setEdge(action.edge).openValueForPoll();
+                //read the initial value to make sure nothing triggers at start
+                lseek(action.file, 0, SEEK_SET);
+                int len = read(action.file, vbuffer, 255);
+                actions.push_back(action);
+#endif
+            }
+        }
+    }
+
+}
+
+void FPPOLEDUtils::run() {
+    std::vector<InputAction> actions;
+    char vbuffer[256];
+    parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
+    parseInputActions("/home/fpp/media/config/cape-inputs.json", actions);
+    std::vector<struct pollfd> fdset(actions.size());
+    int count = 0;
+    while (true) {
+        doIteration(count);
+        count++;
+        if (actions.empty()) {
+            sleep(1);
+        } else {
+            memset((void*)&fdset[0], 0, sizeof(struct pollfd) * actions.size());
+            for (int x = 0; x < actions.size(); x++) {
+                fdset[x].fd = actions[x].file;
+                fdset[x].events = POLLPRI;
+            }
+
+            int rc = poll(&fdset[0], actions.size(), 1000);
+            for (int x = 0; x < actions.size(); x++) {
+                if ((fdset[x].revents & POLLPRI)) {
+                    lseek(fdset[x].fd, 0, SEEK_SET);
+                    int len = read(fdset[x].fd, vbuffer, 255);
+                    vbuffer[len] = 0;
+                    int v = atoi(vbuffer);
+                    long long ntime = GetTime();
+                    if ((v == actions[x].actionValue)
+                        && (ntime > (actions[x].lastActionTime + 100))) {
+                        actions[x].lastActionTime = ntime;
+                        if (actions[x].action == "Test") {
+                            cycleTest();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 

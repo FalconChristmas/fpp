@@ -279,7 +279,10 @@ int BBB48StringOutput::Init(Json::Value config)
     if (config["pinoutVersion"].asString() == "2.x") {
         verPostf = "-v2";
     }
-    
+    if (config["pinoutVersion"].asString() == "3.x") {
+        verPostf = "-v3";
+    }
+
     bool hasSerial = true;
     if (config.isMember("serialInUse")) {
         hasSerial = config["serialInUse"].asBool();
@@ -287,7 +290,10 @@ int BBB48StringOutput::Init(Json::Value config)
     Json::Reader reader;
     Json::Value root;
     char filename[256];
-    sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), m_subType.c_str(), verPostf.c_str());
+    sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", m_subType.c_str(), verPostf.c_str());
+    if (!FileExists(filename)) {
+        sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), m_subType.c_str(), verPostf.c_str());
+    }
     int maxGPIO0 = 0;
     int maxGPIO13 = 0;
     

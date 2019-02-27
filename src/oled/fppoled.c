@@ -78,9 +78,5 @@ int main (int argc, char *argv[]) {
     
     int count = 0;
     FPPOLEDUtils oled(ledType);
-    while (true) {
-        oled.doIteration(count);
-        count++;
-        sleep(1);
-    }
+    oled.run();
 }

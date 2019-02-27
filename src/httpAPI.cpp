@@ -402,7 +402,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	}
 	else if (url == "testing")
 	{
-		PostTesting(data["config"], result);
+		PostTesting(data, result);
 	}
 	else if (url == "settings/reload")
 	{
@@ -630,7 +630,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = FPPstatus;
-    result["status_name"] = FPPstatus == 0 ? "idle" : (FPPstatus == 1 ? "playing" : "stopping gracefully");
+    result["status_name"] = channelTester->Testing() ? "testing" : (FPPstatus == 0 ? "idle" : (FPPstatus == 1 ? "playing" : "stopping gracefully"));
     result["volume"] = getVolume();
 
     auto t = std::time(nullptr);
@@ -967,7 +967,5 @@ void PlayerResource::PostTesting(const Json::Value data, Json::Value &result)
 	{
 		SetOKResult(result, "Test Mode Deactivated");
 	}
-
-	result["config"] = JSONStringToObject(channelTester->GetConfig().c_str());
 }
 

@@ -56,17 +56,19 @@ if (isset($settings['AudioMixerDevice']))
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {
-	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"");
+	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+    if ( $return_val )
+    {
+        $AudioMixerDevice = "PCM";
+    }
 }
 
 $MixerDevices = Array();
 exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
-if ( $return_val )
-{
+if ( $return_val || strpos($output[0], "Usage:") === 0) {
 	error_log("Error getting mixer devices!");
-}
-else
-{
+    $AudioMixerDevice = "PCM";
+} else {
 	foreach($output as $device)
 	{
 		$MixerDevices[$device] = $device;
@@ -79,7 +81,8 @@ if ($settings['Platform'] != "BeagleBone Black") {
     $VideoOutputModels['HDMI'] = "--HDMI--";
 }
 $VideoOutputModels['Disabled'] = "--Disabled--";
-$f = fopen($settings['channelMemoryMapsFile'], "r");
+if (file_exists($settings['channelMemoryMapsFile'])) {
+    $f = fopen($settings['channelMemoryMapsFile'], "r");
     if ($f == FALSE) {
         # fclose($f);
     } else {
@@ -92,7 +95,7 @@ $f = fopen($settings['channelMemoryMapsFile'], "r");
         }
         fclose($f);
     }
-
+}
     
 
 $backgroundColors = Array();

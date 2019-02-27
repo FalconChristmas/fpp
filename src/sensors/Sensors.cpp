@@ -35,6 +35,9 @@ public:
         if (s.isMember("precision")) {
             postfix = s["precision"].asInt();
         }
+        if (s.isMember("valueType")) {
+            valueType = s["valueType"].asString();
+        }
     }
     virtual ~Sensor() {}
     virtual double getValue() = 0;
@@ -47,7 +50,8 @@ public:
         v["postfix"] = postfix;
         double d = getValue();
         v["value"] = d;
-        
+        v["valueType"] = valueType;
+
         std::ostringstream stringStream;
         stringStream << prefix
             << std::fixed << std::setprecision( precision )
@@ -59,6 +63,7 @@ public:
     std::string label;
     std::string prefix;
     std::string postfix;
+    std::string valueType;
     int precision = 1;
     std::mutex sensorLock;
 };

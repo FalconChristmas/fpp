@@ -196,16 +196,13 @@ static void initCapeFromFile(const char *f) {
         Json::Reader reader;
         bool success = reader.parse(buffer.str(), root);
         if (success) {
-            std::string cname = root["name"].asString();
-            std::string cver = root["version"].asString();
-            LogDebug(VB_ALL, "Found cape:  %s %s\n", cname.c_str(), cver.c_str());
             Sensors::INSTANCE.addSensors(root["sensors"]);
         }
     }
 }
 static void initCape() {
-    initCapeFromFile("/home/fpp/media/tmp/cape-info.json");
-    initCapeFromFile("/home/fpp/media/config/cape-info.json");
+    initCapeFromFile("/home/fpp/media/tmp/cape-sensors.json");
+    initCapeFromFile("/home/fpp/media/config/cape-sensors.json");
 }
 
 void usage(char *appname)
@@ -511,13 +508,13 @@ int main(int argc, char *argv[])
         CreatePixelnetDMXfile(getPixelnetFile());
     }
 
-
 	if (getFPPmode() != BRIDGE_MODE)
 	{
 		InitMediaOutput();
 	}
 
 	InitializeChannelOutputs();
+
 	sequence->SendBlankingData();
 
 	InitEffects();

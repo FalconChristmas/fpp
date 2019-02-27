@@ -1,52 +1,53 @@
 
 <script type="text/javascript">
 
-<?
-$currentCape = "";
-if (file_exists("/home/fpp/media/cape-info.json")) {
-    $string = file_get_contents("/home/fpp/media/cape-info.json");
-    $currentCape = json_decode($string, true)["id"];
-}
-?>
+
 var KNOWN_CAPES = {
 <?
-    
     function sortByLongName($a, $b) {
         return strcmp($a['longName'], $b['longName']);
     }
     
-$capedir = "/opt/fpp/capes/bbb/strings/";
-if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
-    $capedir = "/opt/fpp/capes/pb/strings/";
-}
-$capes = array();
-// Open a directory, and read its contents
-if (is_dir($capedir)){
-    if ($dh = opendir($capedir)){
-        while (($file = readdir($dh)) !== false){
-            $string = "";
-            if (substr($file, 0, 1) == '.') {
-                $string = "";
-            } else {
-                $string = file_get_contents($capedir . $file);
-            }
+    function readCapes($cd, $capes) {
+        if (is_dir($cd)){
+            if ($dh = opendir($cd)){
+                while (($file = readdir($dh)) !== false){
+                    $string = "";
+                    if (substr($file, 0, 1) == '.') {
+                        $string = "";
+                    } else {
+                        $string = file_get_contents($cd . $file);
+                    }
+                    
+                    if ($string != "") {
+                        $json = json_decode($string, true);
 
-            if ($string != "") {
-                $json = json_decode($string, true);
-                
-                if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
-                    echo "'" . $file . "': " . $string . ",\n";
-                    $file = str_replace('-v2.j', '.j', $file);
-                    $file = str_replace('-v3.j', '.j', $file);
-                    if (!isset($capes[$file])) {
-                        $capes[$file] = $json;
+                        if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
+                            echo "'" . $file . "': " . $string . ",\n";
+                            $file = str_replace('-v2.j', '.j', $file);
+                            $file = str_replace('-v3.j', '.j', $file);
+                            if (!isset($capes[$file])) {
+                                $capes[$file] = $json;
+                            }
+                        }
                     }
                 }
+                closedir($dh);
             }
         }
-        closedir($dh);
+        return $capes;
     }
-}
+    
+    $capes = array();
+    $capes = readCapes("/home/fpp/media/tmp/strings/", $capes);
+    if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
+        $capedir = "/opt/fpp/capes/bbb/strings/";
+        if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
+            $capedir = "/opt/fpp/capes/pb/strings/";
+        }
+        $capes = readCapes($capedir, $capes);
+    }
+
     usort($capes, 'sortByLongName');
 ?>
 };

@@ -293,6 +293,7 @@ OBJECTS_fppd += \
     channeloutput/BBBUtils.o \
     channeloutput/BBBPruUtils.o \
     channeloutput/BBBMatrix.o
+OBJECTS_fppoled += channeloutput/BBBUtils.o
 DEPS_fppd += \
 	$(NULL)
 SUBMODULES += \

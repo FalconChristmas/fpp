@@ -132,6 +132,9 @@ include 'common/menuHead.inc';
 ?>
 						</td>
           <td class='controlButton'>&nbsp;</td>
+<td rowspan="4"><div id="sensorData">
+</div>
+</td>
         </tr>
         <tr>
           <td class='controlHeader'> FPPD Status: </td>
@@ -159,8 +162,6 @@ include 'common/menuHead.inc';
       <div class="clear"></div>
     </div>
     <div id="playerInfo">
-<table width="100%">
-<tr><td width="100%">
       <div id="remoteStatus">
 	  		<table>
 	  			<tr><td>Remote Status:</td>
@@ -216,13 +217,7 @@ include 'common/menuHead.inc';
 		  </tr>
 			</table>
 		</div>
-</td>
-<td>
-<div id="sensorData">
-</div>
-</td>
-</tr>
-</table>
+
 		</div>
 
 

@@ -113,7 +113,7 @@ void InitMediaOutput(void)
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = MediaOutput_sigchld_handler;
 	sigaction(SIGCHLD, &sa, NULL);
-    
+
     int vol = getSettingInt("volume");
     setVolume(vol);
 }
@@ -142,10 +142,10 @@ void setVolume(int vol)
     else if ( vol > 100 )
         vol = 100;
     volume = vol;
-    
+
     const char *mixerDevice = getSetting("AudioMixerDevice");
     int   audioOutput = getSettingInt("AudioOutput");
-    
+
     // audioOutput is 0 on Pi where we need to apply volume adjustment formula.
     // This may break non-Pi, non-BBB platforms, but there aren't any yet.
     // The same assumption is made in fppxml.php SetVolume()
@@ -170,7 +170,7 @@ void setVolume(int vol)
     
     LogDebug(VB_SETTING,"Volume change: %d \n", volume);
     system(buffer);
-    
+
     pthread_mutex_lock(&mediaOutputLock);
     if (mediaOutput)
         mediaOutput->SetVolume(volume);

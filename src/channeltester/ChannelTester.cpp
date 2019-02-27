@@ -59,8 +59,7 @@ ChannelTester::~ChannelTester()
 
 	pthread_mutex_lock(&m_testLock);
 
-	if (m_testPattern)
-	{
+	if (m_testPattern) {
 		delete m_testPattern;
 		m_testPattern = NULL;
 	}
@@ -188,7 +187,6 @@ std::string ChannelTester::GetConfig(void)
 {
 	if (!m_testPattern)
 		return std::string("{ \"enabled\": 0 }");
-
 	return m_configStr;
 }
 

@@ -57,14 +57,18 @@ public:
     
     PinCapabilities& setPwm(int pwm, int sub);
     
-    void configPin(const std::string& mode = "gpio",
+    const PinCapabilities& configPin(const std::string& mode = "gpio",
                    const std::string &direction = "out") const;
+    const PinCapabilities& setEdge(const std::string &edge) const;
+    int getValue() const;
+    int openValueForPoll() const;
 };
 
 const PinCapabilities &getBBBPinByName(const std::string &name);
 const PinCapabilities &getBBBPinKgpio(int i);
 
 bool getBBBPinValue(int kio);
+bool getBBBPinValue(int gpio, int pin);
 void setBBBPinValue(int kio, bool v);
 
 bool supportsPWMOnBBBPin(int kio);

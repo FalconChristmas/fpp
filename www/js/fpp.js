@@ -1894,6 +1894,14 @@ function RemovePlaylistEntry()	{
 		}
 	}
 
+    var temperatureUnit = false;
+    function changeTemperatureUnit() {
+        if (temperatureUnit) {
+            temperatureUnit = false;
+        } else {
+            temperatureUnit = true;
+        }
+    }
 	function GetFPPStatus()	{
 		$.ajax({
 			url: 'fppjson.php?command=getFPPstatus',
@@ -2071,11 +2079,33 @@ if (1) {
         if (jsonStatus.hasOwnProperty('sensors')) {
             var sensorText = "<table id='sensorTable'>";
             for (var i = 0; i < jsonStatus.sensors.length; i++) {
-                sensorText += "<tr><td>";
+                if ((jsonStatus.sensors.length > 4) && ((i % 2) == 0)) {
+                    sensorText += "<tr>";
+                }
+                sensorText += "<td>";
                 sensorText += jsonStatus.sensors[i].label;
-                sensorText += "</td><td>";
-                sensorText += jsonStatus.sensors[i].formatted;
-                sensorText += "</td></tr>";
+                sensorText += "</td><td";
+                if (jsonStatus.sensors[i].valueType == "Temperature") {
+                    sensorText += " onclick='changeTemperatureUnit()'>";
+                    var val = jsonStatus.sensors[i].value;
+                    if (temperatureUnit) {
+                        val *= 1.8;
+                        val += 32;
+                        sensorText += val.toFixed(1);
+                        sensorText += "F";
+                    } else {
+                        sensorText += val.toFixed(1);
+                        sensorText += "C";
+                    }
+                } else {
+                    sensorText += ">";
+                    sensorText += jsonStatus.sensors[i].formatted;
+                }
+                sensorText += "</td>";
+                
+                if ((jsonStatus.sensors.length > 4) && ((i % 2) == 1)) {
+                    sensorText += "<tr>";
+                }
             }
             sensorText += "</table>";
             var sensorData = document.getElementById("sensorData");

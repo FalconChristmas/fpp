@@ -1,10 +1,4 @@
 {
-    "id": "F32-Bv2",
-    "version": "2.0",
-    "name": "F32-B",
-    "defaultSettings": {
-        "piRTC": "4"
-    },
     "sensors": [
         {
             "label": "Temp1: ",
@@ -12,16 +6,14 @@
             "address": "0x48",
             "driver": "lm75",
             "path": "/sys/class/i2c-dev/i2c-2/device/2-0048/hwmon/hwmon0/temp1_input",
-            "multiplier": 0.001,
-            "prefix": "",
-            "postfix": "C"
+            "valueType": "Temperature",
+            "multiplier": 0.001
         },
         {
             "label": "Temp2: ",
             "type": "ain",
             "address": "4",
-            "prefix": "",
-            "postfix": "C",
+            "valueType": "Temperature",
             "min": -50.0,
             "max": 131.0
         },
@@ -29,7 +21,7 @@
             "label": "VIN1: ",
             "type": "ain",
             "address": "0",
-            "prefix": "",
+            "valueType": "Voltage",
             "postfix": "V",
             "min": 0,
             "max": 24.2
@@ -38,7 +30,7 @@
             "label": "VIN2: ",
             "type": "ain",
             "address": "1",
-            "prefix": "",
+            "valueType": "Voltage",
             "postfix": "V",
             "min": 0,
             "max": 24.2
@@ -47,7 +39,7 @@
             "label": "VIN3: ",
             "type": "ain",
             "address": "2",
-            "prefix": "",
+            "valueType": "Voltage",
             "postfix": "V",
             "min": 0,
             "max": 24.2
@@ -56,7 +48,7 @@
             "label": "VIN4: ",
             "type": "ain",
             "address": "3",
-            "prefix": "",
+            "valueType": "Voltage",
             "postfix": "V",
             "min": 0,
             "max": 24.2

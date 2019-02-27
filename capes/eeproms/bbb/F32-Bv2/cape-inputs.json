@@ -1,0 +1,10 @@
+{
+    "inputs": [
+        {
+            "pin": "P8-13",
+            "mode": "gpio_pu",
+            "edge": "falling",
+            "type": "Test"
+        }
+    ]
+}

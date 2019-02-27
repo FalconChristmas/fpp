@@ -1,0 +1,12 @@
+{
+    "id": "F32-Bv2",
+    "version": "2.0",
+    "name": "F32-B",
+    "defaultSettings": {
+        "piRTC": "4",
+        "showAllOptions": "0"
+    },
+    "provides": [
+        "strings"
+    ]
+}

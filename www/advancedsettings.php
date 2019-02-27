@@ -99,6 +99,11 @@ function flashEMMCBtrfs() {
 	<fieldset>
 	<legend>FPP Advanced Settings</legend>
 	<table table width = "100%">
+        <tr><td valign='top'><? PrintSettingCheckbox("Show All Options", "showAllOptions", 0, 0, "1", "0"); ?></td><td><b>Display all options/settings</b> -
+If
+                turned off and FPPD can detect what hardware (cape/hat/etc...) is connected, certain options that are either incompatible with the
+                hardware or are rarely used may not be displayed.</td></tr>
+        <tr><td colspan='2'><hr></td></tr>
 		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0, "50", Array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
 			<td valign='top'><b>E1.31 Bridge Mode Transmit Interval</b> - The
 				default Transmit Interval in E1.31 Bridge Mode is 50ms.  This

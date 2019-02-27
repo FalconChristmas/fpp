@@ -147,10 +147,41 @@ PinCapabilities& PinCapabilities::setPwm(int p, int s) {
     return *this;
 }
 
-void PinCapabilities::configPin(const std::string& mode,
+const PinCapabilities& PinCapabilities::configPin(const std::string& mode,
                                 const std::string &direction) const {
     configBBBPin(name, gpio, pin, mode, direction);
+    return *this;
 }
+const PinCapabilities& PinCapabilities::setEdge(const std::string &edge) const {
+    const unsigned pin_num = gpio * 32 + pin;
+    char dir_name[128];
+    snprintf(dir_name, sizeof(dir_name),
+             "/sys/class/gpio/gpio%u/edge",
+             pin_num
+             );
+    
+    FILE *dir = fopen(dir_name, "w");
+    if (!dir) {
+        return *this;
+    }
+    fprintf(dir, "%s\n", edge.c_str());
+    fclose(dir);
+    return *this;
+}
+int PinCapabilities::getValue() const {
+    getBBBPinValue(gpio, pin);
+}
+
+int PinCapabilities::openValueForPoll() const {
+    const unsigned pin_num = gpio * 32 + pin;
+    char dir_name[128];
+    snprintf(dir_name, sizeof(dir_name),
+             "/sys/class/gpio/gpio%u/value",
+             pin_num
+             );
+    return open(dir_name, O_RDONLY | O_NONBLOCK);
+}
+
 
 
 #define GPIO_DATAIN     0x138
@@ -202,6 +233,12 @@ static void setupBBBMemoryMap() {
     registersMemMapped = 1;
 }
 
+bool getBBBPinValue(int gpio, int pin) {
+    setupBBBMemoryMap();
+    int set = 1 << pin;
+    uint32_t *base = (uint32_t*)(bbGPIOMap[gpio] + GPIO_DATAIN);
+    return (*base & set) ? true : false;
+}
 bool getBBBPinValue(int kio) {
     setupBBBMemoryMap();
     int gpio = kio / 32;

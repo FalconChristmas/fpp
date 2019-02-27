@@ -1,9 +1,19 @@
 #! /usr/bin/php
 <?php
 
-if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
-    unlink("/home/fpp/media/tmp/cape-info.json");
+
+$dir = '/home/fpp/media/tmp/';
+$it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
+$files = new RecursiveIteratorIterator($it,
+             RecursiveIteratorIterator::CHILD_FIRST);
+foreach($files as $file) {
+    if ($file->isDir()){
+        rmdir($file->getRealPath());
+    } else {
+        unlink($file->getRealPath());
+    }
 }
+
 if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
      mkdir("/home/fpp/media/tmp");
 }
@@ -34,13 +44,10 @@ while ($flen != 0) {
     fwrite($fout, $fdata);
     fclose($fout);
 
-    if ($fname == "tmp/cape-info.json") {
-	$json = json_decode($fdata);
-        foreach ($json->defaultSettings as $key => $value) {
-            if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
-                file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
-            }
-        }
+    if ($flags == 1) {
+        $dirname = dirname("/home/fpp/media/" . $fname);
+        exec("cd $dirname ; unzip /home/fpp/media/$fname 2>&1", $output, $result);
+        var_dump($output);
     }
 
     $flen = fread($fp, 6); //length of the file
@@ -48,5 +55,17 @@ while ($flen != 0) {
 }
 
 fclose($fp);
+
+
+if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
+    $json = json_decode(file_get_contents("/home/fpp/media/tmp/cape-info.json"));
+    foreach ($json->defaultSettings as $key => $value) {
+        if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
+            file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
+        }
+    }
+}
+
+file_put_contents("/sys/bus/i2c/devices/i2c-2/delete_device", "0x50");
 
 ?>

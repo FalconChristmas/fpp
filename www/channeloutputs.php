@@ -10,6 +10,28 @@ include 'common/menuHead.inc';
 //$settings['Platform'] = "BeagleBone Black"; // Uncomment for testing
 //$settings['SubPlatform'] = "BeagleBone Black"; // Uncomment for testing
 ?>
+
+<?
+$currentCape = "";
+$currentCapeInfo = json_decode("{ \"provides\": [\"all\"]}", true);
+if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
+    $string = file_get_contents("/home/fpp/media/tmp/cape-info.json");
+    $currentCapeInfo = json_decode($string, true);
+    $currentCape = $currentCapeInfo["id"];
+    echo "<!-- current cape is " . $currentCape . "-->\n";
+} else if (file_exists("/home/fpp/media/config/cape-info.json")) {
+    $string = file_get_contents("/home/fpp/media/config/cape-info.json");
+    $currentCapeInfo = json_decode($string, true);
+    $currentCape = $currentCapeInfo["id"];
+    echo "<!-- current cape is " . $currentCape . "-->\n";
+}
+if (!isset($currentCapeInfo['provides'])) {
+    $currentCapeInfo['provides'][] = "all";
+} else if ($settings["showAllOptions"] == 1) {
+    $currentCapeInfo['provides'][] = "all";
+}
+?>
+
 <script language="Javascript">
 
 var channelOutputs = [];
@@ -226,26 +248,22 @@ tr.rowUniverseDetails td
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
-?>
-				<li><a href="#tab-fpd">Falcon Pixelnet/DMX</a></li>
-<?
+        if (in_array('all', $currentCapeInfo["provides"]) || in_array('fpd', $currentCapeInfo["provides"])) {
+            echo "<li><a href='#tab-fpd'>Falcon Pixelnet/DMX</a></li>\n";
+        }
+        if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+            echo "<li><a href='#tab-PixelStrings'>Pi Pixel Strings</a></li>\n";
+        }
 	}
-?>
-<!--
-				<li><a href="channeloutput_f16v2.php">F16 v2</a></li>
--->
-<?
-	if ($settings['Platform'] == "BeagleBone Black")
-	{
-		echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
+	if ($settings['Platform'] == "BeagleBone Black") {
+        if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+            echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
+        }
 	}
-
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-		echo "<li><a href='#tab-PixelStrings'>Pi Pixel Strings</a></li>\n";
-	}
+    if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
+        echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
+    }
 ?>
-				<li><a href='#tab-LEDPanels'>LED Panels</a></li>
 				<li><a href="#tab-other">Other</a></li>
 			</ul>
 
@@ -257,15 +275,23 @@ include_once('co-universes.php');
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
-	include_once('co-fpd.php');
-	include_once('co-piPixelString.php');
+    if (in_array('all', $currentCapeInfo["provides"]) || in_array('fpd', $currentCapeInfo["provides"])) {
+        include_once('co-fpd.php');
+    }
+    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+        include_once('co-piPixelString.php');
+    }
 }
 
-include_once('co-ledPanels.php');
+if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
+    include_once('co-ledPanels.php');
+}
 
 if ($settings['Platform'] == "BeagleBone Black")
 {
-	include_once('co-bbbStrings.php');
+    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+        include_once('co-bbbStrings.php');
+    }
 }
 
 include_once("co-other.php");
