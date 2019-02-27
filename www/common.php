@@ -955,7 +955,7 @@ function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail
     fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
     fwrite($fp, "pi: " . $emailtoemail . "\n");
     fclose($fp);
-    exec("sudo cp " . $exim4Directory . "./aliases /etc/");
+    exec("sudo cp " . $exim4Directory . "/aliases /etc/");
 }
 
 
