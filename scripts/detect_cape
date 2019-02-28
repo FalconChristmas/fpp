@@ -47,7 +47,7 @@ while ($flen != 0) {
     if ($flags == 1) {
         $dirname = dirname("/home/fpp/media/" . $fname);
         exec("cd $dirname ; unzip /home/fpp/media/$fname 2>&1", $output, $result);
-        var_dump($output);
+        //var_dump($output);
     }
 
     $flen = fread($fp, 6); //length of the file

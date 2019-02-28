@@ -1,13 +1,13 @@
 {
     "inputs": [
         {
-            "pin": "P8-13",
+            "pin": "P2-05",
             "mode": "gpio_pu",
             "edge": "falling",
             "type": "Enter"
         },
         {
-            "pin": "P8-14",
+            "pin": "P1-20",
             "mode": "gpio_pu",
             "edge": "falling",
             "type": "Test/Down"

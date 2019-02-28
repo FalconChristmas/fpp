@@ -1,0 +1,12 @@
+{
+    "id": "F8-Bv3",
+    "version": "3.0",
+    "name": "F8-B",
+    "defaultSettings": {
+        "piRTC": "4",
+        "showAllOptions": "0"
+    },
+    "provides": [
+        "strings"
+    ]
+}

@@ -380,7 +380,15 @@ function BBB48StringSubTypeChanged()
         var output = {};
         output.type = 'BBB48String';
         output.subType = $('#BBB48StringSubType').val();
-        output.pinoutVersion = '1.x';
+        <?
+        if (isset($capes[0]['pinoutVersion'])) {
+            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        } else {
+            ?>
+            output.pinoutVersion = "1.x";
+            <?
+        }
+        ?>
         defaultData.channelOutputs.push(output);
         populatePixelStringOutputs(defaultData);
     }
@@ -398,6 +406,8 @@ function loadBBBOutputs() {
         echo 'output.subType = "' . $capes[0]['name'] . '";';
         if (isset($capes[0]['pinoutVersion'])) {
             echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        } else {
+            echo 'output.pinoutVersion = "1.x";';
         }
     }
     ?>

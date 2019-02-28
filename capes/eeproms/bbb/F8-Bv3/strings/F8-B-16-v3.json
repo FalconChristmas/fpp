@@ -1,0 +1,46 @@
+{
+    "name": "F8-B-16",
+    "longName": "F8-B (4 Serial)",
+    "pinoutVersion" : "3.x",
+    "numSerial": 4,
+    "outputs": [
+        {  "pin": "P8-28" },
+        {  "pin": "P8-27" },
+        {  "pin": "P8-30" },
+        {  "pin": "P8-29" },
+        {  "pin": "P8-40" },
+        {  "pin": "P8-39" },
+        {  "pin": "P8-42" },
+        {  "pin": "P8-41" },
+        
+        {  "pin": "P8-43" },
+        {  "pin": "P8-45" },
+        {  "pin": "P8-46" },
+        {  "pin": "P8-44" },
+        
+        {  "pin": "P9-25" },
+        {  "pin": "P9-27" },
+        {  "pin": "P9-28" },
+        {  "pin": "P9-29" }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 8
+        },
+        {
+            "start": 9,
+            "count": 4
+        },
+        {
+            "start": 13,
+            "count": 4
+        }
+    ],
+    "serial": [
+        {  "pin": "P9-30" },
+        {  "pin": "P9-31" },
+        {  "pin": "P9-91" },
+        {  "pin": "P9-92" }
+    ]
+}

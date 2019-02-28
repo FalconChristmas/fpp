@@ -26,6 +26,7 @@ private:
     std::vector<int> signalStrength;
     
     int _currentTest;
+    int _curPage;
     
     CURL *curl;
     std::string buffer;

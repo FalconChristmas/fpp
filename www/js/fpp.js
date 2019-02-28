@@ -2079,7 +2079,7 @@ if (1) {
         if (jsonStatus.hasOwnProperty('sensors')) {
             var sensorText = "<table id='sensorTable'>";
             for (var i = 0; i < jsonStatus.sensors.length; i++) {
-                if ((jsonStatus.sensors.length > 4) && ((i % 2) == 0)) {
+                if ((jsonStatus.sensors.length < 4) || ((i % 2) == 0)) {
                     sensorText += "<tr>";
                 }
                 sensorText += "<td>";

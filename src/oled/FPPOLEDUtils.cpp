@@ -35,6 +35,8 @@ static inline int iw_get_ext(
     return(ioctl(skfd, request, pwrq));
 }
 
+#define MAX_PAGE 2
+
 int FPPOLEDUtils::getSignalStrength(char *iwname) {
     
     int sigLevel = 0;
@@ -90,7 +92,8 @@ static int writer(char *data, size_t size, size_t nmemb,
     writerData->append(data, size*nmemb);
     return size * nmemb;
 }
-FPPOLEDUtils::FPPOLEDUtils(int ledType) : _ledType(ledType), _currentTest(0) {
+FPPOLEDUtils::FPPOLEDUtils(int ledType)
+    : _ledType(ledType), _currentTest(0), _curPage(0) {
     
     
     if (_ledType == 2 || _ledType == 4 || _ledType == 6) {
@@ -130,38 +133,76 @@ void FPPOLEDUtils::outputNetwork(int idx, int y) {
     }
 }
 
-inline void getLines(std::vector<std::string> &lines,  Json::Value &result, bool allowBlank) {
-    std::string line = result["current_sequence"].asString();
-    if (line != "" || allowBlank) {
-        lines.push_back(line);
+inline int getLinesPage0(std::vector<std::string> &lines,
+                          Json::Value &result,
+                          bool allowBlank) {
+    std::string status = result["status_name"].asString();
+    std::string mode = result["mode_name"].asString();
+    mode[0] = toupper(mode[0]);
+    std::string line = mode;
+    bool isIdle = (status == "idle" || status == "testing");
+    int maxLines = 6;
+    if (mode != "bridge") {
+        //bridge is always "idle" which isn't really true
+        line += ": " + status;
+    } else {
+        //bridge mode doesn't output a playlist section
+        isIdle = false;
+        maxLines = 5;
     }
-    line = result["current_song"].asString();
-    if (line != "" || allowBlank) {
-        lines.push_back(line);
+    if (line.length() > 21) {
+        line.resize(21);
     }
-    line = result["time_elapsed"].asString();
-    if (line != "" || allowBlank) {
-        if (line != "") {
-            line = "Elapsed: " + line;
-        }
-        lines.push_back(line);
-    }
-    line = result["time_remaining"].asString();
-    if (line != "" || allowBlank) {
-        if (line != "") {
-            line = "Remaining: " + line;
-        }
-        lines.push_back(line);
-    }
-    line = result["current_playlist"]["playlist"].asString();
-    if (line != "" || allowBlank) {
-        if (line != "") {
-            line = "PL: " + line;
-        }
-        lines.push_back(line);
-    }
-}
+    lines.push_back(line);
 
+    if (!isIdle) {
+        std::string line = result["current_sequence"].asString();
+        if (line != "" || allowBlank) {
+            lines.push_back(line);
+        }
+        line = result["current_song"].asString();
+        if (line != "" || allowBlank) {
+            lines.push_back(line);
+        }
+        line = result["time_elapsed"].asString();
+        if (line != "" || allowBlank) {
+            if (line != "") {
+                line = "Elapsed: " + line;
+            }
+            lines.push_back(line);
+        }
+        line = result["time_remaining"].asString();
+        if (line != "" || allowBlank) {
+            if (line != "") {
+                line = "Remaining: " + line;
+            }
+            lines.push_back(line);
+        }
+        line = result["current_playlist"]["playlist"].asString();
+        if (line != "" || allowBlank) {
+            if (line != "") {
+                line = "PL: " + line;
+            }
+            lines.push_back(line);
+        }
+    }
+    return maxLines;
+}
+inline int getLinesPage1(std::vector<std::string> &lines,
+                          Json::Value &result,
+                          bool allowBlank) {
+    for (int x = 0; x < result["sensors"].size(); x++) {
+        std::string line = result["sensors"][x]["label"].asString() + " " +  result["sensors"][x]["formatted"].asString();
+        if (result["sensors"][x]["valueType"].asString() == "Temperature") {
+            line += "C";
+        }
+        lines.push_back(line);
+    }
+    if (lines.empty()) {
+        return getLinesPage0(lines, result, allowBlank);
+    }
+    return 6;
+}
 void FPPOLEDUtils::doIteration(int count) {
     if ((count % 30) == 0 || networks.size() <= 1) {
         //every 30 seconds, rescan network for new connections
@@ -223,63 +264,47 @@ void FPPOLEDUtils::doIteration(int count) {
             setTextColor(WHITE);
 
             setCursor(0, startY);
-
-            std::string status = result["status_name"].asString();
-            std::string mode = result["mode_name"].asString();
-            mode[0] = toupper(mode[0]);
-            std::string line = mode;
-            bool isIdle = (status == "idle" || status == "testing");
-            int maxLines = 5;
-            if (mode != "bridge") {
-                //bridge is always "idle" which isn't really true
-                line += ": " + status;
-            } else {
-                //bridge mode doesn't output a playlist section
-                isIdle = false;
-                maxLines = 4;
-            }
-            if (line.length() > 21) {
-                line.resize(21);
-            }
-            print_str(line.c_str());
-            startY += 8;
             
-            if (!isIdle) {
-                std::vector<std::string> lines;
-                getLines(lines, result, LED_DISPLAY_HEIGHT == 64);
-                if (maxLines > lines.size()) {
-                    maxLines = lines.size();
-                }
-                if (LED_DISPLAY_HEIGHT == 64) {
-                    for (int x = 0; x < maxLines; x++) {
-                        setCursor(0, startY);
-                        startY += 8;
-                        line = lines[x];
-                        if (line.length() > 21) {
-                            line.resize(21);
-                        }
-                        print_str(line.c_str());
-                    }
-                } else {
+            std::vector<std::string> lines;
+            std::string line;
+            int maxLines = 5;
+            if (_curPage == 0) {
+                maxLines = getLinesPage0(lines, result, LED_DISPLAY_HEIGHT == 64);
+            } else {
+                maxLines = getLinesPage1(lines, result, LED_DISPLAY_HEIGHT == 64);
+            }
+            if (maxLines > lines.size()) {
+                maxLines = lines.size();
+            }
+            if (LED_DISPLAY_HEIGHT == 64) {
+                for (int x = 0; x < maxLines; x++) {
                     setCursor(0, startY);
-                    int idx = count % maxLines;
-                    line = lines[idx];
-                    if (line.length() > 21) {
-                        line.resize(21);
-                    }
-                    print_str(line.c_str());
                     startY += 8;
-                    idx++;
-                    if (idx == maxLines) {
-                        idx = 0;
-                    }
-                    setCursor(0, startY);
-                    line = lines[idx];
+                    line = lines[x];
                     if (line.length() > 21) {
                         line.resize(21);
                     }
                     print_str(line.c_str());
                 }
+            } else {
+                setCursor(0, startY);
+                int idx = count % maxLines;
+                line = lines[idx];
+                if (line.length() > 21) {
+                    line.resize(21);
+                }
+                print_str(line.c_str());
+                startY += 8;
+                idx++;
+                if (idx == maxLines) {
+                    idx = 0;
+                }
+                setCursor(0, startY);
+                line = lines[idx];
+                if (line.length() > 21) {
+                    line.resize(21);
+                }
+                print_str(line.c_str());
             }
         } else if (debug) {
             printf("Invalid json\n");
@@ -460,8 +485,15 @@ void FPPOLEDUtils::run() {
                     if ((v == actions[x].actionValue)
                         && (ntime > (actions[x].lastActionTime + 100))) {
                         actions[x].lastActionTime = ntime;
-                        if (actions[x].action == "Test") {
+                        printf("Action: %s\n", actions[x].action.c_str());
+                        if (actions[x].action == "Test"
+                            || actions[x].action == "Test/Down") {
                             cycleTest();
+                        } else if (actions[x].action == "Enter") {
+                            _curPage++;
+                            if (_curPage == MAX_PAGE) {
+                                _curPage = 0;
+                            }
                         }
                     }
                 }
