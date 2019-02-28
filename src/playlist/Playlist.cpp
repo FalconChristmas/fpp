@@ -684,7 +684,10 @@ int Playlist::Process(void)
 						return 1;
 					}
 
-					LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
+					if (!m_loopCount)
+						LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, loopCount == 0\n");
+					else
+						LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
 
 					m_sectionPosition = 0;
 					m_mainPlaylist[0]->StartPlaying();
@@ -758,6 +761,8 @@ void Playlist::SetIdle(void)
 	m_startPosition = 0;
 	m_sectionPosition = 0;
 	m_repeat = 0;
+
+	Cleanup();
 
 	if (mqtt)
 	{

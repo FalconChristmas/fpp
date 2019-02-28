@@ -35,7 +35,7 @@
 class PlaylistEntryBase {
   public:
 	PlaylistEntryBase(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryBase();
+	virtual ~PlaylistEntryBase();
 
 	virtual int  Init(Json::Value &config);
 
