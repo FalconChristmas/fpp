@@ -142,12 +142,13 @@ int X11MatrixOutput::Close(void)
 
 	// Close X11 Window here
 
-	delete [] m_imageData;
-
+	XLockDisplay(m_display);
 	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
 	XFreeGC(m_display, m_gc);
 	XCloseDisplay(m_display);
+	XUnlockDisplay(m_display);
+	delete [] m_imageData;
 
 	return ThreadedChannelOutputBase::Close();
 }
