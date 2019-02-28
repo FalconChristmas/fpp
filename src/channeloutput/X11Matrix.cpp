@@ -143,6 +143,8 @@ int X11MatrixOutput::Close(void)
 	// Close X11 Window here
 
 	delete [] m_imageData;
+
+	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
 	XFreeGC(m_display, m_gc);
 	XCloseDisplay(m_display);
@@ -192,10 +194,14 @@ int X11MatrixOutput::RawSendData(unsigned char *channelData)
 		}
 	}
 
+	XLockDisplay(m_display);
+
 	XPutImage(m_display, m_window, m_gc, m_image, 0, 0, 0, 0, m_scaleWidth, m_scaleHeight);
 
 	XSync(m_display, True);
 	XFlush(m_display);
+
+	XUnlockDisplay(m_display);
 
 	return m_channelCount;
 }
