@@ -137,11 +137,12 @@ int X11VirtualDisplayOutput::Close(void)
 	// Close X11 Window here
 
 	XLockDisplay(m_display);
-	delete [] m_virtualDisplay;
+	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
 	XFreeGC(m_display, m_gc);
 	XCloseDisplay(m_display);
 	XUnlockDisplay(m_display);
+	delete [] m_virtualDisplay;
 
 	return ChannelOutputBase::Close();
 }
