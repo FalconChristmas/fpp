@@ -129,22 +129,24 @@ void RunScript(std::string script, std::string scriptArgs, int blocking)
 
 		args[i] = NULL;
 
-		if (chdir(getScriptDirectory()))
-		{
-			LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
-				getScriptDirectory(), strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-
 		setenv("FPP_SCRIPT", script.c_str(), 0);
 		setenv("FPP_SCRIPTARGS", scriptArgs.c_str(), 0);
 
 		if (blocking)
 		{
 			// FIXME, add blocking support
+
+			// need to free args[] entries here as well
 		}
 		else
 		{
+			if (chdir(getScriptDirectory()))
+			{
+				LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
+					getScriptDirectory(), strerror(errno));
+				exit(EXIT_FAILURE);
+			}
+
 			execvp(eventScript, args);
 
 			LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "
