@@ -14,7 +14,7 @@ if (isset($_POST['action']))
 	}
 	else if ($_POST['action'] == 'testemail')
 	{
-		system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" root@localhost');
+		system('echo "Email test from $(hostname)" | mail -s "Email test from $(hostname)" ' . $settings['emailtoemail']);
 	}
 }
 
