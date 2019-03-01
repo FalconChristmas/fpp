@@ -402,7 +402,7 @@ char *ProcessCommand(char *command, char *response)
         sprintf(response,"%d,%d,Running Effects",getFPPmode(),COMMAND_SUCCESS);
         GetRunningEffects(response, &response2);
     } else if (!strcmp(CommandStr, "GetFPPDUptime")) {
-        sprintf(response,"%d,%d,FPPD Uptime,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS, time(NULL) - fppdStartTime);
+        sprintf(response,"%d,%d,FPPD Uptime,%ld,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS, time(NULL) - fppdStartTime);
     } else if (!strcmp(CommandStr, "StartSequence")) {
         if ((FPPstatus == FPP_STATUS_IDLE) &&
             (!sequence->IsSequenceRunning())) {

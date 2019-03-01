@@ -86,7 +86,7 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 			if ( ! logFile )
 			{
 				fprintf(stderr, "Error: Unable to open log file for writing!\n");
-				fprintf(stderr, "%s (%d) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
+				fprintf(stderr, "%s (%ld) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 				va_start(arg, format);
 				vfprintf(stderr, format, arg);
 				va_end(arg);
@@ -94,7 +94,7 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 			}
 		}
 
-		fprintf(logFile, "%s (%d) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
+		fprintf(logFile, "%s (%ld) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
 		vfprintf(logFile, format, arg);
 		va_end(arg);
@@ -102,7 +102,7 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
 			fclose(logFile);
 	} else {
-		fprintf(stdout, "%s (%d) %s:%d:", timeStr, syscall(SYS_gettid), file, line);
+		fprintf(stdout, "%s (%ld) %s:%d:", timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
 		vfprintf(stdout, format, arg);
 		va_end(arg);
