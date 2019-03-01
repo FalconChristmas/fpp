@@ -365,7 +365,7 @@ function GetFPPStatusJson()
             returnJSON($default_return_json);
             exit(0);
         }
-		$data = json_decode($request_content);
+		$data = json_decode($request_content, TRUE);
 
 		//Check to see if we should also get the systemInfo for multiSync Expert view
 		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
