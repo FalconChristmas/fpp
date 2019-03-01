@@ -1949,8 +1949,10 @@ function RemovePlaylistEntry()	{
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
-		var status = "Idle";
-
+        var status = "Idle";
+        if (jsonStatus.status_name == "testing") {
+            status = "Testing";
+        }
 		if (fppStatus == STATUS_IDLE ||
 			fppStatus == STATUS_PLAYING ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY ) {
@@ -1989,13 +1991,13 @@ function RemovePlaylistEntry()	{
 			var nextPlaylistStartTime = jsonStatus.next_playlist_start_time;
 			var currentPlaylist = jsonStatus.current_playlist;
 
-			if(fppStatus == STATUS_IDLE) {
+			if (fppStatus == STATUS_IDLE) {
 			
 				gblCurrentPlaylistIndex =0;
 				gblCurrentPlaylistEntryType = '';
 				gblCurrentPlaylistEntrySeq = '';
 				gblCurrentPlaylistEntrySong = '';
-				$('#txtPlayerStatus').html("Idle");
+				$('#txtPlayerStatus').html(status);
 				$('#txtTimePlayed').html("");								
 				$('#txtTimeRemaining').html("");	
 				$('#txtSeqFilename').html("");

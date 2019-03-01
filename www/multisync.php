@@ -93,59 +93,44 @@ if (isset($_GET['advancedView'])) {
 			var elapsed = "";
 			var files = "";
 
-			if (data.status_name == 'playing')
-			{
+			if (data.status_name == 'playing') {
 				status = 'Playing';
 
 				elapsed = data.time_elapsed;
 
-				if (data.current_sequence != "")
-				{
+				if (data.current_sequence != "") {
 					files += data.current_sequence;
 					if (data.current_song != "")
 						files += "<br>" + data.current_song;
-				}
-				else
-				{
+				} else {
 					files += data.current_song;
 				}
-			}
-			else if (data.status_name == 'updating')
-			{
+			} else if (data.status_name == 'updating') {
 				status = 'Updating';
-			}
-			else if (data.status_name == 'stopped')
-			{
+			} else if (data.status_name == 'stopped') {
 				status = 'Stopped';
-			}
-            else if (data.status_name == 'unknown')
-            {
+			} else if (data.status_name == 'testing') {
+				status = 'Testing';
+			} else if (data.status_name == 'unknown') {
                 status = '-';
                 if (typeof(data.reason) !== 'undefined'){
                     DialogError("Get FPP System Status", "Get Status Failed for " + ip + "\n " + data.reason);
                 } else {
                     DialogError("Get FPP System Status", "Get Status Failed for " + ip);
                 }
-            }
-			else if (data.status_name == 'idle')
-			{
-				if (data.mode_name == 'remote')
-				{
+            } else if (data.status_name == 'idle') {
+				if (data.mode_name == 'remote') {
 					if ((data.sequence_filename != "") ||
-						(data.media_filename != ""))
-					{
+						(data.media_filename != "")) {
 						status = 'Syncing';
 
 						elapsed += data.time_elapsed;
 
-						if (data.sequence_filename != "")
-						{
+						if (data.sequence_filename != "") {
 							files += data.sequence_filename;
 							if (data.media_filename != "")
 								files += "<br>" + data.media_filename;
-						}
-						else
-						{
+						} else {
 							files += data.media_filename;
 						}
 					}

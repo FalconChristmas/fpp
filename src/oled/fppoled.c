@@ -40,9 +40,6 @@ int main (int argc, char *argv[]) {
     int ledType = getSettingInt("LEDDisplayType");
     printf("    Led Type: %d\n", ledType);
     fflush(stdout);
-    if (ledType == 0) {
-        exit(0);
-    }
     LED_DISPLAY_WIDTH = 128;
     if (ledType == 3 || ledType == 4) {
         LED_DISPLAY_HEIGHT = 32;
@@ -59,7 +56,7 @@ int main (int argc, char *argv[]) {
         exit(1);
     }
     
-    if (display_Init_seq() )  {
+    if (ledType && display_Init_seq() )  {
         printf("Could not initialize display\n");
         exit(1);
     }

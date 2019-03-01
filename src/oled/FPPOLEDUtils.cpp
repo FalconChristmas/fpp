@@ -95,10 +95,9 @@ static int writer(char *data, size_t size, size_t nmemb,
 FPPOLEDUtils::FPPOLEDUtils(int ledType)
     : _ledType(ledType), _currentTest(0), _curPage(0) {
     
-    
     if (_ledType == 2 || _ledType == 4 || _ledType == 6) {
         setRotation(2);
-    } else {
+    } else if (_ledType) {
         setRotation(0);
     }
     
@@ -204,6 +203,9 @@ inline int getLinesPage1(std::vector<std::string> &lines,
     return 6;
 }
 void FPPOLEDUtils::doIteration(int count) {
+    if (_ledType == 0) {
+        return;
+    }
     if ((count % 30) == 0 || networks.size() <= 1) {
         //every 30 seconds, rescan network for new connections
         fillInNetworks();
@@ -461,6 +463,12 @@ void FPPOLEDUtils::run() {
     parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
     parseInputActions("/home/fpp/media/config/cape-inputs.json", actions);
     std::vector<struct pollfd> fdset(actions.size());
+    
+    if (actions.size() == 0 && _ledType == 0) {
+        //no display and no actions, nothing to do.
+        exit(0);
+    }
+    
     int count = 0;
     while (true) {
         doIteration(count);
