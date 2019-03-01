@@ -638,14 +638,6 @@ $(document).ready(function(){
 				<hr>
 				<b>Channel Range to Test</b><br>
 				<table border=0 cellspacing='2' cellpadding='2'>
-				<tr><td colspan=2><input type='radio' name='testModeListType' value='Range' onChange='SetTestMode();' checked>Channel Range</td>
-<!--
-					<td width=40 rowspan=3>&nbsp;</td>
-					<td colspan=2><input type='radio' name='testModeListType' value='Universe' onChange='SetTestMode();'>Universe</td>
-					<td width=40 rowspan=3>&nbsp;</td>
-					<td><input type='radio' name='testModeListType' value='Model' onChange='SetTestMode();'>Model</td>
--->
-					</tr>
 				<tr><td>Start Channel:</td>
 						<td><input type='text' size='6' maxlength='6' value='1' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-1048576)</td>
 <!--
@@ -698,18 +690,6 @@ else
 				<div id='testModeModeDiv'>
 				<b>Test Patterns</b><br><br>
 				<table border=0 cellpadding=0 cellspacing=0>
-				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
-				<tr><td colspan=3><span style='float: left'><b>Test Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
-				<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
-						<option value='2'>2</option>
-						<option value='3'>3</option>
-						<option value='4'>4</option>
-						<option value='5'>5</option>
-						<option value='6'>6</option>
-					</select></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
-				<tr><td>&nbsp;</td></tr>
 				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
 				<tr><td colspan=3>&nbsp;<b>Color Order:</b>
 					<select id='colorOrder' onChange='SetTestMode();'>
@@ -735,6 +715,18 @@ else
 					</table>
 					<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
 					</td></tr>
+				<tr><td>&nbsp;</td></tr>
+				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
+				<tr><td colspan=3><span style='float: left'><b>&nbsp;Channel Data Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
+				<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
+						<option value='2'>2</option>
+						<option value='3'>3</option>
+						<option value='4'>4</option>
+						<option value='5'>5</option>
+						<option value='6'>6</option>
+					</select></td></tr>
+				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
 				</table>
 				</div>
 			</div>
