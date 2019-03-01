@@ -810,7 +810,15 @@ chmod a+s ${FPPHOME}/media
 touch ${FPPHOME}/media/.auto_update_disabled
 chmod 644 ${FPPHOME}/media/.auto_update_disabled
 
-echo "set mouse=r" > ${FPPHOME}/.vimrc
+cat > ${FPPHOME}/.vimrc <<-EOF
+set tabstop=4
+set shiftwidth=4
+set autoindent
+set ignorecase
+set mouse=r
+EOF
+
+chmod 644 ${FPPHOME}/.vimrc
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
 
 echo >> ${FPPHOME}/.bashrc
