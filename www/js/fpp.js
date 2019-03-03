@@ -1393,7 +1393,7 @@ function RemovePlaylistEntry()	{
                 postData.channelOutputs.push(output);
             }
             var fileName = input ? 'universeInputs' : 'universeOutputs';
-            var postDataString = 'command=setChannelOutputs&file='+ fileName +'&data={' + JSON.stringify(postData) + '}';
+            var postDataString = 'command=setChannelOutputs&file='+ fileName +'&data={' + encodeURIComponent(JSON.stringify(postData)) + '}';
             
             $.post("fppjson.php", postDataString).done(function(data) {
                                                        $.jGrowl("E1.31 Universes Saved");
