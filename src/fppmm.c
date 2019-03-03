@@ -384,7 +384,7 @@ void CopyFileToMappedBlock(char *blockName, char *inputFilename) {
 		char data[FPPD_MAX_CHANNELS];
 		int r = read(fd, data, cb->channelCount);
 		if (r != cb->channelCount) {
-			printf( "WARNING: Expected %d bytes of data but only read %d.\n",
+			printf( "WARNING: Expected %lld bytes of data but only read %d.\n",
 				cb->channelCount, r);
 		} else {
 			int i;
