@@ -59,7 +59,7 @@ void mosq_msg_callback(struct mosquitto *mosq, void *userdata, const struct mosq
  */
 MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	const std::string &topicPrefix)
-  : m_port(1883),
+  : m_port(port),
 	m_keepalive(60),
 	m_mosq(NULL),
     m_host(host),
@@ -107,7 +107,7 @@ MosquittoClient::~MosquittoClient()
 /*
  *
  */
-int MosquittoClient::Init(const std::string &username, const std::string &password)
+int MosquittoClient::Init(const std::string &username, const std::string &password, const std::string &ca_file)
 {
 	mosquitto_lib_init();
         std::string host = getSetting("HostName");
@@ -129,16 +129,34 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
             mosquitto_username_pw_set(m_mosq, username.c_str(), password.c_str());
 	}
 
+	if (ca_file != "") {
+	    LogInfo(VB_CONTROL, "Using CA File: %s for MQTT\n", ca_file.c_str());
+            int rc = mosquitto_tls_set(m_mosq, ca_file.c_str(), NULL, NULL, NULL, NULL);
+	    if (rc) {
+		LogErr(VB_CONTROL, "Error, unable to set MQTT_Ca_file. RC=  %d\n", rc);
+		return 0;
+
+	    }
+
+	} else {
+	    LogInfo(VB_CONTROL, "No CA File specified for MQTT\n");
+	}
+
+	LogDebug(VB_CONTROL, "About to call MQTT Connec (%s, %d, %d)t\n", m_host.c_str(), m_port, m_keepalive);
+
 	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
 
 	if (result)
 	{
+		
 		LogErr(VB_CONTROL, "Error, unable to connect to Mosquitto Broker at %s: %d\n",
 			m_host.c_str(), result);
+		LogErr(VB_CONTROL, "MQTT Error: %s\n", strerror(result));
 		return 0;
 	}
 
-    std::string subscribe = m_topicPrefix + FALCON_TOPIC + "/#";
+        std::string subscribe = m_topicPrefix + FALCON_TOPIC + "/#";
+	LogDebug(VB_CONTROL, "MQTT Connected. Preparing to Subscribe to %s\n", subscribe.c_str());
 	mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
 
 	int loop = mosquitto_loop_start(m_mosq);
@@ -148,6 +166,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 		return 0;
 	}
 
+        LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
 	return 1;
 }
 

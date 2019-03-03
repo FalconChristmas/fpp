@@ -233,8 +233,12 @@ If
                     <td >MQTT Password:</td>
                     <td ><? PrintSettingPasswordSaved("MQTTPassword", 1, 0, 32, 32, "", ""); ?></td>
                 </tr>
+                <tr>
+                    <td >CA File (Optional):</td>
+                    <td ><? PrintSettingTextSaved("MQTTCaFile", 1, 0, 64, 32, "", ""); ?></td>
 	    </table>
-            MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>
+	    MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>
+            CA file is the full path to the signer certificate.  Only needed if using mqtts server that is self signed.<br/><br/>
 FPP will respond to certain events:
 <div class="fppTableWrapper">
 <table width = "100%" border="0" cellpadding="1" cellspacing="1">
