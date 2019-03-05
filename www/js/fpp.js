@@ -252,7 +252,7 @@ function PlaylistEntryToTR(i, entry, editMode)
     else if(entry.type == 'url')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", "URL - " + entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
     else if(entry.type == 'image')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Image", "Image - " + entry.imagePath, entry.outputDevice, entry.data, i.toString(), editMode);
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Image", "Image - " + entry.imagePath, entry.imageFilename, entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";

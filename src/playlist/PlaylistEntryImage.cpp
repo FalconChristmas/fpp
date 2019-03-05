@@ -257,6 +257,12 @@ Json::Value PlaylistEntryImage::GetConfig(void)
 	result["imagePath"] = m_imagePath;
 	result["device"] = m_device;
 
+	std::size_t found = m_curFileName.find_last_of("/");
+	if (found > 0)
+		result["imageFilename"] = m_curFileName.substr(found + 1);
+	else
+		result["imageFilename"] = m_curFileName;
+
 #ifndef USE_X11VSFB
 	FrameBuffer::GetConfig(result);
 #endif
@@ -346,9 +352,9 @@ LogDebug(VB_PLAYLIST, "nextFile = %s\n", nextFile.c_str());
 	if (nextFile == "")
 		return;
 
-	if (nextFile == m_lastFileName)
+	if (nextFile == m_nextFileName)
 	{
-LogDebug(VB_PLAYLIST, "nextFile same as m_lastFileName: %s\n", nextFile.c_str());
+LogDebug(VB_PLAYLIST, "nextFile same as m_nextFileName: %s\n", nextFile.c_str());
 		m_imagePrepped = true;
 		return;
 	}
@@ -356,7 +362,7 @@ LogDebug(VB_PLAYLIST, "nextFile same as m_lastFileName: %s\n", nextFile.c_str())
 LogDebug(VB_PLAYLIST, "locking m_bufferLock\n");
 	m_bufferLock.lock();
 
-	m_lastFileName = nextFile;
+	m_nextFileName = nextFile;
 
 LogDebug(VB_PLAYLIST, "memset()\n");
 	memset(m_buffer, 0, m_bufferSize);
@@ -496,6 +502,7 @@ void PlaylistEntryImage::Draw(void)
 #else
 		FBCopyData(m_buffer);
 		FBStartDraw(); // Actual draw runs in another thread
+		m_curFileName = m_nextFileName;
 #endif
 	}
 	else
