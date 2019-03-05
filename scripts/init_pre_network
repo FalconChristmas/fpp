@@ -67,7 +67,7 @@ do
 done
 
 
-DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4"
+DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4 images cache tmp"
 echo "FPP - Checking for required directories"
 for DIR in ${DIRS}
 do
