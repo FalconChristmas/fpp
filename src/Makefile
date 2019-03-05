@@ -1,5 +1,16 @@
 CC := g++
 
+BASEDIR := $(shell basename `pwd`)
+
+SRCDIRS := channeloutput channeloutput/processors channeltester fseq mediaoutput oled playlist pru sensors util
+
+SRCDIR = ./
+ifneq '$(BASEDIR)' 'src'
+	VPATH = ../src/
+	SRCDIR = ../src/
+	MKDIROUT = $(shell mkdir $(SRCDIRS))
+endif
+
 ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
@@ -188,9 +199,9 @@ CURLFLAGS := $(shell curl-config --libs)
 
 # Common CFLAGS
 CFLAGS += \
-	-I . \
-	-I channeloutput \
-	-I mediaoutput \
+	-I $(SRCDIR) \
+	-I $(SRCDIR)channeloutput \
+	-I $(SRCDIR)mediaoutput \
 	$(NULL)
 CXXFLAGS += -std=gnu++14
 
@@ -374,7 +385,7 @@ fppoled: $(OBJECTS_fppoled)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppversion.c: fppversion.sh force
-	@sh fppversion.sh $(PWD)
+	@sh $(SRCDIR)fppversion.sh $(PWD)
 
 %.o: %.cpp %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
@@ -383,7 +394,7 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) fpp fppmm fppd
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
