@@ -146,6 +146,9 @@ int FrameBuffer::FBInit(Json::Value &config)
 	if (config.isMember("device"))
 		m_device = config["device"].asString();
 
+	if (config.isMember("transitionType"))
+		m_transitionType = (ImageTransitionType)config["transitionType"].asInt();
+
 	if (config.isMember("dataFormat"))
 		m_dataFormat = config["dataFormat"].asString();
 
