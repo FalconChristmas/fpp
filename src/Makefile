@@ -208,8 +208,8 @@ CFLAGS += \
 	-I $(SRCDIR)mediaoutput \
 	$(NULL)
 CXXFLAGS += -std=gnu++14
-CXXFLAGS += $(shell GraphicsMagick++-config --cxxflags --cppflags)
 
+CXXFLAGS += $(shell GraphicsMagick++-config --cppflags)
 LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 	$(shell GraphicsMagick++-config --ldflags --libs) \
 	$(NULL)
