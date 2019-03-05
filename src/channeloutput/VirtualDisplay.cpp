@@ -35,6 +35,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/predicate.hpp>
+
 #include "common.h"
 #include "log.h"
 #include "VirtualDisplay.h"
@@ -169,6 +172,9 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 	int first = 1;
 	int i = 0;
 	int found = 0;
+	unsigned char customR;
+	unsigned char customG;
+	unsigned char customB;
 	VirtualPixelColor vpc = kVPC_RGB;
 
 	while ((read = getline(&line, &len, file)) != -1)
@@ -234,6 +240,8 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			z  = atoi(parts[2].c_str());
 			ch = atoi(parts[3].c_str());
 
+			customR = customG = customB = 0;
+
 			s = ((m_height - (int)(y * m_scale) - 1) * m_width
 					+ (int)(x * m_scale + colOffset)) * m_bytesPerPixel;
 
@@ -296,6 +304,21 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 				vpc = kVPC_Blue;
 			else if (parts[5] == "White")
 				vpc = kVPC_White;
+			else if (boost::starts_with(parts[5], "#"))
+			{
+				std::string colorPart;
+
+				vpc = kVPC_Custom;
+
+				colorPart = parts[5].substr(1,2);
+				customR = std::stoi(colorPart, NULL, 16);
+
+				colorPart = parts[5].substr(3,2);
+				customG = std::stoi(colorPart, NULL, 16);
+
+				colorPart = parts[5].substr(5,2);
+				customB = std::stoi(colorPart, NULL, 16);
+			}
 
 			found = 0;
 			for (i = 0; i < m_pixels.size() && !found; i++)
@@ -305,7 +328,7 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			}
 
 			if (!found)
-				m_pixels.push_back({ x, y, z, ch, r, g, b, atoi(parts[4].c_str()), vpc });
+				m_pixels.push_back({ x, y, z, ch, r, g, b, atoi(parts[4].c_str()), customR, customG, customB, vpc });
 		}
 	}
 

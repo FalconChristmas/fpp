@@ -44,6 +44,7 @@ typedef enum virtualPixelColor {
 	kVPC_White,
 	kVPC_Blue,
 	kVPC_Green,
+	kVPC_Custom,
 } VirtualPixelColor;
 
 typedef struct virtualDisplayPixel {
@@ -55,6 +56,9 @@ typedef struct virtualDisplayPixel {
 	int g;
 	int b;
 	int cpp;
+	unsigned char customR;
+	unsigned char customG;
+	unsigned char customB;
 
 	VirtualPixelColor vpc;
 } VirtualDisplayPixel;
@@ -102,8 +106,14 @@ class VirtualDisplayOutput : public ThreadedChannelOutputBase {
 inline void VirtualDisplayOutput::GetPixelRGB(VirtualDisplayPixel &pixel,
 	unsigned char *channelData, unsigned char &r, unsigned char &g, unsigned char &b)
 {
-	if ((pixel.cpp == 3) ||
-		((pixel.cpp == 4) && (channelData[pixel.ch + 3] == 0)))
+	if (pixel.vpc == kVPC_Custom)
+	{
+		r = pixel.customR;
+		g = pixel.customG;
+		b = pixel.customB;
+	}
+	else if ((pixel.cpp == 3) ||
+		     ((pixel.cpp == 4) && (channelData[pixel.ch + 3] == 0)))
 	{
 		if (pixel.vpc == kVPC_RGB)
 		{
