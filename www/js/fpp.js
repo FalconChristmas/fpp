@@ -251,6 +251,8 @@ function PlaylistEntryToTR(i, entry, editMode)
         HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", "VOLUME - " + entry.volume.toString(), "", "", i.toString(), editMode);
     else if(entry.type == 'url')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", "URL - " + entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
+    else if(entry.type == 'image')
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Image", "Image - " + entry.imagePath, entry.outputDevice, entry.data, i.toString(), editMode);
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";
@@ -447,6 +449,10 @@ function PlaylistTypeChanged() {
 	{
 		$('#urlOptions').show();
 	}
+	else if (type == 'image')
+	{
+		$('#imageOptions').show();
+	}
 }
 
 function AddNewPlaylist() {
@@ -626,6 +632,12 @@ function AddPlaylistEntry() {
 				entry.url = encodeURIComponent($('#url').val());
 				entry.method = $('#urlMethod').val();
 				entry.data = encodeURIComponent($('#urlData').val());
+			}
+			else if (entry.type == 'image')
+			{
+				image.imagePath = encodeURIComponent($('#imagePath').val());
+				image.transitionType = $('#transitionType').val();
+				image.outputDevice = encodeURIComponent($('#outputDevice').val());
 			}
 			else if (entry.type == 'plugin')
 			{

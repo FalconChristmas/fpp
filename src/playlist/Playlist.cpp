@@ -53,6 +53,7 @@
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryEvent.h"
+#include "PlaylistEntryImage.h"
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryPause.h"
@@ -292,6 +293,8 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryEffect();
 	else if (entry["type"].asString() == "event")
 		result = new PlaylistEntryEvent();
+	else if (entry["type"].asString() == "image")
+		result = new PlaylistEntryImage();
 	else if (entry["type"].asString() == "media")
 		result = new PlaylistEntryMedia();
 	else if (entry["type"].asString() == "mqtt")

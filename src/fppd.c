@@ -63,6 +63,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <Magick++.h>
+
 #include "channeloutput/FPD.h"
 #include "falcon.h"
 #include "mediaoutput.h"
@@ -452,6 +454,8 @@ int main(int argc, char *argv[])
 		loadSettings("/home/pi/media/settings");
 
 	curl_global_init(CURL_GLOBAL_ALL);
+
+	Magick::InitializeMagick(NULL);
 
 	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
 	// NOTE: wiringPISetupSys() is not fast enough for SoftPWM on GPIO output

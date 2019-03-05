@@ -384,6 +384,9 @@ if ($allowDelete)
             <option value = 'remap'>Channel Remap</option>
 <? if (!$simplifiedPlaylist) echo "<option value = 'dynamic'>Dynamic</option>"; ?>
             <option value = 'event'>Event</option>
+<!--
+            <option value = 'image'>Image</option>
+-->
             <option value = 'mqtt'>MQTT</option>
             <option value = 'pause'>Pause</option>
 <? if (!$simplifiedPlaylist) echo "<option value = 'playlist'>Playlist</option>"; ?>
@@ -430,6 +433,28 @@ if ($allowDelete)
 				<tr><td>URL:</td><td><input id='url' type='text' size='60' maxlength='255' placeholder='http://hostname/path'></td></tr>
 				<tr><td>Method:</td><td><select id='urlMethod'><option value='GET'>GET</option><option value='POST'>POST</option></select></td></tr>
 				<tr><td>Post Data:</td><td><input id='urlData' type='text' size='60' maxlength='1024' placeholder='POST Data'></td></tr>
+				</table>
+			</td>
+			</tr>
+		<tr id="imageOptions" class='playlistOptions'><td>Image:</td>
+			<td><table border=0 cellpadding=0 cellspacing=2>
+				<tr><td>Image Path:</td><td><input id='imagePath' type='text' size='60' maxlength='255' placeholder='/home/fpp/media/images'></td></tr>
+				<tr><td>Transition Type:</td><td><select id='transitionType'>
+							<option value='-2'>Random</option>
+							<option value='0'>None</option>
+							<option value='1'>Slide Up</option>
+							<option value='2'>Slide Down</option>
+							<option value='3'>Wipe Up</option>
+							<option value='4'>Wipe Down</option>
+							<option value='5'>Wipe To Horizonal Center</option>
+						</select></td></tr>
+				<tr><td>Output Device:</td><td><select id='outputDevice'>
+							<option value='fb0'>fb0</option>
+<?
+	if (file_exists("/dev/fb1"))
+		echo "<option value='fb1'>fb1</option>\n";
+?>
+						</select></td></tr>
 				</table>
 			</td>
 			</tr>

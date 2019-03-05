@@ -122,6 +122,7 @@ OBJECTS_fppd = \
 	falcon.o \
 	fppd.o \
 	fppversion.o \
+	FrameBuffer.o \
 	gpio.o \
 	httpAPI.o \
 	log.o \
@@ -145,6 +146,7 @@ OBJECTS_fppd = \
 	playlist/PlaylistEntryDynamic.o \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryEvent.o \
+	playlist/PlaylistEntryImage.o \
 	playlist/PlaylistEntryMedia.o \
 	playlist/PlaylistEntryMQTT.o \
 	playlist/PlaylistEntryPause.o \
@@ -164,6 +166,8 @@ OBJECTS_fppd = \
 	settings.o \
 	$(NULL)
 LIBS_fppd = \
+	-lboost_filesystem \
+	-lboost_system \
 	-lpthread \
     -lzstd -lz \
 	-lhttpserver \
@@ -204,8 +208,10 @@ CFLAGS += \
 	-I $(SRCDIR)mediaoutput \
 	$(NULL)
 CXXFLAGS += -std=gnu++14
+CXXFLAGS += $(shell GraphicsMagick++-config --cxxflags --cppflags)
 
 LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
+	$(shell GraphicsMagick++-config --ldflags --libs) \
 	$(NULL)
 
 DEPS_fppd += \
@@ -391,7 +397,7 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.c %.h Makefile
-	$(CCACHE) $(CC) $(CFLAGS) -c $< -o $@
+	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
