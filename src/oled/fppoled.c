@@ -52,13 +52,13 @@ int main (int argc, char *argv[]) {
     }
     
     if (init_i2c_dev2(I2C_DEV_PATH, SSD1306_OLED_ADDR) != 0) {
-        printf("(Main)i2c-2: OOPS! Something Went Wrong\n");
+        printf("(Main)i2c: OOPS! Something Went Wrong\n");
         exit(1);
     }
     
     if (ledType && display_Init_seq() )  {
         printf("Could not initialize display\n");
-        exit(1);
+        ledType = 0;
     }
     
     struct sigaction sigIntAction;

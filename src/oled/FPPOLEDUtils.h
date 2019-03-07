@@ -21,6 +21,10 @@ private:
     int getSignalStrength(char *iwname);
     void outputNetwork(int idx, int y);
     
+    int outputTopPart(int startY, int count);
+    int outputBottomPart(int startY, int count);
+
+    
     int _ledType;
     std::vector<std::string> networks;
     std::vector<int> signalStrength;

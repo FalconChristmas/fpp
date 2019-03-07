@@ -95,7 +95,7 @@ static int writer(char *data, size_t size, size_t nmemb,
 FPPOLEDUtils::FPPOLEDUtils(int ledType)
     : _ledType(ledType), _currentTest(0), _curPage(0) {
     
-    if (_ledType == 2 || _ledType == 4 || _ledType == 6) {
+    if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8) {
         setRotation(2);
     } else if (_ledType) {
         setRotation(0);
@@ -202,25 +202,10 @@ inline int getLinesPage1(std::vector<std::string> &lines,
     }
     return 6;
 }
-void FPPOLEDUtils::doIteration(int count) {
-    if (_ledType == 0) {
-        return;
-    }
-    if ((count % 30) == 0 || networks.size() <= 1) {
-        //every 30 seconds, rescan network for new connections
-        fillInNetworks();
-    }
-    clearDisplay();
-    
-    int startY = 0;
-    if (_ledType == 6) {
-        startY++;
-    }
-    setTextSize(1);
-    setTextColor(WHITE);
+int FPPOLEDUtils::outputTopPart(int startY, int count) {
     setCursor(0,startY);
     if (networks.size() > 1) {
-        int idx = count % networks.size();
+        int idx = (count / 3) % networks.size();
         if (networks.size() == 2 && LED_DISPLAY_HEIGHT == 64) {
             idx = 0;
         }
@@ -247,13 +232,10 @@ void FPPOLEDUtils::doIteration(int count) {
             startY += 8;
         }
     }
-    if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
-        drawLine(0, startY, 127, startY, WHITE);
-        startY++;
-    } else {
-        drawLine(0, startY - 1, 127, startY - 1, WHITE);
-    }
-    
+    return startY;
+}
+int FPPOLEDUtils::outputBottomPart(int startY, int count) {
+
     buffer.clear();
     bool gotStatus = false;
     if (curl_easy_perform(curl) == CURLE_OK) {
@@ -264,7 +246,7 @@ void FPPOLEDUtils::doIteration(int count) {
             gotStatus = true;
             setTextSize(1);
             setTextColor(WHITE);
-
+            
             setCursor(0, startY);
             
             std::vector<std::string> lines;
@@ -301,12 +283,14 @@ void FPPOLEDUtils::doIteration(int count) {
                 if (idx == maxLines) {
                     idx = 0;
                 }
-                setCursor(0, startY);
-                line = lines[idx];
-                if (line.length() > 21) {
-                    line.resize(21);
+                if (maxLines > 1) {
+                    setCursor(0, startY);
+                    line = lines[idx];
+                    if (line.length() > 21) {
+                        line.resize(21);
+                    }
+                    print_str(line.c_str());
                 }
-                print_str(line.c_str());
             }
         } else if (debug) {
             printf("Invalid json\n");
@@ -331,7 +315,43 @@ void FPPOLEDUtils::doIteration(int count) {
             print_str(line.c_str());
         }
     }
-        
+}
+
+
+void FPPOLEDUtils::doIteration(int count) {
+    if (_ledType == 0) {
+        return;
+    }
+    if ((count % 30) == 0 || networks.size() <= 1) {
+        //every 30 seconds, rescan network for new connections
+        fillInNetworks();
+    }
+    clearDisplay();
+    
+    int startY = 0;
+    if (_ledType == 6) {
+        startY++;
+    }
+    setTextSize(1);
+    setTextColor(WHITE);
+    if (_ledType != 8) {
+        startY = outputTopPart(startY, count);
+        if (_ledType != 7 && _ledType != 8) {
+            // two color display doesn't need the separator line
+            if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
+                drawLine(0, startY, 127, startY, WHITE);
+                startY++;
+            } else {
+                drawLine(0, startY - 1, 127, startY - 1, WHITE);
+            }
+        }
+        startY = outputBottomPart(startY, count);
+    } else {
+        //strange case... with 2 color display flipped, we still need to keep the
+        //network part in the "yellow" which is now below the main part
+        outputBottomPart(0, count);
+        outputTopPart(48, count);
+    }
     Display();
 }
 
@@ -454,6 +474,7 @@ void FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputA
             }
         }
     }
+    fflush(stdout);
 
 }
 

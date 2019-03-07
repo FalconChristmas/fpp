@@ -1,6 +1,33 @@
 #! /usr/bin/php
 <?php
 
+if (file_exists("/etc/fpp/platform")) {
+    $platform = trim(file_get_contents("/etc/fpp/platform"));
+}
+
+if ($platform == FALSE) {
+    $platform = exec("uname -s");
+}
+
+$I2CBUS = "2";
+if ($platform == "Raspberry Pi") {
+    // need to modprobe the i2c-dev stuff so the i2c bus becomes available
+    $I2CBUS = "1";
+    exec("modprobe i2c-dev 2>&1");
+}
+
+//we'll wait for up to 15 seconds for i2c bus to become available
+$count = 150;
+for ($i = 0; $i < $count; $count++) {
+    if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
+        break;
+    }
+    usleep(100);
+}
+if (!file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
+    printf("No I2C bus.  Cannot detect cape.\n");
+    exit(1);
+}
 
 $dir = '/home/fpp/media/tmp/';
 $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
@@ -17,16 +44,16 @@ foreach($files as $file) {
 if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
      mkdir("/home/fpp/media/tmp");
 }
-
+$EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
 // detect and initialize the eeprom, only support 24c256 chips for now
-if (!file_exists("/sys/bus/i2c/devices/2-0050/eeprom")) {
-    file_put_contents("/sys/bus/i2c/devices/i2c-2/new_device", "24c256 0x50");
+if (!file_exists($EEPROM)) {
+    file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device", "24c256 0x50");
 }
 
-if (!file_exists("/sys/bus/i2c/devices/2-0050/eeprom")) {
+if (!file_exists($EEPROM)) {
     exit(0);    
 }
-$fp = fopen('/sys/bus/i2c/devices/2-0050/eeprom', 'rb');
+$fp = fopen($EEPROM, 'rb');
 $header = fread($fp, 6); // should be FPP02 + null
 $cape = fread($fp, 26); // cape name + nulls
 $capev = fread($fp, 10); // cape version + nulls
@@ -57,6 +84,7 @@ while ($flen != 0) {
 fclose($fp);
 
 
+// if the cape-info has default settings and those settings are not already set, set them
 if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     $json = json_decode(file_get_contents("/home/fpp/media/tmp/cape-info.json"));
     foreach ($json->defaultSettings as $key => $value) {
@@ -66,6 +94,19 @@ if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     }
 }
 
-file_put_contents("/sys/bus/i2c/devices/i2c-2/delete_device", "0x50");
+// if there are default configurations, copy them into place if they dont already exist
+$path = "/home/fpp/media/tmp/defaults/";
+if (file_exists($path) && is_dir($path)) {
+    $directory = new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS );
+    $objects = new RecursiveIteratorIterator($directory);
+    foreach($objects as $name => $object){
+        $fname = substr($name, strlen($path));
+        if (!file_exists("/home/fpp/media/" . $fname)) {
+            copy($name, "/home/fpp/media/" . $fname);
+        }
+    }
+}
+
+file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/delete_device", "0x50");
 
 ?>
