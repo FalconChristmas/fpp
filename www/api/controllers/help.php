@@ -4,7 +4,12 @@ function help_help()
 {
 	$endpoints = array(
 		[ 'GET /help', 'This help page', '', '' ],
-		[ 'GET /playlists', 'Get list of playlist names', '', '[ "Playlist_1", "Playlist_2", "Playlist_3" ]' ],
+		[ 'GET /configfile', 'Get list of config files in /home/fpp/media/config', '', '{ "Path": "", "ConfigFiles": [ "File1", "File2", "File3" ] }' ],
+		[ 'GET /configfile/:SubDir', 'Get list of config files in /home/fpp/media/config/SubDir', '', '{ "Path": "SubDir", "ConfigFiles": [ "File1", "File2", "File3" ] }' ],
+		[ 'GET /configfile/:FileName<br>GET /configfile/:SubDir/:FileName', 'Get contents of config file', '', 'Raw config file contents' ],
+		[ 'POST /configfile/:FileName<br>POST /configfile/:SubDir/:FileName', 'Upload config file.  NOTE: Content-type must equal "text/html" even if content is not HTML.', 'Raw config file contents', '{ "Status": "OK", "Message": "" }' ],
+		[ 'DELETE /configfile/:FileName<br>DELETE /configfile/:SubDir/:FileName', 'Delete config file.', '', '{ "Status": "OK", "Message": "" }' ],
+		[ 'GET /playlists', 'Get list of playlist names', '', '{ "Playlists": [ "Playlist_1", "Playlist_2", "Playlist_3" ] }' ],
 		[ 'POST /playlists', 'Insert a new playlist.', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }', '{ "Status": "OK", "Message": "" }' ],
 		[ 'GET /playlist/:PlaylistName', 'Get Playlist named :PlaylistName.  Returns a normal FPP playlist in JSON format.', '', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }' ],
 		[ 'POST /playlist/:PlaylistName', 'Update/Insert the Playlist named :PlaylistName.', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }', '{ "Status": "OK", "Message": "" }' ],
