@@ -6,7 +6,8 @@ Before=fppinit.service network.target multi-user.target
 Wants=network-pre.target home-fpp-media.mount
 
 [Service]
-ExecStart=/opt/fpp/src/fppoled
+ExecStart=/opt/fpp/scripts/fppoled start
+ExecStop=/opt/fpp/scripts/fppoled stop
 Type=simple
 
 [Install]

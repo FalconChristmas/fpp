@@ -1,0 +1,14 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+case "$1" in
+	start)  exec ${FPPBINDIR}/fppoled
+		;;
+	stop)   killall -9 fppoled
+		;;
+esac
+
