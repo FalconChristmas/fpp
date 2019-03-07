@@ -5,8 +5,13 @@ require_once('common.php');
 putenv("PATH=/bin:/usr/bin:/sbin:/usr/sbin");
 
 $rtcDevice = "/dev/rtc0";
+$i2cDevice = "1";
+
 if ($settings['Platform'] == "BeagleBone Black")
+{
 	$rtcDevice = "/dev/rtc1";
+	$i2cDevice = "2";
+}
 
 $commands = array(
 	// Networking
@@ -48,6 +53,9 @@ $commands = array(
 	// Kernel
 	'Kernel Version'     => 'uname -a',
 	'Kernel Modules'     => 'lsmod',
+
+	// i2c
+	'i2cdetect'          => $SUDO . ' i2cdetect -y ' . $i2cDevice,
 
 	// Processes
 	'Processes'          => 'ps -edaf --forest',  // Keep this last since it is so long
