@@ -29,7 +29,10 @@ if (!file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
     exit(1);
 }
 
-$dir = '/home/fpp/media/tmp/';
+if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
+    mkdir("/home/fpp/media/tmp");
+}
+$dir = '/home/fpp/media/tmp';
 $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
 $files = new RecursiveIteratorIterator($it,
              RecursiveIteratorIterator::CHILD_FIRST);
@@ -41,9 +44,6 @@ foreach($files as $file) {
     }
 }
 
-if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
-     mkdir("/home/fpp/media/tmp");
-}
 $EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
 // detect and initialize the eeprom, only support 24c256 chips for now
 if (!file_exists($EEPROM)) {
