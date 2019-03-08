@@ -342,8 +342,10 @@ function GetFPPStatusJson()
 					//Add a new key for the advanced data, also decode it as it's an array
 					$request_content_arr['advancedView'] = json_decode($request_expert_content, true);
 					//Re-encode everything back to a string
-					$result = $request_content_arr;
+					$request_content = json_encode($request_content_arr);
 				}
+
+				$result = json_decode($request_content);
             }
         } else {
             error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " ");
