@@ -192,7 +192,7 @@ public:
     int videoFrameCount;
     unsigned int totalVideoLen;
     long long videoStartTime;
-    std::string videoOverlayModel;
+    PixelOverlayModel *videoOverlayModel = nullptr;
     
     
     bool doneRead;
@@ -615,7 +615,7 @@ bool SDLOutput::IsOverlayingVideo() {
 }
 bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
     SDLInternalData *data = sdlManager.data;
-    if (data && !data->stopped && data->curVideoFrame) {
+    if (data && !data->stopped && data->curVideoFrame && data->videoOverlayModel) {
         while (data->curVideoFrame->next
                && data->curVideoFrame->next->timestamp <= msTimestamp) {
             data->curVideoFrame = data->curVideoFrame->next;
@@ -627,7 +627,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
             int t2 = ((int)t) - data->videoStartTime;
             
             //printf("v:  %d  %d      %d        %d\n", msTimestamp, vf->timestamp, t2, sdlManager.data->videoFrameCount);
-            SetPixelOverlayData(data->videoOverlayModel, vf->data);
+            data->videoOverlayModel->setData(vf->data);
         }
     }
 }
@@ -735,9 +735,11 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     }
     int videoOverlayWidth, videoOverlayHeight;
     if (videoOutput != "--Disabled--" && videoOutput != "" && videoOutput != "--HDMI--") {
-        data->videoOverlayModel = videoOutput;
-        if (GetPixelOverlayModelSize(videoOutput, videoOverlayWidth, videoOverlayHeight) &&
+        data->videoOverlayModel = PixelOverlayManager::INSTANCE.getModel(videoOutput);
+        
+        if (data->videoOverlayModel &&
             open_codec_context(&data->video_stream_idx, &data->videoCodecContext, data->formatContext, AVMEDIA_TYPE_VIDEO, fullAudioPath.c_str()) >= 0) {
+            data->videoOverlayModel->getSize(videoOverlayWidth, videoOverlayHeight);
             data->videoStream = data->formatContext->streams[data->video_stream_idx];
         } else {
             data->videoStream = nullptr;
@@ -794,7 +796,9 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
 
         data->totalVideoLen = lengthMS;
 
-        SetPixelOverlayState(data->videoOverlayModel, "Enabled");
+        if (data->videoOverlayModel) {
+            data->videoOverlayModel->setState(PixelOverlayState::Enabled);
+        }
         
         data->scaledFrame = av_frame_alloc();
     
@@ -982,8 +986,10 @@ int SDLOutput::Stop(void)
         data->stopped++;
         if (data->video_stream_idx >= 0) {
             data->video_stream_idx = -1;
-            FillPixelOverlayModel(data->videoOverlayModel, 0, 0, 0);
-            SetPixelOverlayState(data->videoOverlayModel, "Disabled");
+            if (data->videoOverlayModel) {
+                data->videoOverlayModel->clear();
+                data->videoOverlayModel->setState(PixelOverlayState::Disabled);
+            }
         }
     }
 	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;

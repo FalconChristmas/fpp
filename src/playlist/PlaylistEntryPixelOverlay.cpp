@@ -93,14 +93,21 @@ int PlaylistEntryPixelOverlay::StartPlaying(void)
 		return 0;
 	}
 
+    PixelOverlayModel *model = PixelOverlayManager::INSTANCE.getModel(m_modelName);
+    if (model == nullptr) {
+        return 0;
+    }
+
 	if ((m_action == "Disabled") ||
 		(m_action == "Enabled") ||
 		(m_action == "Transparent") ||
-		(m_action == "TransparentRGB"))
-		return SetPixelOverlayState(m_modelName, m_action);
-	else if (m_action == "Value")
-		return SetPixelOverlayValue(m_modelName, m_value, m_startChannel, m_endChannel);
-
+        (m_action == "TransparentRGB")) {
+        model->setState(m_action);
+        return 1;
+    } else if (m_action == "Value") {
+        model->setValue(m_value, m_startChannel, m_endChannel);
+        return 1;
+    }
 	return 0;
 }
 

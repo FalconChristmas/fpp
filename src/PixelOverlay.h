@@ -27,20 +27,115 @@
 #define _PIXELOVERLAY_H
 
 #include <string>
+#include <httpserver.hpp>
+#include <map>
 
-int InitializeChannelDataMemoryMap(void);
-int UsingMemoryMapInput(void);
-void CloseChannelDataMemoryMap(void);
-void OverlayMemoryMap(char *channelData);
+#include "PixelOverlayControl.h"
 
-bool GetPixelOverlayModelSize(const std::string &modelName, int &w, int &h);
-void SetPixelOverlayData(const std::string &modelName, const uint8_t *data);
+class PixelOverlayState {
+public:
+    enum PixelState: uint8_t {
+        Disabled,
+        Enabled,
+        Transparent,
+        TransparentRGB
+    };
 
-int SetPixelOverlayState(std::string modelName, std::string newState);
-int SetPixelOverlayValue(int index, char value, int startChannel = -1, int endChannel = -1);
-int SetPixelOverlayValue(std::string modelName, char value, int startChannel = -1, int endChannel = -1);
+    PixelOverlayState() = default;
+    constexpr PixelOverlayState(PixelState v) : state(v) {}
+    constexpr PixelOverlayState(int v) : state((PixelState)v) {}
+    PixelOverlayState(const std::string &v) {
+        if (v == "Disabled") {
+            state = PixelState::Disabled;
+        } else if (v == "Enabled") {
+            state = PixelState::Enabled;
+        } else if (v == "Transparent") {
+            state = PixelState::Transparent;
+        } else if (v == "TransparentRGB") {
+            state = PixelState::TransparentRGB;
+        } else {
+            state = PixelState::Disabled;
+        }
+    }
 
-int FillPixelOverlayModel(int index, unsigned char r, unsigned char g, unsigned char b);
-int FillPixelOverlayModel(std::string modelName, unsigned char r, unsigned char g, unsigned char b);
+    PixelState getState() const { return state; }
+    bool operator==(PixelOverlayState a) const { return state == a.state; }
+    bool operator!=(PixelOverlayState a) const { return state != a.state; }
+private:
+    PixelState state;
+};
+
+
+class PixelOverlayModel {
+public:
+    PixelOverlayModel(FPPChannelMemoryMapControlBlock *block,
+                      const std::string &name,
+                      char         *chanDataMap,
+                      long long    *pixelMap);
+    ~PixelOverlayModel();
+
+    const std::string &getName() const {return name;};
+
+    int getWidth() const;
+    int getHeight() const;
+    void getSize(int &w, int &h) const;
+    
+    PixelOverlayState getState() const;
+    void setState(const PixelOverlayState &state);
+    
+    
+    void setData(const uint8_t *data);
+    void clear() { fill(0, 0, 0); }
+    void fill(int r, int g, int b);
+    
+    void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
+    
+    int getStartChannel() const;
+    int getChannelCount() const;
+    bool isHorizontal() const;
+    int getNumStrings() const;
+    int getStrandsPerString() const;
+    std::string getStartCorner() const;
+    
+private:
+    std::string name;
+    FPPChannelMemoryMapControlBlock *block;
+    char         *chanDataMap;
+    long long    *pixelMap;
+};
+
+
+class PixelOverlayManager {
+public:
+    static PixelOverlayManager INSTANCE;
+
+    virtual const httpserver::http_response render_GET(const std::string &path, const httpserver::http_request &req);
+    virtual const httpserver::http_response render_POST(const std::string &path, const httpserver::http_request &req);
+
+    void OverlayMemoryMap(char *channelData);
+    int UsingMemoryMapInput();
+    
+    PixelOverlayModel* getModel(const std::string &name);
+    
+    void Initialize();
+    
+private:
+    PixelOverlayManager();
+    ~PixelOverlayManager();
+    
+    bool createChannelDataMap();
+    bool createControlMap();
+    bool createPixelMap();
+    bool loadModelMap();
+    void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *b);
+    
+    std::map<std::string, PixelOverlayModel*> models;
+    char         *ctrlMap = nullptr;
+    char         *chanDataMap = nullptr;
+    long long    *pixelMap = nullptr;
+    
+    FPPChannelMemoryMapControlHeader *ctrlHeader = nullptr;
+};
+
 
 #endif /* _PIXELOVERLAY_H */

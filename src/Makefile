@@ -212,6 +212,7 @@ CXXFLAGS += -std=gnu++14
 CXXFLAGS += $(shell GraphicsMagick++-config --cppflags)
 LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 	$(shell GraphicsMagick++-config --ldflags --libs) \
+	$(shell GraphicsMagickWand-config --ldflags --libs) \
 	$(NULL)
 
 DEPS_fppd += \

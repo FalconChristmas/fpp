@@ -522,7 +522,7 @@ int main(int argc, char *argv[])
 	sequence->SendBlankingData();
 
 	InitEffects();
-	InitializeChannelDataMemoryMap();
+    PixelOverlayManager::INSTANCE.Initialize();
     
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
 
@@ -535,7 +535,6 @@ int main(int argc, char *argv[])
 
 	if (getFPPmode() & PLAYER_MODE)
 	{
-		CloseChannelDataMemoryMap();
 		CloseEffects();
 	}
 
@@ -649,7 +648,7 @@ void MainLoop(void)
 		// FIXME, possibly trigger this via a fpp command to fppd
 		if ((!ChannelOutputThreadIsRunning()) &&
 			(getFPPmode() != BRIDGE_MODE) &&
-			((UsingMemoryMapInput()) ||
+            ((PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
 			 (channelTester->Testing()) ||
 			 (getAlwaysTransmit()))) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");

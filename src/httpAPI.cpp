@@ -51,6 +51,8 @@
 
 #include "mediaoutput/mediaoutput.h"
 #include "sensors/Sensors.h"
+#include "PixelOverlay.h"
+
 
 /*
  *
@@ -102,15 +104,15 @@ void LogRequest(const http_request &req)
 /*
  *
  */
-void LogResponse(const http_request &req, http_response  &res)
+void LogResponse(const http_request &req, int responseCode, const std::string &content)
 {
 	if (LogLevelIsSet(LOG_EXCESSIVE))
 	{
 		LogDebug(VB_HTTP, "API Res: %s%s %d %s\n",
 			req.get_path().c_str(),
 			req.get_querystring().c_str(),
-			res.get_response_code(),
-			res.get_content().c_str());
+			responseCode,
+			content.c_str());
 	}
 }
 
@@ -129,7 +131,9 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	LogDebug(VB_HTTP, "URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-	if (url == "effects")
+    if (boost::starts_with(url, "overlays/")) {
+        return PixelOverlayManager::INSTANCE.render_GET(url, req);
+    } else if (url == "effects")
 	{
 		GetRunningEffects(result);
 	}
@@ -212,14 +216,9 @@ const http_response PlayerResource::render_GET(const http_request &req)
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
+	LogResponse(req, responseCode, resultStr);
 
-	http_response resp = http_response_builder(resultStr.c_str(), responseCode)
-        .with_header("Content-Type", "application/json")
-        .string_response();
-
-	LogResponse(req, resp);
-
-	return resp;
+	return http_response_builder(resultStr, responseCode, "application/json");;
 }
 
 /*
@@ -249,7 +248,9 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	}
 
 	// Keep IF statement in alphabetical order
-	if (boost::starts_with(url, "effects/"))
+    if (boost::starts_with(url, "overlays/")) {
+        return PixelOverlayManager::INSTANCE.render_POST(url, req);
+    } else if (boost::starts_with(url, "effects/"))
 	{
 		boost::replace_first(url, "effects/", "");
 
@@ -441,14 +442,9 @@ const http_response PlayerResource::render_POST(const http_request &req)
 
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
+	LogResponse(req, result["respCode"].asInt(), resultStr);
 
-    http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt())
-        .with_header("Content-Type", "application/json")
-        .string_response();
-
-	LogResponse(req, resp);
-
-	return resp;
+    return http_response_builder(resultStr.c_str(), result["respCode"].asInt(), "application/json").string_response();
 }
 
 
@@ -493,11 +489,9 @@ const http_response PlayerResource::render_DELETE(const http_request &req)
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
+	LogResponse(req, result["respCode"].asInt(), resultStr);
 
-	LogResponse(req, resp);
-
-	return resp;
+	return http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
 }
 
 
@@ -548,11 +542,9 @@ const http_response PlayerResource::render_PUT(const http_request &req)
 	Json::FastWriter fastWriter;
 	std::string resultStr = fastWriter.write(result);
 
-	http_response resp = http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
+	LogResponse(req, result["respCode"].asInt(), resultStr);
 
-	LogResponse(req, resp);
-
-	return resp;
+	return http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();;
 }
 
 /*

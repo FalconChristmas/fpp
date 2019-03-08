@@ -453,8 +453,9 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
     if (SDLOutput::IsOverlayingVideo()) {
         SDLOutput::ProcessVideoOverlay(ms);
     }
-    if (UsingMemoryMapInput())
-        OverlayMemoryMap(m_seqData);
+    if (PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) {
+        PixelOverlayManager::INSTANCE.OverlayMemoryMap(m_seqData);
+    }
 
     if (checkControlChannels && getControlMajor() && getControlMinor())
     {

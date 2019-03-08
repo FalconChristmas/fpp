@@ -117,7 +117,7 @@ void *RunChannelOutputThread(void *data)
 
 	if ((getFPPmode() == REMOTE_MODE) &&
 		(!IsEffectRunning()) &&
-		(!UsingMemoryMapInput()) &&
+        (!PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) &&
 		(!channelTester->Testing()) &&
 		(!getAlwaysTransmit()))
 	{
@@ -189,7 +189,7 @@ void *RunChannelOutputThread(void *data)
 
 		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
-			(UsingMemoryMapInput()) ||
+			(PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
 			(channelTester->Testing()) ||
 			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
