@@ -85,12 +85,17 @@ return;
 /////////////////////////////////////////////////////////////////////////////
 
 function returnJSON($arr) {
+	returnJSONStr(json_encode($arr));
+}
+
+function returnJSONStr($str) {
 	//preemptively close the session
     session_write_close();
 
     header( "Content-Type: application/json");
+	header( "Access-Control-Allow-Origin: *");
 
-	echo json_encode($arr);
+	echo $str;
 
 	exit(0);
 }
@@ -301,7 +306,7 @@ function GetFPPStatusJson()
     //if the ip= argument supplied
     if (isset($args['ip']))
 	{
-		header( "Content-Type: application/json");
+		$result = array();
 
 		//validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
         if (filter_var($args['ip'], FILTER_VALIDATE_IP)) {
@@ -319,7 +324,7 @@ function GetFPPStatusJson()
 				}
 				error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert . " - " . json_encode($http_response_header));
                 //error return default response
-				echo json_encode($default_return_json);
+				$result = $default_return_json;
             } else {
             	//Work around for older versioned devices where the advanced data was pulled in separately rather than being
 				//included (when requested) with the standard data via getFPPStatus
@@ -337,19 +342,16 @@ function GetFPPStatusJson()
 					//Add a new key for the advanced data, also decode it as it's an array
 					$request_content_arr['advancedView'] = json_decode($request_expert_content, true);
 					//Re-encode everything back to a string
-					$request_content = json_encode($request_content_arr);
+					$result = $request_content_arr;
 				}
-
-				//return the actual FPP Status of the device
-				//this will already be a JSON string so we don't have to anything
-				echo $request_content;
             }
         } else {
             error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " ");
             //IPv6 (in rare case it happens) return default response
-            echo json_encode($default_return_json);
+			$result = $default_return_json;
         }
 
+		returnJSON($result);
         exit(0);
 	}
 	else
@@ -889,8 +891,7 @@ function getFileSize()
 
 	$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
 
-	header("Content-Type: application/json");
-	echo $returnStr;
+	returnJSONStr($returnStr);
 }
 
 /**
@@ -992,8 +993,7 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 	} else {
 		$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
 
-		header("Content-Type: application/json");
-		echo $returnStr;
+		returnJSONStr($returnStr);
 	}
 }
 
@@ -1021,10 +1021,7 @@ function GetSequenceInfo()
 		error_log("GetSequenceInfo:: Unable find sequence :: " . $sequence);
 	}
 
-	$return_arr = json_encode($return_arr, JSON_PRETTY_PRINT);
-
-	header("Content-Type: application/json");
-	echo $return_arr;
+	returnJSON($return_arr);
 }
 
 /**
@@ -1102,10 +1099,7 @@ function GetPlayListInfo()
 		error_log("GetPlayListInfo:: Playlist doesn't exist - " . $playlist);
 	}
 
-	$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
-
-	header("Content-Type: application/json");
-	echo $returnStr;
+	returnJSON($returnStr);
 }
 
 function GetPlayListEntries()
@@ -1139,10 +1133,7 @@ function GetPlayListEntries()
 
 	$jsonStr->playlistInfo->total_duration = human_playtime($jsonStr->playlistInfo->total_duration);
 
-	$jsonStr = json_encode($jsonStr, JSON_PRETTY_PRINT);
-
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSON($returnStr);
 }
 
 function GenerateJSONPlaylistEntry($entry)
@@ -1723,8 +1714,7 @@ function GetOutputProcessors()
 		$jsonStr = file_get_contents($settings['outputProcessorsFile']);
 	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSONStr($jsonStr);
 }
 
 function SetOutputProcessors()
@@ -1751,8 +1741,7 @@ function GetChannelOutputsJSON()
 		$jsonStr = file_get_contents($settings['channelOutputsJSON']);
 	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSONStr($jsonStr);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1871,8 +1860,7 @@ function GetChannelOutputs()
 		$jsonStr = file_get_contents($settings[$file]);
 	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSONStr($jsonStr);
 }
 
 function SetChannelOutputs()
@@ -2102,8 +2090,7 @@ function SetTestMode()
 
 function GetTestMode()
 {
-	header( "Content-Type: application/json");
-	echo SendCommand("GetTestMode");
+	returnJSONStr(SendCommand("GetTestMode"));
 }
 
 /////////////////////////////////////////////////////////////////////////////
