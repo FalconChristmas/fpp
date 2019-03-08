@@ -352,6 +352,7 @@ function GetFPPStatusJson()
         }
 
 		returnJSON($result);
+
         exit(0);
 	}
 	else
@@ -889,8 +890,6 @@ function getFileSize()
 
 	$returnStr[$mediaName]['filesize '] = $filesize;
 
-	$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
-
 	returnJSONStr($returnStr);
 }
 
@@ -991,9 +990,7 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 	if ($returnArray == true) {
 		return $returnStr;
 	} else {
-		$returnStr = json_encode($returnStr, JSON_PRETTY_PRINT);
-
-		returnJSONStr($returnStr);
+		returnJSON($returnStr);
 	}
 }
 
@@ -1133,7 +1130,7 @@ function GetPlayListEntries()
 
 	$jsonStr->playlistInfo->total_duration = human_playtime($jsonStr->playlistInfo->total_duration);
 
-	returnJSON($returnStr);
+	returnJSON($jsonStr);
 }
 
 function GenerateJSONPlaylistEntry($entry)
@@ -1516,7 +1513,7 @@ function GetFPPSystems()
 
         if (preg_match('/^169\.254/', $system['address']))
             continue;
-        
+
         $hostNameInfo = @file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo");
         if ($hostNameInfo != false) {
             $elem = Array();
