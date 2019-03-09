@@ -447,7 +447,7 @@ function InstallRemoteScript()
 
 function MoveFile()
 {
-	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $SUDO;
+	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $SUDO;
 
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
@@ -481,6 +481,11 @@ function MoveFile()
 		} else if (preg_match("/\.(mp4|mkv|avi)$/i", $file)) {
 			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) ) {
 				error_log("Couldn't move video file");
+				exit(1);
+			}
+		} else if (preg_match("/\.(gif|jpg|jpeg|png)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $imageDirectory . '/' . $file) ) {
+				error_log("Couldn't move image file");
 				exit(1);
 			}
 		} else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
@@ -1931,6 +1936,7 @@ function GetFiles()
 	global $scriptDirectory;
 	global $logDirectory;
 	global $uploadDirectory;
+	global $imageDirectory;
 	global $docsDirectory;
 
 	$dirName = $_GET['dir'];
@@ -1942,6 +1948,7 @@ function GetFiles()
 	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
 	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
 	else if ($dirName == "Uploads")     { $dirName = $uploadDirectory; }
+	else if ($dirName == "Images")      { $dirName = $imageDirectory; }
 	else if ($dirName == "Docs")        { $dirName = $docsDirectory; }
 	else
 		return;
@@ -2385,6 +2392,10 @@ function GetFile()
 	$dir = $_GET['dir'];
 	check($dir, "dir", __FUNCTION__);
 
+	$isImage = 0;
+	if ($dir == 'Images')
+		$isImage = 1;
+
 	$dir = GetDirSetting($dir);
 
 	if ($dir == "")
@@ -2400,6 +2411,13 @@ function GetFile()
             header('Content-type: audio/m4a');
 		else if (preg_match('/mp4$/i', $filename))
 			header('Content-type: video/mp4');
+	}
+	else if ($isImage)
+	{
+		header('Content-type: ' . mime_content_type($dir . '/' . $filename));
+
+		if (!isset($_GET['attach']) || ($_GET['attach'] == '1'))
+			header('Content-disposition: attachment;filename="' . $filename . '"');
 	}
 	else
 	{

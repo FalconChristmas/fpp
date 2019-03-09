@@ -49,6 +49,15 @@ require_once('config.php');
 		  SetButtonState('#btnDeleteVideo','enable');
     });
 
+    $('#tblImages').on('mousedown', 'tr', function(event,ui){
+          $('#tblImages tr').removeClass('selectedentry');
+          $(this).addClass('selectedentry');
+          ImageNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnViewImage','enable');
+		  SetButtonState('#btnDownloadImage','enable');
+		  SetButtonState('#btnDeleteImage','enable');
+    });
+
     $('#tblEffects').on('mousedown', 'tr', function(event,ui){
           $('#tblEffects tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
@@ -104,6 +113,7 @@ require_once('config.php');
 	GetFiles('Sequences');
 	GetFiles('Music');
 	GetFiles('Videos');
+	GetFiles('Images');
 	GetFiles('Effects');
 	GetFiles('Scripts');
 	GetFiles('Logs');
@@ -207,6 +217,7 @@ h2 {
       <li><a href="#tab-sequence">Sequences</a></li>
       <li><a href="#tab-audio">Audio</a></li>
       <li><a href="#tab-video">Video</a></li>
+      <li><a href="#tab-images">Images</a></li>
       <li><a href="#tab-effects">Effects</a></li>
       <li><a href="#tab-scripts">Scripts</a></li>
       <li><a href="#tab-logs">Logs</a></li>
@@ -273,6 +284,24 @@ h2 {
           </div>
           <br />
           <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video is required for hardware acceleration on the Pi and AAC or MP3 audio are preferred.  Video playback is not currently supported on the BBB.</font>
+        </fieldset>
+      </div>
+    </div>
+
+    <div id="tab-images">
+      <div id= "divImage">
+        <fieldset  class="fs">
+          <legend> Images </legend>
+          <div id="divImageData">
+            <table id="tblImages">
+            </table>
+          </div>
+          <hr />
+          <div class='right'>
+            <input onclick= "ViewImage(ImageNameSelected);" id="btnViewImage" class="disableButtons" type="button"  value="View" />
+            <input onclick= "DownloadFile('Images', ImageNameSelected);" id="btnDownloadImage" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Images', ImageNameSelected);" id="btnDeleteImage" class="disableButtons" type="button"  value="Delete" />
+          </div>
         </fieldset>
       </div>
     </div>

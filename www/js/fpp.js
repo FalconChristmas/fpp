@@ -2958,6 +2958,12 @@ function DownloadZip(dir)
 	location.href="fppxml.php?command=getZip&dir=" + dir;
 }
 
+function ViewImage(file)
+{
+	var url = "fppxml.php?command=getFile&dir=Images&filename=" + file + '&attach=0';
+	window.open(url, '_blank');
+}
+
 function ViewFile(dir, file)
 {
 	$('#fileText').html("Loading...");

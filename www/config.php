@@ -43,6 +43,7 @@ $sequenceDirectory = $mediaDirectory . "/sequences";
 $playlistDirectory = $mediaDirectory . "/playlists";
 $eventDirectory    = $mediaDirectory . "/events";
 $videoDirectory    = $mediaDirectory . "/videos";
+$imageDirectory    = $mediaDirectory . "/images";
 $effectDirectory   = $mediaDirectory . "/effects";
 $scriptDirectory   = $mediaDirectory . "/scripts";
 $logDirectory      = $mediaDirectory . "/logs";
@@ -411,6 +412,7 @@ $settings['scriptDirectory'] = $scriptDirectory;
 $settings['sequenceDirectory'] = $sequenceDirectory;
 $settings['musicDirectory'] = $musicDirectory;
 $settings['videoDirectory'] = $videoDirectory;
+$settings['imageDirectory'] = $imageDirectory;
 $settings['effectDirectory'] = $effectDirectory;
 $settings['eventDirectory'] = $eventDirectory;
 $settings['logDirectory'] = $logDirectory;
@@ -471,6 +473,7 @@ function GetDirSetting($dir)
 	if ($dir == "Sequences")        { return GetSettingValue('sequenceDirectory'); }
 	else if ($dir == "Music")       { return GetSettingValue('musicDirectory'); }
 	else if ($dir == "Videos")      { return GetSettingValue('videoDirectory'); }
+	else if ($dir == "Images")      { return GetSettingValue('imageDirectory'); }
 	else if ($dir == "Effects")     { return GetSettingValue('effectDirectory'); }
 	else if ($dir == "Scripts")     { return GetSettingValue('scriptDirectory'); }
 	else if ($dir == "Logs")        { return GetSettingValue('logDirectory'); }
