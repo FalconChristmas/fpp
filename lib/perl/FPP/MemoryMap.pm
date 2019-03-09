@@ -31,7 +31,7 @@ use Time::HiRes qw( gettimeofday usleep tv_interval );
 use File::Map qw/map_file unmap/;
 use Convert::Binary::C;
 use Data::Dumper;
-use Image::Magick;
+use Graphics::Magick;
 
 #############################################################################
 # Usage:
@@ -531,7 +531,7 @@ sub SetBlockData {
 sub GetFontList {
 	my $this = shift;
 
-	my $img = Image::Magick->new();
+	my $img = Graphics::Magick->new();
 	my @fonts = sort $img->QueryFont();
 
 	return \@fonts;
@@ -675,12 +675,12 @@ sub GetTextMetrics {
 	my $size = shift;
 	my %result;
 
-	my $img2 = new Image::Magick;
+	my $img2 = new Graphics::Magick;
 	$img2->Set( size=>'1x1' );
 	$img2->ReadImage( 'xc:none' );
 
-	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance, $predict) =
-		$img2->QueryMultilineFontMetrics(text => $text, font => $font, fill => "#ff0000", pointsize => $size );
+	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance) =
+		$img2->QueryFontMetrics(text => $text, font => $font, pointsize => $size );
 
 	$result{x_ppem} = $x_ppem;
 	$result{y_ppem} = $y_ppem;
@@ -689,7 +689,6 @@ sub GetTextMetrics {
 	$result{width} = int($width + 1);
 	$result{height} = int($height + 1);
 	$result{max_advance} = $max_advance;
-	$result{predict} = $predict;
 
 	$result{width} += 2;
 	$result{height} += 2;
@@ -704,7 +703,6 @@ sub GetTextMetrics {
 		printf( "width:       %s\n", $result{width});
 		printf( "height:      %s\n", $result{height});
 		printf( "max_advance: %s\n", $result{max_advance});
-		printf( "predict:     %s\n", $result{predict});
 	}
 
 	return \%result;
@@ -723,8 +721,8 @@ sub GetTextImages {
 	my $img;
 	my $imgR;
 
-	$img = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
-	$imgR = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+	$img = Graphics::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+	$imgR = Graphics::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
 
 	$img->Set(magick => "rgb");    # so we can save to blob as RGB
 	$img->Set(depth => 8);         # needed for RGB data
