@@ -1516,28 +1516,24 @@ function GetFPPSystems()
         if (preg_match('/^169\.254/', $system['address']))
             continue;
 
-        $hostNameInfo = @file_get_contents("http://" . $system['address'] . "/fppjson.php?command=getHostNameInfo");
-        if ($hostNameInfo != false) {
-            $elem = Array();
-            $elem['HostName'] = $system['hostname'];
-            $sysHostInfo = json_decode($hostNameInfo, true);
-            $found[$system['address']] = 1;
+        $elem = Array();
+        $elem['HostName'] = $system['hostname'];
+        $found[$system['address']] = 1;
 
-            $elem['HostDescription'] = !empty($sysHostInfo['HostDescription']) ? $sysHostInfo['HostDescription'] : "";
-            $elem['IP'] = $system['address'];
-            $elem['fppMode'] = $system['fppModeString'];
-            $elem['Local'] = 0;
-            $elem['Platform'] = $system['type'];
-            $elem['majorVersion'] = $system['majorVersion'];
-            $elem['minorVersion'] = $system['minorVersion'];
-            $elem['model'] = $system['model'];
-            $elem['version'] = $system['version'];
-            $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
-            $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
-            if (count($matches))
-                $elem['Local'] = 1;
-            $result[] = $elem;
-        }
+        $elem['HostDescription'] = ''; # will be filled in later via AJAX
+        $elem['IP'] = $system['address'];
+        $elem['fppMode'] = $system['fppModeString'];
+        $elem['Local'] = 0;
+        $elem['Platform'] = $system['type'];
+        $elem['majorVersion'] = $system['majorVersion'];
+        $elem['minorVersion'] = $system['minorVersion'];
+        $elem['model'] = $system['model'];
+        $elem['version'] = $system['version'];
+        $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
+        $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
+        if (count($matches))
+            $elem['Local'] = 1;
+        $result[] = $elem;
     }
 
 	exec("avahi-browse -artp | grep  'IPv4' | grep 'fpp-fppd' | sort", $rmtSysOut);
@@ -1563,11 +1559,9 @@ function GetFPPSystems()
             continue;
         }
         
-		$sysHostInfo = json_decode(@file_get_contents("http://" . $parts[7] . "/fppjson.php?command=getHostNameInfo"), true);
-
 		$elem = Array();
 		$elem['HostName'] = $parts[3];
-		$elem['HostDescription'] = !empty($sysHostInfo['HostDescription']) ? $sysHostInfo['HostDescription'] : "";
+		$elem['HostDescription'] = ''; # will be filled in later via AJAX
 		$elem['IP'] = $parts[7];
 		$elem['fppMode'] = "Unknown";
 		$elem['Local'] = 0;

@@ -474,6 +474,9 @@ fieldset
 	background: #aaaaaa;
 }
 
+#fppSystems thead {
+	background:#CCC;
+}
 
 .playlistHeader, .eventListHeader, .effectListHeader{
 	background:#DDD;

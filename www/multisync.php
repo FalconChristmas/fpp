@@ -85,6 +85,12 @@ if (isset($_GET['advancedView'])) {
 
 	}
 
+	function getFPPSystemInfo(ip) {
+		$.get("http://" + ip + "/fppjson.php?command=getHostNameInfo", function(data) {
+			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
+		});
+	}
+
 	function getFPPSystemStatus(ip) {
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
@@ -259,7 +265,7 @@ if (isset($_GET['advancedView'])) {
 
 			var newRow = "<tr id='" + rowID + "'>" +
 				"<td align='center'>" + star + "</td>" +
-				"<td>" + link + "<br><small class='hostDescriptionSM'>"+ hostDescription +"</small></td>" +
+				"<td>" + link + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
 				"<td>" + data[i].IP + "</td>" +
                 "<td id='" + rowID + "_platform'>" + data[i].Platform + "</td>" +
 				"<td>" + fppMode + "</td>" +
@@ -280,6 +286,7 @@ if (isset($_GET['advancedView'])) {
 			$('#fppSystems tbody').append(newRow);
 
 			getFPPSystemStatus(ip);
+			getFPPSystemInfo(ip);
 		}
         var extras = "";
         for (var x in remotes) {
@@ -294,8 +301,7 @@ if (isset($_GET['advancedView'])) {
 
 	function getFPPSystems() {
 		$('#masterLegend').hide();
-		$('#fppSystems tbody').empty();
-		$('#fppSystems tbody').append("<tr><td colspan=5 align='center'>Loading...</td></tr>");
+		$('#fppSystems tbody').html("<tr><td colspan=5 align='center'>Loading system list from fppd.</td></tr>");
 
 		$.get("fppjson.php?command=getSetting&key=MultiSyncRemotes", function(data) {
 			settings['MultiSyncRemotes'] = data.MultiSyncRemotes;
@@ -336,7 +342,7 @@ if (isset($_GET['advancedView'])) {
 	<div id="uifppsystems" class="settings">
 		<fieldset>
 			<legend>Discovered FPP Systems</legend>
-			<table id='fppSystems' cellspacing='5'>
+			<table id='fppSystems' cellpadding='3'>
 				<thead>
 					<tr>
 						<th>&nbsp;</th>
@@ -363,7 +369,7 @@ if (isset($_GET['advancedView'])) {
                     </tr>
 				</thead>
 				<tbody>
-					<tr><td colspan=5 align='center'>Loading...</td></tr>
+					<tr><td colspan=5 align='center'>Loading system list from fppd.</td></tr>
 				</tbody>
 			</table>
 			<hr>
