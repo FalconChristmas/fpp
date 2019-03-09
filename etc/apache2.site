@@ -14,7 +14,7 @@
 		Require all granted
 	</Directory>
 
-	SetEnv GIT_PROJECT_ROOT /opt/fpp/.git
+	SetEnv GIT_PROJECT_ROOT FPPDIR/.git
 	SetEnv GIT_HTTP_EXPORT_ALL 1
 	ScriptAlias /git/ /usr/lib/git-core/git-http-backend/
 
