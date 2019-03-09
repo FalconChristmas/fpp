@@ -324,6 +324,11 @@ static void PrintChannelMapBlocks(FPPChannelMemoryMapControlHeader *ctrlHeader) 
 bool PixelOverlayManager::loadModelMap() {
     LogDebug(VB_CHANNELOUT, "PixelOverlayManager::loadModelMap()\n");
     
+    for (auto a : models) {
+        delete a.second;
+    }
+    models.clear();
+    
     FPPChannelMemoryMapControlBlock *cb = NULL;
     
     FILE *fp;
@@ -601,45 +606,87 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
 }
 
 
-const httpserver::http_response PixelOverlayManager::render_GET(const std::string &path, const httpserver::http_request &req) {
-    std::string url = path;
-    boost::replace_first(url, "overlays/", "");
-    if (url == "models") {
+const httpserver::http_response PixelOverlayManager::render_GET(const httpserver::http_request &req) {
+    std::string p1 = req.get_path_pieces()[0];
+    int plen = req.get_path_pieces().size();
+    if (p1 == "models") {
         Json::Value result;
-        for (auto & m : models) {
-            Json::Value model;
-            model["Name"] = m.second->getName();
-            model["StartChannel"] = m.second->getStartChannel();
-            model["ChannelCount"] = m.second->getChannelCount();
-            model["Orientation"] = m.second->isHorizontal() ? "horizontal" : "vertical";
-            model["StartCorner"] = m.second->getStartCorner();
-            model["StringCount"] = m.second->getNumStrings();
-            model["StrandsPerString"] = m.second->getStrandsPerString();
-            result.append(model);
+        if (plen == 1) {
+            for (auto & m : models) {
+                Json::Value model;
+                model["Name"] = m.second->getName();
+                model["StartChannel"] = m.second->getStartChannel();
+                model["ChannelCount"] = m.second->getChannelCount();
+                model["Orientation"] = m.second->isHorizontal() ? "horizontal" : "vertical";
+                model["StartCorner"] = m.second->getStartCorner();
+                model["StringCount"] = m.second->getNumStrings();
+                model["StrandsPerString"] = m.second->getStrandsPerString();
+                result.append(model);
+            }
+        } else {
+            std::string model = req.get_path_pieces()[1];
+            std::string type;
+            if (plen == 3) type = req.get_path_pieces()[2];
+            if (type == "data") {
+                
+            } else {
+                auto m = getModel(model);
+                if (m) {
+                    result["Name"] = m->getName();
+                    result["StartChannel"] = m->getStartChannel();
+                    result["ChannelCount"] = m->getChannelCount();
+                    result["Orientation"] = m->isHorizontal() ? "horizontal" : "vertical";
+                    result["StartCorner"] = m->getStartCorner();
+                    result["StringCount"] = m->getNumStrings();
+                    result["StrandsPerString"] = m->getStrandsPerString();
+                }
+            }
         }
         Json::FastWriter fastWriter;
         std::string resultStr = fastWriter.write(result);
         
-        return httpserver::http_response_builder(resultStr, 200, "application/json")
-            .string_response();
-    } else if (url == "fonts") {
-        Json::Value result;
-        long unsigned int i = 0;
-        char **fonts = MagickQueryFonts("*", &i);
-        for (int x = 0; x < i; x++) {
-            result.append(fonts[x]);
+        return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
+    } else if (p1 == "overlays") {
+        std::string p2 = req.get_path_pieces()[1];
+        if (p2 == "fonts") {
+            Json::Value result;
+            long unsigned int i = 0;
+            char **fonts = MagickQueryFonts("*", &i);
+            for (int x = 0; x < i; x++) {
+                result.append(fonts[x]);
+            }
+            free(fonts);
+            Json::FastWriter fastWriter;
+            std::string resultStr = fastWriter.write(result);
+            
+            return httpserver::http_response_builder(resultStr, 200, "application/json")
+                .string_response();
+        } else if (p2 == "data") {
         }
-        free(fonts);
-        Json::FastWriter fastWriter;
-        std::string resultStr = fastWriter.write(result);
-        
-        return httpserver::http_response_builder(resultStr, 200, "application/json")
-            .string_response();
-    } else if (url == "data") {
     }
-    return httpserver::http_response_builder("Not found", 404);
+    return httpserver::http_response_builder("Not found: " + p1, 404);
 }
-const httpserver::http_response PixelOverlayManager::render_POST(const std::string &path, const httpserver::http_request &req) {
+const httpserver::http_response PixelOverlayManager::render_POST(const httpserver::http_request &req) {
+    std::string p1 = req.get_path_pieces()[0];
+    if (p1 == "models") {
+        std::string p2 = req.get_path_pieces()[0];
+        if (p2 == "raw") {
+            //upload of raw file
+            char filename[512];
+            strcpy(filename, getMediaDirectory());
+            strcat(filename, "/channelmemorymaps");
+            
+            int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
+            if (fp == -1) {
+                LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename);
+                return httpserver::http_response_builder("Could not open Channel Memory Map config file", 500);
+            }
+            write(fp, req.get_content().c_str(), req.get_content().length());
+            close(fp);
+            loadModelMap();
+            httpserver::http_response_builder("OK", 200);
+        }
+    }
     return httpserver::http_response_builder("Not found", 404);
 }
 

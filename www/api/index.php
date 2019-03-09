@@ -14,8 +14,6 @@ dispatch_get   ('/configfile/**', 'DownloadConfigFile');
 dispatch_post  ('/configfile/**', 'UploadConfigFile');
 dispatch_delete('/configfile/**', 'DeleteConfigFile');
 
-dispatch_post  ('/models/raw', 'post_models_raw');
-
 dispatch_get   ('/playlists', 'playlist_list');
 dispatch_post  ('/playlists', 'playlist_insert');
 dispatch_get   ('/playlist/:PlaylistName', 'playlist_get');

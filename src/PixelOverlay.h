@@ -105,12 +105,12 @@ private:
 };
 
 
-class PixelOverlayManager {
+class PixelOverlayManager : public httpserver::http_resource {
 public:
     static PixelOverlayManager INSTANCE;
 
-    virtual const httpserver::http_response render_GET(const std::string &path, const httpserver::http_request &req);
-    virtual const httpserver::http_response render_POST(const std::string &path, const httpserver::http_request &req);
+    virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
+    virtual const httpserver::http_response render_POST(const httpserver::http_request &req) override;
 
     void OverlayMemoryMap(char *channelData);
     int UsingMemoryMapInput();

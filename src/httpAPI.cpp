@@ -70,6 +70,8 @@ APIServer::~APIServer()
 	m_ws->stop();
 
 	m_ws->unregister_resource("/fppd");
+    m_ws->unregister_resource("/models");
+    m_ws->unregister_resource("/overlays");
 
 	delete m_pr;
 	delete m_ws;
@@ -88,6 +90,8 @@ void APIServer::Init(void)
 
 	m_pr = new PlayerResource;
 	m_ws->register_resource("/fppd", m_pr, true);
+    m_ws->register_resource("/models", &PixelOverlayManager::INSTANCE, true);
+    m_ws->register_resource("/overlays", &PixelOverlayManager::INSTANCE, true);
 
 	m_ws->start(false);
 }
@@ -131,9 +135,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	LogDebug(VB_HTTP, "URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-    if (boost::starts_with(url, "overlays/")) {
-        return PixelOverlayManager::INSTANCE.render_GET(url, req);
-    } else if (url == "effects")
+    if (url == "effects")
 	{
 		GetRunningEffects(result);
 	}
@@ -248,9 +250,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	}
 
 	// Keep IF statement in alphabetical order
-    if (boost::starts_with(url, "overlays/")) {
-        return PixelOverlayManager::INSTANCE.render_POST(url, req);
-    } else if (boost::starts_with(url, "effects/"))
+    if (boost::starts_with(url, "effects/"))
 	{
 		boost::replace_first(url, "effects/", "");
 
