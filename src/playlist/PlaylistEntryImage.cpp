@@ -58,7 +58,7 @@ PlaylistEntryImage::PlaylistEntryImage(PlaylistEntryBase *parent)
 	m_type = "image";
 	m_device = "fb0";
 
-	m_fileSeed = rand();
+	m_fileSeed = (unsigned int)time(NULL);
 	m_cacheDir = "/home/fpp/media/cache";
 	m_cacheEntries = 200;
 	m_cacheSize = 1024; // MB
@@ -342,113 +342,87 @@ const std::string PlaylistEntryImage::GetNextFile(void)
  */
 void PlaylistEntryImage::PrepImage(void)
 {
-LogDebug(VB_PLAYLIST, "PlaylistEntryImage::PrepImage()\n");
 	Image image;
 	Blob blob;
 	bool needToCache = true;
 	std::string nextFile = GetNextFile();
-LogDebug(VB_PLAYLIST, "nextFile = %s\n", nextFile.c_str());
 
 	if (nextFile == "")
 		return;
 
 	if (nextFile == m_nextFileName)
 	{
-LogDebug(VB_PLAYLIST, "nextFile same as m_nextFileName: %s\n", nextFile.c_str());
 		m_imagePrepped = true;
 		return;
 	}
 
-LogDebug(VB_PLAYLIST, "locking m_bufferLock\n");
 	m_bufferLock.lock();
 
 	m_nextFileName = nextFile;
 
-LogDebug(VB_PLAYLIST, "memset()\n");
 	memset(m_buffer, 0, m_bufferSize);
 
 	try {
-LogDebug(VB_PLAYLIST, "image.quiet()\n");
 		image.quiet(true); // Squelch warning exceptions
 
-LogDebug(VB_PLAYLIST, "checking cache\n");
 		if (GetImageFromCache(nextFile, image))
 		{
-LogDebug(VB_PLAYLIST, "loaded image from cache\n");
 			needToCache = false;
 		}
 		else
 		{
-LogDebug(VB_PLAYLIST, "image.read(%s)\n", nextFile.c_str());
 			image.read(nextFile.c_str());
 		}
 
-LogDebug(VB_PLAYLIST, "image.columns()\n");
 		int cols = image.columns();
-LogDebug(VB_PLAYLIST, "image.rows()\n");
 		int rows = image.rows();
 
 		if ((cols != m_width) && (rows != m_height))
 		{
-LogDebug(VB_PLAYLIST, "need to resize %dx%d image to %dx%d\n", cols, rows, m_width, m_height);
 			needToCache = true;
 
 #ifndef OLDGRAPHICSMAGICK
 //			image.autoOrient();
 #endif
 
-LogDebug(VB_PLAYLIST, "image.modifyImage()\n");
 			image.modifyImage();
 
 			// Resize to slightly larger since trying to get exact can
 			// leave us off by one pixel.  Going slightly larger will let
 			// us crop to exact size later.
-LogDebug(VB_PLAYLIST, "image.resize()\n");
 			image.resize(Geometry(m_width + 2, m_height + 2, 0, 0));
 
-LogDebug(VB_PLAYLIST, "image.columns()\n");
 			cols = image.columns();
-LogDebug(VB_PLAYLIST, "image.rows()\n");
 			rows = image.rows();
 
 			if (cols < m_width)       // center horizontally
 			{
 				int diff = m_width - cols;
 
-LogDebug(VB_PLAYLIST, "image.borderColor()\n");
 				image.borderColor(Color("black"));
-LogDebug(VB_PLAYLIST, "image.border()\n");
 				image.border(Geometry(diff / 2 + 1, 0, 0, 0));
 			}
 			else if (rows < m_height) // center vertically
 			{
 				int diff = m_height - rows;
 
-LogDebug(VB_PLAYLIST, "image.borderColor()\n");
 				image.borderColor(Color("black"));
-LogDebug(VB_PLAYLIST, "image.border()\n");
 				image.border(Geometry(0, diff / 2 + 1, 0, 0));
 			}
 
-LogDebug(VB_PLAYLIST, "image.crop()\n");
 			image.crop(Geometry(m_width, m_height, 0, 0));
 		}
 
-LogDebug(VB_PLAYLIST, "image.type()\n");
 		image.type(TrueColorType);
 
 		if (needToCache)
 		{
-LogDebug(VB_PLAYLIST, "caching image\n");
 			CacheImage(nextFile, image);
 		}
 
-LogDebug(VB_PLAYLIST, "image.magick()\n");
 		image.magick("RGBA");
-LogDebug(VB_PLAYLIST, "image.write()\n");
 		image.write(&blob);
 
-LogDebug(VB_PLAYLIST, "memcpy()\n");
 		memcpy(m_buffer, blob.data(), m_bufferSize);
 	}
 	catch( Exception &error_ )
@@ -458,7 +432,6 @@ LogDebug(VB_PLAYLIST, "memcpy()\n");
 	}
 
 #ifdef USE_X11VSFB
-LogDebug(VB_PLAYLIST, "converting RGBA to BGRA for X11\n");
 	// RGBA -> BGRA
 	unsigned char *R = m_buffer;
 	unsigned char *B = R + 2;
@@ -475,11 +448,8 @@ LogDebug(VB_PLAYLIST, "converting RGBA to BGRA for X11\n");
 	}
 #endif
 
-LogDebug(VB_PLAYLIST, "unlocking m_bufferLock\n");
 	m_bufferLock.unlock();
-LogDebug(VB_PLAYLIST, "setting m_imagePrepped = true\n");
 	m_imagePrepped = true;
-LogDebug(VB_PLAYLIST, "imagePrep() DONE\n");
 }
 
 /*
@@ -534,7 +504,7 @@ void PlaylistEntryImage::PrepLoop(void)
 	{
 		if (!m_imagePrepped)
 		{
-			m_bufferLock.unlock();
+			lock.unlock();
 
 #ifndef USE_X11VSFB
 			// Wait until the FrameBuffer image transition is done before
@@ -544,7 +514,7 @@ void PlaylistEntryImage::PrepLoop(void)
 #endif
 
 			PrepImage();
-			m_bufferLock.lock();
+			lock.lock();
 		}
 
 		m_prepSignal.wait(lock);
@@ -582,13 +552,9 @@ bool PlaylistEntryImage::GetImageFromCache(std::string fileName, Image &image)
 		stat(cacheFile.c_str(), &cs);
 
 		if (os.st_mtime > cs.st_mtime)
-{
-LogDebug(VB_PLAYLIST, "Source image is newer than cached file\n");
 			return false;
-}
 
 		try {
-LogDebug(VB_PLAYLIST, "Reading cached file\n");
 			image.read(cacheFile.c_str());
 		}
 		catch( Exception &error_ )
@@ -599,10 +565,6 @@ LogDebug(VB_PLAYLIST, "Reading cached file\n");
 
 		return true;
 	}
-else
-{
-LogDebug(VB_PLAYLIST, "cache file %s does not exist\n", cacheFile.c_str());
-}
 
 	return false;
 }

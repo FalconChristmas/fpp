@@ -67,9 +67,9 @@ FrameBuffer::FrameBuffer()
 	m_imageReady(false),
 	m_drawThread(NULL)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FrameBuffer()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FrameBuffer()\n");
 
-	m_typeSeed = rand();
+	m_typeSeed = (unsigned int)time(NULL);
 }
 
 /*
@@ -77,8 +77,6 @@ FrameBuffer::FrameBuffer()
  */
 FrameBuffer::~FrameBuffer()
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::~FrameBuffer()\n");
-
 	if (!m_runLoop)
 		return; // never initialized/run so no need to tear down
 
@@ -91,7 +89,10 @@ FrameBuffer::~FrameBuffer()
 	}
 
 	if (m_fbp)
+	{
+		memset(m_fbp, 0, m_screenSize);
 		munmap(m_fbp, m_screenSize);
+	}
 
 	if (m_outputBuffer)
 		free(m_outputBuffer);
@@ -99,17 +100,10 @@ FrameBuffer::~FrameBuffer()
 	if (m_device == "/dev/fb0")
 	{
 		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
-			LogErr(VB_GENERAL, "Error resetting variable info\n");
+			LogErr(VB_PLAYLIST, "Error resetting variable info\n");
 	}
 
 	close(m_fbFd);
-
-	if (m_device == "/dev/fb0")
-	{
-		// Re-enable the text console
-		ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
-		close(m_ttyFd);
-	}
 
 	if (m_rgb565map)
 	{
@@ -132,7 +126,7 @@ FrameBuffer::~FrameBuffer()
  */
 int FrameBuffer::FBInit(Json::Value &config)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBInit()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBInit()\n");
 
 	if (config.isMember("width"))
 		m_fbWidth = config["width"].asInt();
@@ -160,17 +154,17 @@ int FrameBuffer::FBInit(Json::Value &config)
 	if (m_dataFormat == "RGB")
 		m_useRGB = 1;
 
-	LogDebug(VB_GENERAL, "Using FrameBuffer device %s\n", m_device.c_str());
+	LogDebug(VB_PLAYLIST, "Using FrameBuffer device %s\n", m_device.c_str());
 	m_fbFd = open(m_device.c_str(), O_RDWR);
 	if (!m_fbFd)
 	{
-		LogErr(VB_GENERAL, "Error opening FrameBuffer device: %s\n", m_device.c_str());
+		LogErr(VB_PLAYLIST, "Error opening FrameBuffer device: %s\n", m_device.c_str());
 		return 0;
 	}
 
 	if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo))
 	{
-		LogErr(VB_GENERAL, "Error getting FrameBuffer info\n");
+		LogErr(VB_PLAYLIST, "Error getting FrameBuffer info\n");
 		close(m_fbFd);
 		return 0;
 	}
@@ -181,21 +175,21 @@ int FrameBuffer::FBInit(Json::Value &config)
 		m_vInfo.bits_per_pixel = 24;
 
 	m_bpp = m_vInfo.bits_per_pixel;
-	LogDebug(VB_GENERAL, "FrameBuffer is using %d BPP\n", m_bpp);
+	LogDebug(VB_PLAYLIST, "FrameBuffer is using %d BPP\n", m_bpp);
 
 	if ((m_bpp != 24) && (m_bpp != 16))
 	{
-		LogErr(VB_GENERAL, "Do not know how to handle %d BPP\n", m_bpp);
+		LogErr(VB_PLAYLIST, "Do not know how to handle %d BPP\n", m_bpp);
 		close(m_fbFd);
 		return 0;
 	}
 
 	if (m_bpp == 16)
 	{
-		LogExcess(VB_GENERAL, "Current Bitfield offset info:\n");
-		LogExcess(VB_GENERAL, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-		LogExcess(VB_GENERAL, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-		LogExcess(VB_GENERAL, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+		LogExcess(VB_PLAYLIST, "Current Bitfield offset info:\n");
+		LogExcess(VB_PLAYLIST, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+		LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+		LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 
 		// RGB565
 		m_vInfo.red.offset    = 11;
@@ -207,10 +201,10 @@ int FrameBuffer::FBInit(Json::Value &config)
 		m_vInfo.transp.offset = 0;
 		m_vInfo.transp.length = 0;
 
-		LogExcess(VB_GENERAL, "New Bitfield offset info should be:\n");
-		LogExcess(VB_GENERAL, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-		LogExcess(VB_GENERAL, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-		LogExcess(VB_GENERAL, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+		LogExcess(VB_PLAYLIST, "New Bitfield offset info should be:\n");
+		LogExcess(VB_PLAYLIST, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+		LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+		LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 	}
 
 	if (m_fbWidth && m_fbHeight)
@@ -224,22 +218,16 @@ int FrameBuffer::FBInit(Json::Value &config)
 		m_fbHeight = m_vInfo.yres;
 	}
 
-	// Config to set the screen back to when we are done
-	// Once we determine how this interacts with omxplayer, this may change
-	m_vInfoOrig.bits_per_pixel = 16;
-	m_vInfoOrig.xres = m_vInfoOrig.xres_virtual = 640;
-	m_vInfoOrig.yres = m_vInfoOrig.yres_virtual = 480;
-
 	if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo))
 	{
-		LogErr(VB_GENERAL, "Error setting FrameBuffer info\n");
+		LogErr(VB_PLAYLIST, "Error setting FrameBuffer info\n");
 		close(m_fbFd);
 		return 0;
 	}
 
 	if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo))
 	{
-		LogErr(VB_GENERAL, "Error getting fixed FrameBuffer info\n");
+		LogErr(VB_PLAYLIST, "Error getting fixed FrameBuffer info\n");
 		close(m_fbFd);
 		return 0;
 	}
@@ -248,20 +236,20 @@ int FrameBuffer::FBInit(Json::Value &config)
 
 	if (m_screenSize != (m_fbWidth * m_fbHeight * m_vInfo.bits_per_pixel / 8))
 	{
-		LogErr(VB_GENERAL, "Error, screensize incorrect\n");
+		LogErr(VB_PLAYLIST, "Error, screensize incorrect\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
 	}
 
-	m_lastFrameSize = m_fbWidth * m_fbHeight * 3;
+	m_lastFrameSize = m_fbWidth * m_fbHeight * m_dataFormat.size();
 
 	if (m_device == "/dev/fb0")
 	{
 		m_ttyFd = open("/dev/console", O_RDWR);
 		if (!m_ttyFd)
 		{
-			LogErr(VB_GENERAL, "Error, unable to open /dev/console\n");
+			LogErr(VB_PLAYLIST, "Error, unable to open /dev/console\n");
 			ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 			close(m_fbFd);
 			return 0;
@@ -269,13 +257,17 @@ int FrameBuffer::FBInit(Json::Value &config)
 
 		// Hide the text console
 		ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
+
+		// Shouldn't need this anymore.
+		close(m_ttyFd);
+		m_ttyFd = -1;
 	}
 
 	m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
 	if ((char *)m_fbp == (char *)-1)
 	{
-		LogErr(VB_GENERAL, "Error, unable to map /dev/fb0\n");
+		LogErr(VB_PLAYLIST, "Error, unable to map /dev/fb0\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
@@ -284,7 +276,7 @@ int FrameBuffer::FBInit(Json::Value &config)
 	m_outputBuffer = (char *)malloc(m_screenSize);
 	if (!m_outputBuffer)
 	{
-		LogErr(VB_GENERAL, "Error, unable to allocate lastFrame buffer\n");
+		LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
@@ -293,7 +285,7 @@ int FrameBuffer::FBInit(Json::Value &config)
 	m_lastFrame = (unsigned char*)malloc(m_lastFrameSize);
 	if (!m_lastFrame)
 	{
-		LogErr(VB_GENERAL, "Error, unable to allocate lastFrame buffer\n");
+		LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
@@ -305,10 +297,10 @@ int FrameBuffer::FBInit(Json::Value &config)
 
 	if (m_bpp == 16)
 	{
-		LogExcess(VB_GENERAL, "Generating RGB565Map for Bitfield offset info:\n");
-		LogExcess(VB_GENERAL, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-		LogExcess(VB_GENERAL, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-		LogExcess(VB_GENERAL, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+		LogExcess(VB_PLAYLIST, "Generating RGB565Map for Bitfield offset info:\n");
+		LogExcess(VB_PLAYLIST, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+		LogExcess(VB_PLAYLIST, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+		LogExcess(VB_PLAYLIST, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 
 		unsigned char rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
 		unsigned char gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
@@ -317,7 +309,7 @@ int FrameBuffer::FBInit(Json::Value &config)
 		int gShift = m_vInfo.green.offset - (8 + (8 - m_vInfo.green.length));
 		int bShift = m_vInfo.blue.offset - (8 + (8 - m_vInfo.blue.length));;
 
-		//LogDebug(VB_GENERAL, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
+		//LogDebug(VB_PLAYLIST, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
 
 		uint16_t o;
 		m_rgb565map = new uint16_t**[32];
@@ -437,12 +429,20 @@ void FrameBuffer::FBCopyData(unsigned char *buffer, int draw)
 						sG += skipped * sBpp;
 						sB += skipped * sBpp;
 						d  += skipped * 2;
+						skipped = 0;
 					}
 
-					if (m_useRGB) // RGB data to BGR framebuffer
-						*((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
-					else // BGR data to BGR framebuffer
-						*((uint16_t*)d) = m_rgb565map[*sB >> 3][*sG >> 2][*sR >> 3];
+//					if (m_useRGB) // RGB data to BGR framebuffer
+						//*((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
+						int ri = *sR >> 3;
+						int gi = *sG >> 2;
+						int bi = *sB >> 3;
+//LogDebug(VB_PLAYLIST, "x,y: %d,%d   RGB: %02X (%d), %02X (%d),  %02X (%d)\n", x, y, *sR, *sR >> 3, *sG, *sG >> 2, *sB, *sB >> 3);
+//LogDebug(VB_PLAYLIST, "x,y: %d,%d   D: %04X\n", x, y, m_rgb565map[ri][gi][bi]);
+						uint16_t td = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
+						*((uint16_t*)d) = td;
+//					else // BGR data to BGR framebuffer
+//						*((uint16_t*)d) = m_rgb565map[*sB >> 3][*sG >> 2][*sR >> 3];
 
 					sG += sBpp;
 					sB += sBpp;
@@ -583,12 +583,12 @@ void FrameBuffer::DrawLoop(void)
 	{
 		if (m_imageReady)
 		{
-			m_bufferLock.unlock();
+			lock.unlock();
 			switch (m_nextTransitionType)
 			{
 				case IT_Random:
 					m_nextTransitionType = (ImageTransitionType)(rand_r(&m_typeSeed) % ((int)IT_MAX - 1) + 1);
-					m_bufferLock.lock();
+					lock.lock();
 					continue;
 					break;
 
@@ -637,7 +637,7 @@ void FrameBuffer::DrawLoop(void)
 					break;
 			}
 
-			m_bufferLock.lock();
+			lock.lock();
 
 			m_imageReady = false;
 		}
@@ -651,7 +651,7 @@ void FrameBuffer::DrawLoop(void)
  */
 void FrameBuffer::FBDrawNormal(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawNormal()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawNormal()\n");
 	m_bufferLock.lock();
 	memcpy(m_fbp, m_outputBuffer, m_screenSize);
 	m_bufferLock.unlock();
@@ -662,7 +662,7 @@ void FrameBuffer::FBDrawNormal(void)
  */
 void FrameBuffer::FBDrawSlideUp(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawSlideUp()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideUp()\n");
 
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
@@ -685,7 +685,7 @@ void FrameBuffer::FBDrawSlideUp(void)
  */
 void FrameBuffer::FBDrawSlideDown(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawSlideDown()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideDown()\n");
 
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
@@ -708,7 +708,7 @@ void FrameBuffer::FBDrawSlideDown(void)
  */
 void FrameBuffer::FBDrawSlideLeft(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawSlideLeft()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideLeft()\n");
 	// FIXME
 	FBDrawSlideUp();
 }
@@ -718,7 +718,7 @@ void FrameBuffer::FBDrawSlideLeft(void)
  */
 void FrameBuffer::FBDrawSlideRight(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawSlideRight()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideRight()\n");
 	// FIXME
 	FBDrawSlideDown();
 }
@@ -728,7 +728,7 @@ void FrameBuffer::FBDrawSlideRight(void)
  */
 void FrameBuffer::FBDrawWipeUp(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawWipeUp()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeUp()\n");
 
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
@@ -755,7 +755,7 @@ void FrameBuffer::FBDrawWipeUp(void)
  */
 void FrameBuffer::FBDrawWipeDown(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawWipeDown()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeDown()\n");
 
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
@@ -782,7 +782,7 @@ void FrameBuffer::FBDrawWipeDown(void)
  */
 void FrameBuffer::FBDrawWipeLeft(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawWipeLeft()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeLeft()\n");
 	// FIXME
 	FBDrawWipeUp();
 }
@@ -792,7 +792,7 @@ void FrameBuffer::FBDrawWipeLeft(void)
  */
 void FrameBuffer::FBDrawWipeRight(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawWipeRight()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeRight()\n");
 	// FIXME
 	FBDrawWipeDown();
 }
@@ -802,7 +802,7 @@ void FrameBuffer::FBDrawWipeRight(void)
  */
 void FrameBuffer::FBDrawWipeToHCenter(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawWipeToHCenter()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeToHCenter()\n");
 
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
@@ -833,7 +833,7 @@ void FrameBuffer::FBDrawWipeToHCenter(void)
  */
 void FrameBuffer::FBDrawWipeFromHCenter(void)
 {
-	LogDebug(VB_GENERAL, "FrameBuffer::FBDrawWipeFromHCenter()\n");
+	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeFromHCenter()\n");
 	FBDrawNormal();
 }
 
