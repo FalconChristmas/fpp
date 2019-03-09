@@ -724,32 +724,24 @@ sub GetTextImages {
 	$img = Graphics::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
 	$imgR = Graphics::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
 
-	$img->Set(magick => "rgb");    # so we can save to blob as RGB
-	$img->Set(depth => 8);         # needed for RGB data
-
 	@$img = (); # clear the image
 	$img->ReadImage('xc:' . $fill); # black/blank background
 
 	my $err = $img->Annotate(
 			pointsize => $size,
 			text => $text,
-			gravity=>'NorthWest',
-			stroke => 'none',
-			weight => 1,
-			antialias => 0,
+			gravity=>'Center',
 			font => $font,
-			fill => $color,
-			x => 1,
-			y => 1,
+			fill => $color
 		);
 	print $err if $err;
 
-	my $rgbData = $img->ImageToBlob();
+	my ($rgbData) = $img->ImageToBlob(magick => "RGB", depth => 8);
 
 	my $imgR = $img->Clone();
 	$imgR->Flop();
 
-	my $rgbDataR = $imgR->ImageToBlob();
+	my ($rgbDataR) = $imgR->ImageToBlob(magick => "RGB", depth => 8);
 
 	return ($img, $imgR, $rgbData, $rgbDataR);
 }
