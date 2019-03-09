@@ -1505,6 +1505,8 @@ function SetPluginSetting()
 
 function GetFPPSystems()
 {
+    global $settings;
+
     $result = Array();
     exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
 
@@ -1535,6 +1537,9 @@ function GetFPPSystems()
             $elem['Local'] = 1;
         $result[] = $elem;
     }
+
+	if ((!isset($settings['AvahiDiscovery'])) || ($settings['AvahiDiscovery'] == '0'))
+		returnJSON($result);
 
 	exec("avahi-browse -artp | grep  'IPv4' | grep 'fpp-fppd' | sort", $rmtSysOut);
 

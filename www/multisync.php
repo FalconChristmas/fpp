@@ -394,6 +394,7 @@ if ($settings['fppMode'] == 'master')
 }
 ?>
 			<? PrintSettingCheckbox("Auto Refresh Systems Status", "MultiSyncRefreshStatus", 0, 0, "1", "0", "", "getFPPSystems"); ?> Auto Refresh status of FPP Systems<br>
+			<? PrintSettingCheckbox("Avahi discovery", "AvahiDiscovery", 0, 0, "1", "0", "", "getFPPSystems"); ?> Enable Legacy FPP Avahi Discovery<br>
             <?php
                 if ($advancedView ==true) {
 					?>
