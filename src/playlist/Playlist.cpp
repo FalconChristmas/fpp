@@ -550,7 +550,7 @@ int Playlist::FileHasBeenModified(void)
  */
 int Playlist::Process(void)
 {
-	LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
+	//LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
 
 	if (m_sectionPosition >= m_currentSection->size())
 	{

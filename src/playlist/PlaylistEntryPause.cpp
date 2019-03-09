@@ -89,8 +89,6 @@ int PlaylistEntryPause::StartPlaying(void)
  */
 int PlaylistEntryPause::Process(void)
 {
-    LogExcess(VB_PLAYLIST, "PlaylistEntryPause::Process()\n");
-
     if (!m_isStarted || !m_isPlaying || m_isFinished) {
 		return 0;
     }

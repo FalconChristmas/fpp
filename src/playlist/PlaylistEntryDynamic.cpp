@@ -177,8 +177,6 @@ int PlaylistEntryDynamic::StartPlaying(void)
  */
 int PlaylistEntryDynamic::Process(void)
 {
-	LogExcess(VB_PLAYLIST, "PlaylistEntryDynamic::Process()\n");
-
 	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 	{
 		m_playlistEntries[m_currentEntry]->Process();
