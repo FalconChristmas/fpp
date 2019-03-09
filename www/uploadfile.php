@@ -41,7 +41,6 @@ require_once('config.php');
           $('#tblVideos tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           VideoNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  //SetButtonState('#btnPlayVideoInBrowser','enable');
 		  SetButtonState('#btnVideoInfo','enable');
 		  SetButtonState('#btnDownloadVideo','enable');
@@ -62,7 +61,6 @@ require_once('config.php');
           $('#tblEffects tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           EffectNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadEffect','enable');
 		  SetButtonState('#btnRenameEffect','enable');
 		  SetButtonState('#btnDeleteEffect','enable');
@@ -72,7 +70,6 @@ require_once('config.php');
           $('#tblScripts tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewScript','enable');
 		  SetButtonState('#btnEditScript','enable');
 		  SetButtonState('#btnRunScript','enable');
@@ -86,7 +83,6 @@ require_once('config.php');
           $('#tblLogs tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           LogFileSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewLog','enable');
 		  SetButtonState('#btnDownloadLog','enable');
 		  SetButtonState('#btnDeleteLog','enable');
@@ -96,13 +92,6 @@ require_once('config.php');
           $('#tblUploads tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           UploadFileSelected  = $(this).find('td:first').text();
-		  var extension = /\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i;
-		  // Disable LOR/LMS/HLS for now until fppconvert is enhanced
-		  //extension = /\.(vix|xseq|gled|seq)$/i;
-		  if ( UploadFileSelected.match(extension) )
-			  SetButtonState('#btnSequenceConvertUpload','enable');
-		  else
-			  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadUpload','enable');
 		  SetButtonState('#btnDeleteUpload','enable');
     });
@@ -381,7 +370,6 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "ConvertFileDialog(UploadFileSelected);" id="btnSequenceConvertUpload" class="disableButtons" type="button"  value="Convert" style="float: left;"/>
             <input onclick= "DownloadFile('Uploads', UploadFileSelected);" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Uploads', UploadFileSelected);" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
           </div>
