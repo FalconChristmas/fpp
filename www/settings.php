@@ -81,22 +81,12 @@ if ($settings['Platform'] != "BeagleBone Black") {
     $VideoOutputModels['HDMI'] = "--HDMI--";
 }
 $VideoOutputModels['Disabled'] = "--Disabled--";
-if (file_exists($settings['channelMemoryMapsFile'])) {
-    $f = fopen($settings['channelMemoryMapsFile'], "r");
-    if ($f == FALSE) {
-        # fclose($f);
-    } else {
-        while (!feof($f)) {
-            $line = fgets($f);
-            if ($line == "")
-                continue;
-            $entry = explode(",", $line, 7);
-            $VideoOutputModels[$entry[0]] = $entry[0];
-        }
-        fclose($f);
+if (file_exists($settings['model-overlays'])) {
+    $json = json_decode(file_get_contents($settings['model-overlays']));
+    foreach ($json->models as $value) {
+        $VideoOutputModels[$value->Name] = $value->Name;
     }
 }
-    
 
 $backgroundColors = Array();
 $backgroundColors['No Border']   = '';

@@ -29,8 +29,11 @@
 #include <string>
 #include <httpserver.hpp>
 #include <map>
+#include <mutex>
+#include <jsoncpp/json/json.h>
 
 #include "PixelOverlayControl.h"
+
 
 class PixelOverlayState {
 public:
@@ -83,12 +86,16 @@ public:
     PixelOverlayState getState() const;
     void setState(const PixelOverlayState &state);
     
-    
+    bool isLocked();
+    void lock(bool lock = true);
+    void unlock() { lock(false); }
+
     void setData(const uint8_t *data);
     void clear() { fill(0, 0, 0); }
     void fill(int r, int g, int b);
     
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
+    void setPixelValue(int x, int y, int r, int g, int b);
     
     int getStartChannel() const;
     int getChannelCount() const;
@@ -96,6 +103,9 @@ public:
     int getNumStrings() const;
     int getStrandsPerString() const;
     std::string getStartCorner() const;
+    
+    void toJson(Json::Value &v);
+    void getDataJson(Json::Value &v);
     
 private:
     std::string name;
@@ -111,6 +121,7 @@ public:
 
     virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
     virtual const httpserver::http_response render_POST(const httpserver::http_request &req) override;
+    virtual const httpserver::http_response render_PUT(const httpserver::http_request &req) override;
 
     void OverlayMemoryMap(char *channelData);
     int UsingMemoryMapInput();
@@ -128,8 +139,10 @@ private:
     bool createPixelMap();
     bool loadModelMap();
     void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *b);
+    void ConvertCMMFileToJSON();
     
     std::map<std::string, PixelOverlayModel*> models;
+    std::mutex   modelsLock;
     char         *ctrlMap = nullptr;
     char         *chanDataMap = nullptr;
     long long    *pixelMap = nullptr;

@@ -26,7 +26,8 @@ $system_config_areas = array(
             ),
             'special' => true
         ),
-    'channelmemorymaps' => array('friendly_name' => 'Pixel Overlay Models (Channel Memory Maps)', 'file' => $settings['channelMemoryMapsFile']),
+    'channelmemorymaps' => array('friendly_name' => 'Pixel Overlay Models Old(Channel Memory Maps)', 'file' => $settings['mediaDirectory'] . "/channelmemorymaps"),
+    'model-overlays' => array('friendly_name' => 'Pixel Overlay Models', 'file' => $settings['model-overlays']),
     'outputProcessors' => array('friendly_name' => 'Output Processors', 'file' => $settings['outputProcessorsFile']),
     'show_setup' =>
         array(
@@ -96,7 +97,7 @@ $network_settings_restored_applied_ips = array('wired_network' => array(), 'wifi
 $sensitive_data = array('emailgpass', 'password', 'secret');
 
 //Lookup arrays for whats json and a ini file
-$known_json_config_files = array('channelInputs', 'channelOutputs', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other');
+$known_json_config_files = array('channelInputs', 'channelOutputs', 'outputProcessors', 'universes', 'pixel_strings', 'bbb_strings', 'led_panels', 'other', 'model-overlays');
 $known_ini_config_files = array('settings', 'system_settings', 'network', 'wired', 'wifi');
 
 //Remove BBB Strings from the system areas if we're on a Pi or any other platform that isn't a BBB
@@ -550,8 +551,18 @@ function process_restore_data($restore_area, $restore_area_data)
 		} else {
 			$save_result = true;
 		}
-		$settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
 
+        $overlays_json_filepath = $system_config_areas['model-overlays']['file'];
+        //PrettyPrint the JSON data and save it
+        $outputProcessors_data = prettyPrintJSON(json_encode($restore_area_data));
+        
+        if (file_put_contents($overlays_json_filepath, $outputProcessors_data) === FALSE) {
+            $save_result = false;
+        } else {
+            $save_result = true;
+        }
+        $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
+        
         //Set FPPD restart flag
         WriteSettingToFile('restartFlag', 1);
     }

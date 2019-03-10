@@ -1632,44 +1632,15 @@ function SetAudioOutput($card)
 
 function GetChannelMemMaps()
 {
-	global $settings;
-	$memmapFile = $settings['channelMemoryMapsFile'];
-
-	$result = Array();
-
-	$f = fopen($memmapFile, "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
-
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
-
-		if ($line == "")
-			continue;
-		
-		if (substr($line, 0, 1) == "#")
-			continue;
-
-		$memmap = explode(",",$line,10);
-
-		$elem = Array();
-		$elem['BlockName']        = $memmap[0];
-		$elem['StartChannel']     = $memmap[1];
-		$elem['ChannelCount']     = $memmap[2];
-		$elem['Orientation']      = $memmap[3];
-		$elem['StartCorner']      = $memmap[4];
-		$elem['StringCount']      = $memmap[5];
-		$elem['StrandsPerString'] = $memmap[6];
-
-		$result[] = $elem;
-	}
-	fclose($f);
-
-	returnJSON($result);
+    global $settings;
+    
+    $jsonStr = "";
+    
+    if (file_exists($settings['model-overlays'])) {
+        $jsonStr = file_get_contents($settings['model-overlays']);
+    }
+    
+    returnJSONStr($jsonStr);
 }
 
 function SetChannelMemMaps()
@@ -1677,25 +1648,11 @@ function SetChannelMemMaps()
 	global $args;
 	global $settings;
 
-	$memmapFile = $settings['channelMemoryMapsFile'];
+    $data = stripslashes($args['data']);
+    $data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
+    
+    file_put_contents($settings['model-overlays'], $data);
 
-	$data = json_decode($args['data'], true);
-
-	$f = fopen($memmapFile, "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
-
-	foreach ($data as $memmap) {
-		fprintf($f, "%s,%d,%d,%s,%s,%d,%d\n",
-			$memmap['BlockName'], $memmap['StartChannel'],
-			$memmap['ChannelCount'], $memmap['Orientation'],
-			$memmap['StartCorner'], $memmap['StringCount'],
-			$memmap['StrandsPerString']);
-	}
-	fclose($f);
 
 	GetChannelMemMaps();
 }

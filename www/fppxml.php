@@ -2350,6 +2350,7 @@ function GetZip()
         "config/co-bbbStrings.json",
         "config/co-universes.json",
         "config/ci-universes.json",
+        "config/model-overlays.json",
         //
         "pixelnetDMX",
         "schedule",

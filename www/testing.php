@@ -651,25 +651,13 @@ $(document).ready(function(){
 								<option value='1,1048576'>-- All Channels --</option>
 <?
 
-$f = fopen($settings['channelMemoryMapsFile'], "r");
-if ($f == FALSE)
-{
-	fclose($f);
-}
-else
-{
-	while (!feof($f))
-	{
-		$line = fgets($f);
-		if ($line == "")
-			continue;
-
-		$entry = explode(",", $line, 7);
-		printf( "<option value='%d,%d'>%s</option>\n",
-			intval($entry[1]),
-			intval($entry[1]) + intval($entry[2] - 1), $entry[0]);
-	}
-	fclose($f);
+if (file_exists($settings['model-overlays'])) {
+    $json = json_decode(file_get_contents($settings['model-overlays']));
+    foreach ($json->models as $entry) {
+        printf( "<option value='%d,%d'>%s</option>\n",
+               intval($entry->StartChannel),
+               intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
+    }
 }
 
 ?>

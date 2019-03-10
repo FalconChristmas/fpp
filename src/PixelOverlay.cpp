@@ -35,6 +35,9 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <memory>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <jsoncpp/json/json.h>
@@ -85,7 +88,8 @@ PixelOverlayState PixelOverlayModel::getState() const {
     return PixelOverlayState(i);
 }
 void PixelOverlayModel::setState(const PixelOverlayState &state) {
-    block->isActive = state.getState();
+    int i = (int)state.getState();
+    block->isActive = i;
 }
 
 void PixelOverlayModel::setData(const uint8_t *data) {
@@ -128,6 +132,25 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
         chanDataMap[c] = value;
     }
 }
+void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
+    int c = block->startChannel - 1 + (y*getWidth()*3) + x*3;
+    chanDataMap[c++] = r;
+    chanDataMap[c++] = g;
+    chanDataMap[c++] = b;
+}
+
+void PixelOverlayModel::getDataJson(Json::Value &v) {
+    for (int c = 0; c < block->channelCount; c++) {
+        int i = chanDataMap[pixelMap[block->startChannel + c - 1]];
+        v.append(i);
+    }
+}
+bool PixelOverlayModel::isLocked() {
+    return block->isLocked;
+}
+void PixelOverlayModel::lock(bool l) {
+    block->isLocked = l ? 1 : 0;
+}
 
 int PixelOverlayModel::getStartChannel() const {
     return block->startChannel;
@@ -146,6 +169,15 @@ int PixelOverlayModel::getStrandsPerString() const {
 }
 std::string PixelOverlayModel::getStartCorner() const {
     return block->startCorner;
+}
+void PixelOverlayModel::toJson(Json::Value &result) {
+    result["Name"] = getName();
+    result["StartChannel"] = getStartChannel();
+    result["ChannelCount"] = getChannelCount();
+    result["Orientation"] = isHorizontal() ? "horizontal" : "vertical";
+    result["StartCorner"] = getStartCorner();
+    result["StringCount"] = getNumStrings();
+    result["StrandsPerString"] = getStrandsPerString();
 }
 
 
@@ -328,8 +360,70 @@ bool PixelOverlayManager::loadModelMap() {
         delete a.second;
     }
     models.clear();
+    ConvertCMMFileToJSON();
     
-    FPPChannelMemoryMapControlBlock *cb = NULL;
+    if (!ctrlMap) {
+        LogErr(VB_CHANNELOUT, "Error, trying to load memory map data when "
+               "memory map is not configured.");
+        return false;
+    }
+    
+    char filename[1024];
+    strcpy(filename, getMediaDirectory());
+    strcat(filename, "/config/model-overlays.json");
+    if (FileExists(filename)) {
+        std::ifstream t(filename);
+        std::stringstream buffer;
+        
+        buffer << t.rdbuf();
+        
+        std::string config = buffer.str();
+
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (!success) {
+            LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+            return false;
+        }
+        const Json::Value models = root["models"];
+        FPPChannelMemoryMapControlBlock *cb = NULL;
+        cb = (FPPChannelMemoryMapControlBlock*)(ctrlMap +
+                                                sizeof(FPPChannelMemoryMapControlHeader));
+        for (int c = 0; c < models.size(); c++) {
+            std::string modelName = models[c]["Name"].asString();
+            strncpy(cb->blockName, modelName.c_str(), 32);
+            cb->startChannel = models[c]["StartChannel"].asInt();
+            cb->channelCount = models[c]["ChannelCount"].asInt();;
+            if (models[c]["Orientation"].asString() == "vertical") {
+                cb->orientation = 'V';
+            } else {
+                cb->orientation = 'H';
+            }
+            strncpy(cb->startCorner, models[c]["StartCorner"].asString().c_str(), 2);
+            cb->stringCount = models[c]["StringCount"].asInt();
+            cb->strandsPerString = models[c]["StrandsPerString"].asInt();
+            // Sanity check our string count
+            if (cb->stringCount > (cb->channelCount / 3)) {
+                cb->stringCount = cb->channelCount / 3;
+            }
+            
+            SetupPixelMapForBlock(cb);
+            
+            PixelOverlayModel *pmodel = new PixelOverlayModel(cb, modelName, chanDataMap, pixelMap);
+            this->models[modelName] = pmodel;
+            
+            cb++;
+            ctrlHeader->totalBlocks++;
+
+        }
+        if ((logLevel >= LOG_INFO) &&
+            (logMask & VB_CHANNELOUT)) {
+            PrintChannelMapBlocks(ctrlHeader);
+        }
+    }
+}
+void PixelOverlayManager::ConvertCMMFileToJSON() {
     
     FILE *fp;
     char filename[1024];
@@ -338,39 +432,32 @@ bool PixelOverlayManager::loadModelMap() {
     int startChannel;
     int channelCount;
     
-    if (!ctrlMap) {
-        LogErr(VB_CHANNELOUT, "Error, trying to load memory map data when "
-               "memory map is not configured.");
-        return false;
-    }
-    
     strcpy(filename, getMediaDirectory());
     strcat(filename, "/channelmemorymaps");
-    
     if (!FileExists(filename)) {
-        return true;
+        return;
     }
+    Json::Value result;
     
     LogDebug(VB_CHANNELOUT, "Loading Channel Memory Map data.\n");
     fp = fopen(filename, "r");
     if (fp == NULL) {
         LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename);
-        return 0;
+        return;
     }
     
-    cb = (FPPChannelMemoryMapControlBlock*)(ctrlMap +
-                                            sizeof(FPPChannelMemoryMapControlHeader));
     while (fgets(buf, 64, fp) != NULL) {
         if (buf[0] == '#') {
             // Allow # comments for testing
             continue;
         }
+        Json::Value model;
         
         // Name
         s = strtok(buf, ",");
-        std::string modelName = s;
         if (s) {
-            strncpy(cb->blockName, s, 32);
+            std::string modelName = s;
+            model["Name"] = modelName;
         } else {
             continue;
         }
@@ -383,61 +470,50 @@ bool PixelOverlayManager::loadModelMap() {
             (startChannel > FPPD_MAX_CHANNELS)) {
             continue;
         }
-        cb->startChannel = startChannel;
+        model["StartChannel"] = startChannel;
         
         // Channel Count
         s=strtok(NULL,",");
         if (!s) continue;
         channelCount = strtol(s, NULL, 10);
         if ((channelCount <= 0) ||
-            ((startChannel + channelCount) > FPPD_MAX_CHANNELS))
-        continue;
-        cb->channelCount = channelCount;
+            ((startChannel + channelCount) > FPPD_MAX_CHANNELS)) {
+            continue;
+        }
+        model["ChannelCount"] = channelCount;
         
         // Orientation
         s=strtok(NULL,",");
         if (!s) continue;
-        if (!strcmp(s, "vertical")) {
-            cb->orientation = 'V';
-        } else {
-            cb->orientation = 'H';
-        }
+        model["Orientation"] = !strcmp(s, "vertical") ? "vertical" : "horizontal";
+
         
         // Start Corner
         s=strtok(NULL,",");
         if (!s) continue;
-        strncpy(cb->startCorner, s, 2);
+        model["StartCorner"] = s;
+        
         
         // String Count
         s=strtok(NULL,",");
         if (!s) continue;
-        cb->stringCount = strtol(s, NULL, 10);
+        model["StringCount"] = (int)strtol(s, NULL, 10);
         
         // Strands Per String
         s=strtok(NULL,",");
         if (!s) continue;
-        cb->strandsPerString = strtol(s, NULL, 10);
-        
-        // Sanity check our string count
-        if (cb->stringCount > (cb->channelCount / 3))
-        cb->stringCount = cb->channelCount / 3;
-        
-        
-        SetupPixelMapForBlock(cb);
-        
-        PixelOverlayModel *model = new PixelOverlayModel(cb, modelName, chanDataMap, pixelMap);
-        models[modelName] = model;
-        
-        cb++;
-        ctrlHeader->totalBlocks++;
+        model["StrandsPerString"] = (int)strtol(s, NULL, 10);
+        result["models"].append(model);
     }
     fclose(fp);
-    
-    if ((logLevel >= LOG_INFO) &&
-        (logMask & VB_CHANNELOUT)) {
-        PrintChannelMapBlocks(ctrlHeader);
-    }
-    return true;
+    remove(filename);
+    strcpy(filename, getMediaDirectory());
+    strcat(filename, "/config/model-overlays.json");
+    Json::StyledWriter writer;
+    std::string resultStr = writer.write(result);
+    fp = fopen(filename, "w");
+    fwrite(resultStr.c_str(), resultStr.length(), 1, fp);
+    fclose(fp);
 }
 
 /*
@@ -594,9 +670,13 @@ int PixelOverlayManager::UsingMemoryMapInput() {
     if (ctrlHeader->testMode) {
         return 1;
     }
-    for (auto a : models) {
-        if (a.second->getState() != PixelOverlayState::Disabled) {
-            return true;
+    FPPChannelMemoryMapControlBlock *cb =
+        (FPPChannelMemoryMapControlBlock*)(ctrlMap +
+                                       sizeof(FPPChannelMemoryMapControlHeader));
+
+    for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
+        if (cb->isActive) { // Active
+            return 1;
         }
     }
     return false;
@@ -612,15 +692,10 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
     if (p1 == "models") {
         Json::Value result;
         if (plen == 1) {
+            std::unique_lock<std::mutex> lock(modelsLock);
             for (auto & m : models) {
                 Json::Value model;
-                model["Name"] = m.second->getName();
-                model["StartChannel"] = m.second->getStartChannel();
-                model["ChannelCount"] = m.second->getChannelCount();
-                model["Orientation"] = m.second->isHorizontal() ? "horizontal" : "vertical";
-                model["StartCorner"] = m.second->getStartCorner();
-                model["StringCount"] = m.second->getNumStrings();
-                model["StrandsPerString"] = m.second->getStrandsPerString();
+                m.second->toJson(model);
                 result.append(model);
             }
         } else {
@@ -630,46 +705,65 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
             if (type == "data") {
                 
             } else {
+                std::unique_lock<std::mutex> lock(modelsLock);
                 auto m = getModel(model);
                 if (m) {
-                    result["Name"] = m->getName();
-                    result["StartChannel"] = m->getStartChannel();
-                    result["ChannelCount"] = m->getChannelCount();
-                    result["Orientation"] = m->isHorizontal() ? "horizontal" : "vertical";
-                    result["StartCorner"] = m->getStartCorner();
-                    result["StringCount"] = m->getNumStrings();
-                    result["StrandsPerString"] = m->getStrandsPerString();
+                    m->toJson(result);
                 }
             }
         }
         Json::FastWriter fastWriter;
         std::string resultStr = fastWriter.write(result);
-        
         return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
     } else if (p1 == "overlays") {
         std::string p2 = req.get_path_pieces()[1];
+        std::string p3 = req.get_path_pieces().size() > 2 ? req.get_path_pieces()[2] : "";
+        std::string p4 = req.get_path_pieces().size() > 3 ? req.get_path_pieces()[3] : "";
+        Json::Value result;
         if (p2 == "fonts") {
-            Json::Value result;
             long unsigned int i = 0;
             char **fonts = MagickQueryFonts("*", &i);
             for (int x = 0; x < i; x++) {
                 result.append(fonts[x]);
             }
             free(fonts);
-            Json::FastWriter fastWriter;
-            std::string resultStr = fastWriter.write(result);
             
-            return httpserver::http_response_builder(resultStr, 200, "application/json")
-                .string_response();
-        } else if (p2 == "data") {
+        } else if (p2 == "models") {
+            std::unique_lock<std::mutex> lock(modelsLock);
+            for (auto & m : models) {
+                Json::Value model;
+                m.second->toJson(model);
+                model["isActive"] = (int)m.second->getState().getState();
+                result.append(model);
+            }
+        } else if (p2 == "model") {
+            std::unique_lock<std::mutex> lock(modelsLock);
+            auto m = getModel(p3);
+            if (m) {
+                if (p4 == "data") {
+                    Json::Value data;
+                    m->getDataJson(data);
+                    result["data"] = data;
+                    result["isLocked"] = m->isLocked();
+                } else if (p4 == "clear") {
+                    m->clear();
+                } else {
+                    m->toJson(result);
+                    result["isActive"] = (int)m->getState().getState();
+                }
+            }
         }
+        Json::FastWriter fastWriter;
+        std::string resultStr = fastWriter.write(result);
+        return httpserver::http_response_builder(resultStr, 200, "application/json")
+            .string_response();
     }
     return httpserver::http_response_builder("Not found: " + p1, 404);
 }
 const httpserver::http_response PixelOverlayManager::render_POST(const httpserver::http_request &req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "models") {
-        std::string p2 = req.get_path_pieces()[0];
+        std::string p2 = req.get_path_pieces().size() > 1 ? req.get_path_pieces()[1] : "";
         if (p2 == "raw") {
             //upload of raw file
             char filename[512];
@@ -683,11 +777,77 @@ const httpserver::http_response PixelOverlayManager::render_POST(const httpserve
             }
             write(fp, req.get_content().c_str(), req.get_content().length());
             close(fp);
+            std::unique_lock<std::mutex> lock(modelsLock);
+            loadModelMap();
+            httpserver::http_response_builder("OK", 200);
+        } else if (req.get_path_pieces().size() == 1) {
+            char filename[512];
+            strcpy(filename, getMediaDirectory());
+            strcat(filename, "/config/model-overlays.json");
+            
+            int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
+            if (fp == -1) {
+                LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename);
+                return httpserver::http_response_builder("Could not open Channel Memory Map config file", 500);
+            }
+            write(fp, req.get_content().c_str(), req.get_content().length());
+            close(fp);
+            std::unique_lock<std::mutex> lock(modelsLock);
             loadModelMap();
             httpserver::http_response_builder("OK", 200);
         }
     }
-    return httpserver::http_response_builder("Not found", 404);
+    return httpserver::http_response_builder("POST Not found " + req.get_path(), 404);
 }
+const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver::http_request &req) {
+    std::string p1 = req.get_path_pieces()[0];
+    std::string p2 = req.get_path_pieces().size() > 1 ? req.get_path_pieces()[1] : "";
+    std::string p3 = req.get_path_pieces().size() > 2 ? req.get_path_pieces()[2] : "";
+    std::string p4 = req.get_path_pieces().size() > 3 ? req.get_path_pieces()[3] : "";
+    if (p1 == "overlays") {
+        if (p2 == "model") {
+            std::unique_lock<std::mutex> lock(modelsLock);
+            auto m = getModel(p3);
+            if (m) {
+                if (p4 == "state") {
+                    Json::Value root;
+                    Json::Reader reader;
+                    if (reader.parse(req.get_content(), root)) {
+                        if (root.isMember("State")) {
+                            m->setState(PixelOverlayState(root["State"].asInt()));
+                            return httpserver::http_response_builder("OK", 200);
+                        }
+                    }
+                } else if (p4 == "fill") {
+                    Json::Value root;
+                    Json::Reader reader;
+                    if (reader.parse(req.get_content(), root)) {
+                        if (root.isMember("RGB")) {
+                            m->fill(root["RGB"][0].asInt(),
+                                    root["RGB"][1].asInt(),
+                                    root["RGB"][2].asInt());
+                            return httpserver::http_response_builder("OK", 200);
+                        }
+                    }
+                } else if (p4 == "pixel") {
+                    Json::Value root;
+                    Json::Reader reader;
+                    if (reader.parse(req.get_content(), root)) {
+                        if (root.isMember("RGB")) {
+                            m->setPixelValue(root["X"].asInt(),
+                                             root["Y"].asInt(),
+                                             root["RGB"][0].asInt(),
+                                             root["RGB"][1].asInt(),
+                                             root["RGB"][2].asInt());
+                            return httpserver::http_response_builder("OK", 200);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return httpserver::http_response_builder("PUT Not found " + req.get_path(), 404);
+}
+
 
 
