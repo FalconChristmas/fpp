@@ -30,6 +30,7 @@
 #include <httpserver.hpp>
 #include <map>
 #include <mutex>
+#include <thread>
 #include <jsoncpp/json/json.h>
 
 #include "PixelOverlayControl.h"
@@ -96,6 +97,14 @@ public:
     
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     void setPixelValue(int x, int y, int r, int g, int b);
+    void doText(const std::string &msg,
+                int r, int g, int b,
+                const std::string &font,
+                int fontSize,
+                bool antialias,
+                const std::string &position,
+                int pixelsPerSecond);
+    
     
     int getStartChannel() const;
     int getChannelCount() const;
@@ -108,10 +117,19 @@ public:
     void getDataJson(Json::Value &v);
     
 private:
+    void copyImageData(int xoff, int yoff);
+    void doImageMovementThread(const std::string direction, int x, int y, int speed);
+    
     std::string name;
     FPPChannelMemoryMapControlBlock *block;
     char         *chanDataMap;
     long long    *pixelMap;
+    
+    volatile std::thread *updateThread;
+    volatile bool threadKeepRunning;
+    uint8_t *imageData;
+    int imageDataRows;
+    int imageDataCols;
 };
 
 

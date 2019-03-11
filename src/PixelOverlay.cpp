@@ -38,11 +38,13 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <chrono>
 
 #include <boost/algorithm/string/replace.hpp>
 #include <jsoncpp/json/json.h>
 
-#include <GraphicsMagick/wand/magick_wand.h>
+#include <Magick++.h>
+#include <magick/type.h>
 
 #include "common.h"
 #include "log.h"
@@ -58,10 +60,19 @@ PixelOverlayModel::PixelOverlayModel(FPPChannelMemoryMapControlBlock *b,
                                      const std::string &n,
                                      char         *cdm,
                                      long long    *pm)
-: block(b), name(n), chanDataMap(cdm), pixelMap(pm) {
+    : block(b), name(n), chanDataMap(cdm), pixelMap(pm),
+    updateThread(nullptr),threadKeepRunning(false),
+    imageData(nullptr), imageDataRows(0), imageDataCols(0)
+{
 }
 PixelOverlayModel::~PixelOverlayModel() {
-    
+    while (updateThread) {
+        threadKeepRunning = false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    if (imageData) {
+        free(imageData);
+    }
 }
 
 int PixelOverlayModel::getWidth() const {
@@ -138,6 +149,178 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     chanDataMap[c++] = g;
     chanDataMap[c++] = b;
 }
+
+void PixelOverlayModel::doText(const std::string &msg,
+                               int r, int g, int b,
+                               const std::string &font,
+                               int fontSize,
+                               bool antialias,
+                               const std::string &position,
+                               int pixelsPerSecond) {
+    
+    while (updateThread) {
+        threadKeepRunning = false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    updateThread = nullptr;
+    
+    Magick::Image image(Magick::Geometry(getWidth(),getHeight()), Magick::Color("black"));
+    image.quiet(true);
+    image.depth(8);
+    image.font(font);
+    image.fontPointsize(fontSize);
+    image.antiAlias(antialias);
+    
+    Magick::TypeMetric metrics;
+    image.fontTypeMetrics(msg, &metrics);
+    
+    if (position == "Centered") {
+        image.magick("RGB");
+        //one shot, just draw the text and return
+        double rr = r;
+        double rg = g;
+        double rb = b;
+        rr /= 255.0f;
+        rg /= 255.0f;
+        rb /= 255.0f;
+        
+        image.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
+                                      Magick::Color::scaleDoubleToQuantum(rg),
+                                      Magick::Color::scaleDoubleToQuantum(rb)));
+        image.antiAlias(antialias);
+        image.strokeAntiAlias(antialias);
+        image.annotate(msg, Magick::CenterGravity);
+        Magick::Blob blob;
+        image.write( &blob );
+        
+        setData((uint8_t*)blob.data());
+    } else {
+        //movement
+        double rr = r;
+        double rg = g;
+        double rb = b;
+        rr /= 255.0f;
+        rg /= 255.0f;
+        rb /= 255.0f;
+        
+        Magick::Image image2(Magick::Geometry(metrics.textWidth(), metrics.textHeight()), Magick::Color("black"));
+        image2.quiet(true);
+        image2.depth(8);
+        image2.font(font);
+        image2.fontPointsize(fontSize);
+        image2.antiAlias(antialias);
+
+        image2.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
+                                      Magick::Color::scaleDoubleToQuantum(rg),
+                                      Magick::Color::scaleDoubleToQuantum(rb)));
+        image2.antiAlias(antialias);
+        image2.strokeAntiAlias(antialias);
+        image2.annotate(msg, Magick::CenterGravity);
+
+        double y = (getHeight() / 2.0) - (metrics.textHeight() / 2.0);
+        double x = (getWidth() / 2.0) - (metrics.textWidth() / 2.0);
+        if (position == "R2L") {
+            x = getWidth();
+        } else if (position == "L2R") {
+            x = -metrics.textWidth();
+        } else if (position == "B2T") {
+            y = getHeight();
+        } else if (position == "T2B") {
+            y =  -metrics.ascent();
+        }
+        image2.modifyImage();
+        
+        const MagickLib::PixelPacket *pixel_cache = image2.getConstPixels(0,0, image2.columns(), image2.rows());
+        if (imageData) {
+            free(imageData);
+        }
+        imageData = (uint8_t*)malloc(image2.columns() * image2.rows() * 3);
+        imageDataCols = image2.columns();
+        imageDataRows = image2.rows();
+        for (int yi = 0; yi < imageDataRows; yi++) {
+            int idx = yi * imageDataCols;
+            int nidx = yi * imageDataCols * 3;
+
+            for (int xi = 0; xi < image2.columns(); xi++) {
+                const MagickLib::PixelPacket *ptr2 = &pixel_cache[idx + xi];
+                uint8_t *np = &imageData[nidx + (xi*3)];
+                
+                float r = Magick::Color::scaleQuantumToDouble(ptr2->red);
+                float g = Magick::Color::scaleQuantumToDouble(ptr2->green);
+                float b = Magick::Color::scaleQuantumToDouble(ptr2->blue);
+                r *= 255;
+                g *= 255;
+                b *= 255;
+                np[0] = r;
+                np[1] = g;
+                np[2] = b;
+            }
+        }
+        copyImageData(x, y);
+        lock();
+        threadKeepRunning = true;
+        updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond);
+        
+    }
+}
+void PixelOverlayModel::doImageMovementThread(const std::string direction, int x, int y, int speed) {
+    int msDelay = 1000 / speed;
+    bool done = false;
+    while (threadKeepRunning && !done) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(msDelay));
+        if (direction == "R2L") {
+            --x;
+            if (x <= (-imageDataCols)) {
+                done = true;
+            }
+        } else if (direction == "L2R") {
+            ++x;
+            if (x >= getWidth()) {
+                done = true;
+            }
+        } else if (direction == "B2T") {
+            --y;
+            if (y <= (-imageDataRows)) {
+                done = true;
+            }
+        } else if (direction == "T2B") {
+            ++y;
+            if (y >= getHeight()) {
+                done = true;
+            }
+        }
+        copyImageData(x, y);
+    }
+    unlock();
+    updateThread = nullptr;
+    threadKeepRunning = false;
+}
+
+
+void PixelOverlayModel::copyImageData(int xoff, int yoff) {
+    if (imageData) {
+        clear();
+        int h, w;
+        getSize(w, h);
+        for (int y = 0; y < imageDataRows; ++y)  {
+            int ny = yoff + y;
+            if (ny < 0 || ny >= h) {
+                continue;
+            }
+            int idx = y * imageDataCols * 3;
+            for (int x = 0; x < imageDataCols; ++x) {
+                int nx = xoff + x;
+                if (nx < 0 || nx >= w) {
+                    continue;
+                }
+                uint8_t *p = &imageData[idx + (x*3)];
+                setPixelValue(nx, ny, p[0], p[1], p[2]);
+            }
+        }
+    }
+}
+
+
 
 void PixelOverlayModel::getDataJson(Json::Value &v) {
     for (int c = 0; c < block->channelCount; c++) {
@@ -722,7 +905,8 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
         Json::Value result;
         if (p2 == "fonts") {
             long unsigned int i = 0;
-            char **fonts = MagickQueryFonts("*", &i);
+            char **fonts = MagickLib::GetTypeList("*", &i);
+            //char **fonts = MagickQueryFonts("*", &i);
             for (int x = 0; x < i; x++) {
                 result.append(fonts[x]);
             }
@@ -839,6 +1023,29 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                                              root["RGB"][0].asInt(),
                                              root["RGB"][1].asInt(),
                                              root["RGB"][2].asInt());
+                            return httpserver::http_response_builder("OK", 200);
+                        }
+                    }
+                } else if (p4 == "text") {
+                    Json::Value root;
+                    Json::Reader reader;
+                    if (reader.parse(req.get_content(), root)) {
+                        if (root.isMember("Message")) {
+                            std::string color = root["Color"].asString();
+                            if (color[0] == '#') {
+                                color = "0x" + color.substr(1);
+                            }
+                            unsigned int x = std::stoul(color, nullptr, 16);
+                            
+                            m->doText(root["Message"].asString(),
+                                      (x >> 16) & 0xFF,
+                                      (x >> 8) & 0xFF,
+                                      x & 0xFF,
+                                      root["Font"].asString(),
+                                      root["FontSize"].asInt(),
+                                      root["AntiAlias"].asBool(),
+                                      root["Position"].asString(),
+                                      root["PixelsPerSecond"].asInt());
                             return httpserver::http_response_builder("OK", 200);
                         }
                     }
