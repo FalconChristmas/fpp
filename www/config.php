@@ -31,6 +31,18 @@ function GetSettingValue($setting) {
 
 	return;  // FIXME, should we do this or return something else
 }
+function ApprovedVendor($v) {
+    if (isSet($v["name"]) && ($v["name"] == "Daniel Kulp")) {
+        return true;
+    }
+    return false;
+}
+function ApprovedDesigner($v) {
+    if (isSet($v["designer"]) && ($v["designer"] == "Daniel Kulp")) {
+        return true;
+    }
+    return false;
+}
 
 // Set some defaults
 $fppMode = "player";
@@ -99,6 +111,17 @@ $settings['fppBinDir'] = '/opt/fpp/src';
 $settings['Platform'] = FALSE;
 if (file_exists("/etc/fpp/platform"))
 	$settings['Platform'] = trim(file_get_contents("/etc/fpp/platform"));
+
+if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
+    $cape_info = json_decode(file_get_contents($mediaDirectory . "/tmp/cape-info.json"), true);
+    if (isSet($cape_info["vendor"])) {
+        if (!ApprovedVendor($cape_info["vendor"])
+            && !ApprovedDesigner($cape_info)) {
+            unset($cape_info["vendor"]);
+        }
+    }
+    $settings['cape-info'] = $cape_info;
+}
 
 if ($settings['Platform'] == FALSE)
 {
@@ -492,7 +515,9 @@ if (!isset($skipJSsettings)) {
 	var settings = new Array();
 <?
 	foreach ($settings as $key => $value) {
-		printf("	settings['%s'] = \"%s\";\n", $key, $value);
+        if (!is_array($value)) {
+            printf("	settings['%s'] = \"%s\";\n", $key, $value);
+        }
 	}
 ?>
 

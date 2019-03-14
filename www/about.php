@@ -284,13 +284,64 @@ a:visited {
   printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
 ?>
               </td></tr>
-
             <tr><td></td><td></td></tr>
           </table>
         </div>
-      </div>
     <div class="clear"></div>
     </fieldset>
+    <?
+    if (isSet($settings["cape-info"]))  {
+        $currentCapeInfo = $settings["cape-info"];
+    ?>
+        <fieldset style="padding: 10px; border: 2px solid #000;">
+        <legend>About Cape/Hat</legend>
+        <div style="overflow: hidden; padding: 10px;">
+        <div>
+        <div class='aboutLeft'>
+        <table class='tblAbout'>
+        <tr><td><b>Name:</b></td><td width="100%"><? echo $currentCapeInfo['name']  ?></td></tr>
+        <tr><td><b>Version:</b></td><td><? echo $currentCapeInfo['version'] ?></td></tr>
+        <?
+        if (isSet($currentCapeInfo['serialNumber'])) {
+            echo "<tr><td><b>Serial&nbsp;Number:</b></td><td>" . $currentCapeInfo['serialNumber'] . "</td></tr>";
+        }
+        if (isSet($currentCapeInfo['designer'])) {
+            echo "<tr><td><b>Designer:</b></td><td>" . $currentCapeInfo['designer'] . "</td></tr>";
+        }
+        if (isSet($currentCapeInfo['description'])) {
+            echo "<tr><td colspan=\"2\">";
+            if (isSet($currentCapeInfo['vendor'])) {
+                echo $currentCapeInfo['description'];
+            } else {
+                echo htmlspecialchars($currentCapeInfo['description']);
+            }
+            echo "</td></tr>";
+        }
+        ?>
+        </table>
+        </div>
+        <? if (isSet($currentCapeInfo['vendor'])) { ?>
+               <div class='aboutRight'>
+               <table class='tblAbout'>
+                    <tr><td><b>Vendor&nbsp;Name:</b></td><td><? echo $currentCapeInfo['vendor']['name']  ?></td></tr>
+            <? if (isSet($currentCapeInfo['vendor']['url'])) {
+                echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['url'] . "\">" . $currentCapeInfo['vendor']['url'] . "</a></td></tr>";
+            }
+            if (isSet($currentCapeInfo['vendor']['phone'])) {
+                 echo "<tr><td><b>Phone&nbsp;Number:</b></td><td>" . $currentCapeInfo['vendor']['phone'] . "</td></tr>";
+            }
+            if (isSet($currentCapeInfo['vendor']['image'])) {
+                echo "<tr><td colspan=\"2\"><a href=\"" . $currentCapeInfo['vendor']['url'] . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $currentCapeInfo['vendor']['image'] . "\" /></a></td></tr>";
+            }?>
+               </table>
+               </div>
+            <? } ?>
+        </div>
+        </div>
+        </fieldset>
+    <?
+    }
+    ?>
     <div id='logViewer' title='Log Viewer' style="display: none">
       <pre>
         <div id='logText'>

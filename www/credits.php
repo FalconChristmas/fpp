@@ -75,7 +75,6 @@ a:visited {
 		<br />
         <b>3rd Party Libraries used by FPP for some Channel Outputs:</b><br />
 		<br />
-        <a href='https://github.com/osresearch/LEDscape'>LEDscape</a> by Trammell Hudson.  Used for Octoscroller board and F16-B/F4-B WS281x string outputs.<br />
 		<a href='https://github.com/jgarff/rpi_ws281x'>rpi_ws281x</a> by Jeremy Garff.  Used for driving WS281x pixels directly off the Pi's GPIO header.<br />
 		<a href='https://github.com/hzeller/rpi-rgb-led-matrix'>rpi-rgb-led-matrix</a> by Henner Zeller.  Used for driving HUB75 panels directly off the Pi's GPIO header.<br />
 		<a href='https://github.com/TMRh20/RF24'>RF24</a>. Used for driving nRF24L01 output for Komby.<br />

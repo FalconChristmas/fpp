@@ -31,6 +31,7 @@ private:
     
     int _currentTest;
     int _curPage;
+    bool _displayOn;
     
     CURL *curl;
     std::string buffer;
@@ -39,16 +40,26 @@ private:
     
     class InputAction {
     public:
+        class Action {
+        public:
+            Action(const std::string &a, int min, int max, long long mai)
+                : action(a), actionValueMin(min), actionValueMax(max), minActionInterval(mai), nextActionTime(0) {}
+            std::string action;
+            int actionValueMin;
+            int actionValueMax;
+            long long minActionInterval;
+            long long nextActionTime;
+        };
+        
         std::string pin;
         std::string mode;
         std::string edge;
-        std::string action;
-        int actionValue;
         int file;
+        std::vector<Action> actions;
         
-        long long lastActionTime;
+        const std::string &checkAction(int i, long long time);
     };
-    void parseInputActions(const std::string &file, std::vector<InputAction> &actions);
+    bool parseInputActions(const std::string &file, std::vector<InputAction> &actions);
 };
 
 #endif

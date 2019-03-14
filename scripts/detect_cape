@@ -57,7 +57,7 @@ $fp = fopen($EEPROM, 'rb');
 $header = fread($fp, 6); // should be FPP02 + null
 $cape = fread($fp, 26); // cape name + nulls
 $capev = fread($fp, 10); // cape version + nulls
-$capev = fread($fp, 16); // cape serial# + nulls
+$capesn = trim(fread($fp, 16)); // cape serial# + nulls
 
 $flen = fread($fp, 6); //length of the file
 $flen = intval($flen);
@@ -75,6 +75,7 @@ while ($flen != 0) {
         $dirname = dirname("/home/fpp/media/" . $fname);
         exec("cd $dirname ; unzip /home/fpp/media/$fname 2>&1", $output, $result);
         //var_dump($output);
+        unlink("/home/fpp/media/" . $fname);
     }
 
     $flen = fread($fp, 6); //length of the file
@@ -92,6 +93,10 @@ if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
             file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
         }
     }
+    $json->serialNumber = $capesn;
+
+    $jsonData = json_encode($json, JSON_PRETTY_PRINT);
+    file_put_contents("/home/fpp/media/tmp/cape-info.json", $jsonData);
 }
 
 // if there are default configurations, copy them into place if they dont already exist

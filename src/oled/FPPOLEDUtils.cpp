@@ -10,6 +10,7 @@
 #include <strings.h>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include <fcntl.h>
 #include <poll.h>
@@ -93,7 +94,7 @@ static int writer(char *data, size_t size, size_t nmemb,
     return size * nmemb;
 }
 FPPOLEDUtils::FPPOLEDUtils(int ledType)
-    : _ledType(ledType), _currentTest(0), _curPage(0) {
+    : _ledType(ledType), _currentTest(0), _curPage(0), _displayOn(true) {
     
     if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8) {
         setRotation(2);
@@ -191,9 +192,19 @@ inline int getLinesPage1(std::vector<std::string> &lines,
                           Json::Value &result,
                           bool allowBlank) {
     for (int x = 0; x < result["sensors"].size(); x++) {
-        std::string line = result["sensors"][x]["label"].asString() + " " +  result["sensors"][x]["formatted"].asString();
+        std::string line;
         if (result["sensors"][x]["valueType"].asString() == "Temperature") {
-            line += "C";
+            line = result["sensors"][x]["label"].asString() + result["sensors"][x]["formatted"].asString();
+            line += "C (";
+            float i = result["sensors"][x]["value"].asFloat();
+            i *= 1.8;
+            i += 32;
+            char buf[25];
+            sprintf(buf, "%.1f", i);
+            line += buf;
+            line += "F)";
+        } else {
+            line = result["sensors"][x]["label"].asString() + " " +  result["sensors"][x]["formatted"].asString();
         }
         lines.push_back(line);
     }
@@ -328,29 +339,31 @@ void FPPOLEDUtils::doIteration(int count) {
     }
     clearDisplay();
     
-    int startY = 0;
-    if (_ledType == 6) {
-        startY++;
-    }
-    setTextSize(1);
-    setTextColor(WHITE);
-    if (_ledType != 8) {
-        startY = outputTopPart(startY, count);
-        if (_ledType != 7 && _ledType != 8) {
-            // two color display doesn't need the separator line
-            if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
-                drawLine(0, startY, 127, startY, WHITE);
-                startY++;
-            } else {
-                drawLine(0, startY - 1, 127, startY - 1, WHITE);
-            }
+    if (_displayOn) {
+        int startY = 0;
+        if (_ledType == 6) {
+            startY++;
         }
-        startY = outputBottomPart(startY, count);
-    } else {
-        //strange case... with 2 color display flipped, we still need to keep the
-        //network part in the "yellow" which is now below the main part
-        outputBottomPart(0, count);
-        outputTopPart(48, count);
+        setTextSize(1);
+        setTextColor(WHITE);
+        if (_ledType != 8) {
+            startY = outputTopPart(startY, count);
+            if (_ledType != 7 && _ledType != 8) {
+                // two color display doesn't need the separator line
+                if (LED_DISPLAY_TYPE == LED_DISPLAY_TYPE_SSD1306) {
+                    drawLine(0, startY, 127, startY, WHITE);
+                    startY++;
+                } else {
+                    drawLine(0, startY - 1, 127, startY - 1, WHITE);
+                }
+            }
+            startY = outputBottomPart(startY, count);
+        } else {
+            //strange case... with 2 color display flipped, we still need to keep the
+            //network part in the "yellow" which is now below the main part
+            outputBottomPart(0, count);
+            outputTopPart(48, count);
+        }
     }
     Display();
 }
@@ -442,9 +455,23 @@ void FPPOLEDUtils::cycleTest() {
     curl_easy_cleanup(curl);
 }
 
+static const std::string EMPTY_STRING = "";
+const std::string &FPPOLEDUtils::InputAction::checkAction(int i, long long ntimeus) {
+    for (auto &a : actions) {
+        if (i <= a.actionValueMax && i >= a.actionValueMin
+            && (ntimeus > a.nextActionTime)) {
+            //at least 10ms since last action.  Should cover any debounce time
+            a.nextActionTime = ntimeus + a.minActionInterval;
+            return a.action;
+        }
+    }
+    return EMPTY_STRING;
+}
 
-void FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputAction> &actions) {
+
+bool FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputAction> &actions) {
     char vbuffer[256];
+    bool needsPolling = false;
     if (FileExists(file)) {
         std::ifstream t(file);
         std::stringstream buffer;
@@ -458,31 +485,49 @@ void FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputA
                 InputAction action;
                 action.pin = root["inputs"][x]["pin"].asString();
                 action.mode = root["inputs"][x]["mode"].asString();
-                action.edge = root["inputs"][x]["edge"].asString();
-                action.action = root["inputs"][x]["type"].asString();
-                action.actionValue = (action.edge == "falling" ? 0 : 1);
-                action.lastActionTime = 0;
-#ifdef PLATFORM_BBB
-                printf("Configuring pin %s as input of type %s   (mode: %s)\n", action.pin.c_str(), action.action.c_str(), action.mode.c_str());
+                if (action.mode.find("gpio") != std::string::npos) {
+                    std::string buttonaction = root["inputs"][x]["type"].asString();
+                    std::string edge = root["inputs"][x]["edge"].asString();
+                    int actionValue = (edge == "falling" ? 0 : 1);
+    #ifdef PLATFORM_BBB
+                    printf("Configuring pin %s as input of type %s   (mode: %s)\n", action.pin.c_str(), buttonaction.c_str(), action.mode.c_str());
 
-                action.file = getBBBPinByName(action.pin).configPin(action.mode, "in").setEdge(action.edge).openValueForPoll();
-                //read the initial value to make sure nothing triggers at start
-                lseek(action.file, 0, SEEK_SET);
-                int len = read(action.file, vbuffer, 255);
-                actions.push_back(action);
-#endif
+                    action.file = getBBBPinByName(action.pin).configPin(action.mode, "in").setEdge(edge).openValueForPoll();
+                    //read the initial value to make sure nothing triggers at start
+                    lseek(action.file, 0, SEEK_SET);
+                    int len = read(action.file, vbuffer, 255);
+                    action.actions.push_back(FPPOLEDUtils::InputAction::Action(buttonaction, actionValue, actionValue, 10000));
+                    actions.push_back(action);
+    #endif
+                } else if (action.mode == "ain") {
+                    char path[256];
+                    sprintf(path, "/sys/bus/iio/devices/iio:device0/in_voltage%d_raw", root["inputs"][x]["input"].asInt());
+                    if (FileExists(path)) {
+                        action.file = open(path, O_RDONLY);
+                        for (int a = 0; a < root["inputs"][x]["actions"].size(); a++) {
+                            std::string buttonaction = root["inputs"][x]["actions"][a]["action"].asString();
+                            int minValue = root["inputs"][x]["actions"][a]["minValue"].asInt();
+                            int maxValue = root["inputs"][x]["actions"][a]["maxValue"].asInt();
+                            printf("Configuring AIN input of type %s  with range %d-%d\n", buttonaction.c_str(), minValue, maxValue);
+                            action.actions.push_back(FPPOLEDUtils::InputAction::Action(buttonaction, minValue, maxValue, 250000));
+                        }
+                        
+                        actions.push_back(action);
+                        needsPolling = true;
+                    }
+                }
             }
         }
     }
     fflush(stdout);
-
+    return needsPolling;
 }
 
 void FPPOLEDUtils::run() {
     std::vector<InputAction> actions;
     char vbuffer[256];
-    parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
-    parseInputActions("/home/fpp/media/config/cape-inputs.json", actions);
+    bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
+    needsPolling |= parseInputActions("/home/fpp/media/config/cape-inputs.json", actions);
     std::vector<struct pollfd> fdset(actions.size());
     
     if (actions.size() == 0 && _ledType == 0) {
@@ -491,11 +536,18 @@ void FPPOLEDUtils::run() {
     }
     
     int count = 0;
+    long long lastUpdateTime = 0;
+    long long ntime = GetTime();
+    long long lastActionTime = GetTime();
     while (true) {
-        doIteration(count);
-        count++;
+        if (ntime > (lastUpdateTime + 1000000)) {
+            count++;
+            doIteration(count);
+            lastUpdateTime = ntime;
+        }
         if (actions.empty()) {
             sleep(1);
+            ntime = GetTime();
         } else {
             memset((void*)&fdset[0], 0, sizeof(struct pollfd) * actions.size());
             for (int x = 0; x < actions.size(); x++) {
@@ -503,29 +555,46 @@ void FPPOLEDUtils::run() {
                 fdset[x].events = POLLPRI;
             }
 
-            int rc = poll(&fdset[0], actions.size(), 1000);
+            int rc = poll(&fdset[0], actions.size(), needsPolling ? 100 : 1000);
+            ntime = GetTime();
+            
             for (int x = 0; x < actions.size(); x++) {
+                std::string action;
                 if ((fdset[x].revents & POLLPRI)) {
                     lseek(fdset[x].fd, 0, SEEK_SET);
                     int len = read(fdset[x].fd, vbuffer, 255);
                     vbuffer[len] = 0;
                     int v = atoi(vbuffer);
-                    long long ntime = GetTime();
-                    if ((v == actions[x].actionValue)
-                        && (ntime > (actions[x].lastActionTime + 100))) {
-                        actions[x].lastActionTime = ntime;
-                        printf("Action: %s\n", actions[x].action.c_str());
-                        if (actions[x].action == "Test"
-                            || actions[x].action == "Test/Down") {
-                            cycleTest();
-                        } else if (actions[x].action == "Enter") {
-                            _curPage++;
-                            if (_curPage == MAX_PAGE) {
-                                _curPage = 0;
-                            }
+                    action = actions[x].checkAction(v, ntime);
+                } else if (actions[x].mode == "ain") {
+                    lseek(fdset[x].fd, 0, SEEK_SET);
+                    int len = read(fdset[x].fd, vbuffer, 255);
+                    int v = atoi(vbuffer);
+                    action = actions[x].checkAction(v, ntime);
+                }
+                if (action != "" && !_displayOn) {
+                    //just turn the display on if button is hit
+                    _displayOn = true;
+                    lastUpdateTime = 0;
+                    lastActionTime = ntime;
+                } else if (action != "") {
+                    printf("Action: %s\n", action.c_str());
+                    //force immediate update
+                    lastUpdateTime = 0;
+                    lastActionTime = ntime;
+                    if (action == "Test"
+                        || action == "Test/Down") {
+                        cycleTest();
+                    } else if (action == "Enter") {
+                        _curPage++;
+                        if (_curPage == MAX_PAGE) {
+                            _curPage = 0;
                         }
                     }
                 }
+            }
+            if (ntime > (lastActionTime + 120000000)) {
+                _displayOn = false;
             }
         }
     }

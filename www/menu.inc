@@ -106,9 +106,15 @@ function list_plugin_entries($menu)
 ?>
     </div>
     <div class="headerRight">
-		  <? if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>"; ?>
-		  <? if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; ?>
-		  <? if ($settings['LogoLink'] != "") echo "</a>"; ?>
+		  <?
+            if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>";
+		    if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>";
+		    if ($settings['LogoLink'] != "") echo "</a>";
+if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
+echo "<a href=\"" . $settings['cape-info']['vendor']['url'] . "\"><img style='max-width:125px; max-height:60px;' src=\"". $settings['cape-info']['vendor']['image'] . "\"></a>";
+}
+          ?>
+
 		</div>
     <div class="clear"></div>
   </div>
