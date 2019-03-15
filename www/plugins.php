@@ -4,6 +4,9 @@
 <?php
 require_once('config.php');
 require_once('fppversion.php');
+
+writeFPPVersionJavascriptFunctions();
+    
 include 'common/menuHead.inc';
 ?>
 <script type="text/javascript" src="/js/fpp.js"></script>

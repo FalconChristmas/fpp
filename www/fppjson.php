@@ -5,6 +5,8 @@ require_once('common.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
 require_once('playlistentry.php');
+require_once('fppversion.php');
+
 
 $a = session_id();
 if(empty($a))
@@ -375,7 +377,7 @@ function GetFPPStatusJson()
 		//Check to see if we should also get the systemInfo for multiSync Expert view
 		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
 			//Get the advanced info directly as an array
-			$request_expert_content = GetSystemInfoJson(true);
+			$request_expert_content = GetSystemInfoJsonInternal(true, false);
 			//check we have valid data
 			if ($request_expert_content === FALSE) {
 				$request_expert_content = array();
@@ -2103,8 +2105,13 @@ function ExtGPIOJson()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+function GetSystemInfoJson() {
+    global $args;
+    $simple = $args['simple'];
+    return GetSystemInfoJsonInternal(false, isSet($simple));
+}
 
-function GetSystemInfoJson($return_array = false)
+function GetSystemInfoJsonInternal($return_array = false, $simple = false)
 {
     global $settings;
 
@@ -2117,24 +2124,24 @@ function GetSystemInfoJson($return_array = false)
 	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
 	$result['Platform'] = $settings['Platform'];
     $result['Variant'] = $settings['Variant'];
-
-    //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
-	$result['Utilization']['CPU'] =  get_server_cpu_usage();
-	$result['Utilization']['Memory'] = get_server_memory_usage();
-	$result['Utilization']['Uptime'] = get_server_uptime(true);
-
-    $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-
-    $git_branch = get_git_branch();
-
-	$result['Kernel'] = get_kernel_version();
-    $result['Version'] = get_fpp_head_version();
-    $result['Branch'] = $git_branch;
-	$result['LocalGitVersion'] = get_local_git_version();
-	$result['RemoteGitVersion'] = get_remote_git_version($git_branch);
-	$result['AutoUpdatesDisabled'] = file_exists($settings['mediaDirectory'] . "/.auto_update_disabled") ? true : false;
-	$result['IPs'] = $IPs;
     $result['Mode'] = $settings['fppMode'];
+    $result['Version'] = getFPPVersion();
+    $result['Branch'] = getFPPBranch();
+    
+    if (! $simple) {
+        //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
+        $result['Utilization']['CPU'] =  get_server_cpu_usage();
+        $result['Utilization']['Memory'] = get_server_memory_usage();
+        $result['Utilization']['Uptime'] = get_server_uptime(true);
+
+        $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+
+        $result['Kernel'] = get_kernel_version();
+        $result['LocalGitVersion'] = get_local_git_version();
+        $result['RemoteGitVersion'] = get_remote_git_version($git_branch);
+        $result['AutoUpdatesDisabled'] = file_exists($settings['mediaDirectory'] . "/.auto_update_disabled") ? true : false;
+        $result['IPs'] = $IPs;
+    }
 
     //Return just the array if requested
 	if ($return_array == true) {

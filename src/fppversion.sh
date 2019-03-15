@@ -114,6 +114,7 @@ function getFPPBranch() {
 	return "${BRANCH}";
 }
 
+function writeFPPVersionJavascriptFunctions() {
 ?>
 <script>
 function getFPPVersion() {
@@ -140,4 +141,7 @@ function getFPPBranch() {
 	return "${BRANCH}";
 }
 </script>
+<?
+}
+?>
 EOF
