@@ -1164,6 +1164,12 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 	if (topic == "playlist/sectionPosition/set")
 		SetPosition(atoi(msg.c_str()));
 
+	if (topic == "playlist/stopNow")
+		StopNow(1);
+
+	if (topic == "playlist/stopGraceful")
+		StopGracefully(1);
+
 	return 1;
 }
 
