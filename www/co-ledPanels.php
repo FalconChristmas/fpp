@@ -101,7 +101,7 @@ $LEDPanelHeight = 16;
 $LEDPanelScan = 8;
 $LEDPanelInterleave = "0";
 $LEDPanelAddressing = 0;
-$LEDPanelGamma = 1.0;
+$LEDPanelGamma = 2.2;
 
 if ($settings['Platform'] == "BeagleBone Black")
 {
@@ -179,7 +179,7 @@ function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
 }
 function printLEDPanelGammaSelect($platform, $gamma)
 {
-    if ($gamma == "" || $gamma=="0") {
+    if (!isSet($gamma) || $gamma == "" || $gamma=="0") {
         $gamma = "2.2";
     }
     echo "<input type='number' min='0.1' max='5.0' step='0.1' value='$gamma' id='LEDPanelsGamma'/>";
