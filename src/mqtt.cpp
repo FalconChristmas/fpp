@@ -33,6 +33,7 @@
 #include <sstream>
 #include <string.h>
 #include <unistd.h>
+#include <vector>
 
 #define FALCON_TOPIC "falcon/player"
 
@@ -68,21 +69,22 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
 		host.c_str(), port, topicPrefix.c_str());
 
-    if (m_topicPrefix.size()) {
-        m_topicPrefix += "/";
-    }
+	if (m_topicPrefix.size()) {
+		m_topicPrefix += "/";
+	}
 		
-    m_baseTopic = m_topicPrefix;
+	m_baseTopic = m_topicPrefix;
 	m_baseTopic += FALCON_TOPIC;
 	m_baseTopic += "/";
     
-    std::string hostname = getSetting("HostName");
-    if (hostname == "") {
-        hostname = "FPP";
-    }
-    m_baseTopic += hostname;
+	std::string hostname = getSetting("HostName");
+	if (hostname == "") {
+		hostname = "FPP";
+	}
+	m_baseTopic += hostname;
 
-	m_topicPlaylist = m_baseTopic + "/playlist/#";
+	m_topicPlaylistOld = m_baseTopic + "/playlist/#"; //Legacy
+	m_topicPlaylist = m_baseTopic + "/set/playlist/#";
 
 	pthread_mutex_init(&m_mosqLock, NULL);
 }
@@ -142,7 +144,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 	    LogInfo(VB_CONTROL, "No CA File specified for MQTT\n");
 	}
 
-	LogDebug(VB_CONTROL, "About to call MQTT Connec (%s, %d, %d)t\n", m_host.c_str(), m_port, m_keepalive);
+	LogDebug(VB_CONTROL, "About to call MQTT Connect (%s, %d, %d)t\n", m_host.c_str(), m_port, m_keepalive);
 
 	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
 
@@ -155,9 +157,24 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 		return 0;
 	}
 
-        std::string subscribe = m_topicPrefix + FALCON_TOPIC + "/#";
-	LogDebug(VB_CONTROL, "MQTT Connected. Preparing to Subscribe to %s\n", subscribe.c_str());
-	mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
+	std::vector<std::string> subscribe_topics;
+	subscribe_topics.push_back(m_baseTopic + "/set/#");
+	subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
+	subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
+	subscribe_topics.push_back(m_baseTopic + "/playlist/name/set"); // Legacy
+	subscribe_topics.push_back(m_baseTopic + "/playlist/repeat/set"); // Legacy
+	subscribe_topics.push_back(m_baseTopic + "/playlist/selectionPosition/set"); // Legacy
+
+	for (auto t =subscribe_topics.begin(); t != subscribe_topics.end(); t++) {
+		std::string subscribe = *t;
+		LogDebug(VB_CONTROL, "MQTT Connected. Preparing to Subscribe to %s\n", subscribe.c_str());
+		int rc = mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
+		if (rc != MOSQ_ERR_SUCCESS) {
+			LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
+			return 0;
+		}
+	}
+
 
 	int loop = mosquitto_loop_start(m_mosq);
 	if (loop != MOSQ_ERR_SUCCESS)
@@ -254,34 +271,81 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 	if (message->payload)
 		payload = (char *)message->payload;
 
-	mosquitto_topic_matches_sub(m_topicPlaylist.c_str(), message->topic, &match);
-	if (match) {
-		if (topic.find(m_baseTopic) == 0) {
-			topic.replace(0, m_baseTopic.size() + 1, emptyStr);
-			playlist->MQTTHandler(topic, payload);
-		}
+	// If not our base, then return.
+	// Would only happen if subscribe is wrong
+        if (topic.find(m_baseTopic) != 0) {
 		return;
 	}
-    std::string eventTopic = m_baseTopic + "/event/#";
-    mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
-    if (match) {
-        TriggerEventByID(payload.c_str());
-        return;
-    }
-    std::string effectTopic = m_baseTopic + "/effect/#";
-    mosquitto_topic_matches_sub(effectTopic.c_str(), message->topic, &match);
-    if (match) {
-        if (topic.find(m_baseTopic) == 0) {
-            topic.replace(0, m_baseTopic.size() + 1, emptyStr);
-            if (topic == "effect/stop") {
-                if (payload == "") {
-                    StopAllEffects();
-                } else {
-                    StopEffect(payload.c_str());
-                }
-            } else if (topic == "effect/start") {
-                StartEffect(payload.c_str(), 0);
-            }
-        }
-    }
+
+	// Normal Playlist
+	mosquitto_topic_matches_sub(m_topicPlaylist.c_str(), message->topic, &match);
+	if (match) {
+		topic.replace(0, m_topicPlaylist.size() -1, emptyStr); // Replace until /#
+		playlist->MQTTHandler(topic, payload);
+		return;
+	}
+
+	// Check deprecated version of Playlist
+	mosquitto_topic_matches_sub(m_topicPlaylistOld.c_str(), message->topic, &match);
+	if (match) {
+		LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n",
+			message->topic);
+		topic.replace(0, m_topicPlaylistOld.size() - 1, emptyStr); // Replace until /#
+		playlist->MQTTHandler(topic, payload);
+		return;
+	}
+
+	std::string eventTopic = m_baseTopic + "/set/event/#";
+	mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
+	if (match) {
+		TriggerEventByID(payload.c_str());
+		return;
+	}
+
+	// Check Legacy
+	eventTopic = m_baseTopic + "/event/#";
+	mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
+	if (match) {
+		LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n",
+			message->topic);
+		TriggerEventByID(payload.c_str());
+		return;
+	}
+
+
+	std::string effectTopic = m_baseTopic + "/set/effect/#";
+	std::string effectTopicOld = m_baseTopic + "/effect/#";
+	// Check normal
+	mosquitto_topic_matches_sub(effectTopic.c_str(), message->topic, &match);
+	if (match) {
+		std::string s = m_baseTopic + "/set";
+		topic.replace(0,s.size() +1, emptyStr);
+	} else {
+		// Check Legacy
+		mosquitto_topic_matches_sub(effectTopicOld.c_str(), message->topic, &match);
+		if (match) {
+			LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n",
+				message->topic);
+			topic.replace(0, m_baseTopic.size() + 1, emptyStr);
+		}
+	}
+
+
+	if (match) {
+		// At this point, topic has had /set removed if it was present
+		if (topic == "effect/stop") {
+			if (payload == "") {
+				StopAllEffects();
+			} else {
+				StopEffect(payload.c_str());
+			}
+		} else if (topic == "effect/start") {
+			StartEffect(payload.c_str(), 0);
+		}
+
+		return ;
+	}
+
+	LogWarn(VB_CONTROL, "No match found for Mosquitto topic '%s'\n",
+		message->topic);
 }

@@ -58,6 +58,7 @@ class MosquittoClient {
 
 	// Topics we want to take action on
 	std::string m_topicPlaylist;
+	std::string m_topicPlaylistOld;
 
 };
 

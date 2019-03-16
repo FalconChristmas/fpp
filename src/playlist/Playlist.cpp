@@ -404,7 +404,6 @@ int Playlist::Start(void)
 		(!m_mainPlaylist.size()) &&
 		(!m_leadOut.size()))
 	{
-		LogErr(VB_PLAYLIST, "Tried to play an empty playlist\n");
 		SetIdle();
 		return 0;
 	}
@@ -592,9 +591,7 @@ int Playlist::Process(void)
 					LogDebug(VB_PLAYLIST, "Stopping Gracefully\n");
 					SwitchToLeadOut();
 				}
-				else
-				{
-					LogDebug(VB_PLAYLIST, "Stopping Gracefully, empty leadOut, setting to Idle state\n");
+				else {
 					SetIdle();
 				}
 				return 1;
@@ -938,6 +935,7 @@ void Playlist::Dump(void)
  */
 void Playlist::NextItem(void)
 {
+    LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", m_name.c_str());
     if (m_currentState == "idle") {
 		return;
     }
@@ -971,6 +969,7 @@ void Playlist::NextItem(void)
  */
 void Playlist::PrevItem(void)
 {
+    LogDebug(VB_PLAYLIST, "PrevItem called for '%s'\n", m_name.c_str());
     if (m_currentState == "idle") {
         return;
     }
@@ -1152,23 +1151,82 @@ Json::Value Playlist::GetConfig(void)
  */
 int Playlist::MQTTHandler(std::string topic, std::string msg)
 {
-	LogDebug(VB_PLAYLIST, "Playlist::MQTTHandler('%s', '%s')\n",
-		topic.c_str(), msg.c_str());
+	LogDebug(VB_PLAYLIST, "Playlist::MQTTHandler('%s', '%s') while playing '%s'\n",
+		topic.c_str(), msg.c_str(), m_name.c_str());
 
-	if (topic == "playlist/name/set")
-		Play(msg.c_str(), m_sectionPosition, m_repeat);
+	// note the leading /set/playlist will be removed from topic by now
 
-	if (topic == "playlist/repeat/set")
-		SetRepeat(atoi(msg.c_str()));
+	int pos = topic.find("/");
+	if (pos == std::string::npos) {
+		LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n", 
+			topic.c_str());
+		return 0;
+	}
+	std::string newPlaylistName = topic.substr(0,pos);
+	std::string topicEnd = topic.substr(pos);
 
-	if (topic == "playlist/sectionPosition/set")
-		SetPosition(atoi(msg.c_str()));
+	/*
+	 * NOTE: This because multiple playlist are not supported, the newPlaylistname value
+	 * is only considered when starting a playlist.  All other actions will
+	 * apply to the current running playlist even if the names don't match
+	 */
 
-	if (topic == "playlist/stopNow")
+
+	// ALLPLAYLIST should be checked first to avoid name colision.
+	if (topic == "ALLPLAYLISTS/stop/now") {
 		StopNow(1);
 
-	if (topic == "playlist/stopGraceful")
+	} else if (topic == "ALLPLAYLISTS/stop/graceful") {
 		StopGracefully(1);
+
+	} else if (topic == "ALLPLAYLISTS/stop/afterloop") {
+		StopGracefully(1,1);
+
+	// Playlist specific versions
+	} else if (topicEnd == "/start") {
+		// Play from begging keeping previous value of repeate
+		Play(newPlaylistName.c_str(), 0, m_repeat);
+	} else if (topicEnd == "/next") {
+		NextItem();
+
+	} else if (topicEnd == "/prev") {
+		PrevItem();
+
+	} else if (topicEnd == "/repeat") {
+		SetRepeat(atoi(msg.c_str()));
+
+	} else if (topicEnd == "/startPosition") {
+		SetPosition(atoi(msg.c_str()));
+
+	} else if (topicEnd == "/stop/now") {
+		StopNow(1);
+
+	} else if (topicEnd == "/stop/graceful") {
+		StopGracefully(1);
+
+	} else if (topicEnd == "/stop/afterloop") {
+		StopGracefully(1);
+
+	// These three are depgrecated and should be removed
+	} else if (topic == "name/set") {
+	        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
+		topic.c_str());
+		Play(msg.c_str(), m_sectionPosition, m_repeat);
+
+	} else if (topic == "repeat/set") {
+	        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
+		topic.c_str());
+		SetRepeat(atoi(msg.c_str()));
+		
+	} else if (topic == "sectionPosition/set") {
+	        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
+		topic.c_str());
+		SetPosition(atoi(msg.c_str()));
+
+	} else {
+		LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n", topic.c_str());
+		return 0;	
+	}
 
 	return 1;
 }
