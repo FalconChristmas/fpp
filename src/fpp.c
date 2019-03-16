@@ -90,13 +90,13 @@ int main (int argc, char *argv[])
     // Stop gracefully - example "fpp -S"
     else if(strncmp(argv[1],"-S",2) == 0)
     {
-      sprintf(command,"S");
+      sprintf(command,"StopGracefully");
       SendCommand(command);
     }
     // Stop now - example "fpp -d"
     else if(strncmp(argv[1],"-d",2) == 0)
     {
-      sprintf(command,"d");
+      sprintf(command,"StopNow");
       SendCommand(command);
     }
     // Shutdown fppd daemon
@@ -109,16 +109,6 @@ int main (int argc, char *argv[])
     else if(strncmp(argv[1],"-R",2) == 0)
     {
       sprintf(command,"R");
-      SendCommand(command);
-    }
-    else if(strncmp(argv[1],"-w",2) == 0)
-    {
-      sprintf(command,"w");
-      SendCommand(command);
-    }
-    else if(strncmp(argv[1],"-r",2) == 0)
-    {
-      sprintf(command,"r");
       SendCommand(command);
     }
     else if((strncmp(argv[1],"-c",2) == 0) && argc > 2)
@@ -134,9 +124,9 @@ int main (int argc, char *argv[])
       else if (!strcmp(argv[2], "stepback"))
         sprintf(command,"SingleStepSequenceBack");
       else if (!strcmp(argv[2], "stop"))
-        sprintf(command,"d");
+        sprintf(command,"StopNow");
       else if (!strcmp(argv[2], "graceful"))
-        sprintf(command,"S");
+        sprintf(command,"StopGracefully");
       SendCommand(command);
     }
     // Start an effect - example "fpp -e effectName"
@@ -313,8 +303,6 @@ void Usage(char *appname)
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"
 "  -R                           - Reload schedule config file\n"
-"  -w                           - Send Falcon hardware config out SPI port\n"
-"  -r                           - Write Bridge mode Bytes Received file\n"
 "  -e EFFECTNAME[,CH[,LOOP]]    - Start Effect EFFECTNAME with optional\n"
 "                                 start channel set to CH and optional\n"
 "                                 looping if LOOP is set to 1\n"

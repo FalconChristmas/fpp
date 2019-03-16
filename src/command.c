@@ -266,7 +266,8 @@ char *ProcessCommand(char *command, char *response)
         } else {
             sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
         }
-    } else if (!strcmp(CommandStr, "S")) {
+    } else if ((!strcmp(CommandStr, "S")) ||
+               (!strcmp(CommandStr, "StopGracefully"))) {
         if (FPPstatus==FPP_STATUS_PLAYLIST_PLAYING) {
             playlist->StopGracefully(1);
             scheduler->ReLoadCurrentScheduleInfo();
@@ -274,7 +275,8 @@ char *ProcessCommand(char *command, char *response)
         } else {
             sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
         }
-    } else if (!strcmp(CommandStr, "d")) {
+    } else if ((!strcmp(CommandStr, "d")) ||
+               (!strcmp(CommandStr, "StopNow"))) {
         if (FPPstatus==FPP_STATUS_PLAYLIST_PLAYING || FPPstatus==FPP_STATUS_STOPPING_GRACEFULLY) {
             playlist->StopNow(1);
             scheduler->ReLoadCurrentScheduleInfo();
@@ -301,10 +303,6 @@ char *ProcessCommand(char *command, char *response)
         } else {
             sprintf(response,"%d,%d,Invalid Volume,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
         }
-    } else if (!strcmp(CommandStr, "w")) {
-        LogInfo(VB_SETTING, "Sending Falcon hardware config\n");
-        if (!DetectFalconHardware(1))
-            SendFPDConfig();
     } else if (!strcmp(CommandStr, "q")) {
         // Quit/Shutdown fppd
         if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
