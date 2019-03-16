@@ -765,7 +765,8 @@ void Playlist::SetIdle(void)
 	m_sectionPosition = 0;
 	m_repeat = 0;
 
-	Cleanup();
+	// Remoted per issue #506
+	//Cleanup();
 
 	if (mqtt)
 	{
