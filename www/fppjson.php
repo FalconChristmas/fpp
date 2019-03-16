@@ -2138,7 +2138,7 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
 
         $result['Kernel'] = get_kernel_version();
         $result['LocalGitVersion'] = get_local_git_version();
-        $result['RemoteGitVersion'] = get_remote_git_version($git_branch);
+        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
         $result['AutoUpdatesDisabled'] = file_exists($settings['mediaDirectory'] . "/.auto_update_disabled") ? true : false;
         $result['IPs'] = $IPs;
     }
