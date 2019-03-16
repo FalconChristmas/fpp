@@ -189,7 +189,7 @@ $(document).ready(function(){
 .tblheader{
     background-color:#CCC;
     text-align:center;
-    }
+}
 .tblheader td {
     border: solid 2px #888888;
     text-align:center;
@@ -216,6 +216,7 @@ tr.rowUniverseDetails td
 	vertical-align: bottom;
 	text-align: center;
 	border: solid 2px #888888;
+    font-size: 0.8em;
 }
 
 #tblUniverses td {

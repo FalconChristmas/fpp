@@ -144,8 +144,10 @@ void  UDPOutput::GetRequiredChannelRange(int &min, int & max) {
     if (enabled) {
         for (auto a : outputs) {
             if (a->active) {
-                min = std::min(min, a->startChannel - 1);
-                max = std::max(max, (a->startChannel + a->channelCount - 2));
+                int mi, mx;
+                a->GetRequiredChannelRange(mi, mx);
+                min = std::min(min, mi);
+                max = std::max(max, mx);
             }
         }
     }

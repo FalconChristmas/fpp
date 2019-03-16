@@ -103,7 +103,7 @@ static struct sockaddr_in   ArtNetSyncAddress;
 
 
 ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
-: UDPOutputData(config), sequenceNumber(1) {
+: UDPOutputData(config), sequenceNumber(1), universeCount(1) {
     memset((char *) &anAddress, 0, sizeof(sockaddr_in));
     anAddress.sin_family = AF_INET;
     anAddress.sin_port = htons(ARTNET_DEST_PORT);
@@ -116,6 +116,13 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
 
     universe = config["id"].asInt();
     priority = config["priority"].asInt();
+    if (config.isMember("universeCount")) {
+        universeCount = config["universeCount"].asInt();
+    }
+    if (universeCount < 1) {
+        universeCount = 1;
+    }
+
     switch (type) {
         case ARTNET_TYPE_BROADCAST: // Multicast
             ipAddress = "";
@@ -147,25 +154,37 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
             anAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
         }
     }
-    memcpy(anBuffer, ArtNetHeader, ARTNET_HEADER_LENGTH);
     
-    anBuffer[ARTNET_UNIVERSE_INDEX]   = (char)(universe%256);
-    anBuffer[ARTNET_UNIVERSE_INDEX+1] = (char)(universe/256);
-    
-    anBuffer[ARTNET_LENGTH_INDEX]     = (char)(channelCount/256);
-    anBuffer[ARTNET_LENGTH_INDEX+1]   = (char)(channelCount%256);
+    anIovecs.resize(universeCount * 2);
+    anHeaders.resize(universeCount);
+    for (int x = 0; x < universeCount; x++) {
+        unsigned char *anBuffer = (unsigned char *)malloc(ARTNET_HEADER_LENGTH);
+        anHeaders[x] = anBuffer;
 
+        memcpy(anBuffer, ArtNetHeader, ARTNET_HEADER_LENGTH);
     
-    // use scatter/gather for the packet.   One IOV will contain
-    // the header, the second will point into the raw channel data
-    // and will be set at output time.   This avoids any memcpy.
-    anIovecs[0].iov_base = anBuffer;
-    anIovecs[0].iov_len = ARTNET_HEADER_LENGTH;
-    anIovecs[1].iov_base = nullptr;
-    anIovecs[1].iov_len = channelCount;
+        int uni = universe + x;
+
+        anBuffer[ARTNET_UNIVERSE_INDEX]   = (char)(uni%256);
+        anBuffer[ARTNET_UNIVERSE_INDEX+1] = (char)(uni/256);
+        
+        anBuffer[ARTNET_LENGTH_INDEX]     = (char)(channelCount/256);
+        anBuffer[ARTNET_LENGTH_INDEX+1]   = (char)(channelCount%256);
+
+        // use scatter/gather for the packet.   One IOV will contain
+        // the header, the second will point into the raw channel data
+        // and will be set at output time.   This avoids any memcpy.
+        anIovecs[x*2].iov_base = anBuffer;
+        anIovecs[x*2].iov_len = ARTNET_HEADER_LENGTH;
+        anIovecs[x*2 + 1].iov_base = nullptr;
+        anIovecs[x*2 + 1].iov_len = channelCount;
+    }
 }
 
 ArtNetOutputData::~ArtNetOutputData() {
+    for (auto a : anHeaders) {
+        free(a);
+    }
 }
 
 bool ArtNetOutputData::IsPingable() {
@@ -175,35 +194,43 @@ bool ArtNetOutputData::IsPingable() {
 
 void ArtNetOutputData::PrepareData(unsigned char *channelData) {
     if (valid && active) {
-        anBuffer[ARTNET_SEQUENCE_INDEX] = sequenceNumber;
-        anIovecs[1].iov_base = (void*)(channelData + startChannel - 1);
+        unsigned char *cur = channelData + startChannel - 1;
+        for (int x = 0; x < universeCount; x++) {
+            anHeaders[x][ARTNET_SEQUENCE_INDEX] = sequenceNumber;
+            anIovecs[x * 2 + 1].iov_base = (void*)cur;
+            cur += channelCount;
+        }
     }
     sequenceNumber++;
 }
 void ArtNetOutputData::CreateMessages(std::vector<struct mmsghdr> &udpMsgs) {
     if (valid && active && type == ARTNET_TYPE_UNICAST) {
-        struct mmsghdr msg;
-        memset(&msg, 0, sizeof(msg));
-        
-        msg.msg_hdr.msg_name = &anAddress;
-        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        msg.msg_hdr.msg_iov = anIovecs;
-        msg.msg_hdr.msg_iovlen = 2;
-        msg.msg_len = channelCount + ARTNET_HEADER_LENGTH;
-        udpMsgs.push_back(msg);
+        for (int x = 0; x < universeCount; x++) {
+            struct mmsghdr msg;
+            memset(&msg, 0, sizeof(msg));
+
+            msg.msg_hdr.msg_name = &anAddress;
+            msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+            msg.msg_hdr.msg_iov = &anIovecs[x * 2];
+            msg.msg_hdr.msg_iovlen = 2;
+            msg.msg_len = channelCount + ARTNET_HEADER_LENGTH;
+            udpMsgs.push_back(msg);
+        }
     }
 }
 void ArtNetOutputData::CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) {
     if (valid && active && type == ARTNET_TYPE_BROADCAST) {
-        struct mmsghdr msg;
-        memset(&msg, 0, sizeof(msg));
-        
-        msg.msg_hdr.msg_name = &anAddress;
-        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        msg.msg_hdr.msg_iov = anIovecs;
-        msg.msg_hdr.msg_iovlen = 2;
-        msg.msg_len = channelCount + ARTNET_HEADER_LENGTH;
-        bMsgs.push_back(msg);
+        for (int x = 0; x < universeCount; x++) {
+            struct mmsghdr msg;
+            memset(&msg, 0, sizeof(msg));
+            
+            msg.msg_hdr.msg_name = &anAddress;
+            msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+            msg.msg_hdr.msg_iov = &anIovecs[x * 2];
+            msg.msg_hdr.msg_iovlen = 2;
+            msg.msg_len = channelCount + ARTNET_HEADER_LENGTH;
+            bMsgs.push_back(msg);
+        }
     }
 }
 void ArtNetOutputData::AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs) {
@@ -227,12 +254,17 @@ void ArtNetOutputData::AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs) {
     }
 }
 
+void ArtNetOutputData::GetRequiredChannelRange(int &min, int & max) {
+    min = startChannel - 1;
+    max = startChannel + (channelCount * universeCount) - 1;
+}
 
 void ArtNetOutputData::DumpConfig() {
-    LogDebug(VB_CHANNELOUT, "ArtNet Universe: %s   %d:%d:%d:%d:%d  %s\n",
+    LogDebug(VB_CHANNELOUT, "ArtNet Universe: %s   %d:%d:%d:%d:%d:%d  %s\n",
              description.c_str(),
              active,
              universe,
+             universeCount,
              startChannel,
              channelCount,
              type,

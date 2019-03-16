@@ -53,6 +53,11 @@ public:
 
     virtual void DumpConfig() = 0;
     
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = startChannel - 1;
+        max = startChannel + channelCount - 1;
+    }
+    
     std::string   description;
     bool          active;
     int           startChannel;

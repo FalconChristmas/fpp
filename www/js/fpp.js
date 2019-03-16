@@ -1022,6 +1022,7 @@ function RemovePlaylistEntry()	{
                 var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
                 var unicastAddress=document.getElementById("txtIP[" + selectIndex + "]").value;
                 var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
+                var ucount=Number(document.getElementById("numUniverseCount[" + selectIndex + "]").value);
                 var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value);
                 var active=document.getElementById("chkActive[" + selectIndex + "]").value;
                 var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
@@ -1034,14 +1035,14 @@ function RemovePlaylistEntry()	{
                     SetUniverseInputNames();
 
                     if (universe != 0) {
-                        universe++;
+                        universe += ucount;
                         document.getElementById("txtUniverse[" + UniverseCount + "]").value = universe;
                     }
-                    startAddress += size;
+                    startAddress += size * ucount;
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        row.cells[9].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        row.cells[10].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     
                     UniverseCount++;
@@ -1055,6 +1056,8 @@ function RemovePlaylistEntry()	{
             if (itemVal == 4 || itemVal == 5) {
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', true);
+                var univc = $(item).parent().parent().find("input.numUniverseCount");
+                univc.prop('disabled', true);
                 var sz = $(item).parent().parent().find("input.txtSize");
                 sz.prop('max', 512000);
             } else {
@@ -1062,6 +1065,11 @@ function RemovePlaylistEntry()	{
                 univ.prop('disabled', false);
                 if (parseInt(univ.val()) < 1) {
                     univ.val(1);
+                }
+                var univc = $(item).parent().parent().find("input.numUniverseCount");
+                univc.prop('disabled', false);
+                if (parseInt(univc.val()) < 1) {
+                    univc.val(1);
                 }
                 var sz = $(item).parent().parent().find("input.txtSize");
                 var val = parseInt(sz.val());
@@ -1088,6 +1096,7 @@ function RemovePlaylistEntry()	{
                 "<th width=\"30%\" align='left'>Description</th>" +
                 "<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
                 "<th width=\"8%\" align='left'>Universe<br>#</th>" +
+                "<th width=\"8%\" align='left' " + inputStyle + ">Universe<br>Count</th>" +
                 "<th width=\"8%\" align='left'>Universe<br>Size</th>" +
                 "<th width=\"15%\" align='left'>Universe Type</th>" +
                 "<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
@@ -1101,6 +1110,10 @@ function RemovePlaylistEntry()	{
                 var active = universe.active;
                 var desc = universe.description;
                 var uid = universe.id;
+                var ucount = universe.universeCount;
+                if (!ucount) {
+                    ucount = 1;
+                }
                 var startAddress = universe.startChannel;
                 var size = universe.channelCount;
                 var type = universe.type;
@@ -1128,8 +1141,11 @@ function RemovePlaylistEntry()	{
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
                             "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
-                            "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeDisable + "/></td>" +
-                            "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
+                            "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeDisable + "/></td>";
+                if (!input) {
+                    bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeDisable + "/></td>";
+                }
+                    bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
                             "<td><select class='universeType' style='width:150px'";
 
                 if (input) {
@@ -1239,7 +1255,7 @@ function RemovePlaylistEntry()	{
 
         function SetUniverseRowInputNames(row, id) {
             var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
-                               'txtUniverse', 'txtSize', 'universeType', 'txtIP',
+                               'txtUniverse', 'numUniverseCount', 'txtSize', 'universeType', 'txtIP',
                                'txtPriority');
             row.find('span.rowID').html((id + 1).toString());
             
@@ -1276,7 +1292,8 @@ function RemovePlaylistEntry()	{
                     document.getElementById("universeType[" + selectedIndex + "]").value = document.getElementById("universeType[" + i + "]").value;
                     var universeType = document.getElementById("universeType[" + selectedIndex + "]").value;
                     document.getElementById("txtStartAddress[" + selectedIndex + "]").value  = document.getElementById("txtStartAddress[" + i + "]").value;
-                    
+                    document.getElementById("numUniverseCount[" + selectedIndex + "]").value  = document.getElementById("numUniverseCount[" + i + "]").value;
+
                     var checkb = document.getElementById("chkActive[" + i + "]");
                     document.getElementById("chkActive[" + selectedIndex + "]").checked = checkb.checked;
                     document.getElementById("txtSize[" + selectedIndex + "]").value = document.getElementById("txtSize[" + i + "]").value;
@@ -1307,6 +1324,7 @@ function RemovePlaylistEntry()	{
 					var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
 					var unicastAddress=document.getElementById("txtIP[" + selectIndex + "]").value;
 					var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
+                    var uCount=Number(document.getElementById("numUniverseCount[" + selectIndex + "]").value)+ size;
 					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
 					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
@@ -1316,6 +1334,7 @@ function RemovePlaylistEntry()	{
 						document.getElementById("txtUniverse[" + i + "]").value	 = universe.toString();
 						document.getElementById("universeType[" + i + "]").value	 = universeType;
 						document.getElementById("txtStartAddress[" + i + "]").value	 = startAddress.toString();
+                        document.getElementById("numUniverseCount[" + i + "]").value     = uCount.toString();
 						document.getElementById("chkActive[" + i + "]").value = active;
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
@@ -1391,6 +1410,7 @@ function RemovePlaylistEntry()	{
                 universe.description = document.getElementById("txtDesc[" + i + "]").value;;
                 universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
                 universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
+                universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
                 universe.channelCount = parseInt(document.getElementById("txtSize[" + i + "]").value);
                 universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
                 universe.address = document.getElementById("txtIP[" + i + "]").value;

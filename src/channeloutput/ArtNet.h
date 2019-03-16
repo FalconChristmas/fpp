@@ -28,6 +28,7 @@
 
 #include <sys/uio.h>
 #include <netinet/in.h>
+#include <vector>
 
 #include "UDPOutput.h"
 
@@ -44,14 +45,17 @@ public:
     virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs);
     virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs);
     virtual void DumpConfig();
+    virtual void GetRequiredChannelRange(int &min, int & max);
     
     int           universe;
+    int           universeCount;
     int           priority;
     char          sequenceNumber;
     
     sockaddr_in   anAddress;
-    struct iovec  anIovecs[2];
-    unsigned char anBuffer[ARTNET_HEADER_LENGTH];
+    
+    std::vector<struct iovec>  anIovecs;
+    std::vector<unsigned char *> anHeaders;
 };
 
 #endif /* _ARTNET_H */

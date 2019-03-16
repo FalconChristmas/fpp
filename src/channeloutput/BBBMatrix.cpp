@@ -606,12 +606,12 @@ int BBBMatrix::Init(Json::Value config)
     }
     
     
-    float gamma = 1.0;
+    float gamma = 2.2;
     if (config.isMember("gamma")) {
         gamma = atof(config["gamma"].asString().c_str());
     }
     if (gamma < 0.01 || gamma > 50.0) {
-        gamma = 1.0;
+        gamma = 2.2;
     }
     for (int x = 0; x < 256; x++) {
         int v = x;

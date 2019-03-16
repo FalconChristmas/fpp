@@ -28,6 +28,7 @@
 
 #include <sys/uio.h>
 #include <netinet/in.h>
+#include <vector>
 
 #include "UDPOutput.h"
 #include "e131defs.h"
@@ -41,14 +42,17 @@ public:
     virtual void PrepareData(unsigned char *channelData);
     virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
     virtual void DumpConfig();
+    virtual void GetRequiredChannelRange(int &min, int & max);
+
 
     int           universe;
+    int           universeCount;
     int           priority;
     char          E131sequenceNumber;
 
     sockaddr_in   e131Address;
-    struct iovec  e131Iovecs[2];
-    unsigned char e131Buffer[E131_HEADER_LENGTH];
+    std::vector<struct iovec>  e131Iovecs;
+    std::vector<unsigned char *> e131Headers;
 };
 
 #endif

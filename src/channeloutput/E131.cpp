@@ -72,13 +72,19 @@ const unsigned char E131header[] = {
 
 
 E131OutputData::E131OutputData(const Json::Value &config)
-: UDPOutputData(config), E131sequenceNumber(1) {
+: UDPOutputData(config), E131sequenceNumber(1), universeCount(1) {
     memset((char *) &e131Address, 0, sizeof(sockaddr_in));
     e131Address.sin_family = AF_INET;
     e131Address.sin_port = htons(E131_DEST_PORT);
 
     universe = config["id"].asInt();
     priority = config["priority"].asInt();
+    if (config.isMember("universeCount")) {
+        universeCount = config["universeCount"].asInt();
+    }
+    if (universeCount < 1) {
+        universeCount = 1;
+    }
     switch (type) {
         case 0: // Multicast
             ipAddress = "";
@@ -117,76 +123,97 @@ E131OutputData::E131OutputData(const Json::Value &config)
             e131Address.sin_addr.s_addr = inet_addr(ipAddress.c_str());
         }
     }
-    memcpy(e131Buffer, E131header, E131_HEADER_LENGTH);
     
-    e131Buffer[E131_PRIORITY_INDEX] = priority;
-    e131Buffer[E131_UNIVERSE_INDEX] = (char)(universe/256);
-    e131Buffer[E131_UNIVERSE_INDEX+1] = (char)(universe%256);
-    
-    // Property Value Count
-    e131Buffer[E131_COUNT_INDEX] = ((channelCount+1)/256);
-    e131Buffer[E131_COUNT_INDEX+1] = ((channelCount+1)%256);
-    
-    // RLP Protocol flags and length
-    int count = 638 - 16 - (512 - (channelCount));
-    e131Buffer[E131_RLP_COUNT_INDEX] = (count/256)+0x70;
-    e131Buffer[E131_RLP_COUNT_INDEX+1] = count%256;
-    
-    // Framing Protocol flags and length
-    count = 638 - 38 - (512 - (channelCount));
-    e131Buffer[E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
-    e131Buffer[E131_FRAMING_COUNT_INDEX+1] = count%256;
-    
-    // DMP Protocol flags and length
-    count = 638 - 115 - (512 - (channelCount));
-    e131Buffer[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
-    e131Buffer[E131_DMP_COUNT_INDEX+1] = count%256;
-    
-    // use scatter/gather for the packet.   One IOV will contain
-    // the header, the second will point into the raw channel data
-    // and will be set at output time.   This avoids any memcpy.
-    e131Iovecs[0].iov_base = e131Buffer;
-    e131Iovecs[0].iov_len = E131_HEADER_LENGTH;
-    e131Iovecs[1].iov_base = nullptr;
-    e131Iovecs[1].iov_len = channelCount;
+    e131Iovecs.resize(universeCount * 2);
+    e131Headers.resize(universeCount);
+    for (int x = 0; x < universeCount; x++) {
+        unsigned char *e131Buffer = (unsigned char *)malloc(E131_HEADER_LENGTH);
+        e131Headers[x] = e131Buffer;
+        memcpy(e131Buffer, E131header, E131_HEADER_LENGTH);
+        
+        int uni = universe + x;
+        e131Buffer[E131_PRIORITY_INDEX] = priority;
+        e131Buffer[E131_UNIVERSE_INDEX] = (char)(uni/256);
+        e131Buffer[E131_UNIVERSE_INDEX+1] = (char)(uni%256);
+        
+        // Property Value Count
+        e131Buffer[E131_COUNT_INDEX] = ((channelCount+1)/256);
+        e131Buffer[E131_COUNT_INDEX+1] = ((channelCount+1)%256);
+        
+        // RLP Protocol flags and length
+        int count = 638 - 16 - (512 - (channelCount));
+        e131Buffer[E131_RLP_COUNT_INDEX] = (count/256)+0x70;
+        e131Buffer[E131_RLP_COUNT_INDEX+1] = count%256;
+        
+        // Framing Protocol flags and length
+        count = 638 - 38 - (512 - (channelCount));
+        e131Buffer[E131_FRAMING_COUNT_INDEX] = (count/256)+0x70;
+        e131Buffer[E131_FRAMING_COUNT_INDEX+1] = count%256;
+        
+        // DMP Protocol flags and length
+        count = 638 - 115 - (512 - (channelCount));
+        e131Buffer[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
+        e131Buffer[E131_DMP_COUNT_INDEX+1] = count%256;
+
+        // use scatter/gather for the packet.   One IOV will contain
+        // the header, the second will point into the raw channel data
+        // and will be set at output time.   This avoids any memcpy.
+        e131Iovecs[x * 2].iov_base = e131Buffer;
+        e131Iovecs[x * 2].iov_len = E131_HEADER_LENGTH;
+        e131Iovecs[x * 2 + 1].iov_base = nullptr;
+        e131Iovecs[x * 2 + 1].iov_len = channelCount;
+    }
 }
 
 E131OutputData::~E131OutputData() {
+    for (auto a : e131Headers) {
+        free(a);
+    }
 }
 
 bool E131OutputData::IsPingable() {
     return type == 1;
 }
 
-
 void E131OutputData::PrepareData(unsigned char *channelData) {
     if (valid && active) {
-        e131Buffer[E131_SEQUENCE_INDEX] = E131sequenceNumber;
-        e131Iovecs[1].iov_base = (void*)(channelData + startChannel - 1);
+        unsigned char *cur = channelData + startChannel - 1;
+        for (int x = 0; x < universeCount; x++) {
+            e131Headers[x][E131_SEQUENCE_INDEX] = E131sequenceNumber;
+            e131Iovecs[x * 2 + 1].iov_base = (void*)cur;
+            cur += channelCount;
+        }
     }
     E131sequenceNumber++;
 }
 void E131OutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
     if (valid && active) {
-        struct mmsghdr msg;
-        memset(&msg, 0, sizeof(msg));
-        
-        msg.msg_hdr.msg_name = &e131Address;
-        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        msg.msg_hdr.msg_iov = e131Iovecs;
-        msg.msg_hdr.msg_iovlen = 2;
-        msg.msg_len = channelCount + E131_HEADER_LENGTH;
-        ipMsgs.push_back(msg);
+        for (int x = 0; x < universeCount; x++) {
+            struct mmsghdr msg;
+            memset(&msg, 0, sizeof(msg));
+            
+            msg.msg_hdr.msg_name = &e131Address;
+            msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+            msg.msg_hdr.msg_iov = &e131Iovecs[x * 2];
+            msg.msg_hdr.msg_iovlen = 2;
+            msg.msg_len = channelCount + E131_HEADER_LENGTH;
+            ipMsgs.push_back(msg);
+        }
     }
+}
+void E131OutputData::GetRequiredChannelRange(int &min, int & max) {
+    min = startChannel - 1;
+    max = startChannel + (channelCount * universeCount) - 1;
 }
 
 void E131OutputData::DumpConfig() {
-    LogDebug(VB_CHANNELOUT, "E1.31 Universe: %s   %d:%d:%d:%d:%d  %s\n",
+    LogDebug(VB_CHANNELOUT, "E1.31 Universe: %s   %d:%d:%d:%d:%d:%d  %s\n",
              description.c_str(),
              active,
              universe,
              startChannel,
              channelCount,
              type,
+             universeCount,
              ipAddress.c_str());
 }
