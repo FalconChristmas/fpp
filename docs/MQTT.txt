@@ -1,0 +1,48 @@
+FPP has the ability to both publish status via MQTT as well as receive  commands by subscribing to specific topics.   
+
+Topic Format
+---------------------------------------------
+{optional prefix}/falcon/player/{hostname}/{sub_topic}
+
+The optional prefix is defined in the advanced settings
+The hostname is 
+
+FPP Publish subtopics
+---------------------------------------------
+FPP will published the following sub_topics (using the full topic format) if MQTT is configured
+
+*/version -- The current full version of the fpp software
+*/branch -- The git branch currently in use
+*/status -- Status of the player (idle, playing)
+
+*/playlist/position/status
+*/playlist/name/status - Name of current playlist. Can be {null}.
+*/playlist/repeat/status - {0 = not repeating current playlist, 1 = repeating current playlist}
+*/playlist/section/status - either “New”, “LeadIn”, “MainPlayList”, “LeadOut”, or {null} if nothing playing
+*/playlist/sectionPosition/status - The numeric position of the item currently playing in the playlist section (zero based)
+*/playlist/sequence/status - Name of current sequence file playing. Can be {null}.
+
+*/playlist/media/title - Title of the audio / video media being displayed
+*/playlist/media/status - filename of the current audio/movie
+*/playlist/media/artist - The artist listing in the audio / video file being played
+
+FPP Subscribed subtopics
+---------------------------------------------
+FPP will listen for these topics.  
+
+* playlist/ALLPLAYLISTS/stop/now - Immediate stop all running playlist
+* playlist/ALLPLAYLISTS/stop/graceful - gracefully stop all running playlist
+* playlist/ALLPLAYLISTS/stop/afterloop.- Allow playlist to finish current loop then stop.
+
+
+There are also Playlist specific topics. Currently, ${PLAYLIST} is ignored for all but /start and will affect the current running playlist. In the future, when multiple concurrent playlist are running it will affect only the specified playlist.
+
+* playlist/${PLAYLISTNAME}/start - Starts the playlist with the given name. (payload ignored)
+* playlist/${PLAYLISTNAME}/next - Forces playing of the the next item in the playlist. (payload ignored)
+* playlist/${PLAYLISTNAME}/prev - Forces playing of the previous item in the playlist (payload ignored)
+* playlist/${PLAYLISTNAME}/repeat - Sets if the playlist will be repeated or terminate when done. (payload should be 0 or 1)
+* playlist/${PLAYLISTNAME}/startPosition - Sets the item in the playlist (zero based) to play next. Does not immediately stop current item . 
+* playlist/${PLAYLISTNAME}/stop/now - Forces the playlist to stop immediately. 
+* playlist/${PLAYLISTNAME}/stop/graceful - gracefully stop playlist
+* playlist/${PLAYLISTNAME}/stop/afterloop - Allow playlist to finish current loop then stop.
+
