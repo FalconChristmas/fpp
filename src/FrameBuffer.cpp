@@ -584,6 +584,7 @@ void FrameBuffer::DrawLoop(void)
 		if (m_imageReady)
 		{
 			lock.unlock();
+			//m_nextTransitionType = IT_WipeFromHCenter;
 			switch (m_nextTransitionType)
 			{
 				case IT_Random:
@@ -630,6 +631,18 @@ void FrameBuffer::DrawLoop(void)
 
 				case IT_WipeFromHCenter:
 					FBDrawWipeFromHCenter();
+					break;
+
+				case IT_HorzBlindsOpen:
+					FBDrawHorzBlindsOpen();
+					break;
+
+				case IT_HorzBlindsClose:
+					FBDrawHorzBlindsClose();
+					break;
+
+				case IT_Mosaic:
+					FBDrawMosaic();
 					break;
 
 				default:
@@ -782,9 +795,21 @@ void FrameBuffer::FBDrawWipeDown(void)
  */
 void FrameBuffer::FBDrawWipeLeft(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeLeft()\n");
-	// FIXME
-	FBDrawWipeUp();
+	int stride = m_fbWidth * m_bpp / 8;
+	int BPP = m_bpp / 8;
+
+	m_bufferLock.lock();
+
+	for (int x = m_fbWidth - 1; x >= 0; x--)
+	{
+		for (int y = 0; y < m_fbHeight; y++)
+		{
+			memcpy(m_fbp + (stride * y) + (x * BPP),
+				m_outputBuffer + (stride * y) + (x * BPP), BPP);
+		}
+	}
+
+	m_bufferLock.unlock();
 }
 
 /*
@@ -792,9 +817,21 @@ void FrameBuffer::FBDrawWipeLeft(void)
  */
 void FrameBuffer::FBDrawWipeRight(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeRight()\n");
-	// FIXME
-	FBDrawWipeDown();
+	int stride = m_fbWidth * m_bpp / 8;
+	int BPP = m_bpp / 8;
+
+	m_bufferLock.lock();
+
+	for (int x = 0; x < m_fbWidth; x++)
+	{
+		for (int y = 0; y < m_fbHeight; y++)
+		{
+			memcpy(m_fbp + (stride * y) + (x * BPP),
+				m_outputBuffer + (stride * y) + (x * BPP), BPP);
+		}
+	}
+
+	m_bufferLock.unlock();
 }
 
 /*
@@ -814,7 +851,7 @@ void FrameBuffer::FBDrawWipeToHCenter(void)
 	int sleepTime = 800 * 1000 * rEach / m_fbHeight * 2;
 
 	m_bufferLock.lock();
-	for (int i = 0; i < mid;)
+	for (int i = 0; i < mid; i += rEach)
 	{
 		memcpy(m_fbp + (stride * i), m_outputBuffer + (stride * i), stride * rEach);
 		memcpy(m_fbp + (stride * (m_fbHeight - i - rEach)),
@@ -822,8 +859,6 @@ void FrameBuffer::FBDrawWipeToHCenter(void)
 				stride * rEach);
 
 		usleep(sleepTime);
-
-		i += rEach;
 	}
 	m_bufferLock.unlock();
 }
@@ -833,7 +868,141 @@ void FrameBuffer::FBDrawWipeToHCenter(void)
  */
 void FrameBuffer::FBDrawWipeFromHCenter(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeFromHCenter()\n");
-	FBDrawNormal();
+	int stride = m_fbWidth * m_bpp / 8;
+	int mid = m_fbHeight / 2;
+	int rowsEachUpdate = 2;
+	int sleepTime = 800 * 1000 * rowsEachUpdate / m_fbHeight * 2;
+
+	m_bufferLock.lock();
+
+	int t = mid - 2;
+	for (int b = mid; b < m_fbHeight; b += rowsEachUpdate, t -= rowsEachUpdate)
+	{
+		memcpy(m_fbp + (stride * b), m_outputBuffer + (stride * b),
+			stride * rowsEachUpdate);
+
+		if (t >= 0)
+			memcpy(m_fbp + (stride * t), m_outputBuffer + (stride * t),
+				stride * rowsEachUpdate);
+
+		usleep(sleepTime);
+	}
+
+	m_bufferLock.unlock();
+}
+
+/*
+ *
+ */
+void FrameBuffer::FBDrawHorzBlindsOpen(void)
+{
+	int stride = m_fbWidth * m_bpp / 8;
+	int rowsEachUpdate = 2;
+	int blindSize = 32;
+	int sleepTime = 800 * 1000 * rowsEachUpdate / blindSize;
+
+	m_bufferLock.lock();
+	for (int i = (blindSize - 1); i >= 0; i -= rowsEachUpdate)
+	{
+		for (int y = i; y < m_fbHeight; y += blindSize)
+		{
+			memcpy(m_fbp + (stride * y), m_outputBuffer + (stride * y),
+				stride * rowsEachUpdate);
+		}
+
+		usleep(sleepTime);
+	}
+	m_bufferLock.unlock();
+}
+
+/*
+ *
+ */
+void FrameBuffer::FBDrawHorzBlindsClose(void)
+{
+	int stride = m_fbWidth * m_bpp / 8;
+	int rowsEachUpdate = 2;
+	int blindSize = 32;
+	int sleepTime = 800 * 1000 * rowsEachUpdate / blindSize;
+
+	m_bufferLock.lock();
+	for (int i = 0; i < blindSize; i += rowsEachUpdate)
+	{
+		for (int y = i; y < m_fbHeight; y += blindSize)
+		{
+			memcpy(m_fbp + (stride * y), m_outputBuffer + (stride * y),
+				stride * rowsEachUpdate);
+		}
+
+		usleep(sleepTime);
+	}
+	m_bufferLock.unlock();
+}
+
+/*
+ *
+ */
+void FrameBuffer::FBDrawMosaic(void)
+{
+	int squareSize = 32;
+	int xSquares = m_fbWidth / squareSize + 1;
+	int ySquares = m_fbHeight / squareSize + 1;
+	int squares[ySquares][xSquares];
+	int count = xSquares * ySquares;
+	int sleepTime = 800 * 1000 / count;
+
+	memset(squares, 0, sizeof(squares));
+
+	m_bufferLock.lock();
+
+	for (int i = 0; i < (count * 10); i++)
+	{
+		int square = rand_r(&m_typeSeed) % (count - 1);
+		int x = square % xSquares;
+		int y = square / xSquares;
+
+		if (!squares[y][x])
+		{
+			DrawSquare(x * squareSize, y * squareSize, squareSize, squareSize);
+			squares[y][x] = 1;
+
+			usleep(sleepTime);
+		}
+	}
+
+	for (int y = 0; y < ySquares; y++)
+	{
+		for (int x = 0; x < xSquares; x++)
+		{
+			if (!squares[y][x])
+			{
+				DrawSquare(x * squareSize, y * squareSize, squareSize,
+					squareSize);
+				squares[y][x] = 1;
+
+				usleep(sleepTime);
+			}
+		}
+	}
+
+	m_bufferLock.unlock();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+/*
+ *
+ */
+void FrameBuffer::DrawSquare(int x, int y, int w, int h)
+{
+	int stride = m_fbWidth * m_bpp / 8;
+	int rowOffset = x * m_bpp / 8;
+	int bytesWide = w * m_bpp / 8;
+
+	for (int i = 0; i < h; i++)
+	{
+		memcpy(m_fbp + (stride * (y + i)) + rowOffset,
+			m_outputBuffer + (stride * (y + i)) + rowOffset, bytesWide);
+	}
 }
 

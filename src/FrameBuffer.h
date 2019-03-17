@@ -44,13 +44,16 @@ typedef enum {
 	IT_SlideDown,
 	IT_WipeUp,
 	IT_WipeDown,
-	IT_WipeToHCenter,    // wipe down/up to center
-	IT_MAX,
-	IT_WipeFromHCenter,  // wipe up/down from center
-	IT_SlideLeft,
-	IT_SlideRight,
 	IT_WipeLeft,
 	IT_WipeRight,
+	IT_WipeToHCenter,    // wipe down/up to center
+	IT_WipeFromHCenter,  // wipe up/down from center
+	IT_HorzBlindsOpen,   // horizontal blinds opening
+	IT_HorzBlindsClose,  // horizontal blinds closing
+	IT_Mosaic,           // fill in small random squares until totally done
+	IT_MAX,
+	IT_SlideLeft,
+	IT_SlideRight,
 	IT_Wipe45,           // wipe at 45 degree angle to upper right corner
 	IT_Wipe135,          // wipe at 135 degree angle to bottom right corner
 	IT_Wipe225,          // wipe at 225 degree angle to bottom left corner
@@ -67,9 +70,8 @@ typedef enum {
 	IT_WipeQuadCCW,      // Quad CCW wipe from 0 degrees top dead center
 	IT_WipeOctoCW,       // Octo CW wipe from 0 degrees top dead center
 	IT_WipeOctoCCW,      // Octo CCW wipe from 0 degrees top dead center
-	IT_VertBlinds,       // vertical blinds (8 bands?)
-	IT_HorzBlinds,       // horizontal blinds (8 bands?)
-	IT_Mosaic,           // fill in small random squares until totally done
+	IT_VertBlindsOpen,   // vertical blinds (8 bands?)
+	IT_VertBlindsClose,  // vertical blinds (8 bands?)
 	IT_Fade,             // Fade from one image to the other (copy original and slowly fade each pixel)
 	IT_END
 } ImageTransitionType;
@@ -141,6 +143,12 @@ class FrameBuffer {
 	void FBDrawWipeRight(void);
 	void FBDrawWipeToHCenter(void);
 	void FBDrawWipeFromHCenter(void);
+	void FBDrawHorzBlindsOpen(void);
+	void FBDrawHorzBlindsClose(void);
+	void FBDrawMosaic(void);
+
+	// Helpers
+	void DrawSquare(int x, int y, int w, int h);
 
 };
 

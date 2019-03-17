@@ -384,9 +384,7 @@ if ($allowDelete)
             <option value = 'remap'>Channel Remap</option>
 <? if (!$simplifiedPlaylist) echo "<option value = 'dynamic'>Dynamic</option>"; ?>
             <option value = 'event'>Event</option>
-<!--
             <option value = 'image'>Image</option>
--->
             <option value = 'mqtt'>MQTT</option>
             <option value = 'pause'>Pause</option>
 <? if (!$simplifiedPlaylist) echo "<option value = 'playlist'>Playlist</option>"; ?>
