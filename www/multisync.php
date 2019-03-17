@@ -85,13 +85,21 @@ if (isset($_GET['advancedView'])) {
 
 	}
 
-	function getFPPSystemInfo(ip) {
+	function getFPPSystemInfo(ip, platform) {
+        if (platform.includes("Unknown") || platform.includes("unknown") || platform == "xLights" || platform.includes("Falcon ")) {
+            //eventually figure out what to do
+            return;
+        }
 		$.get("http://" + ip + "/fppjson.php?command=getHostNameInfo", function(data) {
 			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
 		});
 	}
 
-	function getFPPSystemStatus(ip) {
+	function getFPPSystemStatus(ip, platform) {
+        if (platform.includes("Unknown") || platform.includes("unknown") || platform == "xLights" || platform.includes("Falcon ")) {
+            //eventually figure out what to do
+            return;
+        }
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
 			var status = 'Idle';
@@ -285,8 +293,8 @@ if (isset($_GET['advancedView'])) {
             newRow = newRow + "</tr>";
 			$('#fppSystems tbody').append(newRow);
 
-			getFPPSystemStatus(ip);
-			getFPPSystemInfo(ip);
+			getFPPSystemStatus(ip, data[i].Platform);
+			getFPPSystemInfo(ip, data[i].Platform);
 		}
         var extras = "";
         for (var x in remotes) {
@@ -296,7 +304,9 @@ if (isset($_GET['advancedView'])) {
             extras += x;
         }
         var inp = document.getElementById("extraMultiSyncRemotes");
-        inp.value = extras;
+        if (inp) {
+            inp.value = extras;
+        }
 	}
 
 	function getFPPSystems() {
