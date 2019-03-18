@@ -120,7 +120,7 @@ int BBBSerialOutput::Init(Json::Value config)
     args.push_back("-DUSING_PRU_RAM");
 #endif
 
-    m_startChannels.resize(config["outputs"].size());
+    m_startChannels.resize(m_outputs);
 
     // Initialize the ouputs
     for (int i = 0; i < m_outputs; i++) {
@@ -130,7 +130,7 @@ int BBBSerialOutput::Init(Json::Value config)
     int maxChannel = 0;
     int maxLen = 0;
     for (int i = 0; i < config["outputs"].size(); i++) {
-	Json::Value s = config["outputs"][i];
+        Json::Value s = config["outputs"][i];
 
         m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
         int l = s["channelCount"].asInt();
