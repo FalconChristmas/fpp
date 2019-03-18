@@ -33,18 +33,7 @@ if (isset($_GET['advancedView'])) {
 						DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
 				}
 			});
-        } else if ($('#allRemotesMulticast').is(":checked")) {
-            remotes = "239.70.80.80";
-            
-            $('input.remoteCheckbox').each(function() {
-                if (($(this).is(":checked")) &&
-                        ($(this).attr("name") != "239.70.80.80")) {
-                    $(this).prop('checked', false);
-                    if ($(checkbox).attr("name") != "239.70.80.80")
-                        DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
-                    }
-                });
-		} else {
+        } else {
 			$('input.remoteCheckbox').each(function() {
 				if ($(this).is(":checked")) {
 					if (remotes != "") {
@@ -84,9 +73,21 @@ if (isset($_GET['advancedView'])) {
 		});
 
 	}
+    function updateMultiSyncRemotesFromMulticast(checkbox) {
+        if ($('#allRemotesMulticast').is(":checked")) {
+            $('input.remoteCheckbox').each(function() {
+                if (($(this).is(":checked")) &&
+                    ($(this).attr("name") != "239.70.80.80")) {
+                    $(this).prop('checked', false);
+                }
+            });
+        }
+        updateMultiSyncRemotes(checkbox);
+    }
+
 
 	function getFPPSystemInfo(ip, platform) {
-        if (platform.includes("Unknown") || platform.includes("unknown") || platform == "xLights" || platform.includes("Falcon ")) {
+        if (platform && (platform.includes("Unknown") || platform.includes("unknown") || platform == "xLights" || platform.includes("Falcon "))) {
             //eventually figure out what to do
             return;
         }
@@ -96,7 +97,7 @@ if (isset($_GET['advancedView'])) {
 	}
 
 	function getFPPSystemStatus(ip, platform) {
-        if (platform.includes("Unknown") || platform.includes("unknown") || platform == "xLights" || platform.includes("Falcon ")) {
+        if (platform && (platform.includes("Unknown") || platform.includes("unknown") || platform == "xLights" || platform.includes("Falcon "))) {
             //eventually figure out what to do
             return;
         }
@@ -225,7 +226,7 @@ if (isset($_GET['advancedView'])) {
                 star += " checked";
                 delete remotes["239.70.80.80"];
             }
-            star += " onClick='updateMultiSyncRemotes(this);'>";
+            star += " onClick='updateMultiSyncRemotesFromMulticast(this);'>";
             
             var newRow = "<tr>" +
             "<td align='center'>" + star + "</td>" +

@@ -716,7 +716,7 @@ void MainLoop(void)
         {
             ForceChannelOutputNow();
         }
-
+        multiSync->PeriodicPing();
 		CheckGPIOInputs();
 	}
 

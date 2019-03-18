@@ -43,10 +43,12 @@
 
 #include <string>
 #include <vector>
+#include <set>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/tokenizer.hpp>
 #include <jsoncpp/json/json.h>
 
 #include "channeloutputthread.h"
@@ -78,7 +80,9 @@ MultiSync::MultiSync()
 	m_receiveSock(-1),
     m_lastMediaHalfSecond(0),
 	m_remoteOffset(0.0),
-    m_numLocalSystems(0)
+    m_numLocalSystems(0),
+    m_lastPingTime(0),
+    m_lastCheckTime(0)
 {
 	pthread_mutex_init(&m_systemsLock, NULL);
 	pthread_mutex_init(&m_socketLock, NULL);
@@ -434,6 +438,8 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 void MultiSync::Ping(int discover)
 {
 	LogDebug(VB_SYNC, "MultiSync::Ping(%d)\n", discover);
+    time_t t = time(NULL);
+    m_lastPingTime = (unsigned long)t;
 
 	if (m_broadcastSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send ping packet but control socket is not open.\n");
@@ -455,43 +461,101 @@ void MultiSync::Ping(int discover)
     }
     for (int x = 0; x < m_numLocalSystems; x++) {
         pthread_mutex_lock(&m_systemsLock);
+        m_systems[x].ranges = range;
         MultiSyncSystem sysInfo = m_systems[x];
         pthread_mutex_unlock(&m_systemsLock);
         
-        sysInfo.ranges = range;
-        
-        char           outBuf[2048];
+        char           outBuf[512];
         bzero(outBuf, sizeof(outBuf));
-        
-        ControlPkt    *cpkt = (ControlPkt*)outBuf;
-        
-        InitControlPacket(cpkt);
-        
-        cpkt->pktType        = CTRL_PKT_PING;
-        cpkt->extraDataLen   = 214; // v2 ping length
-        
-        unsigned char *ed = (unsigned char*)(outBuf + 7);
-        memset(ed, 0, cpkt->extraDataLen - 7);
-        
-        ed[0]  = 2;                    // ping version 1
-        ed[1]  = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
-        ed[2]  = sysInfo.type;
-        ed[3]  = (sysInfo.majorVersion & 0xFF00) >> 8;
-        ed[4]  = (sysInfo.majorVersion & 0x00FF);
-        ed[5]  = (sysInfo.minorVersion & 0xFF00) >> 8;
-        ed[6]  = (sysInfo.minorVersion & 0x00FF);
-        ed[7]  = sysInfo.fppMode;
-        ed[8]  = sysInfo.ipa;
-        ed[9]  = sysInfo.ipb;
-        ed[10] = sysInfo.ipc;
-        ed[11] = sysInfo.ipd;
-        
-        strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
-        strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
-        strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
-        strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 41);
-        SendBroadcastPacket(outBuf, sizeof(ControlPkt) + cpkt->extraDataLen);
+        int len = CreatePingPacket(sysInfo, outBuf, discover);
+        SendBroadcastPacket(outBuf, len);
     }
+}
+void MultiSync::PeriodicPing() {
+    time_t t = time(NULL);
+    if (m_lastCheckTime == 0) {
+        m_lastCheckTime = (unsigned long)t;
+    }
+    unsigned long lpt = m_lastPingTime + 60*60;
+    if (lpt < (unsigned long)t) {
+        //once an hour, we'll send a ping letting everyone know we're still here
+        //mark ourselves as seen
+        pthread_mutex_lock(&m_systemsLock);
+        for (int x = 0; x < m_numLocalSystems; x++) {
+            m_systems[x].lastSeen = (unsigned long)t;
+        }
+        pthread_mutex_unlock(&m_systemsLock);
+        Ping();
+    }
+    //every 10 minutes we'll loop through real quick and check for instances
+    //we haven't heard from in a while
+    lpt = m_lastCheckTime + 60*10;
+    if (lpt < (unsigned long)t) {
+        m_lastCheckTime = (unsigned long)t;
+        //anything we haven't heard from in 80 minutes we will re-ping to force
+        unsigned long timeoutRePing = (unsigned long)t - 60*80;
+        //anything we haven't heard from in 2 hours we will remove.   That would
+        //have caused at least 4 pings to have been sent.  If it has responded
+        //to any of those 4, it's got to be down/gone.   Remove it.
+        unsigned long timeoutRemove = (unsigned long)t - 60*120;
+        pthread_mutex_lock(&m_systemsLock);
+        for (auto it = m_systems.begin(); it != m_systems.end(); ) {
+            if (it->lastSeen < timeoutRemove) {
+                LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
+                m_systems.erase(it);
+            } else if (it->lastSeen < timeoutRePing) {
+                //do a ping
+                PingSingleRemote(it - m_systems.begin());
+                ++it;
+            } else {
+                ++it;
+            }
+        }
+        pthread_mutex_unlock(&m_systemsLock);
+    }
+}
+void MultiSync::PingSingleRemote(int sysIdx) {
+    char           outBuf[512];
+    memset(outBuf, 0, sizeof(outBuf));
+    int len = CreatePingPacket(m_systems[0], outBuf, 1);
+    struct sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_addr.s_addr = inet_addr(m_systems[sysIdx].address.c_str());
+    dest_addr.sin_port   = htons(FPP_CTRL_PORT);
+    pthread_mutex_lock(&m_socketLock);
+    sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    pthread_mutex_unlock(&m_socketLock);
+}
+int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int discover) {
+    ControlPkt    *cpkt = (ControlPkt*)outBuf;
+    InitControlPacket(cpkt);
+    
+    cpkt->pktType        = CTRL_PKT_PING;
+    cpkt->extraDataLen   = 214; // v2 ping length
+    
+    unsigned char *ed = (unsigned char*)(outBuf + 7);
+    memset(ed, 0, cpkt->extraDataLen - 7);
+    
+    ed[0]  = 2;                    // ping version 1
+    ed[1]  = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
+    ed[2]  = sysInfo.type;
+    ed[3]  = (sysInfo.majorVersion & 0xFF00) >> 8;
+    ed[4]  = (sysInfo.majorVersion & 0x00FF);
+    ed[5]  = (sysInfo.minorVersion & 0xFF00) >> 8;
+    ed[6]  = (sysInfo.minorVersion & 0x00FF);
+    ed[7]  = sysInfo.fppMode;
+    ed[8]  = sysInfo.ipa;
+    ed[9]  = sysInfo.ipb;
+    ed[10] = sysInfo.ipc;
+    ed[11] = sysInfo.ipd;
+    
+    strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
+    strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
+    strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
+    strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 41);
+    SendBroadcastPacket(outBuf, sizeof(ControlPkt) + cpkt->extraDataLen);
+    return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
 /*
@@ -936,50 +1000,53 @@ int MultiSync::OpenControlSockets(void)
 		return 0;
 	}
 
-	char *tmpRemotes = strdup(getSetting("MultiSyncRemotes"));
+    std::string remotesString = getSetting("MultiSyncRemotes");
+    boost::char_separator<char> sep(", ");
+    boost::tokenizer< boost::char_separator<char> > tokens(remotesString, sep);
+    std::set<std::string> remotes;
+    for (auto &token : tokens) {
+        remotes.insert(token);
+    }
 
-	if (!strcmp(tmpRemotes, "255.255.255.255") || !strcmp(tmpRemotes, MULTISYNC_MULTICAST_ADDRESS)) {
+    bool needBroadcast = false;
+    if (remotes.find("255.255.255.255") != remotes.end()) {
+        needBroadcast = true;
+    }
+    if (remotes.find(MULTISYNC_MULTICAST_ADDRESS) != remotes.end()) {
+        needBroadcast = true;
+    }
+	if (needBroadcast) {
 		int broadcast = 1;
 		if (setsockopt(m_controlSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
 			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
 			return 0;
 		}
 	}
-
-	char *s = strtok(tmpRemotes, ", ");
-
-	while (s) {
-		LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s);
+    for (auto &s : remotes) {
+		LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s.c_str());
 		struct sockaddr_in newRemote;
 
 		newRemote.sin_family      = AF_INET;
 		newRemote.sin_port        = htons(FPP_CTRL_PORT);
         
-        bool isAlpha = false;
-        int x = 0;
-        while (s[x]) {
-            isAlpha |= isalpha(s[x]);
-            x++;
-        }
+        bool isAlpha = std::find_if(s.begin(), s.end(), [](char c) { return (isalpha(c) || (c == ' ')); }) == s.end();
         bool valid = true;
         if (isAlpha) {
-            struct hostent* uhost = gethostbyname(s);
+            struct hostent* uhost = gethostbyname(s.c_str());
             if (!uhost) {
-                LogErr(VB_CHANNELOUT,
+                LogErr(VB_SYNC,
                        "Error looking up Remote hostname: %s\n",
-                       s);
+                       s.c_str());
                 valid = false;
             } else {
                 newRemote.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
             }
         } else {
-            newRemote.sin_addr.s_addr = inet_addr(s);
+            newRemote.sin_addr.s_addr = inet_addr(s.c_str());
         }
         if (valid) {
             m_destAddr.push_back(newRemote);
         }
-        
-		s = strtok(NULL, ", ");
 	}
     for (int x = 0; x < m_destAddr.size(); x++) {
         struct mmsghdr msg;
@@ -995,8 +1062,6 @@ int MultiSync::OpenControlSockets(void)
 
 	LogDebug(VB_SYNC, "%d Remote Sync systems configured\n",
 		m_destAddr.size());
-
-	free(tmpRemotes);
 
 	return 1;
 }

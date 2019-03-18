@@ -145,6 +145,7 @@ class MultiSync {
 
 	void Ping(int discover = 0);
 	void Discover(void) { Ping(1); }
+    void PeriodicPing();
 
 	void SendSeqSyncStartPacket(const char *filename);
 	void SendSeqSyncStopPacket(const char *filename);
@@ -159,6 +160,9 @@ class MultiSync {
 	void SendBlankingDataPacket(void);
 
   private:
+    void PingSingleRemote(int sysIdx);
+    int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
+
 	MultiSyncSystemType ModelStringToType(std::string model);
 	void FillLocalSystemInfo(void);
 	std::string GetHardwareModel(void);
@@ -209,6 +213,8 @@ class MultiSync {
 	struct sockaddr_in  m_broadcastDestAddr;
 	pthread_mutex_t     m_socketLock;
 
+    unsigned long       m_lastPingTime;
+    unsigned long       m_lastCheckTime;
     int m_lastMediaHalfSecond;
     
 	float  m_remoteOffset;
