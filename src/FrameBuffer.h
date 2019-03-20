@@ -34,32 +34,36 @@
 
 #include <linux/fb.h>
 
+#ifdef USE_X11
+#   include <X11/Xlib.h>
+#endif
+
 #include <jsoncpp/json/json.h>
 
 typedef enum {
 	IT_Random = -2,
 	IT_Default = -1,
 	IT_Normal = 0,
-	IT_SlideUp,
-	IT_SlideDown,
-	IT_WipeUp,
-	IT_WipeDown,
-	IT_WipeLeft,
-	IT_WipeRight,
-	IT_WipeToHCenter,    // wipe down/up to center
-	IT_WipeFromHCenter,  // wipe up/down from center
-	IT_HorzBlindsOpen,   // horizontal blinds opening
-	IT_HorzBlindsClose,  // horizontal blinds closing
-	IT_Mosaic,           // fill in small random squares until totally done
-	IT_MAX,
-	IT_SlideLeft,
-	IT_SlideRight,
-	IT_Wipe45,           // wipe at 45 degree angle to upper right corner
-	IT_Wipe135,          // wipe at 135 degree angle to bottom right corner
-	IT_Wipe225,          // wipe at 225 degree angle to bottom left corner
-	IT_Wipe315,          // wipe at 315 degree angle to top left corner
-	IT_WipeToVCenter,    // wipe from left/right to vert line going down center
-	IT_WipeFromVCenter,  // wipe to left/right from vert line going down center
+	IT_SlideUp,          // Slide up from the bottom to the top
+	IT_SlideDown,        // Slide down from the top to the bottom
+	IT_SlideLeft,        // Slide in from the right to the left
+	IT_SlideRight,       // Slide in from the left to the right
+	IT_WipeUp,           // Draw new over old by row starting from the bottom
+	IT_WipeDown,         // Draw new over old by row starting from the top
+	IT_WipeLeft,         // Draw new over old by column starting from the left
+	IT_WipeRight,        // Draw new over old by column starting from the right
+	IT_WipeToHCenter,    // Wipe down/up to center
+	IT_WipeFromHCenter,  // Wipe up/down from center
+	IT_HorzBlindsOpen,   // Horizontal blinds opening \__Very little difference in these two
+	IT_HorzBlindsClose,  // Horizontal blinds closing /
+	IT_Mosaic,           // Fill in small random squares until totally done
+	IT_MAX,              // PLACEHOLDER - ALL ITEMS ABOVE THIS LINE ARE ENABLED, BELOW ARE DISABLED
+	IT_Wipe45,           // Wipe at 45 degree angle to upper right corner
+	IT_Wipe135,          // Wipe at 135 degree angle to bottom right corner
+	IT_Wipe225,          // Wipe at 225 degree angle to bottom left corner
+	IT_Wipe315,          // Wipe at 315 degree angle to top left corner
+	IT_WipeToVCenter,    // Wipe from left/right to vert line going down center
+	IT_WipeFromVCenter,  // Wipe to left/right from vert line going down center
 	IT_WipeInRect,       // Wipe from outside corners inward in rect shape
 	IT_WipeOutRect,      // Wipe to outside corners outward in rect shape
 	IT_WipeInCorners,    // Wipe 4 rectangles from corners growing inward (4 growing rectangles in corners, shrinking + sign)
@@ -70,8 +74,8 @@ typedef enum {
 	IT_WipeQuadCCW,      // Quad CCW wipe from 0 degrees top dead center
 	IT_WipeOctoCW,       // Octo CW wipe from 0 degrees top dead center
 	IT_WipeOctoCCW,      // Octo CCW wipe from 0 degrees top dead center
-	IT_VertBlindsOpen,   // vertical blinds (8 bands?)
-	IT_VertBlindsClose,  // vertical blinds (8 bands?)
+	IT_VertBlindsOpen,   // Vertical blinds (8 bands?)
+	IT_VertBlindsClose,  // Vertical blinds (8 bands?)
 	IT_Fade,             // Fade from one image to the other (copy original and slowly fade each pixel)
 	IT_END
 } ImageTransitionType;
@@ -148,8 +152,36 @@ class FrameBuffer {
 	void FBDrawMosaic(void);
 
 	// Helpers
-	void DrawSquare(int x, int y, int w, int h);
+	void DrawSquare(int dx, int dy, int w, int h, int sx = -1, int sy = -1);
+
+	inline void SyncDisplay(void);
+
+	int  InitializeFrameBuffer(void);
+
+#ifdef USE_X11
+	int  InitializeX11Window(void);
+	void DestroyX11Window(void);
+
+	std::string    m_title;
+	Display       *m_display;
+	int            m_screen;
+	Window         m_window;
+	GC             m_gc;
+	Pixmap         m_pixmap;
+	XImage        *m_xImage;
+#endif
 
 };
+
+inline void FrameBuffer::SyncDisplay(void)
+{
+#ifdef USE_X11
+	XLockDisplay(m_display);
+	XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_fbWidth, m_fbHeight);
+	XSync(m_display, True);
+	XFlush(m_display);
+	XUnlockDisplay(m_display);
+#endif
+}
 
 #endif

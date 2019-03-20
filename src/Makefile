@@ -336,7 +336,7 @@ endif
 # Examples of some entries that might exist in Makefile.local:
 #
 # LIBS_fppd += -lX11
-# CFLAGS += -DUSE_X11ChannelOutputs
+# CFLAGS += -DUSE_X11
 # OBJECTS_fppd += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
 ##############################################################################
 

@@ -58,7 +58,7 @@
 #include "Triks-C.h"
 #include "UDPOutput.h"
 
-#ifdef USE_X11ChannelOutputs
+#ifdef USE_X11
 #  include "X11Matrix.h"
 #  include "X11VirtualDisplay.h"
 #endif
@@ -411,7 +411,7 @@ int InitializeChannelOutputs(void) {
 					channelOutputs[i].outputOld = &SPInRF24L01Output;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 #endif
-#ifdef USE_X11ChannelOutputs
+#ifdef USE_X11
 				} else if (type == "X11Matrix") {
 					channelOutputs[i].output = new X11MatrixOutput(start, count);
 				} else if (type == "X11VirtualDisplay") {

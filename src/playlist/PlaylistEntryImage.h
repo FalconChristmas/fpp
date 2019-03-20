@@ -33,25 +33,14 @@
 #include <condition_variable>
 #include <string>
 
-#ifdef USE_X11VSFB
-#   include <X11/Xlib.h>
-#endif
-
 #include <Magick++.h>
 
-#ifndef USE_X11VSFB
-#   include "FrameBuffer.h"
-#endif
-
+#include "FrameBuffer.h"
 #include "PlaylistEntryBase.h"
 
 using namespace Magick;
 
-#ifdef USE_X11VSFB
-class PlaylistEntryImage : public PlaylistEntryBase {
-#else
 class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
-#endif
   public:
 	PlaylistEntryImage(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryImage();
@@ -97,18 +86,6 @@ class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
 
 	unsigned char *m_buffer;
 	int m_bufferSize;
-
-#ifdef USE_X11VSFB
-	std::string    m_device; // normally comes from FrameBuffer.h
-	std::string    m_title;
-	unsigned char *m_imageData;
-	Display       *m_display;
-	int            m_screen;
-	Window         m_window;
-	GC             m_gc;
-	Pixmap         m_pixmap;
-	XImage        *m_xImage;
-#endif
 
 	unsigned int  m_fileSeed;
 

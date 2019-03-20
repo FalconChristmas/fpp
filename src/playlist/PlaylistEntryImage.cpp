@@ -43,11 +43,7 @@ void StartPrepLoopThread(PlaylistEntryImage *fb);
  *
  */
 PlaylistEntryImage::PlaylistEntryImage(PlaylistEntryBase *parent)
-#ifdef USE_X11VSFB
-  : PlaylistEntryBase(parent),
-#else
   : PlaylistEntryBase(parent), FrameBuffer(),
-#endif
 	m_width(800),
 	m_height(600),
 	m_buffer(NULL),
@@ -63,12 +59,6 @@ PlaylistEntryImage::PlaylistEntryImage(PlaylistEntryBase *parent)
 	m_cacheEntries = 200;
 	m_cacheSize = 1024; // MB
 	m_freeSpace = 2048; // MB
-
-#ifdef USE_X11VSFB
-	m_display = NULL;
-	m_screen = 0;
-	m_xImage = NULL;
-#endif
 }
 
 /*
@@ -83,14 +73,6 @@ PlaylistEntryImage::~PlaylistEntryImage()
 		m_prepThread->join();
 		delete m_prepThread;
 	}
-
-#ifdef USE_X11VSFB
-	XDestroyWindow(m_display, m_window);
-	XFreePixmap(m_display, m_pixmap);
-	XFreeGC(m_display, m_gc);
-	XCloseDisplay(m_display);
-	delete [] m_imageData;
-#endif
 }
 
 /*
@@ -117,61 +99,13 @@ int PlaylistEntryImage::Init(Json::Value &config)
 	SetFileList();
 	CleanupCache();
 
-	if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1"))
+	if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11"))
 	{
-#ifdef USE_X11VSFB
-		// Initialize X11 Window here
-		m_title = "PlaylistEntryImage Virtual Framebuffer";
-		m_display = XOpenDisplay(getenv("DISPLAY"));
-		if (!m_display)
-		{
-			LogErr(VB_PLAYLIST, "Unable to connect to X Server\n");
-			return 0;
-		}
-
-		m_screen = DefaultScreen(m_display);
-
-		m_imageData = new unsigned char[m_width * m_height * 4];
-
-		m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
-			(char *)m_imageData, m_width, m_height, 32, m_width * 4);
-
-		int win_x = 100;
-		int win_y = 100;
-		XSetWindowAttributes attributes;
-
-		attributes.background_pixel = BlackPixel(m_display, m_screen);
-
-		XGCValues values;
-
-		m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_width, m_height, 24);
-
-		m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
-		if (m_gc < 0)
-		{
-			LogErr(VB_PLAYLIST, "Unable to create GC\n");
-			return 0;
-		}
-
-		m_window = XCreateWindow(
-			m_display, RootWindow(m_display, m_screen), win_x, win_y,
-			m_width, m_height, 5, 24, InputOutput,
-			DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
-
-		XMapWindow(m_display, m_window);
-
-		XStoreName(m_display, m_window, m_title.c_str());
-		XSetIconName(m_display, m_window, m_title.c_str());
-		
-		XFlush(m_display);
-		LogDebug(VB_PLAYLIST, "Created X11 Window instead of using %s\n", m_device.c_str());
-#else
 		config["dataFormat"] = "RGBA";
 		FBInit(config);
 
 		m_width = m_fbWidth;
 		m_height = m_fbHeight;
-#endif
 	}
 	else
 	{
@@ -242,9 +176,7 @@ void PlaylistEntryImage::Dump(void)
 	LogDebug(VB_PLAYLIST, "Image Path     : %s\n", m_imagePath.c_str());
 	LogDebug(VB_PLAYLIST, "Output Device  : %s\n", m_device.c_str());
 
-#ifndef USE_X11VSFB
 	FrameBuffer::Dump();
-#endif
 }
 
 /*
@@ -263,9 +195,7 @@ Json::Value PlaylistEntryImage::GetConfig(void)
 	else
 		result["imageFilename"] = m_curFileName;
 
-#ifndef USE_X11VSFB
 	FrameBuffer::GetConfig(result);
-#endif
 
 	return result;
 }
@@ -431,23 +361,6 @@ void PlaylistEntryImage::PrepImage(void)
 			nextFile.c_str(), error_.what());
 	}
 
-#ifdef USE_X11VSFB
-	// RGBA -> BGRA
-	unsigned char *R = m_buffer;
-	unsigned char *B = R + 2;
-	unsigned char T;
-	int pixels = m_width * m_height;
-	for (int i = 0; i < pixels; i++)
-	{
-		T = *R;
-		*R = *B;
-		*B = T;
-
-		R += 4;
-		B += 4;
-	}
-#endif
-
 	m_bufferLock.unlock();
 	m_imagePrepped = true;
 }
@@ -459,21 +372,11 @@ void PlaylistEntryImage::Draw(void)
 {
 	m_bufferLock.lock();
 
-	if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1"))
+	if ((m_device == "/dev/fb0") || (m_device == "/dev/fb1") || (m_device == "x11"))
 	{
-#ifdef USE_X11VSFB
-		memcpy(m_imageData, m_buffer, m_bufferSize);
-
-		XLockDisplay(m_display);
-		XPutImage(m_display, m_window, m_gc, m_xImage, 0, 0, 0, 0, m_width, m_height);
-		XSync(m_display, True);
-		XFlush(m_display);
-		XUnlockDisplay(m_display);
-#else
 		FBCopyData(m_buffer);
 		FBStartDraw(); // Actual draw runs in another thread
 		m_curFileName = m_nextFileName;
-#endif
 	}
 	else
 	{
@@ -505,13 +408,6 @@ void PlaylistEntryImage::PrepLoop(void)
 		if (!m_imagePrepped)
 		{
 			lock.unlock();
-
-#ifndef USE_X11VSFB
-			// Wait until the FrameBuffer image transition is done before
-			// using a bunch of CPU prepping the next image.
-			while (m_imageReady)
-				usleep(250000);
-#endif
 
 			PrepImage();
 			lock.lock();

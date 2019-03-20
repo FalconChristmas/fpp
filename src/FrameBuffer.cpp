@@ -70,6 +70,12 @@ FrameBuffer::FrameBuffer()
 	LogDebug(VB_PLAYLIST, "FrameBuffer::FrameBuffer()\n");
 
 	m_typeSeed = (unsigned int)time(NULL);
+
+#ifdef USE_X11
+	m_display = NULL;
+	m_screen = 0;
+	m_xImage = NULL;
+#endif
 }
 
 /*
@@ -102,8 +108,15 @@ FrameBuffer::~FrameBuffer()
 		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
 			LogErr(VB_PLAYLIST, "Error resetting variable info\n");
 	}
+#ifdef USE_X11
+	else if (m_device == "x11")
+	{
+		DestroyX11Window();
+	}
+#endif
 
-	close(m_fbFd);
+	if (m_fbFd > -1)
+		close(m_fbFd);
 
 	if (m_rgb565map)
 	{
@@ -126,8 +139,6 @@ FrameBuffer::~FrameBuffer()
  */
 int FrameBuffer::FBInit(Json::Value &config)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBInit()\n");
-
 	if (config.isMember("width"))
 		m_fbWidth = config["width"].asInt();
 
@@ -154,7 +165,97 @@ int FrameBuffer::FBInit(Json::Value &config)
 	if (m_dataFormat == "RGB")
 		m_useRGB = 1;
 
+	int result = 0;
+
+#ifdef USE_X11
+	if (m_device == "x11")
+		result = InitializeX11Window();
+	else
+#endif
+		result = InitializeFrameBuffer();
+
+	if (!result)
+		return 0;
+
+	m_screenSize = m_fbWidth * m_fbHeight * m_bpp / 8;
+
+	m_lastFrameSize = m_fbWidth * m_fbHeight * m_dataFormat.size();
+
+	m_outputBuffer = (char *)malloc(m_screenSize);
+	if (!m_outputBuffer)
+	{
+		LogErr(VB_PLAYLIST, "Error, unable to allocate outputBuffer buffer\n");
+		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+		close(m_fbFd);
+		return 0;
+	}
+
+	m_lastFrame = (unsigned char*)malloc(m_lastFrameSize);
+	if (!m_lastFrame)
+	{
+		LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
+		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+		close(m_fbFd);
+		return 0;
+	}
+
+	memset(m_outputBuffer, 0, m_screenSize);
+	memset(m_lastFrame, 0, m_lastFrameSize);
+
+	std::string colorOrder = m_dataFormat.substr(0,3);
+
+	if (colorOrder == "RGB")
+	{
+		m_rOffset = 0;
+		m_gOffset = 1;
+		m_bOffset = 2;
+	}
+	else if (colorOrder == "RBG")
+	{
+		m_rOffset = 0;
+		m_gOffset = 2;
+		m_bOffset = 1;
+	}
+	else if (colorOrder == "GRB")
+	{
+		m_rOffset = 1;
+		m_gOffset = 0;
+		m_bOffset = 2;
+	}
+	else if (colorOrder == "GBR")
+	{
+		m_rOffset = 2;
+		m_gOffset = 0;
+		m_bOffset = 1;
+	}
+	else if (colorOrder == "BRG")
+	{
+		m_rOffset = 1;
+		m_gOffset = 2;
+		m_bOffset = 0;
+	}
+	else if (colorOrder == "BGR")
+	{
+		m_rOffset = 2;
+		m_gOffset = 1;
+		m_bOffset = 0;
+	}
+
+	m_runLoop = true;
+	m_imageReady = false;
+
+	m_drawThread = new std::thread(StartDrawLoopThread, this);
+
+	return 1;
+}
+
+/*
+ *
+ */
+int FrameBuffer::InitializeFrameBuffer(void)
+{
 	LogDebug(VB_PLAYLIST, "Using FrameBuffer device %s\n", m_device.c_str());
+
 	m_fbFd = open(m_device.c_str(), O_RDWR);
 	if (!m_fbFd)
 	{
@@ -273,27 +374,7 @@ int FrameBuffer::FBInit(Json::Value &config)
 		return 0;
 	}
 
-	m_outputBuffer = (char *)malloc(m_screenSize);
-	if (!m_outputBuffer)
-	{
-		LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
-	}
-
-	m_lastFrame = (unsigned char*)malloc(m_lastFrameSize);
-	if (!m_lastFrame)
-	{
-		LogErr(VB_PLAYLIST, "Error, unable to allocate lastFrame buffer\n");
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
-	}
-
 	memset(m_fbp, 0, m_screenSize);
-	memset(m_outputBuffer, 0, m_screenSize);
-	memset(m_lastFrame, 0, m_lastFrameSize);
 
 	if (m_bpp == 16)
 	{
@@ -345,52 +426,75 @@ int FrameBuffer::FBInit(Json::Value &config)
 		}
 	}
 
-	std::string colorOrder = m_dataFormat.substr(0,3);
+	return 1;
+}
 
-	if (colorOrder == "RGB")
+#ifdef USE_X11
+int FrameBuffer::InitializeX11Window(void)
+{
+	if ((m_fbWidth == 0) || (m_fbHeight == 0))
 	{
-		m_rOffset = 0;
-		m_gOffset = 1;
-		m_bOffset = 2;
-	}
-	else if (colorOrder == "RBG")
-	{
-		m_rOffset = 0;
-		m_gOffset = 2;
-		m_bOffset = 1;
-	}
-	else if (colorOrder == "GRB")
-	{
-		m_rOffset = 1;
-		m_gOffset = 0;
-		m_bOffset = 2;
-	}
-	else if (colorOrder == "GBR")
-	{
-		m_rOffset = 2;
-		m_gOffset = 0;
-		m_bOffset = 1;
-	}
-	else if (colorOrder == "BRG")
-	{
-		m_rOffset = 1;
-		m_gOffset = 2;
-		m_bOffset = 0;
-	}
-	else if (colorOrder == "BGR")
-	{
-		m_rOffset = 2;
-		m_gOffset = 1;
-		m_bOffset = 0;
+		m_fbWidth = 720;
+		m_fbHeight = 400;
 	}
 
-	m_runLoop = true;
-	m_imageReady = false;
+	// Initialize X11 Window here
+	m_title = "X11 FrameBuffer";
+	m_display = XOpenDisplay(getenv("DISPLAY"));
+	if (!m_display)
+	{
+		LogErr(VB_PLAYLIST, "Unable to connect to X Server\n");
+		return 0;
+	}
 
-	m_drawThread = new std::thread(StartDrawLoopThread, this);
+	m_screen = DefaultScreen(m_display);
+
+	m_fbp = new char[m_fbWidth * m_fbHeight * 4];
+
+	m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
+		(char *)m_fbp, m_fbWidth, m_fbHeight, 32, m_fbWidth * 4);
+
+	m_bpp = 32;
+
+	XSetWindowAttributes attributes;
+
+	attributes.background_pixel = BlackPixel(m_display, m_screen);
+
+	XGCValues values;
+
+	m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_fbWidth, m_fbHeight, 24);
+
+	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
+	if (m_gc < 0)
+	{
+		LogErr(VB_PLAYLIST, "Unable to create GC\n");
+		return 0;
+	}
+
+	m_window = XCreateWindow(
+		m_display, RootWindow(m_display, m_screen), m_fbWidth, m_fbHeight,
+		m_fbWidth, m_fbHeight, 5, 24, InputOutput,
+		DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
+
+	XMapWindow(m_display, m_window);
+
+	XStoreName(m_display, m_window, m_title.c_str());
+	XSetIconName(m_display, m_window, m_title.c_str());
+
+	XFlush(m_display);
 
 	return 1;
 }
+
+void FrameBuffer::DestroyX11Window(void)
+{
+	XDestroyWindow(m_display, m_window);
+	XFreePixmap(m_display, m_pixmap);
+	XFreeGC(m_display, m_gc);
+	XCloseDisplay(m_display);
+	delete [] m_fbp;
+}
+#endif
 
 /*
  *
@@ -455,6 +559,40 @@ void FrameBuffer::FBCopyData(unsigned char *buffer, int draw)
 
 				sR += sBpp;
 				l += sBpp;
+			}
+
+			srow++;
+			drow += m_inverted ? -1 : 1;
+		}
+	}
+	else if (m_bpp == 32) // X11 BGRA
+	{
+		unsigned char *dR;
+		unsigned char *dG;
+		unsigned char *dB;
+
+		for (int y = 0; y < m_fbHeight; y++)
+		{
+			// Data to BGR framebuffer
+			dR = ob + (drow * ostride) + 2;
+			dG = ob + (drow * ostride) + 1;
+			dB = ob + (drow * ostride) + 0;
+
+			for (int x = 0; x < m_fbWidth; x++)
+			{
+//				if (memcmp(l, sB, 3))
+//				{
+					*dR = *sR;
+					*dG = *sG;
+					*dB = *sB;
+//				}
+
+				sR += sBpp;
+				sG += sBpp;
+				sB += sBpp;
+				dR += 4;
+				dG += 4;
+				dB += 4;
 			}
 
 			srow++;
@@ -535,6 +673,7 @@ void FrameBuffer::Dump(void)
 	LogDebug(VB_PLAYLIST, "Device         : %s\n", m_device.c_str());
 	LogDebug(VB_PLAYLIST, "DataFormat     : %s\n", m_dataFormat.c_str());
 	LogDebug(VB_PLAYLIST, "Inverted       : %d\n", m_inverted);
+	LogDebug(VB_PLAYLIST, "bpp            : %d\n", m_bpp);
 }
 
 /*
@@ -664,9 +803,9 @@ void FrameBuffer::DrawLoop(void)
  */
 void FrameBuffer::FBDrawNormal(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawNormal()\n");
 	m_bufferLock.lock();
 	memcpy(m_fbp, m_outputBuffer, m_screenSize);
+	SyncDisplay();
 	m_bufferLock.unlock();
 }
 
@@ -675,10 +814,9 @@ void FrameBuffer::FBDrawNormal(void)
  */
 void FrameBuffer::FBDrawSlideUp(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideUp()\n");
-
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
+	int sleepTime = 800 * 1000 * rEach / m_fbHeight;
 
 	if ((m_fbHeight % 4) == 0)
 		rEach = 4;
@@ -687,6 +825,9 @@ void FrameBuffer::FBDrawSlideUp(void)
 	for (int i = m_fbHeight - rEach; i>= 0; )
 	{
 		memcpy(m_fbp + (stride * i), m_outputBuffer, stride * (m_fbHeight - i));
+		SyncDisplay();
+
+		usleep(sleepTime);
 
 		i -= rEach;
 	}
@@ -698,10 +839,9 @@ void FrameBuffer::FBDrawSlideUp(void)
  */
 void FrameBuffer::FBDrawSlideDown(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideDown()\n");
-
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
+	int sleepTime = 800 * 1000 * rEach / m_fbHeight;
 
 	if ((m_fbHeight % 4) == 0)
 		rEach = 4;
@@ -710,6 +850,9 @@ void FrameBuffer::FBDrawSlideDown(void)
 	for (int i = rEach; i <= m_fbHeight;)
 	{
 		memcpy(m_fbp, m_outputBuffer + (stride * (m_fbHeight - i)), stride * i);
+		SyncDisplay();
+
+		usleep(sleepTime);
 
 		i += rEach;
 	}
@@ -721,9 +864,16 @@ void FrameBuffer::FBDrawSlideDown(void)
  */
 void FrameBuffer::FBDrawSlideLeft(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideLeft()\n");
-	// FIXME
-	FBDrawSlideUp();
+	int colsEach = 2;
+	int sleepTime = 800 * 1000 * colsEach / m_fbWidth;
+
+	for (int x = m_fbWidth - colsEach; x >= 0; x -= colsEach)
+	{
+		DrawSquare(x, 0, m_fbWidth - x, m_fbHeight, 0, 0);
+		SyncDisplay();
+
+		usleep(sleepTime);
+	}
 }
 
 /*
@@ -731,9 +881,16 @@ void FrameBuffer::FBDrawSlideLeft(void)
  */
 void FrameBuffer::FBDrawSlideRight(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawSlideRight()\n");
-	// FIXME
-	FBDrawSlideDown();
+	int colsEach = 2;
+	int sleepTime = 800 * 1000 * colsEach / m_fbWidth;
+
+	for (int x = 2; x <= m_fbWidth; x += colsEach)
+	{
+		DrawSquare(0, 0, x, m_fbHeight, m_fbWidth - x, 0);
+		SyncDisplay();
+
+		usleep(sleepTime);
+	}
 }
 
 /*
@@ -741,8 +898,6 @@ void FrameBuffer::FBDrawSlideRight(void)
  */
 void FrameBuffer::FBDrawWipeUp(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeUp()\n");
-
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
 
@@ -755,6 +910,7 @@ void FrameBuffer::FBDrawWipeUp(void)
 	for (int i = m_fbHeight - rEach; i>= 0; )
 	{
 		memcpy(m_fbp + (stride * i), m_outputBuffer + (stride * i), stride * rEach);
+		SyncDisplay();
 
 		usleep(sleepTime);
 
@@ -768,8 +924,6 @@ void FrameBuffer::FBDrawWipeUp(void)
  */
 void FrameBuffer::FBDrawWipeDown(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeDown()\n");
-
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
 
@@ -782,6 +936,7 @@ void FrameBuffer::FBDrawWipeDown(void)
 	for (int i = 0; i < m_fbHeight;)
 	{
 		memcpy(m_fbp + (stride * i), m_outputBuffer + (stride * i), stride * rEach);
+		SyncDisplay();
 
 		usleep(sleepTime);
 
@@ -807,6 +962,7 @@ void FrameBuffer::FBDrawWipeLeft(void)
 			memcpy(m_fbp + (stride * y) + (x * BPP),
 				m_outputBuffer + (stride * y) + (x * BPP), BPP);
 		}
+		SyncDisplay();
 	}
 
 	m_bufferLock.unlock();
@@ -829,6 +985,7 @@ void FrameBuffer::FBDrawWipeRight(void)
 			memcpy(m_fbp + (stride * y) + (x * BPP),
 				m_outputBuffer + (stride * y) + (x * BPP), BPP);
 		}
+		SyncDisplay();
 	}
 
 	m_bufferLock.unlock();
@@ -839,8 +996,6 @@ void FrameBuffer::FBDrawWipeRight(void)
  */
 void FrameBuffer::FBDrawWipeToHCenter(void)
 {
-	LogDebug(VB_PLAYLIST, "FrameBuffer::FBDrawWipeToHCenter()\n");
-
 	int stride = m_fbWidth * m_bpp / 8;
 	int rEach = 2;
 	int mid = m_fbHeight / 2;
@@ -857,6 +1012,7 @@ void FrameBuffer::FBDrawWipeToHCenter(void)
 		memcpy(m_fbp + (stride * (m_fbHeight - i - rEach)),
 				m_outputBuffer + (stride * (m_fbHeight - i - rEach)),
 				stride * rEach);
+		SyncDisplay();
 
 		usleep(sleepTime);
 	}
@@ -885,6 +1041,8 @@ void FrameBuffer::FBDrawWipeFromHCenter(void)
 			memcpy(m_fbp + (stride * t), m_outputBuffer + (stride * t),
 				stride * rowsEachUpdate);
 
+		SyncDisplay();
+
 		usleep(sleepTime);
 	}
 
@@ -910,6 +1068,8 @@ void FrameBuffer::FBDrawHorzBlindsOpen(void)
 				stride * rowsEachUpdate);
 		}
 
+		SyncDisplay();
+
 		usleep(sleepTime);
 	}
 	m_bufferLock.unlock();
@@ -933,6 +1093,8 @@ void FrameBuffer::FBDrawHorzBlindsClose(void)
 			memcpy(m_fbp + (stride * y), m_outputBuffer + (stride * y),
 				stride * rowsEachUpdate);
 		}
+
+		SyncDisplay();
 
 		usleep(sleepTime);
 	}
@@ -966,6 +1128,8 @@ void FrameBuffer::FBDrawMosaic(void)
 			DrawSquare(x * squareSize, y * squareSize, squareSize, squareSize);
 			squares[y][x] = 1;
 
+			SyncDisplay();
+
 			usleep(sleepTime);
 		}
 	}
@@ -980,6 +1144,8 @@ void FrameBuffer::FBDrawMosaic(void)
 					squareSize);
 				squares[y][x] = 1;
 
+				SyncDisplay();
+
 				usleep(sleepTime);
 			}
 		}
@@ -993,16 +1159,20 @@ void FrameBuffer::FBDrawMosaic(void)
 /*
  *
  */
-void FrameBuffer::DrawSquare(int x, int y, int w, int h)
+void FrameBuffer::DrawSquare(int dx, int dy, int w, int h, int sx, int sy)
 {
 	int stride = m_fbWidth * m_bpp / 8;
-	int rowOffset = x * m_bpp / 8;
+	int dRowOffset = dx * m_bpp / 8;
+	int sRowOffset = ((sx == -1) ? dx : sx) * m_bpp / 8;
 	int bytesWide = w * m_bpp / 8;
+
+	if (sy == -1)
+		sy = dy;
 
 	for (int i = 0; i < h; i++)
 	{
-		memcpy(m_fbp + (stride * (y + i)) + rowOffset,
-			m_outputBuffer + (stride * (y + i)) + rowOffset, bytesWide);
+		memcpy(m_fbp + (stride * (dy + i)) + dRowOffset,
+			m_outputBuffer + (stride * (sy + i)) + sRowOffset, bytesWide);
 	}
 }
 
