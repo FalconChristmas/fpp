@@ -89,7 +89,13 @@ var PixelStringLoaded = false;
 
 
 function GetBBB48StringCapeFileName() {
-    var subType = $('#BBB48StringSubType').val();
+    var mainType = $('#BBB48StringSubType').val();
+    if (!mainType || mainType == "") {
+        var first = Object.keys(KNOWN_CAPES)[0];
+        $('#BBB48StringSubType').val(KNOWN_CAPES[first].name);
+        mainType = KNOWN_CAPES[first].name;
+    }
+    var subType = "";
     var ver = $('#BBB48StringSubTypeVersion').val();
     if (ver == "2.x") {
         subType += "-v2";
@@ -98,7 +104,22 @@ function GetBBB48StringCapeFileName() {
         subType += "-v3";
     }
     subType += ".json";
-    return subType;
+    var type = mainType + subType;
+    while (!KNOWN_CAPES[type]) {
+        if (subType == "-v3.json") {
+            subType = "-v2.json";
+            ver = "2.x";
+            $('#BBB48StringSubTypeVersion').val("2.x")
+        } else if (subType == "-v2.json") {
+            subType = ".json";
+            $('#BBB48StringSubTypeVersion').val("1.x")
+            ver = "1.x";
+        } else {
+            return type;
+        }
+        type = mainType + subType;
+    }
+    return type;
 }
 
 

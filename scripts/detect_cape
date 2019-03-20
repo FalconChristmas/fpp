@@ -1,6 +1,52 @@
 #! /usr/bin/php
 <?php
 
+$validSignature = false;
+$deleteEpromFile = false;
+
+function DoSignatureVerify($keyId, $fp, $sigFile) {
+    global $validSignature, $deleteEpromFile;
+    $fpEEPROM = fopen("/home/fpp/media/tmp/eeprom", "wb");
+
+    $flenOrig = fread($fp, 6);
+    $flen = intval($flenOrig);
+    while ($flen != 0) {
+        $flags = fread($fp, 2);
+        $fname = fread($fp, 64);
+        $fname = trim($fname);
+        fwrite($fpEEPROM, pack("a6", $flen));
+        fwrite($fpEEPROM, pack("a2", $flags));
+        fwrite($fpEEPROM, pack("a64", $fname));
+        $fdata = fread($fp, $flen);
+        fwrite($fpEEPROM, $fdata);
+
+        $flenOrig = fread($fp, 6);
+        $flen = intval($flenOrig);
+    }
+    fwrite($fpEEPROM, pack("a6", "0"));
+    //to test verification failure,  uncomment
+    //fwrite($fpEEPROM, pack("a6", "0"));
+    fclose($fpEEPROM);
+    fclose($fp);
+    $fp = fopen("/home/fpp/media/tmp/eeprom", "r");
+    $deleteEpromFile = true;
+
+    $cmd = "openssl dgst -sha256 -verify /opt/fpp/scripts/keys/" . $keyId . "_pub.pem -signature $sigFile /home/fpp/media/tmp/eeprom";
+    exec($cmd, $output, $result);
+    if ($result != 0) {
+        echo "EEPROM Signature verfication failed:\n";
+        foreach ($output as $key => $value) {
+            echo "    $value\n";
+        }
+        unset($output);
+    }  else {
+        $validSignature = true;
+    }
+    return $fp;
+}
+
+
+
 if (file_exists("/etc/fpp/platform")) {
     $platform = trim(file_get_contents("/etc/fpp/platform"));
 }
@@ -65,17 +111,43 @@ while ($flen != 0) {
     $flags = fread($fp, 2);
     $fname = fread($fp, 64);
     $fname = trim($fname);
-    $fdata = fread($fp, $flen);
     $path = '/home/fpp/media/' . $fname;
-    $fout = fopen($path, "wb");
-    fwrite($fout, $fdata);
-    fclose($fout);
 
-    if ($flags == 1) {
+    switch ($flags) {
+    case 0:
+        $fdata = fread($fp, $flen);
+        file_put_contents($path, $fdata);
+        break;
+    case 1:
+        $fdata = fread($fp, $flen);
+        file_put_contents($path, $fdata);
         $dirname = dirname("/home/fpp/media/" . $fname);
         exec("cd $dirname ; unzip /home/fpp/media/$fname 2>&1", $output, $result);
         //var_dump($output);
+        unset($output);
         unlink("/home/fpp/media/" . $fname);
+        break;
+    case 2:
+        $fdata = fread($fp, $flen);
+        file_put_contents($path, $fdata);
+        $dirname = dirname($path);
+        $cmd = "cd $dirname ; tar -xzf $path 2>&1";
+        exec($cmd, $output, $result);
+        //var_dump($output);
+        unset($output);
+        unlink($path);
+        break;
+    case 99:
+        $fkeyId = fread($fp, 6);
+        $fkeyId = trim($fkeyId);
+        $fdata = fread($fp, $flen - 6);
+        file_put_contents($path, $fdata);
+        $fp = DoSignatureVerify($fkeyId, $fp, $path);
+        unlink($path);
+        break;
+    default:
+        $fdata = fread($fp, $flen); // read the data to skip it for now
+        echo "Don't know how to handle " . $fname . " with type " . $flags . "\n";
     }
 
     $flen = fread($fp, 6); //length of the file
@@ -86,30 +158,44 @@ fclose($fp);
 
 
 // if the cape-info has default settings and those settings are not already set, set them
+// also put the serialNumber into the cape-info for display
 if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     $json = json_decode(file_get_contents("/home/fpp/media/tmp/cape-info.json"));
-    foreach ($json->defaultSettings as $key => $value) {
-        if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
-            file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
+    $json->serialNumber = $capesn;
+    if (! $validSignature) {
+        unset($json->vendor);
+        unset($json->provides);
+    } else {
+        foreach ($json->defaultSettings as $key => $value) {
+            if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
+                file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
+            }
         }
     }
-    $json->serialNumber = $capesn;
-
     $jsonData = json_encode($json, JSON_PRETTY_PRINT);
     file_put_contents("/home/fpp/media/tmp/cape-info.json", $jsonData);
 }
 
 // if there are default configurations, copy them into place if they dont already exist
-$path = "/home/fpp/media/tmp/defaults/";
-if (file_exists($path) && is_dir($path)) {
-    $directory = new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS );
-    $objects = new RecursiveIteratorIterator($directory);
-    foreach($objects as $name => $object){
-        $fname = substr($name, strlen($path));
-        if (!file_exists("/home/fpp/media/" . $fname)) {
-            copy($name, "/home/fpp/media/" . $fname);
+if ($validSignature) {
+    $path = "/home/fpp/media/tmp/defaults/";
+    if (file_exists($path) && is_dir($path)) {
+        $directory = new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS );
+        $objects = new RecursiveIteratorIterator($directory);
+        foreach($objects as $name => $object){
+            $fname = substr($name, strlen($path));
+            if (!file_exists("/home/fpp/media/" . $fname)) {
+                copy($name, "/home/fpp/media/" . $fname);
+            }
         }
     }
+} else {
+    if (file_exists("/home/fpp/media/tmp/cape-sensors.json")) unlink("/home/fpp/media/tmp/cape-sensors.json");
+    if (file_exists("/home/fpp/media/tmp/cape-inputs.json")) unlink("/home/fpp/media/tmp/cape-inputs.json");
+}
+
+if ($deleteEpromFile) {
+    unlink("/home/fpp/media/tmp/eeprom");
 }
 
 file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/delete_device", "0x50");
