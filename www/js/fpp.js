@@ -1410,7 +1410,10 @@ function RemovePlaylistEntry()	{
                 universe.description = document.getElementById("txtDesc[" + i + "]").value;;
                 universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
                 universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
-                universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
+
+				if (!input)
+	                universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
+
                 universe.channelCount = parseInt(document.getElementById("txtSize[" + i + "]").value);
                 universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
                 universe.address = document.getElementById("txtIP[" + i + "]").value;
