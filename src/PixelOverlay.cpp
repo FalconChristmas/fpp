@@ -157,24 +157,25 @@ void PixelOverlayModel::doText(const std::string &msg,
                                bool antialias,
                                const std::string &position,
                                int pixelsPerSecond) {
-    
     while (updateThread) {
         threadKeepRunning = false;
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     updateThread = nullptr;
-    
+
     Magick::Image image(Magick::Geometry(getWidth(),getHeight()), Magick::Color("black"));
     image.quiet(true);
     image.depth(8);
     image.font(font);
     image.fontPointsize(fontSize);
     image.antiAlias(antialias);
-    
+
+
     Magick::TypeMetric metrics;
     image.fontTypeMetrics(msg, &metrics);
     
-    if (position == "Centered") {
+    
+    if (position == "Centered" || position == "Center") {
         image.magick("RGB");
         //one shot, just draw the text and return
         double rr = r;
@@ -969,7 +970,7 @@ const httpserver::http_response PixelOverlayManager::render_POST(const httpserve
             close(fp);
             std::unique_lock<std::mutex> lock(modelsLock);
             loadModelMap();
-            httpserver::http_response_builder("OK", 200);
+            return httpserver::http_response_builder("OK", 200);
         } else if (req.get_path_pieces().size() == 1) {
             char filename[512];
             strcpy(filename, getMediaDirectory());
@@ -984,7 +985,7 @@ const httpserver::http_response PixelOverlayManager::render_POST(const httpserve
             close(fp);
             std::unique_lock<std::mutex> lock(modelsLock);
             loadModelMap();
-            httpserver::http_response_builder("OK", 200);
+            return httpserver::http_response_builder("OK", 200);
         }
     }
     return httpserver::http_response_builder("POST Not found " + req.get_path(), 404);
@@ -1042,16 +1043,23 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                                 color = "0x" + color.substr(1);
                             }
                             unsigned int x = std::stoul(color, nullptr, 16);
-                            
-                            m->doText(root["Message"].asString(),
+
+                            std::string msg = root["Message"].asString();
+
+                            std::string font = root["Font"].asString();
+                            std::string position = root["Position"].asString();
+                            int fontSize = root["FontSize"].asInt();
+                            bool aa = root["AntiAlias"].asBool();
+                            int pps = root["PixelsPerSecond"].asInt();
+                            m->doText(msg,
                                       (x >> 16) & 0xFF,
                                       (x >> 8) & 0xFF,
                                       x & 0xFF,
-                                      root["Font"].asString(),
-                                      root["FontSize"].asInt(),
-                                      root["AntiAlias"].asBool(),
-                                      root["Position"].asString(),
-                                      root["PixelsPerSecond"].asInt());
+                                      font,
+                                      fontSize,
+                                      aa,
+                                      position,
+                                      pps);
                             return httpserver::http_response_builder("OK", 200);
                         }
                     }
