@@ -62,15 +62,7 @@ if ($platform == "Raspberry Pi") {
     exec("modprobe i2c-dev 2>&1");
 }
 
-//we'll wait for up to 15 seconds for i2c bus to become available
-$count = 150;
-for ($i = 0; $i < $count; $count++) {
-    if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
-        break;
-    }
-    usleep(100);
-}
-
+//while waiting, we can cleanup tmp
 if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
     mkdir("/home/fpp/media/tmp");
 }
@@ -86,6 +78,15 @@ foreach($files as $file) {
     }
 }
 
+//we'll wait for up to 15 seconds for i2c bus to become available
+$count = 150;
+for ($i = 0; $i < $count; $count++) {
+    if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
+        break;
+    }
+    usleep(100);
+}
+
 $EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
 if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
     // detect and initialize the eeprom, only support 24c256 chips for now
@@ -97,6 +98,9 @@ if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
     }
 } else {
     $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
+}
+if (!file_exists($EEPROM)) {
+    $EEPROM = "/opt/fpp-vendor/cape-eeprom.bin";
 }
 if (!file_exists($EEPROM)) {
     echo "Could not detect any cape\n";
