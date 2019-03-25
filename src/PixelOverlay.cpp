@@ -394,6 +394,10 @@ void PixelOverlayManager::Initialize() {
         return;
     }
     loadModelMap();
+    symlink(FPPCHANNELMEMORYMAPDATAFILE, FPPCHANNELMEMORYMAPDATAFILE_OLD);
+    symlink(FPPCHANNELMEMORYMAPCTRLFILE, FPPCHANNELMEMORYMAPCTRLFILE_OLD);
+    symlink(FPPCHANNELMEMORYMAPPIXELFILE, FPPCHANNELMEMORYMAPPIXELFILE_OLD);
+
     if (ctrlHeader->totalBlocks) {
         StartChannelOutputThread();
     }
@@ -402,6 +406,7 @@ void PixelOverlayManager::Initialize() {
 bool PixelOverlayManager::createChannelDataMap() {
     LogDebug(VB_CHANNELOUT, "PixelOverlayManager::createChannelDataMap()\n");
     
+    mkdir(FPPCHANNELMEMORYMAPPATH, 0777);
     // Block of of raw channel data used to overlay data
     int chanDataMapFD = open(FPPCHANNELMEMORYMAPDATAFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
     if (chanDataMapFD < 0) {
@@ -427,6 +432,7 @@ bool PixelOverlayManager::createChannelDataMap() {
                FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
         return false;
     }
+    
     return true;
 }
 

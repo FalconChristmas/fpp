@@ -17,8 +17,8 @@ function SendCommand($command)
 	$socketDebug = 0;
 	$socketError = "";
     $bytes_received = 0;
-	$cpath = "/tmp/FPP." . getmypid() . "-" . rand(0, 9999999);
-	$spath = "/tmp/FPPD";
+	$cpath = "/run/fppd/FPP." . getmypid() . "-" . rand(0, 9999999);
+	$spath = "/run/fppd/FPPD";
 
 	CleanupSocket($cpath);
 

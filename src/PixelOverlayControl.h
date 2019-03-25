@@ -30,10 +30,13 @@
 #define FPPCHANNELMEMORYMAPMINORVER 0
 #define FPPCHANNELMEMORYMAPSIZE     131072
 
-#define FPPCHANNELMEMORYMAPDATAFILE  "/var/tmp/FPPChannelData"
-#define FPPCHANNELMEMORYMAPCTRLFILE  "/var/tmp/FPPChannelCtrl"
-#define FPPCHANNELMEMORYMAPPIXELFILE "/var/tmp/FPPChannelPixelMap"
-
+#define FPPCHANNELMEMORYMAPPATH      "/run/fppd"
+#define FPPCHANNELMEMORYMAPDATAFILE  "/run/fppd/FPPChannelData"
+#define FPPCHANNELMEMORYMAPCTRLFILE  "/run/fppd/FPPChannelCtrl"
+#define FPPCHANNELMEMORYMAPPIXELFILE "/run/fppd/FPPChannelPixelMap"
+#define FPPCHANNELMEMORYMAPDATAFILE_OLD  "/var/tmp/FPPChannelData"
+#define FPPCHANNELMEMORYMAPCTRLFILE_OLD  "/var/tmp/FPPChannelCtrl"
+#define FPPCHANNELMEMORYMAPPIXELFILE_OLD "/var/tmp/FPPChannelPixelMap"
 /*
  * Header block on channel data memory map control interface file.
  * We want the size of this to equal 256 bytes so we have room for

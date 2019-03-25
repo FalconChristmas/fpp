@@ -204,7 +204,6 @@ static void initCapeFromFile(const char *f) {
 }
 static void initCape() {
     initCapeFromFile("/home/fpp/media/tmp/cape-sensors.json");
-    initCapeFromFile("/home/fpp/media/config/cape-sensors.json");
 }
 
 void usage(char *appname)

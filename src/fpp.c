@@ -220,6 +220,7 @@ void SetupDomainSocket(void)
   return;
  }
 
+ mkdir(FPP_SOCKET_PATH, 0777);
  memset(&client_address, 0, sizeof(struct sockaddr_un));
  client_address.sun_family = AF_UNIX;
  strcpy(client_address.sun_path, FPP_CLIENT_SOCKET);
@@ -234,6 +235,9 @@ void SetupDomainSocket(void)
  memset(&server_address, 0, sizeof(struct sockaddr_un));
  server_address.sun_family = AF_UNIX;
  strcpy(server_address.sun_path, FPP_SERVER_SOCKET);
+    
+    symlink(FPP_SERVER_SOCKET, FPP_SERVER_SOCKET_OLD);
+    symlink(FPP_CLIENT_SOCKET, FPP_CLIENT_SOCKET_OLD);
 }
 
 /*

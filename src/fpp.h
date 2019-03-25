@@ -32,8 +32,12 @@
 #define FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP  3
 #define FPP_STATUS_STOPPING_NOW                    4
 
-#define FPP_SERVER_SOCKET  "/tmp/FPPD"
-#define FPP_CLIENT_SOCKET  "/tmp/FPP"
+#define FPP_SOCKET_PATH    "/run/fppd"
+#define FPP_SERVER_SOCKET  "/run/fppd/FPPD"
+#define FPP_CLIENT_SOCKET  "/run/fppd/FPP"
+
+#define FPP_SERVER_SOCKET_OLD  "/tmp/FPPD"
+#define FPP_CLIENT_SOCKET_OLD  "/tmp/FPP"
 
 extern int FPPstatus;
 

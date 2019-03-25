@@ -527,7 +527,6 @@ void FPPOLEDUtils::run() {
     std::vector<InputAction> actions;
     char vbuffer[256];
     bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
-    needsPolling |= parseInputActions("/home/fpp/media/config/cape-inputs.json", actions);
     std::vector<struct pollfd> fdset(actions.size());
     
     if (actions.size() == 0 && _ledType == 0) {

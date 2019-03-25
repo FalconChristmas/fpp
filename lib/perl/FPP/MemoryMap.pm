@@ -55,9 +55,9 @@ sub new {
 		debug         => 0,
 		maxChannels   => 1048576,
 		memoryMapSize => 1048576,
-		ctrlFile      => '/var/tmp/FPPChannelCtrl',
-		dataFile      => '/var/tmp/FPPChannelData',
-		pixelFile     => '/var/tmp/FPPChannelPixelMap',
+		ctrlFile      => '/run/fppd/FPPChannelCtrl',
+		dataFile      => '/run/fppd/FPPChannelData',
+		pixelFile     => '/run/fppd/FPPChannelPixelMap',
 		}, $proto;
 
 	$this->{C} = new Convert::Binary::C;

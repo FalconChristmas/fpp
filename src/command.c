@@ -87,6 +87,8 @@ static void exit_handler(int signum)
          exit(1);
      }
 
+     mkdir(FPP_SOCKET_PATH, 0777);
+     
      fcntl(socket_fd, F_SETFL, O_NONBLOCK);
      memset(&server_address, 0, sizeof(server_address));
      server_address.sun_family = AF_UNIX;
@@ -101,6 +103,7 @@ static void exit_handler(int signum)
          exit(1);
      }
 
+     symlink(FPP_SERVER_SOCKET, FPP_SERVER_SOCKET_OLD);
      umask(old_umask);
 
      fppdStartTime = time(NULL);

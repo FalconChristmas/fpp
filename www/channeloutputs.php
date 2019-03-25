@@ -3,6 +3,7 @@
 <head>
 <?php
 require_once("common.php");
+require_once('config.php');
 require_once('universeentry.php');
 include 'common/menuHead.inc';
 
@@ -14,14 +15,8 @@ include 'common/menuHead.inc';
 <?
 $currentCape = "";
 $currentCapeInfo = json_decode("{ \"provides\": [\"all\"]}", true);
-if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
-    $string = file_get_contents("/home/fpp/media/tmp/cape-info.json");
-    $currentCapeInfo = json_decode($string, true);
-    $currentCape = $currentCapeInfo["id"];
-    echo "<!-- current cape is " . $currentCape . "-->\n";
-} else if (file_exists("/home/fpp/media/config/cape-info.json")) {
-    $string = file_get_contents("/home/fpp/media/config/cape-info.json");
-    $currentCapeInfo = json_decode($string, true);
+if (isSet($settings['cape-info'])) {
+    $currentCapeInfo = $settings['cape-info'];
     $currentCape = $currentCapeInfo["id"];
     echo "<!-- current cape is " . $currentCape . "-->\n";
 }
