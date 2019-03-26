@@ -267,7 +267,7 @@ printf("Usage: %s [OPTION...]\n"
 "                                    '--log-level info --log-mask most'\n"
 	, appname);
 }
-extern struct config settings;
+extern SettingsConfig settings;
 
 int parseArguments(int argc, char **argv)
 {
