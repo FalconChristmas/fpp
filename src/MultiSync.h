@@ -100,7 +100,8 @@ typedef enum systemType {
 	kSysTypeFalconF16v3                  = 0x82,
 	kSysTypeFalconF48v1                  = 0x83,
 	kSysTypeOtherSystem                  = 0xC0,
-	kSysTypexSchedule                    = 0xC1
+	kSysTypexSchedule                    = 0xC1,
+    kSysTypeESPixelStick                 = 0xC2
 } MultiSyncSystemType;
 
 typedef struct multiSyncSystem {

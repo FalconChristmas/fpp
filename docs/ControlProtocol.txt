@@ -92,7 +92,8 @@ buf[9] = App/Hardware Type
            - 0x84 - F16v3
            - 0x85 - F48
          - 0xC0-0xFF = Other systems
-           - 0xC0 - xSchedule
+           - 0xC1 - xSchedule
+           - 0xC2 - ESPixelStick
 
 buf[10-11] = Major version (MSB first, 0x00 0x01 for FPP v1.10, 0x07 0xE2 for xSchedule 2018.4)
 buf[12-13] = Minor version (MSB first, 0x00 0x0a for FPP v1.10, 0x00 0x04 for xSchedule 2018.4)
@@ -111,6 +112,6 @@ buf[125-165] = Hardware Type String (NULL terminated, up to 40 bytes plus NULL: 
 Ping type 2 fields:
 buf[166-206] = Comma separated list of channel ranges (zero based) ("0-455,512-1024") that this FPP instances is outputing  (40 bytes + NULL)
 
-<<<< End of Ping version 0x01 information
+<<<< End of Ping version 0x02 information
 
 =============================================================================

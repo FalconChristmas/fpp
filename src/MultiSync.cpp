@@ -360,13 +360,15 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
         case kSysTypeFalconF16v3:             return "Falcon F16v3";
         case kSysTypeFalconF48v1:             return "Falcon F48v1";
 		case kSysTypeOtherSystem:             return "Other Unknown System";
-		case kSysTypexSchedule:                 return "xSchedule";
         case kSysTypeFPPBeagleBoneBlack:      return "BeagleBone Black";
         case kSysTypeFPPBeagleBoneBlackWireless: return "BeagleBone Black Wireless";
         case kSysTypeFPPBeagleBoneGreen:      return "BeagleBone Green";
         case kSysTypeFPPBeagleBoneGreenWireless: return "BeagleBone Green Wireless";
         case kSysTypeFPPPocketBeagle:         return "PocketBeagle";
         case kSysTypeFPPSanCloudBeagleBoneEnhanced: return "SanCloud BeagleBone Enhanced";
+            
+        case kSysTypexSchedule:               return "xSchedule";
+        case kSysTypeESPixelStick:            return "ESPixelStick";
 		default:                              return "Unknown System Type";
 	}
 }
