@@ -43,11 +43,35 @@
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
 
-struct config settings = { 0 };
+SettingsConfig settings;
 
-/* Prototypes for functions below */
-int findSettingIndex(char *setting);
-
+SettingsConfig::~SettingsConfig() {
+    if (binDirectory) free(binDirectory);
+    if (fppDirectory) free(fppDirectory);
+    if (mediaDirectory) free(mediaDirectory);
+    if (musicDirectory) free(musicDirectory);
+    if (sequenceDirectory) free(sequenceDirectory);
+    if (eventDirectory) free(eventDirectory);
+    if (videoDirectory) free(videoDirectory);
+    if (effectDirectory) free(effectDirectory);
+    if (scriptDirectory) free(scriptDirectory);
+    if (pluginDirectory) free(pluginDirectory);
+    if (playlistDirectory) free(playlistDirectory);
+    if (universeFile) free(universeFile);
+    if (pixelnetFile) free(pixelnetFile);
+    if (scheduleFile) free(scheduleFile);
+    if (logFile) free(logFile);
+    if (silenceMusic) free(silenceMusic);
+    if (settingsFile) free(settingsFile);
+    if (bytesFile) free(bytesFile);
+    if (E131interface) free(E131interface);
+    
+    for (auto &a :keyVal) {
+        if (a.second) {
+            free(a.second);
+        }
+    }
+}
 
 /*
  *
@@ -123,10 +147,6 @@ void initSettings(int argc, char **argv)
 
 	SetLogLevel("info");
 	SetLogMask("most");
-
-	// FIXME, include defaults from above in here
-	bzero(settings.keys, sizeof(settings.keys));
-	bzero(settings.values, sizeof(settings.values));
 }
 
 // Returns a string that's the white-space trimmed version
@@ -188,11 +208,10 @@ char *modeToString(int mode)
 
 int parseSetting(char *key, char *value)
 {
-	int sIndex = findSettingIndex(key);
-	if (sIndex >= 0) {
-		free(settings.values[sIndex]);
-		settings.values[sIndex] = strdup(value);
-	}
+    if (settings.keyVal[key]) {
+        free(settings.keyVal[key]);
+        settings.keyVal[key] = strdup(value);
+    }
 
 	if ( strcmp(key, "daemonize") == 0 )
 	{
@@ -440,7 +459,6 @@ int loadSettings(const char *filename)
 		char * line = NULL;
 		size_t len = 0;
 		ssize_t read;
-		int count = 0;
 		int sIndex = 0;
 
 		while ((read = getline(&line, &len, file)) != -1)
@@ -474,12 +492,7 @@ int loadSettings(const char *filename)
 
 			parseSetting(key, value);
 
-			sIndex = findSettingIndex(key);
-			if (sIndex < 0) {
-				settings.keys[count] = strdup(key);
-				settings.values[count] = strdup(value);
-				count++;
-			}
+            settings.keyVal[key] = strdup(value);
 
 			if ( key )
 			{
@@ -513,39 +526,15 @@ int loadSettings(const char *filename)
 	return 0;
 }
 
-int findSettingIndex(char *setting)
-{
-	int count = 0;
-
-	if (!setting) {
-		return -1;
-	}
-
-	while (settings.keys[count]) {
-		if (!strcmp(settings.keys[count], setting)) {
-			return count;
-		}
-		count++;
-	}
-
-	return -1;
-}
-
 const char *getSetting(const char *setting)
 {
-	int count = 0;
-
 	if (!setting) {
 		LogErr(VB_SETTING, "getSetting() called with NULL value\n");
 		return "";
 	}
 
-	while (settings.keys[count]) {
-		if (!strcmp(settings.keys[count], setting)) {
-			LogExcess(VB_SETTING, "getSetting(%s) found '%s'\n", setting, settings.values[count]);
-			return settings.values[count];
-		}
-		count++;
+    if (settings.keyVal[setting] != nullptr) {
+        return settings.keyVal[setting];
 	}
 
 	LogExcess(VB_SETTING, "getSetting(%s) returned setting not found\n", setting);

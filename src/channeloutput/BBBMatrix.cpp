@@ -299,6 +299,8 @@ BBBMatrix::~BBBMatrix()
     if (m_pru) delete m_pru;
     if (m_pruCopy) delete m_pruCopy;
     if (m_handler) delete m_handler;
+    if (m_matrix) delete m_matrix;
+    if (m_panelMatrix) delete m_panelMatrix;
 }
 
 static void configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {

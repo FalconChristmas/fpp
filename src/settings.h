@@ -27,6 +27,8 @@
 #define __SETTINGS_H__
 
 #include <stdbool.h>
+#include <map>
+#include <string>
 
 #define MAXBUF 1024
 
@@ -38,36 +40,38 @@ typedef enum fppMode {
 	REMOTE_MODE = 0x08
 } FPPMode;
 
-struct config
-{
+class SettingsConfig {
+public:
+    SettingsConfig() {}
+    ~SettingsConfig();
+    
     int        daemonize;
     FPPMode    fppMode;
     int        alwaysTransmit;
-    char    *binDirectory;
-    char    *fppDirectory;
-    char    *mediaDirectory;
-    char    *musicDirectory;
-    char    *sequenceDirectory;
-    char    *eventDirectory;
-    char    *videoDirectory;
-    char    *effectDirectory;
-    char    *scriptDirectory;
-    char    *pluginDirectory;
-    char    *playlistDirectory;
-    char    *universeFile;
-    char    *pixelnetFile;
-    char    *scheduleFile;
-    char    *logFile;
-    char    *silenceMusic;
-    char    *settingsFile;
-    char    *bytesFile;
-    char    *E131interface;
+    char    *binDirectory = nullptr;
+    char    *fppDirectory = nullptr;
+    char    *mediaDirectory = nullptr;
+    char    *musicDirectory = nullptr;
+    char    *sequenceDirectory = nullptr;
+    char    *eventDirectory = nullptr;
+    char    *videoDirectory = nullptr;
+    char    *effectDirectory = nullptr;
+    char    *scriptDirectory = nullptr;
+    char    *pluginDirectory = nullptr;
+    char    *playlistDirectory = nullptr;
+    char    *universeFile = nullptr;
+    char    *pixelnetFile = nullptr;
+    char    *scheduleFile = nullptr;
+    char    *logFile = nullptr;
+    char    *silenceMusic = nullptr;
+    char    *settingsFile = nullptr;
+    char    *bytesFile = nullptr;
+    char    *E131interface = nullptr;
     
     unsigned int controlMajor;
     unsigned int controlMinor;
     
-    char *keys[1024];
-    char *values[1024];
+    std::map<std::string, char *> keyVal;
 };
 
 // Helpers
