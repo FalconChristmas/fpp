@@ -4,8 +4,9 @@ Topic Format
 ---------------------------------------------
 {optional prefix}/falcon/player/{hostname}/{sub_topic}
 
-The optional prefix is defined in the advanced settings
-The hostname is 
+The {optional prefix} is defined in the advanced settings
+The {hostname} is defined in the Network Settings tab and should be different for each FPP device on the network.
+The {sub_topic} is outlined below...
 
 FPP Publish subtopics
 ---------------------------------------------
@@ -28,7 +29,7 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 
 FPP Subscribed subtopics
 ---------------------------------------------
-FPP will listen for these topics.  
+FPP will listen for these topics if MQTT is configured.  
 
 * playlist/ALLPLAYLISTS/stop/now - Immediate stop all running playlist
 * playlist/ALLPLAYLISTS/stop/graceful - gracefully stop all running playlist
