@@ -177,7 +177,7 @@ int USBDMXOutput::RawSendDataOpen(unsigned char *channelData)
 	// Then need to sleep a minimum of 8us
 	usleep(20);
 
-	write(m_fd, m_outputData, 513);
+	write(m_fd, m_outputData, m_channelCount+1);
 
 	return m_channelCount;
 }
