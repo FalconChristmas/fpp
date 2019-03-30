@@ -329,13 +329,20 @@ int FPPOLEDUtils::outputBottomPart(int startY, int count) {
 }
 
 
-void FPPOLEDUtils::doIteration(int count) {
+bool FPPOLEDUtils::doIteration(int count) {
     if (_ledType == 0) {
-        return;
+        return false;
     }
+    bool retVal = false;
+    int lastNSize = networks.size();
     if ((count % 30) == 0 || networks.size() <= 1) {
         //every 30 seconds, rescan network for new connections
         fillInNetworks();
+        //if networks aren't configured or have changed, keep the oled on
+        if (lastNSize != networks.size() || networks.size() <= 1) {
+            retVal = true;
+            _displayOn = true;
+        }
     }
     clearDisplay();
     
@@ -366,6 +373,7 @@ void FPPOLEDUtils::doIteration(int count) {
         }
     }
     Display();
+    return retVal;
 }
 
 void FPPOLEDUtils::fillInNetworks() {
@@ -541,7 +549,9 @@ void FPPOLEDUtils::run() {
     while (true) {
         if (ntime > (lastUpdateTime + 1000000)) {
             count++;
-            doIteration(count);
+            if (doIteration(count)) {
+                lastActionTime = GetTime();
+            }
             lastUpdateTime = ntime;
         }
         if (actions.empty()) {

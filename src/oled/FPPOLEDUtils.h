@@ -11,7 +11,7 @@ public:
     FPPOLEDUtils(int ledType);
     ~FPPOLEDUtils();
 
-    void doIteration(int count);
+    bool doIteration(int count);
   
     
     void run();
