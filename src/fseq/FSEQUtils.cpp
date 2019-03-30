@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "fppversion.h"
 #include "log.h"
@@ -22,6 +23,7 @@ void usage(char *appname) {
     printf("   -r (#-# | #+#)    - Channel Range.  Use - to separate start/end channel\n");
     printf("                            Use + to separate start channel + num channels\n");
     printf("   -n                - No Sparse. -r will only read the range, but the resulting fseq is not sparse.\n");
+    printf("   -j                - Output the fseq file metadata to json");
     printf("   -h                - This help output\n");
 }
 const char *outputFilename = nullptr;
@@ -30,6 +32,7 @@ static int compressionLevel = -1;
 static bool verbose = false;
 static std::vector<std::pair<uint32_t, uint32_t>> ranges;
 static bool sparse = true;
+static bool json = false;
 static V2FSEQFile::CompressionType compressionType = V2FSEQFile::CompressionType::zstd;
 
 int parseArguments(int argc, char **argv) {
@@ -46,7 +49,7 @@ int parseArguments(int argc, char **argv) {
             {0,                0,                    0, 0}
         };
         
-        c = getopt_long(argc, argv, "c:l:o:f:r:hVvn", long_options, &option_index);
+        c = getopt_long(argc, argv, "c:l:o:f:r:hjVvn", long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -64,6 +67,9 @@ int parseArguments(int argc, char **argv) {
                         ranges.push_back(std::pair<uint32_t, uint32_t>(startc, endc));
                     }
                 }
+                break;
+            case 'j':
+                json = true;
                 break;
             case 'v':
                 verbose = true;
@@ -111,35 +117,70 @@ int main(int argc, char *argv[]) {
     FSEQFile *src = FSEQFile::openFSEQFile(argv[idx]);
     if (src) {
         
-        FSEQFile *dest = FSEQFile::createFSEQFile(outputFilename,
-                                                  fseqVersion,
-                                                  compressionType,
-                                                  compressionLevel);
-        if (ranges.empty()) {
-            ranges.push_back(std::pair<uint32_t, uint32_t>(0, 999999999));
-        } else if (fseqVersion == 2 && sparse) {
-            V2FSEQFile *f = (V2FSEQFile*)dest;
-            f->m_sparseRanges = ranges;
-        }
-        src->prepareRead(ranges);
+        if (json) {
+            /*
+             getNumFrames() const { return m_seqNumFrames; }
+             int           getStepTime() const { return m_seqStepTime; }
+             uint32_t      getChannelCount() const  { return m_seqChannelCount; }
+             uint64_t      getUniqueId() const { return m_uniqueId; }
+             const std::string& getFilename() const { return m_filename; }
+             */
+            printf("{\"Name\": \"%s\", \"Version\": \"%d.%d\", \"ID\": \"%" PRIu64 "\", \"StepTime\": %d, \"NumFrames\": %d, \"MaxChannel\": %d, \"ChannelCount\": %d",
+                   basename(src->getFilename().c_str()),
+                   src->getVersionMajor(), src->getVersionMinor(),
+                   src->getUniqueId(),
+                   src->getStepTime(),
+                   src->getNumFrames(),
+                   src->getMaxChannel(),
+                   src->getChannelCount()
+                   );
+            if (src->getVersionMajor() >= 2) {
+                V2FSEQFile *f = (V2FSEQFile*)src;
+                if (!f->m_sparseRanges.empty()) {
+                    printf(", \"Ranges\": [");
+                    int first = true;
+                    for (auto &a : f->m_sparseRanges) {
+                        if (!first) {
+                            printf(",");
+                        }
+                        first = false;
+                        printf("{\"Start\": %d, \"Length\": %d}", a.first, a.second);
+                    }
+                    printf("]");
+                }
+            }
+            printf("}");
+        } else {
+            FSEQFile *dest = FSEQFile::createFSEQFile(outputFilename,
+                                                      fseqVersion,
+                                                      compressionType,
+                                                      compressionLevel);
+            if (ranges.empty()) {
+                ranges.push_back(std::pair<uint32_t, uint32_t>(0, 999999999));
+            } else if (fseqVersion == 2 && sparse) {
+                V2FSEQFile *f = (V2FSEQFile*)dest;
+                f->m_sparseRanges = ranges;
+            }
+            src->prepareRead(ranges);
 
-        dest->initializeFromFSEQ(*src);
-        dest->writeHeader();
-        
-        uint8_t data[1024*1024];
-        for (int x = 0; x < src->getNumFrames(); x++) {
-            FSEQFile::FrameData *fdata = src->getFrame(x);
-            fdata->readFrame(data);
-            delete fdata;
-            dest->addFrame(x, data);
+            dest->initializeFromFSEQ(*src);
+            dest->writeHeader();
+            
+            uint8_t data[1024*1024];
+            for (int x = 0; x < src->getNumFrames(); x++) {
+                FSEQFile::FrameData *fdata = src->getFrame(x);
+                fdata->readFrame(data);
+                delete fdata;
+                dest->addFrame(x, data);
+            }
+            dest->finalize();
+            
+            if (!strcmp(outputFilename, "-memory-")) {
+                printf("size: %d\n", (int)dest->getMemoryBuffer().size());
+            }
+            
+            delete dest;
         }
-        dest->finalize();
-        
-        if (!strcmp(outputFilename, "-memory-")) {
-            printf("size: %d\n", (int)dest->getMemoryBuffer().size());
-        }
-        
-        delete dest;
         delete src;
     }
 

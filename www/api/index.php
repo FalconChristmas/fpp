@@ -28,5 +28,11 @@ dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_post  ('/plugin/:RepoName/updates', 'CheckForPluginUpdates');
 dispatch_post  ('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 
+dispatch_get   ('/sequence', 'GetSequences');
+dispatch_get   ('/sequence/:SequenceName', 'GetSequence');
+dispatch_get   ('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
+dispatch_post  ('/sequence/:SequenceName', 'PostSequence');
+dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
+
 run();
 ?>
