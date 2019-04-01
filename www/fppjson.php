@@ -2123,7 +2123,7 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     $result['HostName'] = $settings['HostName'];
 	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
 	$result['Platform'] = $settings['Platform'];
-    $result['Variant'] = $settings['Variant'];
+    $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
     $result['Mode'] = $settings['fppMode'];
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
