@@ -116,7 +116,7 @@ int RPIWS281xOutput::Init(Json::Value config)
 
 	m_ledstringNumber = ledstringCount++;
 
-	LogDebug(VB_CHANNELOUT, "   Fount %d strings of pixels\n", m_strings.size());
+	LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
 	ledstring[m_ledstringNumber].freq   = 800000; // Hard code this for now
 	ledstring[m_ledstringNumber].dmanum = 10;
 
