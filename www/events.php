@@ -181,7 +181,10 @@ function SaveControlChannels()
 					<td width='30'></td>
 					<td>Major:</td><td><? PrintSettingText("controlMajor", 1, 0, 6, 6); ?></td>
 					<td width='20'></td>
-					<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td></tr>
+					<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td>
+					<td width='20'></td>
+					<td>Use Raw Event ID's in Control Channels (instead of 10x Event ID): <? PrintSettingCheckbox("Raw Event IDs", "RawEventIDs", 1, 0, "2", "1", "", ""); ?></td>
+					</tr>
 		</table>
 		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
 		<br>

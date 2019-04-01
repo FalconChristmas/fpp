@@ -86,6 +86,7 @@ class Sequence {
 	int           m_seqSingleStep;
 	int           m_seqSingleStepBack;
 	int           m_seqRefreshRate;
+	int           m_seqControlRawIDs;
 	char          m_seqLastControlMajor;
 	char          m_seqLastControlMinor;
     int           m_remoteBlankCount;

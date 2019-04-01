@@ -70,6 +70,7 @@ Sequence::Sequence()
     m_seqSingleStep(0),
     m_seqSingleStepBack(0),
     m_seqRefreshRate(20),
+    m_seqControlRawIDs(0),
     m_seqLastControlMajor(0),
     m_seqLastControlMinor(0),
     m_remoteBlankCount(0),
@@ -81,6 +82,8 @@ Sequence::Sequence()
 {
     m_seqFilename[0] = 0;
     memset(m_seqData, 0, sizeof(m_seqData));
+
+    m_seqControlRawIDs = getSettingInt("RawEventIDs");
 }
 
 Sequence::~Sequence()
@@ -459,8 +462,15 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
 
     if (checkControlChannels && getControlMajor() && getControlMinor())
     {
-        char thisMajor = NormalizeControlValue(m_seqData[getControlMajor()-1]);
-        char thisMinor = NormalizeControlValue(m_seqData[getControlMinor()-1]);
+        char thisMajor = m_seqData[getControlMajor()-1];
+        char thisMinor = m_seqData[getControlMinor()-1];
+
+        // Change to '== 1' in FPP v3.x and change 'RawEventIDs' setting to match
+        if (m_seqControlRawIDs <= 1)
+        {
+            thisMajor = NormalizeControlValue(thisMajor);
+            thisMinor = NormalizeControlValue(thisMinor);
+        }
 
         if ((m_seqLastControlMajor != thisMajor) ||
             (m_seqLastControlMinor != thisMinor))
