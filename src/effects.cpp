@@ -304,6 +304,9 @@ int OverlayEffect(int effectID, char *channelData)
         delete d;
         return 1;
     }
+    else
+        StopEffectHelper(effectID);
+
     return 0;
 }
 
