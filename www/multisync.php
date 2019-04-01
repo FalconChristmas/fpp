@@ -87,10 +87,12 @@ if (isset($_GET['advancedView'])) {
 
 
 	function getFPPSystemInfo(ip, platform) {
-        if (platform && (platform.includes("Unknown") || platform.includes("unknown")
-                         || platform == "xSchedule" || platform == "xLights"
-                         || platform.includes("Falcon ")
-                         || platform == "ESPixelStick")) {
+        if (platform && !platform.includes("FPP") &&
+            (platform.toLowerCase().includes("unknown")
+             || platform == "xSchedule"
+             || platform == "xLights"
+             || platform.includes("Falcon ")
+             || platform == "ESPixelStick")) {
             //eventually figure out what to do
             return;
         }
@@ -100,10 +102,12 @@ if (isset($_GET['advancedView'])) {
 	}
 
 	function getFPPSystemStatus(ip, platform) {
-        if (platform && (platform.includes("Unknown") || platform.includes("unknown")
-                         || platform == "xSchedule" || platform == "xLights"
-                         || platform.includes("Falcon ")
-                         || platform == "ESPixelStick")) {
+        if (platform && !platform.includes("FPP") &&
+            (platform.toLowerCase().includes("unknown")
+             || platform == "xSchedule"
+             || platform == "xLights"
+             || platform.includes("Falcon ")
+             || platform == "ESPixelStick")) {
             //eventually figure out what to do
             return;
         }
