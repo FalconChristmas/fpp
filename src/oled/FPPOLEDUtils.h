@@ -5,6 +5,7 @@
 #include <string>
 
 #include <curl/curl.h>
+#include <jsoncpp/json/json.h>
 
 class FPPOLEDUtils {
 public:
@@ -17,6 +18,15 @@ public:
     void run();
     void cycleTest();
 private:
+    int getLinesPage0(std::vector<std::string> &lines,
+                      Json::Value &result,
+                      bool allowBlank);
+    int getLinesPage1(std::vector<std::string> &lines,
+                      Json::Value &result,
+                      bool allowBlank);
+    void readImage();
+
+    
     void fillInNetworks();
     int getSignalStrength(char *iwname);
     void outputNetwork(int idx, int y);
@@ -32,6 +42,11 @@ private:
     int _currentTest;
     int _curPage;
     bool _displayOn;
+    bool _doFullStatus;
+    
+    int _imageWidth;
+    int _imageHeight;
+    std::vector<uint8_t> _image;
     
     CURL *curl;
     std::string buffer;
@@ -60,6 +75,7 @@ private:
         const std::string &checkAction(int i, long long time);
     };
     bool parseInputActions(const std::string &file, std::vector<InputAction> &actions);
+    bool checkStatusAbility();
 };
 
 #endif

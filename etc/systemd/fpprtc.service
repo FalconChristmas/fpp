@@ -1,6 +1,6 @@
 [Unit]
 Description=FPP RTC Setup
-Documentation=FPP
+Documentation=https://falconchristmas.com/forum/
 Before=network.target multi-user.target apache2.service
 After=fppcapedetect.service
 Wants=home-fpp-media.mount

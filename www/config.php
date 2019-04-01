@@ -49,6 +49,7 @@ $fppMode = "player";
 $fppDir = dirname(dirname(__FILE__));
 $mediaDirectory    = $fppHome . "/media";
 $pluginDirectory   = $mediaDirectory . "/plugins";
+$configDirectory   = $mediaDirectory . "/config";
 $docsDirectory     = $fppDir . "/docs";
 $musicDirectory    = $mediaDirectory . "/music";
 $sequenceDirectory = $mediaDirectory . "/sequences";

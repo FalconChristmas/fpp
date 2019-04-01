@@ -12,11 +12,13 @@ function DoSignatureVerify($keyId, $fp, $sigFile) {
     $flen = intval($flenOrig);
     while ($flen != 0) {
         $flags = fread($fp, 2);
-        $fname = fread($fp, 64);
-        $fname = trim($fname);
         fwrite($fpEEPROM, pack("a6", $flen));
         fwrite($fpEEPROM, pack("a2", $flags));
-        fwrite($fpEEPROM, pack("a64", $fname));
+        if ($flags < 90) {
+            $fname = fread($fp, 64);
+            $fname = trim($fname);
+            fwrite($fpEEPROM, pack("a64", $fname));
+        }
         $fdata = fread($fp, $flen);
         fwrite($fpEEPROM, $fdata);
 
@@ -91,7 +93,7 @@ $EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
 if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
     // detect and initialize the eeprom, only support 24c256 chips for now
     if (!file_exists($EEPROM)) {
-        file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device", "24c256 0x50");
+        @file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device", "24c256 0x50");
     }
     if (!file_exists($EEPROM)) {
         $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
@@ -108,61 +110,85 @@ if (!file_exists($EEPROM)) {
 }
 $fp = fopen($EEPROM, 'rb');
 $header = fread($fp, 6); // should be FPP02 + null
-$cape = fread($fp, 26); // cape name + nulls
-$capev = fread($fp, 10); // cape version + nulls
-$capesn = trim(fread($fp, 16)); // cape serial# + nulls
-
-$flen = fread($fp, 6); //length of the file
-$flen = intval($flen);
-while ($flen != 0) {
-    $flags = fread($fp, 2);
-    $fname = fread($fp, 64);
-    $fname = trim($fname);
-    $path = '/home/fpp/media/' . $fname;
-
-    switch ($flags) {
-    case 0:
-        $fdata = fread($fp, $flen);
-        file_put_contents($path, $fdata);
-        break;
-    case 1:
-        $fdata = fread($fp, $flen);
-        file_put_contents($path, $fdata);
-        $dirname = dirname("/home/fpp/media/" . $fname);
-        exec("cd $dirname ; unzip /home/fpp/media/$fname 2>&1", $output, $result);
-        //var_dump($output);
-        unset($output);
-        unlink("/home/fpp/media/" . $fname);
-        break;
-    case 2:
-        $fdata = fread($fp, $flen);
-        file_put_contents($path, $fdata);
-        $dirname = dirname($path);
-        $cmd = "cd $dirname ; tar -xzf $path 2>&1";
-        exec($cmd, $output, $result);
-        //var_dump($output);
-        unset($output);
-        unlink($path);
-        break;
-    case 99:
-        $fkeyId = fread($fp, 6);
-        $fkeyId = trim($fkeyId);
-        $fdata = fread($fp, $flen - 6);
-        file_put_contents($path, $fdata);
-        $fp = DoSignatureVerify($fkeyId, $fp, $path);
-        unlink($path);
-        break;
-    default:
-        $fdata = fread($fp, $flen); // read the data to skip it for now
-        echo "Don't know how to handle " . $fname . " with type " . $flags . "\n";
+if (substr( $header, 0, 5 ) != "FPP02") {
+    if (file_exists("/home/fpp/media/config/cape-eeprom.bin")) {
+        fclose($fp);
+        $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
+        $fp = fopen($EEPROM, 'rb');
+        $header = fread($fp, 6);
     }
+}
+if (substr( $header, 0, 5 ) === "FPP02") {
+    $cape = fread($fp, 26); // cape name + nulls
+    $capev = fread($fp, 10); // cape version + nulls
+    $capesn = trim(fread($fp, 16)); // cape serial# + nulls
 
     $flen = fread($fp, 6); //length of the file
     $flen = intval($flen);
+    while ($flen != 0) {
+        $flags = fread($fp, 2);
+        if ($flags < 90) {
+            $fname = fread($fp, 64);
+            $fname = trim($fname);
+            $path = '/home/fpp/media/' . $fname;
+        }
+        switch ($flags) {
+        case 0:
+            $fdata = fread($fp, $flen);
+            file_put_contents($path, $fdata);
+            break;
+        case 1:
+            $fdata = fread($fp, $flen);
+            file_put_contents($path, $fdata);
+            $dirname = dirname("/home/fpp/media/" . $fname);
+            exec("cd $dirname ; unzip /home/fpp/media/$fname 2>&1", $output, $result);
+            //var_dump($output);
+            unset($output);
+            unlink("/home/fpp/media/" . $fname);
+            break;
+        case 2:
+            $fdata = fread($fp, $flen);
+            file_put_contents($path, $fdata);
+            $dirname = dirname($path);
+            $cmd = "cd $dirname ; tar -xzf $path 2>&1";
+            exec($cmd, $output, $result);
+            //var_dump($output);
+            unset($output);
+            unlink($path);
+            break;
+        case 98:
+            $eType = fread($fp, 2);
+            if ($eType == 1) {
+                if (strpos($EEPROM, 'cape-eeprom.bin') !== false) {
+                    $validSignature = false;
+                }
+            } else if ($eType == 2) {
+                if (strpos($EEPROM, '/i2c') !== false) {
+                    $validSignature = false;
+                }
+            } else if ($eType != 0) {
+                $validSignature = false;
+            }
+            break;
+        case 99:
+            $fkeyId = fread($fp, 6);
+            $fkeyId = trim($fkeyId);
+            $fdata = fread($fp, $flen - 6);
+            $path = '/home/fpp/media/tmp/eeprom.sig';
+            file_put_contents($path, $fdata);
+            $fp = DoSignatureVerify($fkeyId, $fp, $path);
+            unlink($path);
+            break;
+        default:
+            $fdata = fread($fp, $flen); // read the data to skip it for now
+            echo "Don't know how to handle " . $fname . " with type " . $flags . "\n";
+        }
+
+        $flen = fread($fp, 6); //length of the file
+        $flen = intval($flen);
+    }
 }
-
 fclose($fp);
-
 
 // if the cape-info has default settings and those settings are not already set, set them
 // also put the serialNumber into the cape-info for display
@@ -172,7 +198,9 @@ if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     if (! $validSignature) {
         unset($json->vendor);
         unset($json->provides);
+        unset($json->verifiedKeyId);
     } else {
+        $json->verifiedKeyId = $fkeyId;
         foreach ($json->defaultSettings as $key => $value) {
             if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
                 file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);

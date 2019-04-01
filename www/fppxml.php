@@ -446,7 +446,7 @@ function InstallRemoteScript()
 
 function MoveFile()
 {
-	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $SUDO;
+	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
@@ -502,6 +502,11 @@ function MoveFile()
 				error_log("Couldn't move music file");
 				exit(1);
 			}
+        } else if (preg_match("/eeprom\.bin$/i", $file)) {
+            if ( !rename($uploadDirectory."/" . $file, $configDirectory . '/cape-eeprom.bin') ) {
+                error_log("Couldn't move eeprom file");
+                exit(1);
+            }
 		}
 	} else {
 		error_log("Couldn't find file '" . $file . "' in upload directory");

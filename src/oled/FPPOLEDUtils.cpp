@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 #include <fcntl.h>
 #include <poll.h>
@@ -133,9 +134,9 @@ void FPPOLEDUtils::outputNetwork(int idx, int y) {
     }
 }
 
-inline int getLinesPage0(std::vector<std::string> &lines,
-                          Json::Value &result,
-                          bool allowBlank) {
+int FPPOLEDUtils::getLinesPage0(std::vector<std::string> &lines,
+                                Json::Value &result,
+                                bool allowBlank) {
     std::string status = result["status_name"].asString();
     std::string mode = result["mode_name"].asString();
     mode[0] = toupper(mode[0]);
@@ -154,6 +155,9 @@ inline int getLinesPage0(std::vector<std::string> &lines,
         line.resize(21);
     }
     lines.push_back(line);
+    if (!_doFullStatus) {
+        return 1;
+    }
 
     if (!isIdle) {
         std::string line = result["current_sequence"].asString();
@@ -188,7 +192,7 @@ inline int getLinesPage0(std::vector<std::string> &lines,
     }
     return maxLines;
 }
-inline int getLinesPage1(std::vector<std::string> &lines,
+int FPPOLEDUtils::getLinesPage1(std::vector<std::string> &lines,
                           Json::Value &result,
                           bool allowBlank) {
     for (int x = 0; x < result["sensors"].size(); x++) {
@@ -246,7 +250,6 @@ int FPPOLEDUtils::outputTopPart(int startY, int count) {
     return startY;
 }
 int FPPOLEDUtils::outputBottomPart(int startY, int count) {
-
     buffer.clear();
     bool gotStatus = false;
     if (curl_easy_perform(curl) == CURLE_OK) {
@@ -313,19 +316,24 @@ int FPPOLEDUtils::outputBottomPart(int startY, int count) {
         setTextSize(1);
         setTextColor(WHITE);
         setCursor(0, startY);
-        print_str("FPPD is not running..");
-        startY += 8;
-        if (count < 45) {
-            //if less than 45 seconds since start, we'll assume we are booting up
+        if (count < 60) {
+            //if less than 60 seconds since start, we'll assume we are booting up
             setCursor(10, startY);
             std::string line = "Booting.";
-            int idx = count % 5;
+            int idx = count % 8;
             for (int i = 0; i < idx; i++) {
                 line += ".";
             }
             print_str(line.c_str());
+        } else {
+            print_str("FPPD is not running...");
+            startY += 8;
+        }
+        if (_imageWidth) {
+            drawBitmap(0, 24, &_image[0], _imageWidth, _imageHeight, WHITE);
         }
     }
+    return startY;
 }
 
 
@@ -475,6 +483,38 @@ const std::string &FPPOLEDUtils::InputAction::checkAction(int i, long long ntime
     }
     return EMPTY_STRING;
 }
+bool FPPOLEDUtils::checkStatusAbility() {
+#ifdef PLATFORM_BBB
+    char buf[128] = {0};
+    FILE *fd = fopen("/sys/firmware/devicetree/base/model", "r");
+    if (fd) {
+        fgets(buf, 127, fd);
+        fclose(fd);
+    }
+    std::string model = buf;
+    if (model == "TI AM335x PocketBeagle") {
+        return true;
+    }
+    std::string file = "/home/fpp/media/tmp/cape-info.json";
+    if (FileExists(file)) {
+        std::ifstream t(file);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            if (root["verifiedKeyId"].asString() == "dk") {
+                return true;
+            }
+        }
+    }
+    return false;
+#else
+    return true;
+#endif
+}
 
 
 bool FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputAction> &actions) {
@@ -531,11 +571,99 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputA
     return needsPolling;
 }
 
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+        return !std::isspace(ch);
+    }));
+}
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
+static std::vector<std::string> splitAndTrim(const std::string& s, char seperator) {
+    std::vector<std::string> output;
+    std::string::size_type prev_pos = 0, pos = 0;
+    while((pos = s.find(seperator, pos)) != std::string::npos) {
+        std::string substring( s.substr(prev_pos, pos-prev_pos) );
+        trim(substring);
+        if (substring != "") {
+            output.push_back(substring);
+        }
+        prev_pos = ++pos;
+    }
+    std::string substring = s.substr(prev_pos, pos-prev_pos);
+    trim(substring);
+    if (substring != "") {
+        output.push_back(substring); // Last word
+    }
+    return output;
+}
+static unsigned char reverselookup[16] = {
+    0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+    0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
+
+static inline uint8_t reverse(uint8_t n) {
+    // Reverse the top and bottom nibble then swap them.
+    return (reverselookup[n&0b1111] << 4) | reverselookup[n>>4];
+}
+void FPPOLEDUtils::readImage() {
+    _imageWidth = 0;
+    _imageHeight = 0;
+    if (FileExists("/home/fpp/media/tmp/cape-image.xbm")) {
+        std::ifstream file("/home/fpp/media/tmp/cape-image.xbm");
+        if (file.is_open()) {
+            std::string line;
+            bool readingBytes = false;
+            while (std::getline(file, line)) {
+                trim(line);
+                if (!readingBytes) {
+                    if (line.find("_width") != std::string::npos) {
+                        std::vector<std::string> v = splitAndTrim(line, ' ');
+                        _imageWidth = std::stoi(v[2]);
+                    } else if (line.find("_height") != std::string::npos) {
+                        std::vector<std::string> v = splitAndTrim(line, ' ');
+                        _imageHeight = std::stoi(v[2]);
+                    } else if (line.find("{") != std::string::npos) {
+                        readingBytes = true;
+                        line = line.substr(line.find("{") + 1);
+                    }
+                }
+                if (readingBytes) {
+                    std::vector<std::string> v = splitAndTrim(line, ',');
+                    for (auto &s : v) {
+                        if (s.find("}") != std::string::npos) {
+                            readingBytes = false;
+                            break;
+                        }
+                        int i = std::stoi(s, 0, 16);
+                        uint8_t t8 = (uint8_t)i;
+                        t8 = ~t8;
+                        t8 = reverse(t8);
+                        _image.push_back((uint8_t)t8);
+                    }
+                }
+            }
+            file.close();
+        }
+    }
+}
+
 void FPPOLEDUtils::run() {
     std::vector<InputAction> actions;
     char vbuffer[256];
     bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
+    _doFullStatus = checkStatusAbility();
     std::vector<struct pollfd> fdset(actions.size());
+    
+    readImage();
     
     if (actions.size() == 0 && _ledType == 0) {
         //no display and no actions, nothing to do.
