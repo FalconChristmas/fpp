@@ -533,24 +533,9 @@ Json::Value GetE131UniverseBytesReceived()
 		universe["id"] = InputUniverses[i].universe;
 		universe["startChannel"] = InputUniverses[i].startAddress;
 
-		// FIXME, use to_string on Squeeze
-		//universe["bytesReceived"] = std::to_string(InputUniverses[i].bytesReceived);
-		std::stringstream ss;
-		ss << InputUniverses[i].bytesReceived;
-		std::string bytesReceived = ss.str();
-		universe["bytesReceived"] = bytesReceived;
-
-		// FIXME, use to_string on Squeeze
-		//universe["packetsReceived"] = std::to_string(InputUniverses[i].packetsReceived);
-		std::stringstream pr;
-		pr << InputUniverses[i].packetsReceived;
-		std::string packetsReceived = pr.str();
-		universe["packetsReceived"] = packetsReceived;
-        
-        std::stringstream er;
-        er << InputUniverses[i].errorPackets;
-        std::string errors = er.str();
-        universe["errors"] = errors;
+		universe["bytesReceived"] = std::to_string(InputUniverses[i].bytesReceived);
+		universe["packetsReceived"] = std::to_string(InputUniverses[i].packetsReceived);
+		universe["errors"] = std::to_string(InputUniverses[i].errorPackets);
 
 		universes.append(universe);
 	}
