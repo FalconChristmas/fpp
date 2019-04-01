@@ -15,6 +15,7 @@ include 'common/menuHead.inc';
 <script>
 var installedPlugins = [];
 var pluginInfos = [];
+var pluginInfoURLs = [];
 
 function PluginIsInstalled(plugin) {
 	for (var i=0; i < installedPlugins.length; i++) {
@@ -112,6 +113,7 @@ function InstallPlugin(plugin, branch, sha) {
 	var pluginInfo = pluginInfos[i];
 	pluginInfo['branch'] = branch;
 	pluginInfo['sha'] = sha;
+	pluginInfo['infoURL'] = pluginInfoURLs[plugin];
 
 	var postData = JSON.stringify(pluginInfo);
 	$.ajax({
@@ -162,9 +164,11 @@ function FindPluginInfo(plugin) {
 
 var firstInstalled = 1;
 var firstCompatible = 1;
+var firstUntested = 1;
 var firstIncompatible = 1;
 function LoadPlugin(data) {
 	var html = '';
+	var infoURL = pluginInfoURLs[data.repoName];
 
 	if ($('#row-' + data.repoName).length)
 	{
@@ -278,6 +282,18 @@ function LoadPlugin(data) {
 		$('#templatePlugin').show();
 		$('#templatePlugin').append(html);
 	}
+	else if (infoURL.indexOf("/fpp-pluginList/oldplugins/") >= 0)
+	{
+		if (firstUntested)
+		{
+			$('#untestedPlugins').show();
+			firstUntested = 0;
+		}
+		else
+			$('#untestedPlugins').append('<tr><td colspan="7"><hr></td></tr>');
+
+		$('#untestedPlugins').append(html);
+	}
 	else if (compatibleVersion != -1)
 	{
 		if (firstCompatible)
@@ -289,9 +305,11 @@ function LoadPlugin(data) {
 	}
 	else
 	{
-		$('#incompatiblePlugins').show();
 		if (firstIncompatible)
+		{
+			$('#incompatiblePlugins').show();
 			firstIncompatible = 0;
+		}
 		else
 			$('#incompatiblePlugins').append('<tr><td colspan="7"><hr></td></tr>');
 
@@ -322,6 +340,9 @@ function LoadPlugins(pluginList) {
 		if (!PluginIsInstalled(pluginList[i][0]))
 		{
 			var url = pluginList[i][1];
+
+			pluginInfoURLs[pluginList[i][0]] = url;
+
 			$.ajax({
 				url: url,
 				dataType: 'json',
@@ -387,6 +408,10 @@ pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
 <tbody id='pluginTable'>
 	<tr><td colspan=7>&nbsp;</td></tr>
 	<tr><td colspan=7 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
+</tbody>
+<tbody id='untestedPlugins' style='display: none;'>
+	<tr><td colspan=7>&nbsp;</td></tr>
+	<tr><td colspan=7 class='pluginsHeader bgGreen'>Plugins not tested with this FPP version</td></tr>
 </tbody>
 <tbody id='templatePlugin' style='display: none;'>
 	<tr><td colspan=7>&nbsp;</td></tr>

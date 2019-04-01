@@ -41,6 +41,7 @@ function InstallPlugin()
 	$srcURL = $pluginInfo['srcURL'];
 	$branch = $pluginInfo['branch'];
 	$sha = $pluginInfo['sha'];
+	$infoURL = $pluginInfo['infoURL'];
 
 	if (!file_exists($settings['pluginDirectory'] . '/' . $plugin))
 	{
@@ -49,6 +50,15 @@ function InstallPlugin()
 
 		if ($return_val == 0)
 		{
+			$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+			if (!file_exists($infoFile))
+			{
+				// no pluginInfo.json in repository, install the one we
+				// installed the plugin from
+				$info = file_get_contents($infoURL);
+				file_put_contents($infoFile, $info);
+			}
+
 			$result['Status'] = 'OK';
 			$result['Message'] = '';
 		}
