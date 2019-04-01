@@ -225,12 +225,7 @@ int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg
 int MosquittoClient::Publish(const std::string &subTopic, const int value)
 {
 	std::string topic = m_baseTopic + "/" + subTopic;
-
-	// FIXME, use to_string on Squeeze
-	//std::string msg = std::to_string(value);
-	std::stringstream ss;
-	ss << value;
-	std::string msg = ss.str();
+	std::string msg = std::to_string(value);
 
 	return PublishRaw(topic, msg);
 }
