@@ -151,10 +151,6 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	{
 		GetCurrentStatus(result);
 	}
-	else if (url == "playlists")
-	{
-		GetCurrentPlaylists(result);
-	}
 	else if (url == "e131stats")
 	{
 		GetE131BytesReceived(result);
@@ -163,6 +159,10 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	{
 		GetMultiSyncSystems(result);
 	}
+    else if (url == "playlists")
+    {
+        GetCurrentPlaylists(result);
+    }
 	else if (url == "playlist/filetime")
 	{
 		GetPlaylistFileTime(result);

@@ -20,9 +20,36 @@ function help_help()
 		[ 'GET /plugin/:PluginRepoName', 'Get pluginInfo.json for installed plugin PluginRepoName.  An additional "updatesAvailable" field is added to indicate whether the plugin has any updates available that have been fetched but not merged.', '', '{ "repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "description": "MatrixTools description here.", "homeURL": "https://github.com/cpinkham/fpp-matrixtools", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "bugURL": "https://github.com/cpinkham/fpp-matrixtools/issues", "updatesAvailable": 0, "versions": [ { "minFPPVersion": 0, "maxFPPVersion": 0, "branch": "master", "sha": "" } ] }' ],
 		[ 'POST /plugin/:PluginRepoName/updates', 'Check plugin PluginRepoName for available updates.  this works by running a "git fetch" in the plugin directory and checking for any non-merged updates.', '', '{ "Status": "OK", "Message": "", "updatesAvailable": 1 }' ],
 		[ 'POST /plugin/:PluginRepoName/upgrade', 'Pull in git updates for plugin PluginRepoName', '', '{ "Status": "OK", "Message": "" }' ],
-		[ 'DELETE /plugin/:PluginRepoName', 'Delete plugin PluginRepoName', '', '{ "Status": "OK", "Message": "" }' ]
-	);
+		[ 'DELETE /plugin/:PluginRepoName', 'Delete plugin PluginRepoName', '', '{ "Status": "OK", "Message": "" }' ],
+        [ 'GET /sequence', 'Get a list of all FSEQ files', '', '{"sequences":["GreatestShow","StPatricksDay","Valentine"]}' ],
+        [ 'GET /sequence/:SequenceName', 'Get the FSEQ file for the named sequence', '', 'Raw FSEQ file'],
+        [ 'GET /sequence/:SequenceName/meta', 'Get metadata from the FSEQ file for the named sequence', '', '{"Name":"GreatestShow.fseq","Version":"2.0","ID":"1553194098754908","StepTime":25,"NumFrames":10750,"MaxChannel":84992,"ChannelCount":84992}'],
+        [ 'POST /sequence/:SequenceName', 'Upload a new FSEQ file', '', 'Raw FSEQ file'],
+        [ 'DELETE /sequence/:SequenceName', 'Delete the named FSEQ file', '', '']
 
+	);
+    $fppEndpoints = array(
+        [ 'GET /fppd/status', 'Gets the current status of the FPPD daemon', '', '{"current_playlist":{"count":"0","index":"0","playlist":"","type":""},"current_sequence":"","current_song":"","fppd":"running","mode":2,"mode_name":"player","next_playlist":{"playlist":"No playlist scheduled.","start_time":""},"repeat_mode":"0","seconds_played":"0","seconds_remaining":"0","status":0,"status_name":"idle","time":"Tue Apr 02 08:06:34 EDT 2019","time_elapsed":"00:00","time_remaining":"00:00","volume":0}'],
+        [ 'GET /models', 'Gets all of the Pixel Overlay Models', '', '[{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32}]'],
+        [ 'GET /models/:ModelName', 'Gets a single Pixel Overlay Model', '' , '{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32}'],
+        [ 'POST /models', 'Uploads a new model-overlays.json file', '{"models" : [ {"ChannelCount" : 6144,"Name" : "Matrix","Orientation" : "horizontal", "StartChannel" : 1,"StartCorner" : "TL","StrandsPerString" : 1,"StringCount" : 32}]}', 'OK'],
+        [ 'GET /overlays/fonts', 'Gets a list of fonts that can be used on the overlay models', '', '["Courier","Courier-Bold","Courier-Oblique","Courier-BoldOblique","Helvetica","Helvetica-Bold","Helvetica-Oblique","Helvetica-BoldOblique","Helvetica-Narrow","Helvetica-Narrow-Oblique","Helvetica-Narrow-Bold","Helvetica-Narrow-BoldOblique","Times-Roman","Times-Bold","Times-Italic","Times-BoldItalic","Symbol"]'],
+        [ 'GET /overlays/models', 'Gets a list of the Pixel Overlay Models and their state', '', '[{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32,"isActive":0}]' ],
+        [ 'GET /overlays/model/:ModelName', 'Gets the given overlay model and it\'s state', '', '{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32,"isActive":0}'],
+        [ 'GET /overlays/model/:ModelName/clear', 'Clears the given model', '', 'OK'],
+        [ 'GET /overlays/model/:ModelName/data', 'Gets the current channel data for the model', '', '{"data":[0,0,0,0,0,0],"isLocked":false}'],
+        [ 'PUT /overlays/model/:ModelName/state', 'Sets the state of the overlay model', '{"State": 1}', 'OK'],
+        [ 'PUT /overlays/model/:ModelName/fill', 'Fills the entire overlay with the given color', '{"RGB": [255, 0, 0]}', 'OK'],
+        [ 'PUT /overlays/model/:ModelName/pixel', 'Sets a specific pixel in the model to the given color', '{"X": 10, "Y": 12, "RGB": [255, 0, 0]}', 'OK'],
+        [ 'PUT /overlays/model/:ModelName/text', 'Displays text on the overlay model', '{"Message": "Hello", "Position": "L2R", "Font": "Helvetica", "FontSize": 12, "AntiAlias": false, "PixelsPerSecond": 5, "Color": "#FF000"}', 'OK'],
+        [ 'GET /fppd/log', 'Gets the current log mask', '', '{"log":{"level":"info","mask":"channelout,command,control,e131bridge"},"message":"","respCode":200,"status":"OK"}' ],
+        [ 'GET /fppd/playlists', 'Get the current playing playlists', '', '{"message":"","playlists":["Test"],"respCode":200,"status":"OK"}'],
+        [ 'GET /fppd/e131stats', 'Gets the current bridge mode input statistics', '', ''],
+        [ 'GET /fppd/multiSyncSystems', 'Gets the list of known FPP instances', '', ''],
+        [ 'GET /fppd/version', 'Gets the current FPP version', '', '{"branch":"master","fppdAPI":"v1","message":"","respCode":200,"status":"OK","version":"2.x-292-g83816a39-dirty"}'],
+        [ 'GET /fppd/volume', 'Gets the current output volume', '', '{"message":"","respCode":200,"status":"OK","volume":72}'],
+        [ 'GET /fppd/testing', 'Gets the current test mode configuration', '', '{"config":{"channelSet":"1-1048576","channelSetType":"channelRange","colorPattern":"FF000000FF000000FF","cycleMS":1000,"enabled":1,"mode":"RGBChase","subMode":"RGBChase-RGB"},"message":"","respCode":200,"status":"OK"}'],
+    );
 	$h = "
 <h2>FPP API Endpoints</h2>
 
@@ -40,26 +67,19 @@ td {
 <tr><th>Endpoint</th><th>Description</th><th>Input JSON</th><th>Output JSON</th></tr>
 ";
 
-	foreach ($endpoints as $endpoint)
-	{
+	foreach ($endpoints as $endpoint) {
 		$input = $endpoint[2];
-		if ($input == '')
-		{
+		if ($input == '') {
 			$input = '&nbsp;';
-		}
-		else if (preg_match('/{/', $input))
-		{
+		} else if (preg_match('/{/', $input)) {
 			$input = json_encode(json_decode($input, true), JSON_PRETTY_PRINT);
 			$input = "<pre>$input</pre>\n";
 		}
 
 		$output = $endpoint[3];
-		if ($output == '')
-		{
+		if ($output == '') {
 			$output = '&nbsp;';
-		}
-		else if (preg_match('/{/', $output))
-		{
+		} else if (preg_match('/{/', $output)) {
 			$output = json_encode(json_decode($output, true), JSON_PRETTY_PRINT);
 			$output = "<pre>$output</pre>\n";
 		}
@@ -67,7 +87,33 @@ td {
 		$h .= sprintf("<tr><td class='endpoint'>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
 			$endpoint[0], $endpoint[1], $input, $output);
 	}
+    $h .= "</table><br><hr>
+    <h2>FPPD Daemon Endpoints - these require FPPD to be running or a timeout error will occur</h2>
+    <table border=1 cellpadding=5 width='100%'>
+    <tr><th>Endpoint</th><th>Description</th><th>Input JSON</th><th>Output JSON</th></tr>
+    ";
+    foreach ($fppEndpoints as $endpoint) {
+        $input = $endpoint[2];
+        if ($input == '') {
+            $input = '&nbsp;';
+        } else if (preg_match('/{/', $input)) {
+            $input = json_encode(json_decode($input, true), JSON_PRETTY_PRINT);
+            $input = "<pre>$input</pre>\n";
+        }
+        
+        $output = $endpoint[3];
+        if ($output == '') {
+            $output = '&nbsp;';
+        } else if (preg_match('/{/', $output)) {
+            $output = json_encode(json_decode($output, true), JSON_PRETTY_PRINT);
+            $output = "<pre>$output</pre>\n";
+        }
+        
+        $h .= sprintf("<tr><td class='endpoint'>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
+                      $endpoint[0], $endpoint[1], $input, $output);
+    }
 
+    
 	return $h;
 }
 

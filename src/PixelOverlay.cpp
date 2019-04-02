@@ -881,30 +881,33 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
     int plen = req.get_path_pieces().size();
     if (p1 == "models") {
         Json::Value result;
+        bool empty = true;
         if (plen == 1) {
             std::unique_lock<std::mutex> lock(modelsLock);
             for (auto & m : models) {
                 Json::Value model;
                 m.second->toJson(model);
                 result.append(model);
+                empty = false;
             }
         } else {
             std::string model = req.get_path_pieces()[1];
             std::string type;
-            if (plen == 3) type = req.get_path_pieces()[2];
-            if (type == "data") {
-                
+            std::unique_lock<std::mutex> lock(modelsLock);
+            auto m = getModel(model);
+            if (m) {
+                m->toJson(result);
             } else {
-                std::unique_lock<std::mutex> lock(modelsLock);
-                auto m = getModel(model);
-                if (m) {
-                    m->toJson(result);
-                }
+                return httpserver::http_response_builder("Model not found: " + req.get_path_pieces()[1], 404);
             }
         }
-        Json::FastWriter fastWriter;
-        std::string resultStr = fastWriter.write(result);
-        return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
+        if (empty && plen == 1) {
+            return httpserver::http_response_builder("[]", 200, "application/json").string_response();
+        } else {
+            Json::FastWriter fastWriter;
+            std::string resultStr = fastWriter.write(result);
+            return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
+        }
     } else if (p1 == "overlays") {
         std::string p2 = req.get_path_pieces()[1];
         std::string p3 = req.get_path_pieces().size() > 2 ? req.get_path_pieces()[2] : "";
@@ -938,6 +941,7 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
                     result["isLocked"] = m->isLocked();
                 } else if (p4 == "clear") {
                     m->clear();
+                    return httpserver::http_response_builder("OK", 200).string_response();
                 } else {
                     m->toJson(result);
                     result["isActive"] = (int)m->getState().getState();
