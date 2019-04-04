@@ -549,6 +549,8 @@ int display_Init_seq()
     } else {
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x02) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x10) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_OFFSET) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x00) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_START_LINE) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0xB0) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SEG_REMAP) != I2C_TWO_BYTES) { return 1; }
@@ -557,8 +559,6 @@ int display_Init_seq()
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x8b) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x30) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_COMSCANDEC) != I2C_TWO_BYTES) { return 1; }
-        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_OFFSET) != I2C_TWO_BYTES) { return 1; }
-        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x00) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_DISP_CLK) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x80) != I2C_TWO_BYTES) { return 1; }
         if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, SSD1306_SET_PRECHARGE) != I2C_TWO_BYTES) { return 1; }
@@ -638,6 +638,10 @@ int transfer()
                 break;
         }
     } else {
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x00) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x10) != I2C_TWO_BYTES) { return 1; }
+        if (i2c_write_register(I2C_DEV_2.fd_i2c, SSD1306_CNTRL_CMD, 0x40) != I2C_TWO_BYTES) { return 1; }
+        
         chunk[0] = 0x40;
         
         for (uint8_t k=0; k < 8; k++) {

@@ -467,21 +467,26 @@ int BBBMatrix::Init(Json::Value config)
     
     
     std::string dirname = "bbb";
-    std::string name = "Octoscroller-v1";
+    std::string name = "Octoscroller";
     if (getBeagleBoneType() == PocketBeagle) {
         dirname = "pb";
         name = "PocketScroller";
     }
     if (config["wiringPinout"] == "v2") {
-        name = "Octoscroller-v2";
+        name += "-v2";
+    }
+    if (config["wiringPinout"] == "v3") {
+        name += "-v3";
     }
     Json::Reader reader;
     Json::Value root;
     char filename[256];
-    sprintf(filename, "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
     int minPort[4] = {99, 99, 99, 99};
     int pru = 0;
-    
+    sprintf(filename, "/home/fpp/media/tmp/panels/%s.json", name.c_str());
+    if (!FileExists(filename)) {
+        sprintf(filename, "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
+    }
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s\n", name.c_str());
         return 0;
@@ -491,6 +496,9 @@ int BBBMatrix::Init(Json::Value config)
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", name.c_str());
             return 0;
         }
+        std::string longName = root["longName"].asString();
+        LogDebug(VB_CHANNELOUT, "Using pin configuration for %s from %s\n", longName.c_str(), filename);
+
         std::ofstream outputFile;
         outputFile.open("/tmp/PanelPinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
         

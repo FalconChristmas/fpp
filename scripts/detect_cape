@@ -235,4 +235,14 @@ if ($deleteEpromFile) {
 
 file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/delete_device", "0x50");
 
+exec("chown -R fpp:fpp  /home/fpp/media/tmp");
+exec("chmod -R u+rw /home/fpp/media/tmp");
+exec("chmod -R g+rw /home/fpp/media/tmp");
+exec("chmod -R o+r /home/fpp/media/tmp");
+exec("chmod -R u-s /home/fpp/media/tmp");
+exec("chmod -R g-s /home/fpp/media/tmp");
+exec("chmod -R o-s /home/fpp/media/tmp");
+exec("find /home/fpp/media/tmp -type d -exec chmod +x {} \;");
+
+
 ?>

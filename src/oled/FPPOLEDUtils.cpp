@@ -325,12 +325,13 @@ int FPPOLEDUtils::outputBottomPart(int startY, int count) {
                 line += ".";
             }
             print_str(line.c_str());
+            startY += 8;
         } else {
             print_str("FPPD is not running...");
             startY += 8;
         }
         if (_imageWidth) {
-            drawBitmap(0, 24, &_image[0], _imageWidth, _imageHeight, WHITE);
+            drawBitmap(0, startY, &_image[0], _imageWidth, _imageHeight, WHITE);
         }
     }
     return startY;
@@ -356,9 +357,6 @@ bool FPPOLEDUtils::doIteration(int count) {
     
     if (_displayOn) {
         int startY = 0;
-        if (_ledType == 6) {
-            startY++;
-        }
         setTextSize(1);
         setTextColor(WHITE);
         if (_ledType != 8) {

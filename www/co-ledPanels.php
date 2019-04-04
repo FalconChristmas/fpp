@@ -1,4 +1,36 @@
 <script>
+
+<?
+    function readPanelCapes($cd, $capes) {
+        if (is_dir($cd)){
+            if ($dh = opendir($cd)){
+                while (($file = readdir($dh)) !== false){
+                    $string = "";
+                    if (substr($file, 0, 1) == '.') {
+                        $string = "";
+                    } else {
+                        $string = file_get_contents($cd . $file);
+                    }
+                    if ($string != "") {
+                        $panelCapes[] = $string;
+                    }
+                }
+                closedir($dh);
+            }
+        }
+        return $panelCapes;
+    }
+    
+    $panelCapes = array();
+    $panelCapes = readPanelCapes("/home/fpp/media/tmp/panels/", $panelCapes);
+    if (count($panelCapes) == 1) {
+        echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
+    } else {
+        echo "// NO KNOWN_PANEL_CAPE";
+    }
+?>
+
+
 var panelRowButton = 0;
 function EditLEDPanelLayout(button) {
 	panelRowButton = button;
@@ -383,6 +415,16 @@ function InitializeLEDPanels()
 	{
 ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
+        if ((KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined')) {
+            $('#LEDPanelsWiringPinout').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]);
+            $('#LEDPanelsWiringPinout').hide();
+            $('#LEDPanelsWiringPinoutLabel').hide();
+        }
+        if ((KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined')) {
+            $('#LEDPanelsConnection').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+            $('#LEDPanelsConnection').hide();
+            $('#LEDPanelsConnectionLabel').hide();
+        }
 <?
 	}
 
@@ -678,7 +720,7 @@ else
 								</select>
 							</td>
 							<td>&nbsp;</td>
-							<td><b>Wiring Pinout:</b></td>
+							<td><span id="LEDPanelsWiringPinoutLabel"><b>Wiring Pinout:</b></span></td>
 							<td><select id='LEDPanelsWiringPinout'>
 <?
 if ($settings['Platform'] == "Raspberry Pi")
@@ -746,7 +788,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 								</select>
 							</td>
 						</tr>
-						<tr><td><b>Connection:</b></td>
+						<tr><td><span id='LEDPanelsConnectionLabel'><b>Connection:</b></span></td>
 							<td><select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
 <?
 if ($settings['Platform'] == "Raspberry Pi") {
