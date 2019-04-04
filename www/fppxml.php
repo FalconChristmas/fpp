@@ -1099,7 +1099,7 @@ function DeleteScheduleEntry()
 
 function AddScheduleEntry()
 {
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2014-01-01","2099-12-31");
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2019-01-01","2099-12-31");
 	EchoStatusXML('Success');
 }
 
@@ -1138,15 +1138,45 @@ function SaveSchedule()
 			$_SESSION['ScheduleEntries'][$i]->startDay |= $dayMask;
 		}
 
-		$startTime = 		$entry = explode(":",$_POST['txtStartTime'][$i],3);
-		$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
-		$_SESSION['ScheduleEntries'][$i]->startMinute = $startTime[1];
-		$_SESSION['ScheduleEntries'][$i]->startSecond = $startTime[2];
+		if ($_POST['txtStartTime'][$i] == 'SunRise')
+		{
+			$_SESSION['ScheduleEntries'][$i]->startHour = '25';
+			$_SESSION['ScheduleEntries'][$i]->startMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->startSecond = '00';
+		}
+		else if ($_POST['txtStartTime'][$i] == 'SunSet')
+		{
+			$_SESSION['ScheduleEntries'][$i]->startHour = '26';
+			$_SESSION['ScheduleEntries'][$i]->startMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->startSecond = '00';
+		}
+		else
+		{
+			$startTime = explode(":",$_POST['txtStartTime'][$i],3);
+			$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
+			$_SESSION['ScheduleEntries'][$i]->startMinute = $startTime[1];
+			$_SESSION['ScheduleEntries'][$i]->startSecond = $startTime[2];
+		}
 
-		$endTime = 		$entry = explode(":",$_POST['txtEndTime'][$i],3);
-		$_SESSION['ScheduleEntries'][$i]->endHour = $endTime[0];
-		$_SESSION['ScheduleEntries'][$i]->endMinute = $endTime[1];
-		$_SESSION['ScheduleEntries'][$i]->endSecond = $endTime[2];
+		if ($_POST['txtEndTime'][$i] == 'SunRise')
+		{
+			$_SESSION['ScheduleEntries'][$i]->endHour = '26';
+			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
+		}
+		else if ($_POST['txtEndTime'][$i] == 'SunSet')
+		{
+			$_SESSION['ScheduleEntries'][$i]->endHour = '26';
+			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
+		}
+		else
+		{
+			$endTime = explode(":",$_POST['txtEndTime'][$i],3);
+			$_SESSION['ScheduleEntries'][$i]->endHour = $endTime[0];
+			$_SESSION['ScheduleEntries'][$i]->endMinute = $endTime[1];
+			$_SESSION['ScheduleEntries'][$i]->endSecond = $endTime[2];
+		}
 
 		if(isset($_POST['chkRepeat'][$i]))
 		{
@@ -1161,7 +1191,7 @@ function SaveSchedule()
 		$_SESSION['ScheduleEntries'][$i]->endDate   =	$_POST['txtEndDate'][$i];
 
 		if (trim($_SESSION['ScheduleEntries'][$i]->startDate) == "")
-			$_SESSION['ScheduleEntries'][$i]->startDate = "2014-01-01";
+			$_SESSION['ScheduleEntries'][$i]->startDate = "2019-01-01";
 		if (trim($_SESSION['ScheduleEntries'][$i]->endDate) == "")
 			$_SESSION['ScheduleEntries'][$i]->endDate = "2099-12-31";
 	}
@@ -1254,7 +1284,7 @@ function LoadScheduleFile()
 			$endMinute = $entry[7];
 			$endSecond = $entry[8];
 			$repeat = $entry[9];
-			$startDate = "2014-01-01";
+			$startDate = "2019-01-01";
 			$endDate = "2099-12-31";
 
 			if ((count($entry) >= 11) && $entry[10] != "")
@@ -1306,17 +1336,30 @@ function GetSchedule()
 		// startTime
 		$startTime = $doc->createElement('startTime');
 		$startTime = $ScheduleEntry->appendChild($startTime);
-		$sStartTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->startHour,
-												$_SESSION['ScheduleEntries'][$i]->startMinute,
-												$_SESSION['ScheduleEntries'][$i]->startSecond);
+
+		if ($_SESSION['ScheduleEntries'][$i]->startHour == 25)
+			$sStartTime = 'SunRise';
+		else if ($_SESSION['ScheduleEntries'][$i]->startHour == 26)
+			$sStartTime = 'SunSet';
+		else
+			$sStartTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->startHour,
+													$_SESSION['ScheduleEntries'][$i]->startMinute,
+													$_SESSION['ScheduleEntries'][$i]->startSecond);
 		$value = $doc->createTextNode($sStartTime);
 		$value = $startTime->appendChild($value);
 		// endTime
 		$endTime = $doc->createElement('endTime');
 		$endTime = $ScheduleEntry->appendChild($endTime);
-		$sEndTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->endHour,
-											$_SESSION['ScheduleEntries'][$i]->endMinute,
-											$_SESSION['ScheduleEntries'][$i]->endSecond);
+
+		if ($_SESSION['ScheduleEntries'][$i]->endHour == 25)
+			$sEndTime = 'SunRise';
+		else if ($_SESSION['ScheduleEntries'][$i]->endHour == 26)
+			$sEndTime = 'SunSet';
+		else
+			$sEndTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->endHour,
+												  $_SESSION['ScheduleEntries'][$i]->endMinute,
+												  $_SESSION['ScheduleEntries'][$i]->endSecond);
+
 		$value = $doc->createTextNode($sEndTime);
 		$value = $endTime->appendChild($value);
 		// repeat

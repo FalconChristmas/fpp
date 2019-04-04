@@ -107,6 +107,7 @@ class Scheduler {
 	int  GetNextScheduleEntry(int *weeklySecondIndex);
 	void LoadCurrentScheduleInfo(void);
 	void LoadNextScheduleInfo(void);
+	void GetSunInfo(int set, int &hour, int &minute, int &second);
 	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry);
 	void PlayListLoadCheck(void);
 	void PlayListStopCheck(void);

@@ -1672,7 +1672,22 @@ function RemovePlaylistEntry()	{
 															"</tr>";
 															
 									$('#tblSchedule').append(tableRow);
-									$('.time').timepicker({'timeFormat': 'H:i:s', 'typeaheadHighlight': false, 'show2400': true});
+									$('.time').timepicker({
+										'timeFormat': 'H:i:s',
+										'typeaheadHighlight': false,
+										'show2400': true,
+										'noneOption': [
+												{
+													'label': 'SunRise',
+													'value': 'SunRise'
+												},
+												{
+													'label': 'SunSet',
+													'value': 'SunSet'
+												}
+											]
+										});
+
 									$('.date').datepicker({
 										'changeMonth': true,
 										'changeYear': true,

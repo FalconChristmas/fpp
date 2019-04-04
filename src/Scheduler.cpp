@@ -38,6 +38,7 @@
 #include "playlist/Playlist.h"
 #include "Scheduler.h"
 #include "settings.h"
+#include "SunSet.h"
 
 Scheduler *scheduler = NULL;
 
@@ -264,6 +265,44 @@ void Scheduler::LoadNextScheduleInfo(void)
     GetNextScheduleStartText(t);
     LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
   }
+}
+
+void Scheduler::GetSunInfo(int set, int &hour, int &minute, int &second)
+{
+	std::string latStr = getSetting("Latitude");
+	std::string lonStr = getSetting("Longitude");
+	std::string::size_type sz;
+	double lat = std::stod(latStr, &sz);
+	double lon = std::stod(lonStr, &sz);
+	double sunOffset = 0;
+	time_t currTime = time(NULL);
+	struct tm utc;
+	struct tm local;
+
+	gmtime_r(&currTime, &utc);
+	localtime_r(&currTime, &local);
+
+	LogDebug(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
+	LogDebug(VB_SCHEDULE, "Today (UTC) is %02d/%02d/%04d, UTC offset is %d hours\n",
+		utc.tm_mon + 1, utc.tm_mday, utc.tm_year + 1900, local.tm_gmtoff / 3600);
+
+	SunSet sun(lat, lon, local.tm_gmtoff / 3600);
+	sun.setCurrentDate(utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday);
+
+	if (set)
+		sunOffset = sun.calcSunset();
+	else
+		sunOffset = sun.calcSunrise();
+
+	LogDebug(VB_SCHEDULE, "SunRise/Set Time Offset: %.2f minutes\n", sunOffset);
+	hour = (int)sunOffset / 60;
+	minute = (int)sunOffset % 60;
+	second = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
+
+	if (set)
+		LogDebug(VB_SCHEDULE, "Sunset is at %02d:%02d:%02d\n", hour, minute, second);
+	else
+		LogDebug(VB_SCHEDULE, "Sunrise is at %02d:%02d:%02d\n", hour, minute, second);
 }
 
 void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry)
@@ -627,6 +666,29 @@ void Scheduler::LoadScheduleFromFile(void)
       m_Schedule[m_ScheduleEntryCount].endDate = DateStrToInt(s);
     else
       m_Schedule[m_ScheduleEntryCount].endDate = 20991231;
+
+	// Check for sunrise/sunset flags
+	if (m_Schedule[m_ScheduleEntryCount].startHour == 25)
+		GetSunInfo( 0,
+					m_Schedule[m_ScheduleEntryCount].startHour,
+					m_Schedule[m_ScheduleEntryCount].startMinute,
+					m_Schedule[m_ScheduleEntryCount].startSecond);
+	else if (m_Schedule[m_ScheduleEntryCount].startHour == 26)
+		GetSunInfo( 1,
+					m_Schedule[m_ScheduleEntryCount].startHour,
+					m_Schedule[m_ScheduleEntryCount].startMinute,
+					m_Schedule[m_ScheduleEntryCount].startSecond);
+
+	if (m_Schedule[m_ScheduleEntryCount].endHour == 25)
+		GetSunInfo( 0,
+					m_Schedule[m_ScheduleEntryCount].endHour,
+					m_Schedule[m_ScheduleEntryCount].endMinute,
+					m_Schedule[m_ScheduleEntryCount].endSecond);
+	else if (m_Schedule[m_ScheduleEntryCount].endHour == 26)
+		GetSunInfo( 1,
+					m_Schedule[m_ScheduleEntryCount].endHour,
+					m_Schedule[m_ScheduleEntryCount].endMinute,
+					m_Schedule[m_ScheduleEntryCount].endSecond);
 
     // Set WeeklySecond start and end times
     SetScheduleEntrysWeeklyStartAndEndSeconds(&m_Schedule[m_ScheduleEntryCount]);

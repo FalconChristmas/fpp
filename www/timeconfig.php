@@ -118,6 +118,17 @@ function print_if_match($one, $two, $print)
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
+<script>
+function ViewLatLon()
+{
+	var lat = $('#Latitude').val();
+	var lon = $('#Longitude').val();
+
+	var url = 'https://www.google.com/maps/@' + lat + ',' + lon + ',15z';
+	window.open(url, '_blank');
+}
+
+</script>
 </head>
 <body>
 <div id="bodyWrapper">
@@ -200,6 +211,20 @@ unset($output);
 <input id="submit_button" name="submit_button" type="submit" class="buttons" value="Submit">
 </div>
       </form>
+
+<hr>
+<h4>Geographic Location</h4>
+<table border=0 cellpadding=2>
+<tr><td>Latitude:</td>
+	<td><? PrintSettingTextSaved("Latitude", 1, 0, 11, 11, "", "38.938524"); ?></td>
+	<td rowspan=2 valign='middle'><input type='button' value='View Location' onClick='ViewLatLon();'></td>
+	</tr>
+<tr><td>Longitude:</td>
+	<td><? PrintSettingTextSaved("Longitude", 1, 0, 11, 11, "", "-104.600945"); ?></td>
+	</tr>
+</table>
+<br>
+NOTE: Latitude/Longitude are optional but are used to determine sunrise/sunset times in the FPP Scheduler.  There are various ways to locate your Latitude and Longitude values including <a href='https://www.google.com/maps/'>Google Maps</a> and <a href='https://www.latlong.net/'>LatLong.net</a>.  The default values provided are for Falcon, Colorado.
 
 </fieldset>
 </div>

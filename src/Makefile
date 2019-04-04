@@ -111,9 +111,6 @@ OBJECTS_fppd = \
 	channeltester/RGBChase.o \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
-    fseq/FSEQFile.o \
-    sensors/Sensors.o \
-    ping.o \
 	command.o \
 	common.o \
 	e131bridge.o \
@@ -123,6 +120,7 @@ OBJECTS_fppd = \
 	fppd.o \
 	fppversion.o \
 	FrameBuffer.o \
+	fseq/FSEQFile.o \
 	gpio.o \
 	httpAPI.o \
 	log.o \
@@ -135,6 +133,7 @@ OBJECTS_fppd = \
 	mediaoutput/omxplayer.o \
 	mediaoutput/SDLOut.o \
 	mqtt.o \
+	ping.o \
 	PixelOverlay.o \
 	Playlist.o \
 	playlist/Playlist.o \
@@ -161,9 +160,11 @@ OBJECTS_fppd = \
 	Plugins.o \
 	Scheduler.o \
 	ScheduleEntry.o \
-	Sequence.o \
 	scripts.o \
+	sensors/Sensors.o \
+	Sequence.o \
 	settings.o \
+	SunSet.o \
 	$(NULL)
 LIBS_fppd = \
 	-lboost_filesystem \
