@@ -34,5 +34,8 @@ dispatch_get   ('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_post  ('/sequence/:SequenceName', 'PostSequence');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
 
+dispatch_get   ('/cape', 'GetCapeInfo');
+
+
 run();
 ?>
