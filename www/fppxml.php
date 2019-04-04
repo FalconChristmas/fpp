@@ -1160,7 +1160,7 @@ function SaveSchedule()
 
 		if ($_POST['txtEndTime'][$i] == 'SunRise')
 		{
-			$_SESSION['ScheduleEntries'][$i]->endHour = '26';
+			$_SESSION['ScheduleEntries'][$i]->endHour = '25';
 			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
 			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
 		}
