@@ -54,7 +54,7 @@
 <center>
 <b>spixels Output Connections</b><br>
 <table border='1' cellpadding='4' cellspacing='1'>
-<tr><th>WS281x Function</th><th>Raspberry Pi</th></tr>
+<tr><th>WS2801/APA102/LPD Function</th><th>Raspberry Pi</th></tr>
 <tr><td>Data String #1</td><td>Pin 12 - GPIO18</td></tr>
 <tr><td>Data String #2</td><td>Pin 16 - GPIO23</td></tr>
 <tr><td>Data String #3</td><td>Pin 15 - GPIO22</td></tr>
@@ -71,6 +71,7 @@
 <tr><td>Data String #14</td><td>Pin 33 - GPIO13</td></tr>
 <tr><td>Data String #15</td><td>Pin 37 - GPIO26</td></tr>
 <tr><td>Data String #16</td><td>Pin 38 - GPIO20</td></tr>
+<tr><td>Clock</td><td>Pin 13 - GPIO27</td></tr>
 <tr><td>Ground</td><td>Pin 25 - GND</td></tr>
 <tr><td>Pixel Power</td><td>Not Connected to Pi</td></tr>
 </table>
