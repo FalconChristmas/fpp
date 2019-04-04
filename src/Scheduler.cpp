@@ -271,6 +271,15 @@ void Scheduler::GetSunInfo(int set, int &hour, int &minute, int &second)
 {
 	std::string latStr = getSetting("Latitude");
 	std::string lonStr = getSetting("Longitude");
+
+	if ((latStr == "") || (lonStr == ""))
+	{
+		latStr = "38.938524";
+		lonStr = "-104.600945";
+
+		LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not filled in, using Falcon, Colorado coordinates!\n");
+	}
+
 	std::string::size_type sz;
 	double lat = std::stod(latStr, &sz);
 	double lon = std::stod(lonStr, &sz);
