@@ -77,6 +77,7 @@
 #  include "ILI9488.h"
 #  include "SPIws2801.h"
 #  include "rpi_ws281x.h"
+#  include "spixels.h"
 #endif
 
 #ifdef PLATFORM_BBB
@@ -404,6 +405,8 @@ int InitializeChannelOutputs(void) {
 					channelOutputs[i].output = new ILI9488Output(start, count);
 				} else if (type == "RPIWS281X") {
 					channelOutputs[i].output = new RPIWS281xOutput(start, count);
+				} else if (type == "spixels") {
+					channelOutputs[i].output = new SpixelsOutput(start, count);
 				} else if (type == "SPI-WS2801") {
 					channelOutputs[i].output = new SPIws2801Output(start, count);
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);

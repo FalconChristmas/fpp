@@ -323,10 +323,10 @@ function populatePixelStringOutputs(data) {
                         {
                             var vs = port.virtualStrings[v];
                         
-                            str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                            str += pixelOutputTableRow(type, 'ws2811', 'ws2811', id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
                         }
                     } else {
-                        str += pixelOutputTableRow(type, id, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                        str += pixelOutputTableRow(type, 'ws2811', 'ws2811', id, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
                     }
                 }
 

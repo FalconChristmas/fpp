@@ -229,6 +229,7 @@ CFLAGS += \
 	-I../external/RF24/ \
 	-I../external/rpi-rgb-led-matrix/include/ \
 	-I../external/rpi_ws281x/ \
+	-I../external/spixels/include/ \
 	$(NULL)
 LIBS_fppd += \
 	-lwiringPi \
@@ -236,27 +237,32 @@ LIBS_fppd += \
 	-lrf24-bcm \
 	-lrgbmatrix \
 	-lws2811 \
+	-lspixels \
 	$(NULL)
 LDFLAGS_fppd += \
 	-L../external/RF24/ \
 	-L../external/rpi-rgb-led-matrix/lib/ \
 	-L../external/rpi_ws281x/ \
+	-L../external/spixels/lib/ \
 	$(NULL)
 OBJECTS_fppd += \
 	channeloutput/Hill320.o \
 	channeloutput/ILI9488.o \
 	channeloutput/RGBMatrix.o \
 	channeloutput/rpi_ws281x.o \
+	channeloutput/spixels.o \
 	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	../external/rpi_ws281x/libws2811.a \
+	../external/spixels/lib/libspixels.a \
 	$(NULL)
 SUBMODULES += \
 	external/RF24 \
 	external/rpi-rgb-led-matrix \
 	external/rpi_ws281x \
+	external/spixels \
 	$(NULL)
 else ifeq '$(ARCH)' 'ODROID'
 # do something for ODROID
@@ -401,6 +407,9 @@ fppversion.c: fppversion.sh force
 %.o: %.c %.h Makefile
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
+cleanfpp:
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
+
 clean:
 	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
@@ -459,4 +468,15 @@ restart: fppd
 		gcc -c -o pwm.o pwm.c && \
 		gcc -c -o ws2811.o ws2811.c && \
 		ar rcs libws2811.a rpihw.o mailbox.o dma.o pwm.o pcm.o ws2811.o
+
+#############################################################################
+# spixels library on the Pi
+../external/spixels/.git:
+	@cd ../ && \
+		git submodule init && \
+		git submodule update
+
+../external/spixels/lib/libspixels.a: ../external/spixels/.git
+	@echo "Building spixels library"
+	@CC="ccache gcc" CXX="ccache g++" make -C ../external/spixels/lib/
 

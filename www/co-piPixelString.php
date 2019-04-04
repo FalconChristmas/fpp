@@ -46,12 +46,36 @@ function addPixelOutput()
 
 	var str = "<hr>\n";
 
+	var protocols = '';
+	var protocol = '';
+
 	var portCount = 0;
 	if (type == 'RPIWS281X')
+	{
 		portCount = 2;
+		protocol = 'ws281x';
+		protocols = 'ws281x';
+	}
 	else if (type == 'SPI-WS2801')
+	{
 		portCount = 1;
-	// FIXME, put BBB output port counts here
+		protocol = 'ws2801';
+		protocols = 'ws2801';
+	}
+	else if (type == 'spixels')
+	{
+		portCount = 16;
+
+		// Can't use ws2801 for now until mailbox issue is resolved.
+		// spixels includes its own copy of the mailbox code, but
+		// ends up calling the copy from jgarff's rpi-ws281x library
+		// since the functions have the same names.  Do we fork and
+		// rename or patch and submit a pull request?
+		//protocol = 'ws2801';
+		//protocols = 'ws2801,apa102,lpd6803,lpd8806';
+		protocol = 'apa102';
+		protocols = 'apa102,lpd6803,lpd8806';
+	}
 
 	str += '<b>' + type + ' Output</b><br>';
 	str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable' checked><br>";
@@ -64,7 +88,7 @@ function addPixelOutput()
 	var i = 0;
 	for (i = 0; i < portCount; i++)
 	{
-		str += pixelOutputTableRow(type, id, i, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+		str += pixelOutputTableRow(type, protocols, protocol, id, i, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
 	}
 
 	str += "</tbody>";
@@ -91,6 +115,30 @@ function populatePixelStringOutputs(data)
 
             var type = output.type;
             var str = "<hr>\n";
+            var protocols = '';
+            var protocol = '';
+
+            if (type == 'RPIWS281X')
+            {
+                protocols = 'ws281x';
+
+                if (protocol == '')
+                    protocol = 'ws281x';
+            }
+            else if (type == 'SPI-WS2801')
+            {
+                protocols = 'ws2801';
+
+                if (protocol == '')
+                    protocol = 'ws2801';
+            }
+            else if (type == 'spixels')
+            {
+                protocols = 'ws2801,apa102,lpd6803,lpd8806';
+
+                if (protocol == '')
+                    protocol = 'ws2801';
+            }
 
             str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable'";
 
@@ -100,7 +148,7 @@ function populatePixelStringOutputs(data)
             str += "><br>";
 
             str += '<b>' + type + ' Output</b><br>';
-            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='2' class='outputTable'>";
+            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "' class='outputTable'>";
             str += pixelOutputTableHeader();
             str += "<tbody>";
 
@@ -110,20 +158,23 @@ function populatePixelStringOutputs(data)
             {
                 var port = output.outputs[o];
 
+                if (port.protocol)
+                    protocol = port.protocol;
+
                 for (var v = 0; v < port.virtualStrings.length; v++)
                 {
                     var vs = port.virtualStrings[v];
 
-                    str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                    str += pixelOutputTableRow(type, protocols, protocol, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
                 }
             }
 
 
 	    if (output.outputCount == 0) {
-                str += pixelOutputTableRow(type, id, 0, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                str += pixelOutputTableRow(type, protocols, protocol, id, 0, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
 	    }
 	    if (output.outputCount < 2) {
-		str += pixelOutputTableRow(type, id, 1, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+		str += pixelOutputTableRow(type, protocols, protocol, id, 1, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
             }
 
             str += "</tbody>";
@@ -172,9 +223,9 @@ $(document).ready(function() {
 		<b>New Type:</b>
 		<select id='pixelOutputType'>
 			<option value='RPIWS281X'>RPIWS281X</option>
+			<option value='spixels'>spixels</option>
 <!--
 			<option value='SPI-WS2801'>SPI-WS2801</option>
-			<option value='BBB48String'>BBB (not implemented yet)</option>
 -->
 		</select>
 

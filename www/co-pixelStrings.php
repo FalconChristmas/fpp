@@ -59,6 +59,7 @@ function pixelOutputTableHeader()
     result += "<thead>";
     result += "<tr>";
     result += "<th>Port</th>";
+    result += "<th>Protocol</th>";
     result += "<th>&nbsp;</th>";
     result += "<th>Description</th>";
     result += "<th>Start<br>Channel</th>";
@@ -77,6 +78,28 @@ function pixelOutputTableHeader()
     return result;
 }
 
+function pixelOutputProtocolSelect(protocols, protocol)
+{
+    var result = "";
+    var pixelProtocols = protocols.split(',');
+
+    if (pixelProtocols.length == 0)
+	pixelProtocols.push(protocol);
+
+    result += "<select class='vsProtocol'>";
+
+    for (i = 0; i < pixelProtocols.length; i++)
+    {
+        result += "<option value='" + pixelProtocols[i] + "'";
+        if (protocol == pixelProtocols[i])
+            result += " selected";
+        result += ">" + pixelProtocols[i].toUpperCase() + "</option>";
+    }
+
+    result += "</select>";
+
+    return result;
+}
 
 function pixelOutputTableInputDirection(reverse)
 {
@@ -184,6 +207,8 @@ function addVirtualString(item)
     var type = row.attr('type');
     var oid = parseInt(row.attr('oid'));
     var pid = parseInt(row.attr('pid'));
+    var protocols = row.attr('protocols');
+    var protocol = row.find('.vsProtocol').val();
     var tbody = row.parent();
     var desc = row.find('.vsDescription').val();
     var str = "";
@@ -204,27 +229,29 @@ function addVirtualString(item)
     
     var sid = highest + 1;
     
-    str += pixelOutputTableRow(type, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 100, '1.0');
+    str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 100, '1.0');
     
     $('#' + highestId).after(str);
 }
 
-function pixelOutputTableRow(type, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullCount, zigZag, brightness, gamma)
+function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullCount, zigZag, brightness, gamma)
 {
     var result = "";
     var id = type + "_Output_" + oid + "_" + port + "_" + sid;
     
-    result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' + pid='" + port + "' sid='" + sid + "'>";
+    result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' + pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "'>";
     
     if (sid)
     {
         result += "<td>&nbsp;</td>";
+        result += "<td><input type='hidden' class='vsProtocol' value='" + protocol + "'</td>";
         result += "<td><a href='#' ";
         result += "class='deleteButton' onClick='removeVirtualString(this);'></td>";
     }
     else
     {
         result += "<td align='center'>" + (port+1) + ")</td>";
+        result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
         result += "<td><a href='#' ";
         result += "class='addButton' onClick='addVirtualString(this);'></td>";
     }
@@ -301,8 +328,9 @@ function updateItemEndChannel(item) {
     updateRowEndChannel(row);
 }
 
-function setRowData(row, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullNodes, zigZag, brightness, gamma)
+function setRowData(row, protocol, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullNodes, zigZag, brightness, gamma)
 {
+    row.find('.vsProtocol').val(protocol);
     row.find('.vsDescription').val(description);
     row.find('.vsStartChannel').val(startChannel);
     row.find('.vsPixelCount').val(pixelCount);
@@ -346,6 +374,7 @@ function cloneSelectedString()
     for (i = 0; i < clones; i++)
     {
         setRowData(nextRow,
+                   row.find('.vsProtocol').val(),
                    sDescription + (i+1),
                    sStartChannel + (sPixelCount * 3 * (i+1)),
                    sPixelCount,
@@ -418,6 +447,7 @@ function getPixelStringOutputJSON()
 
 			port.portNumber = i;
 			port.virtualStrings = virtualStrings;
+			port.protocol = $this.find('.vsProtocol').val();
 			outputs.push(port);
 		}
 
