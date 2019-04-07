@@ -415,12 +415,12 @@ function InitializeLEDPanels()
 	{
 ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
-        if ((KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined')) {
+        if ((typeof KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined')) {
             $('#LEDPanelsWiringPinout').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]);
             $('#LEDPanelsWiringPinout').hide();
             $('#LEDPanelsWiringPinoutLabel').hide();
         }
-        if ((KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined')) {
+        if ((typeof KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined')) {
             $('#LEDPanelsConnection').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
             $('#LEDPanelsConnection').hide();
             $('#LEDPanelsConnectionLabel').hide();
