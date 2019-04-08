@@ -334,7 +334,7 @@ a:visited {
                 echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
             }
             if (isSet($currentCapeInfo['vendor']['image'])) {
-                echo "<tr><td colspan=\"2\"><a href=\"" . $currentCapeInfo['vendor']['url'] . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "\" /></a></td></tr>";
+                echo "<tr><td colspan=\"2\"><a href=\"" . $currentCapeInfo['vendor']['url'] . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id']  . "\" /></a></td></tr>";
             }?>
                </table>
                </div>

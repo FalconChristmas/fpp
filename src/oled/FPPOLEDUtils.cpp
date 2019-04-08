@@ -503,6 +503,9 @@ bool FPPOLEDUtils::checkStatusAbility() {
         Json::Reader reader;
         bool success = reader.parse(buffer.str(), root);
         if (success) {
+            if (root["id"].asString() == "Unsupported") {
+                return false;
+            }
             if (root["verifiedKeyId"].asString() == "dk") {
                 return true;
             }

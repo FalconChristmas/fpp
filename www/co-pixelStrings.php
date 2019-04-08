@@ -43,6 +43,28 @@
     width: 100%;
 }
 
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+    //  BBB only supports ws2811 at this point
+    ?>
+    #BBB48String tr > th:nth-of-type(2),
+    #BBB48String tr > td:nth-of-type(2) {
+        display: none;
+    }
+    <?
+    }
+    if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {
+        // don't support virtual strings
+    ?>
+    #BBB48String tr > th:nth-of-type(3),
+    #BBB48String tr > td:nth-of-type(3) {
+        display: none;
+    }
+
+    <?
+    }
+?>
+
 </style>
 
 
@@ -55,7 +77,6 @@ var selectedPixelStringRowId = "NothingSelected";
 function pixelOutputTableHeader()
 {
     var result = "";
-    
     result += "<thead>";
     result += "<tr>";
     result += "<th>Port</th>";

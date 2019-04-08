@@ -1,7 +1,7 @@
 <script>
 
 <?
-    function readPanelCapes($cd, $capes) {
+    function readPanelCapes($cd, $panelCapes) {
         if (is_dir($cd)){
             if ($dh = opendir($cd)){
                 while (($file = readdir($dh)) !== false){

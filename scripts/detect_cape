@@ -4,6 +4,31 @@
 $validSignature = false;
 $deleteEpromFile = false;
 
+if (file_exists("/etc/fpp/platform")) {
+    $platform = trim(file_get_contents("/etc/fpp/platform"));
+}
+
+if ($platform == FALSE) {
+    $platform = exec("uname -s");
+}
+
+$I2CBUS = "2";
+if ($platform == "Raspberry Pi") {
+    // need to modprobe the i2c-dev stuff so the i2c bus becomes available
+    $I2CBUS = "1";
+    exec("modprobe i2c-dev 2>&1");
+}
+
+function HasI2CDevice($id) {
+    global $I2CBUS;
+    $cmd = "i2cdetect -y -r $I2CBUS 0x$id 0x$id | colrm 1 3 | grep $id";
+    exec($cmd, $output, $result);
+    if ($result != 0) {
+        return false;
+    }
+    return true;
+}
+
 function DoSignatureVerify($keyId, $fp, $sigFile) {
     global $validSignature, $deleteEpromFile;
     $fpEEPROM = fopen("/home/fpp/media/tmp/eeprom", "wb");
@@ -47,22 +72,20 @@ function DoSignatureVerify($keyId, $fp, $sigFile) {
     return $fp;
 }
 
-
-
-if (file_exists("/etc/fpp/platform")) {
-    $platform = trim(file_get_contents("/etc/fpp/platform"));
+function checkUnsupported($orig) {
+    global $platform;
+    if ($platform == "BeagleBone Black") {
+        $subPlat = trim(file_get_contents("/proc/device-tree/model"));
+        if (strpos($subPlat, 'PocketBeagle') !== false) {
+            return $orig;
+        }
+        if (HasI2CDevice("3c")) {
+            return "/opt/fpp/capes/unsupported/Unsupported-eeprom.bin";
+        }
+    }
+    return $orig;
 }
 
-if ($platform == FALSE) {
-    $platform = exec("uname -s");
-}
-
-$I2CBUS = "2";
-if ($platform == "Raspberry Pi") {
-    // need to modprobe the i2c-dev stuff so the i2c bus becomes available
-    $I2CBUS = "1";
-    exec("modprobe i2c-dev 2>&1");
-}
 
 //while waiting, we can cleanup tmp
 if (!file_exists("/home/fpp/media/tmp") && !is_dir("/home/fpp/media/tmp")) {
@@ -89,25 +112,30 @@ for ($i = 0; $i < $count; $count++) {
     usleep(100);
 }
 
-$EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
-if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
-    // detect and initialize the eeprom, only support 24c256 chips for now
-    if (!file_exists($EEPROM)) {
-        @file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device", "24c256 0x50");
+$EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
+if (HasI2CDevice("50")) {
+    $EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
+    if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
+        // detect and initialize the eeprom, only support 24c256 chips for now
+        if (!file_exists($EEPROM)) {
+            @file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device", "24c256 0x50");
+        }
+        if (!file_exists($EEPROM)) {
+            $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
+        }
     }
-    if (!file_exists($EEPROM)) {
-        $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
-    }
-} else {
-    $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
 }
 if (!file_exists($EEPROM)) {
     $EEPROM = "/opt/fpp-vendor/cape-eeprom.bin";
 }
 if (!file_exists($EEPROM)) {
+    $EEPROM = checkUnsupported($EEPROM);
+}
+if (!file_exists($EEPROM)) {
     echo "Could not detect any cape\n";
     exit(0);
 }
+echo  "Using EEPROM: $EEPROM \n";
 $fp = fopen($EEPROM, 'rb');
 $header = fread($fp, 6); // should be FPP02 + null
 if (substr( $header, 0, 5 ) != "FPP02") {
@@ -194,18 +222,39 @@ fclose($fp);
 // also put the serialNumber into the cape-info for display
 if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     $json = json_decode(file_get_contents("/home/fpp/media/tmp/cape-info.json"));
-    $json->serialNumber = $capesn;
+    if ($json->id != "Unsupported") {
+        $json->serialNumber = $capesn;
+    }
     if (! $validSignature) {
         unset($json->vendor);
         unset($json->provides);
         unset($json->verifiedKeyId);
     } else {
         $json->verifiedKeyId = $fkeyId;
-        foreach ($json->defaultSettings as $key => $value) {
-            if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
-                file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
+        if (IsSet($json->defaultSettings)) {
+            foreach ($json->defaultSettings as $key => $value) {
+                if (strpos(file_get_contents("/home/fpp/media/settings"), $key . " =") == false) {
+                    file_put_contents("/home/fpp/media/settings", $key . " = \"" . $value . "\"\n", FILE_APPEND);
+                }
             }
         }
+    }
+    if (IsSet($json->removeSettings)) {
+        $settingsContent = file_get_contents("/home/fpp/media/settings");
+        $settings = explode(PHP_EOL, $settingsContent);
+        foreach ($json->removeSettings as $key) {
+            $keyToRemove = false;
+            foreach ($settings as $lineNumber => $line) {
+                if (strpos($line, $key) !== false) {
+                    $keyToRemove = $lineNumber;
+                }
+            }
+            if ($keyToRemove) {
+                unset($settings[$keyToRemove]);
+            }
+        }
+        $newsettings = implode(PHP_EOL, $settings);
+        file_put_contents("/home/fpp/media/settings", $newsettings);
     }
     $jsonData = json_encode($json, JSON_PRETTY_PRINT);
     file_put_contents("/home/fpp/media/tmp/cape-info.json", $jsonData);
@@ -233,7 +282,7 @@ if ($deleteEpromFile) {
     unlink("/home/fpp/media/tmp/eeprom");
 }
 
-file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/delete_device", "0x50");
+@file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/delete_device", "0x50");
 
 exec("chown -R fpp:fpp  /home/fpp/media/tmp");
 exec("chmod -R u+rw /home/fpp/media/tmp");

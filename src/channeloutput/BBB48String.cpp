@@ -35,6 +35,7 @@
 #include <chrono>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 #define BBB_PRU  1
 
@@ -222,6 +223,35 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
     outputFile.close();
 }
 
+static int getMaxChannelsPerPort() {
+    char buf[128] = {0};
+    FILE *fd = fopen("/sys/firmware/devicetree/base/model", "r");
+    if (fd) {
+        fgets(buf, 127, fd);
+        fclose(fd);
+    }
+    std::string model = buf;
+    if (model == "TI AM335x PocketBeagle") {
+        return 999999;
+    }
+    std::string file = "/home/fpp/media/tmp/cape-info.json";
+    if (FileExists(file)) {
+        std::ifstream t(file);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            if (root["id"].asString() == "Unsupported") {
+                return 600;
+            }
+        }
+    }
+    return 999999;
+}
+
 
 /*
  *
@@ -233,6 +263,7 @@ int BBB48StringOutput::Init(Json::Value config)
     m_subType = config["subType"].asString();
     m_channelCount = config["channelCount"].asInt();
 
+    int maxPerPort = getMaxChannelsPerPort();
     
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
@@ -241,6 +272,9 @@ int BBB48StringOutput::Init(Json::Value config)
         if (!newString->Init(s))
             return 0;
 
+        if (newString->m_outputChannels > maxPerPort) {
+            newString->m_outputChannels =  maxPerPort;
+        }
         if (newString->m_outputChannels > m_maxStringLen) {
             m_maxStringLen = newString->m_outputChannels;
         }

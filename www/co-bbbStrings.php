@@ -9,6 +9,7 @@ var KNOWN_CAPES = {
     }
     
     function readCapes($cd, $capes) {
+        global $settings;
         if (is_dir($cd)){
             if ($dh = opendir($cd)){
                 while (($file = readdir($dh)) !== false){
@@ -21,8 +22,10 @@ var KNOWN_CAPES = {
                     
                     if ($string != "") {
                         $json = json_decode($string, true);
-
-                        if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
+                        if ($json['numSerial'] != 0 && isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
+                            // unsupported
+                            continue;
+                        } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
                             echo "'" . $file . "': " . $string . ",\n";
                             $file = str_replace('-v2.j', '.j', $file);
                             $file = str_replace('-v3.j', '.j', $file);
@@ -535,6 +538,10 @@ $(document).ready(function(){
                                 Press F2 to auto set the start channel on the next row.
                             </td>
                         </tr>
+<?if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {  ?>
+    <tr><td colspan='2' style='color: red;'>Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.</td></tr>
+    
+    <? } ?>
                     </table>
                     <div id='pixelOutputs'>
 
