@@ -596,6 +596,7 @@ public:
     virtual uint32_t computeMaxBlocks() = 0;
     virtual void addFrame(uint32_t frame, const uint8_t *data) = 0;
     virtual void finalize() = 0;
+    virtual std::string GetType() const = 0;
 
     int seek(uint64_t location, int origin) {
         return m_file->seek(location, origin);
@@ -624,7 +625,7 @@ public:
 
     virtual uint8_t getCompressionType() override { return 0;}
     virtual uint32_t computeMaxBlocks() override {return 0;}
-
+    virtual std::string GetType() const override { return "No Compression"; }
     virtual FrameData *getFrame(uint32_t frame) override {
         UncompressedFrameData *data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
         uint64_t offset = m_file->getChannelCount();
@@ -772,6 +773,7 @@ public:
         }
     }
     virtual uint8_t getCompressionType() override { return 1;}
+    virtual std::string GetType() const override { return "Compressed ZSTD"; }
 
     virtual FrameData *getFrame(uint32_t frame) override {
         if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
@@ -807,13 +809,21 @@ public:
             }
 
             free(m_outBuffer.dst);
-            int numFrames = (m_file->m_frameOffsets[m_curBlock + 1].first > m_file->getNumFrames() ? m_file->getNumFrames() :  m_file->m_frameOffsets[m_curBlock + 1].first) - m_file->m_frameOffsets[m_curBlock].first;
-            m_outBuffer.size = numFrames * m_file->getChannelCount();
+            m_numFramesInBlock = (m_file->m_frameOffsets[m_curBlock + 1].first > m_file->getNumFrames() ? m_file->getNumFrames() :  m_file->m_frameOffsets[m_curBlock + 1].first) - m_file->m_frameOffsets[m_curBlock].first;
+            m_outBuffer.size = m_numFramesInBlock * m_file->getChannelCount();
             m_outBuffer.dst = malloc(m_outBuffer.size);
             m_outBuffer.pos = 0;
-            ZSTD_decompressStream(m_dctx, &m_outBuffer, &m_inBuffer);
+            m_curFrameInBlock = 0;
+            
         }
         int fidx = frame - m_file->m_frameOffsets[m_curBlock].first;
+        if (fidx >= m_curFrameInBlock) {
+            m_outBuffer.size = (fidx + 1) * m_file->getChannelCount();
+            int opos = m_outBuffer.pos;
+            ZSTD_decompressStream(m_dctx, &m_outBuffer, &m_inBuffer);
+            m_curFrameInBlock = fidx + 1;
+        }
+        
         fidx *= m_file->getChannelCount();
         uint8_t *fdata = (uint8_t*)m_outBuffer.dst;
         UncompressedFrameData *data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
@@ -861,6 +871,14 @@ public:
             int clevel = m_file->m_compressionLevel == -1 ? 10 : m_file->m_compressionLevel;
             if (clevel < 0 || clevel > 25) {
                 clevel = 10;
+            }
+            if (frame == 0 && (ZSTD_versionNumber() > 10305)) {
+                // first frame needs to be grabbed as fast as possible
+                // or remotes may be off by a few frames at start.  Thus,
+                // if using recent zstd, we'll use the negative levels
+                // for the first block so the decompression can
+                // be as fast as possible
+                clevel = -10;
             }
             ZSTD_initCStream(m_cctx, clevel);
         }
@@ -924,6 +942,8 @@ public:
     ZSTD_DStream* m_dctx;
     ZSTD_outBuffer_s m_outBuffer;
     ZSTD_inBuffer_s m_inBuffer;
+    int m_numFramesInBlock;
+    int m_curFrameInBlock;
 };
 #endif
 
@@ -941,7 +961,7 @@ public:
         }
     }
     virtual uint8_t getCompressionType() override { return 2; }
-
+    virtual std::string GetType() const override { return "Compressed ZLIB"; }
 
     virtual FrameData *getFrame(uint32_t frame) override {
         if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
@@ -1124,6 +1144,7 @@ void V2FSEQFile::createHandler() {
         break;
     }
     if (m_handler == nullptr) {
+        LogDebug(VB_SEQUENCE, "Creating a default none compression handler. %d", (int)m_compressionType);
         m_handler = new V2NoneCompressionHandler(this);
     }
 }
@@ -1366,7 +1387,13 @@ FrameData *V2FSEQFile::getFrame(uint32_t frame) {
         return nullptr;
     }
     if (m_handler != nullptr) {
-        return m_handler->getFrame(frame);
+        FrameData* fd = nullptr;
+        try {
+            fd = m_handler->getFrame(frame);
+        } catch(...) {
+            LogErr(VB_SEQUENCE, "Error getting frame from handler %s.\n", m_handler->GetType().c_str());
+        }
+        return fd;
     }
     return nullptr;
 }
@@ -1394,4 +1421,3 @@ uint32_t V2FSEQFile::getMaxChannel() const {
     }
     return ret;
 }
-
