@@ -954,8 +954,6 @@ setupRTC () {
         return
     fi
 
-    modprobe i2c-dev
-
 	# Read Clock Setting From Settings File
 	piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
 
@@ -963,13 +961,13 @@ setupRTC () {
 	1)
 	  # rasClock chip
       echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
-      echo pcf2127 0x51 > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      echo "pcf2127 0x51" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
 	  ;;
 	2)
 	  # DS1307 chip
       echo "FPP - Configuring RTC, Setting to DS1307/${I2CBUS}"
-      echo ds1307 0x68 > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      echo "ds1307 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
 	  ;;
 	3)
@@ -981,12 +979,12 @@ setupRTC () {
 	4)
 	  # AdaFruit
       echo "FPP - Configuring RTC, Settting to pcf8523/${I2CBUS}"
-	  echo pcf8523 0x68 > /sys/bus/i2c/devices/${I2CBUS}/new_device
+	  echo "pcf8523 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
       sleep 1
 	  ;;
 	*)
 	  # None
-		echo "FPP - Configuring RTC, None Selected"
+      echo "FPP - Configuring RTC, None Selected"
 	  ;;
 	esac
 }
