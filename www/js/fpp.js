@@ -1096,7 +1096,7 @@ function RemovePlaylistEntry()	{
                 "<th width=\"30%\" align='left'>Description</th>" +
                 "<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
                 "<th width=\"8%\" align='left'>Universe<br>#</th>" +
-                "<th width=\"8%\" align='left' " + inputStyle + ">Universe<br>Count</th>" +
+                "<th width=\"8%\" align='left'>Universe<br>Count</th>" +
                 "<th width=\"8%\" align='left'>Universe<br>Size</th>" +
                 "<th width=\"15%\" align='left'>Universe Type</th>" +
                 "<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
@@ -1135,6 +1135,9 @@ function RemovePlaylistEntry()	{
                     universeSize = 512000;
                     universeDisable = " disabled";
                 }
+                if (input) {
+                    universeDisable = " disabled";
+                }
 
                 bodyHTML += "<tr class=\"rowUniverseDetails\">" +
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
@@ -1142,10 +1145,10 @@ function RemovePlaylistEntry()	{
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
                             "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
                             "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeDisable + "/></td>";
-                if (!input) {
-                    bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeDisable + "/></td>";
-                }
-                    bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
+
+                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeDisable + "/></td>";
+
+                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
                             "<td><select class='universeType' style='width:150px'";
 
                 if (input) {
@@ -1397,7 +1400,7 @@ function RemovePlaylistEntry()	{
             if (!input) {
                 output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
             } else {
-                output.enabled = true;
+                output.enabled = 1;
             }
             output.startChannel = 1;
             output.channelCount = -1;
@@ -1410,9 +1413,7 @@ function RemovePlaylistEntry()	{
                 universe.description = document.getElementById("txtDesc[" + i + "]").value;;
                 universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
                 universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
-
-				if (!input)
-	                universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
+                universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
 
                 universe.channelCount = parseInt(document.getElementById("txtSize[" + i + "]").value);
                 universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
