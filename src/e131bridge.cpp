@@ -108,11 +108,11 @@ void LoadInputUniversesFromFile(void)
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/config/ci-universes.json");
 
-	LogDebug(VB_CHANNELOUT, "Opening File Now %s\n", filename);
+	LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename);
 
 	if (!FileExists(filename))
 	{
-		LogErr(VB_CHANNELOUT, "Universe file %s does not exist\n",
+		LogErr(VB_E131BRIDGE, "Universe file %s does not exist\n",
 			filename);
 		return;
 	}
@@ -129,7 +129,7 @@ void LoadInputUniversesFromFile(void)
 	bool success = reader.parse(buffer.str(), root);
 	if (!success)
 	{
-		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+		LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename);
 		return;
 	}
 
@@ -607,7 +607,7 @@ void InputUniversesPrint()
 
 	for(i=0;i<InputUniverseCount;i++)
 	{
-		LogDebug(VB_CHANNELOUT, "E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
+		LogDebug(VB_E131BRIDGE, "E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
 				  InputUniverses[i].active,
 				  InputUniverses[i].universe,
 				  InputUniverses[i].startAddress,
