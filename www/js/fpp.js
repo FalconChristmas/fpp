@@ -2611,7 +2611,7 @@ function GetRunningEffects()
 			$('#newEventStartChannelWrapper').hide();
 	}
 
-	function InsertNewEvent(name, id, effect, startChannel, script)
+	function InsertNewEvent(name, id, effect, startChannel, script, scriptArgs)
 	{
 		var idStr = id.replace('_', ' / ');
 		$('#tblEventEntries').append(
@@ -2645,30 +2645,34 @@ function GetRunningEffects()
 			"&startChannel=" + $('#newEventStartChannel').val() +
 			"&script=" + $('#newEventScript').val() +
 			"&scriptArgs=" + encodeURIComponent($('#newEventScriptArgs').val());
-		var xmlhttp=new XMLHttpRequest();
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-			{
-				if ($('#tblEventEntries tr#event_' + $('#newEventID').val()).attr('id'))
-				{
-					UpdateExistingEvent($('#newEventName').val(), $('#newEventID').val(),
-						$('#newEventEffect').val(), $('#newEventStartChannel').val(),
-						$('#newEventScript').val(), $('#newEventScriptArgs').val());
-				}
-				else
-				{
-					InsertNewEvent($('#newEventName').val(), $('#newEventID').val(),
-						$('#newEventEffect').val(), $('#newEventStartChannel').val(),
-						$('#newEventScript').val(), $('#newEventScriptArgs').val());
-				}
-				SetButtonState('#btnTriggerEvent','disable');
-				SetButtonState('#btnEditEvent','disable');
-				SetButtonState('#btnDeleteEvent','disable');
-			}
-		}
-		xmlhttp.send();
+
+        //If event name is empty, warn the user and skip saving
+        if (typeof ($('#newEventName').val()) === 'undefined' || $('#newEventName').val() == "") {
+            DialogError("Error Saving Event", "Event Name must be set!")
+        } else {
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("GET", url, true);
+            xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+            xmlhttp.onreadystatechange = function () {
+                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                    if ($('#tblEventEntries tr#event_' + $('#newEventID').val()).attr('id')) {
+                        UpdateExistingEvent($('#newEventName').val(), $('#newEventID').val(),
+                            $('#newEventEffect').val(), $('#newEventStartChannel').val(),
+                            $('#newEventScript').val(), $('#newEventScriptArgs').val());
+                    }
+                    else {
+                        InsertNewEvent($('#newEventName').val(), $('#newEventID').val(),
+                            $('#newEventEffect').val(), $('#newEventStartChannel').val(),
+                            $('#newEventScript').val(), $('#newEventScriptArgs').val());
+                    }
+                    SetButtonState('#btnTriggerEvent', 'disable');
+                    SetButtonState('#btnEditEvent', 'disable');
+                    SetButtonState('#btnDeleteEvent', 'disable');
+                }
+            }
+            xmlhttp.send();
+        }
+
 	}
 
 	function CancelNewEvent()
