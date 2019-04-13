@@ -2068,6 +2068,11 @@ function AddPlaylist()
 
 	$doc = new DomDocument('1.0');
 	$name =str_replace(' ', '_', $name);
+
+	//TODO Playlists - Reassess whether this is still needed once scheduler is stored in json
+	//Replace Illegal chars in the playlist name
+	$name = ReplaceIllegalCharacters($name);
+
 	$response = $doc->createElement('Response');
 	$response = $doc->appendChild($response);
 	$successAttribute = $doc->createAttribute('Success');

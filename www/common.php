@@ -871,6 +871,36 @@ function get_remote_git_version($git_branch){
 	return $git_remote_version;
 }
 
+function ReplaceIllegalCharacters($input_string)
+{
+	// Removes any of the following characters from the supplied name, can be used to cleanse playlist names, event names etc
+	// Current needed for example it the case of the scheduler since it is still CSV and commas in a playlist name cause issues
+	// Everything is currently replaced with a hyphen ( - )
+
+	// , (comma)
+	// < (less than)
+	// > (greater than)
+	// : (colon)
+	// " (double quote)
+	// / (forward slash)
+	// \ (backslash)
+	// | (vertical bar or pipe)
+	// ? (question mark)
+	// * (asterisk)
+
+	$illegalChars = [',', '<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+	if (!empty($input_string)) {
+
+		for ($ill_index = 0; $ill_index < count($illegalChars); $ill_index++) {
+			$input_string = str_replace($illegalChars[$ill_index], '-', $input_string);
+		}
+
+	}
+
+	return $input_string;
+}
+
 /**
  * Restarts the ntp server service
  */

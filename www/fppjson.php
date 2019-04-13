@@ -1408,6 +1408,10 @@ function SavePlaylistRaw($name)
 	//Hack to get have the playlist duration be recalculated before saving
 	unset($_SESSION['playlistInfo']);
 
+	//TODO Playlists - Reassess whether this is still needed once scheduler is stored in json
+	//Replace Illegal chars in the playlist name
+	$name = ReplaceIllegalCharacters($name);
+
 	$json = GenerateJSONPlaylist($name);
 
 	// Make sure the whole string is pretty

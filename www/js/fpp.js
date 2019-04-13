@@ -724,6 +724,35 @@ function RandomizePlaylistEntries() {
     $('.tblCreatePlaylistEntries_tbody').sortable('refresh').sortable('refreshPositions');
 }
 
+/**
+ * Removes any of the following characters from the supplied name, can be used to cleanse playlist names, event names etc
+ * Current needed for example it the case of the scheduler since it is still CSV and commas in a playlist name cause issues
+ * Everything is currently replaced with a hyphen ( - )
+ *
+ * Currently unused in the front-end
+ */
+function RemoveIllegalChars(name) {
+
+    // , (comma)
+    // < (less than)
+    // > (greater than)
+    // : (colon)
+    // " (double quote)
+    // / (forward slash)
+    // \ (backslash)
+    // | (vertical bar or pipe)
+    // ? (question mark)
+    // * (asterisk)
+
+    var illegalChars = [',', '<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+    for(ill_index = 0; ill_index < illegalChars.length; ++ill_index) {
+        name = name.toString().replace(illegalChars[ill_index], " - ");
+    }
+
+    return name;
+}
+
 function CopyPlaylist()	{
     var name = document.getElementById("txtPlaylistName");
     //pop the dialog
