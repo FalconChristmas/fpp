@@ -1159,13 +1159,15 @@ function RemovePlaylistEntry()	{
                 var typeDDP1 = type == 5 ? "selected": "";
 
                 var universeSize = 512;
-                var universeDisable = "";
+                var universeCountDisable = "";
+                var universeNumberDisable = "";
                 if (type == 4 || type == 5) {
                     universeSize = 512000;
-                    universeDisable = " disabled";
+                    universeCountDisable = " disabled";
+                    universeNumberDisable = " disabled";
                 }
                 if (input) {
-                    universeDisable = " disabled";
+                    universeCountDisable = " disabled";
                 }
 
                 bodyHTML += "<tr class=\"rowUniverseDetails\">" +
@@ -1173,9 +1175,9 @@ function RemovePlaylistEntry()	{
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
                             "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
-                            "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeDisable + "/></td>";
+                            "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
-                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeDisable + "/></td>";
+                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + "/></td>";
 
                 bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
                             "<td><select class='universeType' style='width:150px'";
