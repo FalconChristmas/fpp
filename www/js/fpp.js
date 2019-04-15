@@ -1358,7 +1358,7 @@ function RemovePlaylistEntry()	{
 					var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
 					var unicastAddress=document.getElementById("txtIP[" + selectIndex + "]").value;
 					var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
-                    var uCount=Number(document.getElementById("numUniverseCount[" + selectIndex + "]").value)+ size;
+                    var uCount=Number(document.getElementById("numUniverseCount[" + selectIndex + "]").value);
 					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
 					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
