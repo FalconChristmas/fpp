@@ -739,32 +739,6 @@ void Scheduler::SchedulePrint(void)
       m_Schedule[i].playList);
   }
 
-  //////////////////////////////////////////////////////////////////////////
-#if 0
-  LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
-  LogDebug(VB_SCHEDULE, "Now, the C++ version for comparison\n");
-  pthread_mutex_lock(&m_scheduleLock);
-  for (i = 0; i < m_schedule.size(); i++)
-  {
-    char dayStr[32];
-    GetDayTextFromDayIndex(m_schedule[i].m_dayIndex, dayStr);
-    LogInfo(VB_SCHEDULE, "%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
-      m_schedule[i].m_enabled ? '+': '-',
-      CurrentDateInRange(m_schedule[i].m_startDate, m_schedule[i].m_endDate) ? ' ': '!',
-      m_schedule[i].m_repeating ? '*': ' ',
-      (int)(m_schedule[i].m_startDate / 10000),
-      (int)(m_schedule[i].m_startDate % 10000 / 100),
-      (int)(m_schedule[i].m_startDate % 100),
-      (int)(m_schedule[i].m_endDate / 10000),
-      (int)(m_schedule[i].m_endDate % 10000 / 100),
-      (int)(m_schedule[i].m_endDate % 100),
-      dayStr,
-      m_schedule[i].m_startHour,m_schedule[i].m_startMinute,m_schedule[i].m_startSecond,
-      m_schedule[i].m_endHour,m_schedule[i].m_endMinute,m_schedule[i].m_endSecond,
-      m_schedule[i].m_playlistName.c_str());
-  }
-  pthread_mutex_unlock(&m_scheduleLock);
-#endif
   LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
 }
 
