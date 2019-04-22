@@ -4,55 +4,20 @@
 #include <vector>
 #include <string>
 
-#include <curl/curl.h>
-#include <jsoncpp/json/json.h>
+class FPPStatusOLEDPage;
 
 class FPPOLEDUtils {
 public:
     FPPOLEDUtils(int ledType);
     ~FPPOLEDUtils();
-
-    bool doIteration(int count);
-  
     
     void run();
-    void cycleTest();
+
 private:
-    int getLinesPage0(std::vector<std::string> &lines,
-                      Json::Value &result,
-                      bool allowBlank);
-    int getLinesPage1(std::vector<std::string> &lines,
-                      Json::Value &result,
-                      bool allowBlank);
-    void readImage();
-
-    
-    void fillInNetworks();
-    int getSignalStrength(char *iwname);
-    void outputNetwork(int idx, int y);
-    
-    int outputTopPart(int startY, int count);
-    int outputBottomPart(int startY, int count);
-
-    
     int _ledType;
-    std::vector<std::string> networks;
-    std::vector<int> signalStrength;
-    
-    int _currentTest;
-    int _curPage;
     bool _displayOn;
-    bool _doFullStatus;
-    
-    int _imageWidth;
-    int _imageHeight;
-    std::vector<uint8_t> _image;
-    
-    CURL *curl;
-    std::string buffer;
-    int sockfd;
-    
-    
+    FPPStatusOLEDPage *statusPage;
+
     class InputAction {
     public:
         class Action {

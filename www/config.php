@@ -31,14 +31,15 @@ function GetSettingValue($setting) {
 
 	return;  // FIXME, should we do this or return something else
 }
-function ApprovedVendor($v) {
-    if (isSet($v["name"]) && ($v["name"] == "Daniel Kulp")) {
-        return true;
+
+function ApprovedCape($v) {
+    if (isSet($v["vendor"])) {
+        if (isSet($v["vendor"]["name"]) && ($v["vendor"]["name"] == "Upgrade")
+            && isSet($v["designer"]) && ($v["designer"] == "Unknown")) {
+            return true;
+        }
     }
-    return false;
-}
-function ApprovedDesigner($v) {
-    if (isSet($v["designer"]) && ($v["designer"] == "Daniel Kulp")) {
+    if (isSet($v["verifiedKeyId"]) && file_exists("/opt/fpp/scripts/keys/" . $v["verifiedKeyId"] . "_pub.pem")) {
         return true;
     }
     return false;
@@ -116,8 +117,7 @@ if (file_exists("/etc/fpp/platform"))
 if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
     $cape_info = json_decode(file_get_contents($mediaDirectory . "/tmp/cape-info.json"), true);
     if (isSet($cape_info["vendor"])) {
-        if (!ApprovedVendor($cape_info["vendor"])
-            && !ApprovedDesigner($cape_info)) {
+        if (!ApprovedCape($cape_info)) {
             unset($cape_info["vendor"]);
         }
     }

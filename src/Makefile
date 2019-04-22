@@ -57,6 +57,9 @@ OBJECTS_fppoled = \
 	oled/I2C.o \
 	oled/SSD1306_OLED.o \
 	oled/FPPOLEDUtils.o \
+	oled/OLEDPages.o \
+	oled/FPPStatusOLEDPage.o \
+	oled/FPPMainMenu.o \
     oled/fppoled.o
 
 LIBS_fppoled = \
