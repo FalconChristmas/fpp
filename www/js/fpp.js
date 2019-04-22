@@ -1166,9 +1166,6 @@ function RemovePlaylistEntry()	{
                     universeCountDisable = " disabled";
                     universeNumberDisable = " disabled";
                 }
-                if (input) {
-                    universeCountDisable = " disabled";
-                }
 
                 bodyHTML += "<tr class=\"rowUniverseDetails\">" +
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +

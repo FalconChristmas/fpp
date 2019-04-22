@@ -110,8 +110,7 @@ void LoadInputUniversesFromFile(void)
 
 	LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename);
 
-	if (!FileExists(filename))
-	{
+	if (!FileExists(filename)) {
 		LogErr(VB_E131BRIDGE, "Universe file %s does not exist\n",
 			filename);
 		return;
@@ -127,8 +126,7 @@ void LoadInputUniversesFromFile(void)
 	std::string config = buffer.str();
 
 	bool success = reader.parse(buffer.str(), root);
-	if (!success)
-	{
+    if (!success) {
 		LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename);
 		return;
 	}
@@ -139,8 +137,7 @@ void LoadInputUniversesFromFile(void)
 	int start = 0;
 	int count = 0;
 
-	for (int c = 0; c < outputs.size(); c++)
-	{
+	for (int c = 0; c < outputs.size(); c++) {
 		if (outputs[c]["type"].asString() != "universes")
 			continue;
 
@@ -149,33 +146,37 @@ void LoadInputUniversesFromFile(void)
 
 		Json::Value univs = outputs[c]["universes"];
 
-		for (int i = 0; i < univs.size(); i++)
-		{
+		for (int i = 0; i < univs.size(); i++) {
 			Json::Value u = univs[i];
 
-			if(u["active"].asInt())
-			{
-				InputUniverses[InputUniverseCount].active = u["active"].asInt();
-				InputUniverses[InputUniverseCount].universe = u["id"].asInt();
-				InputUniverses[InputUniverseCount].startAddress = u["startChannel"].asInt();
-				InputUniverses[InputUniverseCount].size = u["channelCount"].asInt();
-				InputUniverses[InputUniverseCount].type = u["type"].asInt();
-
-				switch (InputUniverses[InputUniverseCount].type) {
-					case 0: // Multicast
-							strcpy(InputUniverses[InputUniverseCount].unicastAddress,"\0");
-							break;
-					case 1: //UnicastAddress
-							strcpy(InputUniverses[InputUniverseCount].unicastAddress,
-								u["address"].asString().c_str());
-							break;
-					default: // ArtNet
-							continue;
-				}
-	
-				InputUniverses[InputUniverseCount].priority = u["priority"].asInt();
-
-			    InputUniverseCount++;
+			if(u["active"].asInt()) {
+                int universe = u["id"].asInt();
+                int count = u.get("universeCount", Json::Value(1)).asInt();
+                int startChannel = u["startChannel"].asInt();
+                int channelCount = u["channelCount"].asInt();
+                for (int x = 0; x < count; ++x) {
+                    InputUniverses[InputUniverseCount].active = u["active"].asInt();
+                    InputUniverses[InputUniverseCount].universe = universe + x;
+                    InputUniverses[InputUniverseCount].startAddress = startChannel;
+                    InputUniverses[InputUniverseCount].size = channelCount;
+                    InputUniverses[InputUniverseCount].type = u["type"].asInt();
+                    
+                    switch (InputUniverses[InputUniverseCount].type) {
+                        case 0: // Multicast
+                            strcpy(InputUniverses[InputUniverseCount].unicastAddress,"\0");
+                            break;
+                        case 1: //UnicastAddress
+                            strcpy(InputUniverses[InputUniverseCount].unicastAddress,
+                                   u["address"].asString().c_str());
+                            break;
+                        default: // ArtNet
+                            continue;
+                    }
+                    
+                    InputUniverses[InputUniverseCount].priority = u["priority"].asInt();
+                    startChannel += channelCount;
+                    InputUniverseCount++;
+                }
 			}
 		}
 	}
@@ -474,10 +475,7 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe)
 
 void ResetBytesReceived()
 {
-	int i;
-
-	for(i=0;i<InputUniverseCount;i++)
-	{
+	for (int i = 0; i < InputUniverseCount; i++) {
 		InputUniverses[i].bytesReceived = 0;
 		InputUniverses[i].packetsReceived = 0;
         InputUniverses[i].errorPackets = 0;
@@ -526,8 +524,7 @@ Json::Value GetE131UniverseBytesReceived()
         universes.append(ddpUniverse);
     }
 
-	for(i = 0; i < InputUniverseCount; i++)
-	{
+	for(i = 0; i < InputUniverseCount; i++) {
 		Json::Value universe;
 
 		universe["id"] = InputUniverses[i].universe;
@@ -602,11 +599,7 @@ Json::Value GetE131UniverseBytesReceived()
 
 void InputUniversesPrint()
 {
-	int i=0;
-	int h;
-
-	for(i=0;i<InputUniverseCount;i++)
-	{
+    for(int i = 0; i < InputUniverseCount; i++) {
 		LogDebug(VB_E131BRIDGE, "E1.31 Universe: %d:%d:%d:%d:%d  %s\n",
 				  InputUniverses[i].active,
 				  InputUniverses[i].universe,
