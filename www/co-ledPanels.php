@@ -843,7 +843,8 @@ if ($settings['Platform'] == "Raspberry Pi") {
                                                                   
                     <br>
               <b>Notes and hints:</b>
-              <ul><li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
+              <ul><li>LED Panel Layout orientation is as if viewed from the front of the panels.</li>
+	      <li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
               <li>If not using all outputs, use all the outputs from 1 up to what is needed.   Data is always sent on outputs up to the highest configured, even if no panels are attached.</li>
   <?
   if ($settings['Platform'] == "Raspberry Pi") {
