@@ -104,12 +104,12 @@ foreach($files as $file) {
 }
 
 //we'll wait for up to 15 seconds for i2c bus to become available
-$count = 150;
-for ($i = 0; $i < $count; $count++) {
+$count = 15;
+for ($i = 0; $i < $count; $i++) {
     if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
         break;
     }
-    usleep(100);
+    usleep(1000000);
 }
 
 $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
