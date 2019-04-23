@@ -115,6 +115,9 @@ bool FPPOLEDUtils::checkStatusAbility() {
 
 
 bool FPPOLEDUtils::parseInputActions(const std::string &file) {
+#ifdef USEWIRINGPI
+    wiringPiSetupGpio();
+#endif
     char vbuffer[256];
     bool needsPolling = false;
     if (FileExists(file)) {
@@ -149,7 +152,14 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
                     }
                     int p1pin = std::stoi(action.pin.substr(3));
                     int pin = physPinToGpio(p1pin);
-                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[0], 0);
+                    if (action.mode == "gpio_pu") {
+                        pullUpDnControl(pin, PUD_UP);
+                    } else if (action.mode == "gpio_pd") {
+                        pullUpDnControl(pin, PUD_DOWN);
+                    } else {
+                        pullUpDnControl(pin, PUD_OFF);
+                    }
+                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[0], pin);
 #endif
                     struct gpiod_line_request_config lineConfig;
                     lineConfig.consumer = "FPPOLED";
