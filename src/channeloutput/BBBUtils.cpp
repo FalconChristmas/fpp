@@ -385,6 +385,10 @@ int configBBBPin(const std::string &name,
     }
     fprintf(dir, "%s\n", mode.c_str());
     fclose(dir);
+    
+    dir = fopen("/sys/class/gpio/export", "w");
+    fprintf(dir, "%d", pin_num);
+    fclose(dir);
 
     if (direction != "") {
         snprintf(dir_name, sizeof(dir_name),

@@ -26,6 +26,7 @@
 #include <linux/wireless.h>
 #include <sys/ioctl.h>
 #include <jsoncpp/json/json.h>
+#include <gpiod.h>
 
 #include "OLEDPages.h"
 #include "FPPStatusOLEDPage.h"
@@ -33,6 +34,9 @@
 FPPOLEDUtils::FPPOLEDUtils(int ledType)
     : _ledType(ledType), _displayOn(true) {
     
+    for (auto &a : gpiodChips) {
+        a = nullptr;
+    }
     if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8) {
         setRotation(2);
     } else if (_ledType) {
@@ -41,9 +45,21 @@ FPPOLEDUtils::FPPOLEDUtils(int ledType)
     statusPage = nullptr;
 }
 FPPOLEDUtils::~FPPOLEDUtils() {
+    cleanup();
     delete statusPage;
 }
-
+void FPPOLEDUtils::cleanup() {
+    for (auto &a : actions) {
+        if (a.gpiodLine) {
+            gpiod_line_release(a.gpiodLine);
+        }
+    }
+    for (auto a : gpiodChips) {
+        if (a) {
+            gpiod_chip_close(a);
+        }
+    }
+}
 
 static const std::string EMPTY_STRING = "";
 const std::string &FPPOLEDUtils::InputAction::checkAction(int i, long long ntimeus) {
@@ -94,7 +110,7 @@ bool FPPOLEDUtils::checkStatusAbility() {
 }
 
 
-bool FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputAction> &actions) {
+bool FPPOLEDUtils::parseInputActions(const std::string &file) {
     char vbuffer[256];
     bool needsPolling = false;
     if (FileExists(file)) {
@@ -110,20 +126,48 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputA
                 InputAction action;
                 action.pin = root["inputs"][x]["pin"].asString();
                 action.mode = root["inputs"][x]["mode"].asString();
+                action.gpiodLine = nullptr;
                 if (action.mode.find("gpio") != std::string::npos) {
                     std::string buttonaction = root["inputs"][x]["type"].asString();
                     std::string edge = root["inputs"][x]["edge"].asString();
                     int actionValue = (edge == "falling" ? 0 : 1);
-    #ifdef PLATFORM_BBB
                     printf("Configuring pin %s as input of type %s   (mode: %s)\n", action.pin.c_str(), buttonaction.c_str(), action.mode.c_str());
+#if defined(PLATFORM_BBB)
+                    const PinCapabilities &pin = getBBBPinByName(action.pin).configPin(action.mode, "in");
+                    if (!gpiodChips[pin.gpio]) {
+                        gpiodChips[pin.gpio] = gpiod_chip_open_by_number(pin.gpio);
+                    }
+                    
+                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpio], pin.pin);
+#elif defined(PLATFORM_PI)
+                    if (!gpiodChips[0]) {
+                        gpiodChips[0] = gpiod_chip_open_by_number(0);
+                    }
+                    int p1pin = std::stoi(action.pin.substr(3));
+                    int pin = physPinToGpio(p1pin);
+                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[0], 0);
+#endif
+                    struct gpiod_line_request_config lineConfig;
+                    lineConfig.consumer = "FPPOLED";
+                    lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
+                    lineConfig.flags = 0;
+                    if (gpiod_line_request(action.gpiodLine, &lineConfig, 0) == -1) {
+                        printf("Could not config line as input\n");
+                    }
+                    gpiod_line_release(action.gpiodLine);
+                    if (edge == "falling") {
+                        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
+                    } else {
+                        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
+                    }
+                    lineConfig.flags = 0;
+                    if (gpiod_line_request(action.gpiodLine, &lineConfig, 0) == -1) {
+                        printf("Could not config line edge\n");
+                    }
 
-                    action.file = getBBBPinByName(action.pin).configPin(action.mode, "in").setEdge(edge).openValueForPoll();
-                    //read the initial value to make sure nothing triggers at start
-                    lseek(action.file, 0, SEEK_SET);
-                    int len = read(action.file, vbuffer, 255);
+                    action.file = gpiod_line_event_get_fd(action.gpiodLine);
                     action.actions.push_back(FPPOLEDUtils::InputAction::Action(buttonaction, actionValue, actionValue, 10000));
                     actions.push_back(action);
-    #endif
                 } else if (action.mode == "ain") {
                     char path[256];
                     sprintf(path, "/sys/bus/iio/devices/iio:device0/in_voltage%d_raw", root["inputs"][x]["input"].asInt());
@@ -150,9 +194,8 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file, std::vector<InputA
 
 
 void FPPOLEDUtils::run() {
-    std::vector<InputAction> actions;
     char vbuffer[256];
-    bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json", actions);
+    bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json");
     std::vector<struct pollfd> fdset(actions.size());
     
     if (actions.size() == 0 && _ledType == 0) {
@@ -196,7 +239,7 @@ void FPPOLEDUtils::run() {
             memset((void*)&fdset[0], 0, sizeof(struct pollfd) * actions.size());
             for (int x = 0; x < actions.size(); x++) {
                 fdset[x].fd = actions[x].file;
-                fdset[x].events = POLLPRI;
+                fdset[x].events = POLLIN | POLLPRI;
             }
 
             int rc = poll(&fdset[0], actions.size(), needsPolling ? 100 : 1000);
@@ -204,12 +247,12 @@ void FPPOLEDUtils::run() {
             
             for (int x = 0; x < actions.size(); x++) {
                 std::string action;
-                if ((fdset[x].revents & POLLPRI)) {
-                    lseek(fdset[x].fd, 0, SEEK_SET);
-                    int len = read(fdset[x].fd, vbuffer, 255);
-                    vbuffer[len] = 0;
-                    int v = atoi(vbuffer);
-                    action = actions[x].checkAction(v, ntime);
+                if (fdset[x].revents) {
+                    struct gpiod_line_event event;
+                    if (gpiod_line_event_read_fd(fdset[x].fd, &event) >= 0) {
+                        int v = gpiod_line_get_value(actions[x].gpiodLine);
+                        action = actions[x].checkAction(v, ntime);
+                    }
                 } else if (actions[x].mode == "ain") {
                     lseek(fdset[x].fd, 0, SEEK_SET);
                     int len = read(fdset[x].fd, vbuffer, 255);

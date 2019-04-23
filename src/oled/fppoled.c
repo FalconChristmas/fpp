@@ -11,13 +11,17 @@
 #include "settings.h"
 #include "common.h"
 
+
+static FPPOLEDUtils *oled = nullptr;
 void sigInteruptHandler(int sig) {
+    oled->cleanup();
     clearDisplay();
     Display();
     exit(1);
 }
 
 void sigTermHandler(int sig) {
+    oled->cleanup();
     clearDisplay();
     Display();
     exit(0);
@@ -74,6 +78,6 @@ int main (int argc, char *argv[]) {
     sigaction(SIGTERM, &sigTermAction, NULL);
     
     int count = 0;
-    FPPOLEDUtils oled(ledType);
-    oled.run();
+    oled = new FPPOLEDUtils(ledType);
+    oled->run();
 }

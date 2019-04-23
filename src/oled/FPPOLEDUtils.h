@@ -2,9 +2,15 @@
 #define  __FPPOLEDUTILS__
 
 #include <vector>
+#include <array>
 #include <string>
 
 class FPPStatusOLEDPage;
+
+extern "C" {
+    struct gpiod_chip;
+    struct gpiod_line;
+}
 
 class FPPOLEDUtils {
 public:
@@ -12,12 +18,14 @@ public:
     ~FPPOLEDUtils();
     
     void run();
+    void cleanup();
 
 private:
+    std::array<gpiod_chip*, 5> gpiodChips;
+
     int _ledType;
     bool _displayOn;
     FPPStatusOLEDPage *statusPage;
-
     class InputAction {
     public:
         class Action {
@@ -38,8 +46,13 @@ private:
         std::vector<Action> actions;
         
         const std::string &checkAction(int i, long long time);
+        
+        struct gpiod_line *gpiodLine;
     };
-    bool parseInputActions(const std::string &file, std::vector<InputAction> &actions);
+    
+    std::vector<InputAction> actions;
+
+    bool parseInputActions(const std::string &file);
     bool checkStatusAbility();
 };
 

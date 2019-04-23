@@ -66,6 +66,7 @@ LIBS_fppoled = \
 	-ljsoncpp \
 	-lpthread \
 	-lcurl \
+	-lgpiod \
 	$(NULL)
 
 OBJECTS_fppd = \
@@ -242,6 +243,8 @@ LIBS_fppd += \
 	-lws2811 \
 	-lspixels \
 	$(NULL)
+LIBS_fppoled += \
+	-lwiringPi
 LDFLAGS_fppd += \
 	-L../external/RF24/ \
 	-L../external/rpi-rgb-led-matrix/lib/ \
