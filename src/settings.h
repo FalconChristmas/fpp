@@ -91,7 +91,7 @@ int parseSetting(char *key, char *value);
 
 // Getters
 const char *getSetting(const char *setting);
-int   getSettingInt(const char *setting);
+int   getSettingInt(const char *setting, int defaultVal = 0);
 
 int getDaemonize(void);
 FPPMode getFPPmode(void);

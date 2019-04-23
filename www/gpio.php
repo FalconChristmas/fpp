@@ -8,7 +8,12 @@ require_once("common.php");
 <head>
 <?php
 include 'common/menuHead.inc';
+    $pullUpTypes = Array();
+    $pullUpTypes['None/External'] = 0;
+    $pullUpTypes['Pull Up'] = 1;
+    $pullUpTypes['Pull Down'] = 2;
 
+    
 	$eventFiles = scandir($eventDirectory);
 
 	function PrintEventOptions($gpio, $rising = true)
@@ -269,10 +274,11 @@ $(document).ready(function(){
 		</tr>
 		<tr class='fppTableHeader'>
 				<td width='5%'>En.</td>
-				<td width='12%'>GPIO #</td>
+				<td width='10%'>GPIO #</td>
 				<td width='10%'>wiring #</td>
-				<td width='55%' colspan='2'>Events</td>
-				<td width='18%' align='center'>Hdr&nbsp;-&nbsp;Pin</td>
+				<td width='50%' colspan='2'>Events</td>
+                <td width='10%'>Pull Up/Down</td>
+				<td width='15%' align='center'>Hdr&nbsp;-&nbsp;Pin</td>
 		</tr>
 <?
 
@@ -280,12 +286,14 @@ $(document).ready(function(){
 	{
 		$inputData = explode(":", $input);
 		$settingID = sprintf("GPIOInput%03dEnabled", $inputData[1]);
+        $settingPULL = sprintf("GPIOInput%03dPullUpDown", $inputData[1]);
 ?>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", $settingID, 1, 0, "1", "0"); ?></td>
 				<td><?= $inputData[0]; ?></td>
 				<td><?= $inputData[2]; ?></td>
 				<td>Rising: <? PrintEventOptions($inputData[1]); ?></td>
 				<td>Falling: <? PrintEventOptions($inputData[1], false); ?></td>
+                <td><? PrintSettingSelect("Pull Up/Down", $settingPULL, 0, 0,isset($settings[$settingPULL]) ? $settings[$settingPULL] : "0", $pullUpTypes); ?></td>
 				<td align='center'><?= $inputData[3]; ?></td>
 		</tr>
 <?

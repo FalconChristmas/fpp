@@ -40,6 +40,16 @@
 #   include "wiringPi.h"
 #   include "softPwm.h"
 #   define supportsPWM(a) 1
+static void configureInputPin(int i, int pud) {
+    pinMode(i, INPUT);
+    if (pud == 1) {
+        pullUpDnControl(i, PUD_UP);
+    } else if (pud == 2) {
+        pullUpDnControl(i, PUD_DOWN);
+    } else {
+        pullUpDnControl(i, PUD_OFF);
+    }
+}
 #elif defined(PLATFORM_BBB)
 #   include "channeloutput/BBBUtils.h"
 #   define INPUT "in"
@@ -48,18 +58,25 @@
 
 #   define digitalRead(a)        getBBBPinValue(a)
 #   define digitalWrite(a,b)     setBBBPinValue(a, b)
-#   define pullUpDnControl(a,b)
 #   define softPwmCreate(a, b, c) setupBBBPinPWM(a)
 #   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b)
 #   define supportsPWM(a)        supportsPWMOnBBBPin(a)
 #   define LOW                   0
 #   define PUD_UP                2
+static void configureInputPin(int i, int pud) {
+    if (pud == 1) {
+        configBBBPin(i, "gpio_pu", "in");
+    } else if (pud == 2) {
+        configBBBPin(i, "gpio_pd", "in");
+    } else {
+        configBBBPin(i, "gpio", "in");
+    }
+}
 #else
 #   define supportsPWM(a)        0
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
 #   define digitalWrite(a,b)     0
-#   define pullUpDnControl(a,b)
 #   define softPwmCreate(a,b,c)  0
 #   define softPwmWrite(a,b)     0
 #   define LOW                   0
@@ -90,22 +107,23 @@ int SetupGPIOInput(void)
 	bzero(inputLastState, sizeof(inputLastState));
 	bzero(inputLastTriggerTime, sizeof(inputLastTriggerTime));
 
-	for (i = 0; i < MAX_GPIO_INPUTS; i++)
-	{
+	for (i = 0; i < MAX_GPIO_INPUTS; i++) {
 		sprintf(settingName, "GPIOInput%03dEnabled", i);
 
-		if (getSettingInt(settingName))
-		{
+		if (getSettingInt(settingName)) {
 			LogDebug(VB_GPIO, "Enabling GPIO %d for Input\n", i);
-			if (!enabled)
-			{
+			if (!enabled) {
 				enabled = 1;
 			}
-
-			pinMode(i, INPUT);
-            
-			if ((i >= 200) && (i <= 207))
-				pullUpDnControl(i, PUD_UP);
+            sprintf(settingName, "GPIOInput%03dPullUpDown", i);
+            int pu = getSettingInt(settingName, -1);
+            if ((pu == -1) && (i >= 200) && (i <= 207)) {
+                pu = 1;
+            }
+            if (pu == -1) {
+                pu = 0;
+            }
+            configureInputPin(i, pu);
 
 			inputConfigured[i] = 1;
 
@@ -182,17 +200,13 @@ int SetupExtGPIO(int gpio, char *mode)
 	}
 	else if (!strcmp(mode, "Input"))
 	{
-		if ((gpio >= 200) && (gpio <= 207))
-		{	
-			LogDebug(VB_GPIO, "GPIO %d (PiFace) set to Input mode\n", gpio);
-			// We might want to make enabling the internal pull-up optional
-			pullUpDnControl(gpio, PUD_UP);
+        int pu = 0;
+		if ((gpio >= 200) && (gpio <= 207)) {
+            // We might want to make enabling the internal pull-up optional
+            pu = 1;
 		}
-		else
-		{
-			LogDebug(VB_GPIO, "GPIO %d set to Input mode\n", gpio);
-			pinMode(gpio, INPUT);
-		}
+		LogDebug(VB_GPIO, "GPIO %d set to Input mode\n", gpio);
+        configureInputPin(gpio, pu);
 	}
 	else if (!strcmp(mode, "SoftPWM"))
 	{

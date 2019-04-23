@@ -541,9 +541,12 @@ const char *getSetting(const char *setting)
 	return "";
 }
 
-int getSettingInt(const char *setting)
+int getSettingInt(const char *setting, int defaultVal)
 {
 	const char *valueStr = getSetting(setting);
+    if (!valueStr || *valueStr == 0) {
+        return defaultVal;
+    }
 	int   value = strtol(valueStr, NULL, 10);
 
 	LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, value);
