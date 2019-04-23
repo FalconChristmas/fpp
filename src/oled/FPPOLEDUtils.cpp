@@ -31,6 +31,10 @@
 #include "OLEDPages.h"
 #include "FPPStatusOLEDPage.h"
 
+#ifdef USEWIRINGPI
+#   include "wiringPi.h"
+#endif
+
 FPPOLEDUtils::FPPOLEDUtils(int ledType)
     : _ledType(ledType), _displayOn(true) {
     
