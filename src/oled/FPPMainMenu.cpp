@@ -148,7 +148,9 @@ bool FPPMainMenu::itemSelected(const std::string &item) {
         FPPStatusOLEDPage *sp = statusPage;
         MenuOLEDPage *pg = new MenuOLEDPage("Test", {
             "Off",
-            "White", "Red", "Green", "Blue", "R-G-B", "R-G-B-All", "R-G-B-All-None",
+            "White", "Red", "Green", "Blue",
+            "R-G-B Cycle", "R-G-B-W Cycle", "R-G-B-W-N Cycle",
+            "R-G-B Chase", "R-G-B-W Chase", "R-G-B-W-N Chase",
             "Back"
         }, [this, sp] (const std::string &item) {
             if (item == "Back") {

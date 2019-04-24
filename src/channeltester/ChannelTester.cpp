@@ -35,6 +35,7 @@
 
 // Test Patterns
 #include "RGBChase.h"
+#include "RGBCycle.h"
 #include "RGBFill.h"
 #include "SingleChase.h"
 
@@ -116,6 +117,8 @@ int ChannelTester::SetupTest(std::string configStr)
 				m_testPattern = new TestPatternRGBChase();
 			else if (patternName == "RGBFill")
 				m_testPattern = new TestPatternRGBFill();
+			else if (patternName == "RGBCycle")
+				m_testPattern = new TestPatternRGBCycle();
 		}
 
 		if (m_testPattern)

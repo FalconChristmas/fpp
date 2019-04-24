@@ -431,17 +431,29 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
     val["channelSet"] = "1-1048576";
     val["channelSetType"] = "channelRange";
 
-    if (test == "R-G-B") {
+    if (test == "R-G-B Chase") {
         val["mode"] = "RGBChase";
         val["subMode"] = "RGBChase-RGB";
         val["colorPattern"] = "FF000000FF000000FF";
-    } else if (test == "R-G-B-All") {
+    } else if (test == "R-G-B-W Chase") {
         val["mode"] = "RGBChase";
         val["subMode"] = "RGBChase-RGBA";
         val["colorPattern"] = "FF000000FF000000FFFFFFFF";
-    } else if (test == "R-G-B-All-None") {
+    } else if (test == "R-G-B-W-N Chase") {
         val["mode"] = "RGBChase";
         val["subMode"] = "RGBChase-RGBAN";
+        val["colorPattern"] = "FF000000FF000000FFFFFFFF000000";
+    } else if (test == "R-G-B Cycle") {
+        val["mode"] = "RGBCycle";
+        val["subMode"] = "RGBCycle-RGB";
+        val["colorPattern"] = "FF000000FF000000FF";
+    } else if (test == "R-G-B-W Cycle") {
+        val["mode"] = "RGBCycle";
+        val["subMode"] = "RGBCycle-RGBA";
+        val["colorPattern"] = "FF000000FF000000FFFFFFFF";
+    } else if (test == "R-G-B-W-N Cycle") {
+        val["mode"] = "RGBCycle";
+        val["subMode"] = "RGBCycle-RGBAN";
         val["colorPattern"] = "FF000000FF000000FFFFFFFF000000";
     } else if (test == "Off") {
         val["mode"] = "SingleChase";

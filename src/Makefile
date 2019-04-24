@@ -113,6 +113,7 @@ OBJECTS_fppd = \
 	channeltester/ChannelTester.o \
 	channeltester/TestPatternBase.o \
 	channeltester/RGBChase.o \
+	channeltester/RGBCycle.o \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
 	command.o \
