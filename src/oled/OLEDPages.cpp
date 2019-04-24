@@ -2,6 +2,8 @@
 #include "OLEDPages.h"
 #include "SSD1306_OLED.h"
 
+#include "RobotoFont-14.h"
+
 OLEDPage::OLEDType OLEDPage::oledType = OLEDPage::OLEDType::SINGLE_COLOR;
 bool OLEDPage::oledFlipped = false;
 OLEDPage *OLEDPage::currentPage = nullptr;
@@ -25,11 +27,9 @@ void OLEDPage::printString(int x, int y, const std::string &str, bool white) {
     setCursor(x, y);
     print_str(str.c_str());
 }
-void OLEDPage::printStringCentered(int y, const std::string &str, bool white, int textSize) {
+void OLEDPage::printStringCentered(int y, const std::string &str, bool white) {
     setTextColor(white ? WHITE : BLACK);
-    setTextSize(textSize);
-    int len = str.length();
-    len *= 6 * textSize;
+    int len = getTextWidth(str.c_str());
     len /= 2;
     setCursor(64 - len, y);
     print_str(str.c_str());
@@ -50,12 +50,14 @@ int TitledOLEDPage::displayTitle() {
     int maxY = numRows == 5 ? 63 : (numRows == 4 ? 47 : 31);
     
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && !oledFlipped) {
-        printStringCentered(startY, title, WHITE, 2);
+        setTextFont(&Roboto_Medium_14);
+        printStringCentered(startY, title, WHITE);
+        setTextFont(nullptr);
         startY += 16;
     } else {
         fillRect(0, 0, 128, 8, WHITE);
         drawRect(0, 0, 128, maxY + 1, WHITE);
-        printStringCentered(startY, title, BLACK, 1);
+        printStringCentered(startY, title, BLACK);
         if (maxY > 50) {
             startY += 12;
         } else if (maxY > 32) {

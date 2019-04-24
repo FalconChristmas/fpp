@@ -30,7 +30,7 @@ public:
     OLEDPage &autoDelete() { autoDeleteOnHide = true; return *this; }
 protected:
     void printString(int x, int y, const std::string &str, bool white = true);
-    void printStringCentered(int y, const std::string &str, bool white = true, int textSize = 1);
+    void printStringCentered(int y, const std::string &str, bool white = true);
 
     
     static OLEDType oledType;

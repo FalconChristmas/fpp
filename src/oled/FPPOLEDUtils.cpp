@@ -231,7 +231,7 @@ void FPPOLEDUtils::run() {
     }
     statusPage = new FPPStatusOLEDPage();
     if (!checkStatusAbility()) {
-        statusPage->disableFullStatus();
+        //statusPage->disableFullStatus();
     }
     OLEDPage::SetCurrentPage(statusPage);
     

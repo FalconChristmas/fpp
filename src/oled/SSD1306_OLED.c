@@ -66,7 +66,12 @@ static bool _cp437 = false, wrap = true;
 
 
 /* static struct objects */
-static GFXfontPtr gfxFont;
+static const GFXfont *gfxFont = nullptr;
+
+void setTextFont(const GFXfont *font) {
+    gfxFont = font;
+}
+
 
 /* Externs - I2C.c */
 extern I2C_DeviceT I2C_DEV_2;
@@ -2099,6 +2104,37 @@ unsigned char getRotation()
     return _rotation;
 }
 
+short getTextWidth(const char *strPtr) {
+    short maxW = 0;
+    short w = 0;
+    const char *p = strPtr;
+    while (*p) {
+        if (*p == '\n') {
+            if (maxW < w) {
+                maxW = w;
+            }
+            w = 0;
+        } else if (*p != '\r') {
+            if (!gfxFont) {
+                if(!_cp437 && (*p >= 176))
+                    p++;
+                w += 5 * textsize;
+            } else {
+                unsigned char c = *p;
+                c -= (unsigned char)pgm_read_byte(&gfxFont->first);
+                GFXglyphPtr glyph = &(((GFXglyph *)pgm_read_pointer(&gfxFont->glyph))[c]);
+                w += glyph->xAdvance;
+            }
+        }
+        p++;
+    }
+    if (maxW < w) {
+        maxW = w;
+    }
+    return maxW;
+}
+
+
 /****************************************************************
  * Function Name : drawBitmap
  * Description   : Draw a character
@@ -2113,7 +2149,7 @@ unsigned char getRotation()
 void drawChar(short x, short y, unsigned char c, short color, short bg, unsigned char size)
 {
     unsigned char line = 0, *bitmap = NULL, w = 0, h = 0, xx = 0, yy = 0, bits = 0, bit = 0;
-    char i = 0, j = 0, xo = 0, yo = 0;
+    int8_t i = 0, j = 0, xo = 0, yo = 0;
     short bo = 0, xo16 = 0, yo16 = 0;
     GFXglyphPtr glyph;
     if(!gfxFont)
@@ -2165,15 +2201,17 @@ void drawChar(short x, short y, unsigned char c, short color, short bg, unsigned
         // Character is assumed previously filtered by write() to eliminate
         // newlines, returns, non-printable characters, etc.  Calling
         // drawChar() directly with 'bad' characters of font may cause mayhem!
-
+        unsigned char cOrig = c;
         c -= (unsigned char)pgm_read_byte(&gfxFont->first);
-        glyph  = &(((GFXglyphT *)pgm_read_pointer(&gfxFont->glyph))[c]);
+        glyph  = &(((GFXglyph *)pgm_read_pointer(&gfxFont->glyph))[c]);
         bitmap = (unsigned char *)pgm_read_pointer(&gfxFont->bitmap);
         bo = pgm_read_word(&glyph->bitmapOffset);
         w  = pgm_read_byte(&glyph->width);
         h  = pgm_read_byte(&glyph->height);
         xo = pgm_read_byte(&glyph->xOffset);
         yo = pgm_read_byte(&glyph->yOffset);
+        
+        y += gfxFont->yMaxAscent;
 
         if(size > 1)
         {
@@ -2270,7 +2308,7 @@ short oled_write(unsigned char c)
             first = pgm_read_byte(&gfxFont->first);
             if((c >= first) && (c <= (unsigned char)pgm_read_byte(&gfxFont->last)))
             {
-                glyph = &(((GFXglyphT*)pgm_read_pointer(&gfxFont->glyph))[c - first]);
+                glyph = &(((GFXglyphPtr)pgm_read_pointer(&gfxFont->glyph))[c - first]);
                 w     = pgm_read_byte(&glyph->width);
                 h     = pgm_read_byte(&glyph->height);
                 if((w > 0) && (h > 0))
