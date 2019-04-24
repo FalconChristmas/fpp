@@ -102,7 +102,7 @@ static int writer(char *data, size_t size, size_t nmemb,
 FPPStatusOLEDPage::FPPStatusOLEDPage()
 : _currentTest(0), _curPage(0), _doFullStatus(true), _iterationCount(0), _hasSensors(false) {
     curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/fppd/status");
+    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writer);

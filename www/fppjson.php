@@ -362,7 +362,15 @@ function GetFPPStatusJson()
 	else
 	{
         //go through the new API to get the status
-        $request_content = @file_get_contents("http://localhost/api/fppd/status");
+        // use curl so we can set a low connect timeout so if fppd isn't running we detect that quickly
+        $curl = curl_init('http://localhost:32322/fppd/status');
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+        $request_content = curl_exec($curl);
+        curl_close($curl);
+        
         if ($request_content === FALSE) {
             $status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
             
