@@ -194,6 +194,12 @@ SUBDIRS =
 
 ARCH := $(shell cat /etc/fpp/platform 2> /dev/null)
 ifeq '$(ARCH)' ''
+UNAME := $(shell uname 2> /dev/null)
+ifeq '$(UNAME)' 'Darwin'
+ARCH = OSX
+endif
+endif
+ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
@@ -223,7 +229,6 @@ LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 
 DEPS_fppd += \
 	$(NULL)
-
 
 ifeq '$(ARCH)' 'Raspberry Pi'
 # do something RaspPi-y
@@ -330,6 +335,13 @@ DEPS_fppd += \
 	$(NULL)
 SUBMODULES += \
 	$(NULL)
+else ifeq '$(ARCH)' 'OSX'
+CFLAGS += \
+	-DPLATFORM_OSX \
+	$(NULL)
+LDFLAGS_fsequtils += \
+    -L. \
+    $(NULL)
 else
 # do something Linux-y
 CFLAGS += \

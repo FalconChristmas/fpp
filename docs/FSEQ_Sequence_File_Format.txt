@@ -53,3 +53,11 @@ Variable Length Headers in FSEQ  spec
     vh[2] = 'm'
     vh[3] = 'f'
     vh[4-Len] = NULL terminated media filename
+  - 'sp' - Sequence Producer
+    vh[0] = low byte of variable header length
+    vh[1] = high byte of variable header length
+    vh[2] = 'm'
+    vh[3] = 'f'
+    vh[4-Len] = NULL terminated string of producer of the fseq file
+               ex: "xLights Macintosh 2019.22"
+

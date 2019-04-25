@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <libgen.h>
 
 #include "fppversion.h"
 #include "log.h"
@@ -125,8 +126,10 @@ int main(int argc, char *argv[]) {
              uint64_t      getUniqueId() const { return m_uniqueId; }
              const std::string& getFilename() const { return m_filename; }
              */
+            char buf[256];
+            strcpy(buf, src->getFilename().c_str());
             printf("{\"Name\": \"%s\", \"Version\": \"%d.%d\", \"ID\": \"%" PRIu64 "\", \"StepTime\": %d, \"NumFrames\": %d, \"MaxChannel\": %d, \"ChannelCount\": %d",
-                   basename(src->getFilename().c_str()),
+                   basename(buf),
                    src->getVersionMajor(), src->getVersionMinor(),
                    src->getUniqueId(),
                    src->getStepTime(),

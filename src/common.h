@@ -31,7 +31,6 @@
 #include <vector>
 #include <string>
 
-#include <jsoncpp/json/json.h>
 
 /////////////////////////////////////////////////////////////////////////////
 // printf macros for printing bitmaps
@@ -81,9 +80,12 @@ void      CloseOpenFiles(void);
 
 uint8_t   ReverseBitsInByte(uint8_t n);
 
-void      MergeJsonValues(Json::Value &a, Json::Value &b);
 
+#ifndef PLATFORM_OSX
+#include <jsoncpp/json/json.h>
+void      MergeJsonValues(Json::Value &a, Json::Value &b);
 Json::Value JSONStringToObject(const std::string &str);
+#endif
 
 std::string tail(std::string const& source, size_t const length);
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);

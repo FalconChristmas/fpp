@@ -31,7 +31,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ifaddrs.h>
+#ifndef PLATFORM_OSX
 #include <linux/if_link.h>
+#endif
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -459,6 +461,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
 }
 
 
+#ifndef PLATFORM_OSX
 /*
  * Merge the contens of Json::Value b into Json::Value a
  */
@@ -499,3 +502,4 @@ Json::Value JSONStringToObject(const std::string &str)
 
 	return result;
 }
+#endif
