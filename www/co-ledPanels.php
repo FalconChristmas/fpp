@@ -25,6 +25,7 @@
     $panelCapes = readPanelCapes("/home/fpp/media/tmp/panels/", $panelCapes);
     if (count($panelCapes) == 1) {
         echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
+        $panelCapes[0] = json_decode($panelCapes[0], true);
     } else {
         echo "// NO KNOWN_PANEL_CAPE";
     }
@@ -415,16 +416,6 @@ function InitializeLEDPanels()
 	{
 ?>
 		$('#LEDPanelsWiringPinout').val(channelOutputsLookup["LEDPanelMatrix"].wiringPinout);
-        if ((typeof KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined')) {
-            $('#LEDPanelsWiringPinout').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]);
-            $('#LEDPanelsWiringPinout').hide();
-            $('#LEDPanelsWiringPinoutLabel').hide();
-        }
-        if ((typeof KNOWN_PANEL_CAPE  !== 'undefined') && (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined')) {
-            $('#LEDPanelsConnection').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
-            $('#LEDPanelsConnection').hide();
-            $('#LEDPanelsConnectionLabel').hide();
-        }
 <?
 	}
 
@@ -449,6 +440,28 @@ function InitializeLEDPanels()
 			LEDPanelPanelsPerOutput = 16;
 		}
 	}
+    
+    <?
+    if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
+    {
+        ?>
+        
+    if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
+        if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined') {
+            $('#LEDPanelsWiringPinout').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]);
+            $('#LEDPanelsWiringPinout').hide();
+            $('#LEDPanelsWiringPinoutLabel').hide();
+        }
+        if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined') {
+            $('#LEDPanelsConnection').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+            $('#LEDPanelsConnection').hide();
+            $('#LEDPanelsConnectionLabel').hide();
+        }
+        LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
+    }
+    <?
+    }
+    ?>
 
 	DrawLEDPanelTable();
 }
@@ -650,6 +663,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
 }
 ?>
 	}
+    
+    if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
+        LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
+    }
 
 	DrawLEDPanelTable();
 }
@@ -843,7 +860,18 @@ if ($settings['Platform'] == "Raspberry Pi") {
                                                                   
                     <br>
               <b>Notes and hints:</b>
-              <ul><li>LED Panel Layout orientation is as if viewed from the front of the panels.</li>
+              <ul>
+<?
+if (count($panelCapes) == 1) {
+    if (IsSet($panelCapes[0]["warnings"][$settings["SubPlatform"]])) {
+        echo "<li><font color='red'>" . $panelCapes[0]["warnings"][$settings["SubPlatform"]] . "</font></li>\n";
+    }
+    if (IsSet($panelCapes[0]["warnings"]["all"])) {
+        echo "<li><font color='red'>" . $panelCapes[0]["warnings"]["all"] . "</font></li>\n";
+    }
+}
+?>
+              <li>LED Panel Layout orientation is as if viewed from the front of the panels.</li>
 	      <li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
               <li>If not using all outputs, use all the outputs from 1 up to what is needed.   Data is always sent on outputs up to the highest configured, even if no panels are attached.</li>
   <?
