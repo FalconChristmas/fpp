@@ -48,6 +48,14 @@ we have the partition mounted:
 
 Remove the SD card and boot it up in a Pi.
 
+
+Do a system upgrade to make sure everything is at the latest versions
+    sudo apt-get update
+    sudo apt-get dist-upgrade
+    sudo apt-get clean
+
+Reboot again to pick up the latest kernel that may have been installed with teh dist-upgrade
+
 On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh

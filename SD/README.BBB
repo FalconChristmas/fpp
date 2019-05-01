@@ -97,6 +97,7 @@ nano /boot/uEnv.txt
 #     disable_uboot_overlay_audio=1
 #     uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo
 #     uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo
+#     uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo
 #  add "rootwait" to cmdline
 
 nano /opt/scripts/boot/am335x_evm.sh
@@ -166,7 +167,7 @@ apt-get install -y \
     ola ola-python libola-dev libola1 libjsoncpp-dev libtag1-dev \
     libconvert-binary-c-perl libjson-perl btrfs-tools \
     libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
-    libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev \
+    libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev  libboost-atomic-dev libboost-math-dev libboost-signals-dev \
     libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
     sqlite3 php-sqlite3 php-zip zip unzip dos2unix \
     mailutils librtmidi-dev libcurl4-openssl-dev \
@@ -244,11 +245,11 @@ wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/f
 chmod 700 ./FPP_Install_BBB.sh
 ./FPP_Install_BBB.sh
 
-
-touch /home/fpp/media/.auto_update_disabled
-chmod 644 /home/fpp/media/.auto_update_disabled
 nano /home/fpp/.bashrc
 # uncomment force_color_prompt=yes
+
+
+# edit /etc/fstab and make sure it looks OK for tmpfs
 
 
 #if the sancloud dtbs are missing in /boot/dtbs/$(uname -r)

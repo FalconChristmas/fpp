@@ -67,7 +67,7 @@
 #
 #############################################################################
 SCRIPTVER="1.0"
-FPPBRANCH="master"
+FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2.7"
 FPPCFGVER="37"
 FPPPLATFORM="UNKNOWN"
@@ -93,29 +93,36 @@ checkTimeAgainstUSNO () {
 		# allow clocks to differ by 24 hours to handle time zone differences
 		THRESHOLD=86400
 		USNOSECS=$(wget -q -O - http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
-		LOCALSECS=$(date +%s)
-		MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
-		MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
 
-		#echo "FPP: USNO Secs  : ${USNOSECS}"
-		#echo "FPP: Local Secs : ${LOCALSECS}"
-		#echo "FPP: Min Valid  : ${MINALLOW}"
-		#echo "FPP: Max Valid  : ${MAXALLOW}"
+        if [ "x${USNOSECS}" != "x" ]
+        then
 
-		echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
-		echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+            LOCALSECS=$(date +%s)
+            MINALLOW=$(expr ${USNOSECS} - ${THRESHOLD})
+            MAXALLOW=$(expr ${USNOSECS} + ${THRESHOLD})
 
-		if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
-		then
-			echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
-			date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+            #echo "FPP: USNO Secs  : ${USNOSECS}"
+            #echo "FPP: Local Secs : ${LOCALSECS}"
+            #echo "FPP: Min Valid  : ${MINALLOW}"
+            #echo "FPP: Max Valid  : ${MAXALLOW}"
 
-			LOCALSECS=$(date +%s)
-			echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+            echo "FPP: USNO Time  : $(date --date=@${USNOSECS})"
+            echo "FPP: Local Time : $(date --date=@${LOCALSECS})"
+
+            if [ ${LOCALSECS} -gt ${MAXALLOW} -o ${LOCALSECS} -lt ${MINALLOW} ]
+            then
+                echo "FPP: Local Time is not within 24 hours of USNO time, setting to USNO time"
+                date $(date --date="@${USNOSECS}" +%m%d%H%M%Y.%S)
+
+                LOCALSECS=$(date +%s)
+                echo "FPP: New Local Time: $(date --date=@${LOCALSECS})"
+            else
+                echo "FPP: Local Time is OK"
+            fi
 		else
-			echo "FPP: Local Time is OK"
-		fi
-	else
+			echo "FPP: Incorrect result or timeout from query to U.S. Naval Observatory"
+        fi
+    else
 		echo "FPP: Not online, unable to check time against U.S. Naval Observatory."
 	fi
 }
@@ -380,8 +387,18 @@ mkdir ${FPPHOME}/media
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
 chmod 770 ${FPPHOME}/media
 chmod a+s ${FPPHOME}/media
+touch ${FPPHOME}/media/.auto_update_disabled
+chmod 644 ${FPPHOME}/media/.auto_update_disabled
 
-echo "set mouse=r" > ${FPPHOME}/.vimrc
+cat > ${FPPHOME}/.vimrc <<-EOF
+set tabstop=4
+set shiftwidth=4
+set autoindent
+set ignorecase
+set mouse=r
+EOF
+
+chmod 644 ${FPPHOME}/.vimrc
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
 
 echo >> ${FPPHOME}/.bashrc
@@ -499,7 +516,7 @@ You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 # Config fstab to mount some filesystems as tmpfs
 echo "FPP - Configuring tmpfs filesystems"
 echo "#####################################" >> /etc/fstab
-#echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
+echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 

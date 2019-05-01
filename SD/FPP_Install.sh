@@ -71,8 +71,8 @@
 #############################################################################
 SCRIPTVER="1.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2.6"
-FPPCFGVER="31"
+FPPIMAGEVER="2.7"
+FPPCFGVER="37"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -374,12 +374,14 @@ case "${OSVER}" in
 								avahi-discover avahi-utils bash-completion bc btrfs-tools build-essential \
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-								gdebi-core git hdparm i2c-tools ifplugd imagemagick less \
-								libboost-dev libconvert-binary-c-perl \
+								gdebi-core git hdparm i2c-tools ifplugd less \
+                                libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
+                                libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
+                                libboost-atomic-dev libboost-math-dev libboost-signals-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
-								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp perlmagick \
+								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
@@ -388,7 +390,8 @@ case "${OSVER}" in
 								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
                                 libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
-								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 php7.0-zip"
+								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 php7.0-zip \
+                                libzstd-dev zstd gpiod libgpiod-dev"
 				;;
 		esac
 
@@ -416,9 +419,6 @@ case "${OSVER}" in
 		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
 		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
 		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server Net::PJLink
-
-		echo "FPP - Disabling any stock 'debian' user, use the '${FPPUSER}' user instead"
-		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 		if [ -f /bin/systemctl ]
 		then
@@ -758,13 +758,13 @@ sed -i -e "s/.*listen.group =.*/listen.group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d
 sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
 
 echo "FPP - Allowing short tags in PHP"
-FILES="cli/php.ini fpm/php.ini"
+FILES="cli/php.ini apache2/php.ini fpm/php.ini"
 for FILE in ${FILES}
 do
 	sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
-	sed -i -e "s/max_execution_time.*/max_execution_time = 300/" ${PHPDIR}/${FILE}
-	sed -i -e "s/max_input_time.*/max_input_time = 300/" ${PHPDIR}/${FILE}
-	sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 300/" ${PHPDIR}/${FILE}
+	sed -i -e "s/max_execution_time.*/max_execution_time = 1000/" ${PHPDIR}/${FILE}
+	sed -i -e "s/max_input_time.*/max_input_time = 900/" ${PHPDIR}/${FILE}
+	sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 900/" ${PHPDIR}/${FILE}
 	sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
@@ -786,12 +786,15 @@ adduser ${FPPUSER} sudo
 case "${FPPPLATFORM}" in
 	'Raspberry Pi'|'BeagleBone Black')
 		adduser ${FPPUSER} spi
+		adduser ${FPPUSER} gpio
 		;;
 esac
 adduser ${FPPUSER} video
 # FIXME, use ${FPPUSER} here instead of hardcoding
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 
+echo "FPP - Disabling any stock 'debian' user, use the '${FPPUSER}' user instead"
+sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 #######################################
 echo "FPP - Fixing empty root passwd"
@@ -824,6 +827,9 @@ chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/.vimrc
 echo >> ${FPPHOME}/.bashrc
 echo ". /opt/fpp/scripts/common" >> ${FPPHOME}/.bashrc
 echo >> ${FPPHOME}/.bashrc
+
+mkdir ${FPPHOME}/media/logs
+chown fpp.fpp ${FPPHOME}/media/logs
 
 #######################################
 # Configure log rotation
@@ -933,8 +939,7 @@ You can access the UI by typing "http://fpp.local/" into a web browser.[0m
 # Config fstab to mount some filesystems as tmpfs
 echo "FPP - Configuring tmpfs filesystems"
 echo "#####################################" >> /etc/fstab
-#echo "tmpfs         /var/log    tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
-echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=10M 0 0" >> /etc/fstab
+echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /etc/fstab
 echo "#####################################" >> /etc/fstab
 
@@ -950,8 +955,10 @@ echo "#####################################" >> /etc/fstab
 #######################################
 # Disable IPv6
 echo "FPP - Disabling IPv6"
-cat <<-EOF >> /etc/sysctl.conf
+#prefer ipv4
+echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
 
+cat <<-EOF >> /etc/sysctl.conf
 	# FPP - Disable IPv6
 	net.ipv6.conf.all.disable_ipv6 = 1
 	net.ipv6.conf.default.disable_ipv6 = 1
@@ -966,19 +973,10 @@ echo "FPP - Configuring Apache webserver"
 sed -i -e "s/APACHE_RUN_USER=.*/APACHE_RUN_USER=${FPPUSER}/" /etc/apache2/envvars
 sed -i -e "s/APACHE_RUN_GROUP=.*/APACHE_RUN_GROUP=${FPPUSER}/" /etc/apache2/envvars
 sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apache2/envvars
+sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
 
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
 
-sed -i \
-	-e "s/short_open_tag =.*/short_open_tag = On/" \
-	-e "s/max_execution_time =.*/max_execution_time = 300/" \
-	-e "s/max_input_time =.*/max_input_time = 300/" \
-	-e "s/max_input_vars =.*/max_input_vars = 5000/" \
-	-e "s/default_socket_timeout =.*/default_socket_timeout = 300/" \
-	-e "s/post_max_size =.*/post_max_size = 4G/" \
-	-e "s/upload_max_filesize =.*/upload_max_filesize = 4G/" \
-	-e "s#;upload_tmp_dir =.*#upload_tmp_dir = ${FPPHOME}/media/upload#" \
-	${PHPDIR}/apache2/php.ini
 
 # Fix name of Apache default error log so it gets rotated by our logrotate config
 sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
@@ -1013,9 +1011,11 @@ esac
 
 #######################################
 echo "FPP - Configuring FPP startup"
-cp /opt/fpp/etc/systemd/fppinit.service /lib/systemd/system/
+cp /opt/fpp/etc/systemd/*.service /lib/systemd/system/
 systemctl enable fppinit.service
-cp /opt/fpp/etc/systemd/fppd.service /lib/systemd/system/
+systemctl enable fppcapedetect.service
+systemctl enable fpprtc.service
+systemctl enable fppoled.service
 systemctl enable fppd.service
 
 systemctl enable rsync
