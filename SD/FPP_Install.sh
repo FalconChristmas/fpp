@@ -1033,7 +1033,7 @@ make clean ; make optimized
 if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
     echo "FPP - Compiling WIFI drivers"
     cd /opt/fpp/SD
-    ./FPP-Wifi-Drivers.sh
+    sh ./FPP-Wifi-Drivers.sh
 fi
 
 ENDTIME=$(date)

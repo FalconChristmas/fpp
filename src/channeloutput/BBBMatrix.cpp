@@ -488,12 +488,12 @@ int BBBMatrix::Init(Json::Value config)
         sprintf(filename, "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
     }
     if (!FileExists(filename)) {
-        LogErr(VB_CHANNELOUT, "No output pin configuration for %s\n", name.c_str());
+        LogErr(VB_CHANNELOUT, "No output pin configuration for %s - %s\n", name.c_str(), filename);
         return 0;
     } else {
         std::ifstream t(filename);
         if (!reader.parse(t, root)) {
-            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s\n", name.c_str());
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s - %s\n", name.c_str(), filename);
             return 0;
         }
         std::string longName = root["longName"].asString();
