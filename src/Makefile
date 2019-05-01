@@ -174,6 +174,7 @@ OBJECTS_fppd = \
 LIBS_fppd = \
 	-lboost_filesystem \
 	-lboost_system \
+	-lboost_date_time \
 	-lpthread \
     -lzstd -lz \
 	-lhttpserver \

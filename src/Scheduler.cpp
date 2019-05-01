@@ -31,6 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "boost/date_time/gregorian/gregorian.hpp"
+
 #include "command.h"
 #include "common.h"
 #include "fpp.h"
@@ -372,6 +374,22 @@ void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * 
 		return;
 	}
 
+	// Some variables needed for odd/even day calculations
+	std::string FPPEpochStr("2013-07-15");
+	boost::gregorian::date FPPEpoch(boost::gregorian::from_simple_string(FPPEpochStr));
+	boost::gregorian::date today = boost::gregorian::day_clock::local_day();
+	boost::gregorian::days bDaysSince = today - FPPEpoch;
+	int daysSince = bDaysSince.days();
+	int oddSunday = 0;
+	int i = 0;
+
+	time_t currTime = time(NULL);
+	struct tm now;
+	localtime_r(&currTime, &now);
+
+	if ((daysSince - now.tm_wday) % 2)
+		oddSunday = 1; // This past Sunday was an odd day
+
 	switch(entry->dayIndex)
   {
 		case INX_SUN:
@@ -459,7 +477,41 @@ void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * 
       entry->weeklyEndSeconds[1] = GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond);
       entry->weeklySecondCount = 2;
       break;
-		
+    case INX_ODD_DAY: // Odd days starting at FPP epoch (2013-07-15 according to 'git log')
+      for (int dow = 0; dow < 7; dow++)
+      {
+        if (((dow < now.tm_wday) &&
+             (( oddSunday && ((dow % 2) == 1)) ||
+              (!oddSunday && ((dow % 2) == 0)))) ||
+            ((dow >= now.tm_wday) &&
+             (( oddSunday && ((dow % 2) == 0)) ||
+              (!oddSunday && ((dow % 2) == 1)))))
+        {
+          entry->weeklyStartSeconds[i] = GetWeeklySeconds(dow,entry->startHour,entry->startMinute,entry->startSecond);
+          entry->weeklyEndSeconds[i]   = GetWeeklySeconds(dow,entry->endHour,entry->endMinute,entry->endSecond);
+          i++;
+        }
+      }
+      entry->weeklySecondCount = i;
+      break;
+    case INX_EVEN_DAY: // Even days starting at FPP epoch (2013-07-15 according to 'git log')
+      for (int dow = 0; dow < 7; dow++)
+      {
+        if (((dow < now.tm_wday) &&
+             (( oddSunday && ((dow % 2) == 0)) ||
+              (!oddSunday && ((dow % 2) == 1)))) ||
+            ((dow >= now.tm_wday) &&
+             (( oddSunday && ((dow % 2) == 1)) ||
+              (!oddSunday && ((dow % 2) == 0)))))
+        {
+          entry->weeklyStartSeconds[i] = GetWeeklySeconds(dow,entry->startHour,entry->startMinute,entry->startSecond);
+          entry->weeklyEndSeconds[i]   = GetWeeklySeconds(dow,entry->endHour,entry->endMinute,entry->endSecond);
+          i++;
+        }
+      }
+      entry->weeklySecondCount = i;
+      break;
+
     default:
       entry->weeklySecondCount = 0;
   }
@@ -907,6 +959,12 @@ void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 		case 13:
 			strcpy(txt,"Fri/Sat");
 			break;	
+		case 14:
+			strcpy(txt,"Odd Days");
+			break;
+		case 15:
+			strcpy(txt,"Even Days");
+			break;
 		default:
 			strcpy(txt, "Error\0");
 			break;	

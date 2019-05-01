@@ -1646,6 +1646,8 @@ function RemovePlaylistEntry()	{
 									var dayChecked_11 =  day == 11  ? "selected" : "";
 									var dayChecked_12 =  day == 12  ? "selected" : "";
 									var dayChecked_13 =  day == 13  ? "selected" : "";
+									var dayChecked_14 =  day == 14  ? "selected" : "";
+									var dayChecked_15 =  day == 15  ? "selected" : "";
 									var dayChecked_0x10000 = day >= 0x10000 ? "selected" : "";
 									var dayMaskStyle = day >= 0x10000 ? "" : "display: none;";
 
@@ -1678,6 +1680,8 @@ function RemovePlaylistEntry()	{
 															      "<option value=\"11\" " + dayChecked_11 + ">Tues/Thurs</option>" +
 															      "<option value=\"12\" " + dayChecked_12 + ">Sun-Thurs</option>" +
 															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option>" +
+															      "<option value=\"14\" " + dayChecked_14 + ">Odd</option>" +
+															      "<option value=\"15\" " + dayChecked_15 + ">Even</option>" +
 															      "<option value=\"65536\" " + dayChecked_0x10000 + ">Day Mask</option></select><br>" +
 																  "<span id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
 																  "S:<input type='checkbox' name='maskSunday[" + i + "]'" +
