@@ -63,6 +63,35 @@ private:
     OLEDPage *parent;
 };
 
+class ShutdownPromptPage : public PromptOLEDPage {
+    public:
+    ShutdownPromptPage(OLEDPage *p)
+    : PromptOLEDPage("Shutdown?", "Shutdown FPPD?", "", {"OK", "Cancel"}), parent(p) {}
+    ShutdownPromptPage(const std::string &msg1, const std::string &msg2, OLEDPage *p)
+    : PromptOLEDPage("Shutdown?", msg1, msg2, {"OK", "Cancel"}), parent(p) {}
+    virtual ~ShutdownPromptPage() {};
+    
+    
+    virtual void ItemSelected(const std::string &item) override {
+        if (item == "Cancel") {
+            SetCurrentPage(parent);
+        } else {
+            SetCurrentPage(nullptr);
+            clearDisplay();
+            setTextSize(1);
+            setTextColor(WHITE);
+            setCursor(4, 17);
+            print_str("Shutdown...");
+            Display();
+            sync();
+            system("/sbin/shutdown -h now");
+        }
+    }
+    
+    private:
+    OLEDPage *parent;
+};
+
 class BridgeStatsPage : public ListOLEDPage {
 public:
     BridgeStatsPage(OLEDPage *parent) : ListOLEDPage("Bridge Stats", {}, parent) {};
@@ -103,7 +132,7 @@ private:
 };
 
 FPPMainMenu::FPPMainMenu(FPPStatusOLEDPage *p)
-: MenuOLEDPage("Main Menu", {"FPP Mode", "Teathering", "Testing", "Reboot", "About", "Back"}, p),
+: MenuOLEDPage("Main Menu", {"FPP Mode", "Teathering", "Testing", "Reboot", "Shutdown", "About", "Back"}, p),
   aboutPage(nullptr), statusPage(p) {
     
 }
@@ -114,17 +143,15 @@ FPPMainMenu::~FPPMainMenu() {
 }
 
 
-
 void FPPMainMenu::displaying() {
     std::string mode = statusPage->getCurrentMode();
     if (mode == "Bridge") {
-        items = {"Bridge Stats", "FPP Mode", "Teathering", "Testing", "Reboot", "About", "Back"};
+        items = {"Bridge Stats", "FPP Mode", "Teathering", "Testing", "Reboot", "Shutdown", "About", "Back"};
     } else if (mode != "Remote") {
-        items = {"Start Playlist", "FPP Mode", "Teathering", "Testing", "Reboot", "About", "Back"};
+        items = {"Start Playlist", "FPP Mode", "Teathering", "Testing", "Reboot", "Shutdown", "About", "Back"};
     }
     MenuOLEDPage::displaying();
 }
-
 
 bool FPPMainMenu::itemSelected(const std::string &item) {
     if (item == "Back") {
@@ -142,6 +169,10 @@ bool FPPMainMenu::itemSelected(const std::string &item) {
         SetCurrentPage(aboutPage);
     } else if (item == "Reboot") {
         RebootPromptPage *pg = new RebootPromptPage(this);
+        pg->autoDelete();
+        SetCurrentPage(pg);
+    } else if (item == "Shutdown") {
+        ShutdownPromptPage *pg = new ShutdownPromptPage(this);
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Testing") {

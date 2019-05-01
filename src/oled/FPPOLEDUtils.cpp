@@ -289,7 +289,7 @@ void FPPOLEDUtils::run() {
                     }
                 }
             }
-            if (ntime > (lastActionTime + 120000000)) {
+            if (ntime > (lastActionTime + 180000000)) {
                 if (OLEDPage::GetCurrentPage() != statusPage) {
                     OLEDPage::SetCurrentPage(statusPage);
                 }

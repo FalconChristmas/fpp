@@ -67,9 +67,9 @@
 #
 #############################################################################
 SCRIPTVER="1.0"
-FPPBRANCH="v2.2"
-FPPIMAGEVER="2.2"
-FPPCFGVER="31"
+FPPBRANCH="master"
+FPPIMAGEVER="2.7"
+FPPCFGVER="37"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -543,9 +543,11 @@ sed -i -e "s/USE_PERSONAL_PASSWORD=.*/USE_PERSONAL_PASSWORD=Christmas/" /etc/def
 
 #######################################
 echo "FPP - Configuring FPP startup"
-cp /opt/fpp/etc/systemd/fppinit.service /lib/systemd/system/
+cp /opt/fpp/etc/systemd/*.service /lib/systemd/system/
 systemctl enable fppinit.service
-cp /opt/fpp/etc/systemd/fppd.service /lib/systemd/system/
+systemctl enable fppcapedetect.service
+systemctl enable fpprtc.service
+systemctl enable fppoled.service
 systemctl enable fppd.service
 
 systemctl enable rsync

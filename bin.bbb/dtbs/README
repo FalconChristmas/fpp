@@ -1,0 +1,2 @@
+These are here due to them missing from the 4.14.109-bone21 kernel.   If we
+upgrade to a kernel that has been fixed to include these, we can remove these.
