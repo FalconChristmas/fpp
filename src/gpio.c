@@ -74,6 +74,7 @@ static void configureInputPin(int i, int pud) {
 }
 #else
 #   define supportsPWM(a)        0
+#   define configureInputPin(a, b)
 #   define pinMode(a, b)
 #   define digitalRead(a)        1
 #   define digitalWrite(a,b)     0
