@@ -610,6 +610,7 @@ bool FPPStatusOLEDPage::doAction(const std::string &action) {
     if (action == "Test"
         || action == "Test/Down") {
         cycleTest();
+        _curPage = 0;
     } else if (action == "Enter") {
         if (_hasSensors) {
             _curPage++;

@@ -256,18 +256,23 @@ void FPPOLEDUtils::run() {
                 if (actions[x].mode != "ain") {
                     fdset[actionCount].fd = actions[x].file;
                     fdset[actionCount].events = POLLIN | POLLPRI;
+                    actions[x].pollIndex = actionCount;
                     actionCount++;
                 }
             }
 
             if (actionCount) {
-                poll(&fdset[0], actionCount, needsPolling ? 100 : 1000);
+                int i = poll(&fdset[0], actionCount, needsPolling ? 100 : 1000);
+                if (i > 0) {
+                    for (int z = 0; z < actionCount; z++) {
+                        printf("%d:  %d\n", z, fdset[z].revents);
+                    }
+                }
             } else {
                 usleep(100000);
             }
             ntime = GetTime();
             
-            int fdCnt = 0;
             for (int x = 0; x < actions.size(); x++) {
                 std::string action;
                 if (actions[x].mode == "ain") {
@@ -275,13 +280,13 @@ void FPPOLEDUtils::run() {
                     int len = read(actions[x].file, vbuffer, 255);
                     int v = atoi(vbuffer);
                     action = actions[x].checkAction(v, ntime);
-                } else if (fdset[fdCnt].revents) {
+                } else if (fdset[actions[x].pollIndex].revents) {
+                    printf("Have i event %d %s\n", actions[x].pollIndex, actions[x].pin.c_str());
                     struct gpiod_line_event event;
-                    if (gpiod_line_event_read_fd(fdset[fdCnt].fd, &event) >= 0) {
+                    if (gpiod_line_event_read_fd(fdset[actions[x].pollIndex].fd, &event) >= 0) {
                         int v = gpiod_line_get_value(actions[x].gpiodLine);
                         action = actions[x].checkAction(v, ntime);
                     }
-                    fdCnt++;
                 }
                 if (action != "" && !_displayOn) {
                     //just turn the display on if button is hit

@@ -14,6 +14,7 @@ public:
     
     virtual void displaying() override {
         bool on = true;
+        _curPage = 0;
         doIteration(on);
     }
     virtual bool doIteration(bool &displayOn) override;

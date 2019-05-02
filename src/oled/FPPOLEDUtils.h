@@ -43,6 +43,7 @@ private:
         std::string mode;
         std::string edge;
         int file;
+        int pollIndex;
         std::vector<Action> actions;
         
         const std::string &checkAction(int i, long long time);
