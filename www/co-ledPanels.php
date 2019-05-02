@@ -1,37 +1,4 @@
 <script>
-
-<?
-    function readPanelCapes($cd, $panelCapes) {
-        if (is_dir($cd)){
-            if ($dh = opendir($cd)){
-                while (($file = readdir($dh)) !== false){
-                    $string = "";
-                    if (substr($file, 0, 1) == '.') {
-                        $string = "";
-                    } else {
-                        $string = file_get_contents($cd . $file);
-                    }
-                    if ($string != "") {
-                        $panelCapes[] = $string;
-                    }
-                }
-                closedir($dh);
-            }
-        }
-        return $panelCapes;
-    }
-    
-    $panelCapes = array();
-    $panelCapes = readPanelCapes("/home/fpp/media/tmp/panels/", $panelCapes);
-    if (count($panelCapes) == 1) {
-        echo "var KNOWN_PANEL_CAPE = " . $panelCapes[0] . ";";
-        $panelCapes[0] = json_decode($panelCapes[0], true);
-    } else {
-        echo "// NO KNOWN_PANEL_CAPE";
-    }
-?>
-
-
 var panelRowButton = 0;
 function EditLEDPanelLayout(button) {
 	panelRowButton = button;
@@ -347,12 +314,28 @@ function DrawLEDPanelTable()
 	var c;
 	var html = "";
 	var key = "";
+	var frontView = 0;
+
+	if ($('#LEDPanelUIFrontView').is(":checked"))
+	{
+		frontView = 1;
+		html += "<tr><th colspan='" + LEDPanelCols + "'>Front View</th></tr>";
+	}
+	else
+	{
+		html += "<tr><th colspan='" + LEDPanelCols + "'>Back View</th></tr>";
+	}
 
 	for (r = 0 ; r < LEDPanelRows; r++)
 	{
 		html += "<tr>";
-		for (c = 0; c < LEDPanelCols; c++)
+		for (i = 0; i < LEDPanelCols; i++)
 		{
+			if (frontView)
+				c = LEDPanelCols - 1 - i;
+			else
+				c = i;
+
 			html += "<td><table cellspacing=0 cellpadding=0><tr><td>";
 
 			key = "LEDPanelOutputNumber_" + r + "_" + c;
@@ -440,28 +423,6 @@ function InitializeLEDPanels()
 			LEDPanelPanelsPerOutput = 16;
 		}
 	}
-    
-    <?
-    if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
-    {
-        ?>
-        
-    if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
-        if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined') {
-            $('#LEDPanelsWiringPinout').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]);
-            $('#LEDPanelsWiringPinout').hide();
-            $('#LEDPanelsWiringPinoutLabel').hide();
-        }
-        if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined') {
-            $('#LEDPanelsConnection').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
-            $('#LEDPanelsConnection').hide();
-            $('#LEDPanelsConnectionLabel').hide();
-        }
-        LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
-    }
-    <?
-    }
-    ?>
 
 	DrawLEDPanelTable();
 }
@@ -663,10 +624,6 @@ if ($settings['Platform'] == "BeagleBone Black") {
 }
 ?>
 	}
-    
-    if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
-        LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
-    }
 
 	DrawLEDPanelTable();
 }
@@ -737,7 +694,7 @@ else
 								</select>
 							</td>
 							<td>&nbsp;</td>
-							<td><span id="LEDPanelsWiringPinoutLabel"><b>Wiring Pinout:</b></span></td>
+							<td><b>Wiring Pinout:</b></td>
 							<td><select id='LEDPanelsWiringPinout'>
 <?
 if ($settings['Platform'] == "Raspberry Pi")
@@ -805,7 +762,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 								</select>
 							</td>
 						</tr>
-						<tr><td><span id='LEDPanelsConnectionLabel'><b>Connection:</b></span></td>
+						<tr><td><b>Connection:</b></td>
 							<td><select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
 <?
 if ($settings['Platform'] == "Raspberry Pi") {
@@ -847,7 +804,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
 						</tr>
 					</table>
 					<br>
-					LED Panel Layout:<br>
+					<b>LED Panel Layout:</b><br>
+					View Config from front?
+					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "DrawLEDPanelTable"); ?> (save any changes before changing view)<br>
 					<table id='LEDPanelTable' border=1>
 						<tbody>
 						</tbody>
@@ -860,19 +819,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
                                                                   
                     <br>
               <b>Notes and hints:</b>
-              <ul>
-<?
-if (count($panelCapes) == 1) {
-    if (IsSet($panelCapes[0]["warnings"][$settings["SubPlatform"]])) {
-        echo "<li><font color='red'>" . $panelCapes[0]["warnings"][$settings["SubPlatform"]] . "</font></li>\n";
-    }
-    if (IsSet($panelCapes[0]["warnings"]["all"])) {
-        echo "<li><font color='red'>" . $panelCapes[0]["warnings"]["all"] . "</font></li>\n";
-    }
-}
-?>
-              <li>LED Panel Layout orientation is as if viewed from the front of the panels.</li>
-	      <li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
+              <ul><li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
               <li>If not using all outputs, use all the outputs from 1 up to what is needed.   Data is always sent on outputs up to the highest configured, even if no panels are attached.</li>
   <?
   if ($settings['Platform'] == "Raspberry Pi") {
