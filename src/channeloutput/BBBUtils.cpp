@@ -375,6 +375,14 @@ int configBBBPin(const std::string &name,
     }
     
     char dir_name[128];
+
+    sprintf(dir_name, "/sys/class/gpio/gpio%u/direction", pin_num);
+    if (access(dir_name, F_OK) == -1) {
+        // not exported, we need to export it
+        FILE *dir = fopen("/sys/class/gpio/export", "w");
+        fprintf(dir, "%d", pin_num);
+        fclose(dir);
+    }
     snprintf(dir_name, sizeof(dir_name),
          "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
          pinName
@@ -386,10 +394,6 @@ int configBBBPin(const std::string &name,
     fprintf(dir, "%s\n", mode.c_str());
     fclose(dir);
     
-    dir = fopen("/sys/class/gpio/export", "w");
-    fprintf(dir, "%d", pin_num);
-    fclose(dir);
-
     if (direction != "") {
         snprintf(dir_name, sizeof(dir_name),
                  "/sys/class/gpio/gpio%u/direction",
