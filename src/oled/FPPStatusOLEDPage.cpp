@@ -481,6 +481,7 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
         val["color2"] = 0;
         val["color3"] = 255;
     } else {
+        printf("Unknown test  %s\n", test.c_str());
         return;
     }
     
@@ -506,11 +507,13 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
 void FPPStatusOLEDPage::cycleTest() {
     _currentTest++;
     if (_currentTest == 1) {
-        runTest("R-G-B");
+        runTest("R-G-B Cycle");
     } else if (_currentTest == 2) {
-        runTest("R-G-B-All");
+        runTest("R-G-B-W-N Cycle");
     } else if (_currentTest == 3) {
         runTest("Off");
+        _currentTest = 0;
+    } else {
         _currentTest = 0;
     }
 }

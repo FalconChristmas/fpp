@@ -251,27 +251,37 @@ void FPPOLEDUtils::run() {
             ntime = GetTime();
         } else {
             memset((void*)&fdset[0], 0, sizeof(struct pollfd) * actions.size());
+            int actionCount = 0;
             for (int x = 0; x < actions.size(); x++) {
-                fdset[x].fd = actions[x].file;
-                fdset[x].events = POLLIN | POLLPRI;
+                if (actions[x].mode != "ain") {
+                    fdset[actionCount].fd = actions[x].file;
+                    fdset[actionCount].events = POLLIN | POLLPRI;
+                    actionCount++;
+                }
             }
 
-            int rc = poll(&fdset[0], actions.size(), needsPolling ? 100 : 1000);
+            if (actionCount) {
+                poll(&fdset[0], actionCount, needsPolling ? 100 : 1000);
+            } else {
+                usleep(100000);
+            }
             ntime = GetTime();
             
+            int fdCnt = 0;
             for (int x = 0; x < actions.size(); x++) {
                 std::string action;
-                if (fdset[x].revents) {
+                if (actions[x].mode == "ain") {
+                    lseek(actions[x].file, 0, SEEK_SET);
+                    int len = read(actions[x].file, vbuffer, 255);
+                    int v = atoi(vbuffer);
+                    action = actions[x].checkAction(v, ntime);
+                } else if (fdset[fdCnt].revents) {
                     struct gpiod_line_event event;
-                    if (gpiod_line_event_read_fd(fdset[x].fd, &event) >= 0) {
+                    if (gpiod_line_event_read_fd(fdset[fdCnt].fd, &event) >= 0) {
                         int v = gpiod_line_get_value(actions[x].gpiodLine);
                         action = actions[x].checkAction(v, ntime);
                     }
-                } else if (actions[x].mode == "ain") {
-                    lseek(fdset[x].fd, 0, SEEK_SET);
-                    int len = read(fdset[x].fd, vbuffer, 255);
-                    int v = atoi(vbuffer);
-                    action = actions[x].checkAction(v, ntime);
+                    fdCnt++;
                 }
                 if (action != "" && !_displayOn) {
                     //just turn the display on if button is hit
