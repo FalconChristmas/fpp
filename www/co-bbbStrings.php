@@ -90,14 +90,7 @@ include_once('co-pixelStrings.php');
 
 var PixelStringLoaded = false;
 
-
-function GetBBB48StringCapeFileName() {
-    var mainType = $('#BBB48StringSubType').val();
-    if (!mainType || mainType == "") {
-        var first = Object.keys(KNOWN_CAPES)[0];
-        $('#BBB48StringSubType').val(KNOWN_CAPES[first].name);
-        mainType = KNOWN_CAPES[first].name;
-    }
+function GetBBB48StringCapeFileNameForSubType(mainType) {
     var subType = "";
     var ver = $('#BBB48StringSubTypeVersion').val();
     if (ver == "2.x") {
@@ -123,6 +116,15 @@ function GetBBB48StringCapeFileName() {
         type = mainType + subType;
     }
     return type;
+}
+function GetBBB48StringCapeFileName() {
+    var mainType = $('#BBB48StringSubType').val();
+    if (!mainType || mainType == "") {
+        var first = Object.keys(KNOWN_CAPES)[0];
+        $('#BBB48StringSubType').val(KNOWN_CAPES[first].name);
+        mainType = KNOWN_CAPES[first].name;
+    }
+    return GetBBB48StringCapeFileNameForSubType(mainType);
 }
 
 
@@ -281,8 +283,7 @@ function addSerialOutputJSON(postData) {
 
 function populatePixelStringOutputs(data) {
     if (data) {
-        for (var i = 0; i < data.channelOutputs.length; i++)
-        {
+        for (var i = 0; i < data.channelOutputs.length; i++) {
             var output = data.channelOutputs[i];
             var type = output.type;
             if (type == 'BBB48String') {
@@ -380,7 +381,35 @@ function populatePixelStringOutputs(data) {
         }
     }
 }
-
+function ValidateBBBStrings(data) {
+    if (data) {
+        for (var i = 0; i < data.channelOutputs.length; i++) {
+            var output = data.channelOutputs[i];
+            var type = output.type;
+            if (type == 'BBB48String') {
+                var fn = GetBBB48StringCapeFileNameForSubType(output.subType);
+                if (KNOWN_CAPES[fn] == null) {
+                    fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
+                    output.subType = fn.name;
+                    output.pinoutVersion = fn.pinoutVersion;
+                } else {
+                    fn = KNOWN_CAPES[fn];
+                    output.pinoutVersion = fn.pinoutVersion;
+                }
+            } else if (type == 'BBBSerial') {
+                var fn = GetBBB48StringCapeFileNameForSubType(output.device);
+                if (KNOWN_CAPES[fn] == null) {
+                    fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
+                    output.device = fn.name;
+                    output.pinoutVersion = fn.pinoutVersion;
+                } else {
+                    fn = KNOWN_CAPES[fn];
+                    output.pinoutVersion = fn.pinoutVersion;
+                }
+            }
+        }
+    }
+}
 function BBB48StringSubTypeChanged()
 {
     if (PixelStringLoaded) {
@@ -396,6 +425,7 @@ function BBB48StringSubTypeChanged()
                       data.channelOutputs[i].device = $('#BBB48StringSubType').val();
                     }
                   }
+                  ValidateBBBStrings(data);
                   populatePixelStringOutputs(data)
             });
     } else {
@@ -455,6 +485,7 @@ function loadBBBOutputs() {
     populatePixelStringOutputs(defaultData);
     $.getJSON("fppjson.php?command=getChannelOutputs&file=co-bbbStrings", function(data) {
                 PixelStringLoaded = true;
+                ValidateBBBStrings(data);
                 populatePixelStringOutputs(data)
               });
 }
