@@ -347,12 +347,28 @@ function DrawLEDPanelTable()
 	var c;
 	var html = "";
 	var key = "";
+	var frontView = 0;
+
+	if ($('#LEDPanelUIFrontView').is(":checked"))
+	{
+		frontView = 1;
+		html += "<tr><th colspan='" + LEDPanelCols + "'>Front View</th></tr>";
+	}
+	else
+	{
+		html += "<tr><th colspan='" + LEDPanelCols + "'>Back View</th></tr>";
+	}
 
 	for (r = 0 ; r < LEDPanelRows; r++)
 	{
 		html += "<tr>";
-		for (c = 0; c < LEDPanelCols; c++)
+		for (i = 0; i < LEDPanelCols; i++)
 		{
+			if (frontView)
+				c = LEDPanelCols - 1 - i;
+			else
+				c = i;
+
 			html += "<td><table cellspacing=0 cellpadding=0><tr><td>";
 
 			key = "LEDPanelOutputNumber_" + r + "_" + c;
@@ -847,7 +863,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
 						</tr>
 					</table>
 					<br>
-					LED Panel Layout:<br>
+					<b>LED Panel Layout:</b><br>
+					View Config from front?
+					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "DrawLEDPanelTable"); ?> (save any changes before changing view)<br>
 					<table id='LEDPanelTable' border=1>
 						<tbody>
 						</tbody>
