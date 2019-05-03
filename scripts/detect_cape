@@ -146,6 +146,7 @@ if (substr( $header, 0, 5 ) != "FPP02") {
         $header = fread($fp, 6);
     }
 }
+$extras = array();
 if (substr( $header, 0, 5 ) === "FPP02") {
     $cape = fread($fp, 26); // cape name + nulls
     $capev = fread($fp, 10); // cape version + nulls
@@ -155,7 +156,7 @@ if (substr( $header, 0, 5 ) === "FPP02") {
     $flen = intval($flen);
     while ($flen != 0) {
         $flags = fread($fp, 2);
-        if ($flags < 90) {
+        if ($flags < 50) {
             $fname = fread($fp, 64);
             $fname = trim($fname);
             $path = '/home/fpp/media/' . $fname;
@@ -183,6 +184,11 @@ if (substr( $header, 0, 5 ) === "FPP02") {
             //var_dump($output);
             unset($output);
             unlink($path);
+            break;
+        case 97:
+            $eKey = trim(fread($fp, 12));
+            $eValue = trim(fread($fp, $flen - 12));
+            $extras[$eKey] = $eValue;
             break;
         case 98:
             $eType = fread($fp, 2);
@@ -224,6 +230,9 @@ if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     $json = json_decode(file_get_contents("/home/fpp/media/tmp/cape-info.json"));
     if ($json->id != "Unsupported") {
         $json->serialNumber = $capesn;
+    }
+    foreach($extras as $key => $value) {
+        $json->{$key} = $value;
     }
     if (! $validSignature) {
         unset($json->vendor);

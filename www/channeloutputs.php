@@ -76,8 +76,11 @@ function GetChannelOutputConfig()
 
 	config.channelOutputs = [];
 
-	config.channelOutputs.push(GetLEDPanelConfig());
+    var lpc = GetLEDPanelConfig();
+	config.channelOutputs.push(lpc);
 
+    channelOutputs = config;
+    UpdateChannelOutputLookup();
 	var result = JSON.stringify(config);
 	return result;
 }
