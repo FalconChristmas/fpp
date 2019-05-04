@@ -50,7 +50,6 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 #define PLATFORM_UNKNOWN
 #endif
 
-
 #if defined(PLATFORM_PI) || defined(PLATFORM_BBB) || defined(PLATFORM_ODROID) || defined(PLATFORM_ORANGEPI) || defined(PLATFORM_UNKNOWN)
 //for FPP, use FPP logging
 #include "log.h"
@@ -924,8 +923,8 @@ public:
             uint64_t offset = tell();
             LogDebug(VB_SEQUENCE, "  Preparing to create a compressed block of data starting at frame %d, offset  %" PRIu64 ".\n", frame, offset);
             m_file->m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(frame, offset));
-            int clevel = m_file->m_compressionLevel == -1 ? 10 : m_file->m_compressionLevel;
-            if (clevel < 0 || clevel > 25) {
+            int clevel = m_file->m_compressionLevel == -99 ? 10 : m_file->m_compressionLevel;
+            if (clevel < -25 || clevel > 25) {
                 clevel = 10;
             }
             if (frame == 0 && (ZSTD_versionNumber() > 10305)) {
@@ -935,6 +934,9 @@ public:
                 // for the first block so the decompression can
                 // be as fast as possible
                 clevel = -10;
+            }
+            if (ZSTD_versionNumber() <= 10305 && clevel < 0) {
+                clevel = 0;
             }
             ZSTD_initCStream(m_cctx, clevel);
         }
@@ -1098,7 +1100,7 @@ public:
             memset(m_stream, 0, sizeof(z_stream));
         }
         if (m_curFrameInBlock == 0) {
-            int clevel = m_file->m_compressionLevel == -1 ? 3 : m_file->m_compressionLevel;
+            int clevel = m_file->m_compressionLevel == -99 ? 3 : m_file->m_compressionLevel;
             if (clevel < 0 || clevel > 9) {
                 clevel = 3;
             }
