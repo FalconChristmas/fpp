@@ -61,6 +61,10 @@ export KERNEL_VERSION=4.14.109-bone21
 ./update_kernel.sh --lts-4_14 --bone-kernel  $KERNEL_VERSION
 apt-get install -y linux-headers-$KERNEL_VERSION
 
+
+#if the sancloud dtbs are missing in /boot/dtbs/$(uname -r)
+cp -a /boot/dtbs/$(uname -r)/*  /boot/dtbs/$KERNEL_VERSION/
+
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r) ti-temperature-modules-$(uname -r) ti-debugss-modules-$(uname -r)
 
 
@@ -250,10 +254,6 @@ nano /home/fpp/.bashrc
 
 
 # edit /etc/fstab and make sure it looks OK for tmpfs
-
-
-#if the sancloud dtbs are missing in /boot/dtbs/$(uname -r)
-cp -a /opt/fpp/bin.bbb/dtbs/* /boot/dtbs/$(uname -r)
 
 
 #place 4G SD card in sd slot
