@@ -55,7 +55,7 @@ $commands = array(
 	'Kernel Modules'     => 'lsmod',
 
 	// i2c
-	'i2cdetect'          => $SUDO . ' i2cdetect -y ' . $i2cDevice,
+	'i2cdetect'          => $SUDO . ' i2cdetect -y -r ' . $i2cDevice,
 
 	// Processes
 	'Processes'          => 'ps -edaf --forest',  // Keep this last since it is so long
