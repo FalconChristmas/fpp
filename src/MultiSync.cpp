@@ -208,6 +208,8 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 		return kSysTypeFPPRaspberryPiZero;
 	if (boost::starts_with(model, "Raspberry Pi Zero W"))
 		return kSysTypeFPPRaspberryPiZeroW;
+    if (boost::starts_with(model, "Raspberry Pi 3 Model A Plus"))
+        return kSysTypeFPPRaspberryPi3APlus;
     if (boost::starts_with(model, "SanCloud BeagleBone Enhanced"))
         return kSysTypeFPPSanCloudBeagleBoneEnhanced;
     if (boost::algorithm::contains(model, "BeagleBone Black")) {
@@ -355,6 +357,7 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type)
 		case kSysTypeFPPRaspberryPi3BPlus:    return "Raspberry Pi 3 B+";
 		case kSysTypeFPPRaspberryPiZero:      return "Raspberry Pi Zero";
 		case kSysTypeFPPRaspberryPiZeroW:     return "Raspberry Pi Zero W";
+        case kSysTypeFPPRaspberryPi3APlus:    return "Raspberry Pi 3 A+";
 		case kSysTypeFalconController:        return "Falcon Controller";
         case kSysTypeFalconF16v2:             return "Falcon F16v2";
         case kSysTypeFalconF16v3:             return "Falcon F16v3";
