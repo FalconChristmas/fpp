@@ -89,6 +89,7 @@ typedef enum systemType {
 	kSysTypeFPPRaspberryPi3BPlus,
 	kSysTypeFPPRaspberryPiZero,
 	kSysTypeFPPRaspberryPiZeroW,
+    kSysTypeFPPRaspberryPi3APlus,
 	kSysTypeFPPBeagleBoneBlack           = 0x41,
 	kSysTypeFPPBeagleBoneBlackWireless   = 0x42,
 	kSysTypeFPPBeagleBoneGreen           = 0x43,
