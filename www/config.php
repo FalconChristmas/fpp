@@ -152,8 +152,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
         $settings['Logo'] = "Raspberry_Pi_3B+.png";
     } else if (preg_match('/Pi 3 Model A Plus/', $settings['SubPlatform'])) {
         $settings['Variant'] = "Pi 3 Model A+";
-        //FIXME - need logo for 3A+
-        $settings['Logo'] = "Raspberry_Pi_A+.png";
+        $settings['Logo'] = "Raspberry_Pi_3A+.png";
     } else if (preg_match('/Pi 3 Model B/', $settings['SubPlatform'])) {
 		$settings['Variant'] = "Pi 3 Model B";
 		$settings['Logo'] = "Raspberry_Pi_3.png";
