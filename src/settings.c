@@ -27,6 +27,7 @@
 #include "settings.h"
 #include "fppversion.h"
 #include "log.h"
+#include "fpp.h"
 
 #include <errno.h>
 #include <libgen.h>
@@ -40,6 +41,7 @@
 #include <ctype.h>
 #include "common.h"
 
+int FPPstatus = FPP_STATUS_IDLE;
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
 

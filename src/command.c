@@ -340,10 +340,10 @@ char *ProcessCommand(char *command, char *response)
         else
             sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
     } else if (!strcmp(CommandStr, "GetTestMode")) {
-        strcpy(response, channelTester->GetConfig().c_str());
+        strcpy(response, ChannelTester::INSTANCE.GetConfig().c_str());
         strcat(response, "\n");
     } else if (!strcmp(CommandStr, "SetTestMode")) {
-        if (channelTester->SetupTest(std::string(s + strlen(s) + 1)))
+        if (ChannelTester::INSTANCE.SetupTest(std::string(s + strlen(s) + 1)))
         {
             sprintf(response, "0,%d,Test Mode Activated,,,,,,,,,\n",
                 COMMAND_SUCCESS);

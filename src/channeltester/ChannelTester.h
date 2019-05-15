@@ -45,6 +45,8 @@ class ChannelTester {
 
 	std::string GetConfig(void);
 
+    
+    static ChannelTester INSTANCE;
   private:
 	TestPatternBase *m_testPattern;
 	pthread_mutex_t  m_testLock;

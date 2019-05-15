@@ -483,8 +483,8 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         }
     }
 
-    if (channelTester->Testing())
-        channelTester->OverlayTestData(m_seqData);
+    if (ChannelTester::INSTANCE.Testing())
+        ChannelTester::INSTANCE.OverlayTestData(m_seqData);
     
     PrepareChannelData(m_seqData);
     m_dataProcessed = true;

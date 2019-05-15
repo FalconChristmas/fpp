@@ -70,6 +70,10 @@ LIBS_fppoled = \
 	$(NULL)
 
 OBJECTS_fppd = \
+	fppd.o
+
+
+OBJECTS_fpp_so = \
 	channeloutput/ChannelOutputBase.o \
 	channeloutput/ThreadedChannelOutputBase.o \
 	channeloutput/channeloutput.o \
@@ -122,7 +126,6 @@ OBJECTS_fppd = \
 	effects.o \
 	events.o \
 	falcon.o \
-	fppd.o \
 	fppversion.o \
 	FrameBuffer.o \
 	fseq/FSEQFile.o \
@@ -209,7 +212,7 @@ OLAFLAGS := $(shell pkg-config --cflags --libs libola 2> /dev/null)
 ifneq '$(OLAFLAGS)' ''
 	CFLAGS += -DUSEOLA
 	LDFLAGS_fppd += $(OLAFLAGS)
-	OBJECTS_fppd += channeloutput/OLAOutput.o
+	OBJECTS_fpp_so += channeloutput/OLAOutput.o
 endif
 
 CURLFLAGS := $(shell curl-config --libs)
@@ -219,6 +222,7 @@ CFLAGS += \
 	-I $(SRCDIR) \
 	-I $(SRCDIR)channeloutput \
 	-I $(SRCDIR)mediaoutput \
+	-fpic \
 	$(NULL)
 CXXFLAGS += -std=gnu++14
 
@@ -228,7 +232,7 @@ LDFLAGS_fppd += -rdynamic $(CURLFLAGS) \
 	$(shell GraphicsMagickWand-config --ldflags --libs) \
 	$(NULL)
 
-DEPS_fppd += \
+DEPS_fppd += libfpp.so \
 	$(NULL)
 
 ifeq '$(ARCH)' 'Raspberry Pi'
@@ -258,7 +262,7 @@ LDFLAGS_fppd += \
 	-L../external/rpi_ws281x/ \
 	-L../external/spixels/lib/ \
 	$(NULL)
-OBJECTS_fppd += \
+OBJECTS_fpp_so += \
 	channeloutput/Hill320.o \
 	channeloutput/ILI9488.o \
 	channeloutput/RGBMatrix.o \
@@ -292,7 +296,7 @@ LIBS_fppd += \
 LDFLAGS_fppd += \
 	-L../external/rpi-rgb-led-matrix/lib/ \
 	$(NULL)
-OBJECTS_fppd += \
+OBJECTS_fpp_so += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
@@ -313,7 +317,7 @@ LIBS_fppd += \
 	-lwiringPi \
 	-lwiringPiDev \
 	$(NULL)
-OBJECTS_fppd += \
+OBJECTS_fpp_so += \
 	channeloutput/Hill320.o \
 	$(NULL)
 else ifeq '$(ARCH)' 'BeagleBone Black'
@@ -325,7 +329,7 @@ LIBS_fppd += \
 	-lprussdrv
 LDFLAGS_fppd += \
     -L/usr/local/lib/
-OBJECTS_fppd += \
+OBJECTS_fpp_so += \
 	channeloutput/BBB48String.o \
 	channeloutput/BBBSerial.o \
     channeloutput/BBBUtils.o \
@@ -364,7 +368,7 @@ endif
 #
 # LIBS_fppd += -lX11
 # CFLAGS += -DUSE_X11
-# OBJECTS_fppd += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
+# OBJECTS_fpp_so += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
 ##############################################################################
 
 PWD := $(shell pwd)
@@ -403,6 +407,9 @@ release: optimized
 		$(MAKE) -C $$dir release || exit 1; \
 	done
 
+libfpp.so: $(OBJECTS_fpp_so)
+	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fppd) $(LDFLAGS_fppd) -o $@
+
 fpp: $(OBJECTS_fpp)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
@@ -410,7 +417,7 @@ fppmm: $(OBJECTS_fppmm)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
 fppd: $(DEPS_fppd) $(OBJECTS_fppd)
-	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -L . -l fpp -Wl,-rpath=.:../external/RF24/ -o $@
 
 fsequtils: $(OBJECTS_fsequtils)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
@@ -428,10 +435,10 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 cleanfpp:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fpp_so) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
 
 clean:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fpp_so) $(OBJECTS_fsequtils) $(TARGETS)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi

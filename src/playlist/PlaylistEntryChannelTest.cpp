@@ -84,7 +84,7 @@ int PlaylistEntryChannelTest::StartPlaying(void)
 	m_startTime = GetTime();
 	m_endTime = m_startTime + (m_duration * 1000000);
 
-	channelTester->SetupTest(m_testConfig);
+    ChannelTester::INSTANCE.SetupTest(m_testConfig);
 
 	return PlaylistEntryBase::StartPlaying();
 }
@@ -100,7 +100,7 @@ int PlaylistEntryChannelTest::Process(void)
 	if (m_isStarted && m_isPlaying && (GetTime() >= m_endTime))
 	{
 		std::string stopConfig(STOP_CONFIG_JSON);
-		channelTester->SetupTest(stopConfig);
+		ChannelTester::INSTANCE.SetupTest(stopConfig);
 
 		m_finishTime = GetTime();
 
@@ -118,7 +118,7 @@ int PlaylistEntryChannelTest::Stop(void)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryChannelTest::Stop()\n");
 
 	std::string stopConfig(STOP_CONFIG_JSON);
-	channelTester->SetupTest(stopConfig);
+	ChannelTester::INSTANCE.SetupTest(stopConfig);
 
 	m_finishTime = GetTime();
 

@@ -84,11 +84,9 @@
 #endif
 
 pid_t pid, sid;
-int FPPstatus=FPP_STATUS_IDLE;
 volatile int runMainFPPDLoop = 1;
 extern PluginCallbackManager pluginCallbackManager;
 
-ChannelTester *channelTester = NULL;
 
 /* Prototypes for functions below */
 void MainLoop(void);
@@ -485,7 +483,6 @@ int main(int argc, char *argv[])
 	scheduler = new Scheduler();
 	playlist = new Playlist();
 	sequence  = new Sequence();
-	channelTester = new ChannelTester();
 	multiSync = new MultiSync();
 
 	if (!multiSync->Init())
@@ -540,7 +537,6 @@ int main(int argc, char *argv[])
 	CloseChannelOutputs();
 
 	delete multiSync;
-	delete channelTester;
 	delete scheduler;
 	delete playlist;
 	delete sequence;
@@ -648,7 +644,7 @@ void MainLoop(void)
 		if ((!ChannelOutputThreadIsRunning()) &&
 			(getFPPmode() != BRIDGE_MODE) &&
             ((PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
-			 (channelTester->Testing()) ||
+             (ChannelTester::INSTANCE.Testing()) ||
 			 (getAlwaysTransmit()))) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 			if (!E131BridgingInterval)

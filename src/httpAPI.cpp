@@ -195,7 +195,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	else if (url == "testing")
 	{
 		LogDebug(VB_HTTP, "API - Getting test mode status\n");
-		result["config"] = JSONStringToObject(channelTester->GetConfig().c_str());
+		result["config"] = JSONStringToObject(ChannelTester::INSTANCE.GetConfig().c_str());
 		SetOKResult(result, "");
 	}
 	else
@@ -622,7 +622,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = FPPstatus;
-    result["status_name"] = channelTester->Testing() ? "testing" : (FPPstatus == 0 ? "idle" : (FPPstatus == 1 ? "playing" : "stopping gracefully"));
+    result["status_name"] = ChannelTester::INSTANCE.Testing() ? "testing" : (FPPstatus == 0 ? "idle" : (FPPstatus == 1 ? "playing" : "stopping gracefully"));
     result["volume"] = getVolume();
 
     auto t = std::time(nullptr);
@@ -951,7 +951,7 @@ void PlayerResource::PostTesting(const Json::Value data, Json::Value &result)
 	Json::FastWriter fastWriter;
 	std::string config = fastWriter.write(data);
 
-	if (channelTester->SetupTest(config))
+	if (ChannelTester::INSTANCE.SetupTest(config))
 	{
 		SetOKResult(result, "Test Mode Activated");
 	}

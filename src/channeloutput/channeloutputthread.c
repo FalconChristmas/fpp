@@ -118,7 +118,7 @@ void *RunChannelOutputThread(void *data)
 	if ((getFPPmode() == REMOTE_MODE) &&
 		(!IsEffectRunning()) &&
         (!PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) &&
-		(!channelTester->Testing()) &&
+        (!ChannelTester::INSTANCE.Testing()) &&
 		(!getAlwaysTransmit()))
 	{
 		// Sleep about 2 seconds waiting for the master
@@ -190,7 +190,7 @@ void *RunChannelOutputThread(void *data)
 		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
-			(channelTester->Testing()) ||
+			(ChannelTester::INSTANCE.Testing()) ||
 			(getAlwaysTransmit()) ||
 			(getFPPmode() == BRIDGE_MODE))
 		{

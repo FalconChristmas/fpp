@@ -40,6 +40,9 @@
 #include "SingleChase.h"
 
 
+ChannelTester ChannelTester::INSTANCE;
+
+
 /*
  *
  */

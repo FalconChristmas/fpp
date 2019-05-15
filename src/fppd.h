@@ -32,6 +32,4 @@ void CreateDaemon(void);
 void CheckExistanceOfDirectoriesAndFiles();
 void ShutdownFPPD(void);
 
-extern ChannelTester *channelTester;
-
 #endif
