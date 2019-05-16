@@ -145,8 +145,8 @@ function list_plugin_entries($menu)
           <li><a href="uploadfile.php">File Manager</a></li>
           <li><a href="playlists.php">Playlists</a></li>
           <li><a href="scheduler.php">Scheduler</a></li>
-		  <li><a href="plugins.php">Plugin Manager</a></li>
           <li><a href="scriptbrowser.php">Script Repository Browser</a></li>
+          <li><a href="plugins.php">Plugin Manager</a></li>
           <?php list_plugin_entries("content"); ?>
         </ul>
       </li>
