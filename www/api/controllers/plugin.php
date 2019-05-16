@@ -35,7 +35,14 @@ function InstallPlugin()
 	global $settings, $fppDir, $SUDO;
 	$result = Array();
 
-	$pluginInfo = $GLOBALS['_POST'];
+	$pluginInfoJSON = "";
+	$postdata = fopen("php://input", "r");
+	while ($data = fread($postdata, 1024*16)) {
+		$pluginInfoJSON .= $data;
+	}
+	fclose($postdata);
+
+	$pluginInfo = json_decode($pluginInfoJSON, true);
 
 	$plugin = $pluginInfo['repoName'];
 	$srcURL = $pluginInfo['srcURL'];
@@ -57,6 +64,14 @@ function InstallPlugin()
 				// installed the plugin from
 				$info = file_get_contents($infoURL);
 				file_put_contents($infoFile, $info);
+
+				$data = json_decode($info, true);
+
+				if (isset($data['linkName']))
+				{
+					exec("cd " . $settings['pluginDirectory'] . " && ln -s " . $plugin . " " . $data['linkName'], $output, $return_val);
+					unset($output);
+				}
 			}
 
 			$result['Status'] = 'OK';
@@ -118,6 +133,17 @@ function UninstallPlugin()
 
 	if (file_exists($settings['pluginDirectory'] . '/' . $plugin))
 	{
+		$infoFile = $settings['pluginDirectory'] . '/' . $plugin . '/pluginInfo.json';
+		if (file_exists($infoFile))
+		{
+			$info = file_get_contents($infoFile);
+
+			$data = json_decode($info, true);
+
+			if (isset($data['linkName']))
+				exec("rm " . $settings['pluginDirectory'] . "/" . $data['linkName'], $output, $return_val);
+		}
+
 		exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] ."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
 		unset($output);
 
