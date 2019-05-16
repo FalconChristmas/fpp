@@ -381,7 +381,7 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
-								mp3info mailutils mpg123 mpg321 mplayer nano nginx node ntp \
+								mp3info mailutils mpg123 mpg321 mplayer nano net-tools nginx node ntp \
 								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
 								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
@@ -722,6 +722,10 @@ case "${FPPPLATFORM}" in
 		;;
 	'Debian')
 		echo "FPP - Debian"
+
+		echo "FPP - Configuring grub to use legacy network interface names"
+		sed -i -e "s/GRUB_CMDLINE_LINUX=\"/GRUB_CMDLINE_LINUX=\"net.ifnames=0 biosdevname=0 /" /etc/default/grub
+		grub-mkconfig -o /boot/grub/grub.cfg
 		;;
 	*)
 		echo "FPP - Unknown platform"
@@ -799,6 +803,12 @@ sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 #######################################
 echo "FPP - Fixing empty root passwd"
 sed -i -e 's/root::/root:*:/' /etc/shadow
+
+echo "FPP - Setting up ssh to disallow root login"
+sed -i -e "s/#PermitRootLogin .*/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
+
+echo "FPP - Cleaning up /root/.cpanm to save space on the SD image"
+rm -rf /root/.cpanm
 
 #######################################
 echo "FPP - Populating ${FPPHOME}"
@@ -1059,6 +1069,6 @@ echo "sudo shutdown -r now"
 echo "========================================================="
 echo ""
 
-cp /home/pi/FPP_Install.* ${FPPHOME}/
+cp /root/FPP_Install.* ${FPPHOME}/
 chown fpp.fpp ${FPPHOME}/FPP_Install.*
 
