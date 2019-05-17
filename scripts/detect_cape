@@ -84,7 +84,7 @@ function checkUnsupported($orig) {
             return $orig;
         }
         if (HasI2CDevice("3c")) {
-            return "/opt/fpp/capes/unsupported/Unsupported-eeprom.bin";
+            return "/opt/fpp/capes/other/Unknown-eeprom.bin";
         }
     }
     return $orig;
@@ -239,7 +239,7 @@ fclose($fp);
 // also put the serialNumber into the cape-info for display
 if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
     $json = json_decode(file_get_contents("/home/fpp/media/tmp/cape-info.json"));
-    if ($json->id != "Unsupported") {
+    if ($json->id != "Unsupported" && $json->id != "Unknown") {
         $json->serialNumber = $capesn;
     }
     foreach($extras as $key => $value) {

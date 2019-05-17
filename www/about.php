@@ -297,11 +297,13 @@ a:visited {
         <legend>About Cape/Hat</legend>
         <div style="overflow: hidden; padding: 10px;">
         <div>
-        <div class='aboutLeft'>
+        <div class='<? if (isSet($currentCapeInfo['vendor'])) { echo "aboutLeft"; } else { echo "aboutAll";} ?> '>
         <table class='tblAbout'>
         <tr><td><b>Name:</b></td><td width="100%"><? echo $currentCapeInfo['name']  ?></td></tr>
-        <tr><td><b>Version:</b></td><td><? echo $currentCapeInfo['version'] ?></td></tr>
         <?
+        if (isSet($currentCapeInfo['version'])) {
+            echo "<tr><td><b>Version:</b></td><td>" . $currentCapeInfo['version'] . "</td></tr>";
+        }
         if (isSet($currentCapeInfo['serialNumber'])) {
             echo "<tr><td><b>Serial&nbsp;Number:</b></td><td>" . $currentCapeInfo['serialNumber'] . "</td></tr>";
         }
@@ -310,7 +312,7 @@ a:visited {
         }
         if (isSet($currentCapeInfo['description'])) {
             echo "<tr><td colspan=\"2\">";
-            if (isSet($currentCapeInfo['vendor'])) {
+            if (isSet($currentCapeInfo['vendor']) || $currentCapeInfo['name'] == "Unknown") {
                 echo $currentCapeInfo['description'];
             } else {
                 echo htmlspecialchars($currentCapeInfo['description']);
