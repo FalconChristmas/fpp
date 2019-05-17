@@ -39,7 +39,7 @@ export FPPBINDIR
 export FPPHOME
 export FPPUSER
 export PATH=${PATHDIRS}:${PATH}
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib:${FPPDIR}/src
 
 SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
