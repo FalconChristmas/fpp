@@ -72,6 +72,8 @@ LIBS_fppoled = \
 OBJECTS_fppd = \
 	fppd.o
 
+LIBS_fpp_so = \
+	$(NULL)
 
 OBJECTS_fpp_so = \
 	channeloutput/ChannelOutputBase.o \
@@ -246,7 +248,7 @@ CFLAGS += \
 	-I../external/rpi_ws281x/ \
 	-I../external/spixels/include/ \
 	$(NULL)
-LIBS_fppd += \
+LIBS_fpp_so += \
 	-lwiringPi \
 	-lwiringPiDev \
 	-lrf24-bcm \
@@ -255,6 +257,9 @@ LIBS_fppd += \
 	-lspixels \
 	$(NULL)
 LIBS_fppoled += \
+	-lwiringPi
+LIBS_fppd += \
+	-lwiringPiDev \
 	-lwiringPi
 LDFLAGS_fppd += \
 	-L../external/RF24/ \
@@ -407,8 +412,8 @@ release: optimized
 		$(MAKE) -C $$dir release || exit 1; \
 	done
 
-libfpp.so: $(OBJECTS_fpp_so)
-	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fppd) $(LDFLAGS_fppd) -o $@
+libfpp.so: $(DEPS_fppd) $(OBJECTS_fpp_so)
+	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fppd) $(LIBS_fpp_so) $(LDFLAGS_fppd) -o $@
 
 fpp: $(OBJECTS_fpp)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
