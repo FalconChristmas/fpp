@@ -365,9 +365,9 @@ function DrawLEDPanelTable()
 		for (i = 0; i < LEDPanelCols; i++)
 		{
 			if (frontView)
-				c = LEDPanelCols - 1 - i;
-			else
 				c = i;
+			else
+				c = LEDPanelCols - 1 - i;
 
 			html += "<td><table cellspacing=0 cellpadding=0><tr><td>";
 
@@ -713,7 +713,7 @@ $(document).ready(function(){
 							<td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 						</tr>
 						<tr><td><b>Single Panel Size (WxH):</b></td>
-							<td><? printLEDPanelSizeSelect($settings['Platform'], $settings['Variant'], $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelAddressing); ?></td>
+							<td><? printLEDPanelSizeSelect($settings['Platform'], isset($settings['Variant']) ? $settings['Variant'] : '', $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelAddressing); ?></td>
 							<td>&nbsp;</td>
 							<td><b>Channel Count:</b></td>
 							<td><span id='LEDPanelsChannelCount'>1536</span></td>
@@ -865,7 +865,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 					<br>
 					<b>LED Panel Layout:</b><br>
 					View Config from front?
-					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "DrawLEDPanelTable"); ?> (save any changes before changing view)<br>
+					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "DrawLEDPanelTable", 1); ?> (save any changes before changing view)<br>
 					<table id='LEDPanelTable' border=1>
 						<tbody>
 						</tbody>

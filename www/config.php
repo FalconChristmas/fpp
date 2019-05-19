@@ -124,8 +124,11 @@ if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
     $settings['cape-info'] = $cape_info;
 }
 
+$settings['Variant'] = $settings['Platform'];
+
 if ($settings['Platform'] == FALSE) {
 	$settings['Platform'] = exec("uname -s");
+	$settings['Variant'] = $settings['Platform'];
 }
 
 if ($settings['Platform'] == "Raspberry Pi") {
