@@ -101,23 +101,29 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 	file_put_contents($filename, $settingsStr);
 }
 
-function IfSettingEqualPrint($setting, $value, $print, $pluginName = "")
+function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
 {
 	global $settings;
 	global $pluginSettings;
 
 	if ($pluginName != "") {
+		if (($defaultValue != "") && !isset($pluginSettings[$setting]))
+			$pluginSettings[$setting] = $defaultValue;
+
 		if ((isset($pluginSettings[$setting])) &&
 			($pluginSettings[$setting] == $value ))
 			echo $print;
 	} else {
+		if (($defaultValue != "") && !isset($settings[$setting]))
+			$settings[$setting] = $defaultValue;
+
 		if ((isset($settings[$setting])) &&
 			($settings[$setting] == $value ))
 			echo $print;
 	}
 }
 
-function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
+function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0)
 {
 	global $settings;
 	global $pluginSettings;
@@ -174,7 +180,7 @@ echo "
 
 <input type='checkbox' id='$setting' ";
 
-	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName);
+	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName, $defaultValue);
 
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
