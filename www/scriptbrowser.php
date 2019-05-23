@@ -3,23 +3,30 @@
 <head>
 <?php
 require_once("config.php");
+require_once("fppversion.php");
 include 'common/menuHead.inc';
 
 function normalize_version($version)
 {
-	$version = preg_replace('/0\.([0-9])\.0/', '0.$1', $version);
-	$version = preg_replace('/[\.v]/', '', $version);
-	$version = preg_replace('/-.*/', '', $version);
-	$number = intval(trim($version));
-	$number = ($number * 100) / (pow(10,(substr_count($version,'.'))));
-
+    // convert a version string like 2.7.1-2-dirty to "20701"
+	$version = preg_replace('/[v]/', '', $version);
+    $version = preg_replace('/-.*/', '', $version);
+    $parts = explode('.', $version);
+    while (count($parts) < 3) {
+        array_push($parts, "0");
+    }
+    $number = 0;
+    foreach ($parts as $part) {
+        $val = intval($part);
+        if ($val > 99) {
+            $val = 99;
+        }
+        $number = $number * 100 + $val;
+    }
 	return $number;
 }
 
-if ($fppRfsVersion == "Unknown")
-	$fppRfsVersion = "9999";
-$rfs_ver = normalize_version($fppRfsVersion);
-
+$rfs_ver = normalize_version(getFPPVersionTriplet());
 ?>
 <title><? echo $pageTitle; ?></title>
 <script>
@@ -74,6 +81,9 @@ foreach ($lines as $line)
 		continue;
 
 	if (normalize_version($parts[3]) > $rfs_ver)
+		continue;
+
+   	if (count($parts) > 4 && normalize_version($parts[4]) <= $rfs_ver)
 		continue;
 
 	if ($count > 0)

@@ -1011,7 +1011,11 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                         if (root.isMember("State")) {
                             m->setState(PixelOverlayState(root["State"].asInt()));
                             return httpserver::http_response_builder("OK", 200);
+                        } else {
+                            return httpserver::http_response_builder("Invalid request " + req.get_content(), 500);
                         }
+                    } else {
+                        return httpserver::http_response_builder("Could not parse request " + req.get_content(), 500);
                     }
                 } else if (p4 == "fill") {
                     Json::Value root;
