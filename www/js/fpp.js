@@ -23,39 +23,46 @@ var minimalUI = 0;
 var statusTimeout = null;
 var lastStatus = '';
 
+
+function versionToNumber(version)
+{
+    // convert a version string like 2.7.1-2-dirty to "20701"
+    if (version.charAt(0) == 'v') {
+        version = version.substr(1);
+    }
+    if (version.indexOf("-") != -1) {
+        version = version.substr(0, version.indexOf("-"));
+    }
+    var parts = version.split('.');
+    
+    while (parts.length < 3) {
+        parts.push("0");
+    }
+    var number = 0;
+    for (var x = 0; x < 3; x++) {
+        var val = parseInt(parts[x]);
+        if (val >= 9990) {
+            return number * 10000 + 9999;
+        } else if (val > 99) {
+            val = 99;
+        }
+        number = number * 100 + val;
+    }
+    return number;
+}
+
 // Compare two version numbers
 function CompareFPPVersions(a, b) {
 	// Turn any non-string version numbers into a string
 	a = "" + a;
 	b = "" + b;
+    a = versionToNumber(a);
+    b = versionToNumber(b);
 
-	if (a.indexOf(".") == -1)
-		a += ".0";
-	if (b.indexOf(".") == -1)
-		b += ".0";
-
-	var intA = parseInt(a.split(".")[0]);
-	var intB = parseInt(b.split(".")[0]);
-
-	if (intA > intB)
-	{
+	if (a > b) {
 		return 1;
-	}
-	else if (intA < intB)
-	{
+	} else if (a < b) {
 		return -1;
-	}
-	else
-	{
-		var decA = parseInt(a.split(".")[1]);
-		var decB = parseInt(b.split(".")[1]);
-
-		if (decA > decB)
-			return 1;
-		else if (decA < decB)
-			return -1;
-		else
-			return 0;
 	}
 
 	return 0;

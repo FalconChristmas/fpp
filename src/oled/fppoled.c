@@ -11,6 +11,8 @@
 #include "settings.h"
 #include "common.h"
 
+#include "channeloutput/BBBUtils.h"
+
 
 static FPPOLEDUtils *oled = nullptr;
 void sigInteruptHandler(int sig) {
@@ -28,6 +30,7 @@ void sigTermHandler(int sig) {
 }
 
 #ifdef PLATFORM_BBB
+extern I2C_DeviceT I2C_DEV_2;
 #define I2C_DEV_PATH I2C_DEV2_PATH
 #else
 #define I2C_DEV_PATH I2C_DEV1_PATH
@@ -61,8 +64,30 @@ int main (int argc, char *argv[]) {
     }
     
     if (ledType && display_Init_seq() )  {
+#ifdef PLATFORM_BBB
+        //was not able to configure the led on I2C2, lets see if
+        //it's available on I2C1
+        Close_device(I2C_DEV_2.fd_i2c);
+        if (getBeagleBoneType() == BeagleBoneType::PocketBeagle) {
+            getBBBPinByName("P2-09").configPin("i2c");
+            getBBBPinByName("P2-11").configPin("i2c");
+        } else {
+            getBBBPinByName("P9-17").configPin("i2c");
+            getBBBPinByName("P9-18").configPin("i2c");
+        }
+
+        if (init_i2c_dev2(I2C_DEV1_PATH, SSD1306_OLED_ADDR) != 0) {
+            printf("(Main)i2c1: OOPS! Something Went Wrong\n");
+            exit(1);
+        }
+        if (display_Init_seq() )  {
+            printf("Could not initialize display\n");
+            ledType = 0;
+        }
+#else
         printf("Could not initialize display\n");
         ledType = 0;
+#endif
     }
     
     struct sigaction sigIntAction;
