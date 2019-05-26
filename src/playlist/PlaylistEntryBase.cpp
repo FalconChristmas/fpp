@@ -211,6 +211,15 @@ void PlaylistEntryBase::Dump(void)
 /*
  *
  */
+Json::Value PlaylistEntryBase::GetMqttStatus(void)
+{
+	Json::Value result;
+	result["type"]       = m_type;
+	result["playOnce"]   = m_playOnce;
+
+	return result;
+}
+
 Json::Value PlaylistEntryBase::GetConfig(void)
 {
 	Json::Value result = m_config;

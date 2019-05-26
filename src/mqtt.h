@@ -31,6 +31,8 @@
 
 #include "mosquitto.h"
 
+void * RunMqttPublishThread(void *data);
+
 class MosquittoClient {
   public:
   	MosquittoClient(const std::string &host, const int port, const std::string &topicPrefix);
@@ -45,6 +47,8 @@ class MosquittoClient {
 	void LogCallback(void *userdata, int level, const char *str);
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
 
+	void PublishStatus(); 
+
   private:
 	std::string m_host;
 	int         m_port;
@@ -55,6 +59,7 @@ class MosquittoClient {
 
 	struct mosquitto *m_mosq;
 	pthread_mutex_t   m_mosqLock;
+	pthread_t         m_mqtt_publish_t;
 
 	// Topics we want to take action on
 	std::string m_topicPlaylist;

@@ -46,6 +46,7 @@ class PlaylistEntryBoth : public PlaylistEntryBase {
 	void Dump(void);
 
 	Json::Value GetConfig(void);
+	Json::Value GetMqttStatus(void);
 
 	std::string GetSequenceName(void) { return m_sequenceName; }
 	std::string GetMediaName(void)    { return m_mediaName; }

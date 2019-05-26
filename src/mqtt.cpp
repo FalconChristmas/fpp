@@ -34,6 +34,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector>
+#include <jsoncpp/json/json.h>
 
 #define FALCON_TOPIC "falcon/player"
 
@@ -87,6 +88,12 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	m_topicPlaylist = m_baseTopic + "/set/playlist/#";
 
 	pthread_mutex_init(&m_mosqLock, NULL);
+
+	// create  background Publish Thread
+	int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
+	if (result != 0) {
+		LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
+	}
 }
 
 /*
@@ -334,6 +341,7 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 			} else {
 				StopEffect(payload.c_str());
 			}
+
 		} else if (topic == "effect/start") {
 			StartEffect(payload.c_str(), 0);
 		}
@@ -343,4 +351,35 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 
 	LogWarn(VB_CONTROL, "No match found for Mosquitto topic '%s'\n",
 		message->topic);
+}
+
+void MosquittoClient::PublishStatus(){
+	Json::Value json = playlist->GetMqttStatusJSON();
+
+	std::stringstream buffer;
+	buffer << json << std::endl;
+	Publish("playlist_details", buffer.str());
+}
+
+void *RunMqttPublishThread(void *data) {
+
+	sleep(3); // Give everything time to start up
+
+	MosquittoClient *me = (MosquittoClient *) data;
+	int frequency = atoi(getSetting("MQTTFrequency"));
+	if (frequency < 0) {
+		frequency = 0;
+	} 
+	LogWarn(VB_CONTROL, "MQTT Frequency: %d\nc", frequency);
+	if (frequency == 0) {
+		// kill thread
+		LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequenzy is zero.\nc");
+	       	return 0;
+	}
+
+	// Loop for ever
+	while(true) {
+		sleep(frequency);
+		me->PublishStatus();
+	}
 }

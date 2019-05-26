@@ -1045,6 +1045,30 @@ Json::Value Playlist::GetCurrentEntry(void)
 	return result;
 }
 
+Json::Value Playlist::GetMqttStatusJSON(void){
+
+	Json::Value result;
+	result["status"] = m_currentState; // Works because single playlist
+	Json::Value playlistArray =  Json::Value(Json::arrayValue);
+
+	if (m_currentState != "idle") {
+		Json::Value entryArray =  Json::Value(Json::arrayValue);
+		Json::Value playlist;
+		// Only one entry right now.
+		Json::Value playlistEntry = m_currentSection->at(m_sectionPosition)->GetMqttStatus();
+		entryArray.append(playlistEntry);
+
+		playlist["name"] = m_name;
+		playlist["repeat"] = m_repeat;
+		playlist["currentItems"] = entryArray;
+		playlistArray.append(playlist); 
+
+	}
+
+	result["activePlaylists"] = playlistArray;
+	return result;
+}
+
 /*
  *
  */

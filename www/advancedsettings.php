@@ -235,10 +235,16 @@ If
                 </tr>
                 <tr>
                     <td >CA File (Optional):</td>
-                    <td ><? PrintSettingTextSaved("MQTTCaFile", 1, 0, 64, 32, "", ""); ?></td>
+		    <td ><? PrintSettingTextSaved("MQTTCaFile", 1, 0, 64, 32, "", ""); ?></td>
+                </tr>
+                <tr>
+                    <td >MQTT Publish Frequency (Optional):</td>
+		    <td ><? PrintSettingTextSaved("MQTTFrequency", 1, 0, 8, 8, "", "0"); ?></td>
+                </tr>
 	    </table>
 	    MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>
-            CA file is the full path to the signer certificate.  Only needed if using mqtts server that is self signed.<br/><br/>
+	    CA file is the full path to the signer certificate.  Only needed if using mqtts server that is self signed.<br/>
+	    Publish Frequence should be zero (disabled) or the number of seconds between periodic mqtt publish events<br/><br/>
 FPP will respond to certain events:
 <div class="fppTableWrapper">
 <table width = "100%" border="0" cellpadding="1" cellspacing="1">
