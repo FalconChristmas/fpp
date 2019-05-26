@@ -134,6 +134,7 @@ class Playlist {
 
 	int                FileHasBeenModified(void);
 	std::string        ReplaceMatches(std::string in);
+	Json::Value        GetMqttStatusJSON(); // Returns Status as JSON
 
   private:
 	int                ReloadPlaylist(void);

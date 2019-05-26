@@ -26,6 +26,55 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 */playlist/media/title - Title of the audio / video media being displayed
 */playlist/media/status - filename of the current audio/movie
 */playlist/media/artist - The artist listing in the audio / video file being played
+*/playlist_details - If the MQTT Publish Frequence option (Advanced settings) is > 0 then a JSON file is published based on the duration (seconds) specified. 
+
+
+Message Example for playlist_details
+---------------------------------------------
+Note: Currently FPP only allows one active Playlist and for each Playlist, one active "item".  However,
+this will be increased in the future.  Thus activePlaylist and currentItems return list of entries. 
+The sample currentItems below shows 3 records (one for the 3 most common types) but until concurrent
+entries in a Playlist are allowed, only one will be displayed in real life.
+
+{  
+   "status" : "playing",    // playing or idle
+   "activePlaylist" : [  
+      {  
+         "playlistName" : "Name of current playlist",
+         "repeat" : 1,     // 0 if playist is not repating, 1 if repeating
+         "currentItems" : [
+            {
+               "type": "both",
+               "sequenceName" : "Name of current sequence file playing.",
+               "mediaTitle" : "Title of the audio / video media being displayed",
+               "mediaName" : "filename of the current audio/movie",
+               "mediaArtist" : "The artist listing in the audio / video file being played",
+               "secondsRemaining" : 33,
+               "secondsTotal" : 54,
+               "secondsElapsed" : 21
+            },
+            {
+               "type": "sequence",
+               "sequenceName" : "Name of current sequence file playing.",
+               "secondsRemaining" : 33,
+               "secondsTotal" : 54,
+               "secondsElapsed" : 21
+            },
+            {
+               "type": "media",
+               "mediaTitle" : "Title of the audio / video media being displayed",
+               "mediaName" : "filename of the current audio/movie",
+               "mediaArtist" : "The artist listing in the audio / video file being played",
+               "secondsRemaining" : 33,
+               "secondsTotal" : 54,
+               "secondsElapsed" : 21
+            }
+         ]       
+      }
+   ]
+}
+
+
 
 FPP Subscribed subtopics
 ---------------------------------------------

@@ -48,6 +48,7 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	void Dump(void);
 
 	Json::Value GetConfig(void);
+	Json::Value GetMqttStatus(void);
 
 	std::string GetMediaName(void) { return m_mediaFilename; }
 

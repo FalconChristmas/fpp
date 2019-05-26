@@ -158,4 +158,13 @@ Json::Value PlaylistEntrySequence::GetConfig(void)
 
 	return result;
 }
+Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
+	Json::Value result = PlaylistEntryBase::GetMqttStatus();
+	result["sequenceName"]     = m_sequenceName;
+	result["secondsElapsed"]   = sequence->m_seqSecondsElapsed;
+	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
+	result["secondsTotal"] = sequence->m_seqDuration;
+
+	return result;
+}
 

@@ -397,3 +397,15 @@ Json::Value PlaylistEntryMedia::GetConfig(void)
 	return result;
 }
 
+Json::Value PlaylistEntryMedia::GetMqttStatus(void)
+{
+	Json::Value result = PlaylistEntryBase::GetMqttStatus();
+	result["secondsElapsed"]    = mediaOutputStatus.secondsElapsed;
+	result["secondsRemaining"]  = mediaOutputStatus.secondsRemaining;
+	result["secondsTotal"]      = mediaOutputStatus.secondsTotal;
+	result["mediaName"]         = m_mediaFilename;
+	result["mediaTitle"]        = mediaDetails.title;
+	result["mediaArtist"]       = mediaDetails.artist;
+
+	return result;
+}

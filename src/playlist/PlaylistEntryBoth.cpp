@@ -25,6 +25,10 @@
 
 #include "log.h"
 #include "PlaylistEntryBoth.h"
+#include "mediadetails.h"
+#include "Sequence.h"
+
+extern MediaDetails	 mediaDetails;
 
 PlaylistEntryBoth::PlaylistEntryBoth(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
@@ -175,3 +179,26 @@ Json::Value PlaylistEntryBoth::GetConfig(void)
 	return result;
 }
 
+Json::Value PlaylistEntryBoth::GetMqttStatus(void)
+{
+	Json::Value result = PlaylistEntryBase::GetMqttStatus();
+    	if (m_mediaEntry) {
+        	result["secondsRemaining"] = m_mediaEntry->m_secondsRemaining;
+        	result["secondsTotal"] = m_mediaEntry->m_secondsTotal;
+        	result["secondsElapsed"] = m_mediaEntry->m_secondsElapsed;
+		result["mediaName"] = m_mediaEntry->GetMediaName();
+
+	}
+	if (m_sequenceEntry) {
+		result["sequenceName"]     = m_sequenceEntry->GetSequenceName();
+        	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
+        	result["secondsTotal"] = sequence->m_seqDuration;
+        	result["secondsElapsed"] = sequence->m_seqSecondsElapsed;
+	}
+
+       	result["mediaTitle"] = mediaDetails.title;
+       	result["mediaArtist"] = mediaDetails.artist;
+
+
+	return result;
+}

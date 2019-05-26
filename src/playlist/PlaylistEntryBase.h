@@ -54,6 +54,8 @@ class PlaylistEntryBase {
 
 	virtual Json::Value GetConfig(void);
 
+	virtual Json::Value GetMqttStatus(void);
+
 	virtual std::string ReplaceMatches(std::string in);
 
 	int          GetPlaylistEntryID(void) { return m_playlistEntryID; }
