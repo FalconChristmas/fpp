@@ -24,7 +24,11 @@ function HasI2CDevice($id) {
     $cmd = "i2cdetect -y -r $I2CBUS 0x$id 0x$id | colrm 1 3 | grep $id";
     exec($cmd, $output, $result);
     if ($result != 0) {
-        return false;
+	$cmd = "i2cdetect -y -r $I2CBUS 0x$id 0x$id | colrm 1 3 | grep UU";
+	exec($cmd, $output, $result);
+	if ($result != 0) {	
+	    return false;
+	}
     }
     return true;
 }
@@ -117,10 +121,17 @@ if (HasI2CDevice("50")) {
     $EEPROM = "/sys/bus/i2c/devices/" . $I2CBUS . "-0050/eeprom";
     if (file_exists("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device")) {
         // detect and initialize the eeprom, only support 24c256 chips for now
-        if (!file_exists($EEPROM)) {
+	if (!file_exists($EEPROM)) {
+	    echo "Registering 24c256 EEPROM device\n";
             @file_put_contents("/sys/bus/i2c/devices/i2c-" . $I2CBUS . "/new_device", "24c256 0x50");
+            for ($i = 0; $i < 10; $i++) {
+                if (file_exists($EEPROM)) {
+                    break;
+                 }
+                 usleep(100000);
+             }
         }
-        if (!file_exists($EEPROM)) {
+	if (!file_exists($EEPROM)) {
             $EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
         }
     }
