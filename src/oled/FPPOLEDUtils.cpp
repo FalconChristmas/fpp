@@ -262,12 +262,7 @@ void FPPOLEDUtils::run() {
             }
 
             if (actionCount) {
-                int i = poll(&fdset[0], actionCount, needsPolling ? 100 : 1000);
-                if (i > 0) {
-                    for (int z = 0; z < actionCount; z++) {
-                        printf("%d:  %d\n", z, fdset[z].revents);
-                    }
-                }
+                poll(&fdset[0], actionCount, needsPolling ? 100 : 1000);
             } else {
                 usleep(100000);
             }
@@ -281,7 +276,6 @@ void FPPOLEDUtils::run() {
                     int v = atoi(vbuffer);
                     action = actions[x].checkAction(v, ntime);
                 } else if (fdset[actions[x].pollIndex].revents) {
-                    printf("Have i event %d %s\n", actions[x].pollIndex, actions[x].pin.c_str());
                     struct gpiod_line_event event;
                     if (gpiod_line_event_read_fd(fdset[actions[x].pollIndex].fd, &event) >= 0) {
                         int v = gpiod_line_get_value(actions[x].gpiodLine);
