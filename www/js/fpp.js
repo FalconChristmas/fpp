@@ -682,6 +682,10 @@ function ConvertPlaylistsToJSON() {
 
 function SavePlaylist(filter, callback)	{
 	var name=document.getElementById("txtPlaylistName");
+    if (name.value == "") {
+        alert("Playlist name cannot be empty");
+        return;
+    }
     var xmlhttp=new XMLHttpRequest();
 	var url = "fppjson.php?command=savePlaylist&name=" + name.value;
 	xmlhttp.open("GET",url,false);

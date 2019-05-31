@@ -325,7 +325,16 @@ a:visited {
                <table class='tblAbout'>
                     <tr><td><b>Vendor&nbsp;Name:</b></td><td><? echo $currentCapeInfo['vendor']['name']  ?></td></tr>
             <? if (isSet($currentCapeInfo['vendor']['url'])) {
-                echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $currentCapeInfo['vendor']['url'] . "\">" . $currentCapeInfo['vendor']['url'] . "</a></td></tr>";
+                $url = $currentCapeInfo['vendor']['url'];
+                $landing = $url;
+                if (isSet($currentCapeInfo['vendor']['landingPage'])) {
+                    $landing = $currentCapeInfo['vendor']['landingPage'];
+                }
+                $landing = $landing  . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
+                if (isset($currentCapeInfo['cs'])) {
+                    $landing = $landing . "&cs=" . $currentCapeInfo['cs'];
+                }
+                echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $landing . "\">" . $url . "</a></td></tr>";
             }
             if (isSet($currentCapeInfo['vendor']['phone'])) {
                  echo "<tr><td><b>Phone&nbsp;Number:</b></td><td>" . $currentCapeInfo['vendor']['phone'] . "</td></tr>";
