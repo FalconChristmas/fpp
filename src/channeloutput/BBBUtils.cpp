@@ -211,13 +211,25 @@ static uint8_t *bbGPIOMap[] = {0, 0, 0, 0};
 static int bbbPWMChipNums[] = { 1, 3, 6};
 
 static const char *bbbPWMDeviceNames[] = {
-    "/sys/devices/platform/ocp/48300000.epwmss/48300200.pwm/pwm/pwmchip1",
-    "/sys/devices/platform/ocp/48302000.epwmss/48302200.pwm/pwm/pwmchip3",
-    "/sys/devices/platform/ocp/48304000.epwmss/48304200.pwm/pwm/pwmchip6",
+    "/sys/devices/platform/ocp/48300000.epwmss/48300200.pwm/pwm/pwmchip",
+    "/sys/devices/platform/ocp/48302000.epwmss/48302200.pwm/pwm/pwmchip",
+    "/sys/devices/platform/ocp/48304000.epwmss/48304200.pwm/pwm/pwmchip",
 };
+
 static FILE * bbbPWMDutyFiles[] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 static volatile bool registersMemMapped = false;
+
+static int getBBBPWMChipNum(int pwm) {
+    char buf[256];
+    for (int x = 0; x < 10; x++) {
+        sprintf(buf, "%s%d", bbbPWMDeviceNames[pwm], x);
+        if (access(buf, F_OK) == 0) {
+            return x;
+        }
+    }
+    return bbbPWMChipNums[pwm];
+}
 
 static void setupBBBMemoryMap() {
     if (registersMemMapped) {
@@ -276,27 +288,29 @@ bool setupBBBPinPWM(int kio) {
         setupBBBMemoryMap();
         
         configBBBPin(pin.name, pin.gpio, pin.pin, "pwm", "");
+        int chipNum = getBBBPWMChipNum(pin.pwm);
         char dir_name[128];
-        snprintf(dir_name, sizeof(dir_name), "%s/export", bbbPWMDeviceNames[pin.pwm]);
+        snprintf(dir_name, sizeof(dir_name), "%s%d/export", bbbPWMDeviceNames[pin.pwm], chipNum);
         FILE *dir = fopen(dir_name, "w");
         fprintf(dir, "%d", pin.subPwm);
         fclose(dir);
+        
 
-        snprintf(dir_name, sizeof(dir_name), "%s/pwm-%d:%d/period",
-                 bbbPWMDeviceNames[pin.pwm], bbbPWMChipNums[pin.pwm], pin.subPwm);
+        snprintf(dir_name, sizeof(dir_name), "%s%d/pwm-%d:%d/period",
+                 bbbPWMDeviceNames[pin.pwm], chipNum, chipNum, pin.subPwm);
         dir = fopen(dir_name, "w");
         fprintf(dir, "%d", 255 * 100);
         fclose(dir);
 
-        snprintf(dir_name, sizeof(dir_name), "%s/pwm-%d:%d/duty_cycle",
-                 bbbPWMDeviceNames[pin.pwm], bbbPWMChipNums[pin.pwm], pin.subPwm);
+        snprintf(dir_name, sizeof(dir_name), "%s%d/pwm-%d:%d/duty_cycle",
+                 bbbPWMDeviceNames[pin.pwm], chipNum, chipNum, pin.subPwm);
         dir = fopen(dir_name, "w");
         fprintf(dir, "0");
         fflush(dir);
         bbbPWMDutyFiles[pin.pwm * 2 + pin.subPwm] = dir;
 
-        snprintf(dir_name, sizeof(dir_name), "%s/pwm-%d:%d/enable",
-                 bbbPWMDeviceNames[pin.pwm], bbbPWMChipNums[pin.pwm], pin.subPwm);
+        snprintf(dir_name, sizeof(dir_name), "%s%d/pwm-%d:%d/enable",
+                 bbbPWMDeviceNames[pin.pwm], chipNum, chipNum, pin.subPwm);
         dir = fopen(dir_name, "w");
         fprintf(dir, "1");
         fclose(dir);
