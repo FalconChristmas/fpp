@@ -335,7 +335,11 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count) {
             startY += 8;
         }
         if (_imageWidth) {
-            drawBitmap(0, startY, &_image[0], _imageWidth, _imageHeight, WHITE);
+            int y = startY;
+            if (oledType != OLEDType::TWO_COLOR) {
+                --y;
+            }
+            drawBitmap(0, y, &_image[0], _imageWidth, _imageHeight, WHITE);
         }
     }
     return startY;
