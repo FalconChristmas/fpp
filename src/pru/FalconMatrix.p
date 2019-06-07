@@ -72,6 +72,10 @@
     DO_OUTPUT_ROW GPIO(b##N##_gpio), b##N##_pin, reg_b, bit; \
 
 
+#ifdef USING_PWM
+//nothing to do, PWM hardware handles it
+#define CHECK_FOR_DISPLAY_OFF
+#else
 .macro CHECK_FOR_DISPLAY_OFF
 .mparam reg1 = gpio0_set, reg2 = gpio1_set
     QBEQ NO_BLANK, sleep_counter, 0
@@ -82,6 +86,7 @@
         LDI sleep_counter, 0
     NO_BLANK:
 .endm
+#endif
 
 
 
@@ -163,6 +168,12 @@
 
 .macro GET_ON_DELAY_TIMES
 .mparam brightlevel
+#ifdef USING_PWM
+    LSL gpio0_set, brightlevel, 1
+    ADD gpio0_set, gpio0_set, 10
+    LBCO gpio0_set, CONST_PRUDRAM, gpio0_set, 2
+    MOV gpio1_set, 0
+#else
 #ifdef BRIGHTNESS8
     QBEQ DO8, brightlevel, 8
 #endif
@@ -213,6 +224,7 @@
         JMP DONETIMES
 
     DONETIMES:
+#endif
 .endm
 
 
@@ -373,6 +385,14 @@ START:
 
     DISABLE_PIN_INTERRUPTS
 
+#ifdef USING_PWM
+    //We need to record the Period in clock cycles so that
+    //The brightness values can be calculated
+    MOV data_addr, oe_pwm_address
+    LBBO pixel_data, data_addr, 0xA, 2
+    SBCO pixel_data, CONST_PRUDRAM, 12, 2
+#endif
+
     LDI sleep_counter, 0
     LDI sleepDone, 0
 
@@ -444,27 +464,29 @@ NEW_ROW_LOOP:
 
 #ifdef ENABLESTATS
         //write some debug data into sram to read in c code
-        GET_PRU_CLOCK gpio0_set, gpio2_set, 8
         MOV gpio2_set, sleep_counter
+        GET_PRU_CLOCK gpio0_set, gpio0_set, 8
         QBNE STILLON, sleep_counter, 0
             MOV gpio2_set, sleepDone
         STILLON:
+
         MOV gpio3_set, statOffset
         LSL gpio3_set, gpio3_set, 2
-        ADD gpio3_set, gpio3_set, 12
+        ADD gpio3_set, gpio3_set, 28
         SBCO gpio0_set, CONST_PRUDRAM, gpio3_set, 12
         ADD statOffset, statOffset, 3
 #endif
 
+#ifdef USING_PWM
+        DISPLAY_OFF
+#else
         QBEQ DISPLAY_ALREADY_OFF, sleep_counter, 0
         WAIT_FOR_TIMER:
             GET_PRU_CLOCK gpio0_set, gpio1_set
             QBGT WAIT_FOR_TIMER, gpio0_set, sleep_counter
             DISPLAY_OFF
         DISPLAY_ALREADY_OFF:
-
-        // determine on time (gpio0_set) and delay time (gpio1_set)
-        GET_ON_DELAY_TIMES bright
+#endif
 
         //QBNE NO_SET_ROW, bright, BITS //maxBitsToOutput
             OUTPUT_ROW_ADDRESS
@@ -473,14 +495,17 @@ NEW_ROW_LOOP:
 	    // Full data has been clocked out; latch it
 	    LATCH_HI
 
-
         RESET_PRU_CLOCK gpio2_set, gpio3_set
+
+        // determine on time (gpio0_set) and delay time (gpio1_set)
+        GET_ON_DELAY_TIMES bright
         QBEQ NO_EXTRA_DELAY, gpio1_set, 0
             MOV sleep_counter, gpio1_set
             WAIT_FOR_EXTRA_OFF_TIME:
                 GET_PRU_CLOCK gpio1_set, gpio2_set
                 QBGT WAIT_FOR_EXTRA_OFF_TIME, gpio1_set, sleep_counter
         NO_EXTRA_DELAY:
+
         MOV sleep_counter, gpio0_set
         MOV sleepDone, 0
 

@@ -44,6 +44,7 @@ typedef struct {
     volatile unsigned command;
     volatile unsigned response;
     
+    volatile uint16_t pwmBrightness[8];
     uint32_t stats[3 * MAX_STATS]; //3 values per collection
 } __attribute__((__packed__)) BBBPruMatrixData;
 

@@ -138,7 +138,6 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
         origMax >>= 1;
     }
     
-    m_printStats = false;
     if (FileExists("/home/fpp/media/config/ledscape_dimming")) {
         FILE *file = fopen("/home/fpp/media/config/ledscape_dimming", "r");
         
@@ -303,17 +302,28 @@ BBBMatrix::~BBBMatrix()
     if (m_panelMatrix) delete m_panelMatrix;
 }
 
-static void configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {
+static bool configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {
     std::string type = root["controls"][ctype]["type"].asString();
     if (type != "none") {
         const PinCapabilities &pin = getBBBPinByName(root["controls"][ctype]["pin"].asString());
-        pin.configPin(type);
-        if (type == "pruout") {
-            outputFile << "#define pru_" << ctype << " " << std::to_string(pin.prupin) << "\n";
+        if (ctype == "oe" && pin.pwm >= 99)  {
+            outputFile << "#define oe_pwm_address " << std::to_string(pin.getPWMRegisterAddress()) << "\n";
+            outputFile << "#define oe_pwm_output " << std::to_string(pin.subPwm) << "\n";
+            int max = 300*255;
+            //FIXME - adjust max for brightess
+            pin.setupPWM(max);
+            pin.setPWMValue(0);
+            return true;
         } else {
-            outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.pin) << "\n";
+            pin.configPin(type);
+            if (type == "pruout") {
+                outputFile << "#define pru_" << ctype << " " << std::to_string(pin.prupin) << "\n";
+            } else {
+                outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.pin) << "\n";
+            }
         }
     }
+    return false;
 }
 
 static void configurePanelPin(int x, const std::string &color, const std::string& row, Json::Value &root, std::ofstream &outputFile, int *minPort) {
@@ -487,6 +497,7 @@ int BBBMatrix::Init(Json::Value config)
     if (!FileExists(filename)) {
         sprintf(filename, "/opt/fpp/capes/%s/panels/%s.json", dirname.c_str(), name.c_str());
     }
+    bool isPWM = false;
     if (!FileExists(filename)) {
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s - %s\n", name.c_str(), filename);
         return 0;
@@ -508,7 +519,7 @@ int BBBMatrix::Init(Json::Value config)
         pru = root["pru"].asInt();
         configureControlPin("latch", root, outputFile);
         outputFile << "\n";
-        configureControlPin("oe", root, outputFile);
+        isPWM = configureControlPin("oe", root, outputFile);
         outputFile << "\n";
         configureControlPin("clock", root, outputFile);
         outputFile << "\n";
@@ -571,6 +582,9 @@ int BBBMatrix::Init(Json::Value config)
     }
     sprintf(buf, "-DROW_LEN=%d", tmp);
     compileArgs.push_back(buf);
+    if (isPWM) {
+        compileArgs.push_back("-DUSING_PWM");
+    }
 
     if (addressingType == 1) {
         // 1/2 scan panel that uses 2 bits, bit one for scan row 1 and bit two for row 2
@@ -596,12 +610,15 @@ int BBBMatrix::Init(Json::Value config)
     m_pruData->command = 0;
     m_pruData->response = 0;
 
+    for (int x = 0; x < 8; x++) {
+        m_pruData->pwmBrightness[x] = 0;
+    }
+    
     for (int x = 0; x < MAX_STATS; x++) {
         m_pruData->stats[x * 3] = 0;
         m_pruData->stats[x * 3 + 1] = 0;
         m_pruData->stats[x * 3 + 1] = 0;
     }
-    
     m_pruCopy->run("/tmp/FalconMatrixPRUCpy.bin");
     m_pru->run(pru_program);
     
@@ -651,7 +668,30 @@ int BBBMatrix::Init(Json::Value config)
         }
         gammaCurve[x] = round(f);
     }
-    
+
+    if (isPWM) {
+        //need to calculate the clock counts for the PWM subsystem
+        int i = m_pruData->pwmBrightness[0];
+        while (i == 0) {
+            i = m_pruData->pwmBrightness[0];
+        }
+        printf("PERIOD: %X\n", i);
+        
+        int f = i;
+        //f *= 300;
+        //f /= 500;
+        i = f;
+        printf("New PERIOD: %X\n", i);
+
+        i *= m_brightness;
+        i /= 10;
+        for (int x = 0; x < 8; x++) {
+            printf("%d: %X\n", x, i);
+            m_pruData->pwmBrightness[7-x] = i;
+            i /= 2;
+        }
+        
+    }
     return ChannelOutputBase::Init(config);
 }
 
@@ -698,6 +738,7 @@ void BBBMatrix::printStats() {
     //printf("0x%X\n", (total / count));
     fclose(rfile);
 }
+
 void BBBMatrix::GetRequiredChannelRange(int &min, int & max) {
     min = m_startChannel;
     max = m_startChannel + m_channelCount - 1;

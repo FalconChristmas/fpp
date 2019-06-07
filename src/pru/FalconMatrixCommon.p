@@ -90,20 +90,36 @@
 .endm
 
 .macro DISPLAY_OFF
+#if defined(USING_PWM)
+    MOV out_set, oe_pwm_address
+    LDI out_clr, 0
+    SBBO out_clr, out_set, 0x12 + oe_pwm_output * 2, 2
+#else
 #ifdef gpio_oe
     MOV out_set, 1 << gpio_oe
     SBBO out_set, gpio_base_cache, GPIO_SETDATAOUT, 4
 #else
     SET r30, pru_oe
 #endif
+#endif
 .endm
 
 .macro DISPLAY_ON
+#if defined(USING_PWM)
+    MOV out_clr, oe_pwm_address
+    //set the "on time"
+    MOV out_set, sleep_counter
+    SBBO out_set, out_clr, 0x12 + oe_pwm_output * 2, 2
+    //reset the timer
+    MOV out_set, 0
+    SBBO out_set, out_clr, 0x8, 2
+#else
 #ifdef gpio_oe
     MOV out_clr, 1 << gpio_oe
     SBBO out_clr, gpio_base_cache, GPIO_CLRDATAOUT, 4
 #else
     CLR r30, pru_oe
+#endif
 #endif
 .endm
 

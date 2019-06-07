@@ -58,8 +58,8 @@ static void configureInputPin(int i, int pud) {
 
 #   define digitalRead(a)        getBBBPinValue(a)
 #   define digitalWrite(a,b)     setBBBPinValue(a, b)
-#   define softPwmCreate(a, b, c) setupBBBPinPWM(a)
-#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b)
+#   define softPwmCreate(a, b, c) setupBBBPinPWM(a, c * 100)
+#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b * 100)
 #   define supportsPWM(a)        supportsPWMOnBBBPin(a)
 #   define LOW                   0
 #   define PUD_UP                2

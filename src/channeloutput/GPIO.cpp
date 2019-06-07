@@ -41,8 +41,8 @@
 #   define LOW   0
 #   define pinMode(a, b)         configBBBPin(a, "gpio", b)
 #   define digitalWrite(a,b)     setBBBPinValue(a, b)
-#   define softPwmCreate(a, b, c) setupBBBPinPWM(a)
-#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b)
+#   define softPwmCreate(a, b, c) setupBBBPinPWM(a, c * 100)
+#   define softPwmWrite(a, b)    setBBBPinPWMValue(a, b * 100)
 #   define supportsPWM(a)        supportsPWMOnBBBPin(a)
 #else
 #   define pinMode(a, b)

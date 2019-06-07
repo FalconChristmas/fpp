@@ -62,6 +62,10 @@ public:
     const PinCapabilities& setEdge(const std::string &edge) const;
     int getValue() const;
     int openValueForPoll() const;
+
+    bool setupPWM(int maxValueNS = 25500) const;
+    void setPWMValue(int valueNS) const;
+    int getPWMRegisterAddress() const;
 };
 
 const PinCapabilities &getBBBPinByName(const std::string &name);
@@ -72,6 +76,10 @@ bool getBBBPinValue(int gpio, int pin);
 void setBBBPinValue(int kio, bool v);
 
 bool supportsPWMOnBBBPin(int kio);
-bool setupBBBPinPWM(int kio);
-void setBBBPinPWMValue(int kio, int value);
+bool setupBBBPinPWM(int kio, int maxValue = 25500); //defaul period is 25500ns
+void setBBBPinPWMValue(int kio, int value); //value is in NS
+
+bool setupBBBPinPWM(const PinCapabilities &pin, int maxValue = 25500);
+void setBBBPinPWMValue(const PinCapabilities &pin, int value);
+
 #endif

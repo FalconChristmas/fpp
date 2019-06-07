@@ -9,6 +9,7 @@
 #include <string.h>
 #include <vector>
 
+
 static const std::vector<PinCapabilities> PB_PINS = {
     PinCapabilities("P1-02", 87, 1, 9),
     PinCapabilities("P1-04", 89, 1, 11),
@@ -181,6 +182,30 @@ int PinCapabilities::openValueForPoll() const {
              );
     return open(dir_name, O_RDONLY | O_NONBLOCK);
 }
+bool PinCapabilities::setupPWM(int maxValueNS) const {
+    return setupBBBPinPWM(*this, maxValueNS);
+}
+
+void PinCapabilities::setPWMValue(int value) const {
+    setBBBPinPWMValue(*this, value);
+}
+//PWM locations
+#define PWMSS0_BASE 0x48300000
+#define PWMSS1_BASE 0x48302000
+#define PWMSS2_BASE 0x48304000
+
+int PinCapabilities::getPWMRegisterAddress() const {
+    //need to add 0x200 to the base address to get the
+    //address to the eHRPWM register which is what we really use
+    if (pwm == 0)  {
+        return PWMSS0_BASE + 0x200;
+    } else if (pwm == 1)  {
+        return PWMSS1_BASE + 0x200;
+    } else if (pwm == 2)  {
+        return PWMSS2_BASE + 0x200;
+    }
+    return 0;
+}
 
 
 
@@ -196,10 +221,6 @@ int PinCapabilities::openValueForPoll() const {
 #define GPIO3_BASE 0x481AE000
 #define GPIO_SIZE  0x00001000
 
-//PWM locations
-#define PWMSS0_BASE 0x48300000
-#define PWMSS1_BASE 0x48302000
-#define PWMSS2_BASE 0x48304000
 
 // 1MHz frequence
 // #define HZ 1000000.0f
@@ -269,8 +290,11 @@ bool supportsPWMOnBBBPin(int kio) {
     return pin.pwm != -1;
 }
 
-bool setupBBBPinPWM(int kio) {
+bool setupBBBPinPWM(int kio, int maxValue) {
     const PinCapabilities &pin = getBBBPinKgpio(kio);
+    return setupBBBPinPWM(pin, maxValue);
+}
+bool setupBBBPinPWM(const PinCapabilities &pin, int maxValue) {
     if (pin.pwm != -1 && (bbbPWMDutyFiles[pin.pwm * 2 + pin.subPwm] == nullptr)) {
         //set pin
         setupBBBMemoryMap();
@@ -285,7 +309,7 @@ bool setupBBBPinPWM(int kio) {
         snprintf(dir_name, sizeof(dir_name), "%s/pwm-%d:%d/period",
                  bbbPWMDeviceNames[pin.pwm], bbbPWMChipNums[pin.pwm], pin.subPwm);
         dir = fopen(dir_name, "w");
-        fprintf(dir, "%d", 255 * 100);
+        fprintf(dir, "%d", maxValue);
         fclose(dir);
 
         snprintf(dir_name, sizeof(dir_name), "%s/pwm-%d:%d/duty_cycle",
@@ -305,13 +329,15 @@ bool setupBBBPinPWM(int kio) {
 }
 void setBBBPinPWMValue(int kio, int value) {
     const PinCapabilities &pin = getBBBPinKgpio(kio);
+    setBBBPinPWMValue(pin, value);
+}
+void setBBBPinPWMValue(const PinCapabilities &pin, int value) {
     if (pin.pwm != -1) {
         setupBBBMemoryMap();
         
         char val[16];
-        fprintf(bbbPWMDutyFiles[pin.pwm * 2 + pin.subPwm], "%d", value * 100);
+        fprintf(bbbPWMDutyFiles[pin.pwm * 2 + pin.subPwm], "%d", value);
         fflush(bbbPWMDutyFiles[pin.pwm * 2 + pin.subPwm]);
-
     }
 }
 
