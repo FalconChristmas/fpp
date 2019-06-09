@@ -111,11 +111,17 @@ function list_plugin_entries($menu)
 		    if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>";
 		    if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
-                $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                if (isset($settings['cape-info']['cs'])) {
-                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
+                $landing = $settings['cape-info']['vendor']['url'];
+                if (isSet($settings['cape-info']['vendor']['landingPage'])) {
+                    $landing = $settings['cape-info']['vendor']['landingPage'];
                 }
-                echo "<a href=\"" . $settings['cape-info']['vendor']['url'] . "\"><img style='max-width:125px; max-height:60px;' src=\"" . $iurl . "\"></a>";
+                $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "") {
+                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
+                    $landing = $landing . "&cs=" . $settings['cape-info']['cs'];
+                }
+                echo "<a href=\"" . $landing . "\"><img style='max-width:125px; max-height:60px;' src=\"" . $iurl . "\"></a>";
             }
           ?>
 
