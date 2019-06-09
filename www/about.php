@@ -333,7 +333,7 @@ a:visited {
                     $landing = $currentCapeInfo['vendor']['landingPage'];
                 }
                 $landing = $landing  . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-                if (isset($currentCapeInfo['cs'])) {
+                if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "") {
                     $landing = $landing . "&cs=" . $currentCapeInfo['cs'];
                 }
                 echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $landing . "\">" . $url . "</a></td></tr>";
@@ -346,10 +346,10 @@ a:visited {
             }
             if (isSet($currentCapeInfo['vendor']['image'])) {
                 $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-                if (isset($currentCapeInfo['cs'])) {
+                if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "") {
                     $iurl = $iurl . "&cs=" . $currentCapeInfo['cs'];
                 }
-                echo "<tr><td colspan=\"2\"><a href=\"" . $currentCapeInfo['vendor']['url'] . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" /></a></td></tr>";
+                echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" /></a></td></tr>";
             }?>
                </table>
                </div>
