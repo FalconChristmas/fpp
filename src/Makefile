@@ -15,7 +15,7 @@ ifneq ($(wildcard /usr/bin/ccache),)
 	CCACHE = ccache
 endif
 
-TARGETS = fpp fppmm fsequtils fppd fppoled
+TARGETS = fpp fppmm fsequtils fppd fppoled fppcapedetect
 SUBMODULES =
 
 INSTALL_PROGRAM = install -m 755 -p
@@ -68,6 +68,15 @@ LIBS_fppoled = \
 	-lcurl \
 	-lgpiod \
 	$(NULL)
+
+OBJECTS_fppcapedetect = \
+	fppcapedetect.o \
+	CapeUtils.o
+
+LIBS_fppcapedetect = \
+	-ljsoncpp \
+	$(NULL)
+
 
 OBJECTS_fppd = \
 	fppd.o
@@ -274,6 +283,12 @@ OBJECTS_fpp_so += \
 	channeloutput/rpi_ws281x.o \
 	channeloutput/spixels.o \
 	$(NULL)
+DEPS_fpp_so += \
+	../external/RF24/librf24-bcm.so \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	../external/rpi_ws281x/libws2811.a \
+	../external/spixels/lib/libspixels.a \
+	$(NULL)
 DEPS_fppd += \
 	../external/RF24/librf24-bcm.so \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
@@ -305,6 +320,9 @@ OBJECTS_fpp_so += \
 	channeloutput/RGBMatrix.o \
 	$(NULL)
 DEPS_fppd += \
+	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
+	$(NULL)
+DEPS_fpp_so += \
 	../external/rpi-rgb-led-matrix/lib/librgbmatrix.a \
 	$(NULL)
 SUBMODULES += \
@@ -412,7 +430,7 @@ release: optimized
 		$(MAKE) -C $$dir release || exit 1; \
 	done
 
-libfpp.so: $(DEPS_fppd) $(OBJECTS_fpp_so)
+libfpp.so: $(DEPS_fpp_so) $(OBJECTS_fpp_so)
 	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_so) $(LIBS_fppd) $(LIBS_fpp_so) $(LDFLAGS_fppd) -o $@
 
 fpp: $(OBJECTS_fpp)
@@ -430,6 +448,9 @@ fsequtils: $(OBJECTS_fsequtils)
 fppoled: $(OBJECTS_fppoled)
 	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
 
+fppcapedetect: $(OBJECTS_fppcapedetect)
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS_$@) -o $@
+
 fppversion.c: fppversion.sh force
 	@sh $(SRCDIR)fppversion.sh $(PWD)
 
@@ -440,10 +461,10 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 cleanfpp:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fpp_so) $(OBJECTS_fppoled) $(OBJECTS_fsequtils) $(TARGETS)
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fpp_so) $(OBJECTS_fppoled) $(OBJECTS_fppcapedetect) $(OBJECTS_fsequtils) $(TARGETS)
 
 clean:
-	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fpp_so) $(OBJECTS_fsequtils) $(TARGETS)
+	rm -f fppversion.c $(OBJECTS_fpp) $(OBJECTS_fppmm) $(OBJECTS_fppd) $(OBJECTS_fppoled) $(OBJECTS_fpp_so) $(OBJECTS_fppcapedetect) $(OBJECTS_fsequtils) $(TARGETS)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi

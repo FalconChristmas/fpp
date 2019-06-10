@@ -9,6 +9,7 @@ src/fpp
 src/fppmm
 src/fppd
 src/fppoled
+src/fppcapedetect
 src/fppversion.c
 src/fsequtils
 src/util/seqdump
