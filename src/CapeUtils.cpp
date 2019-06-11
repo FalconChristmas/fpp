@@ -204,7 +204,7 @@ static void copyIfNotExist(const std::string &src, const std::string &target) {
         printf("Failed to open src %s - %s\n", src.c_str(), strerror(errno));
         return;
     }
-    t = open(target.c_str(), O_RDWR | O_CREAT);
+    t = open(target.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     if (t == -1) {
         printf("Failed to open target %s - %s\n", src.c_str(), strerror(errno));
         close(s);
