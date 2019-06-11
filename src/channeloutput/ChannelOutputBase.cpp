@@ -98,3 +98,58 @@ void ChannelOutputBase::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Start Channel    : %u\n", m_startChannel + 1);
 	LogDebug(VB_CHANNELOUT, "    Channel Count    : %u\n", m_channelCount);
 }
+
+
+void ChannelOutputBase::ConvertToCSV(Json::Value config, char *configStr) {
+    Json::Value::Members memberNames = config.getMemberNames();
+    
+    configStr[0] = '\0';
+    
+    if (!config.isMember("type"))
+    {
+        strcpy(configStr, "");
+        return;
+    }
+    
+    if (config.isMember("enabled"))
+        strcat(configStr, config["enabled"].asString().c_str());
+    else
+        strcat(configStr, "0");
+    
+    strcat(configStr, ",");
+    
+    strcat(configStr, config["type"].asString().c_str());
+    strcat(configStr, ",");
+    
+    if (config.isMember("startChannel"))
+        strcat(configStr, config["startChannel"].asString().c_str());
+    else
+        strcat(configStr, "1");
+    
+    strcat(configStr, ",");
+    
+    if (config.isMember("channelCount"))
+        strcat(configStr, config["channelCount"].asString().c_str());
+    else
+        strcat(configStr, "1");
+    
+    std::string key;
+    int first = 1;
+    for (int i = 0; i < memberNames.size(); i++)
+    {
+        key = memberNames[i];
+        
+        if (first)
+        {
+            strcat(configStr, ",");
+            first = 0;
+        }
+        else
+            strcat(configStr, ";");
+        
+        strcat(configStr, key.c_str());
+        strcat(configStr, "=");
+        strcat(configStr, config[key].asString().c_str());
+    }
+}
+

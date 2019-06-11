@@ -50,7 +50,6 @@ extern "C"
 }
 
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
 #include "MultiSync.h"
@@ -58,6 +57,7 @@ extern "C"
 #include "Sequence.h"
 #include "settings.h"
 #include "PixelOverlay.h"
+#include "channeloutput/channeloutputthread.h"
 
 #define DEFAULT_RATE 44100
 

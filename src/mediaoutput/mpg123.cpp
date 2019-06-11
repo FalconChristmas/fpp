@@ -33,13 +33,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
 #include "mpg123.h"
 #include "MultiSync.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "../channeloutput/channeloutputthread.h"
 
 /*
  *

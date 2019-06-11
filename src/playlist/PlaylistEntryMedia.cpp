@@ -30,15 +30,15 @@
 
 #include "log.h"
 #include "mediadetails.h"
-#include "mpg123.h"
 #include "mqtt.h"
 #include "MultiSync.h"
-#include "ogg123.h"
-#include "omxplayer.h"
 #include "PlaylistEntryMedia.h"
 #include "Plugins.h"
-#include "SDLOut.h"
 #include "settings.h"
+#include "mediaoutput/mpg123.h"
+#include "mediaoutput/ogg123.h"
+#include "mediaoutput/omxplayer.h"
+#include "mediaoutput/SDLOut.h"
 
 extern MediaDetails mediaDetails;
 

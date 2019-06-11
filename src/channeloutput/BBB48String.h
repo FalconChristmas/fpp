@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include "BBBUtils.h"
+#include "util/BBBPruUtils.h"
 #include "ChannelOutputBase.h"
 #include "PixelString.h"
 

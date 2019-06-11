@@ -23,8 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "channeloutput.h"
-#include "channeloutputthread.h"
+#include "channeloutput/channeloutput.h"
+#include "channeloutput/channeloutputthread.h"
 #include "command.h"
 #include "common.h"
 #include "e131bridge.h"
@@ -37,7 +37,7 @@
 #include "log.h"
 #include "MultiSync.h"
 #include "mediadetails.h"
-#include "mediaoutput.h"
+#include "mediaoutput/mediaoutput.h"
 #include "mqtt.h"
 #include "PixelOverlay.h"
 #include "Playlist.h"
@@ -67,7 +67,6 @@
 
 #include "channeloutput/FPD.h"
 #include "falcon.h"
-#include "mediaoutput.h"
 #include "fppd.h"
 #include <getopt.h>
 #include "sensors/Sensors.h"

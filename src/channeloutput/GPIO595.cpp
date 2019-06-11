@@ -39,7 +39,7 @@
 #ifdef USEWIRINGPI
 #   include "wiringPi.h"
 #elif defined(PLATFORM_BBB)
-#   include "channeloutput/BBBUtils.h"
+#   include "util/BBBUtils.h"
 #   define INPUT "in"
 #   define OUTPUT "out"
 #   define HIGH   1

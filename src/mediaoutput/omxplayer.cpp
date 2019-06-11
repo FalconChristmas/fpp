@@ -36,7 +36,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
 #include "MultiSync.h"
@@ -44,6 +43,7 @@
 #include "mediaoutput.h"
 #include "settings.h"
 #include "Sequence.h"
+#include "channeloutput/channeloutputthread.h"
 
 #define MAX_BYTES_OMX 4096
 

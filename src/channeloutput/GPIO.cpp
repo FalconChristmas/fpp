@@ -34,7 +34,7 @@
 #   include <softPwm.h>
 #   define supportsPWM(a) 1
 #elif defined(PLATFORM_BBB)
-#   include "channeloutput/BBBUtils.h"
+#   include "util/BBBUtils.h"
 #   define INPUT "in"
 #   define OUTPUT "out"
 #   define HIGH   1

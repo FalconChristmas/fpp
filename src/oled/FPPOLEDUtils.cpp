@@ -21,7 +21,7 @@
 #include "SSD1306_OLED.h"
 
 #include "FPPOLEDUtils.h"
-#include "channeloutput/BBBUtils.h"
+#include "util/BBBUtils.h"
 
 #include <linux/wireless.h>
 #include <sys/ioctl.h>

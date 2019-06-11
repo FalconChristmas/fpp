@@ -41,17 +41,18 @@
 
 #include <jsoncpp/json/json.h>
 
-#include "channeloutput.h"
-#include "channeloutputthread.h"
 #include "common.h"
-#include "DDP.h"
 #include "e131bridge.h"
 #include "log.h"
 #include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
 #include "command.h"
-#include "Universe.h"
+
+#include "channeloutput/channeloutput.h"
+#include "channeloutput/channeloutputthread.h"
+#include "channeloutput/DDP.h"
+#include "channeloutput/Universe.h"
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 

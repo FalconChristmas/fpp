@@ -20,7 +20,6 @@
 #include "common.h"
 #include "SSD1306_OLED.h"
 
-#include "channeloutput/BBBUtils.h"
 
 #include <linux/wireless.h>
 #include <sys/ioctl.h>

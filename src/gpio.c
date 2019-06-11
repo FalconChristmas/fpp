@@ -51,7 +51,7 @@ static void configureInputPin(int i, int pud) {
     }
 }
 #elif defined(PLATFORM_BBB)
-#   include "channeloutput/BBBUtils.h"
+#   include "util/BBBUtils.h"
 #   define INPUT "in"
 #   define OUTPUT "out"
 #   define pinMode(a, b)         configBBBPin(a, "gpio", b)

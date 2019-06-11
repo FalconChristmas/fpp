@@ -24,7 +24,7 @@
 
 #include "Matrix.h"
 #include "PanelMatrix.h"
-#include "BBBPruUtils.h"
+#include "util/BBBPruUtils.h"
 
 #include "ChannelOutputBase.h"
 

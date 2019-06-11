@@ -48,9 +48,17 @@
 // FPP includes
 #include "common.h"
 #include "log.h"
-#include "BBBUtils.h"
+#include "util/BBBUtils.h"
 #include "BBB48String.h"
 #include "settings.h"
+
+
+extern "C" {
+    BBB48StringOutput *createOutputBBB48String(unsigned int startChannel,
+                            unsigned int channelCount) {
+        return new BBB48StringOutput(startChannel, channelCount);
+    }
+}
 
 /*
  *

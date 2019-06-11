@@ -37,8 +37,6 @@
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "E131.h"
-#include "channeloutputthread.h"
 #include "common.h"
 #include "events.h"
 #include "effects.h"
@@ -49,6 +47,8 @@
 #include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "channeloutput/E131.h"
+#include "channeloutput/channeloutputthread.h"
 #include <chrono>
 using namespace std::literals;
 using namespace std::chrono_literals;

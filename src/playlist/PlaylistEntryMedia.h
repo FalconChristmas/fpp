@@ -29,7 +29,7 @@
 #include <string>
 
 #include "PlaylistEntryBase.h"
-#include "mediaoutput.h"
+#include "mediaoutput/mediaoutput.h"
 
 class PlaylistEntryMedia : public PlaylistEntryBase {
   public:

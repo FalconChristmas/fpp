@@ -30,10 +30,10 @@
 
 #include "common.h"
 #include "effects.h"
-#include "channeloutputthread.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "channeloutput/channeloutputthread.h"
 #include "fseq/FSEQFile.h"
 
 

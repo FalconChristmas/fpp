@@ -51,19 +51,19 @@
 #include <boost/tokenizer.hpp>
 #include <jsoncpp/json/json.h>
 
-#include "channeloutputthread.h"
 #include "command.h"
 #include "common.h"
 #include "events.h"
 #include "falcon.h"
 #include "fppversion.h"
 #include "log.h"
-#include "mediaoutput.h"
 #include "MultiSync.h"
 #include "Plugins.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "mediaoutput/mediaoutput.h"
 #include "channeloutput/channeloutput.h"
+#include "channeloutput/channeloutputthread.h"
 
 
 MultiSync *multiSync;

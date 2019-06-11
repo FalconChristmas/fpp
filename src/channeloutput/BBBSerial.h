@@ -31,7 +31,7 @@
 
 using namespace::std;
 
-#include "BBBUtils.h"
+#include "util/BBBPruUtils.h"
 #include "ThreadedChannelOutputBase.h"
 
 // structure of the data at the start of the PRU ram

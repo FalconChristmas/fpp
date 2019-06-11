@@ -77,6 +77,15 @@
 #include "Linsn-RV9.h"
 #include "log.h"
 
+
+extern "C" {
+    LinsnRV9Output *createOutputLinsnRV9(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new LinsnRV9Output(startChannel, channelCount);
+    }
+}
+
+
 /*
  *
  */

@@ -29,10 +29,16 @@
 
 
 #include "BBBMatrix.h"
-#include "BBBUtils.h"
+#include "util/BBBUtils.h"
 #include "common.h"
 #include "log.h"
 
+extern "C" {
+    BBBMatrix *createOutputLEDscapeMatrix(unsigned int startChannel,
+                                  unsigned int channelCount) {
+        return new BBBMatrix(startChannel, channelCount);
+    }
+}
 
 // These are the number of clock cycles it takes to clock out a single "row" of bits (1 bit) for 32x16 1/8 P10 scan panels.  Other
 // panel types and scan rates and stuff are proportional to these

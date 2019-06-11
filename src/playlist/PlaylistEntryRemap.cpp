@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "channeloutput.h"
+#include "channeloutput/channeloutput.h"
 #include "channeloutput/processors/RemapOutputProcessor.h"
 #include "log.h"
 #include "PlaylistEntryRemap.h"

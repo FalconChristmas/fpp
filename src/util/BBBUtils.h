@@ -3,9 +3,6 @@
 
 #include <string>
 
-#include <BBBPruUtils.h>
-
-
 
 int configBBBPin(const std::string &name,
                  int gpio, int pin,

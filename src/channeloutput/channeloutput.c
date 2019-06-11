@@ -28,17 +28,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dlfcn.h>
 
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <algorithm>
 
 #include "common.h"
 #include "channeloutput.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
-#include "ColorLight-5a-75.h"
 #include "DebugOutput.h"
 #include "FBMatrix.h"
 #include "FBVirtualDisplay.h"
@@ -47,7 +48,6 @@
 #include "GPIO.h"
 #include "GPIO595.h"
 #include "HTTPVirtualDisplay.h"
-#include "Linsn-RV9.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
 #include "RHL_DVI_E131.h"
@@ -63,10 +63,6 @@
 #  include "X11VirtualDisplay.h"
 #endif
 
-#if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
-#  include "RGBMatrix.h"
-#endif
-
 #ifdef USEWIRINGPI
 #  include "Hill320.h"
 #  include "MAX7219Matrix.h"
@@ -78,12 +74,6 @@
 #  include "SPIws2801.h"
 #  include "rpi_ws281x.h"
 #  include "spixels.h"
-#endif
-
-#ifdef PLATFORM_BBB
-#  include "BBB48String.h"
-#  include "BBBSerial.h"
-#  include "BBBMatrix.h"
 #endif
 
 #ifdef USEOLA
@@ -168,80 +158,6 @@ void ChannelOutputJSON2CSV(Json::Value config, char *configStr)
 	}
 }
 
-Json::Value ChannelOutputCSV2JSON(char *deviceConfig)
-{
-	Json::Value result;
-
-	char *s;
-
-	s = strtok(deviceConfig, ",");
-	if (!s)
-	{
-		LogErr(VB_CHANNELOUT, "Error parsing CSV, empty string??");
-		return result;
-	}
-
-	result["enabled"] = atoi(s);
-
-	s = strtok(NULL, ",");
-	if (!s)
-	{
-		LogErr(VB_CHANNELOUT,
-			"Error parsing CSV '%s', could not determine type",
-			deviceConfig);
-		result["enabled"] = 0;
-		return result;
-	}
-
-	result["type"] = s;
-
-	s = strtok(NULL, ",");
-	if (!s)
-	{
-		LogErr(VB_CHANNELOUT,
-			"Error parsing CSV '%s', could not determine startChannel",
-			deviceConfig);
-		result["enabled"] = 0;
-		return result;
-	}
-
-	result["startChannel"] = atoi(s);
-
-	s = strtok(NULL, ",");
-	if (!s)
-	{
-		LogErr(VB_CHANNELOUT,
-			"Error parsing CSV '%s', could not determine channelCount",
-			deviceConfig);
-		result["enabled"] = 0;
-		return result;
-	}
-
-	result["channelCount"] = atoi(s);
-
-	s = strtok(NULL, ";");
-
-	while (s)
-	{
-		char tmp[128];
-		char *div = NULL;
-
-		strcpy(tmp, s);
-		div = strchr(tmp, '=');
-
-		if (div)
-		{
-			*div = '\0';
-			div++;
-
-			result[tmp] = div;
-		}
-
-		s = strtok(NULL, ";");
-	}
-
-	return result;
-}
 
 /*
  *
@@ -349,32 +265,12 @@ int InitializeChannelOutputs(void) {
 
 				channelOutputs[i].startChannel = start;
 				channelOutputs[i].channelCount = count;
+                std::string libnamePfx = "";
 
 				// First some Channel Outputs enabled everythwere
 				if (type == "LEDPanelMatrix") {
-					if (outputs[c]["subType"] == "ColorLight5a75")
-						channelOutputs[i].output = new ColorLight5a75Output(start, count);
-					else if (outputs[c]["subType"] == "LinsnRV9")
-						channelOutputs[i].output = new LinsnRV9Output(start, count);
-#if defined(PLATFORM_PI) || defined(PLATFORM_ODROID)
-					else if (outputs[c]["subType"] == "RGBMatrix")
-						channelOutputs[i].output = new RGBMatrixOutput(start, count);
-#endif
-#ifdef PLATFORM_BBB
-					else if (outputs[c]["subType"] == "LEDscapeMatrix")
-						channelOutputs[i].output = new BBBMatrix(start, count);
-#endif
-					else
-					{
-						LogErr(VB_CHANNELOUT, "LEDPanelmatrix subType '%s' not valid\n", outputs[c]["subType"].asString().c_str());
-						continue;
-					}
-#ifdef PLATFORM_BBB
-				} else if (type == "BBB48String" && f != 0) {
-					channelOutputs[i].output = new BBB48StringOutput(start, count);
-				} else if (type == "BBBSerial" && f != 0) {
-					channelOutputs[i].output = new BBBSerialOutput(start, count);
-#endif
+                    libnamePfx = "matrix-";
+                    type = outputs[c]["subType"].asString();
 				} else if (type == "FBVirtualDisplay") {
 					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
 				} else if (type == "HTTPVirtualDisplay") {
@@ -456,10 +352,25 @@ int InitializeChannelOutputs(void) {
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
                 } else if (type == "universes") {
                     channelOutputs[i].output = new UDPOutput(start, count);
-				} else {
-					LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
-					continue;
 				}
+                
+                if (channelOutputs[i].outputOld == nullptr && channelOutputs[i].output == nullptr) {
+                    std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
+                    void *handle = dlopen(libname.c_str(), RTLD_NOW);
+                    if (handle == NULL){
+                        LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
+                        continue;
+                    }
+                    ChannelOutputBase* (*fptr)(unsigned int, unsigned int);
+                    std::string methodName = "createOutput" + type;
+                    std::replace( methodName.begin(), methodName.end(), '-', '_');
+                    *(void **)(&fptr) = dlsym(handle, methodName.c_str());
+                    if (fptr == nullptr) {
+                        LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
+                        continue;
+                    }
+                    channelOutputs[i].output = fptr(start, count);
+                }
 
 				if ((channelOutputs[i].outputOld) &&
 					(channelOutputs[i].outputOld->open(csvConfig, &channelOutputs[i].privData)))

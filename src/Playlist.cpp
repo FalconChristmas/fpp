@@ -24,17 +24,17 @@
  */
 
 #include "fpp.h"
-#include "E131.h"
 #include "command.h"
 #include "events.h"
 #include "log.h"
 #include "mediadetails.h"
-#include "mediaoutput.h"
 #include "Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 #include "settings.h"
 #include "Sequence.h"
+#include "channeloutput/E131.h"
+#include "mediaoutput/mediaoutput.h"
 
 #include <unistd.h>
 #include <ctype.h>

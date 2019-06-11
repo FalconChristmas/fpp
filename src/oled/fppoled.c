@@ -11,7 +11,7 @@
 #include "settings.h"
 #include "common.h"
 
-#include "channeloutput/BBBUtils.h"
+#include "util/BBBUtils.h"
 
 
 static FPPOLEDUtils *oled = nullptr;

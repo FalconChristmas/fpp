@@ -40,11 +40,19 @@
 #include "common.h"
 #include "log.h"
 #include "BBBSerial.h"
-#include "BBBUtils.h"
+#include "util/BBBUtils.h"
 #include "settings.h"
 
 //reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84*1024
+
+
+extern "C" {
+    BBBSerialOutput *createOutputBBBSerial(unsigned int startChannel,
+                                  unsigned int channelCount) {
+        return new BBBSerialOutput(startChannel, channelCount);
+    }
+}
 
 
 /////////////////////////////////////////////////////////////////////////////

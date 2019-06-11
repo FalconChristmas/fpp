@@ -44,9 +44,9 @@ class ChannelOutputBase {
 	unsigned int  StartChannel(void) { return m_startChannel; }
 	int           MaxChannels(void)  { return m_maxChannels; }
 
-	virtual int   Init(Json::Value config);
-	virtual int   Init(char *configStr);
-	virtual int   Close(void);
+    virtual int   Init(Json::Value config);
+    virtual int   Init(char *configStr);
+    virtual int   Close(void);
     
     virtual void  PrepData(unsigned char *channelData) {}
 	virtual int   SendData(unsigned char *channelData) = 0;
@@ -58,6 +58,7 @@ class ChannelOutputBase {
 
   protected:
 	virtual void  DumpConfig(void);
+    virtual void  ConvertToCSV(Json::Value config, char *configStr);
 
 	std::string      m_outputType;
 	unsigned int     m_maxChannels;

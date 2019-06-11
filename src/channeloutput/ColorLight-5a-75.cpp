@@ -82,6 +82,14 @@
 #include "log.h"
 
 
+extern "C" {
+    ColorLight5a75Output *createOutputColorLight5a75(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new ColorLight5a75Output(startChannel, channelCount);
+    }
+}
+
+
 /*
  *
  */

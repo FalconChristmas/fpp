@@ -32,6 +32,14 @@
 #include "RGBMatrix.h"
 #include "settings.h"
 
+
+extern "C" {
+    RGBMatrixOutput *createOutputRGBMatrix(unsigned int startChannel,
+                                          unsigned int channelCount) {
+        return new RGBMatrixOutput(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*

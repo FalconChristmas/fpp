@@ -52,7 +52,7 @@
 #include "PixelOverlayControl.h"
 #include "Sequence.h"
 #include "settings.h"
-#include "channeloutputthread.h"
+#include "channeloutput/channeloutputthread.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
 
