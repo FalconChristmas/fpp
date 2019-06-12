@@ -38,6 +38,13 @@
 #include "Sequence.h"
 #include "settings.h"
 
+extern "C" {
+    FBVirtualDisplayOutput *createOutputFBVirtualDisplay(unsigned int startChannel,
+                                                         unsigned int channelCount) {
+        return new FBVirtualDisplayOutput(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:
 // scaling_kernel=8

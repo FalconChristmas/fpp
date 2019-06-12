@@ -68,6 +68,13 @@
 #define MAX7219_SCAN_LIMIT  0x0B
 #define MAX7219_TEST        0x0F
 
+
+extern "C" {
+    MAX7219MatrixOutput *createMAX7219MatrixOutput(unsigned int startChannel,
+                                         unsigned int channelCount) {
+        return new MAX7219MatrixOutput(startChannel, channelCount);
+    }
+}
 /*
  *
  */

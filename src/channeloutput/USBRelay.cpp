@@ -32,6 +32,15 @@
 #include "serialutil.h"
 #include "USBRelay.h"
 
+
+
+
+extern "C" {
+    USBRelayOutput *createOutputUSBRelay(unsigned int startChannel,
+                                         unsigned int channelCount) {
+        return new USBRelayOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*

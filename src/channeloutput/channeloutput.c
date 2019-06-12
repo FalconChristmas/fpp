@@ -40,44 +40,21 @@
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
-#include "DebugOutput.h"
 #include "FBMatrix.h"
-#include "FBVirtualDisplay.h"
 #include "FPD.h"
 #include "GenericSerial.h"
 #include "GPIO.h"
 #include "GPIO595.h"
-#include "HTTPVirtualDisplay.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
-#include "RHL_DVI_E131.h"
 #include "USBDMX.h"
 #include "USBPixelnet.h"
-#include "USBRelay.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
 #include "UDPOutput.h"
 
-#ifdef USE_X11
-#  include "X11Matrix.h"
-#  include "X11VirtualDisplay.h"
-#endif
-
-#ifdef USEWIRINGPI
-#  include "Hill320.h"
-#  include "MAX7219Matrix.h"
-#  include "MCP23017.h"
-#endif
-
 #ifdef PLATFORM_PI
-#  include "ILI9488.h"
 #  include "SPIws2801.h"
-#  include "rpi_ws281x.h"
-#  include "spixels.h"
-#endif
-
-#ifdef USEOLA
-#  include "OLAOutput.h"
 #endif
 
 #include "processors/OutputProcessor.h"
@@ -271,52 +248,16 @@ int InitializeChannelOutputs(void) {
 				if (type == "LEDPanelMatrix") {
                     libnamePfx = "matrix-";
                     type = outputs[c]["subType"].asString();
-				} else if (type == "FBVirtualDisplay") {
-					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-				} else if (type == "HTTPVirtualDisplay") {
-					channelOutputs[i].output = (ChannelOutputBase*)new HTTPVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-				} else if (type == "RHLDVIE131") {
-					channelOutputs[i].output = (ChannelOutputBase*)new RHLDVIE131Output(start, count);
-				} else if (type == "USBRelay") {
-					channelOutputs[i].output = new USBRelayOutput(start, count);
+                } else if (type == "VirtualDisplay") {
+                    //FIXME - probably should sym-link the shlib
+                    type == "FBVirtualDisplay";
 				// NOW some platform or config specific Channel Outputs
-#ifdef USEOLA
-				} else if (type == "OLA") {
-					channelOutputs[i].output = new OLAOutput(start, count);
-#endif
-				} else if (type == "VirtualDisplay") {
-					channelOutputs[i].output = (ChannelOutputBase*)new FBVirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-				} else if (type == "USBRelay") {
-					channelOutputs[i].output = new USBRelayOutput(start, count);
-#if USEWIRINGPI
-				} else if (type == "Hill320") {
-					channelOutputs[i].output = new Hill320Output(start, count);
-				} else if (type == "MAX7219Matrix") {
-					channelOutputs[i].output = new MAX7219MatrixOutput(start, count);
-				} else if (type == "MCP23017") {
-					channelOutputs[i].output = new MCP23017Output(start, count);
-#endif
 #ifdef PLATFORM_PI
-				} else if (type == "ILI9488") {
-					channelOutputs[i].output = new ILI9488Output(start, count);
-				} else if (type == "RPIWS281X") {
-					channelOutputs[i].output = new RPIWS281xOutput(start, count);
-				} else if (type == "spixels") {
-					channelOutputs[i].output = new SpixelsOutput(start, count);
-				} else if (type == "SPI-WS2801") {
-					channelOutputs[i].output = new SPIws2801Output(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 				} else if (type == "SPI-nRF24L01") {
 					channelOutputs[i].outputOld = &SPInRF24L01Output;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 #endif
-#ifdef USE_X11
-				} else if (type == "X11Matrix") {
-					channelOutputs[i].output = new X11MatrixOutput(start, count);
-				} else if (type == "X11VirtualDisplay") {
-					channelOutputs[i].output = (ChannelOutputBase*)new X11VirtualDisplayOutput(0, FPPD_MAX_CHANNELS);
-#endif
-				}else if ((type == "Pixelnet-Lynx") ||
+				} else if ((type == "Pixelnet-Lynx") ||
 						  (type == "Pixelnet-Open"))
 				{
 					channelOutputs[i].output = new USBPixelnetOutput(start, count);
@@ -347,9 +288,6 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "Triks-C") {
 					channelOutputs[i].outputOld = &TriksCOutput;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if (type == "Debug") {
-					channelOutputs[i].output = new DebugOutput(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
                 } else if (type == "universes") {
                     channelOutputs[i].output = new UDPOutput(start, count);
 				}
@@ -365,6 +303,12 @@ int InitializeChannelOutputs(void) {
                     std::string methodName = "createOutput" + type;
                     std::replace( methodName.begin(), methodName.end(), '-', '_');
                     *(void **)(&fptr) = dlsym(handle, methodName.c_str());
+                    if (fptr == nullptr) {
+                        //some use createOutputFoo and others may use createFooOutput
+                        std::string methodName = "create" + type + "Output";
+                        std::replace( methodName.begin(), methodName.end(), '-', '_');
+                        *(void **)(&fptr) = dlsym(handle, methodName.c_str());
+                    }
                     if (fptr == nullptr) {
                         LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
                         continue;

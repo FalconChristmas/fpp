@@ -97,6 +97,15 @@
   (byte & 0x02 ? 1 : 0), \
   (byte & 0x01 ? 1 : 0) 
 
+
+extern "C" {
+    Hill320Output *createOutputHill320(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new Hill320Output(startChannel, channelCount);
+    }
+}
+
+
 /*
  *
  */

@@ -7,7 +7,7 @@ ifeq '$(ARCH)' 'BeagleBone Black'
 
 
 OBJECTS_fpp_co_matrix_LEDscapeMatrix_so += channeloutput/BBBMatrix.o
-LIBS_fpp_co_matrix_LEDscapeMatrix_so += -Lfpp
+LIBS_fpp_co_matrix_LEDscapeMatrix_so += -L. -lfpp
 
 TARGETS += libfpp-co-matrix-LEDscapeMatrix.so
 OBJECTS_ALL+=$(OBJECTS_fpp_co_matrix_LEDscapeMatrix_so)

@@ -1,32 +1,17 @@
 ifeq '$(ARCH)' 'Raspberry Pi'
 CFLAGS += \
 	-DPLATFORM_PI \
-	-DUSEWIRINGPI \
-	-DUSENRF \
-	-I../external/RF24/ \
-	-I../external/rpi_ws281x/ \
-	-I../external/spixels/include/
+	-DUSEWIRINGPI
+
 
 LIBS_fpp_so += \
 	-lwiringPi \
 	-lwiringPiDev \
 	-lrf24-bcm \
-	-lws2811 \
-	-lspixels \
-	-L../external/RF24/ \
-	-L../external/rpi_ws281x/ \
-	-L../external/spixels/lib/
-
-OBJECTS_fpp_so += \
-	channeloutput/Hill320.o \
-	channeloutput/ILI9488.o \
-	channeloutput/rpi_ws281x.o \
-	channeloutput/spixels.o
+	-L../external/RF24/
 
 DEPS_fpp_so += \
-	../external/RF24/librf24-bcm.so \
-	../external/rpi_ws281x/libws2811.a \
-	../external/spixels/lib/libspixels.a
+	../external/RF24/librf24-bcm.so
 
 SUBMODULES += \
 	external/RF24 \
@@ -36,6 +21,8 @@ SUBMODULES += \
 
 LIBS_GPIO_ADDITIONS=-lwiringPi -lwiringPiDev
 OBJECTS_GPIO_ADDITIONS=
+
+CFLAGS_channeloutput/SPInRF24L01.o+=-DUSENRF -I../external/RF24/
 
 
 #############################################################################

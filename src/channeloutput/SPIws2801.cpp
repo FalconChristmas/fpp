@@ -47,6 +47,13 @@
 
 #define SPIWS2801_MAX_CHANNELS  1530
 
+extern "C" {
+    SPIws2801Output *createSPIws2801Output(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new SPIws2801Output(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -76,6 +83,13 @@ SPIws2801Output::~SPIws2801Output()
 /*
  *
  */
+
+int SPIws2801Output::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    Init(configStr);
+}
+
 int SPIws2801Output::Init(char *configStr)
 {
 	LogDebug(VB_CHANNELOUT, "SPIws2801Output::Init('%s')\n", configStr);

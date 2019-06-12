@@ -2,7 +2,7 @@
 ifeq '$(ARCH)' 'BeagleBone Black'
 
 OBJECTS_fpp_co_BBB48String_so += channeloutput/BBB48String.o
-LIBS_fpp_co_BBB48String_so += -Lfpp
+LIBS_fpp_co_BBB48String_so += -L. -lfpp
 
 TARGETS += libfpp-co-BBB48String.so
 OBJECTS_ALL+=$(OBJECTS_fpp_co_BBB48String_so)

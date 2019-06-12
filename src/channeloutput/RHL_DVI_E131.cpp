@@ -42,6 +42,14 @@
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:
 // scaling_kernel=8
 
+extern "C" {
+    RHLDVIE131Output *createRHLDVIE131Output(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new RHLDVIE131Output(startChannel, channelCount);
+    }
+}
+
+
 /*
  *
  */

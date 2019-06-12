@@ -14,7 +14,7 @@ src/fppversion.c
 src/fsequtils
 src/util/seqdump
 src/Makefile.local
-src/libfpp.so
+src/libfpp*.so
 cscope.out
 tags
 pixelnetDMX

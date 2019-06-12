@@ -39,6 +39,13 @@
 #include "Sequence.h"
 #include "settings.h"
 
+
+extern "C" {
+    HTTPVirtualDisplayOutput *createOutputHTTPVirtualDisplay(unsigned int startChannel,
+                                                             unsigned int channelCount) {
+        return new HTTPVirtualDisplayOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*

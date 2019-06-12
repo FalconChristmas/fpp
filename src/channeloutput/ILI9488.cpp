@@ -77,6 +77,13 @@ const unsigned ILI_dataBits = \
 const int ILI_allPins[12] = { ILI_PIN_CSX, ILI_PIN_WRX, ILI_PIN_DCX, ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, ILI_PIN_D5, ILI_PIN_D6, ILI_PIN_D7, ILI_PIN_D8, ILI_PIN_RST };
 const int ILI_dataPins[8] = { ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, ILI_PIN_D5, ILI_PIN_D6, ILI_PIN_D7, ILI_PIN_D8 };
 
+
+extern "C" {
+    ILI9488Output *createOutputILI9488(unsigned int startChannel,
+                                       unsigned int channelCount) {
+        return new ILI9488Output(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*

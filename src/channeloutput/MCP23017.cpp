@@ -88,6 +88,13 @@
   (byte & 0x02 ? 1 : 0), \
   (byte & 0x01 ? 1 : 0) 
 
+extern "C" {
+    MCP23017Output *createMCP23017Output(unsigned int startChannel,
+                                  unsigned int channelCount) {
+        return new MCP23017Output(startChannel, channelCount);
+    }
+}
+
 /*
  *
  */

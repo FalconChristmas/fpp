@@ -28,6 +28,15 @@
 #include "log.h"
 #include "Sequence.h"
 
+
+
+extern "C" {
+    DebugOutput *createOutputDebug(unsigned int startChannel,
+                                   unsigned int channelCount) {
+        return new DebugOutput(startChannel, channelCount);
+    }
+}
+
 /*
  *
  */
@@ -52,12 +61,12 @@ DebugOutput::~DebugOutput()
 /*
  *
  */
-int DebugOutput::Init(char *configStr)
+int DebugOutput::Init(Json::Value v)
 {
-	LogDebug(VB_CHANNELOUT, "DebugOutput::Init('%s')\n", configStr);
+	LogDebug(VB_CHANNELOUT, "DebugOutput::Init()\n");
 
 	// Call the base class' Init() method, do not remove this line.
-	return ChannelOutputBase::Init(configStr);
+	return ChannelOutputBase::Init(v);
 }
 
 /*

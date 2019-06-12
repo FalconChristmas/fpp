@@ -33,6 +33,8 @@ class SPIws2801Output : public ThreadedChannelOutputBase {
 	SPIws2801Output(unsigned int startChannel, unsigned int channelCount);
 	~SPIws2801Output();
 
+    virtual int Init(Json::Value config);
+
 	int Init(char *configStr);
 
 	int Close(void);

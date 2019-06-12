@@ -34,6 +34,15 @@
 #include "Sequence.h"
 #include "X11VirtualDisplay.h"
 
+
+extern "C" {
+    X11VirtualDisplayOutput *createX11VirtualDisplayOutput(unsigned int startChannel,
+                                                           unsigned int channelCount) {
+        return new X11VirtualDisplayOutput(startChannel, channelCount);
+    }
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*

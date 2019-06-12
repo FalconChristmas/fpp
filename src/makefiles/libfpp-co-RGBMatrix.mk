@@ -1,7 +1,7 @@
 ifeq '$(ARCH)' 'Raspberry Pi'
 
 OBJECTS_fpp_co_matrix_RGBMatrix_so += channeloutput/RGBMatrix.o
-LIBS_fpp_co_matrix_RGBMatrix_so=-L../external/rpi-rgb-led-matrix/lib/ -lrgbmatrix -Lfpp
+LIBS_fpp_co_matrix_RGBMatrix_so=-L../external/rpi-rgb-led-matrix/lib/ -lrgbmatrix -L. -lfpp
 
 CXXFLAGS_channeloutput/RGBMatrix.o=-I../external/rpi-rgb-led-matrix/include/
 

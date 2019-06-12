@@ -41,20 +41,19 @@ CXXFLAGS += -std=gnu++14
 # Each will have an ifdef for itself
 include ${SRCDIR}/makefiles/platform/*.mk
 
-# now include all the targets
-include ${SRCDIR}/makefiles/*.mk
-
-
 ##############################################################################
 # Include a local Makefile if one exists to modify any of the above
 -include Makefile.local
 #
 # Examples of some entries that might exist in Makefile.local:
 #
-# LIBS_fppd += -lX11
-# CFLAGS += -DUSE_X11
-# OBJECTS_fpp_so += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
+#LIBS_fpp_so += -lX11
+#CFLAGS += -DUSE_X11
+#OBJECTS_fpp_so += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
 ##############################################################################
+
+# now include all the targets
+include ${SRCDIR}/makefiles/*.mk
 
 PWD := $(shell pwd)
 

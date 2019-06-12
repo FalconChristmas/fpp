@@ -34,6 +34,13 @@
 #include "Sequence.h"
 #include "X11Matrix.h"
 
+
+extern "C" {
+    X11MatrixOutput *createX11MatrixOutput(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new X11MatrixOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*

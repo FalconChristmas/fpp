@@ -40,6 +40,13 @@
 #include "settings.h"
 
 
+extern "C" {
+    RPIWS281xOutput *createOutputRPIWS281X(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new RPIWS281xOutput(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 // Declare ledstring here since it's needed by the CTRL-C handler.

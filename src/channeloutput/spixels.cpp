@@ -40,6 +40,15 @@
 #include "settings.h"
 
 
+
+extern "C" {
+    SpixelsOutput *createOutputspixels(unsigned int startChannel,
+                                       unsigned int channelCount) {
+        return new SpixelsOutput(startChannel, channelCount);
+    }
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 
 /*

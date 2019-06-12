@@ -41,10 +41,8 @@ class DebugOutput : public ChannelOutputBase {
 	DebugOutput(unsigned int startChannel, unsigned int channelCount);
 	~DebugOutput();
 
-	// Initialize the derived class.  This method must also call
-	// the base class Init() method.
-	int Init(char *configStr);
-
+    virtual int Init(Json::Value config) override;
+    
 	// Close the derived class.  This method must also call the
 	// base class Close() method.
 	int Close(void);
