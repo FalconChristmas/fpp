@@ -35,6 +35,7 @@ class USBDMXOutput : public ThreadedChannelOutputBase {
 	USBDMXOutput(unsigned int startChannel, unsigned int channelCount);
 	~USBDMXOutput();
 
+    virtual int Init(Json::Value config);
 	int Init(char *configStr);
 
 	int Close(void);

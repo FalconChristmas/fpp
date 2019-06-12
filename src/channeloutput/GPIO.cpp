@@ -52,6 +52,14 @@
 #   define supportsPWM(a) 0
 #endif
 
+
+extern "C" {
+    GPIOOutput *createGPIOOutput(unsigned int startChannel,
+                                       unsigned int channelCount) {
+        return new GPIOOutput(startChannel, channelCount);
+    }
+}
+
 /*
  *
  */
@@ -74,7 +82,11 @@ GPIOOutput::~GPIOOutput()
 {
 	LogDebug(VB_CHANNELOUT, "GPIOOutput::~GPIOOutput()\n");
 }
-
+int GPIOOutput::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
+}
 /*
  *
  */

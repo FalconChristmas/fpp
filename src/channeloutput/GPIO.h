@@ -33,6 +33,8 @@ class GPIOOutput : public ChannelOutputBase {
 	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
 	~GPIOOutput();
 
+    virtual int Init(Json::Value config);
+
 	int Init(char *configStr);
 	int Close(void);
 

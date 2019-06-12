@@ -35,6 +35,7 @@ class USBPixelnetOutput : public ThreadedChannelOutputBase {
 	USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
 	~USBPixelnetOutput();
 
+    virtual int Init(Json::Value config);
 	int Init(char *configStr);
 	int Close(void);
 

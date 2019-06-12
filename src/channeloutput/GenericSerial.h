@@ -37,6 +37,7 @@ class GenericSerialOutput : public ThreadedChannelOutputBase {
 	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
 	~GenericSerialOutput();
 
+    virtual int Init(Json::Value config);
 	int Init(char *configStr);
 
 	int Close(void);

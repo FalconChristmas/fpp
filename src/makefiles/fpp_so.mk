@@ -5,16 +5,8 @@ OBJECTS_fpp_so += \
 	channeloutput/ThreadedChannelOutputBase.o \
 	channeloutput/channeloutput.o \
 	channeloutput/channeloutputthread.o \
-	channeloutput/ArtNet.o \
 	channeloutput/ColorOrder.o \
-	channeloutput/DDP.o \
-	channeloutput/E131.o \
-	channeloutput/FBMatrix.o \
 	channeloutput/FPD.o \
-	channeloutput/GenericSerial.o \
-	channeloutput/GPIO.o \
-	channeloutput/GPIO595.o \
-	channeloutput/UDPOutput.o \
 	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
@@ -22,8 +14,6 @@ OBJECTS_fpp_so += \
 	channeloutput/serialutil.o \
 	channeloutput/SPInRF24L01.o \
 	channeloutput/Triks-C.o \
-	channeloutput/USBDMX.o \
-	channeloutput/USBPixelnet.o \
 	channeloutput/USBRenard.o \
 	channeloutput/VirtualDisplay.o \
     channeloutput/processors/OutputProcessor.o \

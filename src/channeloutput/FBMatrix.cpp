@@ -37,6 +37,15 @@
 #include "FBMatrix.h"
 #include "settings.h"
 
+
+
+extern "C" {
+    FBMatrixOutput *createFBMatrixOutput(unsigned int startChannel,
+                                         unsigned int channelCount) {
+        return new FBMatrixOutput(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:
 // scaling_kernel=8
@@ -91,7 +100,11 @@ FBMatrixOutput::~FBMatrixOutput()
 		delete[] m_rgb565map;
 	}
 }
-
+int FBMatrixOutput::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
+}
 /*
  *
  */

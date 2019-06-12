@@ -38,6 +38,13 @@
 
 #define DMX_MAX_CHANNELS 512
 
+
+extern "C" {
+    USBDMXOutput *createUSBDMXOutput(unsigned int startChannel,
+                                               unsigned int channelCount) {
+        return new USBDMXOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -68,7 +75,11 @@ void USBDMXOutput::GetRequiredChannelRange(int &min, int & max) {
     min = m_startChannel;
     max = m_startChannel + m_channelCount - 1;
 }
-
+int USBDMXOutput::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
+}
 /*
  *
  */

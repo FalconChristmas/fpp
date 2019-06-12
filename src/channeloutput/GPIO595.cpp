@@ -58,6 +58,13 @@
 /////////////////////////////////////////////////////////////////////////////
 
 
+extern "C" {
+    GPIO595Output *createGPIO_595Output(unsigned int startChannel,
+                                    unsigned int channelCount) {
+        return new GPIO595Output(startChannel, channelCount);
+    }
+}
+
 /*
  *
  */
@@ -80,7 +87,11 @@ GPIO595Output::~GPIO595Output()
 {
 	LogDebug(VB_CHANNELOUT, "GPIO595Output::~GPIO595Output()\n");
 }
-
+int GPIO595Output::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
+}
 /*
  *
  */

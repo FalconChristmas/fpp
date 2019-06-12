@@ -36,6 +36,7 @@ class FBMatrixOutput : public ThreadedChannelOutputBase {
 	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~FBMatrixOutput();
 
+    virtual int Init(Json::Value config);
 	int Init(char *configStr);
 	int Close(void);
 

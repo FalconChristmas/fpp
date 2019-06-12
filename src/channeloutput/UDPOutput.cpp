@@ -40,6 +40,13 @@
 #include "DDP.h"
 #include "ArtNet.h"
 
+extern "C" {
+    UDPOutput *createOutputUDPOutput(unsigned int startChannel,
+                               unsigned int channelCount) {
+        return new UDPOutput(startChannel, channelCount);
+    }
+}
+
 
 UDPOutputData::UDPOutputData(const Json::Value &config)
 :  valid(true) {

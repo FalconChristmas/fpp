@@ -87,7 +87,7 @@ SPIws2801Output::~SPIws2801Output()
 int SPIws2801Output::Init(Json::Value config) {
     char configStr[2048];
     ConvertToCSV(config, configStr);
-    Init(configStr);
+    return Init(configStr);
 }
 
 int SPIws2801Output::Init(char *configStr)

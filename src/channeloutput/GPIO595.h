@@ -33,6 +33,7 @@ class GPIO595Output : public ThreadedChannelOutputBase {
 	GPIO595Output(unsigned int startChannel, unsigned int channelCount);
 	~GPIO595Output();
 
+    virtual int Init(Json::Value config);
 	int Init(char *configStr);
 
 	int Close(void);

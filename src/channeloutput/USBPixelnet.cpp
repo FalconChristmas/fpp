@@ -32,6 +32,12 @@
 #include "serialutil.h"
 #include "USBPixelnet.h"
 
+extern "C" {
+    USBPixelnetOutput *createUSBPixelnetOutput(unsigned int startChannel,
+                                               unsigned int channelCount) {
+        return new USBPixelnetOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -60,7 +66,11 @@ USBPixelnetOutput::~USBPixelnetOutput()
 {
 	LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::~USBPixelnetOutput()\n");
 }
-
+int USBPixelnetOutput::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
+}
 /*
  *
  */

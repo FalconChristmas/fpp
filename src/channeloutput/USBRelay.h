@@ -35,7 +35,7 @@ class USBRelayOutput : public ChannelOutputBase {
 	USBRelayOutput(unsigned int startChannel, unsigned int channelCount);
 	~USBRelayOutput();
 
-	int Init(Json::Value config);
+    virtual int Init(Json::Value config);
 	int Close(void);
 
 	int SendData(unsigned char *channelData);

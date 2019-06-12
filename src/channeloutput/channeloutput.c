@@ -36,26 +36,18 @@
 #include <algorithm>
 
 #include "common.h"
-#include "channeloutput.h"
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
-#include "FBMatrix.h"
+#include "channeloutput.h"
+#include "ChannelOutputBase.h"
+
+//old style that still need porting
 #include "FPD.h"
-#include "GenericSerial.h"
-#include "GPIO.h"
-#include "GPIO595.h"
 #include "LOR.h"
 #include "SPInRF24L01.h"
-#include "USBDMX.h"
-#include "USBPixelnet.h"
 #include "USBRenard.h"
 #include "Triks-C.h"
-#include "UDPOutput.h"
-
-#ifdef PLATFORM_PI
-#  include "SPIws2801.h"
-#endif
 
 #include "processors/OutputProcessor.h"
 
@@ -134,6 +126,17 @@ void ChannelOutputJSON2CSV(Json::Value config, char *configStr)
 		strcat(configStr, config[key].asString().c_str());
 	}
 }
+
+// in some of these cases, we could symlink the shlib and add additional createXXXOutput methods
+static std::map<std::string, std::string> OUTPUT_REMAPS = {
+    {"VirtualDisplay", "FBVirtualDisplay"},
+    {"VirtualMatrix", "FBMatrix" },
+    {"DMX-Pro", "USBDMX"},
+    {"DMX-Open", "USBDMX"},
+    {"Pixelnet-Lynx", "USBPixelnet"},
+    {"Pixelnet-Open", "USBPixelnet"},
+    {"universes", "UDPOutput"}
+};
 
 
 /*
@@ -246,39 +249,15 @@ int InitializeChannelOutputs(void) {
 
 				// First some Channel Outputs enabled everythwere
 				if (type == "LEDPanelMatrix") {
+                    //for LED matrices, the driver is determined by the subType
                     libnamePfx = "matrix-";
                     type = outputs[c]["subType"].asString();
-                } else if (type == "VirtualDisplay") {
-                    //FIXME - probably should sym-link the shlib
-                    type == "FBVirtualDisplay";
-				// NOW some platform or config specific Channel Outputs
+                // NOW some platform or config specific Channel Outputs
 #ifdef PLATFORM_PI
 				} else if (type == "SPI-nRF24L01") {
 					channelOutputs[i].outputOld = &SPInRF24L01Output;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 #endif
-				} else if ((type == "Pixelnet-Lynx") ||
-						  (type == "Pixelnet-Open"))
-				{
-					channelOutputs[i].output = new USBPixelnetOutput(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if ((type == "DMX-Pro") ||
-						   (type == "DMX-Open")) {
-					channelOutputs[i].output = new USBDMXOutput(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if ((type == "VirtualMatrix") ||
-						   (type == "FBMatrix")) {
-					channelOutputs[i].output = new FBMatrixOutput(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if (type == "GPIO") {
-					channelOutputs[i].output = new GPIOOutput(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if (type == "GPIO-595") {
-					channelOutputs[i].output = new GPIO595Output(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if (type == "GenericSerial") {
-					channelOutputs[i].output = new GenericSerialOutput(start, count);
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 				} else if (type == "LOR") {
 					channelOutputs[i].outputOld = &LOROutput;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
@@ -288,9 +267,9 @@ int InitializeChannelOutputs(void) {
 				} else if (type == "Triks-C") {
 					channelOutputs[i].outputOld = &TriksCOutput;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-                } else if (type == "universes") {
-                    channelOutputs[i].output = new UDPOutput(start, count);
-				}
+                } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
+                    type = OUTPUT_REMAPS[type];
+                }
                 
                 if (channelOutputs[i].outputOld == nullptr && channelOutputs[i].output == nullptr) {
                     std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
@@ -337,18 +316,13 @@ int InitializeChannelOutputs(void) {
                     minimumNeededChannel = std::min(minimumNeededChannel, m1);
                     maximumNeededChannel = std::max(maximumNeededChannel, m2);
 					i++;
-				} else if ((channelOutputs[i].output) &&
-						   (((!csvConfig[0]) && (channelOutputs[i].output->Init(outputs[c]))) ||
-							((csvConfig[0]) && (channelOutputs[i].output->Init(csvConfig))))) {
-                               
-                               
+				} else if (channelOutputs[i].output && channelOutputs[i].output->Init(outputs[c])) {
                     int m1, m2;
                     channelOutputs[i].output->GetRequiredChannelRange(m1, m2);
                     minimumNeededChannel = std::min(minimumNeededChannel, m1);
                     maximumNeededChannel = std::max(maximumNeededChannel, m2);
                     LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
                             type.c_str(), i, minimumNeededChannel, maximumNeededChannel);
-
                     i++;
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());

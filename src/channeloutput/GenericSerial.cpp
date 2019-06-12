@@ -37,7 +37,12 @@
 #include "GenericSerial.h"
 
 /////////////////////////////////////////////////////////////////////////////
-
+extern "C" {
+    GenericSerialOutput *createGenericSerialOutput(unsigned int startChannel,
+                                               unsigned int channelCount) {
+        return new GenericSerialOutput(startChannel, channelCount);
+    }
+}
 /*
  *
  */
@@ -64,6 +69,12 @@ GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int
 GenericSerialOutput::~GenericSerialOutput()
 {
 	LogDebug(VB_CHANNELOUT, "GenericSerialOutput::~GenericSerialOutput()\n");
+}
+
+int GenericSerialOutput::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
 }
 
 /*
