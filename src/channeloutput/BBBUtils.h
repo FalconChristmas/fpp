@@ -55,8 +55,11 @@ public:
     int8_t pwm;
     int8_t subPwm;
     
-    PinCapabilities& setPwm(int pwm, int sub);
+    int8_t i2cBus;
     
+    PinCapabilities& setPwm(int pwm, int sub);
+    PinCapabilities& setI2C(int i2c);
+
     const PinCapabilities& configPin(const std::string& mode = "gpio",
                    const std::string &direction = "out") const;
     const PinCapabilities& setEdge(const std::string &edge) const;

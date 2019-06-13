@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <vector>
+#include <thread>
 
 static const std::vector<PinCapabilities> PB_PINS = {
     PinCapabilities("P1-02", 87, 1, 9),
@@ -17,8 +18,8 @@ static const std::vector<PinCapabilities> PB_PINS = {
     PinCapabilities("P1-10", 3).setPwm(0, 1),
     PinCapabilities("P1-12", 4),
     PinCapabilities("P1-20", 20),
-    PinCapabilities("P1-26", 12),
-    PinCapabilities("P1-28", 13),
+    PinCapabilities("P1-26", 12).setI2C(2),
+    PinCapabilities("P1-28", 13).setI2C(2),
     PinCapabilities("P1-29", 117, 0, 7),
     PinCapabilities("P1-30", 43, 1, 15),
     PinCapabilities("P1-31", 114, 0, 4),
@@ -35,9 +36,9 @@ static const std::vector<PinCapabilities> PB_PINS = {
     PinCapabilities("P2-06", 57),
     PinCapabilities("P2-07", 31),
     PinCapabilities("P2-08", 60),
-    PinCapabilities("P2-09", 15),
+    PinCapabilities("P2-09", 15).setI2C(1),
     PinCapabilities("P2-10", 52),
-    PinCapabilities("P2-11", 14),
+    PinCapabilities("P2-11", 14).setI2C(1),
     PinCapabilities("P2-17", 65),
     PinCapabilities("P2-18", 47),
     PinCapabilities("P2-19", 27),
@@ -106,10 +107,10 @@ static const std::vector<PinCapabilities> BBB_PINS = {
     PinCapabilities("P9-14", 50).setPwm(1, 0),
     PinCapabilities("P9-15", 48),
     PinCapabilities("P9-16", 51).setPwm(1, 1),
-    PinCapabilities("P9-17", 5),
-    PinCapabilities("P9-18", 4),
-    PinCapabilities("P9-19", 13),
-    PinCapabilities("P9-20", 12),
+    PinCapabilities("P9-17", 5).setI2C(1),
+    PinCapabilities("P9-18", 4).setI2C(1),
+    PinCapabilities("P9-19", 13).setI2C(2),
+    PinCapabilities("P9-20", 12).setI2C(2),
     PinCapabilities("P9-21", 3).setPwm(0, 1),
     PinCapabilities("P9-22", 2).setPwm(0, 0),
     PinCapabilities("P9-23", 49),
@@ -130,13 +131,13 @@ static const std::vector<PinCapabilities> BBB_PINS = {
 static BeagleBoneType BBB_TYPE = Unknown;
 
 PinCapabilities::PinCapabilities(const std::string &n, uint8_t k, uint8_t pru, uint8_t ppin)
-: name(n), kernelGpio(k), pruout(pru), prupin(ppin), pwm(-1), subPwm(-1)
+: name(n), kernelGpio(k), pruout(pru), prupin(ppin), pwm(-1), subPwm(-1), i2cBus(-1)
 {
     gpio = k / 32;
     pin = k % 32;
 }
 PinCapabilities::PinCapabilities(const std::string &n, uint8_t k)
-: name(n), kernelGpio(k), pruout(-1), pwm(-1), subPwm(-1) {
+: name(n), kernelGpio(k), pruout(-1), pwm(-1), subPwm(-1), i2cBus(-1) {
     gpio = k / 32;
     pin = k % 32;
 }
@@ -146,9 +147,38 @@ PinCapabilities& PinCapabilities::setPwm(int p, int s) {
     subPwm = s;
     return *this;
 }
+PinCapabilities& PinCapabilities::setI2C(int i) {
+    i2cBus = i;
+    return *this;
+}
 
 const PinCapabilities& PinCapabilities::configPin(const std::string& mode,
                                 const std::string &direction) const {
+    if (i2cBus >= 0) {
+        //this pin is i2c, we may need to tell fppoled to turn off the display
+        //before we shutdown this pin because once we re-configure, i2c will
+        //be unavailable and the display won't update
+        int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
+        ftruncate(smfd, 1024);
+        unsigned int *status = (unsigned int *)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
+        if (i2cBus == status[0]) {
+            if (mode != "i2c") {
+                //force the display off
+                status[2] = 1;
+                int count = 0;
+                while (status[1] != 0 && count < 150) {
+                    count++;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+            } else {
+                //allow the display to come back on
+                status[2] = 0;
+            }
+        }
+        close(smfd);
+        munmap(status, 1024);
+    }
+    
     configBBBPin(name, gpio, pin, mode, direction);
     return *this;
 }

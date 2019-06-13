@@ -64,7 +64,7 @@ OBJECTS_fppoled = \
 
 LIBS_fppoled = \
 	-ljsoncpp \
-	-lpthread \
+	-lpthread -lrt \
 	-lcurl \
 	-lgpiod \
 	$(NULL)
@@ -175,7 +175,7 @@ LIBS_fppd = \
 	-lboost_filesystem \
 	-lboost_system \
 	-lboost_date_time \
-	-lpthread \
+	-lpthread -lrt \
     -lzstd -lz \
 	-lhttpserver \
 	-ljsoncpp \

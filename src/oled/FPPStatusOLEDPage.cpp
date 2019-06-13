@@ -92,7 +92,6 @@ static int writer(char *data, size_t size, size_t nmemb,
 {
     if(writerData == NULL)
         return 0;
-    
     writerData->append(data, size*nmemb);
     return size * nmemb;
 }
@@ -135,6 +134,49 @@ void FPPStatusOLEDPage::outputNetwork(int idx, int y) {
             cur += 15;
         }
     }
+}
+
+static bool compareLines(int x, std::vector<std::string> &lines1, std::vector<std::string> &lines2) {
+    if (x < lines1.size() && x < lines2.size()) {
+        return lines1[x] != lines2[x];
+    } else if (x < lines1.size() || x < lines2.size()) {
+        return true;
+    }
+    return false;
+}
+
+bool FPPStatusOLEDPage::checkIfStatusChanged(Json::Value &result) {
+    std::string mode = result["mode_name"].asString();
+    mode[0] = toupper(mode[0]);
+    if (currentMode != mode) {
+        return true;
+    }
+
+    //if the status has materially changed, turn the oled back on
+    std::vector<std::string> lines;
+    int maxLines = getLinesPage0(lines, result, true);
+    if (compareLines(0, lines, _lastStatusLines)) {
+        //main status
+        _lastStatusLines = lines;
+        return true;
+    }
+    if (compareLines(1, lines, _lastStatusLines)) {
+        //running sequence
+        _lastStatusLines = lines;
+        return true;
+    }
+    if (compareLines(2, lines, _lastStatusLines)) {
+        //running song
+        _lastStatusLines = lines;
+        return true;
+    }
+    if (compareLines(5, lines, _lastStatusLines)) {
+        //running playlist
+        _lastStatusLines = lines;
+        return true;
+    }
+
+    return false;
 }
 
 int FPPStatusOLEDPage::getLinesPage0(std::vector<std::string> &lines,
@@ -253,70 +295,76 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
     }
     return startY;
 }
-int FPPStatusOLEDPage::outputBottomPart(int startY, int count) {
+bool FPPStatusOLEDPage::getCurrentStatus(Json::Value &result) {
     buffer.clear();
     bool gotStatus = false;
     if (curl_easy_perform(curl) == CURLE_OK) {
-        Json::Value result;
         Json::Reader reader;
         bool success = reader.parse(buffer, result);
         if (success) {
-            gotStatus = true;
-            setTextSize(1);
-            setTextColor(WHITE);
-            
-            setCursor(0, startY);
-            
-            std::vector<std::string> lines;
-            std::string line;
-            int maxLines = 5;
-            if (_curPage == 0) {
-                maxLines = getLinesPage0(lines, result, LED_DISPLAY_HEIGHT == 64);
-            } else {
-                maxLines = getLinesPage1(lines, result, LED_DISPLAY_HEIGHT == 64);
-            }
-            if (maxLines > lines.size()) {
-                maxLines = lines.size();
-            }
-            if (LED_DISPLAY_HEIGHT == 64) {
-                for (int x = 0; x < maxLines; x++) {
-                    setCursor(0, startY);
-                    startY += 8;
-                    line = lines[x];
-                    if (line.length() > 21) {
-                        line.resize(21);
-                    }
-                    print_str(line.c_str());
-                }
-            } else {
-                setCursor(0, startY);
-                int idx = count % maxLines;
-                line = lines[idx];
-                if (line.length() > 21) {
-                    line.resize(21);
-                }
-                print_str(line.c_str());
-                startY += 8;
-                idx++;
-                if (idx == maxLines) {
-                    idx = 0;
-                }
-                if (maxLines > 1) {
-                    setCursor(0, startY);
-                    line = lines[idx];
-                    if (line.length() > 21) {
-                        line.resize(21);
-                    }
-                    print_str(line.c_str());
-                }
-            }
+            std::string status = result["status_name"].asString();
+            return true;
         } else if (debug) {
             printf("Invalid json\n");
         }
     } else if (debug) {
         printf("Curl returned bad status\n");
     }
-    if (!gotStatus) {
+    return false;
+}
+
+
+int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid, Json::Value &result) {
+    if (statusValid) {
+        setTextSize(1);
+        setTextColor(WHITE);
+        
+        setCursor(0, startY);
+        
+        std::vector<std::string> lines;
+        std::string line;
+        int maxLines = 5;
+        if (_curPage == 0) {
+            maxLines = getLinesPage0(lines, result, LED_DISPLAY_HEIGHT == 64);
+        } else {
+            maxLines = getLinesPage1(lines, result, LED_DISPLAY_HEIGHT == 64);
+        }
+        if (maxLines > lines.size()) {
+            maxLines = lines.size();
+        }
+        if (LED_DISPLAY_HEIGHT == 64) {
+            for (int x = 0; x < maxLines; x++) {
+                setCursor(0, startY);
+                startY += 8;
+                line = lines[x];
+                if (line.length() > 21) {
+                    line.resize(21);
+                }
+                print_str(line.c_str());
+            }
+        } else {
+            setCursor(0, startY);
+            int idx = count % maxLines;
+            line = lines[idx];
+            if (line.length() > 21) {
+                line.resize(21);
+            }
+            print_str(line.c_str());
+            startY += 8;
+            idx++;
+            if (idx == maxLines) {
+                idx = 0;
+            }
+            if (maxLines > 1) {
+                setCursor(0, startY);
+                line = lines[idx];
+                if (line.length() > 21) {
+                    line.resize(21);
+                }
+                print_str(line.c_str());
+            }
+        }
+    } else {
         setTextSize(1);
         setTextColor(WHITE);
         setCursor(0, startY);
@@ -351,6 +399,8 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
     if (oledType == OLEDType::NONE) {
         return false;
     }
+    if (oledForcedOff) return false;
+
     bool retVal = false;
     int lastNSize = networks.size();
     if ((_iterationCount % 30) == 0 || networks.size() <= 1) {
@@ -364,6 +414,17 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
     }
     clearDisplay();
     
+    Json::Value result;
+    bool statusValid = getCurrentStatus(result);
+    if (statusValid) {
+        if (!displayOn || _lastStatusLines.empty()) {
+            displayOn = checkIfStatusChanged(result);
+            if (displayOn) {
+                retVal = true;
+            }
+        }
+    }
+    
     if (displayOn) {
         int startY = 0;
         setTextSize(1);
@@ -375,11 +436,11 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
                 drawLine(0, startY, 127, startY, WHITE);
                 startY++;
             }
-            startY = outputBottomPart(startY, _iterationCount);
+            startY = outputBottomPart(startY, _iterationCount, statusValid, result);
         } else {
             //strange case... with 2 color display flipped, we still need to keep the
             //network part in the "yellow" which is now below the main part
-            outputBottomPart(0, _iterationCount);
+            outputBottomPart(0, _iterationCount, statusValid, result);
             outputTopPart(48, _iterationCount);
         }
     }
@@ -615,7 +676,7 @@ bool FPPStatusOLEDPage::doAction(const std::string &action) {
         || action == "Test/Down") {
         cycleTest();
         _curPage = 0;
-    } else if (action == "Enter") {
+    } else if (action == "Enter" && !oledForcedOff) {
         if (_hasSensors) {
             _curPage++;
             if (_curPage == MAX_PAGE) {

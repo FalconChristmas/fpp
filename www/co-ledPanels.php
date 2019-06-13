@@ -636,6 +636,10 @@ function LEDPannelsConnectionChanged()
         $('#LEDPanelsColorDepth').hide();
         $('#LEDPanelsBrightnessLabel').hide();
         $('#LEDPanelsColorDepthLabel').hide();
+        $('#LEDPanelsWiringPinoutLabel').hide();
+        $('#LEDPanelsWiringPinout').hide();
+        $('#LEDPanelsInterleaveLabel').hide();
+        $('#LEDPanelInterleave').hide();
 		$('#LEDPanelsInterface').show();
 		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
 			$('#LEDPanelsSourceMac').show();
@@ -644,6 +648,12 @@ function LEDPannelsConnectionChanged()
 		{
 			$('#LEDPanelsSourceMac').hide();
 		}
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+    echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
+    echo "        $('#LEDPanelInterleave').hide();\n";
+}
+?>
 
 		LEDPanelOutputs = 12;
 	}
@@ -656,6 +666,8 @@ function LEDPannelsConnectionChanged()
         $('#LEDPanelsColorDepth').show();
         $('#LEDPanelsBrightnessLabel').show();
         $('#LEDPanelsColorDepthLabel').show();
+        $('#LEDPanelsWiringPinoutLabel').show();
+        $('#LEDPanelsWiringPinout').show();
 
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
@@ -667,6 +679,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
         echo "        LEDPanelOutputs = 8;\n";
     }
 ?>
+    $('#LEDPanelsInterleaveLabel').show();
+    $('#LEDPanelInterleave').show();
     $('#LEDPanelsGPIOSlowdownLabel').hide();
     $('#LEDPanelsGPIOSlowdown').hide();
 <?
@@ -752,7 +766,7 @@ else
 ?>
 								</select>
 							</td>
-							<td>&nbsp;</td>
+							<td></td>
 							<td><span id="LEDPanelsWiringPinoutLabel"><b>Wiring Pinout:</b></span></td>
 							<td><select id='LEDPanelsWiringPinout'>
 <?
@@ -799,7 +813,7 @@ else if ($settings['Platform'] == "BeagleBone Black")
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
-                        <tr><td><b>Panel Interleave:</b></td>
+                        <tr><td><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></td>
 							<td><? printLEDPanelInterleaveSelect($settings['Platform'], $LEDPanelInterleave); ?></td>
 						</tr>
 <?
@@ -824,6 +838,7 @@ if ($settings['Platform'] == "BeagleBone Black") {
 						<tr><td><span id='LEDPanelsConnectionLabel'><b>Connection:</b></span></td>
 							<td><select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
 <?
+ if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
 if ($settings['Platform'] == "Raspberry Pi") {
 ?>
                                                                         <option value='RGBMatrix'>Hat/Cap/Cape</option>
@@ -833,12 +848,13 @@ if ($settings['Platform'] == "Raspberry Pi") {
                                                                         <option value='LEDscapeMatrix'>Hat/Cap/Cape</option>
 <?
 }
+}
 ?>
 									<option value='ColorLight5a75'>ColorLight</option>
 									<option value='LinsnRV9'>Linsn</option>
 								</select>
 							</td>
-							<td>&nbsp;</td>
+							<td></td>
 							<td><span id='LEDPanelsConnectionInterface'><b>Interface:</b></span>
 								<span id='LEDPanelsGPIOSlowdownLabel'><b>GPIO Slowdown:</b></span>
 								</td>

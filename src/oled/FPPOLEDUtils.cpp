@@ -13,6 +13,9 @@
 #include <string>
 #include <algorithm>
 
+#include <sys/mman.h>
+#include <fcntl.h>
+
 #include <fcntl.h>
 #include <poll.h>
 
@@ -35,9 +38,34 @@
 #   include "wiringPi.h"
 #endif
 
+
+//shared memory area so other processes can see if the display is on
+//as well as let fppoled know to force it off (if the pins need to be
+//reconfigured so I2C no longer will work)
+
+struct DisplayStatus {
+    unsigned int i2cBus;
+    volatile unsigned int displayOn;
+    volatile unsigned int forceOff;
+};
+static DisplayStatus *currentStatus;
+
+extern I2C_DeviceT I2C_DEV_2;
+
+
+
 FPPOLEDUtils::FPPOLEDUtils(int ledType)
-    : _ledType(ledType), _displayOn(true) {
-    
+    : _ledType(ledType)
+{
+    int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
+    ftruncate(smfd, 1024);
+    currentStatus = (DisplayStatus *)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
+    close(smfd);
+    int i2cb = I2C_DEV_2.i2c_dev_path[strlen(I2C_DEV_2.i2c_dev_path) - 1] - '0';
+    currentStatus->i2cBus = i2cb;
+    currentStatus->displayOn = true;
+    currentStatus->forceOff = false;
+
     for (auto &a : gpiodChips) {
         a = nullptr;
     }
@@ -101,9 +129,6 @@ bool FPPOLEDUtils::checkStatusAbility() {
         if (success) {
             if (root["id"].asString() == "Unsupported") {
                 return false;
-            }
-            if (root["verifiedKeyId"].asString() == "dk") {
-                return true;
             }
         }
     }
@@ -239,11 +264,23 @@ void FPPOLEDUtils::run() {
     long long ntime = GetTime();
     long long lastActionTime = GetTime();
     while (true) {
+        bool forcedOff = currentStatus->forceOff;
+        OLEDPage::SetForcedOff(forcedOff);
+        if (currentStatus->displayOn && forcedOff) {
+            currentStatus->displayOn = false;
+            OLEDPage::SetCurrentPage(statusPage);
+            if (OLEDPage::GetOLEDType() != OLEDPage::OLEDType::NONE) {
+                clearDisplay();
+                Display();
+            }
+        }
         if (ntime > (lastUpdateTime + 1000000)) {
+            bool displayOn = currentStatus->displayOn;
             if (OLEDPage::GetCurrentPage()
-                && OLEDPage::GetCurrentPage()->doIteration(_displayOn)) {
+                && OLEDPage::GetCurrentPage()->doIteration(displayOn)) {
                 lastActionTime = GetTime();
             }
+            currentStatus->displayOn = displayOn;
             lastUpdateTime = ntime;
         }
         if (actions.empty()) {
@@ -282,9 +319,11 @@ void FPPOLEDUtils::run() {
                         action = actions[x].checkAction(v, ntime);
                     }
                 }
-                if (action != "" && !_displayOn) {
+                if (action != "" && !currentStatus->displayOn) {
                     //just turn the display on if button is hit
-                    _displayOn = true;
+                    if (!currentStatus->forceOff) {
+                        currentStatus->displayOn = true;
+                    }
                     OLEDPage::SetCurrentPage(statusPage);
                     lastUpdateTime = 0;
                     lastActionTime = ntime;
@@ -302,7 +341,7 @@ void FPPOLEDUtils::run() {
                 if (OLEDPage::GetCurrentPage() != statusPage) {
                     OLEDPage::SetCurrentPage(statusPage);
                 }
-                _displayOn = false;
+                currentStatus->displayOn = false;
             }
         }
     }

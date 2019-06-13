@@ -14,9 +14,11 @@ public:
         TWO_COLOR
     };
     static void SetOLEDType(OLEDType tp) { oledType = tp; }
+    static OLEDType GetOLEDType() { return oledType; }
     static void SetOLEDOrientationFlipped(bool b) { oledFlipped = b; }
     static OLEDPage *GetCurrentPage() { return currentPage; }
     static void SetCurrentPage(OLEDPage *p);
+    static void SetForcedOff(bool b) {oledForcedOff = b;};
     
     OLEDPage() : autoDeleteOnHide(false) {}
     virtual ~OLEDPage() {}
@@ -36,6 +38,7 @@ protected:
     static OLEDType oledType;
     static bool oledFlipped;
     static OLEDPage *currentPage;
+    static bool oledForcedOff;
     
     bool autoDeleteOnHide;
 };
