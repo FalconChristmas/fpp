@@ -48,10 +48,12 @@ int main (int argc, char *argv[]) {
     printf("    Led Type: %d\n", ledType);
     fflush(stdout);
     LED_DISPLAY_WIDTH = 128;
+    LED_DISPLAY_HEIGHT = 64;
     if (ledType == 3 || ledType == 4) {
         LED_DISPLAY_HEIGHT = 32;
-    } else {
-        LED_DISPLAY_HEIGHT = 64;
+    } else if (ledType == 9 || ledType == 10) {
+        LED_DISPLAY_HEIGHT = 128;
+        LED_DISPLAY_TYPE = LED_DISPLAY_TYPE_SSD1327;
     }
 
     if (ledType == 5 || ledType == 6) {

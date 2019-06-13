@@ -115,6 +115,8 @@ $ledTypes = Array();
     $ledTypes['128x32 Flipped I2C (SSD1306)'] = 4;
     $ledTypes['128x64 I2C (SH1106)'] = 5;
     $ledTypes['128x64 Flipped I2C (SH1106)'] = 6;
+    $ledTypes['128x128 I2C (SSD1327)'] = 9;
+    $ledTypes['128x128 Flipped I2C (SSD1327)'] = 10;
 
 function PrintStorageDeviceSelect($platform)
 {

@@ -266,20 +266,30 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
     setCursor(0,startY);
     if (networks.size() > 1) {
         int idx = (count / 3) % networks.size();
-        if (networks.size() == 2 && LED_DISPLAY_HEIGHT == 64) {
+        int lines = 1;
+        if (networks.size() <= 5 && LED_DISPLAY_HEIGHT > 65) {
             idx = 0;
+            lines = networks.size() < 5 ? networks.size() : 5;
+            if (lines < 2) lines = 2;
+        } else if (networks.size() <= 2 && LED_DISPLAY_HEIGHT == 64) {
+            idx = 0;
+            lines = 2;
         }
         outputNetwork(idx, startY);
         startY += 8;
-        if (LED_DISPLAY_HEIGHT == 64) {
-            if (networks.size() > 1) {
-                idx++;
-                if (idx >= networks.size()) {
-                    idx = 0;
-                }
-                outputNetwork(idx, startY);
+        if (LED_DISPLAY_HEIGHT > 65) {
+            startY += 2; //little extra space
+        }
+        for (int x = 1; x < lines; x++) {
+            idx++;
+            if (idx >= networks.size()) {
+                idx = 0;
             }
+            outputNetwork(idx, startY);
             startY += 8;
+            if (LED_DISPLAY_HEIGHT > 65) {
+                startY += 2; //little extra space
+            }
         }
     } else {
         if (count < 30) {
@@ -288,7 +298,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
             print_str("No Network");
         }
         startY += 8;
-        if (LED_DISPLAY_HEIGHT == 64) {
+        if (LED_DISPLAY_HEIGHT >= 64) {
             startY += 8;
         }
     }
@@ -324,17 +334,20 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
         std::string line;
         int maxLines = 5;
         if (_curPage == 0) {
-            maxLines = getLinesPage0(lines, result, LED_DISPLAY_HEIGHT == 64);
+            maxLines = getLinesPage0(lines, result, LED_DISPLAY_HEIGHT >= 64);
         } else {
-            maxLines = getLinesPage1(lines, result, LED_DISPLAY_HEIGHT == 64);
+            maxLines = getLinesPage1(lines, result, LED_DISPLAY_HEIGHT >= 64);
         }
         if (maxLines > lines.size()) {
             maxLines = lines.size();
         }
-        if (LED_DISPLAY_HEIGHT == 64) {
+        if (LED_DISPLAY_HEIGHT >= 64) {
             for (int x = 0; x < maxLines; x++) {
                 setCursor(0, startY);
                 startY += 8;
+                if (LED_DISPLAY_HEIGHT > 65) {
+                    startY += 2;
+                }
                 line = lines[x];
                 if (line.length() > 21) {
                     line.resize(21);
@@ -386,6 +399,10 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
             if (oledType != OLEDType::TWO_COLOR) {
                 --y;
             }
+            if (LED_DISPLAY_HEIGHT > 65) {
+                y += 4;
+            }
+
             drawBitmap(0, y, &_image[0], _imageWidth, _imageHeight, WHITE);
         }
     }
@@ -434,6 +451,9 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
                 // two color display doesn't need the separator line
                 drawLine(0, startY, 127, startY, WHITE);
                 startY++;
+                if (LED_DISPLAY_HEIGHT > 65) {
+                    startY += 2;
+                }
             }
             startY = outputBottomPart(startY, _iterationCount, statusValid, result);
         } else {

@@ -39,7 +39,7 @@ void OLEDPage::printStringCentered(int y, const std::string &str, bool white) {
 }
 
 TitledOLEDPage::TitledOLEDPage(const std::string &t) : title(t) {
-    numRows = 5;
+    numRows = LED_DISPLAY_HEIGHT == 128 ? 11 : 5;
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && oledFlipped) {
         numRows = 4;
     } else if (oledType == OLEDPage::OLEDType::SMALL) {
@@ -51,8 +51,18 @@ int TitledOLEDPage::displayTitle() {
     setTextColor(WHITE);
     
     int startY = 0;
-    int maxY = numRows == 5 ? 63 : (numRows == 4 ? 47 : 31);
-    
+    int maxY = 63;
+    switch (numRows) {
+        case 4:
+            maxY = 47;
+            break;
+        case 3:
+            maxY = 31;
+            break;
+        case 11:
+            maxY = 127;
+            break;
+    }
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && !oledFlipped) {
         setTextFont(&Roboto_Medium_14);
         printStringCentered(startY, title, WHITE);
@@ -150,7 +160,7 @@ void ListOLEDPage::displaying() {
     display();
 }
 void ListOLEDPage::displayScrollArrows(int startY) {
-    int maxY = numRows == 5 ? 63 : (numRows == 4 ? 47 : 31);
+    int maxY = numRows == 11 ? 127 : (numRows == 5 ? 63 : (numRows == 4 ? 47 : 31));
     if (items.size() > numRows) {
         if (curTop != 0) {
             fillTriangle(116, startY + 8, 125, startY + 8, 120, startY, WHITE);

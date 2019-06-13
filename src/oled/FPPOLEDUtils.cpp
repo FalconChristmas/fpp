@@ -69,7 +69,7 @@ FPPOLEDUtils::FPPOLEDUtils(int ledType)
     for (auto &a : gpiodChips) {
         a = nullptr;
     }
-    if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8) {
+    if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8 || _ledType == 10) {
         setRotation(2);
     } else if (_ledType) {
         setRotation(0);
@@ -251,7 +251,7 @@ void FPPOLEDUtils::run() {
     } else {
         OLEDPage::SetOLEDType(OLEDPage::OLEDType::SINGLE_COLOR);
     }
-    if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8) {
+    if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8 || _ledType == 10) {
         OLEDPage::SetOLEDOrientationFlipped(true);
     }
     statusPage = new FPPStatusOLEDPage();
