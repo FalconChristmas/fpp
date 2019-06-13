@@ -34,7 +34,7 @@ public:
     void outputNetwork(int idx, int y);
     
     int outputTopPart(int startY, int count);
-    int outputBottomPart(int startY, int count);
+    int outputBottomPart(int startY, int count, bool statusValid, Json::Value &result);
     
     void cycleTest();
     void runTest(const std::string &test);
@@ -43,6 +43,10 @@ public:
     
     const std::string &getCurrentMode() const { return currentMode; }
 private:
+    bool getCurrentStatus(Json::Value &result);
+    bool checkIfStatusChanged(Json::Value &result);
+    std::vector<std::string> _lastStatusLines;
+    
     std::vector<std::string> networks;
     std::vector<int> signalStrength;
     

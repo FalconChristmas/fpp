@@ -24,7 +24,6 @@ private:
     std::array<gpiod_chip*, 5> gpiodChips;
 
     int _ledType;
-    bool _displayOn;
     FPPStatusOLEDPage *statusPage;
     class InputAction {
     public:

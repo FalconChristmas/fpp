@@ -14,7 +14,7 @@ OBJECTS_fppoled = \
 
 LIBS_fppoled = \
 	-ljsoncpp \
-	-lpthread \
+	-lpthread -lrt \
 	-lcurl \
 	-lgpiod \
 	$(LIBS_GPIO_ADDITIONS)

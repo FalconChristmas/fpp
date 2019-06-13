@@ -87,7 +87,7 @@ LIBS_fpp_so += \
 	-lboost_filesystem \
 	-lboost_system \
 	-lboost_date_time \
-	-lpthread \
+	-lpthread -lrt \
     -lzstd -lz \
 	-lhttpserver \
 	-ljsoncpp \

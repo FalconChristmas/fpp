@@ -7,6 +7,7 @@
 OLEDPage::OLEDType OLEDPage::oledType = OLEDPage::OLEDType::SINGLE_COLOR;
 bool OLEDPage::oledFlipped = false;
 OLEDPage *OLEDPage::currentPage = nullptr;
+bool OLEDPage::oledForcedOff = false;
 
 
 void OLEDPage::SetCurrentPage(OLEDPage *p) {
@@ -23,11 +24,13 @@ void OLEDPage::SetCurrentPage(OLEDPage *p) {
 }
 
 void OLEDPage::printString(int x, int y, const std::string &str, bool white) {
+    if (oledForcedOff) return;
     setTextColor(white ? WHITE : BLACK);
     setCursor(x, y);
     print_str(str.c_str());
 }
 void OLEDPage::printStringCentered(int y, const std::string &str, bool white) {
+    if (oledForcedOff) return;
     setTextColor(white ? WHITE : BLACK);
     int len = getTextWidth(str.c_str());
     len /= 2;
@@ -44,6 +47,7 @@ TitledOLEDPage::TitledOLEDPage(const std::string &t) : title(t) {
     }
 }
 int TitledOLEDPage::displayTitle() {
+    if (oledForcedOff) return 0;
     setTextColor(WHITE);
     
     int startY = 0;
@@ -84,6 +88,7 @@ void PromptOLEDPage::displaying() {
     display();
 }
 void PromptOLEDPage::display() {
+    if (oledForcedOff) return;
     clearDisplay();
     int startY = displayTitle();
     int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
@@ -158,6 +163,7 @@ void ListOLEDPage::displayScrollArrows(int startY) {
 
 
 void ListOLEDPage::display() {
+    if (oledForcedOff) return;
     clearDisplay();
     int startY = displayTitle();
     displayScrollArrows(startY);
@@ -209,6 +215,7 @@ void MenuOLEDPage::displaying() {
     display();
 }
 void MenuOLEDPage::display() {
+    if (oledForcedOff) return;
     clearDisplay();
     int startY = displayTitle();
     displayScrollArrows(startY);

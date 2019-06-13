@@ -259,7 +259,7 @@ tr.rowUniverseDetails td
             echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
         }
 	}
-    if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
+    if (in_array('all', $currentCapeInfo["provides"]) || !in_array('strings', $currentCapeInfo["provides"])) {
         echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
     }
 ?>
@@ -282,7 +282,7 @@ if ($settings['Platform'] == "Raspberry Pi")
     }
 }
 
-if (in_array('all', $currentCapeInfo["provides"]) || in_array('panels', $currentCapeInfo["provides"])) {
+if (in_array('all', $currentCapeInfo["provides"]) || !in_array('strings', $currentCapeInfo["provides"])) {
     include_once('co-ledPanels.php');
 }
 
