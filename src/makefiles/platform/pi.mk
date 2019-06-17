@@ -3,15 +3,9 @@ CFLAGS += \
 	-DPLATFORM_PI \
 	-DUSEWIRINGPI
 
-
 LIBS_fpp_so += \
 	-lwiringPi \
-	-lwiringPiDev \
-	-lrf24-bcm \
-	-L../external/RF24/
-
-DEPS_fpp_so += \
-	../external/RF24/librf24-bcm.so
+	-lwiringPiDev
 
 SUBMODULES += \
 	external/RF24 \
@@ -21,9 +15,6 @@ SUBMODULES += \
 
 LIBS_GPIO_ADDITIONS=-lwiringPi -lwiringPiDev
 OBJECTS_GPIO_ADDITIONS=
-
-CFLAGS_channeloutput/SPInRF24L01.o+=-DUSENRF -I../external/RF24/
-
 
 #############################################################################
 # RF24 library on the Pi

@@ -7,14 +7,11 @@ OBJECTS_fpp_so += \
 	channeloutput/channeloutputthread.o \
 	channeloutput/ColorOrder.o \
 	channeloutput/FPD.o \
-	channeloutput/LOR.o \
 	channeloutput/Matrix.o \
 	channeloutput/PanelMatrix.o \
 	channeloutput/PixelString.o \
 	channeloutput/serialutil.o \
-	channeloutput/SPInRF24L01.o \
 	channeloutput/Triks-C.o \
-	channeloutput/USBRenard.o \
 	channeloutput/VirtualDisplay.o \
     channeloutput/processors/OutputProcessor.o \
     channeloutput/processors/RemapOutputProcessor.o \

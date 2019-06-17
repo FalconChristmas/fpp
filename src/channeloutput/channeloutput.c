@@ -44,9 +44,6 @@
 
 //old style that still need porting
 #include "FPD.h"
-#include "LOR.h"
-#include "SPInRF24L01.h"
-#include "USBRenard.h"
 #include "Triks-C.h"
 
 #include "processors/OutputProcessor.h"
@@ -253,17 +250,6 @@ int InitializeChannelOutputs(void) {
                     libnamePfx = "matrix-";
                     type = outputs[c]["subType"].asString();
                 // NOW some platform or config specific Channel Outputs
-#ifdef PLATFORM_PI
-				} else if (type == "SPI-nRF24L01") {
-					channelOutputs[i].outputOld = &SPInRF24L01Output;
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-#endif
-				} else if (type == "LOR") {
-					channelOutputs[i].outputOld = &LOROutput;
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
-				} else if (type == "Renard") {
-					channelOutputs[i].outputOld = &USBRenardOutput;
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
 				} else if (type == "Triks-C") {
 					channelOutputs[i].outputOld = &TriksCOutput;
 					ChannelOutputJSON2CSV(outputs[c], csvConfig);

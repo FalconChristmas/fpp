@@ -40,7 +40,7 @@
 
 
 //1024K channels plus a few
-#define FPPD_MAX_CHANNELS 1048580
+#define FPPD_MAX_CHANNELS (4196*1024+4)
 #define DATA_DUMP_SIZE    28
 
 #define SEQUENCE_CACHE_FRAMECOUNT 20
