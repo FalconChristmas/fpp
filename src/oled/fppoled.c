@@ -5,6 +5,10 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <fstream>
+#include <sstream>
+#include <jsoncpp/json/json.h>
+
 #include "I2C.h"
 #include "SSD1306_OLED.h"
 #include "FPPOLEDUtils.h"
@@ -36,6 +40,24 @@ extern I2C_DeviceT I2C_DEV_2;
 #define I2C_DEV_PATH I2C_DEV1_PATH
 #endif
 
+static std::string getControlPin() {
+    if (FileExists("/home/fpp/media/tmp/cape-info.json")) {
+        std::ifstream t("/home/fpp/media/tmp/cape-info.json");
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            if (root.isMember("controls") && root["controls"].isMember("I2CEnable")) {
+                return root["controls"]["I2CEnable"].asString();
+            }
+        }
+    }
+    return "";
+}
+
 
 int main (int argc, char *argv[]) {
     printf("FPP OLED Status Display Driver\n");
@@ -45,10 +67,11 @@ int main (int argc, char *argv[]) {
         loadSettings("/home/fpp/media/settings");
     }
     int ledType = getSettingInt("LEDDisplayType");
-    std::string controlPin = getSetting("I2CEnablePin");
+    std::string controlPin = getControlPin();
 
     if (controlPin != "") {
 #ifdef PLATFORM_BBB
+        printf("    Using I2C Control Pin: %s\n", controlPin.c_str());
         getBBBPinByName(controlPin).configPin("gpio").setValue(1);
 #endif
     }
