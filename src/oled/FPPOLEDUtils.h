@@ -14,7 +14,7 @@ extern "C" {
 
 class FPPOLEDUtils {
 public:
-    FPPOLEDUtils(int ledType);
+    FPPOLEDUtils(int ledType, const std::string &cp);
     ~FPPOLEDUtils();
     
     void run();
@@ -24,6 +24,7 @@ private:
     std::array<gpiod_chip*, 5> gpiodChips;
 
     int _ledType;
+    std::string controlPin;
     FPPStatusOLEDPage *statusPage;
     class InputAction {
     public:

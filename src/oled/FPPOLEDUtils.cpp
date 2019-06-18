@@ -31,6 +31,7 @@
 #include <jsoncpp/json/json.h>
 #include <gpiod.h>
 
+#include "settings.h"
 #include "OLEDPages.h"
 #include "FPPStatusOLEDPage.h"
 
@@ -47,6 +48,7 @@ struct DisplayStatus {
     unsigned int i2cBus;
     volatile unsigned int displayOn;
     volatile unsigned int forceOff;
+    volatile unsigned int forceOffSet;
 };
 static DisplayStatus *currentStatus;
 
@@ -54,8 +56,8 @@ extern I2C_DeviceT I2C_DEV_2;
 
 
 
-FPPOLEDUtils::FPPOLEDUtils(int ledType)
-    : _ledType(ledType)
+FPPOLEDUtils::FPPOLEDUtils(int ledType, const std::string &cp)
+    : _ledType(ledType), controlPin(cp)
 {
     int smfd = shm_open("fppoled", O_CREAT | O_RDWR, 0);
     ftruncate(smfd, 1024);
@@ -65,6 +67,7 @@ FPPOLEDUtils::FPPOLEDUtils(int ledType)
     currentStatus->i2cBus = i2cb;
     currentStatus->displayOn = true;
     currentStatus->forceOff = false;
+    currentStatus->forceOffSet = false;
 
     for (auto &a : gpiodChips) {
         a = nullptr;
@@ -241,6 +244,7 @@ void FPPOLEDUtils::run() {
         //no display and no actions, nothing to do.
         exit(0);
     }
+    
 
     if (_ledType == 3 || _ledType == 4) {
         OLEDPage::SetOLEDType(OLEDPage::OLEDType::SMALL);
@@ -263,9 +267,14 @@ void FPPOLEDUtils::run() {
     long long lastUpdateTime = 0;
     long long ntime = GetTime();
     long long lastActionTime = GetTime();
+    bool lastForcedOff = false;
     while (true) {
         bool forcedOff = currentStatus->forceOff;
         OLEDPage::SetForcedOff(forcedOff);
+        if (lastForcedOff && !forcedOff) {
+            //re-enable
+            getBBBPinByName(controlPin).setValue(1);
+        }
         if (currentStatus->displayOn && forcedOff) {
             currentStatus->displayOn = false;
             OLEDPage::SetCurrentPage(statusPage);
@@ -274,6 +283,13 @@ void FPPOLEDUtils::run() {
                 Display();
             }
         }
+        if (forcedOff && !lastForcedOff && controlPin != "") {
+#ifdef PLATFORM_BBB
+            getBBBPinByName(controlPin).setValue(0);
+#endif
+            currentStatus->forceOffSet = 1;
+        }
+        lastForcedOff = forcedOff;
         if (ntime > (lastUpdateTime + 1000000)) {
             bool displayOn = currentStatus->displayOn;
             if (OLEDPage::GetCurrentPage()

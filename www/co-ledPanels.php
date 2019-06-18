@@ -192,9 +192,6 @@ function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
         $values["32x16 1/2 Scan AB"] = "32x16x2x1";
         $values["32x32 1/16 Scan"] = "32x32x16";
         $values["64x32 1/16 Scan"] = "64x32x16";
-        if (strcmp($variant, 'PocketBeagle') !== FALSE) {
-             $values["64x64 1/32 Scan"] = "64x64x32";
-        }
         $values["64x32 1/8 Scan"] = "64x32x8";
         $values["32x32 1/8 Scan"] = "32x32x8";
         $values["40x20 1/5 Scan"] = "40x20x5";
@@ -668,7 +665,17 @@ if ($settings['Platform'] == "BeagleBone Black") {
         $('#LEDPanelsColorDepthLabel').show();
         $('#LEDPanelsWiringPinoutLabel').show();
         $('#LEDPanelsWiringPinout').show();
-
+        
+        if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
+            if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined') {
+                $('#LEDPanelsWiringPinout').hide();
+                $('#LEDPanelsWiringPinoutLabel').hide();
+            }
+            if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined') {
+                $('#LEDPanelsConnection').hide();
+                $('#LEDPanelsConnectionLabel').hide();
+            }
+        }
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
     if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {

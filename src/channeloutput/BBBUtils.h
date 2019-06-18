@@ -65,6 +65,8 @@ public:
     const PinCapabilities& setEdge(const std::string &edge) const;
     int getValue() const;
     int openValueForPoll() const;
+    
+    const PinCapabilities& setValue(int v) const;
 };
 
 const PinCapabilities &getBBBPinByName(const std::string &name);

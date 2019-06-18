@@ -45,6 +45,15 @@ int main (int argc, char *argv[]) {
         loadSettings("/home/fpp/media/settings");
     }
     int ledType = getSettingInt("LEDDisplayType");
+    std::string controlPin = getSetting("I2CEnablePin");
+
+    if (controlPin != "") {
+#ifdef PLATFORM_BBB
+        getBBBPinByName(controlPin).configPin("gpio").setValue(1);
+#endif
+    }
+    
+    
     printf("    Led Type: %d\n", ledType);
     fflush(stdout);
     LED_DISPLAY_WIDTH = 128;
@@ -103,6 +112,6 @@ int main (int argc, char *argv[]) {
     sigaction(SIGTERM, &sigTermAction, NULL);
     
     int count = 0;
-    oled = new FPPOLEDUtils(ledType);
+    oled = new FPPOLEDUtils(ledType, controlPin);
     oled->run();
 }

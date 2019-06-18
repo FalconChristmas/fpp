@@ -164,9 +164,10 @@ const PinCapabilities& PinCapabilities::configPin(const std::string& mode,
         if (i2cBus == status[0]) {
             if (mode != "i2c") {
                 //force the display off
+                status[3] = 0;
                 status[2] = 1;
                 int count = 0;
-                while (status[1] != 0 && count < 150) {
+                while (status[3] != 1 && count < 150) {
                     count++;
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
@@ -200,6 +201,11 @@ const PinCapabilities& PinCapabilities::setEdge(const std::string &edge) const {
 }
 int PinCapabilities::getValue() const {
     getBBBPinValue(gpio, pin);
+}
+const PinCapabilities& PinCapabilities::setValue(int v) const {
+    int kio = gpio * 32 + pin;
+    setBBBPinValue(kio, v);
+    return *this;
 }
 
 int PinCapabilities::openValueForPoll() const {
