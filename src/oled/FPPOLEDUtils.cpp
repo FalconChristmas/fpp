@@ -24,7 +24,9 @@
 #include "SSD1306_OLED.h"
 
 #include "FPPOLEDUtils.h"
+#if defined(PLATFORM_BBB)
 #include "channeloutput/BBBUtils.h"
+#endif
 
 #include <linux/wireless.h>
 #include <sys/ioctl.h>
@@ -273,7 +275,9 @@ void FPPOLEDUtils::run() {
         OLEDPage::SetForcedOff(forcedOff);
         if (lastForcedOff && !forcedOff) {
             //re-enable
+#ifdef PLATFORM_BBB
             getBBBPinByName(controlPin).setValue(1);
+#endif
         }
         if (currentStatus->displayOn && forcedOff) {
             currentStatus->displayOn = false;
