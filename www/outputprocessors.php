@@ -250,7 +250,7 @@ function AddNewProcessorRow() {
 	$('#outputProcessors tbody').append(
 		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
-			"<td><input class='active' type='checkbox' checked>" +
+			"<td><input class='active' type='checkbox' checked></td>" +
             "<td><select class='type' onChange='ProcessorTypeSelected(this);'>" +
                  "<option value=''>Select a type</option>" +
                      "<option value='Remap'>Remap</option>" +
