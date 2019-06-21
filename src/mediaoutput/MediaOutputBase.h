@@ -66,7 +66,8 @@ class MediaOutputBase {
 	pid_t              m_childPID;
 
   protected:
-
+    bool isChildRunning();
+    
 	unsigned int       m_isPlaying;
 	int                m_childPipe[2];
 	fd_set             m_activeFDSet;

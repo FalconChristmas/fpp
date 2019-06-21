@@ -53,53 +53,6 @@ MediaOutputStatus mediaOutputStatus = {
 	MEDIAOUTPUTSTATUS_IDLE, //status
 	};
 
-void MediaOutput_sigchld_handler(int signal)
-{
-	int status;
-	pid_t p = waitpid(-1, &status, WNOHANG);
-
-	pthread_mutex_lock(&mediaOutputLock);
-	if (!mediaOutput) {
-		pthread_mutex_unlock(&mediaOutputLock);
-		return;
-	}
-
-	LogDebug(VB_MEDIAOUT,
-		"MediaOutput_sigchld_handler(): pid: %d, waiting for %d\n",
-		p, mediaOutput->m_childPID);
-
-	if (p == mediaOutput->m_childPID)
-	{
-		mediaOutput->Close();
-		mediaOutput->m_childPID = 0;
-
-		pthread_mutex_unlock(&mediaOutputLock);
-
-        
-        if (getFPPmode() != REMOTE_MODE)  {
-            if ((sequence->m_seqMSRemaining > 0) &&
-                (sequence->m_seqMSRemaining < 2000)) {
-                usleep(sequence->m_seqMSRemaining * 1000);
-            }
-
-            // Always sleep an extra 100ms to let the sequence finish since playlist watches the media output
-            if (sequence->IsSequenceRunning())
-            usleep(100000);
-        }
-
-
-		mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
-		CloseMediaOutput();
-
-        //don't close the sequence in remote mode, a separate stop will come from the master for that
-		if (getFPPmode() != REMOTE_MODE && sequence->IsSequenceRunning())
-			sequence->CloseSequenceFile();
-
-	} else {
-		pthread_mutex_unlock(&mediaOutputLock);
-	}
-}
-
 /*
  *
  */
@@ -108,11 +61,6 @@ void InitMediaOutput(void)
 	if (pthread_mutex_init(&mediaOutputLock, NULL) != 0) {
 		LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
 	}
-
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = MediaOutput_sigchld_handler;
-	sigaction(SIGCHLD, &sa, NULL);
 
     int vol = getSettingInt("volume");
     setVolume(vol);

@@ -160,12 +160,18 @@ int mpg123Output::Stop(void)
 
 	pthread_mutex_lock(&m_outputLock);
 
-	if(m_childPID > 0)
-	{
-		pid_t childPID = m_childPID;
-
+	if (m_childPID > 0) {
+        int count = 0;
+        //try to let it exit cleanly first
+        kill(m_childPID, SIGTERM);
+        while (isChildRunning() && count < 25) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            count++;
+        }
+        if (isChildRunning()) {
+            kill(m_childPID, SIGKILL);
+        }
 		m_childPID = 0;
-		kill(childPID, SIGKILL);
 	}
 
 	pthread_mutex_unlock(&m_outputLock);
@@ -443,6 +449,11 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 
 void mpg123Output::PollMusicInfo(void)
 {
+    if (!isChildRunning()) {
+        Stop();
+        return;
+    }
+    
 	int bytesRead;
 	int result;
 	struct timeval mpg123_timeout;

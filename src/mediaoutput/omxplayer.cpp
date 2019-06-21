@@ -279,6 +279,11 @@ void omxplayerOutput::PollPlayerInfo(void)
 
 	omx_timeout.tv_sec = 0;
 	omx_timeout.tv_usec = 5;
+    
+    if (!isChildRunning()) {
+        Stop();
+        return;
+    }
 
 	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &omx_timeout) < 0) {
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n", errno);
@@ -325,7 +330,7 @@ void omxplayerOutput::PollPlayerInfo(void)
 
 int omxplayerOutput::Process(void)
 {
-	if(m_childPID > 0) {
+	if (m_childPID > 0) {
 		PollPlayerInfo();
 	}
 
@@ -339,17 +344,36 @@ int omxplayerOutput::Stop(void)
 	if (!m_childPID)
 		return 0;
 
-    write(m_childPipe[0], "q", 1);
+    if (isChildRunning()) {
+        write(m_childPipe[0], "q", 1);
+        int count = 0;
+        //try to let it exit cleanly first
+        while (isChildRunning() && count < 25) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            count++;
+        }
+    }
 
-	LogDebug(VB_MEDIAOUT, "Stop(), killing pid %d\n", m_childPID);
-
-	kill(m_childPID, SIGKILL);
-	m_childPID = 0;
-
-	// omxplayer is a shell script wrapper around omxplayer.bin and
-	// killing the PID of the schell script doesn't kill the child
-	// for some reason, so use this hack for now.
-	system("killall -9 omxplayer.bin");
+    if (isChildRunning()) {
+        //didn't stop cleanly... now try a normal TERM
+        kill(m_childPID, SIGTERM);
+        system("killall omxplayer.bin");
+        int count = 0;
+        //try to let it exit cleanly first
+        while (isChildRunning() && count < 25) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            count++;
+        }
+    }
+    if (isChildRunning()) {
+        //ok.. still running.. need a hard kill
+        kill(m_childPID, SIGKILL);
+        // omxplayer is a shell script wrapper around omxplayer.bin and
+        // killing the PID of the schell script doesn't kill the child
+        // for some reason, so use this hack for now.
+        system("killall -9 omxplayer.bin");
+    }
+    m_childPID = 0;
 
 	return 1;
 }

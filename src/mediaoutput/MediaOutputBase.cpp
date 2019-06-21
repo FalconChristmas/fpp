@@ -29,6 +29,8 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "MediaOutputBase.h"
 #include "common.h"
@@ -129,11 +131,24 @@ int MediaOutputBase::IsPlaying(void)
 
 	pthread_mutex_lock(&m_outputLock);
 
-	if (m_childPID > 0)
-		result = 1;
+    if (m_childPID > 0) {
+        result = 1;
+    }
 
 	pthread_mutex_unlock(&m_outputLock);
 
 	return result;
+}
+
+bool MediaOutputBase::isChildRunning() {
+    if (m_childPID > 0) {
+        int status = 0;
+        if (waitpid(m_childPID, &status, WNOHANG)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    return false;
 }
 

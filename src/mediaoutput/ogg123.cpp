@@ -158,10 +158,17 @@ int ogg123Output::Stop(void)
 
 	if(m_childPID > 0)
 	{
-		pid_t childPID = m_childPID;
-
+        int count = 0;
+        //try to let it exit cleanly first
+        kill(m_childPID, SIGTERM);
+        while (isChildRunning() && count < 25) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            count++;
+        }
+        if (isChildRunning()) {
+            kill(m_childPID, SIGKILL);
+        }
 		m_childPID = 0;
-		kill(childPID, SIGKILL);
 	}
 
 	pthread_mutex_unlock(&m_outputLock);
@@ -334,6 +341,11 @@ void ogg123Output::PollMusicInfo()
 	int bytesRead;
 	int result;
 	struct timeval ogg123_timeout;
+    
+    if (!isChildRunning()) {
+        Stop();
+        return;
+    }
 
 	m_readFDSet = m_activeFDSet;
 
