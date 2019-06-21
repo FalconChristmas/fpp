@@ -79,6 +79,12 @@ do
     fi
 done
 
+if [ ! -f ${FPPHOME}/media/config/.htaccess ]; then
+    echo "php_value max_input_vars 5000" > ${FPPHOME}/media/config/.htaccess
+    echo "php_value upload_max_filesize 4G" >> ${FPPHOME}/media/config/.htaccess
+    echo "php_value post_max_size 4G" >> ${FPPHOME}/media/config/.htaccess
+fi
+
 # Fixup ownership when mounted on an non-FAT filesystem
 chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
 

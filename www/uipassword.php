@@ -8,9 +8,10 @@ $thisdir = dirname(__FILE__);
 
 // No other checking here, we're assuming that since they're able to POST apache has
 // already taken care of validating a user.
-if ( !empty($_POST) && $_POST["password"] == "disabled" )
-{
-  shell_exec($SUDO . " rm -f $mediaDirectory/htaccess $thisdir/.htpasswd $thisdir/.htaccess");
+$data = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
+if ( !empty($_POST) && $_POST["password"] == "disabled" ) {
+    unlink("$mediaDirectory/config/.htpasswd");
+    file_put_contents("$mediaDirectory/config/.htaccess", $data);
 }
 
 if ( isset($_POST['password1']) && isset($_POST['password2']))
@@ -18,10 +19,8 @@ if ( isset($_POST['password1']) && isset($_POST['password2']))
   if (($_POST['password1'] != "") && ($_POST['password1'] == $_POST['password2']))
   {
     // true - setup .htaccess & save it
-    file_put_contents("/var/tmp/htaccess", "AuthUserFile $thisdir/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
-    shell_exec($SUDO . " mv /var/tmp/htaccess $mediaDirectory/htaccess");
-    shell_exec($SUDO . " ln -snf $mediaDirectory/htaccess $thisdir/.htaccess");
-    shell_exec($SUDO . " htpasswd -cbd $thisdir/.htpasswd admin " . $_POST['password1']);
+    file_put_contents("$mediaDirectory/config/.htaccess", $data . "AuthUserFile $mediaDirectory/config/.htpasswd\nAuthType Basic\nAuthName admin\nRequire valid-user\n");
+    shell_exec($SUDO . " htpasswd -cbd $mediaDirectory/config/.htpasswd admin " . $_POST['password1']);
   }
 }
 
@@ -41,7 +40,7 @@ function hide_if_equal($value1, $value2)
   }
 }
 
-$pw = file_exists("$mediaDirectory/htaccess");
+$pw = file_exists("$mediaDirectory/config/.htaccess");
 
 ?>
 
