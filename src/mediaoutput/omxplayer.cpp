@@ -345,28 +345,47 @@ int omxplayerOutput::Stop(void)
 		return 0;
 
     if (isChildRunning()) {
+        read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX );
         write(m_childPipe[0], "q", 1);
+        std::chrono::milliseconds(10);
         int count = 0;
+        int brc = 0;
         //try to let it exit cleanly first
         while (isChildRunning() && count < 25) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            int bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX );
+            if (bytesRead > 0) {
+                brc += bytesRead;
+                m_omxBuffer[bytesRead] = 0;
+                LogExcess(VB_MEDIAOUT, "count: %d    d: %s\n", count, m_omxBuffer);
+            }
+            write(m_childPipe[0], "q", 1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             count++;
         }
+        int bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX );
+        if (bytesRead > 0) {
+            brc += bytesRead;
+            m_omxBuffer[bytesRead] = 0;
+            LogExcess(VB_MEDIAOUT, "count: %d    d: %s\n", count, m_omxBuffer);
+        }
+        LogDebug(VB_MEDIAOUT, "needed  %d0ms  and read %d bytes to stop omxplayer.  Is running: %d\n", count, brc, isChildRunning());
     }
 
     if (isChildRunning()) {
+        LogInfo(VB_MEDIAOUT, "Need to send SIGTERM to omxplayer\n");
         //didn't stop cleanly... now try a normal TERM
         kill(m_childPID, SIGTERM);
         system("killall omxplayer.bin");
         int count = 0;
         //try to let it exit cleanly first
         while (isChildRunning() && count < 25) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
             count++;
         }
     }
     if (isChildRunning()) {
         //ok.. still running.. need a hard kill
+        LogWarn(VB_MEDIAOUT, "Need to send SIGKILL to omxplayer\n");
         kill(m_childPID, SIGKILL);
         // omxplayer is a shell script wrapper around omxplayer.bin and
         // killing the PID of the schell script doesn't kill the child
@@ -384,5 +403,6 @@ int omxplayerOutput::IsPlaying(void)
 }
 int omxplayerOutput::Close(void) {
     Stop();
+    MediaOutputBase::Close();
     return 0;
 }
