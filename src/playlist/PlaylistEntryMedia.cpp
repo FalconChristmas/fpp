@@ -312,13 +312,13 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 #ifdef PLATFORM_PI
 	}
 	else if (((ext == "mp4") ||
-			 (ext == "mkv")) && vOut == "--HDMI--")
+			 (ext == "mkv") || (ext == "mov")) && vOut == "--HDMI--")
 	{
 		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
     } else if ((ext == "mp4") ||
                (ext == "mkv") ||
-               (ext == "avi")) {
+               (ext == "avi") || (ext == "mov")) {
         m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	}
 	else

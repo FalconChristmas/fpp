@@ -120,7 +120,7 @@ function MediaChanged()
 	if ($('#autoSelectMatches').is(':checked') == false)
 		return;
 
-	var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4|\.m4a/i, "");
+	var value = $('#selMedia').val().replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
 
 	var seq = document.getElementById("selSequence")
 	for (var i = 0; i < seq.length; i++) {
@@ -138,7 +138,7 @@ function SequenceChanged()
 
 	var media = document.getElementById("selMedia")
 	for (var i = 0; i < media.length; i++) {
-		if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.m4a/i, "") == value)
+		if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "") == value)
 			$('#selMedia').val(media.options[i].value);
 	}
 }
