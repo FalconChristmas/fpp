@@ -36,6 +36,10 @@ dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
 
 dispatch_get   ('/cape', 'GetCapeInfo');
 
+dispatch_get   ('/proxies', 'GetProxies');
+dispatch_post  ('/proxies/:ProxyIp', 'AddProxy');
+dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
+
 
 run();
 ?>
