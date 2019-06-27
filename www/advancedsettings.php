@@ -164,7 +164,7 @@ If
     exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
     $rootDevice = $output[0];
     if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
-        if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 7000000) {
+        if (isset($settings["LastBlock"]) && $settings['LastBlock'] < 7200000) {
             $addnewfsbutton = true;
         }
         if ($settings['Platform'] == "BeagleBone Black") {
