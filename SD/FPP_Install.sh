@@ -381,9 +381,9 @@ case "${OSVER}" in
                                 libboost-atomic-dev libboost-math-dev libboost-signals-dev libconvert-binary-c-perl \
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
-								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
+								libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
 								mp3info mailutils mpg123 mpg321 mplayer nano net-tools node ntp \
-								php-cli php-common php-curl php-dom php-fpm php-mcrypt php-xml \
+								php-cli php-common php-curl php-fpm php-xml \
 								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
@@ -409,7 +409,7 @@ case "${OSVER}" in
 
         case "${OSVER}" in
             debian_9)
-                apt-get install -y libapache2-mod-php7.0 php7.0-zip
+                apt-get install -y libapache2-mod-php7.0 php7.0-zip libpam-smbpass php7.1-mcrypt
                 ;;
             debian_10)
                 apt-get install -y libapache2-mod-php php-zip
