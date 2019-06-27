@@ -370,7 +370,7 @@ case "${OSVER}" in
 		case "${OSVER}" in
 			debian_9 | debian_10)
 				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
-								apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php7.0 \
+								apache2 apache2-bin apache2-data apache2-utils \
 								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
 								avahi-discover avahi-utils bash-completion bc btrfs-tools build-essential \
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
@@ -391,7 +391,7 @@ case "${OSVER}" in
 								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
                                 libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
-								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 php7.0-zip \
+								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 \
                                 libzstd-dev zstd gpiod libgpiod-dev"
 				;;
 		esac
@@ -406,6 +406,15 @@ case "${OSVER}" in
 				apt-get -y clean
 			fi
 		done
+
+        case "${OSVER}" in
+            debian_9)
+                apt-get install libapache2-mod-php7.0 php7.0-zip
+                ;;
+            debian_10)
+                apt-get install libapache2-mod-php php-zip
+                ;;
+        esac
 
 		echo "FPP - Configuring shellinabox to use /var/tmp"
 		echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
@@ -441,7 +450,7 @@ case "${OSVER}" in
 		update-rc.d -f dhcp-helper remove
 		update-rc.d -f hostapd remove
 
-		if [ "x${OSVER}" == "xdebian_9" || "x${OSVER}" == "xdebian_10" ]; then
+		if [ "x${OSVER}" == "xdebian_9" ] || [ "x${OSVER}" == "xdebian_10" ]; then
 			systemctl disable display-manager.service
 		fi
 
@@ -598,7 +607,7 @@ case "${FPPPLATFORM}" in
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		if [ "x${OSVER}" == "xdebian_9" || "x${OSVER}" == "xdebian_10" ]; then
+		if [ "x${OSVER}" == "xdebian_9" ] || [ "x${OSVER}" == "xdebian_10" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
@@ -758,6 +767,10 @@ chmod 755 /usr/local/bin/composer
 
 #######################################
 PHPDIR="/etc/php/7.0"
+
+if [ -d "/etc/php/7.3" ]; then
+    PHPDIR="/etc/php/7.3"
+fi
 
 echo "FPP - Setting up for UI"
 sed -i -e "s/^user =.*/user = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
