@@ -243,11 +243,25 @@ bool fpp_detectCape() {
             write(f, "24c256 0x50", 11);
             close(f);
             
-            for (int x = 0; x < 100; x++) {
+            for (int x = 0; x < 50; x++) {
                 if (file_exists(EEPROM)) {
                     break;
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            
+            if (!file_exists(EEPROM)) {
+                //try again
+                newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
+                f = open(newDevFile.c_str(), O_WRONLY);
+                write(f, "24c256 0x50", 11);
+                close(f);
+                for (int x = 0; x < 50; x++) {
+                    if (file_exists(EEPROM)) {
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
             }
         }
     } else {
