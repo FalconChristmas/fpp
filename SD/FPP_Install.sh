@@ -382,8 +382,8 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libpam-smbpass libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
-								mp3info mailutils mpg123 mpg321 mplayer nano net-tools nginx node ntp \
-								php-cli php-common php-curl php-dom php-fpm php-mcrypt \
+								mp3info mailutils mpg123 mpg321 mplayer nano net-tools node ntp \
+								php-cli php-common php-curl php-dom php-fpm php-mcrypt php-xml \
 								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
@@ -1020,22 +1020,7 @@ case "${OSVER}" in
 		systemctl enable apache2.service
 		;;
 esac
-#######################################
-echo "FPP - Configuring (but disabling) nginx webserver"
 
-# Disable default site
-rm /etc/nginx/sites-enabled/default
-# Set user to ${FPPUSER}
-sed -i -e "s/^\s*\#\?\s*user\(\s*\)[^;]*/user\1${FPPUSER}/" /etc/nginx/nginx.conf
-# Install the fpp site
-sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-enabled/fpp_nginx.conf
-
-case "${OSVER}" in
-	debian_9 |  debian_10)
-		systemctl disable php7.0-fpm.service
-		systemctl disable nginx.service
-		;;
-esac
 
 #######################################
 echo "FPP - Configuring FPP startup"
