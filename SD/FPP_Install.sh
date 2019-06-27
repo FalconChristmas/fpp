@@ -409,10 +409,10 @@ case "${OSVER}" in
 
         case "${OSVER}" in
             debian_9)
-                apt-get install libapache2-mod-php7.0 php7.0-zip
+                apt-get install -y libapache2-mod-php7.0 php7.0-zip
                 ;;
             debian_10)
-                apt-get install libapache2-mod-php php-zip
+                apt-get install -y libapache2-mod-php php-zip
                 ;;
         esac
 
