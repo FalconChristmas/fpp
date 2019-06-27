@@ -259,21 +259,21 @@ nano /home/fpp/.bashrc
 
 #place 4G SD card in sd slot
 # zero out everything unused so compressing the image will work better
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3500
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3000
 /opt/fpp/SD/BBB-FlashMMC.sh -s 2800M -noreboot ext4 /dev/mmcblk0
 rmdir /tmp/rootfs
 
 #place second in slot
-dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=3000
+dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=2000
 /opt/fpp/SD/BBB-FlashMMC.sh -s 1750M -noreboot btrfs /dev/mmcblk0
 
 
 #On a MAC, the resulting SD cards can be used to create an image via:
 # use diskutil list to get the disk name (/dev/rdisk3)
 # For ext4:
-sudo dd if=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-ext4.img bs=1m count=3072
+sudo dd if=/dev/rdisk3 of=FPP-v2.8.0-BBB.img bs=1m count=3072
 # For btrfs:
-sudo dd if=/dev/rdisk3 of=FPP-v2.0-Beta-BBB-btrfs.img bs=1m count=2000
+sudo dd if=/dev/rdisk3 of=FPP-v2.8.0-BBB-btrfs.img bs=1m count=2000
 
 
 

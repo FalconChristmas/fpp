@@ -71,7 +71,7 @@
 #############################################################################
 SCRIPTVER="1.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2.7"
+FPPIMAGEVER="2.8"
 FPPCFGVER="37"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -314,7 +314,7 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 
 case "${OSVER}" in
-	debian_9)
+	debian_9 | debian_10)
 		case $FPPPLATFORM in
 			'CHIP'|'BeagleBone Black')
 				echo "FPP - Skipping non-free for $FPPPLATFORM"
@@ -328,7 +328,7 @@ case "${OSVER}" in
 
 		echo "FPP - Marking unneeded packages for removal to save space"
 		case "${OSVER}" in
-			debian_9)
+			debian_9 | debian_10)
 				systemctl disable network-manager.service
 
 				# This list is based on the Stretch Lite SD image which we base our image on
@@ -338,6 +338,7 @@ case "${OSVER}" in
 				done
 				;;
 		esac
+        apt autoremove
 
 		echo "FPP - Make things cleaner by removing unneeded packages"
 		dpkg --get-selections | grep deinstall | while read package deinstall; do
@@ -353,8 +354,8 @@ case "${OSVER}" in
 		echo "FPP - Upgrading apt if necessary"
 		apt-get install --only-upgrade apt
 
-		echo "FPP - Sleeping 60 seconds to make sure any apt upgrade is quiesced"
-		sleep 60
+		echo "FPP - Sleeping 30 seconds to make sure any apt upgrade is quiesced"
+		sleep 30
 
 		echo "FPP - Upgrading other installed packages"
 		apt-get -y upgrade
@@ -367,14 +368,14 @@ case "${OSVER}" in
 		# Install 10 packages, then clean to lower total disk space required
 		PACKAGE_LIST=""
 		case "${OSVER}" in
-			debian_9)
+			debian_9 | debian_10)
 				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
 								apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php7.0 \
 								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
 								avahi-discover avahi-utils bash-completion bc btrfs-tools build-essential \
 								bzip2 ca-certificates ccache connman curl device-tree-compiler \
 								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-								gdebi-core git hdparm i2c-tools ifplugd less \
+								gdebi-core git git-core hdparm i2c-tools ifplugd less \
                                 libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
                                 libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
                                 libboost-atomic-dev libboost-math-dev libboost-signals-dev libconvert-binary-c-perl \
@@ -440,7 +441,7 @@ case "${OSVER}" in
 		update-rc.d -f dhcp-helper remove
 		update-rc.d -f hostapd remove
 
-		if [ "x${OSVER}" == "xdebian_9" ]; then
+		if [ "x${OSVER}" == "xdebian_9" || "x${OSVER}" == "xdebian_10" ]; then
 			systemctl disable display-manager.service
 		fi
 
@@ -461,7 +462,7 @@ case "${FPPPLATFORM}" in
 	'BeagleBone Black')
 
 		case "${OSVER}" in
-			debian_9)
+			debian_9 | debian_10)
 				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
 				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
 
@@ -523,7 +524,7 @@ case "${FPPPLATFORM}" in
 		else
 			echo "FPP - Installing OLA"
 			case "${OSVER}" in
-				debian_9)
+				debian_9 | debian_10)
 					apt-get -y install ola ola-python libola-dev libola1
 				;;
 			esac
@@ -534,7 +535,7 @@ case "${FPPPLATFORM}" in
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install git-core libssl1.0-dev libssh-dev libsmbclient-dev
+			apt-get -y install  libssh-dev libsmbclient-dev omxplayer
             cd /opt
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
@@ -550,7 +551,7 @@ case "${FPPPLATFORM}" in
 			# TODO: need to test this binary on jessie
 			echo "FPP - Installing patched omxplayer.bin for FPP MultiSync"
 			case "${OSVER}" in
-				debian_9)
+				debian_9 | debian_10)
 					wget -O- https://github.com/FalconChristmas/fpp-binaries/raw/master/Pi/omxplayer-dist-stretch.tgz | tar xzpv -C /
 					;;
 				*)
@@ -597,7 +598,7 @@ case "${FPPPLATFORM}" in
 		sed -i -e "s/^debian:.*/debian:*:16372:0:99999:7:::/" /etc/shadow
 
 		echo "FPP - Disabling getty on onboard serial ttyAMA0"
-		if [ "x${OSVER}" == "xdebian_9" ]; then
+		if [ "x${OSVER}" == "xdebian_9" || "x${OSVER}" == "xdebian_10" ]; then
 			systemctl disable serial-getty@ttyAMA0.service
 			sed -i -e "s/console=serial0,115200 //" /boot/cmdline.txt
 			sed -i -e "s/autologin pi/autologin ${FPPUSER}/" /etc/systemd/system/autologin@.service
@@ -623,7 +624,7 @@ case "${FPPPLATFORM}" in
 		sed -e 's/rootwait/rootwait net.ifnames=0 biosdevname=0/' /boot/cmdline.txt
 
 		echo "# Enable I2C in device tree" >> /boot/config.txt
-		echo "dtparam=i2c=on" >> /boot/config.txt
+        echo "dtparam=i2c_arm=on,i2c_arm_baudrate=400000" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "# Setting kernel scaling framebuffer method" >> /boot/config.txt
@@ -644,6 +645,10 @@ case "${FPPPLATFORM}" in
 
 		echo "# Swap Pi 3 and Zero W UARTs with BT" >> /boot/config.txt
 		echo "dtoverlay=pi3-miniuart-bt" >> /boot/config.txt
+		echo >> /boot/config.txt
+
+		echo "# GPU memory set to 128 to deal with error in omxplayer with hi-def videos" >> /boot/config.txt
+		echo "gpu_mem=128" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
@@ -877,7 +882,7 @@ cat <<-EOF >> /etc/samba/smb.conf
 
 EOF
 case "${OSVER}" in
-	debian_9)
+	debian_9 |  debian_10)
 		systemctl restart smbd.service
 		systemctl restart nmbd.service
 		;;
@@ -998,7 +1003,7 @@ sed -i -e "s/PrivateTmp=true/PrivateTmp=false/" /lib/systemd/system/apache2.serv
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
 case "${OSVER}" in
-	debian_9)
+	debian_9 |  debian_10)
 		systemctl enable apache2.service
 		;;
 esac
@@ -1013,7 +1018,7 @@ sed -i -e "s/^\s*\#\?\s*user\(\s*\)[^;]*/user\1${FPPUSER}/" /etc/nginx/nginx.con
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/nginx.conf > /etc/nginx/sites-enabled/fpp_nginx.conf
 
 case "${OSVER}" in
-	debian_9)
+	debian_9 |  debian_10)
 		systemctl disable php7.0-fpm.service
 		systemctl disable nginx.service
 		;;
