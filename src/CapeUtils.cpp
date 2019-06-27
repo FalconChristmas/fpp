@@ -232,6 +232,7 @@ bool fpp_detectCape() {
     waitForI2CBus(bus);
     std::string EEPROM;
     if (bus == 2 && !HasI2CDevice(0x50, bus)) {
+        printf("Did not find 0x50 on i2c2, trying i2c1.\n");
         bus = 1;
     }
     if (HasI2CDevice(0x50, bus)) {
@@ -249,8 +250,11 @@ bool fpp_detectCape() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
+    } else {
+        printf("Did not find eeprom on i2c.\n");
     }
     if (!file_exists(EEPROM)) {
+        printf("EEPROM file doesn't exist %s.\n", EEPROM.c_str());
         EEPROM = "/opt/fpp-vendor/cape-eeprom.bin";
     }
     if (!file_exists(EEPROM)) {
