@@ -70,7 +70,7 @@ make install
 make clean
 
 cd /opt/wifi
-git clone https://github.com/FomalhautWeisszwerg/rtl8822bu
+git clone https://github.com/therealmbp/rtl8822bu
 cd rtl8822bu
 patch -p1 < /opt/wifi/patches/rtl8822bu
 make
