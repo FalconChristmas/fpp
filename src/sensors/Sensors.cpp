@@ -16,11 +16,23 @@
 
 
 #ifdef PLATFORM_BBB
-#define I2C_DEV_PATH "/sys/bus/i2c/devices/i2c-2/new_device"
+#define I2C_DEV 2
 #else
-#define I2C_DEV_PATH "/sys/bus/i2c/devices/i2c-1/new_device"
+#define I2C_DEV 1
 #endif
 
+static std::string exec(const std::string &cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
 
 class Sensor {
 public:
@@ -79,15 +91,34 @@ public:
         }
         if (!FileExists(path)) {
             //path doesn't exist, need to enable
-            std::ofstream out(I2C_DEV_PATH);
-            out << driver << " " << address;
-            out.close();
+            int bus = I2C_DEV;
+            if (bus == 2 && !HasI2CDevice(bus)) {
+                //wasn't found on the default bus of the BBB, we can
+                //try the other i2c bus
+                bus = 1;
+                size_t start_pos = path.find("/i2c-2");
+                if (start_pos != std::string::npos) {
+                    path.replace(start_pos, 6, "/i2c-1");
+                }
+            }
+            if (HasI2CDevice(bus)) {
+                std::ofstream out("/sys/bus/i2c/devices/i2c-" + std::to_string(bus) + "/new_device");
+                out << driver << " " << address;
+                out.close();
+            }
         }
         file = -1;
     }
     virtual ~I2CSensor() {
         close(file);
     }
+    bool HasI2CDevice(int i2cBus) {
+        char buf[256];
+        sprintf(buf, "i2cdetect -y -r %d %s %s", i2cBus, address.c_str(), address.c_str());
+        std::string result = exec(buf);
+        return result.find("--") == std::string::npos;
+    }
+    
     virtual double getValue() override {
         if (file == -1 && errcount < 10) {
             //need to use low level calls for reading from sysfs

@@ -97,9 +97,9 @@ static void put_file_contents(const std::string &path, const uint8_t *data, int 
     fclose(f);
 }
 
-static bool waitForI2CBus() {
+static bool waitForI2CBus(int i2cBus) {
     char buf[256];
-    sprintf(buf, "/sys/bus/i2c/devices/i2c-%d/new_device", (int)I2C_DEV);
+    sprintf(buf, "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
     
     //wait for up to 15 seconds for the i2c bus to appear
     //if it's already there, this should be nearly immediate
@@ -112,7 +112,7 @@ static bool waitForI2CBus() {
     return false;
 }
 
-static bool HasI2CDevice(int i, int i2cBus = I2C_DEV) {
+static bool HasI2CDevice(int i, int i2cBus) {
     char buf[256];
     sprintf(buf, "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
     std::string result = exec(buf);
@@ -148,8 +148,8 @@ static FILE * DoSignatureVerify(FILE *file, const std::string &fKeyId, const std
     deleteEpromFile = true;
     return file;
 }
-static std::string checkUnsupported(const std::string &orig) {
-    if (HasI2CDevice(0x3c)) {
+static std::string checkUnsupported(const std::string &orig, int i2cbus) {
+    if (HasI2CDevice(0x3c, i2cbus)) {
         // there is an oled so some sort of cape is present, we just don't know anything about it
         return "/opt/fpp/capes/other/Unknown-eeprom.bin";
     }
@@ -228,12 +228,16 @@ static void copyIfNotExist(const std::string &src, const std::string &target) {
 }
 
 bool fpp_detectCape() {
-    waitForI2CBus();
+    int bus = I2C_DEV;
+    waitForI2CBus(bus);
     std::string EEPROM;
-    if (HasI2CDevice(0x50)) {
-        EEPROM = string_sprintf("/sys/bus/i2c/devices/%d-0050/eeprom", I2C_DEV);
+    if (bus == 2 && !HasI2CDevice(0x50, bus)) {
+        bus = 1;
+    }
+    if (HasI2CDevice(0x50, bus)) {
+        EEPROM = string_sprintf("/sys/bus/i2c/devices/%d-0050/eeprom", bus);
         if (!file_exists(EEPROM)) {
-            std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", I2C_DEV);
+            std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
             int f = open(newDevFile.c_str(), O_WRONLY);
             write(f, "24c256 0x50", 11);
             close(f);
@@ -253,7 +257,7 @@ bool fpp_detectCape() {
         EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
     }
     if (!file_exists(EEPROM)) {
-        EEPROM = checkUnsupported(EEPROM);
+        EEPROM = checkUnsupported(EEPROM, bus);
     }
     if (!file_exists(EEPROM)) {
         printf("Could not detect any cape\n");
