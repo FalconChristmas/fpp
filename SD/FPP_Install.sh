@@ -151,6 +151,8 @@ fi
 # Parse build options as arguments
 build_ola=false
 build_omxplayer=false
+clone_fpp=true
+skip_apt_install=false
 while [ -n "$1" ]; do
 	case $1 in
 		--build-ola)
@@ -159,6 +161,14 @@ while [ -n "$1" ]; do
 			;;
 		--build-omxplayer)
 			build_omxplayer=true
+			shift
+			;;
+		--skip-clone)
+			clone_fpp=false
+			shift
+			;;
+		--skip-apt-install)
+			skip_apt_install=true
 			shift
 			;;
 		*)
@@ -299,14 +309,6 @@ echo "LANG=en_US.UTF-8" > /etc/default/locale
 echo "FPP - Checking for existence of /opt"
 cd /opt 2> /dev/null || mkdir /opt
 
-#######################################
-# Remove old /opt/fpp if it exists
-if [ -e "/opt/fpp" ]
-then
-	echo "FPP - Removing old /opt/fpp"
-	rm -rf /opt/fpp
-fi
-
 
 #######################################
 # Make sure dependencies are installed
@@ -354,8 +356,8 @@ case "${OSVER}" in
 		echo "FPP - Upgrading apt if necessary"
 		apt-get install --only-upgrade apt
 
-		echo "FPP - Sleeping 30 seconds to make sure any apt upgrade is quiesced"
-		sleep 30
+		echo "FPP - Sleeping 5 seconds to make sure any apt upgrade is quiesced"
+		sleep 5
 
 		echo "FPP - Upgrading other installed packages"
 		apt-get -y upgrade
@@ -395,6 +397,10 @@ case "${OSVER}" in
                                 libzstd-dev zstd gpiod libgpiod-dev"
 				;;
 		esac
+
+        if $skip_apt_install; then
+            PACKAGE_LIST=""
+        fi
 
 		let packages=0
 		for package in ${PACKAGE_LIST}
@@ -748,9 +754,20 @@ esac
 	
 #######################################
 # Clone git repository
-echo "FPP - Cloning git repository into /opt/fpp"
 cd /opt
-git clone https://github.com/FalconChristmas/fpp fpp
+if $clone_fpp; then
+
+    #######################################
+    # Remove old /opt/fpp if it exists
+    if [ -e "/opt/fpp" ]
+    then
+        echo "FPP - Removing old /opt/fpp"
+        rm -rf /opt/fpp
+    fi
+
+    echo "FPP - Cloning git repository into /opt/fpp"
+    git clone https://github.com/FalconChristmas/fpp fpp
+fi
 
 #######################################
 # Switch to desired code branch

@@ -27,11 +27,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
     libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
     wireless-tools libcurl4-openssl-dev sqlite3 \
-    libzstd-dev
+    libzstd-dev gpiod libgpiod-dev
 RUN apt-get clean
 
+ADD ./ /opt/fpp/
 ADD SD/FPP_Install.sh /root/FPP_Install.sh
-RUN ( yes | /root/FPP_Install.sh ) || true
+RUN ( yes | /root/FPP_Install.sh --skip-clone --skip-apt-install ) || true
 
 # this will do additional updates and create the required directories
 # and set permissions
