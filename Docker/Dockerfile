@@ -27,19 +27,22 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
     libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
     wireless-tools libcurl4-openssl-dev sqlite3 \
-    libzstd-dev & apt-get clean
+    libzstd-dev
+RUN apt-get clean
 
-EXPOSE 8080:80
-# DDP
-EXPOSE 4048:4048/udp
-#e1.31
-EXPOSE 5568:5568/udp
-# Multisync/discovery
-EXPOSE 32320:32320/udp
-
-RUN wget -O /root/FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh & chmod 700 /root/FPP_Install.sh
+RUN wget -O /root/FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+RUN chmod 700 /root/FPP_Install.sh
 RUN ( yes | /root/FPP_Install.sh ) || true
 
 RUN /opt/fpp/scripts/init_pre_network
 
+
+
+EXPOSE 80
+# DDP
+EXPOSE 4048/udp
+#e1.31
+EXPOSE 5568/udp
+# Multisync/discovery
+EXPOSE 32320/udp
 CMD ["/opt/fpp/Docker/runDocker.sh"]
