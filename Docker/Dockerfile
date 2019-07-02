@@ -30,19 +30,15 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     libzstd-dev
 RUN apt-get clean
 
-RUN wget -O /root/FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
-RUN chmod 700 /root/FPP_Install.sh
+ADD SD/FPP_Install.sh /root/FPP_Install.sh
 RUN ( yes | /root/FPP_Install.sh ) || true
 
+# this will do additional updates and create the required directories
+# and set permissions
 RUN /opt/fpp/scripts/init_pre_network
 
+VOLUME /home/fpp/media
 
-
-EXPOSE 80
-# DDP
-EXPOSE 4048/udp
-#e1.31
-EXPOSE 5568/udp
-# Multisync/discovery
-EXPOSE 32320/udp
-CMD ["/opt/fpp/Docker/runDocker.sh"]
+#      HTTP  DDP      e1.31    Multisync
+EXPOSE 80    4048/udp 5568/udp 32320/udp
+ENTRYPOINT ["/opt/fpp/Docker/runDocker.sh"]

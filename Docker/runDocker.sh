@@ -1,5 +1,5 @@
 #!/bin/bash
-/usr/sbin/apache2ctl start
-cd /opt/fpp/src
-make
-./fppd -f
+/opt/fpp/scripts/init_pre_network
+/opt/fpp/scripts/fppd_start
+
+/usr/sbin/apache2ctl -D FOREGROUND
