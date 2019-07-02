@@ -153,7 +153,7 @@ void FPPMainMenu::displaying() {
     MenuOLEDPage::displaying();
 }
 
-bool FPPMainMenu::itemSelected(const std::string &item) {
+void FPPMainMenu::itemSelected(const std::string &item) {
     if (item == "Back") {
         SetCurrentPage(parent);
     } else if (item == "About") {
@@ -300,5 +300,4 @@ bool FPPMainMenu::itemSelected(const std::string &item) {
             SetCurrentPage(pg);
         }
     }
-    return false;
 }

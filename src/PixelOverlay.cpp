@@ -543,7 +543,7 @@ static void PrintChannelMapBlocks(FPPChannelMemoryMapControlHeader *ctrlHeader) 
 }
 
 
-bool PixelOverlayManager::loadModelMap() {
+void PixelOverlayManager::loadModelMap() {
     LogDebug(VB_CHANNELOUT, "PixelOverlayManager::loadModelMap()\n");
     
     for (auto a : models) {
@@ -555,7 +555,7 @@ bool PixelOverlayManager::loadModelMap() {
     if (!ctrlMap) {
         LogErr(VB_CHANNELOUT, "Error, trying to load memory map data when "
                "memory map is not configured.");
-        return false;
+        return;
     }
     
     char filename[1024];
@@ -574,7 +574,7 @@ bool PixelOverlayManager::loadModelMap() {
         bool success = reader.parse(buffer.str(), root);
         if (!success) {
             LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-            return false;
+            return;
         }
         const Json::Value models = root["models"];
         FPPChannelMemoryMapControlBlock *cb = NULL;

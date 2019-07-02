@@ -155,7 +155,7 @@ private:
     bool createChannelDataMap();
     bool createControlMap();
     bool createPixelMap();
-    bool loadModelMap();
+    void loadModelMap();
     void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *b);
     void ConvertCMMFileToJSON();
     

@@ -39,13 +39,25 @@
 #	include "RF24.h"
 #else
 #	include "stdint.h"
+
+#define rf24_datarate_e int
+#define RF24_250KBPS 0
+#define RF24_1MBPS 1
+#define RF24_2MBPS 7
+#define RPI_V2_GPIO_P1_15 2
+#define RPI_V2_GPIO_P1_24 3
+#define RPI_V2_GPIO_P1_26 7
+#define BCM2835_SPI_SPEED_8MHZ 4
+#define RF24_CRC_16 5
+#define RF24_PA_MAX 6
+
 class RF24 {
 public:
 RF24(int,int,int) {}
 ~RF24() {}
 void begin() {}
 void setDataRate(int) {}
-int  getDataRate(void) {}
+int  getDataRate(void) { return RF24_250KBPS;}
 void setRetries(int,int) {}
 void setPayloadSize(int) {}
 void setAutoAck(int) {}
@@ -59,16 +71,7 @@ void powerUp() {}
 void printDetails() {}
 void write(char*,int) {}
 };
-#define rf24_datarate_e int
-#define RF24_250KBPS 0
-#define RF24_1MBPS 1
-#define RF24_2MBPS 7
-#define RPI_V2_GPIO_P1_15 2
-#define RPI_V2_GPIO_P1_24 3
-#define RPI_V2_GPIO_P1_26 7
-#define BCM2835_SPI_SPEED_8MHZ 4
-#define RF24_CRC_16 5
-#define RF24_PA_MAX 6
+
 #endif
 
 //TODO: Check max channels
@@ -220,6 +223,7 @@ int SPInRF24L01Output::Close(void) {
     
     delete data->radio;
     data->radio = NULL;
+    return ChannelOutputBase::Close();
 }
 
 int SPInRF24L01Output::SendData(unsigned char *channelData) {
@@ -240,7 +244,7 @@ int SPInRF24L01Output::SendData(unsigned char *channelData) {
         
         radio->write(packet, 32);
     }
-
+    return m_channelCount;
 }
 
 void SPInRF24L01Output::DumpConfig(void) {

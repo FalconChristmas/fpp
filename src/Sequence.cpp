@@ -278,13 +278,13 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     return 1;
 }
 
-int Sequence::SeekSequenceFile(int frameNumber) {
+void Sequence::SeekSequenceFile(int frameNumber) {
     LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     if (!IsSequenceRunning()) {
         LogErr(VB_SEQUENCE, "No sequence is running\n");
-        return 0;
+        return;
     }
     seqLock.unlock();
     

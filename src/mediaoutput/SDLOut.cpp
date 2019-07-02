@@ -630,6 +630,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
             data->videoOverlayModel->setData(vf->data);
         }
     }
+    return false;
 }
 
 static std::string currentMediaFilename;

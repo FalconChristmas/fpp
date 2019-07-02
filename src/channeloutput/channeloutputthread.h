@@ -34,7 +34,7 @@ void ForceChannelOutputNow(void);
 
 int  ChannelOutputThreadIsRunning(void);
 void SetChannelOutputRefreshRate(int rate);
-int  StartChannelOutputThread(void);
+void  StartChannelOutputThread(void);
 int  StopChannelOutputThread(void);
 void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);

@@ -63,7 +63,7 @@ extern OutputProcessors outputProcessors;
 int  InitializeChannelOutputs(void);
 int  PrepareChannelData(char *channelData);
 int  SendChannelData(const char *channelData);
-int  CloseChannelOutputs(void);
+void CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
 void StartOutputThreads(void);

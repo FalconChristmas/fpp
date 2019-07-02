@@ -104,7 +104,7 @@ public:
     virtual void displaying() override;
     virtual bool doAction(const std::string &action) override;
     
-    virtual bool itemSelected(const std::string &item);
+    virtual void itemSelected(const std::string &item);
 protected:
     virtual void display();
     int curSelected;

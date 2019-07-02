@@ -445,7 +445,7 @@ void StopOutputThreads(void) {
 /*
  *
  */
-int CloseChannelOutputs(void) {
+void CloseChannelOutputs(void) {
 	int i = 0;
 
 	for (i = 0; i < channelOutputCount; i++) {

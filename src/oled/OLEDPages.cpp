@@ -276,10 +276,11 @@ bool MenuOLEDPage::doAction(const std::string &action) {
     return true;
 }
 
-bool MenuOLEDPage::itemSelected(const std::string &item) {
+void MenuOLEDPage::itemSelected(const std::string &item) {
     if (itemSelectedCallback) {
         itemSelectedCallback(item);
     }
+    
 }
 
 

@@ -12,7 +12,7 @@ public:
     virtual ~FPPMainMenu();
     
     virtual void displaying() override;
-    virtual bool itemSelected(const std::string &item) override;
+    virtual void itemSelected(const std::string &item) override;
 
 private:
     ListOLEDPage *aboutPage;

@@ -218,6 +218,7 @@ int PluginCallbackManager::nextPlaylistEntryCallback(const char *plugin_data, in
 			cb->run(plugin_data, currentPlaylistEntry, mode, repeat, pe);
 		}
 	}
+    return 0;
 }
 void PluginCallbackManager::playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting)
 {

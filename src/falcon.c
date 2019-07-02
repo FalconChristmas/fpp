@@ -190,6 +190,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	free(buf);
 	usleep(100000);
 	EnableChannelOutput();
+    return 0;
 }
 
 /*
@@ -352,6 +353,7 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 	// Give changes time to take effect then turn back on channel outputs
 	usleep(100000);
 	EnableChannelOutput();
+    return size;
 }
 
 /*
@@ -361,7 +363,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 {
 	LogDebug(VB_SETTING, "FalconSetData(%p)\n", inBuf);
 
-	char filename[16];
+	char filename[32];
 	int  len = 0;
 	int  configureHardware = 1;
 	char buf[8];
@@ -426,7 +428,7 @@ void FalconGetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	LogDebug(VB_SETTING, "FalconGetData(%p)\n", inBuf);
 
 	char buf[FALCON_CFG_FILE_MAX_SIZE];
-	char filename[16];
+	char filename[32];
 
 	switch ((unsigned char)inBuf[5])
 	{

@@ -203,6 +203,7 @@ int USBRenardOutput::Close(void) {
         SerialClose(data->fd);
         data->fd = -1;
     }
+    return ChannelOutputBase::Close();
 }
 
 int USBRenardOutput::SendData(unsigned char *channelData) {
@@ -254,6 +255,7 @@ int USBRenardOutput::SendData(unsigned char *channelData) {
         
         dptr += PAD_DISTANCE;
     }
+    return m_channelCount;
 }
 
 void USBRenardOutput::DumpConfig(void) {

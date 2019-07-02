@@ -115,6 +115,7 @@ int LOROutput::Close(void) {
     
     SerialClose(data->fd);
     data->fd = -1;
+    return ChannelOutputBase::Close();
 }
 
 
@@ -255,4 +256,5 @@ int LOROutput::SendData(unsigned char *channelData) {
 		}
 	}
 	LOR_SendHeartbeat(data);
+    return m_channelCount;
 }

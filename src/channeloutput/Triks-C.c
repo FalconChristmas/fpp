@@ -174,6 +174,7 @@ void *RunTriksCOutputThread(void *data)
 
 	LogDebug(VB_CHANNELOUT, "Triks-C output thread complete\n");
 	privData->threadIsRunning = 0;
+    return nullptr;
 }
 
 /*
@@ -323,6 +324,7 @@ int TriksC_Close(void *data) {
 
 	SerialClose(privData->fd);
 	privData->fd = -1;
+    return 0;
 }
 
 /*
@@ -579,6 +581,7 @@ int TriksC_SendData(void *data, const char *channelData, int channelCount)
 		pthread_cond_signal(&privData->sendCond);
 	else
 		ProcessInputBuffer(privData);
+    return channelCount;
 }
 
 /*
@@ -587,22 +590,6 @@ int TriksC_SendData(void *data, const char *channelData, int channelCount)
 int TriksC_MaxChannels(void *data)
 {
 	return TRIKSC_MAX_CHANNELS;
-}
-
-/*
- *
- */
-int TriksC_StartOutputThread(void *data)
-{
-	LogDebug(VB_CHANNELOUT, "TriksC_StartOutputThread(%p)\n", data);
-}
-
-/*
- *
- */
-int TriksC_StopOutputThread(void *data)
-{
-	LogDebug(VB_CHANNELOUT, "TriksC_StopOutputThread(%p)\n", data);
 }
 
 /*
@@ -615,8 +602,8 @@ FPPChannelOutput TriksCOutput = {
 	TriksC_IsConfigured, //isConfigured
 	TriksC_IsActive, //isActive
 	TriksC_SendData, //send
-	TriksC_StartOutputThread, //startThread
-	TriksC_StopOutputThread, //stopThread
+	nullptr, //startThread
+	nullptr, //stopThread
 };
 
 /*

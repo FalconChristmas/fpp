@@ -183,6 +183,7 @@ int PlaylistEntryURL::Process(void)
 
 		FinishPlay();
 	}
+    return PlaylistEntryBase::Process();
 }
 
 /*
@@ -191,6 +192,7 @@ int PlaylistEntryURL::Process(void)
 int PlaylistEntryURL::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::Stop()\n");
+    return PlaylistEntryBase::Stop();
 }
 
 /*

@@ -265,7 +265,7 @@ void SetChannelOutputRefreshRate(int rate)
 /*
  * Kick off the channel output thread
  */
-int StartChannelOutputThread(void)
+void StartChannelOutputThread(void)
 {
 	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
     
@@ -288,7 +288,7 @@ int StartChannelOutputThread(void)
 		if (ChannelOutputThreadIsRunning())
 		{
 			LogDebug(VB_CHANNELOUT, "Channel Output thread is already running\n");
-			return 1;
+			return;
 		}
 	}
 
