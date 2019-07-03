@@ -452,6 +452,7 @@ int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	Magick::InitializeMagick(NULL);
+    
 
 	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
 	// NOTE: wiringPISetupSys() is not fast enough for SoftPWM on GPIO output
@@ -487,6 +488,7 @@ int main(int argc, char *argv[])
 	if (!multiSync->Init())
 		exit(EXIT_FAILURE);
     
+    Sensors::INSTANCE.Init();
     initCape();
 
     int fd = -1;
@@ -540,6 +542,7 @@ int main(int argc, char *argv[])
 	delete playlist;
 	delete sequence;
     runMainFPPDLoop = -1;
+    Sensors::INSTANCE.Close();
 
 	if (mqtt)
 		delete mqtt;

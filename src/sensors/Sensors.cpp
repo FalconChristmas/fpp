@@ -205,11 +205,72 @@ public:
     volatile int errcount;
 };
 
+class ThermalSensor : public Sensor {
+public:
+    ThermalSensor(Json::Value &s) : Sensor(s) {
+        path = s["path"].asString();
+        file = open(path.c_str(), O_RDONLY);
+    }
+    virtual ~ThermalSensor() {
+        close(file);
+    }
+    
+    virtual double getValue() override {
+        if (file != -1) {
+            lseek(file, 0, SEEK_SET);
+            char * buffer = new char [20];
+            int i = read(file, buffer, 20);
+            buffer[i] = 0;
+            double d = atof(buffer);
+            
+            d /= 1000;  //12 bit a2d
+            return d;
+        }
+        
+        return 0.0;
+    }
+    
+    
+    volatile int file;
+    std::string path;
+};
 
 Sensors Sensors::INSTANCE;
 
 void Sensors::Init() {
-    
+    int i = 0;
+    char path[256];
+    sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
+    while (FileExists(path)) {
+        printf("Exists: %s\n", path);
+        Json::Value v;
+        v["path"] = path;
+        v["valueType"] = "Temperature";
+        
+        sprintf(path, "/sys/class/thermal/thermal_zone%d/type", i);
+        if (FileExists(path)) {
+            int file = open(path, O_RDONLY);
+            int r = read(file, path, 30);
+            path[r] = 0;
+            r = 0;
+            while (path[r]) {
+                if (path[r] == '-') {
+                    path[r] = 0;
+                } else {
+                    path[r] = toupper(path[r]);
+                    r++;
+                }
+            }
+            v["label"] = path;
+            close(file);
+        } else {
+            v["label"] = "CPU";
+        }
+        sensors.push_back(new ThermalSensor(v));
+        i++;
+        sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
+    }
+
 }
 void Sensors::Close() {
     for (auto x : sensors) {
