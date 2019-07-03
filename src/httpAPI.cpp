@@ -632,6 +632,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     std::string str = sstr.str();
     result["time"] = str;
     
+    Sensors::INSTANCE.reportSensors(result);
     if (mode == 1) {
         //bridge mode only returns the base information
         return;
@@ -743,7 +744,6 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
     }
-    Sensors::INSTANCE.reportSensors(result);
 }
 
 /*

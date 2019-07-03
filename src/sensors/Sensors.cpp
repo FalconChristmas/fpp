@@ -11,6 +11,11 @@
 #include <unistd.h>
 #include <mutex>
 
+#include<sys/ioctl.h>
+#include<linux/i2c.h>
+#include<linux/i2c-dev.h>
+#include <thread>
+#include <chrono>
 
 #include "common.h"
 
@@ -82,16 +87,16 @@ public:
 
 class I2CSensor : public Sensor {
 public:
-    I2CSensor(Json::Value &s) : Sensor(s), errcount(0) {
+    I2CSensor(Json::Value &s) : Sensor(s) {
         address = s["address"].asString();
         path = s["path"].asString();
         driver = s["driver"].asString();
         if (s.isMember("multiplier")) {
             multiplier = s["multiplier"].asDouble();
         }
+        int bus = I2C_DEV;
         if (!FileExists(path)) {
             //path doesn't exist, need to enable
-            int bus = I2C_DEV;
             if (bus == 2 && !HasI2CDevice(bus)) {
                 //wasn't found on the default bus of the BBB, we can
                 //try the other i2c bus
@@ -108,6 +113,26 @@ public:
             }
         }
         file = -1;
+        int count = 0;
+        while (count < 5 && !FileExists(path)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            count++;
+        }
+        //after 0.5 seconds, still doesn't exist
+        if (FileExists(path)) {
+            file = open(path.c_str(), O_RDONLY);
+        } else if (HasI2CDevice(bus) && driver == "lm75") {
+            //Kernel 4.19 on Pi seems to not like the lm75 chips, we'll need to read the values directly
+            //switch to rawIO
+            char path[256];
+            sprintf(path, "/dev/i2c-%d", bus);
+            file = open(path, O_RDWR);
+            if (file != -1) {
+                int add = strtol(address.c_str(), nullptr, 16);
+                ioctl(file, I2C_SLAVE, add);
+                rawI2C = true;
+            }
+        }
     }
     virtual ~I2CSensor() {
         close(file);
@@ -120,15 +145,26 @@ public:
     }
     
     virtual double getValue() override {
-        if (file == -1 && errcount < 10) {
-            //need to use low level calls for reading from sysfs
-            //to avoid any buffering that ifstream does
-            if (FileExists(path)) {
-                file = open(path.c_str(), O_RDONLY);
-                errcount++;
+        if (rawI2C) {
+            unsigned char data[4] = { 0, 0, 0, 0};
+            int ret = write(file, data, 1);
+            if (ret > 0) {
+                ret = read(file, data, 2);
+                if (ret > 0) {
+                    int t = data[0];
+                    t = t << 8;
+                    if (data[0] & 0x80) {
+                        //negative temperature
+                        t |= 0xFFFF0000;
+                    }
+                    t |= data[1];
+                    t = t >> 5;
+                    double d  = t;
+                    d *= 0.125;
+                    return d;
+                }
             }
-        }
-        if (file != -1) {
+        } else if (file != -1) {
             lseek(file, 0, SEEK_SET);
             char * buffer = new char [20];
             int i = read(file, buffer, 20);
@@ -144,9 +180,9 @@ public:
     std::string path;
     std::string driver;
     double multiplier = 1.0;
+    bool rawI2C = false;
     
     volatile int file;
-    volatile int errcount;
 };
 
 class AINSensor : public Sensor {
@@ -242,7 +278,6 @@ void Sensors::Init() {
     char path[256];
     sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
     while (FileExists(path)) {
-        printf("Exists: %s\n", path);
         Json::Value v;
         v["path"] = path;
         v["valueType"] = "Temperature";
@@ -261,10 +296,12 @@ void Sensors::Init() {
                     r++;
                 }
             }
-            v["label"] = path;
+            std::string label = path;
+            label += ": ";
+            v["label"] = label;
             close(file);
         } else {
-            v["label"] = "CPU";
+            v["label"] = "CPU: ";
         }
         sensors.push_back(new ThermalSensor(v));
         i++;
