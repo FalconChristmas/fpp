@@ -27,6 +27,7 @@
 #define _GPIO_H
 
 #include "ChannelOutputBase.h"
+#include "util/GPIOUtils.h"
 
 class GPIOOutput : public ChannelOutputBase {
   public:
@@ -47,7 +48,7 @@ class GPIOOutput : public ChannelOutputBase {
     }
 
   private:
-	int m_GPIOPin;
+	const PinCapabilities * m_GPIOPin;
 	int m_invertOutput;
 	int m_softPWM;
 

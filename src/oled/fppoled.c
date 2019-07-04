@@ -38,6 +38,7 @@ extern I2C_DeviceT I2C_DEV_2;
 
 
 int main (int argc, char *argv[]) {
+    PinCapabilities::InitGPIO();
     printf("FPP OLED Status Display Driver\n");
     initSettings(argc, argv);
     if (DirectoryExists("/home/fpp")) {
@@ -71,11 +72,11 @@ int main (int argc, char *argv[]) {
         //it's available on I2C1
         Close_device(I2C_DEV_2.fd_i2c);
         if (getBeagleBoneType() == BeagleBoneType::PocketBeagle) {
-            getBBBPinByName("P2-09").configPin("i2c");
-            getBBBPinByName("P2-11").configPin("i2c");
+            PinCapabilities::getPinByName("P2-09").configPin("i2c");
+            PinCapabilities::getPinByName("P2-11").configPin("i2c");
         } else {
-            getBBBPinByName("P9-17").configPin("i2c");
-            getBBBPinByName("P9-18").configPin("i2c");
+            PinCapabilities::getPinByName("P9-17").configPin("i2c");
+            PinCapabilities::getPinByName("P9-18").configPin("i2c");
         }
 
         if (init_i2c_dev2(I2C_DEV1_PATH, SSD1306_OLED_ADDR) != 0) {

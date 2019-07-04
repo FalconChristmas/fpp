@@ -1,14 +1,18 @@
 ifeq '$(ARCH)' 'ODROID'
 # do something for ODROID
+
+LIBS_GPIO_ADDITIONS=-lwiringPi -lwiringPiDev
+OBJECTS_GPIO_ADDITIONS+=util/WiringPiGPIO.o
+
+CXXFLAGS_util/SPIUtils.o+=-DUSEWIRINGPI
+CXXFLAGS_util/GPIOUtils.o+=-DUSEWIRINGPI
+
 CFLAGS += \
 	-DPLATFORM_ODROID \
-	-DUSEWIRINGPI \
 	-I../external/rpi-rgb-led-matrix/include/
 
 LIBS_fpp_so += \
 	-lrgbmatrix \
-	-lwiringPi \
-	-lwiringPiDev \
 	-L../external/rpi-rgb-led-matrix/lib/
 
 OBJECTS_fpp_so += \

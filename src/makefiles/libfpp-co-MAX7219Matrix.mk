@@ -1,4 +1,4 @@
-ifneq ($(wildcard /usr/local/include/wiringPi.h),)
+ifeq '$(ARCH)' 'Raspberry Pi'
 
 OBJECTS_fpp_co_MAX7219Matrix_so += channeloutput/MAX7219Matrix.o
 LIBS_fpp_co_MAX7219Matrix_so=-L. -lfpp

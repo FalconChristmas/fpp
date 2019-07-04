@@ -39,15 +39,7 @@
 #include "settings.h"
 #include "Sequence.h"
 #include "channeloutput/channeloutputthread.h"
-
-#ifdef USEWIRINGPI
-#   include "wiringPi.h"
-#   include "wiringPiSPI.h"
-#else
-#   define wiringPiSPISetup(a,b)    1
-#   define wiringPiSPIDataRW(a,b,c) c
-#   define delayMicroseconds(a)     0
-#endif
+#include "util/SPIUtils.h"
 
 #define FALCON_CFG_FILE_MAX_SIZE      2048
 
@@ -56,6 +48,8 @@
 #define FALCON_CFG_HEADER_SIZE        6
 #define FALCON_CFG_BUF_SIZE           (FALCON_CFG_DATA_SIZE+FALCON_CFG_HEADER_SIZE)
 
+
+static SPIUtils *falconSpi = nullptr;
 
 /*
  * Read the specified file into the given buffer
@@ -119,9 +113,9 @@ int FalconWriteConfig(char *filename, char *buf, int size)
 /*
  *
  */
-int FalconConfigureHardware(char *filename, int spiPort)
+int FalconConfigureHardware(char *filename)
 {
-	LogDebug(VB_SETTING, "FalconConfigureHardware(%s, %d)\n", filename, spiPort);
+	LogDebug(VB_SETTING, "FalconConfigureHardware(%s)\n", filename);
 	char  fbuf[FALCON_CFG_FILE_MAX_SIZE];
 	unsigned char *buf;
 
@@ -134,6 +128,12 @@ int FalconConfigureHardware(char *filename, int spiPort)
 		return -1;
 	}
 
+    if (falconSpi == nullptr) {
+        LogErr(VB_SETTING,
+               "Unable to configure Falcon hardware, no SPI\n");
+        return -1;
+    }
+    
 	int bytesRead = FalconReadConfig(filename, fbuf);
 
 	if (bytesRead != 1024)
@@ -156,11 +156,10 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Hardware Config", buf, bytesRead);
 
-	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
-	if (bytesWritten != FALCON_CFG_BUF_SIZE)
-	{
+	bytesWritten = falconSpi->xfer(buf, buf, FALCON_CFG_BUF_SIZE);
+	if (bytesWritten != FALCON_CFG_BUF_SIZE) {
 		LogErr(VB_SETTING,
-			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
+			"Error: SPI->xfer returned %d, expecting %d\n",
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 	}
 
@@ -172,11 +171,11 @@ int FalconConfigureHardware(char *filename, int spiPort)
 	bzero(buf, FALCON_CFG_BUF_SIZE);
 	memcpy(buf, fbuf, bytesRead);
 
-	bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
+    bytesWritten = falconSpi->xfer(buf, buf, FALCON_CFG_BUF_SIZE);
 	if (bytesWritten != FALCON_CFG_BUF_SIZE)
 	{
 		LogErr(VB_CHANNELOUT,
-			"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
+			"Error: SPI->xfer returned %d, expecting %d\n",
 			bytesWritten, FALCON_CFG_BUF_SIZE);
 		free(buf);
 		usleep(100000);
@@ -196,7 +195,7 @@ int FalconConfigureHardware(char *filename, int spiPort)
 /*
  *
  */
-void PopulatePiConfig(char *ipAddress, char *buf)
+void PopulatePiConfig(char *ipAddress, uint8_t *buf)
 {
 	char *iface = NULL;
 	char addr[16];
@@ -220,13 +219,12 @@ void PopulatePiConfig(char *ipAddress, char *buf)
 /*
  *
  */
-int FalconDetectHardware(int spiPort, char *response)
+int FalconDetectHardware(SPIUtils *spi, uint8_t *response)
 {
 	LogDebug(VB_SETTING, "FalconDetectHardware(%p)\n", response);
-
 	bzero(response, FALCON_CFG_BUF_SIZE);
 
-	return wiringPiSPIDataRW(spiPort, (unsigned char *)response, FALCON_CFG_BUF_SIZE);
+	return spi->xfer(response, response, FALCON_CFG_BUF_SIZE);
 }
 
 /*
@@ -238,10 +236,10 @@ void FalconQueryHardware(int sock, struct sockaddr_in *srcAddr,
 	LogDebug(VB_SETTING, "FalconQueryHardware(%p)\n", inBuf);
 	// Return config information, Falcon hardware info, network IP info, etc.
 
-	char buf[60];
+	uint8_t buf[60];
 	bzero(buf, sizeof(buf));
 
-	char query[FALCON_CFG_BUF_SIZE];
+	uint8_t query[FALCON_CFG_BUF_SIZE];
 
 	int responseSize = FalconDetectHardware(0, query);
 
@@ -332,11 +330,11 @@ int FalconPassThroughData(int offset, unsigned char *inBuf, int size)
 
 		int bytesWritten;
 
-		bytesWritten = wiringPiSPIDataRW (0, (unsigned char *)buf, FALCON_CFG_BUF_SIZE);
+		bytesWritten = falconSpi->xfer(buf, nullptr, FALCON_CFG_BUF_SIZE);
 		if (bytesWritten != FALCON_CFG_BUF_SIZE)
 		{
 			LogErr(VB_SETTING,
-				"Error: wiringPiSPIDataRW returned %d, expecting %d\n",
+				"Error: SPI->xfer returned %d, expecting %d\n",
 				bytesWritten, FALCON_CFG_BUF_SIZE);
 		}
 		free(buf);
@@ -406,7 +404,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 
 	if (configureHardware)
 	{
-		int configResult = FalconConfigureHardware(filename, 0);
+		int configResult = FalconConfigureHardware(filename);
 		if (configResult != 0)
 			buf[7] = 0xFE;
 	}
@@ -460,7 +458,7 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
 	LogDebug(VB_SETTING, "FalconConfigurePi(%p)\n", inBuf);
 	// Parse Network/IP info from received data and configure Pi
 
-	char buf[53];
+	uint8_t buf[53];
 	bzero(buf, sizeof(buf));
 
 	buf[0] = 0x55;
@@ -486,7 +484,7 @@ void FalconConfigurePi(int sock, struct sockaddr_in *srcAddr,
  *
  */
 void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
-	struct in_addr recvAddr, unsigned char *inBuf)
+	struct in_addr recvAddr, uint8_t *inBuf)
 {
 	LogDebug(VB_SETTING, "ProcessFalconPacket(%p, %p)\n", srcAddr, inBuf);
 
@@ -535,22 +533,27 @@ void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 int DetectFalconHardware(int configureHardware)
 {
 	int  spiPort = 0;
-	char query[FALCON_CFG_BUF_SIZE];
-	if (wiringPiSPISetup(0, 8000000) < 0)
-	{
+	uint8_t query[FALCON_CFG_BUF_SIZE];
+    
+    if (falconSpi == nullptr) {
+        falconSpi = new SPIUtils(0, 8000000);
+    }
+    
+	if (!falconSpi->isOk()) {
+        delete falconSpi;
+        falconSpi = nullptr;
 		LogErr(VB_CHANNELOUT, "Unable to set SPI speed to detect hardware\n");
 		return 0;
 	}
 
-	int responseSize = FalconDetectHardware(spiPort, query);
+	int responseSize = FalconDetectHardware(falconSpi, query);
 
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Detect Hardware Response", query, 8);
 
-	if ((responseSize == FALCON_CFG_BUF_SIZE) && (query[0] > 0)) 
-	{
+	if ((responseSize == FALCON_CFG_BUF_SIZE) && (query[0] > 0))  {
 		int spiSpeed = 8000000;
-		char model[32];
+		char model[64];
 		char cfgFile[32];
 
 		strcpy(model, "UNKNOWN");
@@ -595,20 +598,23 @@ int DetectFalconHardware(int configureHardware)
 		}
 #endif
 
-		if (configureHardware)
-		{
+		if (configureHardware) {
 			LogInfo(VB_SETTING, "Setting SPI speed to %d for %s hardware.\n",
 				 spiSpeed, model);
+            
+            delete falconSpi;
+            falconSpi = new SPIUtils(0, spiSpeed);
 
-			if (wiringPiSPISetup(0, spiSpeed) < 0)
-			{
+			if (!falconSpi->isOk()) {
+                delete falconSpi;
+                falconSpi = nullptr;
 				LogErr(VB_CHANNELOUT, "Unable to set SPI speed to %d for %s\n",
 					 spiSpeed, model);
 				return 0;
 			}
 
 			if (strlen(cfgFile))
-				FalconConfigureHardware(cfgFile, 0);
+				FalconConfigureHardware(cfgFile);
 		}
 
 		return 1;

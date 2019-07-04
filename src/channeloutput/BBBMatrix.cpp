@@ -29,9 +29,10 @@
 
 
 #include "BBBMatrix.h"
-#include "util/BBBUtils.h"
 #include "common.h"
 #include "log.h"
+
+#include "util/BBBUtils.h"
 
 extern "C" {
     BBBMatrix *createOutputLEDscapeMatrix(unsigned int startChannel,
@@ -311,7 +312,7 @@ BBBMatrix::~BBBMatrix()
 static bool configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {
     std::string type = root["controls"][ctype]["type"].asString();
     if (type != "none") {
-        const PinCapabilities &pin = getBBBPinByName(root["controls"][ctype]["pin"].asString());
+        const PinCapabilities &pin = PinCapabilities::getPinByName(root["controls"][ctype]["pin"].asString());
         if (ctype == "oe" && pin.pwm >= 99)  {
             outputFile << "#define oe_pwm_address " << std::to_string(pin.getPWMRegisterAddress()) << "\n";
             outputFile << "#define oe_pwm_output " << std::to_string(pin.subPwm) << "\n";
@@ -323,9 +324,9 @@ static bool configureControlPin(const std::string &ctype, Json::Value &root, std
         } else {
             pin.configPin(type);
             if (type == "pruout") {
-                outputFile << "#define pru_" << ctype << " " << std::to_string(pin.prupin) << "\n";
+                outputFile << "#define pru_" << ctype << " " << std::to_string(pin.pruPin) << "\n";
             } else {
-                outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.pin) << "\n";
+                outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.gpio) << "\n";
             }
         }
     }
@@ -333,12 +334,12 @@ static bool configureControlPin(const std::string &ctype, Json::Value &root, std
 }
 
 static void configurePanelPin(int x, const std::string &color, const std::string& row, Json::Value &root, std::ofstream &outputFile, int *minPort) {
-    const PinCapabilities &pin = getBBBPinByName(root["outputs"][x]["pins"][color + row].asString());
+    const PinCapabilities &pin = PinCapabilities::getPinByName(root["outputs"][x]["pins"][color + row].asString());
     pin.configPin();
-    int gpio = pin.gpio;
-    minPort[gpio] = std::min(minPort[gpio], (int)pin.pin);
-    outputFile << "#define " << color << std::to_string(x+1) << row << "_gpio " << std::to_string(pin.gpio) << "\n";
-    outputFile << "#define " << color << std::to_string(x+1) << row << "_pin  " << std::to_string(pin.pin) << "\n";
+    int gpioIdx = pin.gpioIdx;
+    minPort[gpioIdx] = std::min(minPort[gpioIdx], (int)pin.gpio);
+    outputFile << "#define " << color << std::to_string(x+1) << row << "_gpio " << std::to_string(pin.gpioIdx) << "\n";
+    outputFile << "#define " << color << std::to_string(x+1) << row << "_pin  " << std::to_string(pin.gpio) << "\n";
 }
 
 static void configurePanelPins(int x, Json::Value &root, std::ofstream &outputFile, int *minPort) {

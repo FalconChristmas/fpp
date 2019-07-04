@@ -77,6 +77,9 @@ OBJECTS_fpp_so += \
 	Sequence.o \
 	settings.o \
 	SunSet.o \
+    util/GPIOUtils.o \
+    util/I2CUtils.o \
+    util/SPIUtils.o \
     $(OBJECTS_GPIO_ADDITIONS)
 
 

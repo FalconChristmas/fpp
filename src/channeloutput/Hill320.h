@@ -27,6 +27,7 @@
 #define _HILL320_H
 
 #include "ThreadedChannelOutputBase.h"
+#include "util/I2CUtils.h"
 
 class Hill320Output : public ThreadedChannelOutputBase {
   public:
@@ -46,7 +47,7 @@ class Hill320Output : public ThreadedChannelOutputBase {
     }
 
   private:
-	int m_fd;
+    I2CUtils *i2c;
 	int m_boxCount;
 };
 

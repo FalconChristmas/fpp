@@ -1,11 +1,6 @@
 ifeq '$(ARCH)' 'Raspberry Pi'
 CFLAGS += \
-	-DPLATFORM_PI \
-	-DUSEWIRINGPI
-
-LIBS_fpp_so += \
-	-lwiringPi \
-	-lwiringPiDev
+	-DPLATFORM_PI
 
 SUBMODULES += \
 	external/RF24 \
@@ -13,8 +8,11 @@ SUBMODULES += \
 	external/rpi_ws281x \
 	external/spixels
 
-LIBS_GPIO_ADDITIONS=-lwiringPi -lwiringPiDev
-OBJECTS_GPIO_ADDITIONS=
+LIBS_GPIO_ADDITIONS=-lpigpio
+OBJECTS_GPIO_ADDITIONS+=util/PiGPIOUtils.o
+CXXFLAGS_util/SPIUtils.o+=-DUSEPIGPIO
+CXXFLAGS_util/GPIOUtils.o+=-DUSEPIGPIO
+
 
 #############################################################################
 # RF24 library on the Pi

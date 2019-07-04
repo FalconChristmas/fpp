@@ -40,8 +40,10 @@
 #include "common.h"
 #include "log.h"
 #include "BBBSerial.h"
-#include "util/BBBUtils.h"
 #include "settings.h"
+
+#include "util/BBBUtils.h"
+
 
 //reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84*1024
@@ -202,14 +204,14 @@ int BBBSerialOutput::Init(Json::Value config)
         
         maxOut = root["serial"].size();
         for (int x = 0; x < root["serial"].size(); x++)  {
-            const PinCapabilities &pin = getBBBPinByName(root["serial"][x]["pin"].asString());
+            const PinCapabilities &pin = PinCapabilities::getPinByName(root["serial"][x]["pin"].asString());
             if (m_startChannels[x] >= 0) {
                 pin.configPin(mode);
                 countOut++;
             }
-            outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpio) << "\n";
-            outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.pin) << "\n\n";
-            outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(pin.prupin) << "\n\n";
+            outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+            outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
+            outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(pin.pruPin) << "\n\n";
         }
         
         outputFile.close();

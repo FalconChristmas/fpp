@@ -19,6 +19,7 @@
 
 #include "common.h"
 
+#include "util/I2CUtils.h"
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
@@ -124,18 +125,17 @@ public:
         } else if (HasI2CDevice(bus) && driver == "lm75") {
             //Kernel 4.19 on Pi seems to not like the lm75 chips, we'll need to read the values directly
             //switch to rawIO
-            char path[256];
-            sprintf(path, "/dev/i2c-%d", bus);
-            file = open(path, O_RDWR);
-            if (file != -1) {
-                int add = strtol(address.c_str(), nullptr, 16);
-                ioctl(file, I2C_SLAVE, add);
-                rawI2C = true;
-            }
+            int add = strtol(address.c_str(), nullptr, 16);
+            i2cUtils = new I2CUtils(bus, add);
         }
     }
     virtual ~I2CSensor() {
-        close(file);
+        if (file != -1) {
+            close(file);
+        }
+        if (i2cUtils) {
+            delete i2cUtils;
+        }
     }
     bool HasI2CDevice(int i2cBus) {
         char buf[256];
@@ -145,24 +145,19 @@ public:
     }
     
     virtual double getValue() override {
-        if (rawI2C) {
-            unsigned char data[4] = { 0, 0, 0, 0};
-            int ret = write(file, data, 1);
-            if (ret > 0) {
-                ret = read(file, data, 2);
-                if (ret > 0) {
-                    int t = data[0];
-                    t = t << 8;
-                    if (data[0] & 0x80) {
-                        //negative temperature
-                        t |= 0xFFFF0000;
-                    }
-                    t |= data[1];
-                    t = t >> 5;
-                    double d  = t;
-                    d *= 0.125;
-                    return d;
+        if (i2cUtils) {
+            int ret = i2cUtils->readWordData(0);
+            if (ret >= 0) {
+                int t = (ret >> 8) & 0xFF;
+                t |= (ret << 8) & 0xFF00;
+                if (t & 0x8000) {
+                    //negative temperature
+                    t |= 0xFFFF0000;
                 }
+                t = t >> 5;
+                double d  = t;
+                d *= 0.125;
+                return d;
             }
         } else if (file != -1) {
             lseek(file, 0, SEEK_SET);
@@ -180,8 +175,8 @@ public:
     std::string path;
     std::string driver;
     double multiplier = 1.0;
-    bool rawI2C = false;
-    
+
+    I2CUtils *i2cUtils = nullptr;
     volatile int file;
 };
 

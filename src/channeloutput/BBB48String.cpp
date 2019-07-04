@@ -48,9 +48,10 @@
 // FPP includes
 #include "common.h"
 #include "log.h"
-#include "util/BBBUtils.h"
 #include "BBB48String.h"
 #include "settings.h"
+
+#include "util/BBBUtils.h"
 
 
 extern "C" {
@@ -356,9 +357,9 @@ int BBB48StringOutput::Init(Json::Value config)
                 args.push_back(v);
             } else {
                 //need to output this pin, configure it
-                const PinCapabilities &pin = getBBBPinByName(root["outputs"][x]["pin"].asString());
+                const PinCapabilities &pin = PinCapabilities::getPinByName(root["outputs"][x]["pin"].asString());
                 pin.configPin();
-                if (pin.gpio == 0) {
+                if (pin.gpioIdx == 0) {
                     maxGPIO0 = std::max(maxGPIO0, m_strings[x]->m_outputChannels);
                     std::string v = "-DNOOUT";
                     v += std::to_string(x+1);
@@ -369,8 +370,8 @@ int BBB48StringOutput::Init(Json::Value config)
                     v += std::to_string(x+1);
                     split0args.push_back(v);
                 }
-                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpio) << "\n";
-                outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.pin) << "\n\n";
+                outputFile << "#define o" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+                outputFile << "#define o" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
             }
         }
         outputFile.close();

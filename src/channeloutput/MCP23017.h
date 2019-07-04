@@ -27,6 +27,7 @@
 #define _MCP23017_H
 
 #include "ChannelOutputBase.h"
+#include "util/I2CUtils.h"
 
 class MCP23017Output : public ChannelOutputBase {
   public:
@@ -47,7 +48,7 @@ class MCP23017Output : public ChannelOutputBase {
 
 
   private:
-	int m_fd;
+	I2CUtils *i2c;
 	int m_deviceID;
 };
 

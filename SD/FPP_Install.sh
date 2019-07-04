@@ -544,9 +544,11 @@ case "${FPPPLATFORM}" in
 				;;
 			esac
 		fi
-
 		echo "FPP - Installing wiringPi"
-		cd /opt/ && git clone git://git.drogon.net/wiringPi && cd /opt/wiringPi && ./build
+		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
+
+		echo "FPP - Installing pigpio"
+		cd /opt/ && rm -rf pigpio && git clone https://github.com/joan2937/pigpio && cd /opt/pigpio && make prefix=/usr && make install prefix=/usr
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"

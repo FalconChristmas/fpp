@@ -10,6 +10,7 @@ OBJECTS_fppoled = \
 	oled/FPPStatusOLEDPage.o \
 	oled/FPPMainMenu.o \
     oled/fppoled.o \
+    util/GPIOUtils.o \
     $(OBJECTS_GPIO_ADDITIONS)
 
 LIBS_fppoled = \

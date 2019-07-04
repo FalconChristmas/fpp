@@ -34,10 +34,6 @@
 #include "OLEDPages.h"
 #include "FPPStatusOLEDPage.h"
 
-#ifdef USEWIRINGPI
-#   include "wiringPi.h"
-#endif
-
 
 //shared memory area so other processes can see if the display is on
 //as well as let fppoled know to force it off (if the pins need to be
@@ -140,9 +136,6 @@ bool FPPOLEDUtils::checkStatusAbility() {
 
 
 bool FPPOLEDUtils::parseInputActions(const std::string &file) {
-#ifdef USEWIRINGPI
-    wiringPiSetupGpio();
-#endif
     char vbuffer[256];
     bool needsPolling = false;
     if (FileExists(file)) {
@@ -163,29 +156,16 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
                     std::string buttonaction = root["inputs"][x]["type"].asString();
                     std::string edge = root["inputs"][x]["edge"].asString();
                     int actionValue = (edge == "falling" ? 0 : 1);
-                    printf("Configuring pin %s as input of type %s   (mode: %s)\n", action.pin.c_str(), buttonaction.c_str(), action.mode.c_str());
-#if defined(PLATFORM_BBB)
-                    const PinCapabilities &pin = getBBBPinByName(action.pin).configPin(action.mode, "in");
-                    if (!gpiodChips[pin.gpio]) {
-                        gpiodChips[pin.gpio] = gpiod_chip_open_by_number(pin.gpio);
+                    const PinCapabilities &pin = PinCapabilities::getPinByName(action.pin);
+                    printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d)\n", action.pin.c_str(), buttonaction.c_str(), action.mode.c_str(), pin.kernelGpio);
+
+                    pin.configPin(action.mode, false);
+                    if (!gpiodChips[pin.gpioIdx]) {
+                        gpiodChips[pin.gpioIdx] = gpiod_chip_open_by_number(pin.gpioIdx);
                     }
                     
-                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpio], pin.pin);
-#elif defined(PLATFORM_PI)
-                    if (!gpiodChips[0]) {
-                        gpiodChips[0] = gpiod_chip_open_by_number(0);
-                    }
-                    int p1pin = std::stoi(action.pin.substr(3));
-                    int pin = physPinToGpio(p1pin);
-                    if (action.mode == "gpio_pu") {
-                        pullUpDnControl(pin, PUD_UP);
-                    } else if (action.mode == "gpio_pd") {
-                        pullUpDnControl(pin, PUD_DOWN);
-                    } else {
-                        pullUpDnControl(pin, PUD_OFF);
-                    }
-                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[0], pin);
-#endif
+                    action.gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
+
                     struct gpiod_line_request_config lineConfig;
                     lineConfig.consumer = "FPPOLED";
                     lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;

@@ -70,17 +70,10 @@
 #include "fppd.h"
 #include <getopt.h>
 #include "sensors/Sensors.h"
+#include "util/GPIOUtils.h"
 
 #include <curl/curl.h>
 
-#ifdef USEWIRINGPI
-#   include <wiringPi.h>
-#   include <piFace.h>
-#else
-#   define wiringPiSetupSys()       0
-#   define wiringPiSetupGpio()      0
-#   define piFaceSetup(x)
-#endif
 
 pid_t pid, sid;
 volatile int runMainFPPDLoop = 1;
@@ -451,11 +444,8 @@ int main(int argc, char *argv[])
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
-	Magick::InitializeMagick(NULL);
-    
-
-	wiringPiSetupGpio(); // would prefer wiringPiSetupSys();
-	// NOTE: wiringPISetupSys() is not fast enough for SoftPWM on GPIO output
+	Magick::InitializeMagick(NULL);    
+    PinCapabilities::InitGPIO();
 
 	// Parse our arguments first, override any defaults
 	parseArguments(argc, argv);
@@ -490,14 +480,6 @@ int main(int argc, char *argv[])
     
     Sensors::INSTANCE.Init();
     initCape();
-
-    int fd = -1;
-    if ((fd = open ("/dev/spidev0.0", O_RDWR)) < 0) {
-        LogWarn(VB_GENERAL, "Could not open SPI device.  Skipping piFace setup.\n");
-    } else {
-        close(fd);
-        piFaceSetup(200); // PiFace inputs 1-8 == wiringPi 200-207
-    }
 
 	SetupGPIOInput();
 

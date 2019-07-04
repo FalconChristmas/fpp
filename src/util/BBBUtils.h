@@ -4,25 +4,7 @@
 #include <string>
 
 
-int configBBBPin(const std::string &name,
-                 int gpio, int pin,
-                 const std::string &mode,
-                 const std::string &direction);
-
-inline int configBBBPin(const std::string &name,
-                 int gpio, int pin,
-                 const std::string &mode) {
-    return configBBBPin(name, gpio, pin, mode, "out");
-}
-
-int configBBBPin(int kgpio,
-                 const std::string& mode,
-                 const std::string &direction);
-inline int configBBBPin(int kgpio, const std::string& mode) {
-    return configBBBPin(kgpio, mode, "out");
-}
-
-void configBBBAllGPIOPins();
+#include "GPIOUtils.h"
 
 
 enum BeagleBoneType {
@@ -38,48 +20,28 @@ enum BeagleBoneType {
 BeagleBoneType getBeagleBoneType();
 
 
-class PinCapabilities {
+class BBBPinCapabilities : public PinCapabilitiesFluent<BBBPinCapabilities> {
 public:
-    PinCapabilities(const std::string &n, uint8_t k);
-    PinCapabilities(const std::string &n, uint8_t k, uint8_t pru, uint8_t prupin);
-    std::string name;
-    uint8_t kernelGpio;
-    uint8_t gpio;
-    uint8_t pin;
-    uint8_t pruout;
-    uint8_t prupin;
-
-    int8_t pwm;
-    int8_t subPwm;
+    BBBPinCapabilities(const std::string &n, uint32_t k);
     
-    int8_t i2cBus;
     
-    PinCapabilities& setPwm(int pwm, int sub);
-    PinCapabilities& setI2C(int i2c);
+    virtual int configPin(const std::string& mode = "gpio",
+                          bool directionOut = true) const;
 
-    const PinCapabilities& configPin(const std::string& mode = "gpio",
-                   const std::string &direction = "out") const;
-    const PinCapabilities& setEdge(const std::string &edge) const;
-    int getValue() const;
-    int openValueForPoll() const;
-
-    bool setupPWM(int maxValueNS = 25500) const;
-    void setPWMValue(int valueNS) const;
-    int getPWMRegisterAddress() const;
+    virtual bool getValue() const;
+    virtual void setValue(bool i) const;
+    virtual int openValueForPoll() const;
+    
+    virtual bool setupPWM(int maxValueNS = 25500) const;
+    virtual void setPWMValue(int valueNS) const;
+    virtual int getPWMRegisterAddress() const;
+    
+    virtual bool supportPWM() const;
+    
+    static void Init();
+    static const BBBPinCapabilities &getPinByName(const std::string &name);
+    static const BBBPinCapabilities &getPinByGPIO(int i);
 };
 
-const PinCapabilities &getBBBPinByName(const std::string &name);
-const PinCapabilities &getBBBPinKgpio(int i);
-
-bool getBBBPinValue(int kio);
-bool getBBBPinValue(int gpio, int pin);
-void setBBBPinValue(int kio, bool v);
-
-bool supportsPWMOnBBBPin(int kio);
-bool setupBBBPinPWM(int kio, int maxValue = 25500); //defaul period is 25500ns
-void setBBBPinPWMValue(int kio, int value); //value is in NS
-
-bool setupBBBPinPWM(const PinCapabilities &pin, int maxValue = 25500);
-void setBBBPinPWMValue(const PinCapabilities &pin, int value);
 
 #endif

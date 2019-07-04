@@ -28,6 +28,9 @@
 
 #include "ChannelOutputBase.h"
 
+#include "util/GPIOUtils.h"
+#include "util/SPIUtils.h"
+
 class MAX7219MatrixOutput : public ChannelOutputBase {
   public:
 	MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount);
@@ -43,10 +46,13 @@ class MAX7219MatrixOutput : public ChannelOutputBase {
     virtual void GetRequiredChannelRange(int &min, int & max);
 
   private:
-	int WriteCommand(uint8_t cmd, uint8_t value);
+	void WriteCommand(uint8_t cmd, uint8_t value);
 
 	int m_panels;
 	int m_pinCS;
+    
+    const PinCapabilities *m_csPin;
+    SPIUtils *m_spi;
 };
 
 #endif
