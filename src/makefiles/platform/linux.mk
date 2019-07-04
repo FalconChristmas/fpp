@@ -15,6 +15,7 @@ ifeq '$(ISLINUX)' '1'
 # do something Linux-y
 
 CFLAGS += -DPLATFORM_UNKNOWN
+CXXFLAGS += $(shell GraphicsMagick++-config --cppflags)
 LDFLAGS_fppd += -L.
 
 endif
