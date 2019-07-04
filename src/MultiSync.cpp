@@ -38,6 +38,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+#include <fstream>
 
 
 
@@ -344,8 +345,34 @@ std::string MultiSync::GetHardwareModel(void)
 /*
  *
  */
-std::string MultiSync::GetTypeString(MultiSyncSystemType type)
+std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
 {
+    if (local && type == kSysTypeFPP) {
+        //unknown hardware, but we can figure out the OS version
+        if (FileExists("/etc/os-release")) {
+            std::map<std::string, std::string> values;
+            std::ifstream in("/etc/os-release");
+            std::string str;
+            while (std::getline(in, str)) {
+                size_t pos = str.find("=");
+                if (pos != std::string::npos) {
+                    std::string key = str.substr(0, pos);
+                    std::string val = str.substr(pos + 1);
+                    if (val[0] == '"') {
+                        val = val.substr(1, val.length() - 2);
+                    }
+                    values[key] = val;
+                }
+            }
+            if (values["PRETTY_NAME"] != "") {
+                return "FPP (" + values["PRETTY_NAME"] + ")";
+            }
+            if (values["NAME"] != "") {
+                return "FPP (" + values["NAME"] + ")";
+            }
+        }
+        return "FPP (unknown hardware)";
+    }
 	switch (type) {
 		case kSysTypeUnknown:                 return "Unknown System Type";
 		case kSysTypeFPP:                     return "FPP (unknown hardware)";
@@ -408,7 +435,7 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 	for (int i = 0; i < max; i++) {
 		Json::Value system;
 
-		system["type"]         = GetTypeString(m_systems[i].type);
+		system["type"] = GetTypeString(m_systems[i].type, i < m_numLocalSystems);
         if (timestamps) {
             system["lastSeen"]     = (Json::UInt64)m_systems[i].lastSeen;
             system["lastSeenStr"]  = m_systems[i].lastSeenStr;

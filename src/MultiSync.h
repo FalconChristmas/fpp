@@ -169,7 +169,7 @@ class MultiSync {
 	MultiSyncSystemType ModelStringToType(std::string model);
 	void FillLocalSystemInfo(void);
 	std::string GetHardwareModel(void);
-    std::string GetTypeString(MultiSyncSystemType type);
+    std::string GetTypeString(MultiSyncSystemType type, bool local = false);
 
 	int  OpenBroadcastSocket(void);
 	void SendBroadcastPacket(void *outBuf, int len);
