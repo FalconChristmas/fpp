@@ -54,7 +54,17 @@ int SPIUtils::xfer(uint8_t *tx, uint8_t *rx, int count) {
     }
     return -1;
 }
+#else
+//no spi implementation
+SPIUtils::SPIUtils(int channel, int baud) {
+    file = -1;
+}
+SPIUtils::~SPIUtils() {
+}
 
+int SPIUtils::xfer(uint8_t *tx, uint8_t *rx, int count) {
+    return -1;
+}
 #endif
 
 
