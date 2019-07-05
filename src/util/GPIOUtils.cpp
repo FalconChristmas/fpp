@@ -17,6 +17,45 @@
 #elif defined(USEWIRINGPI)
 #include "WiringPiGPIO.h"
 #define PLAT_GPIO_CLASS WPPinCapabilities
+#else
+// No platform information on how to control pins
+class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
+public:
+    NoPinCapabilities(const std::string &n, uint32_t kg) : PinCapabilitiesFluent(n, kg)
+    {}
+    
+    
+    virtual int configPin(const std::string& mode = "gpio",
+                          bool directionOut = true) const { return 0;}
+    
+    virtual bool getValue() const { return false; }
+    virtual void setValue(bool i) const {}
+    
+    virtual bool setupPWM(int maxValueNS = 25500) const {return false;}
+    virtual void setPWMValue(int valueNS) const {}
+    
+    virtual int getPWMRegisterAddress() const { return 0;};
+    virtual bool supportPWM() const { return true; };
+    
+    static void Init() {}
+    static const NoPinCapabilities &getPinByName(const std::string &name);
+    static const NoPinCapabilities &getPinByGPIO(int i);
+};
+class NullNoPinCapabilities : public NoPinCapabilities {
+public:
+    NullNoPinCapabilities() : NoPinCapabilities("-none-", 0) {}
+    virtual const PinCapabilities *ptr() const { return nullptr; }
+};
+static NullNoPinCapabilities NULL_PIN_INSTANCE;
+
+const NoPinCapabilities &NoPinCapabilities::getPinByName(const std::string &name) {
+    return NULL_PIN_INSTANCE;
+}
+const NoPinCapabilities &NoPinCapabilities::getPinByGPIO(int i) {
+    return NULL_PIN_INSTANCE;
+}
+
+#define PLAT_GPIO_CLASS NoPinCapabilities
 #endif
 
 
