@@ -12,4 +12,4 @@ TARGETS += fppd
 OBJECTS_ALL+=$(OBJECTS_fppd)
 
 fppd: libfpp.so $(OBJECTS_fppd)
-	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -L . -l fpp -Wl,-rpath=.:../external/RF24/ $(LIBS_fpp_so) -o $@
+	$(CCACHE) $(CC) $(CFLAGS_$@) $(OBJECTS_$@) $(LIBS_$@) $(LDFLAGS) $(LDFLAGS_$@) -L . -l fpp -Wl,-rpath=$(PWD):$(PWD)/../external/RF24/ $(LIBS_fpp_so) -o $@

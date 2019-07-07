@@ -60,7 +60,6 @@ class FBMatrixOutput : public ThreadedChannelOutputBase {
 	char   *m_fbp;
 	int     m_screenSize;
 
-	unsigned char *m_lastFrame;
 	uint16_t ***m_rgb565map;
 
 	struct fb_var_screeninfo m_vInfo;

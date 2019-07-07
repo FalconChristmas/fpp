@@ -66,7 +66,6 @@ FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	m_device("/dev/fb0"),
 	m_fbp(nullptr),
 	m_screenSize(0),
-	m_lastFrame(nullptr),
 	m_rgb565map(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::FBMatrixOutput(%u, %u)\n",
@@ -82,11 +81,7 @@ FBMatrixOutput::~FBMatrixOutput()
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::~FBMatrixOutput()\n");
 
-	if (m_lastFrame)
-		free(m_lastFrame);
-
-	if (m_rgb565map)
-	{
+    if (m_rgb565map) {
 		for (int r = 0; r < 32; r++)
 		{
 			for (int g = 0; g < 64; g++)
@@ -161,13 +156,10 @@ int FBMatrixOutput::Init(char *configStr)
 
 	memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
 
-	if (m_vInfo.bits_per_pixel == 32)
-		m_vInfo.bits_per_pixel = 24;
-
 	m_bpp = m_vInfo.bits_per_pixel;
 	LogDebug(VB_CHANNELOUT, "FrameBuffer is using %d BPP\n", m_bpp);
 
-	if ((m_bpp != 24) && (m_bpp != 16))
+	if ((m_bpp != 32) && (m_bpp != 24) && (m_bpp != 16))
 	{
 		LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
 		close(m_fbFd);
@@ -202,7 +194,7 @@ int FBMatrixOutput::Init(char *configStr)
 
 	// Config to set the screen back to when we are done
 	// Once we determine how this interacts with omxplayer, this may change
-	m_vInfoOrig.bits_per_pixel = 16;
+	m_vInfoOrig.bits_per_pixel = m_bpp;
 	m_vInfoOrig.xres = m_vInfoOrig.xres_virtual = 640;
 	m_vInfoOrig.yres = m_vInfoOrig.yres_virtual = 480;
 
@@ -222,27 +214,23 @@ int FBMatrixOutput::Init(char *configStr)
 
 	m_screenSize = m_vInfo.xres * m_vInfo.yres * m_vInfo.bits_per_pixel / 8;
 
-	if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8))
-	{
+	if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8)) {
 		LogErr(VB_CHANNELOUT, "Error, screensize incorrect\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
 	}
 
-	if (m_channelCount != (m_width * m_height * 3))
-	{
+	if (m_channelCount != (m_width * m_height * 3)) {
 		LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
 	}
 
-	if (m_device == "/dev/fb0")
-	{
+	if (m_device == "/dev/fb0") {
 		m_ttyFd = open("/dev/console", O_RDWR);
-		if (!m_ttyFd)
-		{
+		if (!m_ttyFd) {
 			LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
 			ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 			close(m_fbFd);
@@ -255,25 +243,14 @@ int FBMatrixOutput::Init(char *configStr)
 
 	m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
-	if ((char *)m_fbp == (char *)-1)
-	{
+	if ((char *)m_fbp == (char *)-1) {
 		LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
 	}
 
-	m_lastFrame = (unsigned char*)malloc(m_channelCount);
-	if (!m_lastFrame)
-	{
-		LogErr(VB_CHANNELOUT, "Error, unable to allocate lastFrame buffer\n");
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
-	}
-
-	if (m_bpp == 16)
-	{
+	if (m_bpp == 16) {
 		LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
 		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
 		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
@@ -365,106 +342,79 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 	int drow = m_inverted ? m_height - 1 : 0;
 	unsigned char *s = channelData;
 	unsigned char *d;
-	unsigned char *l = m_lastFrame;
 	unsigned char *sR = channelData;
 	unsigned char *sG = channelData + 1;
 	unsigned char *sB = channelData + 2;
-	int skipped = 0;
 
-	if (m_bpp == 16)
-	{
-		for (int y = 0; y < m_height; y++)
-		{
+	if (m_bpp == 16) {
+		for (int y = 0; y < m_height; y++) {
 			d = (unsigned char *)m_fbp + (drow * ostride);
-			for (int x = 0; x < m_width; x++)
-			{
-				if (memcmp(l, sR, 3))
-				{
-					if (skipped)
-					{
-						sG += skipped * 3;
-						sB += skipped * 3;
-						d  += skipped * 2;
-					}
+			for (int x = 0; x < m_width; x++) {
+                if (m_useRGB) // RGB data to BGR framebuffer
+                    *((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
+                else // BGR data to BGR framebuffer
+                    *((uint16_t*)d) = m_rgb565map[*sB >> 3][*sG >> 2][*sR >> 3];
 
-					if (m_useRGB) // RGB data to BGR framebuffer
-						*((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
-					else // BGR data to BGR framebuffer
-						*((uint16_t*)d) = m_rgb565map[*sB >> 3][*sG >> 2][*sR >> 3];
-
-					sG += 3;
-					sB += 3;
-					d += 2;
-				}
-				else
-				{
-					skipped++;
-				}
-
-				sR += 3;
-				l += 3;
+                sG += 3;
+                sB += 3;
+                sR += 3;
+                d += 2;
 			}
 
 			srow++;
 			drow += m_inverted ? -1 : 1;
 		}
-	}
-	else if (m_useRGB)
-	{
+	} else if (m_useRGB || m_bpp == 32) {
 		unsigned char *dR;
 		unsigned char *dG;
 		unsigned char *dB;
+        unsigned char *dA;
+        int add = m_bpp / 8;
 
-		for (int y = 0; y < m_height; y++)
-		{
+		for (int y = 0; y < m_height; y++) {
 			// RGB data to BGR framebuffer
-			dR = (unsigned char *)m_fbp + (drow * ostride) + 2;
-			dG = (unsigned char *)m_fbp + (drow * ostride) + 1;
-			dB = (unsigned char *)m_fbp + (drow * ostride) + 0;
+            if (m_useRGB) {
+                dR = (unsigned char *)m_fbp + (drow * ostride) + 2;
+                dG = (unsigned char *)m_fbp + (drow * ostride) + 1;
+                dB = (unsigned char *)m_fbp + (drow * ostride) + 0;
+            } else {
+                dR = (unsigned char *)m_fbp + (drow * ostride) + 0;
+                dG = (unsigned char *)m_fbp + (drow * ostride) + 1;
+                dB = (unsigned char *)m_fbp + (drow * ostride) + 2;
+            }
 
-			for (int x = 0; x < m_width; x++)
-			{
-				if (memcmp(l, sB, 3))
-				{
-					*dR = *sR;
-					*dG = *sG;
-					*dB = *sB;
-				}
+			for (int x = 0; x < m_width; x++) {
+                *dR = *sR;
+                *dG = *sG;
+                *dB = *sB;
 
 				sR += 3;
 				sG += 3;
 				sB += 3;
-				dR += 3;
-				dG += 3;
-				dB += 3;
+				dR += add;
+				dG += add;
+				dB += add;
+                dA += add;
 			}
 
 			srow++;
 			drow += m_inverted ? -1 : 1;
 		}
-	}
-	else
-	{
-		if (m_inverted)
-		{
+	} else {
+		if (m_inverted) {
 			int istride = m_width * 3;
 			unsigned char *src = channelData;
 			unsigned char *dst = (unsigned char *)m_fbp + (ostride * (m_height-1));
 
-			for (int y = 0; y < m_height; y++)
-			{
+			for (int y = 0; y < m_height; y++) {
 				memcpy(dst, src, istride);
 				src += istride;
 				dst -= ostride;
 			}
-		}
-		else
-		{
+		} else {
 			memcpy(m_fbp, channelData, m_screenSize);
 		}
 	}
-
-	memcpy(m_lastFrame, channelData, m_channelCount);
 
 	return m_channelCount;
 }
