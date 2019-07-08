@@ -29,18 +29,18 @@
 #include <linux/fb.h>
 #include <string>
 
-#include "ThreadedChannelOutputBase.h"
+#include "ChannelOutputBase.h"
 
-class FBMatrixOutput : public ThreadedChannelOutputBase {
+class FBMatrixOutput : public ChannelOutputBase {
   public:
 	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
 	~FBMatrixOutput();
 
     virtual int Init(Json::Value config);
-	int Init(char *configStr);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+    int SendData(unsigned char *channelData);
+    void PrepData(unsigned char *channelData);
 
 	void DumpConfig(void);
 	virtual void GetRequiredChannelRange(int &min, int & max);
@@ -58,6 +58,7 @@ class FBMatrixOutput : public ThreadedChannelOutputBase {
 	std::string  m_device;
 
 	char   *m_fbp;
+    char   *m_frame;
 	int     m_screenSize;
 
 	uint16_t ***m_rgb565map;

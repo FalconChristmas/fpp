@@ -117,15 +117,7 @@ fi
 ##############################################################################
 # Leave these things till last so user can see output of anything above here
 ##############################################################################
-SCREENSAVER=$(getSetting screensaver)
-if [ "x${SCREENSAVER}" = "x1" ]
-then
-	echo "FPP - Turning ON screen blanking"
-	setterm -blank 1
-else
-	echo "FPP - Turning OFF screen blanking"
-	setterm -blank 0
-fi
+applyScreenBlankSetting
 
 if [ "$_IP" ]; then
   echo "FPP - Found IP(s): $_IP"

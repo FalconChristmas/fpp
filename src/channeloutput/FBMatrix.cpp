@@ -55,7 +55,7 @@ extern "C" {
  */
 FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
+  : ChannelOutputBase(startChannel, channelCount),
 	m_fbFd(0),
 	m_ttyFd(0),
 	m_width(0),
@@ -65,13 +65,12 @@ FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	m_bpp(24),
 	m_device("/dev/fb0"),
 	m_fbp(nullptr),
+    m_frame(nullptr),
 	m_screenSize(0),
 	m_rgb565map(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::FBMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_useDoubleBuffer = 1;
 }
 
 /*
@@ -94,61 +93,28 @@ FBMatrixOutput::~FBMatrixOutput()
 
 		delete[] m_rgb565map;
 	}
+    if (m_frame) {
+        delete [] m_frame;
+    }
 }
 int FBMatrixOutput::Init(Json::Value config) {
-    char configStr[2048];
-    ConvertToCSV(config, configStr);
-    return Init(configStr);
-}
-/*
- *
- */
-int FBMatrixOutput::Init(char *configStr)
-{
-	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Init('%s')\n", configStr);
+	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Init()\n");
+    
 
-	std::vector<std::string> configElems = split(configStr, ';');
-
-	for (int i = 0; i < configElems.size(); i++)
-	{
-		std::vector<std::string> elem = split(configElems[i], '=');
-		if (elem.size() < 2)
-			continue;
-
-		if (elem[0] == "layout")
-		{
-			m_layout = elem[1];
-
-			std::vector<std::string> parts = split(m_layout, 'x');
-			m_width  = atoi(parts[0].c_str());
-			m_height = atoi(parts[1].c_str());
-		}
-		else if (elem[0] == "colorOrder")
-		{
-			if (elem[1] == "RGB")
-				m_useRGB = 1;
-		}
-		else if (elem[0] == "invert")
-		{
-			m_inverted = atoi(elem[1].c_str());
-		}
-		else if (elem[0] == "device")
-		{
-			m_device = "/dev/";
-			m_device += elem[1];
-		}
-	}
-
+    m_width = config["width"].asInt();
+    m_height = config["height"].asInt();
+    m_useRGB = config["colorOrder"].asString() == "RGB";
+    m_inverted = config["invert"].asInt();
+    m_device = "/dev/" + config["device"].asString();
+    
 	LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
 	m_fbFd = open(m_device.c_str(), O_RDWR);
-	if (!m_fbFd)
-	{
+	if (!m_fbFd) {
 		LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", m_device.c_str());
 		return 0;
 	}
 
-	if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo))
-	{
+	if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo)) {
 		LogErr(VB_CHANNELOUT, "Error getting FrameBuffer info\n");
 		close(m_fbFd);
 		return 0;
@@ -159,15 +125,13 @@ int FBMatrixOutput::Init(char *configStr)
 	m_bpp = m_vInfo.bits_per_pixel;
 	LogDebug(VB_CHANNELOUT, "FrameBuffer is using %d BPP\n", m_bpp);
 
-	if ((m_bpp != 32) && (m_bpp != 24) && (m_bpp != 16))
-	{
+	if ((m_bpp != 32) && (m_bpp != 24) && (m_bpp != 16)) {
 		LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
 		close(m_fbFd);
 		return 0;
 	}
 
-	if (m_bpp == 16)
-	{
+	if (m_bpp == 16) {
 		LogExcess(VB_CHANNELOUT, "Current Bitfield offset info:\n");
 		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
 		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
@@ -189,8 +153,10 @@ int FBMatrixOutput::Init(char *configStr)
 		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 	}
 
-	m_vInfo.xres = m_vInfo.xres_virtual = m_width;
-	m_vInfo.yres = m_vInfo.yres_virtual = m_height;
+	m_vInfo.xres_virtual = m_width;
+	m_vInfo.yres_virtual = m_height;
+    m_vInfo.xres = m_width;
+    m_vInfo.yres = m_height;
 
 	// Config to set the screen back to when we are done
 	// Once we determine how this interacts with omxplayer, this may change
@@ -214,8 +180,10 @@ int FBMatrixOutput::Init(char *configStr)
 
 	m_screenSize = m_vInfo.xres * m_vInfo.yres * m_vInfo.bits_per_pixel / 8;
 
-	if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8)) {
-		LogErr(VB_CHANNELOUT, "Error, screensize incorrect\n");
+	if (m_screenSize != (m_width * m_height * m_bpp / 8)) {
+        LogErr(VB_CHANNELOUT, "Error, screensize incorrect:   %dx%dx%d      %dx%dx%d\n",
+               m_vInfo.xres, m_vInfo.yres, m_vInfo.bits_per_pixel,
+               m_width, m_height, m_bpp);
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
 		close(m_fbFd);
 		return 0;
@@ -242,6 +210,7 @@ int FBMatrixOutput::Init(char *configStr)
 	}
 
 	m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+    m_frame = new char[m_screenSize];
 
 	if ((char *)m_fbp == (char *)-1) {
 		LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
@@ -268,14 +237,11 @@ int FBMatrixOutput::Init(char *configStr)
 		uint16_t o;
 		m_rgb565map = new uint16_t**[32];
 
-		for (uint16_t b = 0; b < 32; b++)
-		{
+		for (uint16_t b = 0; b < 32; b++) {
 			m_rgb565map[b] = new uint16_t*[64];
-			for (uint16_t g = 0; g < 64; g++)
-			{
+			for (uint16_t g = 0; g < 64; g++) {
 				m_rgb565map[b][g] = new uint16_t[32];
-				for (uint16_t r = 0; r < 32; r++)
-				{
+				for (uint16_t r = 0; r < 32; r++) {
 					o = 0;
 
 					if (rShift >= 0)
@@ -299,7 +265,7 @@ int FBMatrixOutput::Init(char *configStr)
 		}
 	}
 
-	return ThreadedChannelOutputBase::Init(configStr);
+	return ChannelOutputBase::Init(config);
 }
 
 /*
@@ -311,29 +277,29 @@ int FBMatrixOutput::Close(void)
 
 	munmap(m_fbp, m_screenSize);
 
-	if (m_device == "/dev/fb0")
-	{
+	if (m_device == "/dev/fb0") {
 		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
 			LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
 	}
 
 	close(m_fbFd);
 
-	if (m_device == "/dev/fb0")
-	{
+	if (m_device == "/dev/fb0") {
 		// Re-enable the text console
 		ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
 		close(m_ttyFd);
 	}
 
+    if (m_frame) {
+        delete m_frame;
+        m_frame = nullptr;
+    }
 	return ChannelOutputBase::Close();
 }
 
-/*
- *
- */
-int FBMatrixOutput::RawSendData(unsigned char *channelData)
-{
+
+void FBMatrixOutput::PrepData(unsigned char *channelData) {
+
 	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
 		channelData);
 
@@ -348,7 +314,7 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 
 	if (m_bpp == 16) {
 		for (int y = 0; y < m_height; y++) {
-			d = (unsigned char *)m_fbp + (drow * ostride);
+			d = (unsigned char *)m_frame + (drow * ostride);
 			for (int x = 0; x < m_width; x++) {
                 if (m_useRGB) // RGB data to BGR framebuffer
                     *((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
@@ -374,13 +340,13 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 		for (int y = 0; y < m_height; y++) {
 			// RGB data to BGR framebuffer
             if (m_useRGB) {
-                dR = (unsigned char *)m_fbp + (drow * ostride) + 2;
-                dG = (unsigned char *)m_fbp + (drow * ostride) + 1;
-                dB = (unsigned char *)m_fbp + (drow * ostride) + 0;
+                dR = (unsigned char *)m_frame + (drow * ostride) + 2;
+                dG = (unsigned char *)m_frame + (drow * ostride) + 1;
+                dB = (unsigned char *)m_frame + (drow * ostride) + 0;
             } else {
-                dR = (unsigned char *)m_fbp + (drow * ostride) + 0;
-                dG = (unsigned char *)m_fbp + (drow * ostride) + 1;
-                dB = (unsigned char *)m_fbp + (drow * ostride) + 2;
+                dR = (unsigned char *)m_frame + (drow * ostride) + 0;
+                dG = (unsigned char *)m_frame + (drow * ostride) + 1;
+                dB = (unsigned char *)m_frame + (drow * ostride) + 2;
             }
 
 			for (int x = 0; x < m_width; x++) {
@@ -404,7 +370,7 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 		if (m_inverted) {
 			int istride = m_width * 3;
 			unsigned char *src = channelData;
-			unsigned char *dst = (unsigned char *)m_fbp + (ostride * (m_height-1));
+			unsigned char *dst = (unsigned char *)m_frame + (ostride * (m_height-1));
 
 			for (int y = 0; y < m_height; y++) {
 				memcpy(dst, src, istride);
@@ -412,12 +378,16 @@ int FBMatrixOutput::RawSendData(unsigned char *channelData)
 				dst -= ostride;
 			}
 		} else {
-			memcpy(m_fbp, channelData, m_screenSize);
+			memcpy(m_frame, channelData, m_screenSize);
 		}
 	}
-
-	return m_channelCount;
 }
+
+int FBMatrixOutput::SendData(unsigned char *channelData) {
+    memcpy(m_fbp, m_frame, m_screenSize);
+    return m_channelCount;
+}
+
 
 void FBMatrixOutput::GetRequiredChannelRange(int &min, int & max) {
     min = m_startChannel;
