@@ -72,7 +72,7 @@
 SCRIPTVER="1.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2.8"
-FPPCFGVER="37"
+FPPCFGVER="46"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -1026,6 +1026,12 @@ sed -i -e "s#APACHE_LOG_DIR=.*#APACHE_LOG_DIR=${FPPHOME}/media/logs#" /etc/apach
 sed -i -e "s/Listen 8080.*/Listen 80/" /etc/apache2/ports.conf
 
 sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache2.site > /etc/apache2/sites-enabled/000-default.conf
+
+# Enable Apache modules
+a2enmod cgi
+a2enmod rewrite
+a2enmod proxy
+a2enmod proxy_http
 
 
 # Fix name of Apache default error log so it gets rotated by our logrotate config

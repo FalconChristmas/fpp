@@ -211,39 +211,28 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "OrangePi") {
 	$settings['Logo'] = "orangepi_logo.png";
 	$settings['LogoLink'] = "http://www.orangepi.org/";
-}
-else if ($settings['Platform'] == "Pine64")
-{
+} else if ($settings['Platform'] == "Pine64") {
 	$settings['Logo'] = "pine64_logo.png";
 	$settings['LogoLink'] = "https://www.pine64.org/";
-}
-else if ($settings['Platform'] == "CHIP")
-{
+} else if ($settings['Platform'] == "CHIP") {
 	$settings['Logo'] = "chip_logo.png";
 	$settings['LogoLink'] = "http://www.getchip.com/";
-}
-else if ($settings['Platform'] == "Debian")
-{
+} else if ($settings['Platform'] == "Debian") {
+    if (file_exists("/.dockerenv")) {
+        $settings['SubPlatform'] = "Docker";
+    }
 	$settings['Logo'] = "debian_logo.png";
 	$settings['LogoLink'] = "https://www.debian.org/";
-}
-else if ($settings['Platform'] == "Linux")
-{
+} else if ($settings['Platform'] == "Linux") {
 	$settings['Logo'] = "tux_logo.png";
 	$settings['LogoLink'] = "http://www.linux.com/";
-}
-else if ($settings['Platform'] == "FreeBSD")
-{
+} else if ($settings['Platform'] == "FreeBSD") {
 	$settings['Logo'] = "freebsd_logo.png";
 	$settings['LogoLink'] = "http://www.freebsd.org/";
-}
-else if ($settings['Platform'] == "qemu")
-{
+} else if ($settings['Platform'] == "qemu") {
 	$settings['Logo'] = "QEMU_Logo.png";
 	$settings['LogoLink'] = "http://qemu.org/";
-}
-else
-{
+} else {
 	$settings['Logo'] = "";
 	$settings['LogoLink'] = "";
 }

@@ -452,6 +452,10 @@ function ToggleTetherMode()
                                 Array("ALSA" => "alsa", "HDMI" => "hdmi", "Local" => "local", "Both" => "both", "Disabled" => "disabled")); ?>
      </td>
     </tr>
+    <tr>
+      <td>Disable IP announcement during boot:</td>
+      <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
+    </tr>
 <?php
  }
 ?>
@@ -464,22 +468,23 @@ function ToggleTetherMode()
       <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
     </tr>
     <tr>
-      <td>Disable IP announcement during boot:</td>
-      <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
-    </tr>
-    <tr>
       <td>UI Border Color:</td>
       <td><? PrintSettingSelect("UI Background Color", "backgroundColor", 0, 0, isset($settings['backgroundColor']) ? $settings['backgroundColor'] : "", $backgroundColors, "", "reloadPage"); ?></td>
     </tr>
+<? if ($settings['SubPlatform'] != "Docker" ) { ?>
     <tr>
       <td>External Storage Device:</td>
       <td><? PrintStorageDeviceSelect($settings['Platform']); ?></td>
     </tr>
+<? }
+   if ( file_exists("/dev/i2c-1") || file_exists("/dev/i2c-2") ) { ?>
     <tr>
         <td>OLED Status Display:</td>
         <td><? PrintSettingSelect("OLED Status Display", "LEDDisplayType", 0, 1, isset($settings['LEDDisplayType']) ? $settings['LEDDisplayType'] : "", $ledTypes); ?>
         </td>
     </tr>
+<? } ?>
+
     <tr>
       <td>Log Level:</td>
       <td><select id='LogLevel' onChange='LogLevelChanged();'>
