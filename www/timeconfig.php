@@ -83,8 +83,16 @@ if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST
     //TODO: Check timezone for validity
     $timezone = urldecode($_POST['timezone']);
     error_log("Changing timezone to '".$timezone."'.");
-    if (file_exists('/usr/bin/timedatectl'))
-    {
+    if (file_exists("/.dockerenv")) {
+        exec($SUDO . " ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime", $output, $return_val);
+        unset($output);
+
+        exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
+        unset($output);
+        //TODO: check return
+        exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
+        unset($output);
+    } else if (file_exists('/usr/bin/timedatectl')) {
         exec($SUDO . " timedatectl set-timezone $timezone", $output, $return_val);
         unset($output);
     } else {
