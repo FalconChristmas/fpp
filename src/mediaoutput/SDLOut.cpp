@@ -59,13 +59,13 @@ extern "C"
 #include "PixelOverlay.h"
 #include "channeloutput/channeloutputthread.h"
 
-#define DEFAULT_RATE 44100
+#define MAX_RATE 44100
 
 //Only keep 30 frames in buffer
 #define VIDEO_FRAME_MAX     30
 
 // 2 seconds of audio in the queue
-#define ALSA_MIN_QUEUED_SIZE DEFAULT_RATE*2*2*2
+#define ALSA_MIN_QUEUED_SIZE MAX_RATE*2*2*2
 #define ALSA_MAX_QUEUED_SIZE ALSA_MIN_QUEUED_SIZE*2
 
 #if defined(PLATFORM_PI)
@@ -129,6 +129,7 @@ public:
         audioDev = 0;
         outBuffer = new uint8_t[ALSA_MAX_QUEUED_SIZE];
         outBufferPos = 0;
+        currentRate = MAX_RATE;
     }
     ~SDLInternalData() {
         if (frame != nullptr) {
@@ -177,6 +178,7 @@ public:
     SDL_AudioDeviceID audioDev;
     int outBufferPos = 0;
     uint8_t *outBuffer;
+    int currentRate;
 
     // stuff for the video stream
     AVCodecContext *videoCodecContext;
@@ -427,6 +429,8 @@ public:
     SDL() : data(nullptr), _state(SDLSTATE::SDLUNINITIALISED), decodeThread(nullptr) {}
     virtual ~SDL();
     
+    int getRate() { return _initialisedRate; }
+    
     static void decodeThreadEntry(SDL *sdl) {
         sdl->runDecode();
     }
@@ -539,7 +543,7 @@ void SDL::runDecode() {
                 } else {
                     //read a little more than single
                     countRead += data->maybeFillBuffer(false);
-                    if (countRead > (DEFAULT_RATE*2*2/10)) {
+                    if (countRead > (data->currentRate*2*2/10)) {
                         // read a 1/10 of a second, move on
                         bufFull = 2;
                     } else {
@@ -566,7 +570,7 @@ void SDL::runDecode() {
 static bool noDeviceWarning = false;
 bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
-        _initialisedRate = DEFAULT_RATE;
+        _initialisedRate = MAX_RATE;
         
         SDL_memset(&_wanted_spec, 0, sizeof(_wanted_spec));
         _wanted_spec.freq = _initialisedRate;
@@ -578,11 +582,13 @@ bool SDL::openAudio() {
         _wanted_spec.userdata = nullptr;
         
         SDL_AudioSpec have;
-        audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, 0);
+        audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
         if (audioDev == 0 && !noDeviceWarning) {
             LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
             noDeviceWarning = true;
         }
+        _initialisedRate = have.freq;
+        
         
         _state = SDLSTATE::SDLOPENED;
     }
@@ -715,8 +721,13 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     av_log_set_callback(LogCallback);
     
-    data = new SDLInternalData();
     
+    sdlManager.initSDL();
+    sdlManager.openAudio();
+    
+    data = new SDLInternalData();
+    data->currentRate = sdlManager.getRate();
+
     // Initialize FFmpeg codecs
     av_register_all();
     int res = avformat_open_input(&data->formatContext, fullAudioPath.c_str(), nullptr, nullptr);
@@ -769,7 +780,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
 
         uint64_t out_channel_layout = AV_CH_LAYOUT_STEREO;
         AVSampleFormat out_sample_fmt = AV_SAMPLE_FMT_S16;
-        int out_sample_rate = DEFAULT_RATE;
+        int out_sample_rate = data->currentRate;
         
         data->au_convert_ctx = swr_alloc_set_opts(nullptr,
                                             out_channel_layout, out_sample_fmt, out_sample_rate,
@@ -783,7 +794,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         usf /= 100.0f;
         d += usf;
         data->totalLen = d;
-        data->totalDataLen = d * DEFAULT_RATE * 2 * 2;
+        data->totalDataLen = d * data->currentRate * 2 * 2;
     }
     if (data->video_stream_idx != -1) {
         data->video_frames = (long)data->videoStream->nb_frames;
@@ -899,7 +910,7 @@ int SDLOutput::Process(void)
         }
         lastCurTime = curtime;
         
-        curtime /= DEFAULT_RATE; //samples per sec
+        curtime /= data->currentRate; //samples per sec
         curtime /= 4; //4 bytes per sample
         
         m_mediaOutputStatus->mediaSeconds = curtime;

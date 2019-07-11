@@ -91,32 +91,26 @@ void setVolume(int vol)
         vol = 100;
     volume = vol;
 
-    const char *mixerDevice = getSetting("AudioMixerDevice");
+    const char *mixerDeviceC = getSetting("AudioMixerDevice");
+    std::string mixerDevice = "PCM";
+    if (mixerDeviceC) {
+        mixerDevice = mixerDevice;
+    }
     int   audioOutput = getSettingInt("AudioOutput");
 
-    // audioOutput is 0 on Pi where we need to apply volume adjustment formula.
-    // This may break non-Pi, non-BBB platforms, but there aren't any yet.
-    // The same assumption is made in fppxml.php SetVolume()
-    if (audioOutput == 0)
-    {
-        if (mixerDevice)
-            snprintf(buffer, 60, "amixer set %s %.2f%% >/dev/null 2>&1",
-                     mixerDevice, (50 + (volume / 2.0)));
-        else
-            snprintf(buffer, 60, "amixer set PCM %.2f%% >/dev/null 2>&1",
-                     (50 + (volume / 2.0)));
+    float fvol = volume;
+#ifdef PLATFORM_PI
+    if (audioOutput == 0 && mixerDevice == "PCM") {
+        fvol = volume;
+        fvol /= 2;
+        fvol += 50;
     }
-    else
-    {
-        if (mixerDevice)
-            snprintf(buffer, 60, "amixer set %s %d%% >/dev/null 2>&1",
-                     mixerDevice, volume);
-        else
-            snprintf(buffer, 60, "amixer set PCM %d%% >/dev/null 2>&1",
-                     volume);
-    }
+#endif
+    snprintf(buffer, 60, "amixer set -c %d %s %.2f%% >/dev/null 2>&1",
+             audioOutput, mixerDevice.c_str(), fvol);
     
     LogDebug(VB_SETTING,"Volume change: %d \n", volume);
+    LogDebug(VB_MEDIAOUT,"Calling amixer to set the volume: %s \n", buffer);
     system(buffer);
 
     pthread_mutex_lock(&mediaOutputLock);

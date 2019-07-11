@@ -262,7 +262,7 @@ function SetVolume()
 	}
 	else
 	{
-		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
 		if ( $return_val )
 		{
 			// Should we error here, or just move on?
@@ -276,8 +276,6 @@ function SetVolume()
 		WriteSettingToFile("AudioOutput", $card);
 	}
 
-	if ( $card == 0 )
-		$vol = 50 + ($vol/2.0);
 
 	$mixerDevice = "PCM";
 	if (isset($settings['AudioMixerDevice']))
@@ -291,6 +289,10 @@ function SetVolume()
 		$mixerDevice = $output[0];
 		WriteSettingToFile("AudioMixerDevice", $mixerDevice);
 	}
+
+    if ( $card == 0 && $settings['Platform'] == "Raspberry Pi" && $settings['AudioCard0Type'] == "bcm2") {
+        $vol = 50 + ($vol/2.0);
+    }
 
 	// Why do we do this here and in fppd's settings.c
 	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
