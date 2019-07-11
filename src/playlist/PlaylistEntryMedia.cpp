@@ -295,7 +295,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 
 	if ((ext == "mp3") ||
 		(ext == "m4a") ||
-		(ext == "ogg"))
+		(ext == "ogg") ||
+                (ext == "wav"))
 	{
 #if !defined(PLATFORM_BBB)
 		if (getSettingInt("LegacyMediaOutputs"))

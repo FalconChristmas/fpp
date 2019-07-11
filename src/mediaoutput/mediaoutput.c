@@ -140,7 +140,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
             ext = lext;
             result = bfile + lext;
         }
-    } else if ((lext == "mp3") || (lext == "ogg") || (lext == "m4a")) {
+    } else if ((lext == "mp3") || (lext == "ogg") || (lext == "m4a") || (lext == "wav")) {
         if (FileExists(videoPath + "mp4")) {
             ext = "mp4";
             result = bfile + "mp4";
@@ -248,7 +248,8 @@ int OpenMediaOutput(char *filename) {
 #endif
     if ((ext == "mp3") ||
         (ext == "m4a") ||
-        (ext == "ogg")) {
+        (ext == "ogg") ||
+        (ext == "wav")) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
 	} else if (((ext == "mp4") ||
