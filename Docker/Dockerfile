@@ -30,9 +30,14 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--for
     libzstd-dev gpiod libgpiod-dev
 RUN apt-get clean
 
+# Pass --build-arg EXTRA_INSTALL_FLAG=--skip-clone to build without
+# cloning the lastest from git and instead use the stuff in the local
+# directory
+ARG EXTRA_INSTALL_FLAG=
+
 ADD ./ /opt/fpp/
 ADD SD/FPP_Install.sh /root/FPP_Install.sh
-RUN ( yes | /root/FPP_Install.sh --skip-clone --skip-apt-install ) || true
+RUN ( yes | /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --skip-apt-install ) || true
 
 # this will do additional updates and create the required directories
 # and set permissions
