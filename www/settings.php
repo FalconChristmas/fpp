@@ -117,6 +117,18 @@ $ledTypes = Array();
     $ledTypes['128x64 Flipped I2C (SH1106)'] = 6;
     $ledTypes['128x128 I2C (SSD1327)'] = 9;
     $ledTypes['128x128 Flipped I2C (SSD1327)'] = 10;
+    
+$AudioFormats = Array();
+    $AudioFormats['Default'] = 0;
+    $AudioFormats['44100/S16'] = 1;
+    $AudioFormats['44100/S32'] = 2;
+    $AudioFormats['44100/FLT'] = 3;
+    $AudioFormats['48000/S16'] = 4;
+    $AudioFormats['48000/S32'] = 5;
+    $AudioFormats['48000/FLT'] = 6;
+    $AudioFormats['96000/S16'] = 7;
+    $AudioFormats['96000/S32'] = 8;
+    $AudioFormats['96000/FLT'] = 9;
 
 function PrintStorageDeviceSelect($platform)
 {
@@ -466,6 +478,10 @@ function ToggleTetherMode()
     <tr>
       <td>Audio Output Mixer Device:</td>
       <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
+    </tr>
+    <tr>
+      <td>Audio Output Format:</td>
+      <td><? PrintSettingSelect("Audio Output Format", "AudioFormat", 1, 0, isset($settings['AudioFormat']) ? $settings['AudioFormat'] : "0", $AudioFormats); ?></td>
     </tr>
     <tr>
       <td>UI Border Color:</td>

@@ -1,0 +1,96 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/am33xx.h>
+
+/ {
+	compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
+
+	/* identification */
+	part-number = "BBB-AUDIO-PCM5012A";
+	version = "00A0", "A0";
+
+	/* state the resources this cape uses */
+	exclusive-use =
+		/* the pin header uses */
+		"P9.31",	/* mcasp0: mcasp0_aclkx */
+		"P9.29",	/* mcasp0: mcasp0_fsx */
+		"P9.30",	/* mcasp0: mcasp0_axr0 */
+		"mcasp0";
+
+	/*
+	 * Free up the pins used by the cape from the pinmux helpers.
+	 */
+	fragment@0 {
+		target = <&ocp>;
+		__overlay__ {
+			P9_30_pinmux { status = "disabled"; };	/* mcasp0_axr0 */
+			P9_29_pinmux { status = "disabled"; };	/* mcasp0_fsx */
+			P9_31_pinmux { status = "disabled"; };	/* mcasp0_aclkx */
+		};
+	};
+
+	fragment@1 {
+		target = <&am33xx_pinmux>;
+		__overlay__ {
+			bone_audio_cape_audio_pins: pinmux_bone_audio_cape_audio_pins {
+				pinctrl-single,pins = <
+					AM33XX_IOPAD(0x990, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_aclkx.mcasp0_aclkx */
+					AM33XX_IOPAD(0x994, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_fsx.mcasp0_fsx, INPUT */
+					AM33XX_IOPAD(0x998, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp0_ahclkr.mcasp0_axr0 */
+				>;
+			};
+		};
+	};
+
+	fragment@2 {
+		target-path="/";
+		__overlay__ {
+			pcm5102a: pcm5102a {
+                              #sound-dai-cells = <0>;
+                              compatible = "ti,pcm5102a";
+                        };
+			sound {
+				compatible = "simple-audio-card";
+				simple-audio-card,format = "i2s";
+				simple-audio-card,cpu {
+					sound-dai = <&mcasp0>;
+					bitclock-master;
+				        bitclock-inversion;
+				        frame-master;
+                                        /* 24576000 11289600      24000000 */
+				        system-clock-frequency = <24576000>;
+				        system-clock-direction-out;
+				};
+
+				simple-audio-card,codec {
+					sound-dai = <&pcm5102a>;
+				};
+			};
+		};
+	};
+	fragment@3 {
+		target = <&mcasp0>;
+		__overlay__ {
+			#sound-dai-cells = <0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&bone_audio_cape_audio_pins>;
+			status = "okay";
+			op-mode = <0>;	/* MCASP_IIS_MODE */
+			tdm-slots = <2>;
+			num-serializer = <2>;
+                        serial-dir = <1 0>;
+                        tx-num-evt = <1>;
+                        rx-num-evt = <0>;
+		};
+	};
+};

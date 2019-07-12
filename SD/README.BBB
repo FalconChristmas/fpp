@@ -244,6 +244,12 @@ chmod +x FPP-Wifi-Drivers.sh
 
 rm /etc/modprobe.d/rtl8723bu-blacklist.conf
 
+# install sound drivers
+cd /opt/fpp/capes/drivers/bbb
+make
+make install
+make clean
+
 
 cd /root
 wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh
