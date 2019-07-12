@@ -62,7 +62,10 @@ void InitMediaOutput(void)
 		LogDebug(VB_MEDIAOUT, "ERROR: Media Output mutex init failed!\n");
 	}
 
-    int vol = getSettingInt("volume");
+    int vol = getSettingInt("volume", -1);
+    if (vol < 0) {
+        vol = 70;
+    }
     setVolume(vol);
 }
 
@@ -76,7 +79,7 @@ void CleanupMediaOutput(void)
 	pthread_mutex_destroy(&mediaOutputLock);
 }
 
-static int volume = 100;
+static int volume = 70;
 int getVolume() {
     return volume;
 }
@@ -97,10 +100,11 @@ void setVolume(int vol)
         mixerDevice = mixerDevice;
     }
     int   audioOutput = getSettingInt("AudioOutput");
-
+    std::string audio0Type = getSetting("AudioCard0Type");
+    
     float fvol = volume;
 #ifdef PLATFORM_PI
-    if (audioOutput == 0 && mixerDevice == "PCM") {
+    if (audioOutput == 0 && audio0Type == "bcm2") {
         fvol = volume;
         fvol /= 2;
         fvol += 50;
