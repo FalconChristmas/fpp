@@ -1,4 +1,4 @@
-OBJECTS_fppoled = \
+OBJECTS_fppoled += \
 	common.o \
 	log.o \
 	settings.o \

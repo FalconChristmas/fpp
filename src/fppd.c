@@ -227,6 +227,7 @@ printf("Usage: %s [OPTION...]\n"
 "  -l, --log-file FILENAME       - Set the log file\n"
 "  -b, --bytes-file FILENAME     - Set the bytes received file\n"
 "  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
+"      --detect-piface           - Detect PiFace hardware on SPI port\n"
 "  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
 "  -h, --help                    - This menu.\n"
 "      --log-level LEVEL         - Set the log output level:\n"
@@ -287,6 +288,7 @@ int parseArguments(int argc, char **argv)
 			{"log-file",			required_argument,	0, 'l'},
 			{"bytes-file",			required_argument,	0, 'b'},
 			{"detect-hardware",		no_argument,		0, 'H'},
+			{"detect-piface",		no_argument,		0, 4},
 			{"configure-hardware",		no_argument,		0, 'C'},
 			{"help",				no_argument,		0, 'h'},
 			{"silence-music",		required_argument,	0,	1 },
@@ -319,6 +321,14 @@ int parseArguments(int argc, char **argv)
 					LogInfo(VB_SETTING, "Log Mask set to %d (%s)\n", logMask, optarg);
 				}
 				break;
+            case 4: // detect-piface
+                if (PinCapabilities::getPinByGPIO(200).ptr()) {
+                    printf("PiFace found\n");
+                    exit(0);
+                } else {
+                    exit(1);
+                }
+                break;
 			case 'c': //config-file
 				if (FileExists(optarg))
 				{
@@ -444,11 +454,12 @@ int main(int argc, char *argv[])
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
-	Magick::InitializeMagick(NULL);    
-    PinCapabilities::InitGPIO();
+	Magick::InitializeMagick(NULL);
+    
+    // Parse our arguments first, override any defaults
+    parseArguments(argc, argv);
 
-	// Parse our arguments first, override any defaults
-	parseArguments(argc, argv);
+    PinCapabilities::InitGPIO();
 
 	if (loggingToFile())
 		logVersionInfo();

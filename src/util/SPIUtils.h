@@ -14,6 +14,9 @@ public:
     bool isOk() { return file != -1;}
 private:
     int file;
+    int channel;
+    int speed;
+    int bitsPerWord;
 };
 
 #endif

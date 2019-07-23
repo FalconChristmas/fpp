@@ -547,7 +547,7 @@ int DetectFalconHardware(int configureHardware)
 	}
 
 	int responseSize = FalconDetectHardware(falconSpi, query);
-
+    LogDebug(VB_SETTING, "FalconDetectHardware response size %d\n", responseSize);
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_SETTING))
 		HexDump("Falcon Detect Hardware Response", query, 8);
 
@@ -618,8 +618,10 @@ int DetectFalconHardware(int configureHardware)
 		}
 
 		return 1;
-	}
+    }
 
-	return 0;
+    delete falconSpi;
+    falconSpi = nullptr;
+    return 0;
 }
 

@@ -6,6 +6,7 @@
 #include <pigpio.h>
 
 #include "PiGPIOUtils.h"
+#include "PiFaceUtils.h"
 
 PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string &n, uint32_t kg)
 : PinCapabilitiesFluent(n, kg) {
@@ -42,15 +43,6 @@ void PiGPIOPinCapabilities::setPWMValue(int valueNS) const {
     gpioPWM(kernelGpio, valueNS / 10);
 }
 
-class NullPiGPIOPinCapabilities : public PiGPIOPinCapabilities {
-public:
-    NullPiGPIOPinCapabilities() : PiGPIOPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const { return nullptr; }
-};
-static NullPiGPIOPinCapabilities NULL_WP_INSTANCE;
-
-
-
 static std::vector<PiGPIOPinCapabilities> PI_PINS;
 
 
@@ -85,21 +77,23 @@ void PiGPIOPinCapabilities::Init() {
     PI_PINS.push_back(PiGPIOPinCapabilities("P1-37", 26));
     PI_PINS.push_back(PiGPIOPinCapabilities("P1-38", 20));
     PI_PINS.push_back(PiGPIOPinCapabilities("P1-40", 21));
+    
+    PiFacePinCapabilities::Init();
 }
-const PiGPIOPinCapabilities &PiGPIOPinCapabilities::getPinByName(const std::string &name) {
+const PinCapabilities &PiGPIOPinCapabilities::getPinByName(const std::string &name) {
     for (auto &a : PI_PINS) {
         if (a.name == name) {
             return a;
         }
     }
-    return NULL_WP_INSTANCE;
+    return PiFacePinCapabilities::getPinByName(name);
 }
-const PiGPIOPinCapabilities &PiGPIOPinCapabilities::getPinByGPIO(int i) {
+const PinCapabilities &PiGPIOPinCapabilities::getPinByGPIO(int i) {
     for (auto &a : PI_PINS) {
         if (a.kernelGpio == i) {
             return a;
         }
     }
-    return NULL_WP_INSTANCE;
+    return PiFacePinCapabilities::getPinByGPIO(i);
 }
 
