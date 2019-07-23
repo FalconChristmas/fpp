@@ -255,12 +255,12 @@ function addVirtualString(item)
     $('#' + highestId).after(str);
 }
 
-function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullCount, zigZag, brightness, gamma)
+function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullCount, zigZag, brightness, gamma, portPfx = "")
 {
     var result = "";
     var id = type + "_Output_" + oid + "_" + port + "_" + sid;
     
-    result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' + pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "'>";
+    result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "'>";
     
     if (sid)
     {
@@ -271,7 +271,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     else
     {
-        result += "<td align='center'>" + (port+1) + ")</td>";
+        result += "<td class='vsPortLabel' align='center'>" + (port+1) + "" + portPfx + ")</td>";
         result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
         result += "<td><a href='#' ";
         result += "class='addButton' onClick='addVirtualString(this);'></td>";
@@ -418,7 +418,6 @@ function getPixelStringOutputJSON()
 
 	$('#pixelOutputs table').each(function() {
 		$this = $(this);
-
 		var tableId = $this.attr('id');
 		var enableId = tableId + '_enable';
 		var output = {};
@@ -432,49 +431,65 @@ function getPixelStringOutputJSON()
 		output.outputCount = parseInt($this.attr('ports'));
 
 		var outputs = [];
-
-		var i = 0;
-		for (i = 0; i < output.outputCount; i++)
-		{
+		for (var i = 0; i < output.outputCount; i++) {
 			var port = {};
-			var virtualStrings = [];
-			var oid = 0; // FIXME, fix this if we can ever do more than one of same type
+            port.portNumber = i;
+            port.protocol = $this.find('.vsProtocol').val();
+            var dtId = (i & 0xFC);
+            var dt = $('#DifferentialType' + dtId);
+            var mxId = 1;
+            if (dt === undefined) {
+                mxId = 1;
+            } else {
+                mxId = dt.val();
+                if (mxId === undefined) {
+                    mxId = 1;
+                } else {
+                    mxId = parseInt(mxId);
+                    port.differentialType = mxId;
+                    if (mxId < 1) mxId = 1;
+                }
+            }
 
-			// for blah
-			for (var j = 0; j < maxVirtualStringsPerOutput; j++)
-			{
-				var id = output.type + "_Output_" + oid + "_" + i + "_" + j;
+            for (var  oid = 0; oid < mxId; oid++) {
+                var virtualStrings = [];
+                for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
+				    var id = output.type + "_Output_" + oid + "_" + i + "_" + j;
 
-				if ($('#' + id).length)
-				{
-					var vs = {};
+                    if ($('#' + id).length) {
+                        var vs = {};
 
-					var row = $('#' + id);
+                        var row = $('#' + id);
 
-					vs.description = row.find('.vsDescription').val();
-					vs.startChannel = parseInt(row.find('.vsStartChannel').val()) - 1;
-					vs.pixelCount = parseInt(row.find('.vsPixelCount').val());
-					vs.groupCount = parseInt(row.find('.vsGroupCount').val());
-					vs.reverse = parseInt(row.find('.vsReverse').val());
-					vs.colorOrder = row.find('.vsColorOrder').val();
-					vs.nullNodes = parseInt(row.find('.vsNullNodes').val());
-					vs.zigZag = parseInt(row.find('.vsZigZag').val());
-					vs.brightness = parseInt(row.find('.vsBrightness').val());
-					vs.gamma = row.find('.vsGamma').val();
+                        vs.description = row.find('.vsDescription').val();
+                        vs.startChannel = parseInt(row.find('.vsStartChannel').val()) - 1;
+                        vs.pixelCount = parseInt(row.find('.vsPixelCount').val());
+                        vs.groupCount = parseInt(row.find('.vsGroupCount').val());
+                        vs.reverse = parseInt(row.find('.vsReverse').val());
+                        vs.colorOrder = row.find('.vsColorOrder').val();
+                        vs.nullNodes = parseInt(row.find('.vsNullNodes').val());
+                        vs.zigZag = parseInt(row.find('.vsZigZag').val());
+                        vs.brightness = parseInt(row.find('.vsBrightness').val());
+                        vs.gamma = row.find('.vsGamma').val();
 
-					virtualStrings.push(vs);
+                        virtualStrings.push(vs);
+                    }
 				}
+                if (oid == 0) {
+                    port.virtualStrings = virtualStrings;
+                } else if (oid == 1) {
+                    port.virtualStringsB = virtualStrings;
+                } else if (oid == 2) {
+                    port.virtualStringsC = virtualStrings;
+                }
 			}
 
-			port.portNumber = i;
-			port.virtualStrings = virtualStrings;
-			port.protocol = $this.find('.vsProtocol').val();
 			outputs.push(port);
-		}
+        }
 
 		output.outputs = outputs;
 		postData.channelOutputs.push(output);
-	});
+    });
 
     return postData;
 }

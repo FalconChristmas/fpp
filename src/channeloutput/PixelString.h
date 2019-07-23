@@ -36,10 +36,11 @@
 
 class VirtualString {
 public:
-    VirtualString() : whiteOffset(-1) {}
+    VirtualString(); 
+    VirtualString(int receiverNum);
     ~VirtualString() {};
     
-    int channelsPerNode() const { return whiteOffset == -1 ? 3 : 4;};
+    int channelsPerNode() const;
     
 	int            startChannel;
 	int            pixelCount;
@@ -53,11 +54,27 @@ public:
 	uint8_t        brightnessMap[256];
     
     int            whiteOffset;
+    int8_t         receiverNum;
+    uint8_t        leadInCount;
+    uint8_t        toggleCount;
+    uint8_t        leadOutCount;
 };
+
+class GPIOCommand {
+public:
+    GPIOCommand(int p, int offset, int tp = 0, int bo = 0) : port(p), channelOffset(offset), type(tp), bitOffset(bo) {}
+    ~GPIOCommand() {}
+    
+    int port;
+    int channelOffset;
+    int type;  //0 for off, 1 for on
+    int bitOffset;
+};
+
 
 class PixelString {
   public:
-	PixelString();
+	PixelString(bool supportsSmartReceivers = false);
 	~PixelString();
 
 	int  Init(Json::Value config);
@@ -65,18 +82,24 @@ class PixelString {
 
 	int               m_portNumber;
 	int               m_channelOffset;
-	int               m_inputChannels;
 	int               m_outputChannels;
 
 	std::vector<VirtualString>  m_virtualStrings;
+    std::vector<GPIOCommand>    m_gpioCommands;
 
 	std::vector<int>  m_outputMap;
 	uint8_t         **m_brightnessMaps;
+    
+    bool m_isSmartReceiver;
   private:
-	void SetupMap(int vsOffset, VirtualString vs);
+	void SetupMap(int vsOffset, const VirtualString &vs);
 	void FlipPixels(int offset1, int offset2, int chanCount);
 	void DumpMap(const char *msg);
-
+    
+    
+    int ReadVirtualString(Json::Value &vsc, VirtualString &vs) const;
+    void AddVirtualString(const VirtualString &vs);
+    void AddNullPixelString();
 };
 
 #endif /* _PIXELSTRING_H */

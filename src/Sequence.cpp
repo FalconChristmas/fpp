@@ -82,6 +82,10 @@ Sequence::Sequence()
 {
     m_seqFilename[0] = 0;
     memset(m_seqData, 0, sizeof(m_seqData));
+    for (int x = 0; x < 4; x++) {
+        m_seqData[FPPD_OFF_CHANNEL + x] = 0;
+        m_seqData[FPPD_WHITE_CHANNEL] = 0xFF;
+    }
 
     m_seqControlRawIDs = getSettingInt("RawEventIDs");
 }
@@ -334,7 +338,7 @@ int Sequence::IsSequenceRunning(char *filename) {
 }
 
 void Sequence::BlankSequenceData(void) {
-    memset(m_seqData, 0, sizeof(m_seqData));
+    memset(m_seqData, 0, FPPD_WHITE_CHANNEL);
 }
 
 int Sequence::SequenceIsPaused(void) {

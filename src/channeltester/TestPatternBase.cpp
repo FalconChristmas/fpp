@@ -46,8 +46,8 @@ TestPatternBase::TestPatternBase()
 {
 	LogExcess(VB_CHANNELOUT, "TestPatternBase::TestPatternBase()\n");
 
-	// Give room for an extra RGB Triplet to make coding test patterns easier
-	m_testData = new char[FPPD_MAX_CHANNELS + 3];
+	// Give room for an extra RGBW Pixel to make coding test patterns easier
+	m_testData = new char[FPPD_MAX_CHANNELS + 4];
 }
 
 /*

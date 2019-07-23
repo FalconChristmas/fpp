@@ -176,19 +176,22 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
 #ifdef PRINT_STATS
     outputFile << "#define RECORD_STATS\n\n";
 #endif
-    std::set<int> sizes;
+    std::map<int, std::vector<GPIOCommand>> sizes;
     for (int x = 0; x < m_strings.size(); x++) {
         int pc = m_strings[x]->m_outputChannels;
         if (pc != 0) {
-            sizes.insert(pc);
+            for (auto &a : m_strings[x]->m_gpioCommands) {
+                sizes[a.channelOffset].push_back(a);
+            }
         }
     }
     
-    outputFile << ".macro CheckOutputLengths\n";
-    outputFile << "    QBNE skip_end, cur_data, next_check\n";
+    outputFile << "#define CheckOutputLengths  JMP next_check\n";
+    
     auto i = sizes.begin();
     while (i != sizes.end()) {
-        int min = *i;
+        int min = i->first;
+        outputFile << "\nCHECK_" << std::to_string(min) << ":\n";
         if (min != maxStringLen) {
             if (min <= 255) {
                 outputFile << "    QBNE skip_"
@@ -203,30 +206,30 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
                 << ", cur_data, r8\n";
             }
             
-            for (int y = 0; y < m_strings.size(); y++) {
-                int pc = m_strings[y]->m_outputChannels;
-                if (pc == min) {
-                    std::string o = std::to_string(y + 1);
+            for (auto &cmd : i->second) {
+                int y = cmd.port;
+                std::string o = std::to_string(y + 1);
+                if (cmd.type) {
+                    outputFile << "        SET GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
+                } else {
                     outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
                 }
             }
             i++;
-            int next = *i;
-            outputFile << "    LDI next_check, " << std::to_string(next) << "\n";
-            outputFile << "    skip_"
-            << std::to_string(min)
-            << ":\n";
+            int next = i->first;
+            outputFile << "        LDI next_check, #CHECK_" << std::to_string(next) << "\n";
+            outputFile << "    skip_" << std::to_string(min) << ":\n        JMP DONE_CHECK_OUTPUT\n";
         } else {
+            outputFile << "    JMP DONE_CHECK_OUTPUT\n\n";
             i++;
         }
     }
-    outputFile << "    skip_end:\n";
-    outputFile << ".endm\n";
+    outputFile << "\nNO_PIXELS_CHECK:\n    JMP DONE_CHECK_OUTPUT\n\n";
     if (sizes.empty()) {
-        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, 10000\n";
+        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, #NO_PIXELS_CHECK\n";
     } else {
-        int sz = *sizes.begin();
-        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, " << std::to_string(sz) << "\n";
+        int sz = sizes.begin()->first;
+        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, #CHECK_" << std::to_string(sz) << "\n";
     }
 
     outputFile.close();
@@ -276,7 +279,7 @@ int BBB48StringOutput::Init(Json::Value config)
     
     for (int i = 0; i < config["outputs"].size(); i++) {
         Json::Value s = config["outputs"][i];
-        PixelString *newString = new PixelString;
+        PixelString *newString = new PixelString(true);
 
         if (!newString->Init(s))
             return 0;
@@ -449,7 +452,6 @@ void BBB48StringOutput::StopPRU(bool wait)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         cnt++;
     }
-    printf("%X   %d\n", m_pruData->response, cnt);
     m_pru->stop(m_pruData->response != 0xFFFF ? !wait : 1);
     delete m_pru;
     
@@ -459,7 +461,6 @@ void BBB48StringOutput::StopPRU(bool wait)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             cnt++;
         }
-        printf("%X   %d\n", m_pru0Data->response, cnt);
         m_pru0->stop(m_pru0Data->response != 0xFFFF ? !wait : 1);
         delete m_pru0;
     }
@@ -487,7 +488,7 @@ void BBB48StringOutput::GetRequiredChannelRange(int &min, int & max) {
         int inCh = 0;
         for (int p = 0; p < ps->m_outputChannels; p++) {
             int ch = ps->m_outputMap[inCh++];
-            if (ch < (FPPD_MAX_CHANNELS - 3)) {
+            if (ch < FPPD_MAX_CHANNELS) {
                 min = std::min(min, ch);
                 max = std::max(max, ch);
             }
@@ -500,12 +501,10 @@ void BBB48StringOutput::GetRequiredChannelRange(int &min, int & max) {
  */
 void BBB48StringOutput::PrepData(unsigned char *channelData)
 {
-    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::PrepData(%p)\n",
-              channelData);
+    LogExcess(VB_CHANNELOUT, "BBB48StringOutput::PrepData(%p)\n", channelData);
 
     m_curFrame++;
 
-    
 #ifdef PRINT_STATS
     int max = 0;
     for (int x = 0; x < MAX_WS2811_TIMINGS; x++) {
@@ -531,12 +530,11 @@ void BBB48StringOutput::PrepData(unsigned char *channelData)
     int inCh;
 
     int numStrings = m_numStrings;
-
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
         c = out + ps->m_portNumber;
         inCh = 0;
-        
+
         for (int p = 0; p < ps->m_outputChannels; p++) {
             uint8_t *brightness = ps->m_brightnessMaps[p];
             *c = brightness[channelData[ps->m_outputMap[inCh++]]];

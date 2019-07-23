@@ -273,6 +273,8 @@ skip:
 
 #if __has_include("/tmp/OutputLengths.hp")
 # include "/tmp/OutputLengths.hp"
+#else
+#define CheckOutputLengths
 #endif
 
 START:
@@ -525,6 +527,7 @@ _LOOP:
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
         CheckOutputLengths
+        DONE_CHECK_OUTPUT:
 #ifdef RECORD_STATS
         SUB        data_len, data_len, 1
 #endif

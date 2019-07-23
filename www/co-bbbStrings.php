@@ -170,6 +170,21 @@ function ShouldAddBreak(subType, s) {
     }
     return false;
 }
+function IsDifferential(subType, s) {
+    if (s == 0) {
+        return false;
+    }
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if (s == instance["start"]) {
+            return instance["type"] == "differential";
+        }
+    }
+    return false;
+}
+
 
 function HasSerial(subType) {
     var subType = GetBBB48StringCapeFileName();
@@ -280,6 +295,89 @@ function addSerialOutputJSON(postData) {
     postData.channelOutputs.push(config);
 	return postData;
 }
+function BBB48StringDifferentialTypeChanged(port) {
+    var dt = $('#DifferentialType' + port);
+    var val = dt.val();
+    if (val <= 2) {
+        if ($('#ROW_RULER_DIFFERENTIAL_' + port + '_1').length) {
+            var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_1');
+            tr.remove();
+        }
+        for (var i = 0; i < 4; i++) {
+            for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
+                var id = "BBB48String_Output_" + 2 + "_" + (port + i) + "_" + j;
+                if ($('#' + id).length) {
+                    var row = $('#' + id);
+                    row.remove();
+                }
+            }
+        }
+    }
+    if (val <= 1) {
+        if ($('#ROW_RULER_DIFFERENTIAL_' + port + '_0').length) {
+            var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_0');
+            tr.remove();
+        }
+        for (var i = 0; i < 4; i++) {
+            for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
+                var id = "BBB48String_Output_" + 1 + "_" + (port + i) + "_" + j;
+                if ($('#' + id).length) {
+                    var row = $('#' + id);
+                    row.remove();
+                }
+            }
+            var id = "BBB48String_Output_0_" + (port + i) + "_0";
+            if ($('#' + id).length) {
+                var row = $('#' + id);
+                var td = row.find('.vsPortLabel');
+                td.html((port + 1 + i) + ')');
+            }
+        }
+    }
+    if (val > 1) {
+        for (var i = 0; i < 4; i++) {
+            var id = "BBB48String_Output_0_" + (port + i) + "_0";
+            if ($('#' + id).length) {
+                var row = $('#' + id);
+                var td = row.find('.vsPortLabel');
+                td.html((port + 1 + i) + 'A)');
+            }
+        }
+        var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_0');
+        if (!tr.length) {
+            var j = 0;
+            for (var j = maxVirtualStringsPerOutput-1; j > 0; j--) {
+                var id = "BBB48String_Output_0_" + (port + 3) + "_" + j;
+                if ($('#' + id).length) {
+                    break;
+                }
+            }
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='13'><hr></td></tr>";
+            for (var x = 0; x < 4; x++) {
+                str += pixelOutputTableRow("BBB48String", 'ws2811', 'ws2811', 1, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "B");
+            }
+            $("#BBB48String_Output_0_" + (port + 3) + "_" + j).after(str);
+        }
+    }
+    if (val > 2) {
+        var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_1');
+        if (!tr.length) {
+            var j = 0;
+            for (var j = maxVirtualStringsPerOutput-1; j > 0; j--) {
+                var id = "BBB48String_Output_1_" + (port + 3) + "_" + j;
+                if ($('#' + id).length) {
+                    break;
+                }
+            }
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='13'><hr></td></tr>";
+            for (var x = 0; x < 4; x++) {
+                str += pixelOutputTableRow("BBB48String", 'ws2811', 'ws2811', 2, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "C");
+            }
+            $("#BBB48String_Output_1_" + (port + 3) + "_" + j).after(str);
+        }
+    }
+}
+
 
 function populatePixelStringOutputs(data) {
     if (data) {
@@ -315,22 +413,87 @@ function populatePixelStringOutputs(data) {
                 var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
-                var id = 0; // FIXME if we need to handle multiple outputs of the same type
                 for (var o = 0; o < outputCount; o++)
                 {
-                    if (ShouldAddBreak(subType, o)) {
-                        str += "<tr><td colSpan='13'><hr></td></tr>";
-                    }
+                    var port = {"differentialType" : 0};
+                    var loops = 1;
                     if (o < output.outputCount) {
-                        var port = output.outputs[o];
-                        for (var v = 0; v < port.virtualStrings.length; v++)
-                        {
-                            var vs = port.virtualStrings[v];
-                        
-                            str += pixelOutputTableRow(type, 'ws2811', 'ws2811', id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                        port = output.outputs[o];
+                    }
+                    if (ShouldAddBreak(subType, o)) {
+                        if (IsDifferential(subType, o)) {
+                            var diffType = port["differentialType"];
+                            
+                            str += "<tr><td colSpan='2'><hr></td>";
+                            str += "<td></td>";
+                            str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
+                            
+                            
+                            str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
+                            str += "<option value='0'" + (diffType == 0 ? " selected" : "") + ">Standard</option>";
+                            str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">1 Smart Receiver</option>";
+                            str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">2 Smart Receivers</option>";
+                            str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">3 Smart Receivers</option>";
+                            str += "</select></td><td colSpan='10'><hr></td>";
+                            str += "</tr>";
+                            
+                            if (diffType >= 2) {
+                                loops = diffType;
+                            }
+                        } else {
+                            str += "<tr><td colSpan='13'><hr></td></tr>";
                         }
+                    }
+                    if (loops > 1) {
+                        for (var l = 0; l < loops; l++) {
+                            var pfx = "A";
+                            if (l == 1) {
+                                pfx = "B";
+                            }
+                            if (l == 2) {
+                                pfx = "C";
+                            }
+                            for (var sr = 0; sr < 4; sr++) {
+                                var o2 = o + sr;
+                                if (o2 < output.outputCount) {
+                                    var port = output.outputs[o2];
+                                    var strings = port.virtualStrings;
+                                    if (l == 1) {
+                                        strings = port.virtualStringsB;
+                                    }
+                                    if (l == 2) {
+                                        strings = port.virtualStringsC;
+                                    }
+                                    
+                                    if (v != null && strings.length > 0) {
+                                        for (var v = 0; v < strings.length; v++) {
+                                            var vs = strings[v];
+                                            
+                                            str += pixelOutputTableRow(type, 'ws2811', 'ws2811', l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma, pfx);
+                                        }
+                                    } else {
+                                        str += pixelOutputTableRow(type, 'ws2811', 'ws2811', l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", pfx);
+                                    }
+                                } else {
+                                    str += pixelOutputTableRow(type, 'ws2811', 'ws2811', l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", pfx);
+                                }
+                            }
+                            if (l != (loops-1)) {
+                                str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "_" + l + "'><td colSpan='13'><hr></td></tr>";
+                            }
+                        }
+                        o+= 3;
                     } else {
-                        str += pixelOutputTableRow(type, 'ws2811', 'ws2811', id, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                        if (o < output.outputCount) {
+                            var port = output.outputs[o];
+                            for (var v = 0; v < port.virtualStrings.length; v++) {
+                                var vs = port.virtualStrings[v];
+                            
+                                str += pixelOutputTableRow(type, 'ws2811', 'ws2811', 0, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                            }
+                        } else {
+                            str += pixelOutputTableRow(type, 'ws2811', 'ws2811', 0, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                        }
                     }
                 }
 
