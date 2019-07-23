@@ -455,11 +455,11 @@ int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	Magick::InitializeMagick(NULL);
-    
+    PinCapabilities::InitGPIO();
+
     // Parse our arguments first, override any defaults
     parseArguments(argc, argv);
 
-    PinCapabilities::InitGPIO();
 
 	if (loggingToFile())
 		logVersionInfo();

@@ -56,7 +56,7 @@ static SPIUtils *MCP23x17_SPI = nullptr;
 static uint8_t status_port_a;
 static uint8_t status_port_b;
 
-static void writeByte(uint8_t reg, uint8_t data, uint8_t devId = 0)
+static int writeByte(uint8_t reg, uint8_t data, uint8_t devId = 0)
 {
     if (MCP23x17_SPI) {
         uint8_t spiData [4] ;
@@ -64,8 +64,9 @@ static void writeByte(uint8_t reg, uint8_t data, uint8_t devId = 0)
         spiData [0] = CMD_WRITE | ((devId & 7) << 1) ;
         spiData [1] = reg ;
         spiData [2] = data ;
-        MCP23x17_SPI->xfer(spiData, spiData, 3);
+        return MCP23x17_SPI->xfer(spiData, spiData, 3);
     }
+    return -1;
 }
 static int32_t readByte(uint8_t reg, uint8_t devId = 0)
 {
@@ -73,7 +74,10 @@ static int32_t readByte(uint8_t reg, uint8_t devId = 0)
         uint8_t spiData [4] = {0, 0, 0, 0} ;
         spiData [0] = CMD_READ | ((devId & 7) << 1) ;
         spiData [1] = reg ;
-        MCP23x17_SPI->xfer(spiData, spiData, 3);
+        int i = MCP23x17_SPI->xfer(spiData, spiData, 3);
+        if (i == -1) {
+            return -1;
+        }
         return spiData[2] ;
     }
     return -1;
@@ -163,6 +167,7 @@ void MCP23x17PinCapabilities::Init(int base) {
 
         int iA = readByte(MCP23x17_OLATA);
         int iB = readByte(MCP23x17_OLATB);
+        
         if (iA == -1 || iB == -1) {
             delete MCP23x17_SPI;
             MCP23x17_SPI = nullptr;
@@ -171,6 +176,19 @@ void MCP23x17PinCapabilities::Init(int base) {
         status_port_a = iA;
         status_port_b = iB;
         
+        MCP23x17PinCapabilities testPin("MCP23x17-1", 215, 215);
+        int a = testPin.getValue();
+        testPin.setValue(1);
+        int b = testPin.getValue();
+        testPin.setValue(0);
+        int c = testPin.getValue();
+        if (a == b && b == c) {
+            //could not change the value, assume no PiFace found
+            delete MCP23x17_SPI;
+            MCP23x17_SPI = nullptr;
+            return;
+        }
+
         for (int x = 0; x < 16; x++) {
             std::string name = "MCP23x17-" + std::to_string(x + 1);
             MCP23x17_PINS.push_back(MCP23x17PinCapabilities(name, base + x, base));
