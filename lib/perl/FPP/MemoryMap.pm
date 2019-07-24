@@ -74,7 +74,7 @@ sub new {
 		majorVersion  => 1,
 		minorVersion  => 0,
 		debug         => 0,
-		maxChannels   => 4194304,
+		maxChannels   => 8388608,
 		ctrlFile      => '/run/fppd/FPPChannelCtrl',
 		dataFile      => '/run/fppd/FPPChannelData',
 		pixelFile     => '/run/fppd/FPPChannelPixelMap',
