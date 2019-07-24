@@ -828,9 +828,8 @@ stopWebSocketServer() {
 #############################################################################
 # Detect PiFace
 detectPiFace() {
-	/usr/local/bin/gpio -p write 207 1
-	PIFACEFOUND=$(/usr/local/bin/gpio -p read 215)
-	/usr/local/bin/gpio -p write 207 0
+	${FPPD} --detect-piface
+        PIFACEFOUND=$?
 
 	grep -q PiFaceDetected ${CFGFILE}
 	if [ $? -eq 0 ]
