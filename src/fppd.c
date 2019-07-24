@@ -324,9 +324,9 @@ int parseArguments(int argc, char **argv)
             case 4: // detect-piface
                 if (PinCapabilities::getPinByGPIO(200).ptr()) {
                     printf("PiFace found\n");
-                    exit(0);
-                } else {
                     exit(1);
+                } else {
+                    exit(0);
                 }
                 break;
 			case 'c': //config-file
