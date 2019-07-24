@@ -170,7 +170,7 @@ apt-get install -y \
     python-daemon python-smbus hdparm i2c-tools ifplugd \
     libmicrohttpd-dev libmosquitto-dev liblo-dev \
     ola ola-python libola-dev libola1 libjsoncpp-dev libtag1-dev \
-    libconvert-binary-c-perl libjson-perl btrfs-tools \
+    libconvert-binary-c-perl libjson-perl libinline-perl btrfs-tools \
     libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
     libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev  libboost-atomic-dev libboost-math-dev libboost-signals-dev \
     libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \

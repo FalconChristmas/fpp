@@ -479,7 +479,7 @@ function MoveFile()
 				error_log("Couldn't move effect file");
 				exit(1);
 			}
-		} else if (preg_match("/\.(mp4|mkv|avi|mov)$/i", $file)) {
+		} else if (preg_match("/\.(mp4|mkv|avi|mov|mpg|mpeg)$/i", $file)) {
 			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) ) {
 				error_log("Couldn't move video file");
 				exit(1);
@@ -499,7 +499,7 @@ function MoveFile()
 				error_log("Couldn't move script file");
 				exit(1);
 			}
-        } else if (preg_match("/\.(mp3|ogg|m4a)$/i", $file)) {
+        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma)$/i", $file)) {
 			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) ) {
 				error_log("Couldn't move music file");
 				exit(1);
@@ -2338,6 +2338,16 @@ function GetFile()
             header('Content-type: video/mov');
 		else if (preg_match('/mp4$/i', $filename))
 			header('Content-type: video/mp4');
+		else if (preg_match('/wav$/i', $filename))
+			header('Content-type: audio/wav');
+		else if (preg_match('/mpg$/i', $filename))
+			header('Content-type: video/mpg');
+        else if (preg_match('/mpg$/i', $filename))
+            header('Content-type: video/mpeg');
+        else if (preg_match('/mkv$/i', $filename))
+            header('Content-type: video/mkv');
+        else if (preg_match('/avi$/i', $filename))
+            header('Content-type: video/avi');
 	}
 	else if ($isImage)
 	{

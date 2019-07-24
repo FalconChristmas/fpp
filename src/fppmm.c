@@ -53,7 +53,7 @@ int                               dataFD     = -1;
 FPPChannelMemoryMapControlHeader *ctrlHeader = NULL;
 char                             *ctrlMap    = NULL;
 int                               ctrlFD     = -1;
-long long                        *pixelMap   = NULL;
+uint32_t                         *pixelMap   = NULL;
 int                               pixelFD    = -1;
 
 /*
@@ -222,7 +222,7 @@ int OpenChannelPixelMap(void) {
 		return pixelFD;
 	}
 
-	pixelMap = (long long *)mmap(0, FPPD_MAX_CHANNELS * sizeof(short), PROT_WRITE | PROT_READ,
+	pixelMap = (uint32_t *)mmap(0, FPPD_MAX_CHANNELS * sizeof(uint32_t), PROT_WRITE | PROT_READ,
 		MAP_SHARED, pixelFD, 0);
 
 	if (!pixelMap) {
@@ -239,7 +239,7 @@ int OpenChannelPixelMap(void) {
  * Close the channel data memory map pixel map file and cleanup.
  */
 void CloseChannelPixelMap(void) {
-	munmap(pixelMap, FPPD_MAX_CHANNELS);
+	munmap(pixelMap, FPPD_MAX_CHANNELS * sizeof(uint32_t));
 	close(pixelFD);
 
 	pixelFD  = -1;

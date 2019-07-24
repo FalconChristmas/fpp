@@ -59,7 +59,7 @@ PixelOverlayManager PixelOverlayManager::INSTANCE;
 PixelOverlayModel::PixelOverlayModel(FPPChannelMemoryMapControlBlock *b,
                                      const std::string &n,
                                      char         *cdm,
-                                     long long    *pm)
+                                     uint32_t     *pm)
     : block(b), name(n), chanDataMap(cdm), pixelMap(pm),
     updateThread(nullptr),threadKeepRunning(false),
     imageData(nullptr), imageDataRows(0), imageDataCols(0)
@@ -381,7 +381,7 @@ PixelOverlayManager::~PixelOverlayManager() {
         munmap(ctrlMap, FPPCHANNELMEMORYMAPSIZE);
     }
     if (pixelMap) {
-        munmap(pixelMap, FPPD_MAX_CHANNELS * sizeof(long long));
+        munmap(pixelMap, FPPD_MAX_CHANNELS * sizeof(uint32_t));
     }
 }
 void PixelOverlayManager::Initialize() {
@@ -486,9 +486,9 @@ bool PixelOverlayManager::createPixelMap() {
     }
     
     chmod(FPPCHANNELMEMORYMAPPIXELFILE, 0666);
-    uint8_t* tmpData = (uint8_t*)calloc(FPPD_MAX_CHANNELS, sizeof(long long));
+    uint8_t* tmpData = (uint8_t*)calloc(FPPD_MAX_CHANNELS, sizeof(uint32_t));
     if (write(pixelFD, (void *)tmpData,
-              FPPD_MAX_CHANNELS * sizeof(long long)) != (FPPD_MAX_CHANNELS * sizeof(long long))) {
+              FPPD_MAX_CHANNELS * sizeof(uint32_t)) != (FPPD_MAX_CHANNELS * sizeof(uint32_t))) {
         LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
                FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
         close(pixelFD);
@@ -497,7 +497,7 @@ bool PixelOverlayManager::createPixelMap() {
     }
     free(tmpData);
     
-    pixelMap = (long long *)mmap(0, FPPD_MAX_CHANNELS * sizeof(long long), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
+    pixelMap = (uint32_t *)mmap(0, FPPD_MAX_CHANNELS * sizeof(uint32_t), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
     close(pixelFD);
     if (!pixelMap) {
         LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",

@@ -412,7 +412,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             lock.unlock();
             frameLoadSignal.notify_all();
             
-            data->readFrame((uint8_t*)m_seqData);
+            data->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
             SetChannelOutputFrameNumber(data->frame);
             m_seqSecondsElapsed = data->frame * m_seqStepTime;
             m_seqSecondsElapsed /= 1000;
@@ -429,7 +429,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
                 m_lastFrameRead++;
                 if (!pastFrameCache.empty()) {
                     //and copy the last frame data
-                    pastFrameCache.back()->readFrame((uint8_t*)m_seqData);
+                    pastFrameCache.back()->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
                     m_dataProcessed = false;
                 }
             }

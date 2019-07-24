@@ -124,6 +124,26 @@ void setVolume(int vol)
     pthread_mutex_unlock(&mediaOutputLock);
 }
 
+static std::set<std::string> AUDIO_EXTS = {
+    "mp3", "ogg", "m4a", "m4p", "wav", "au", "wma",
+    "MP3", "OGG", "M4A", "M4P", "WAV", "AU", "WMA"
+};
+static std::map<std::string, std::string> VIDEO_EXTS = {
+    {"mp4", "mp4"}, {"MP4", "mp4"},
+    {"avi", "avi"}, {"AVI", "avi"},
+    {"mov", "mov"}, {"MOV", "mov"},
+    {"mkv", "mkv"}, {"MKV", "mkv"},
+    {"mpg", "mpg"}, {"MPG", "mpg"},
+    {"mpeg", "mpeg"}, {"MPEG", "mpeg"}
+};
+
+bool IsExtensionVideo(const std::string &ext) {
+    return VIDEO_EXTS.find(ext) != VIDEO_EXTS.end();
+}
+bool IsExtensionAudio(const std::string &ext) {
+    return AUDIO_EXTS.find(ext) != AUDIO_EXTS.end();
+}
+
 
 std::string GetVideoFilenameForMedia(const std::string &filename, std::string &ext) {
     ext = "";
@@ -136,7 +156,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
     videoPath += "/";
     videoPath += bfile;
 
-    if ((lext == "mp4") || (lext == "avi") || (lext == "mov") || (lext == "mkv")) {
+    if (IsExtensionVideo(lext)) {
         if (FileExists(videoPath + oext)) {
             ext = lext;
             result = bfile + oext;
@@ -144,31 +164,13 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
             ext = lext;
             result = bfile + lext;
         }
-    } else if ((lext == "mp3") || (lext == "ogg") || (lext == "m4a") || (lext == "wav")) {
-        if (FileExists(videoPath + "mp4")) {
-            ext = "mp4";
-            result = bfile + "mp4";
-        } else if (FileExists(videoPath + "MP4")) {
-            ext = "mp4";
-            result = bfile + "MP4";
-        } else if (FileExists(videoPath + "avi")) {
-            ext = "avi";
-            result = bfile + "avi";
-        } else if (FileExists(videoPath + "AVI")) {
-            ext = "avi";
-            result = bfile + "AVI";
-        } else if (FileExists(videoPath + "mov")) {
-            ext = "mov";
-            result = bfile + "mov";
-        } else if (FileExists(videoPath + "MOV")) {
-            ext = "mov";
-            result = bfile + "MOV";
-        } else if (FileExists(videoPath + "mkv")) {
-            ext = "mkv";
-            result = bfile + "mkv";
-        } else if (FileExists(videoPath + "MKV")) {
-            ext = "mkv";
-            result = bfile + "MKV";
+    } else if (IsExtensionVideo(lext)) {
+        for (auto &n : VIDEO_EXTS) {
+            if (FileExists(videoPath + n.first)) {
+                ext = n.second;
+                result = bfile + n.first;
+                return result;
+            }
         }
     }
 
@@ -247,25 +249,16 @@ int OpenMediaOutput(char *filename) {
 			mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
 		} else if (ext == "ogg") {
 			mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
-		}
+        }
     } else
 #endif
-    if ((ext == "mp3") ||
-        (ext == "m4a") ||
-        (ext == "ogg") ||
-        (ext == "wav")) {
+    if (IsExtensionAudio(ext)) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
-	} else if (((ext == "mp4") ||
-                (ext == "mkv") ||
-                (ext == "mov") ||
-                (ext == "avi")) && vOut == "--HDMI--") {
+	} else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
-    } else if ((ext == "mp4") ||
-               (ext == "mkv") ||
-               (ext == "mov") ||
-               (ext == "avi")) {
+    } else if (IsExtensionVideo(ext)) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
 	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
@@ -282,8 +275,7 @@ int OpenMediaOutput(char *filename) {
 	if (getFPPmode() == MASTER_MODE)
 		multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename.c_str());
 
-	if (!mediaOutput->Start())
-	{
+	if (!mediaOutput->Start()) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
 		delete mediaOutput;
 		mediaOutput = 0;

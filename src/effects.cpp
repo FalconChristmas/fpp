@@ -300,7 +300,7 @@ int OverlayEffect(int effectID, char *channelData)
     }
     e->currentFrame++;
     if (d) {
-        d->readFrame((uint8_t*)channelData);
+        d->readFrame((uint8_t*)channelData, FPPD_MAX_CHANNELS);
         delete d;
         return 1;
     }

@@ -169,13 +169,14 @@ int main(int argc, char *argv[]) {
             dest->initializeFromFSEQ(*src);
             dest->writeHeader();
             
-            uint8_t data[1024*1024];
+            uint8_t *data = (uint8_t *)malloc(8024*1024);
             for (int x = 0; x < src->getNumFrames(); x++) {
                 FSEQFile::FrameData *fdata = src->getFrame(x);
-                fdata->readFrame(data);
+                fdata->readFrame(data, 8024*1024);
                 delete fdata;
                 dest->addFrame(x, data);
             }
+            free(data);
             dest->finalize();
             
             if (!strcmp(outputFilename, "-memory-")) {

@@ -293,37 +293,24 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 #endif
     }
 
-	if ((ext == "mp3") ||
-		(ext == "m4a") ||
-		(ext == "ogg") ||
-                (ext == "wav"))
-	{
 #if !defined(PLATFORM_BBB)
-		if (getSettingInt("LegacyMediaOutputs"))
-		{
-			if (ext == "mp3") {
-				m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
-			} else if (ext == "ogg") {
-				m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
-			}
-		}
-		else
+    if (getSettingInt("LegacyMediaOutputs") && (ext == "mp3" || ext == "ogg")) {
+        if (ext == "mp3") {
+            m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
+        } else if (ext == "ogg") {
+            m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
+        }
+    } else
 #endif
-			m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
+	if (IsExtensionAudio(ext)) {
+        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI
-	}
-	else if (((ext == "mp4") ||
-			 (ext == "mkv") || (ext == "mov")) && vOut == "--HDMI--")
-	{
-		m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
+    } else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
+        m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
-    } else if ((ext == "mp4") ||
-               (ext == "mkv") ||
-               (ext == "avi") || (ext == "mov")) {
+    } else if (IsExtensionVideo(ext)) {
         m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
-	}
-	else
-	{
+	} else {
 		pthread_mutex_unlock(&mediaOutputLock);
 		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
 		return 0;

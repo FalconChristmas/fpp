@@ -24,14 +24,35 @@
 #   along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 
+
 {
 package FPP::MemoryMap;
-
+$VERSION='2.0';
+    
 use Time::HiRes qw( gettimeofday usleep tv_interval );
 use File::Map qw/map_file unmap/;
 use Convert::Binary::C;
 use Data::Dumper;
 use Graphics::Magick;
+
+use Inline Config =>
+           DIRECTORY => '/run/fppd';
+use Inline C => << 'END_C';
+
+#include <sys/mman.h>
+    
+uint32_t *pixMap;
+void initPixMap(SV *pmFile) {
+    const char * fn = SvPV(pmFile, PL_na);
+    int dataFD = open(fn, O_RDWR);
+    pixMap = (uint32_t *)mmap(0, 8*1024*1024 * sizeof(uint32_t), PROT_WRITE | PROT_READ, MAP_SHARED, dataFD, 0);
+}
+int getPixMapIndex(int idx) {
+    return pixMap[idx];
+}
+
+END_C
+
 
 #############################################################################
 # Usage:
@@ -53,8 +74,7 @@ sub new {
 		majorVersion  => 1,
 		minorVersion  => 0,
 		debug         => 0,
-		maxChannels   => 1048576,
-		memoryMapSize => 1048576,
+		maxChannels   => 4194304,
 		ctrlFile      => '/run/fppd/FPPChannelCtrl',
 		dataFile      => '/run/fppd/FPPChannelData',
 		pixelFile     => '/run/fppd/FPPChannelPixelMap',
@@ -86,11 +106,9 @@ sub OpenMaps {
 
 	my $ctrlFileMap;
 	my $dataFileMap;
-	my $pixelFileMap;
 
 	map_file $ctrlFileMap, $this->{ctrlFile}, '+<';
 	map_file $dataFileMap, $this->{dataFile}, '+<';
-	map_file $pixelFileMap, $this->{pixelFile};
 
 	if (!$ctrlFileMap) {
 		printf( STDERR "Unable to map control file: %s\n", $this->{ctrlFile});
@@ -102,17 +120,10 @@ sub OpenMaps {
 		exit(-1);
 	}
 
-	if (!$pixelFileMap) {
-		printf( STDERR "Unable to map pixel file: %s\n", $this->{pixelFile});
-		exit(-1);
-	}
-
 	$this->{ctrlFileMap} = \$ctrlFileMap;
 	$this->{dataFileMap} = \$dataFileMap;
-	$this->{pixelFileMap} = \$pixelFileMap;
 
-	my @pixelMap = unpack('Q' . $this->{maxChannels}, ${$this->{pixelFileMap}});
-	$this->{pixelMap} = \@pixelMap;
+    initPixMap($this->{pixelFile});
 
 	$this->ReadBlockInfo();
 }
@@ -128,10 +139,6 @@ sub CloseMaps {
 
 	if (defined($this->{dataFileMap})) {
 		delete $this->{dataFileMap};
-	}
-
-	if (defined($this->{pixelFileMap})) {
-		delete $this->{pixelFileMap};
 	}
 
 	if (defined($this->{blocks})) {
@@ -301,7 +308,7 @@ sub SetTestModeColor {
 	{
 		$this->SetPixel($i, $r, $g, $b);
 	}
-	$this->SetChar('data', $this->{pixelMap}[65535], $r);
+	$this->SetChar('data', getPixMapIndex(65535), $r);
 }
 #############################################################################
 # Enable/Disable Test Mode
@@ -349,7 +356,7 @@ sub SetChannel {
 	my $a = shift;
 	my $v = shift;
 
-	$this->SetChar('data', $this->{pixelMap}[$a], $v);
+	$this->SetChar('data', getPixMapIndex($a), $v);
 }
 
 #############################################################################
@@ -361,9 +368,9 @@ sub SetPixel {
 	my $g = shift;
 	my $b = shift;
 
-	$this->SetChar('data', $this->{pixelMap}[$a], $r);
-	$this->SetChar('data', $this->{pixelMap}[$a+1], $g);
-	$this->SetChar('data', $this->{pixelMap}[$a+2], $b);
+	$this->SetChar('data', getPixMapIndex($a), $r);
+	$this->SetChar('data', getPixMapIndex($a+1), $g);
+	$this->SetChar('data', getPixMapIndex($a+2), $b);
 }
 
 #############################################################################
@@ -502,7 +509,7 @@ sub GetBlockData {
 
 	for (my $i = $bd->{startChannel} - 1, my $c = 0; $c < $channels; $i++, $c++)
 	{
-		push( @data, $this->GetChar('data', $this->{pixelMap}[$i]));
+		push( @data, $this->GetChar('data', getPixMapIndex($i)));
 	}
 
 	return \@data;
@@ -522,7 +529,7 @@ sub SetBlockData {
 
 	for (my $i = $bd->{startChannel} - 1, my $c = 0; $c < $channels; $i++, $c++)
 	{
-		$this->SetChar('data', $this->{pixelMap}[$i], $data->[$c]);
+		$this->SetChar('data', getPixMapIndex($i), $data->[$c]);
 	}
 }
 
@@ -622,7 +629,7 @@ sub OverlayImage {
 
 							$count *= 3;
 
-							my $dc = $this->{pixelMap}[$d] - $count + 3;
+							my $dc = getPixMapIndex($d) - $count + 3;
 
 							substr(${$this->{"dataFileMap"}}, $dc, $count,
 								substr($rgbDataR, $rs, $count)) if (1);
@@ -631,7 +638,7 @@ sub OverlayImage {
 						{
 							my $s = (($sr * $sw) + $sx ) * 3;
 
-							my $dc = $this->{pixelMap}[$d];
+							my $dc = getPixMapIndex($d);
 
 							$count *= 3;
 							substr(${$this->{"dataFileMap"}}, $dc, $count,
@@ -656,7 +663,7 @@ sub OverlayImage {
 							((($dr * $dw) + $dc) * 3);
 
 						substr(${$this->{"dataFileMap"}},
-							$this->{pixelMap}[$d], 3, substr($rgbData, $s, 3));
+							getPixMapIndex($d), 3, substr($rgbData, $s, 3));
 					}
 					$dc++;
 				}
@@ -913,7 +920,9 @@ sub TextMessage {
 
 	$this->SetBlockLock($blk, 0);
 }
-
+    
 #############################################################################
 1;
 }
+
+

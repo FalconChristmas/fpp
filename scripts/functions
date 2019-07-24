@@ -818,6 +818,7 @@ setupChannelOutputs() {
 #############################################################################
 # Start/Stop the Web Socket Server
 startWebSocketServer() {
+	mkdir -p /run/fppd
 	/usr/bin/nohup ${SCRIPTDIR}/fppwss > ${LOGDIR}/fppwss.log 2>&1 &
 }
 

@@ -72,7 +72,7 @@
 SCRIPTVER="1.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="2.8"
-FPPCFGVER="46"
+FPPCFGVER="47"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -381,7 +381,7 @@ case "${OSVER}" in
                                 libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
                                 libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
                                 libboost-atomic-dev libboost-math-dev libboost-signals-dev libconvert-binary-c-perl \
-								libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
+								libdbus-glib-1-dev libdevice-serialport-perl libinline-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
 								mp3info mailutils mpg123 mpg321 mplayer nano net-tools node ntp \
