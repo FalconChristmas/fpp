@@ -990,6 +990,41 @@ setupRTC () {
 }
 
 #############################################################################
+# Configure BBB Leds
+configureBBBLeds() {
+    BBBLedPWR=$(getSetting BBBLedPWR)
+    if [ "x$BBBLedPWR" == "x0" ]; then
+        i2cset -f -y 0 0x24 0x0b 0x6e
+        i2cset -f -y 0 0x24 0x13 0x00
+        i2cset -f -y 0 0x24 0x0b 0x6e
+        i2cset -f -y 0 0x24 0x13 0x00
+    else
+        i2cset -f -y 0 0x24 0x0b 0x6e
+        i2cset -f -y 0 0x24 0x13 0x38
+        i2cset -f -y 0 0x24 0x0b 0x6e
+        i2cset -f -y 0 0x24 0x13 0x38
+    fi
+    BBBLeds0=$(getSetting BBBLeds0)
+    if [ "x$BBBLeds0" != "x" ]; then
+        echo "$BBBLeds0" > /sys/class/leds/beaglebone\:green\:usr0/trigger
+    fi
+    BBBLeds1=$(getSetting BBBLeds1)
+    if [ "x$BBBLeds1" != "x" ]; then
+        echo "$BBBLeds1" > /sys/class/leds/beaglebone\:green\:usr1/trigger
+    fi
+    BBBLeds2=$(getSetting BBBLeds2)
+    if [ "x$BBBLeds2" != "x" ]; then
+        echo "$BBBLeds2" > /sys/class/leds/beaglebone\:green\:usr2/trigger
+    fi
+    BBBLeds3=$(getSetting BBBLeds3)
+    if [ "x$BBBLeds3" != "x" ]; then
+        echo "$BBBLeds3" > /sys/class/leds/beaglebone\:green\:usr3/trigger
+    fi
+}
+
+
+
+#############################################################################
 # Functions to remount root read-write if read-only and switch back if necessary
 remountRootReadWrite() {
 	if [ "x${MOUNTSTATE}" = "x" ]

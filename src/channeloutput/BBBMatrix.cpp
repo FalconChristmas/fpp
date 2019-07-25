@@ -210,8 +210,8 @@ public:
 };
 class SimpleInterleaveHandler : public InterleaveHandler {
 public:
-    SimpleInterleaveHandler(int interleave, int ph, int pw, int ps)
-        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
+    SimpleInterleaveHandler(int interleave, int ph, int pw, int ps, bool flip)
+        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps), m_flipRows(flip) {}
     virtual ~SimpleInterleaveHandler() {}
 
     virtual void mapRow(int &y) {
@@ -221,6 +221,13 @@ public:
     }
     virtual void mapCol(int y, int &x) {
         int whichInt = x / m_interleave;
+        if (m_flipRows) {
+            if (whichInt & 0x1) {
+                whichInt &= 0xFE;
+            } else {
+                whichInt |= 0x1;
+            }
+        }
         int offInInt = x % m_interleave;
         int mult = (m_panelHeight / m_panelScan / 2) - 1 - y / m_panelScan;
         x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult)  + offInInt;
@@ -231,6 +238,7 @@ private:
     const int m_panelWidth;
     const int m_panelHeight;
     const int m_panelScan;
+    const bool m_flipRows;
 };
 
 class ZigZagInterleaveHandler : public InterleaveHandler {
@@ -434,6 +442,7 @@ int BBBMatrix::Init(Json::Value config)
         m_colorDepth = 8;
     }
     bool zigZagInterleave = false;
+    bool flipRows = false;
     if (config.isMember("panelInterleave")) {
         if (config["panelInterleave"].asString() == "8z") {
             m_interleave = 8;
@@ -444,6 +453,18 @@ int BBBMatrix::Init(Json::Value config)
         } else if (config["panelInterleave"].asString() == "4z") {
             m_interleave = 4;
             zigZagInterleave = true;
+        } else if (config["panelInterleave"].asString() == "8f") {
+            m_interleave = 8;
+            flipRows = true;
+        } else if (config["panelInterleave"].asString() == "16f") {
+            m_interleave = 16;
+            flipRows = true;
+        } else if (config["panelInterleave"].asString() == "32f") {
+            m_interleave = 32;
+            flipRows = true;
+        } else if (config["panelInterleave"].asString() == "64f") {
+            m_interleave = 64;
+            flipRows = true;
         } else {
             m_interleave = std::stoi(config["panelInterleave"].asString());
         }
@@ -633,7 +654,7 @@ int BBBMatrix::Init(Json::Value config)
         if (zigZagInterleave) {
             m_handler = new ZigZagInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
         } else {
-            m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+            m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan, flipRows);
         }
     } else {
         m_handler = new NoInterleaveHandler();

@@ -238,6 +238,9 @@ then
             echo 'rebootFlag = "1"' >> /home/fpp/media/settings
         fi
     fi
+
+    #configure the LEDS per user settings
+    configureBBBLeds
 fi
 
 if [ "${FPPPLATFORM}" == "Raspberry Pi" ]; then

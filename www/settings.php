@@ -129,6 +129,18 @@ $AudioFormats = Array();
     $AudioFormats['96000/S16'] = 7;
     $AudioFormats['96000/S32'] = 8;
     $AudioFormats['96000/FLT'] = 9;
+    
+    
+$BBBLeds = Array();
+    $BBBLeds['Disabled'] = "none";
+    $BBBLeds['Heartbeat'] = "heartbeat";
+    $BBBLeds['SD Card Activity'] = "mmc0";
+    $BBBLeds['eMMC Activity'] = "mmc1";
+    $BBBLeds['CPU Activity'] = "cpu";
+    
+$BBBPowerLed = Array();
+    $BBBPowerLed['Disabled'] = 0;
+    $BBBPowerLed['Enabled'] = 1;
 
 function PrintStorageDeviceSelect($platform)
 {
@@ -489,7 +501,7 @@ function ToggleTetherMode()
     </tr>
 <? if ($settings['SubPlatform'] != "Docker" ) { ?>
     <tr>
-      <td>External Storage Device:</td>
+      <td>Storage Device:</td>
       <td><? PrintStorageDeviceSelect($settings['Platform']); ?></td>
     </tr>
 <? }
@@ -544,6 +556,23 @@ function ToggleTetherMode()
         </table>
       </td>
     </tr>
+<?php
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
+    <tr>
+        <td valign='top'>BeagleBone LEDs:</td>
+        <td>
+            <table border=0 cellpadding=0 cellspacing=5 id='BBBLeds'>
+                <tr><td valign=top>USR1:</td><td><? PrintSettingSelect("USR1 LED", "BBBLeds0", 0, 0, isset($settings['BBBLeds0']) ? $settings['BBBLeds0'] : "heartbeat", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR2:</td><td><? PrintSettingSelect("USR2 LED", "BBBLeds1", 0, 0, isset($settings['BBBLeds1']) ? $settings['BBBLeds1'] : "mmc0", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR3:</td><td><? PrintSettingSelect("USR3 LED", "BBBLeds2", 0, 0, isset($settings['BBBLeds2']) ? $settings['BBBLeds2'] : "cpu", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR4:</td><td><? PrintSettingSelect("USR4 LED", "BBBLeds3", 0, 0, isset($settings['BBBLeds3']) ? $settings['BBBLeds3'] : "mmc1", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>Power:</td><td><? PrintSettingSelect("Power LED", "BBBLedPWR", 0, 0, isset($settings['BBBLedPWR']) ? $settings['BBBLedPWR'] : 1, $BBBPowerLed); ?></td></tr>
+            </table>
+        </td>
+    </tr>
+<? } ?>
+
 <tr><td><a href="advancedsettings.php">Advanced Settings</a></td></tr>
   </table>
 

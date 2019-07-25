@@ -22,8 +22,12 @@ if (isSet($settings['cape-info'])) {
 }
 if (!isset($currentCapeInfo['provides'])) {
     $currentCapeInfo['provides'][] = "all";
+    if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1)) {
+        $currentCapeInfo['provides'][] = "fpd";
+    }
 } else if ($settings["showAllOptions"] == 1) {
     $currentCapeInfo['provides'][] = "all";
+    $currentCapeInfo['provides'][] = "fpd";
 }
 ?>
 
@@ -247,7 +251,7 @@ tr.rowUniverseDetails td
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
-        if (in_array('all', $currentCapeInfo["provides"]) || in_array('fpd', $currentCapeInfo["provides"])) {
+        if (in_array('fpd', $currentCapeInfo["provides"])) {
             echo "<li><a href='#tab-fpd'>Falcon Pixelnet/DMX</a></li>\n";
         }
         if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
@@ -274,7 +278,7 @@ include_once('co-universes.php');
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
-    if (in_array('all', $currentCapeInfo["provides"]) || in_array('fpd', $currentCapeInfo["provides"])) {
+    if (in_array('fpd', $currentCapeInfo["provides"])) {
         include_once('co-fpd.php');
     }
     if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {

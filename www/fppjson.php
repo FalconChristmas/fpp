@@ -245,6 +245,8 @@ function SetSetting()
 				$SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
 				$output, $return_val);
 		}
+    } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
+        SetBBBLeds();
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
 	}
@@ -2162,6 +2164,13 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
 		returnJSON($result);
 	}
 }
+    
+function SetBBBLeds() {
+    file_put_contents("/tmp/setBBBLeds", "#!/bin/bash\n. /opt/fpp/scripts/common\n. /opt/fpp/scripts/functions\n configureBBBLeds");
+    shell_exec("sudo bash /tmp/setBBBLeds");
+    unlink("/tmp/setBBBLeds");
+}
+    
 
 /////////////////////////////////////////////////////////////////////////////
 
