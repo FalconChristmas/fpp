@@ -524,8 +524,7 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        JMP     next_check
-        DONE_CHECK_OUTPUT:
+        CALL    next_check
 #ifdef RECORD_STATS
         SUB        data_len, data_len, 1
 #endif
@@ -598,7 +597,7 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        JMP     next_check
+        CALL    next_check
 		//  QBNE	WORD_LOOP_PASS2, data_len, #0
     WORD_LOOP_DONE_PASS2:
 #endif   // GPIO0 second pass
@@ -634,7 +633,7 @@ EXIT:
 
 
 NO_PIXELS_CHECK:
-    JMP DONE_CHECK_OUTPUT
+    RET
 
 #if __has_include("/tmp/OutputLengths.hp")
 #include "/tmp/OutputLengths.hp"

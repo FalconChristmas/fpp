@@ -190,12 +190,16 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
         outputFile << "\nCHECK_" << std::to_string(min) << ":\n";
         if (min != maxStringLen) {
             if (min <= 255) {
-                outputFile << "    QBNE DONE_CHECK_OUTPUT, cur_data, "
+                outputFile << "    QBNE skip_"
+                << std::to_string(min)
+                << ", cur_data, "
                 << std::to_string(min)
                 << "\n";
             } else {
                 outputFile << "    LDI r8, " << std::to_string(min) << "\n";
-                outputFile << "    QBNE DONE_CHECK_OUTPUT, cur_data, r8\n";
+                outputFile << "    QBNE skip_"
+                << std::to_string(min)
+                << ", cur_data, r8\n";
             }
             
             for (auto &cmd : i->second) {
@@ -210,9 +214,10 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
             i++;
             int next = i->first;
             outputFile << "        LDI next_check, #CHECK_" << std::to_string(next) << "\n";
-            outputFile << "        JMP DONE_CHECK_OUTPUT\n";
+            outputFile << "    skip_" << std::to_string(min) << ":\n        RET\n";
+            
         } else {
-            outputFile << "    JMP DONE_CHECK_OUTPUT\n\n";
+            outputFile << "    RET\n\n";
             i++;
         }
     }
