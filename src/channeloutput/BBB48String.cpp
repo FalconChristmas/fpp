@@ -168,14 +168,12 @@ inline void mapSize(int max, int maxString, int &newHeight, std::vector<std::str
     args.push_back("-DOUTPUTS=" + std::to_string(newHeight));
 }
 static void createOutputLengths(std::vector<PixelString*> &m_strings,
-                                int maxStringLen) {
+                                int maxStringLen,
+                                std::vector<std::string> &args) {
     
     std::ofstream outputFile;
     outputFile.open("/tmp/OutputLengths.hp", std::ofstream::out | std::ofstream::trunc);
     
-#ifdef PRINT_STATS
-    outputFile << "#define RECORD_STATS\n\n";
-#endif
     std::map<int, std::vector<GPIOCommand>> sizes;
     for (int x = 0; x < m_strings.size(); x++) {
         int pc = m_strings[x]->m_outputChannels;
@@ -186,24 +184,18 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
         }
     }
     
-    outputFile << "#define CheckOutputLengths  JMP next_check\n";
-    
     auto i = sizes.begin();
     while (i != sizes.end()) {
         int min = i->first;
         outputFile << "\nCHECK_" << std::to_string(min) << ":\n";
         if (min != maxStringLen) {
             if (min <= 255) {
-                outputFile << "    QBNE skip_"
-                << std::to_string(min)
-                << ", cur_data, "
+                outputFile << "    QBNE DONE_CHECK_OUTPUT, cur_data, "
                 << std::to_string(min)
                 << "\n";
             } else {
                 outputFile << "    LDI r8, " << std::to_string(min) << "\n";
-                outputFile << "    QBNE skip_"
-                << std::to_string(min)
-                << ", cur_data, r8\n";
+                outputFile << "    QBNE DONE_CHECK_OUTPUT, cur_data, r8\n";
             }
             
             for (auto &cmd : i->second) {
@@ -218,20 +210,21 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
             i++;
             int next = i->first;
             outputFile << "        LDI next_check, #CHECK_" << std::to_string(next) << "\n";
-            outputFile << "    skip_" << std::to_string(min) << ":\n        JMP DONE_CHECK_OUTPUT\n";
+            outputFile << "        JMP DONE_CHECK_OUTPUT\n";
         } else {
             outputFile << "    JMP DONE_CHECK_OUTPUT\n\n";
             i++;
         }
     }
-    outputFile << "\nNO_PIXELS_CHECK:\n    JMP DONE_CHECK_OUTPUT\n\n";
+    
     if (sizes.empty()) {
-        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, #NO_PIXELS_CHECK\n";
+        args.push_back("-DFIRST_CHECK=NO_PIXELS_CHECK");
     } else {
         int sz = sizes.begin()->first;
-        outputFile << "#define SET_FIRST_CHECK \\\n    LDI next_check, #CHECK_" << std::to_string(sz) << "\n";
+        std::string v = "-DFIRST_CHECK=CHECK_";
+        v += std::to_string(sz);
+        args.push_back(v);
     }
-
     outputFile.close();
 }
 
@@ -382,8 +375,11 @@ int BBB48StringOutput::Init(Json::Value config)
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
         return 0;
     }
-    
-    createOutputLengths(m_strings, m_maxStringLen);
+#ifdef PRINT_STATS
+    args.push_back("-DRECORD_STATS");
+#endif
+
+    createOutputLengths(m_strings, m_maxStringLen, args);
     
     if (!maxGPIO0) {
         //no GPIO0 output so no need for the second PRU to be used

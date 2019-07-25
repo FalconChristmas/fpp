@@ -271,10 +271,8 @@ skip:
 .endm
 
 
-#if __has_include("/tmp/OutputLengths.hp")
-# include "/tmp/OutputLengths.hp"
-#else
-#define CheckOutputLengths
+#if !defined(FIRST_CHECK)
+#define FIRST_CHECK NO_PIXELS_CHECK
 #endif
 
 START:
@@ -396,7 +394,7 @@ _LOOP:
     MOV sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    SET_FIRST_CHECK
+    LDI next_check, #FIRST_CHECK
 
     //restore the led masks
     XIN SCRATCH_PAD, gpio0_led_mask, 16
@@ -526,7 +524,7 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        CheckOutputLengths
+        JMP     next_check
         DONE_CHECK_OUTPUT:
 #ifdef RECORD_STATS
         SUB        data_len, data_len, 1
@@ -546,7 +544,7 @@ _LOOP:
     MOV sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    SET_FIRST_CHECK
+    LDI next_check, #FIRST_CHECK
 
     //restore the led masks
     XIN SCRATCH_PAD, gpio0_led_mask, 16
@@ -600,7 +598,7 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        CheckOutputLengths
+        JMP     next_check
 		//  QBNE	WORD_LOOP_PASS2, data_len, #0
     WORD_LOOP_DONE_PASS2:
 #endif   // GPIO0 second pass
@@ -633,3 +631,11 @@ EXIT:
 
 	HALT
 
+
+
+NO_PIXELS_CHECK:
+    JMP DONE_CHECK_OUTPUT
+
+#if __has_include("/tmp/OutputLengths.hp")
+#include "/tmp/OutputLengths.hp"
+#endif
