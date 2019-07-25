@@ -171,9 +171,6 @@ function ShouldAddBreak(subType, s) {
     return false;
 }
 function IsDifferential(subType, s) {
-    if (s == 0) {
-        return false;
-    }
     s = s + 1;
     var subType = GetBBB48StringCapeFileName();
     var val = KNOWN_CAPES[subType];
@@ -420,7 +417,7 @@ function populatePixelStringOutputs(data) {
                     if (o < output.outputCount) {
                         port = output.outputs[o];
                     }
-                    if (ShouldAddBreak(subType, o)) {
+                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o))) {
                         if (IsDifferential(subType, o)) {
                             var diffType = port["differentialType"];
                             
@@ -465,7 +462,7 @@ function populatePixelStringOutputs(data) {
                                         strings = port.virtualStringsC;
                                     }
                                     
-                                    if (v != null && strings.length > 0) {
+                                    if (strings.length > 0) {
                                         for (var v = 0; v < strings.length; v++) {
                                             var vs = strings[v];
                                             
