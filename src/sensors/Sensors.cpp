@@ -115,12 +115,12 @@ public:
         }
         file = -1;
         int count = 0;
-        while (count < 5 && !FileExists(path)) {
+        while (count < 5 && !CheckForFile(path)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             count++;
         }
         //after 0.5 seconds, still doesn't exist
-        if (FileExists(path)) {
+        if (CheckForFile(path)) {
             file = open(path.c_str(), O_RDONLY);
         } else if (HasI2CDevice(bus) && driver == "lm75") {
             //Kernel 4.19 on Pi seems to not like the lm75 chips, we'll need to read the values directly
@@ -129,6 +129,27 @@ public:
             i2cUtils = new I2CUtils(bus, add);
         }
     }
+    bool CheckForFile(std::string &path) {
+        if (path.find("hwmon0") == std::string::npos) {
+            return FileExists(path);
+        }
+        // if it's a hwmon path, it MAY be on a different hwmon depending on the order that hwmon
+        // loads the drivers
+        std::string base = path.substr(0, path.find("hwmon0"));
+        std::string next = path.substr(path.find("hwmon0") + 6);
+        if (!DirectoryExists(base.c_str())) {
+            return false;
+        }
+        for (int x = 0; x < 10; x++) {
+            std::string npath = base + "hwmon" + std::to_string(x) + next;
+            if (FileExists(npath)) {
+                path = npath;
+                return true;
+            }
+        }
+        return false;
+    }
+    
     virtual ~I2CSensor() {
         if (file != -1) {
             close(file);
