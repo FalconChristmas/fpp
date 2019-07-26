@@ -188,7 +188,7 @@ apt-get install -y \
     firmware-ti-connectivity resolvconf wireless-tools \
     mailutils mp3info linux-cpupower cpufrequtils \
     usbutils usb-modeswitch locales lzma lshw lsof libiio-utils device-tree-compiler at haveged bluetooth bluez \
-    libzstd-dev zstd gpiod libgpiod-dev libapache2-mod-php php-zip
+    libzstd-dev zstd gpiod libgpiod-dev libapache2-mod-php php-zip libsdl2-dev
 
 
 curl -L https://cpanmin.us | perl - --sudo App::cpanminus
@@ -252,23 +252,24 @@ chmod +x FPP-Wifi-Drivers.sh
 
 rm /etc/modprobe.d/rtl8723bu-blacklist.conf
 
+cd /root
+wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh
+chmod 700 ./FPP_Install_BBB.sh
+./FPP_Install_BBB.sh
+
 # install sound drivers
 cd /opt/fpp/capes/drivers/bbb
 make
 make install
 make clean
 
-
-cd /root
-wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh
-chmod 700 ./FPP_Install_BBB.sh
-./FPP_Install_BBB.sh
-
 nano /home/fpp/.bashrc
 # uncomment force_color_prompt=yes
 
 
 # edit /etc/fstab and make sure it looks OK for tmpfs
+
+reboot
 
 
 #place 4G SD card in sd slot

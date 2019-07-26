@@ -25,6 +25,7 @@ int PiFacePinCapabilities::configPin(const std::string& mode,
     if (!directionOut) {
         readPin.configPin(mode, false);
     }
+    return 0;
 }
 
 bool PiFacePinCapabilities::getValue() const {

@@ -14,7 +14,13 @@ endif
 ifeq '$(ISLINUX)' '1'
 # do something Linux-y
 
+
+ifneq ($(wildcard /usr/include/X11/Xlib.h),)
+CFLAGS += -DPLATFORM_DOCKER
+else
 CFLAGS += -DPLATFORM_UNKNOWN
+endif
+
 CXXFLAGS += $(shell GraphicsMagick++-config --cppflags)
 LDFLAGS_fppd += -L.
 

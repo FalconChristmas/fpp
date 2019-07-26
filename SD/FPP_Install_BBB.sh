@@ -333,6 +333,9 @@ chmod 755 /usr/local/bin/composer
 
 #######################################
 PHPDIR="/etc/php/7.0"
+if [ -d "/etc/php/7.3" ]; then
+    PHPDIR="/etc/php/7.3"
+fi
 
 echo "FPP - Allowing short tags in PHP"
 FILES="cli/php.ini apache2/php.ini fpm/php.ini"
