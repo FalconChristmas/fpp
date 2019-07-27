@@ -56,6 +56,10 @@ Do a system upgrade to make sure everything is at the latest versions
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 
+cd /etc
+rm resolv.conf
+ln -s /var/run/connman/resolv.conf .
+
 On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh

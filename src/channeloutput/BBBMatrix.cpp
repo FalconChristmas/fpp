@@ -222,10 +222,10 @@ public:
     virtual void mapCol(int y, int &x) {
         int whichInt = x / m_interleave;
         if (m_flipRows) {
-            if (whichInt & 0x1) {
-                whichInt &= 0xFE;
+            if (y & m_panelScan) {
+                y &= !m_panelScan;
             } else {
-                whichInt |= 0x1;
+                y |= m_panelScan;
             }
         }
         int offInInt = x % m_interleave;

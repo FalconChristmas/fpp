@@ -266,6 +266,11 @@ make clean
 nano /home/fpp/.bashrc
 # uncomment force_color_prompt=yes
 
+cd /etc
+rm resolv.conf
+ln -s /var/run/connman/resolv.conf .
+
+
 
 # edit /etc/fstab and make sure it looks OK for tmpfs
 
