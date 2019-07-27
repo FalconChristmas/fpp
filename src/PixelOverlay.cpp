@@ -408,6 +408,7 @@ bool PixelOverlayManager::createChannelDataMap() {
     LogDebug(VB_CHANNELOUT, "PixelOverlayManager::createChannelDataMap()\n");
     
     mkdir(FPPCHANNELMEMORYMAPPATH, 0777);
+    chmod(FPPCHANNELMEMORYMAPPATH, 0777);
     // Block of of raw channel data used to overlay data
     int chanDataMapFD = open(FPPCHANNELMEMORYMAPDATAFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
     if (chanDataMapFD < 0) {
