@@ -94,6 +94,23 @@ include 'common/menuHead.inc';
 		SetVolume(volume);
 	}
 
+    function PreviousPlaylistEntry()
+    {
+        var xmlhttp=new XMLHttpRequest();
+        var url = "fppxml.php?command=playlistPrevEntry";
+        xmlhttp.open("GET",url,true);
+        xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+        xmlhttp.send();
+    }
+    function NextPlaylistEntry()
+    {
+        var xmlhttp=new XMLHttpRequest();
+        var url = "fppxml.php?command=playlistNextEntry";
+        xmlhttp.open("GET",url,true);
+        xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+        xmlhttp.send();
+    }
+
 	</script>
 
 
@@ -258,6 +275,8 @@ include 'common/menuHead.inc';
 
       <div id="playerControls" style="margin-top:5px">
         <input id= "btnPlay" type="button"  class ="buttons"value="Play" onClick="StartPlaylistNow();">
+        <input id= "btnPrev" type="button"  class ="buttons"value="Previous" onClick="PreviousPlaylistEntry();">
+        <input id= "btnNext" type="button"  class ="buttons"value="Next" onClick="NextPlaylistEntry();">
         <input id= "btnStopGracefully" type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
         <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
        </div>

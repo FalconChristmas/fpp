@@ -59,6 +59,8 @@ $command_array = Array(
 	"isFPPDrunning" => 'IsFPPDrunning',
 	"getFPPstatus" => 'GetFPPstatus',
 	"stopGracefully" => 'StopGracefully',
+    "playlistNextEntry" => 'PlaylistNextEntry',
+    "playlistPrevEntry" => 'PlaylistPrevEntry',
 	"stopNow" => 'StopNow',
 	"stopFPPD" => 'StopFPPD',
 	"startFPPD" => 'StartFPPD',
@@ -752,6 +754,16 @@ function StopGracefully()
 {
 	$status=SendCommand('S');
 	EchoStatusXML('true');
+}
+function PlaylistNextEntry()
+{
+    $status=SendCommand('NextPlaylistItem');
+    EchoStatusXML('true');
+}
+function PlaylistPrevEntry()
+{
+    $status=SendCommand('PrevPlaylistItem');
+    EchoStatusXML('true');
 }
 
 function StopNow()

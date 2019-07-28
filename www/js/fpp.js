@@ -2099,7 +2099,9 @@ function RemovePlaylistEntry()	{
 								
 				// Enable Play
 				SetButtonState('#btnPlay','enable');
-				SetButtonState('#btnStopNow','disable');
+                SetButtonState('#btnStopNow','disable');
+                SetButtonState('#btnPrev','disable');
+				SetButtonState('#btnNext','disable');
 				SetButtonState('#btnStopGracefully','disable');
 				$('#selStartPlaylist').removeAttr("disabled");
 				UpdateCurrentEntryPlaying(0);
@@ -2122,6 +2124,8 @@ function RemovePlaylistEntry()	{
 
 				SetButtonState('#btnPlay','disable');
 				SetButtonState('#btnStopNow','enable');
+                SetButtonState('#btnPrev','enable');
+                SetButtonState('#btnNext','enable');
 				SetButtonState('#btnStopGracefully','enable');
 				$('#selStartPlaylist').attr("disabled");
 
@@ -2155,6 +2159,8 @@ if (1) {
                 //only playing a sequence
                 var playerStatusText = "Playing <strong>'" + jsonStatus.current_sequence + "'</strong>";
                 SetButtonState('#btnPlay','disable');
+                SetButtonState('#btnPrev','enable');
+                SetButtonState('#btnNext','enable');
                 SetButtonState('#btnStopNow','enable');
                 SetButtonState('#btnStopGracefully','disable');
                 

@@ -283,7 +283,7 @@ function LoadPlugin(data) {
 		$('#templatePlugin').show();
 		$('#templatePlugin').append(html);
 	}
-	else if (infoURL.indexOf("/fpp-pluginList/oldplugins/") >= 0)
+	else if (infoURL && infoURL.indexOf("/fpp-pluginList/oldplugins/") >= 0)
 	{
 		if (firstUntested)
 		{

@@ -203,16 +203,17 @@ function UpgradePlugin()
 
 	$plugin = params('RepoName');
 
-	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git pull)';
+    $cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git pull)';
 	exec($cmd, $output, $return_val);
+    if ($return_val != 0) {
+        $cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git clean -fd && ' . $SUDO . ' git pull)';
+        exec($cmd, $output, $return_val);
+    }
 
-	if ($return_val == 0)
-	{
+	if ($return_val == 0) {
 		$result['Status'] = 'OK';
 		$result['Message'] = '';
-	}
-	else
-	{
+	} else {
 		$result['Status'] = 'Error';
 		$result['Message'] = 'Could not run git pull for plugin ' . $plugin;
 	}
