@@ -281,7 +281,7 @@ int TriggerEvent(const char major, const char minor)
 
 	sprintf(id, "%02d_%02d", major, minor);
 
-	pluginManager.eventCallback(id, "sequence");
+	PluginManager::INSTANCE.eventCallback(id, "sequence");
 	return TriggerEventByID(id);
 }
 

@@ -1631,7 +1631,7 @@ void MultiSync::ProcessEventPacket(ControlPkt *pkt, int len)
 
 	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
-	pluginManager.eventCallback(epkt->eventID, "remote");
+    PluginManager::INSTANCE.eventCallback(epkt->eventID, "remote");
 	TriggerEventByID(epkt->eventID);
 }
 

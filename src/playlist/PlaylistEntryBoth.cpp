@@ -28,8 +28,6 @@
 #include "mediadetails.h"
 #include "Sequence.h"
 
-extern MediaDetails	 mediaDetails;
-
 PlaylistEntryBoth::PlaylistEntryBoth(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
 	m_duration(0),
@@ -196,8 +194,8 @@ Json::Value PlaylistEntryBoth::GetMqttStatus(void)
         	result["secondsElapsed"] = sequence->m_seqSecondsElapsed;
 	}
 
-       	result["mediaTitle"] = mediaDetails.title;
-       	result["mediaArtist"] = mediaDetails.artist;
+    result["mediaTitle"] = MediaDetails::INSTANCE.title;
+    result["mediaArtist"] = MediaDetails::INSTANCE.artist;
 
 
 	return result;

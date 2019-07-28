@@ -39,8 +39,7 @@
 #include "mediaoutput/ogg123.h"
 #include "mediaoutput/omxplayer.h"
 #include "mediaoutput/SDLOut.h"
-
-extern MediaDetails mediaDetails;
+#include "Playlist.h"
 
 /*
  *
@@ -112,11 +111,11 @@ int PlaylistEntryMedia::PreparePlay() {
 
     if (mqtt) {
         mqtt->Publish("playlist/media/status", m_mediaFilename);
-        mqtt->Publish("playlist/media/title", mediaDetails.title);
-        mqtt->Publish("playlist/media/artist", mediaDetails.artist);
+        mqtt->Publish("playlist/media/title", MediaDetails::INSTANCE.title);
+        mqtt->Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
     }
     
-    pluginManager.mediaCallback();
+    PluginManager::INSTANCE.mediaCallback(playlist->GetInfo(), MediaDetails::INSTANCE);
     return 1;
 }
 
@@ -322,7 +321,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		return 0;
 	}
 
-    ParseMedia(m_mediaFilename.c_str());
+    MediaDetails::INSTANCE.ParseMedia(m_mediaFilename.c_str());
     pthread_mutex_unlock(&m_mediaOutputLock);
 
 
@@ -392,8 +391,8 @@ Json::Value PlaylistEntryMedia::GetMqttStatus(void)
 	result["secondsRemaining"]  = mediaOutputStatus.secondsRemaining;
 	result["secondsTotal"]      = mediaOutputStatus.secondsTotal;
 	result["mediaName"]         = m_mediaFilename;
-	result["mediaTitle"]        = mediaDetails.title;
-	result["mediaArtist"]       = mediaDetails.artist;
+	result["mediaTitle"]        = MediaDetails::INSTANCE.title;
+	result["mediaArtist"]       = MediaDetails::INSTANCE.artist;
 
 	return result;
 }

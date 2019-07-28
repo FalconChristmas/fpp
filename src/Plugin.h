@@ -2,10 +2,12 @@
 #define __FPP_PLUGIN_H__
 
 #include <string>
+#include <jsoncpp/json/json.h>
 
 namespace httpserver {
     class webserver;
 }
+class MediaDetails;
 
 class FPPPlugin {
 public:
@@ -14,7 +16,7 @@ public:
     
     //legacy plugin touch points
     virtual void eventCallback(const char *id, const char *impetus) {}
-    virtual void mediaCallback() {}
+    virtual void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails) {}
 
     
     

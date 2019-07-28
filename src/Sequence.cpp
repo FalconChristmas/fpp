@@ -491,7 +491,7 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
     if (ChannelTester::INSTANCE.Testing())
         ChannelTester::INSTANCE.OverlayTestData(m_seqData);
     
-    pluginManager.modifyChannelData(ms, (uint8_t*)m_seqData);
+    PluginManager::INSTANCE.modifyChannelData(ms, (uint8_t*)m_seqData);
     
     PrepareChannelData(m_seqData);
     m_dataProcessed = true;

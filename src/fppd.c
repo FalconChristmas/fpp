@@ -442,7 +442,6 @@ int main(int argc, char *argv[])
 {
     setupExceptionHandlers();
 	initSettings(argc, argv);
-	initMediaDetails();
 
 	if (DirectoryExists("/home/fpp"))
 		loadSettings("/home/fpp/media/settings");
@@ -491,7 +490,7 @@ int main(int argc, char *argv[])
 
 	SetupGPIOInput();
 
-	pluginManager.init();
+	PluginManager::INSTANCE.init();
 
 	CheckExistanceOfDirectoriesAndFiles();
     if(!FileExists(getPixelnetFile())) {

@@ -70,7 +70,7 @@ APIServer::~APIServer()
 	m_ws->sweet_kill();
 	m_ws->stop();
 
-    pluginManager.unregisterApis(m_ws);
+    PluginManager::INSTANCE.unregisterApis(m_ws);
 
 	m_ws->unregister_resource("/fppd");
     m_ws->unregister_resource("/models");
@@ -96,7 +96,7 @@ void APIServer::Init(void)
     m_ws->register_resource("/models", &PixelOverlayManager::INSTANCE, true);
     m_ws->register_resource("/overlays", &PixelOverlayManager::INSTANCE, true);
     
-    pluginManager.registerApis(m_ws);
+    PluginManager::INSTANCE.registerApis(m_ws);
 
 	m_ws->start(false);
 }

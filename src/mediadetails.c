@@ -10,49 +10,37 @@
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
 
-MediaDetails	 mediaDetails;
+MediaDetails MediaDetails::INSTANCE;
 
-void initMediaDetails()
+MediaDetails::MediaDetails()
+: year(0), track(0), length(0), seconds(0), minutes(0),
+ bitrate(0), sampleRate(0), channels(0)
 {
-	bzero(&mediaDetails, sizeof(MediaDetails));
+}
+MediaDetails::~MediaDetails() {
+    
 }
 
-void clearPreviousMedia()
+void MediaDetails::clearPreviousMedia()
 {
-	if (mediaDetails.title)
-		free(mediaDetails.title);
-	mediaDetails.title = NULL;
+	title.clear();
+    artist.clear();
+    album.clear();
+	year = 0;
+	comment.clear();
+    track = 0;
+    genre.clear();
 
-	if (mediaDetails.artist)
-		free(mediaDetails.artist);
-	mediaDetails.artist = NULL;
+	length = 0;
+	seconds = 0;
+	minutes = 0;
 
-	if (mediaDetails.album)
-		free(mediaDetails.album);
-	mediaDetails.album = NULL;
-
-	mediaDetails.year = 0;
-
-	if (mediaDetails.comment)
-		free(mediaDetails.comment);
-	mediaDetails.comment = NULL;
-
-	mediaDetails.track = 0;
-
-	if (mediaDetails.genre)
-		free(mediaDetails.genre);
-	mediaDetails.genre = NULL;
-
-	mediaDetails.length = 0;
-	mediaDetails.seconds = 0;
-	mediaDetails.minutes = 0;
-
-	mediaDetails.bitrate = 0;
-	mediaDetails.sampleRate = 0;
-	mediaDetails.channels = 0;
+	bitrate = 0;
+	sampleRate = 0;
+	channels = 0;
 }
 
-void ParseMedia(const char *mediaFilename)
+void MediaDetails::ParseMedia(const char *mediaFilename)
 {
     char fullMediaPath[1024];
 	int seconds;
@@ -63,26 +51,20 @@ void ParseMedia(const char *mediaFilename)
 
     LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", mediaFilename);
 
-    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), mediaFilename)
-        >= 1024)
-    {
+    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), mediaFilename) >= 1024) {
         LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
             mediaFilename);
         return;
     }
 
-    if (!FileExists(fullMediaPath))
-    {
-		if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), mediaFilename)
-	        >= 1024)
-		{
+    if (!FileExists(fullMediaPath)) {
+		if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), mediaFilename) >= 1024) {
 			LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
 				mediaFilename);
 			return;
 		}
 
-		if (!FileExists(fullMediaPath))
-		{
+		if (!FileExists(fullMediaPath)) {
 			LogErr(VB_MEDIAOUT, "Unable to find %s media file to parse meta data\n", mediaFilename);
 			return;
 		}
@@ -97,41 +79,40 @@ void ParseMedia(const char *mediaFilename)
 
 	TagLib::Tag *tag = f.tag();
 
-	mediaDetails.title   = strdup(tag->title().toCString());
-	mediaDetails.artist  = strdup(tag->artist().toCString());
-	mediaDetails.album   = strdup(tag->album().toCString());
-	mediaDetails.year    = tag->year();
-	mediaDetails.comment = strdup(tag->comment().toCString());
-	mediaDetails.track   = tag->track();
-	mediaDetails.genre   = strdup(tag->genre().toCString());
+	title   = tag->title().toCString();
+	artist  = tag->artist().toCString();
+	album   = tag->album().toCString();
+	year    = tag->year();
+	comment = tag->comment().toCString();
+	track   = tag->track();
+	genre   = tag->genre().toCString();
 
-	if (f.audioProperties())
-	{
+	if (f.audioProperties()) {
 		TagLib::AudioProperties *properties = f.audioProperties();
 
-		mediaDetails.length     = properties->length();
-		mediaDetails.seconds    = properties->length() % 60;
-		mediaDetails.minutes    = (properties->length() - mediaDetails.seconds) / 60;
+		length     = properties->length();
+		seconds    = properties->length() % 60;
+		minutes    = (properties->length() - seconds) / 60;
 
-		mediaDetails.bitrate    = properties->bitrate();
-		mediaDetails.sampleRate = properties->sampleRate();
-		mediaDetails.channels   = properties->channels();
+		bitrate    = properties->bitrate();
+		sampleRate = properties->sampleRate();
+		channels   = properties->channels();
 	}
 
-	LogDebug(VB_MEDIAOUT, "  Title        : %s\n", mediaDetails.title);
-	LogDebug(VB_MEDIAOUT, "  Artist       : %s\n", mediaDetails.artist);
-	LogDebug(VB_MEDIAOUT, "  Album        : %s\n", mediaDetails.album);
-	LogDebug(VB_MEDIAOUT, "  Year         : %d\n", mediaDetails.year);
-	LogDebug(VB_MEDIAOUT, "  Comment      : %s\n", mediaDetails.comment);
-	LogDebug(VB_MEDIAOUT, "  Track        : %d\n", mediaDetails.track);
-	LogDebug(VB_MEDIAOUT, "  Genre        : %s\n", mediaDetails.genre);
+	LogDebug(VB_MEDIAOUT, "  Title        : %s\n", title.c_str());
+	LogDebug(VB_MEDIAOUT, "  Artist       : %s\n", artist.c_str());
+	LogDebug(VB_MEDIAOUT, "  Album        : %s\n", album.c_str());
+	LogDebug(VB_MEDIAOUT, "  Year         : %d\n", year);
+	LogDebug(VB_MEDIAOUT, "  Comment      : %s\n", comment.c_str());
+	LogDebug(VB_MEDIAOUT, "  Track        : %d\n", track);
+	LogDebug(VB_MEDIAOUT, "  Genre        : %s\n", genre.c_str());
 	LogDebug(VB_MEDIAOUT, "  Properties:\n");
-	LogDebug(VB_MEDIAOUT, "    Length     : %d\n", mediaDetails.length);
-	LogDebug(VB_MEDIAOUT, "    Seconds    : %d\n", mediaDetails.seconds);
-	LogDebug(VB_MEDIAOUT, "    Minutes    : %d\n", mediaDetails.minutes);
-	LogDebug(VB_MEDIAOUT, "    Bitrate    : %d\n", mediaDetails.bitrate);
-	LogDebug(VB_MEDIAOUT, "    Sample Rate: %d\n", mediaDetails.sampleRate);
-	LogDebug(VB_MEDIAOUT, "    Channels   : %d\n", mediaDetails.channels);
+	LogDebug(VB_MEDIAOUT, "    Length     : %d\n", length);
+	LogDebug(VB_MEDIAOUT, "    Seconds    : %d\n", seconds);
+	LogDebug(VB_MEDIAOUT, "    Minutes    : %d\n", minutes);
+	LogDebug(VB_MEDIAOUT, "    Bitrate    : %d\n", bitrate);
+	LogDebug(VB_MEDIAOUT, "    Sample Rate: %d\n", sampleRate);
+	LogDebug(VB_MEDIAOUT, "    Channels   : %d\n", channels);
 
 	return;
 }

@@ -28,9 +28,10 @@
 #include <boost/tokenizer.hpp>
 
 #include "Plugin.h"
+#include "mediadetails.h"
 
 
-PluginManager pluginManager;
+PluginManager PluginManager::INSTANCE;
 
 class MediaCallback
 {
@@ -42,7 +43,7 @@ public:
     virtual ~MediaCallback() {}
     
     
-    void run();
+    void run(const Json::Value &playlist, const MediaDetails &mediaDetails);
 private:
     std::string mName;
     std::string mFilename;
@@ -113,9 +114,9 @@ public:
             m_eventCallback->run(id, impetus);
         }
     }
-    virtual void mediaCallback() {
+    virtual void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails) {
         if (m_mediaCallback) {
-            m_mediaCallback->run();
+            m_mediaCallback->run(playlist, mediaDetails);
         }
     }
     
@@ -286,10 +287,10 @@ void PluginManager::eventCallback(const char *id, const char *impetus)
         a->eventCallback(id, impetus);
     }
 }
-void PluginManager::mediaCallback()
+void PluginManager::mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails)
 {
     for (auto a : mPlugins) {
-        a->mediaCallback();
+        a->mediaCallback(playlist, mediaDetails);
     }
 }
 void PluginManager::registerApis(httpserver::webserver *m_ws) {
@@ -310,81 +311,65 @@ void PluginManager::modifyChannelData(int ms, uint8_t *seqData) {
 
 
 //blocking
-void MediaCallback::run(void)
+void MediaCallback::run(const Json::Value &playlist, const MediaDetails &mediaDetails)
 {
 	int pid;
 
-	if ((pid = fork()) == -1 )
-	{
+	if ((pid = fork()) == -1 ) {
 		LogErr(VB_PLUGIN, "Failed to fork\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if ( pid == 0 )
-	{
+	if ( pid == 0 ) {
 		LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", mName.c_str(), mFilename.c_str());
 
 		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
 		Json::Value root;
 		Json::FastWriter writer;
 
-		Json::Value pl = playlist->GetInfo();
-		root["type"] = pl["currentEntry"]["type"];
+		root["type"] = playlist["currentEntry"]["type"];
 
-        root["Sequence"] = pl["currentEntry"]["type"].asString() == "both" ? pl["currentEntry"]["sequence"]["sequenceName"].asString().c_str() : "";
-        root["Media"] = pl["currentEntry"]["type"].asString() == "both"
-                             ? pl["currentEntry"]["media"]["mediaFilename"].asString().c_str()
-                             : pl["currentEntry"]["mediaFilename"].asString().c_str();
-		if (mediaDetails.title && strlen(mediaDetails.title))
-		{
-			root["title"] = std::string(mediaDetails.title);
+        root["Sequence"] = playlist["currentEntry"]["type"].asString() == "both" ? playlist["currentEntry"]["sequence"]["sequenceName"].asString().c_str() : "";
+        root["Media"] = playlist["currentEntry"]["type"].asString() == "both"
+                             ? playlist["currentEntry"]["media"]["mediaFilename"].asString().c_str()
+                             : playlist["currentEntry"]["mediaFilename"].asString().c_str();
+		if (!mediaDetails.title.empty()) {
+			root["title"] = mediaDetails.title;
 		}
-		if (mediaDetails.artist && strlen(mediaDetails.artist))
-		{
-			root["artist"] = std::string(mediaDetails.artist);
+		if (!mediaDetails.artist.empty()) {
+			root["artist"] = mediaDetails.artist;
 		}
-		if (mediaDetails.album && strlen(mediaDetails.album))
-		{
-			root["album"] = std::string(mediaDetails.album);
+		if (!mediaDetails.album.empty()) {
+			root["album"] = mediaDetails.album;
 		}
-		if (mediaDetails.year)
-		{
+		if (mediaDetails.year) {
 			root["year"] = std::to_string(mediaDetails.year);
 		}
-		if (mediaDetails.comment && strlen(mediaDetails.comment))
-		{
-			root["comment"] = std::string(mediaDetails.comment);
+		if (!mediaDetails.comment.empty()) {
+			root["comment"] = mediaDetails.comment;
 		}
-		if (mediaDetails.track)
-		{
+		if (mediaDetails.track) {
 			root["track"] = std::to_string(mediaDetails.track);
 		}
-		if (mediaDetails.genre && strlen(mediaDetails.genre))
-		{
-			root["genre"] = std::string(mediaDetails.genre);
+		if (!mediaDetails.genre.empty()) {
+			root["genre"] = mediaDetails.genre;
 		}
-		if (mediaDetails.length)
-		{
+		if (mediaDetails.length) {
 			root["length"] = std::to_string(mediaDetails.length);
 		}
-		if (mediaDetails.seconds)
-		{
+		if (mediaDetails.seconds) {
 			root["seconds"] = std::to_string(mediaDetails.seconds);
 		}
-		if (mediaDetails.minutes)
-		{
+		if (mediaDetails.minutes) {
 			root["minutes"] = std::to_string(mediaDetails.minutes);
 		}
-		if (mediaDetails.bitrate)
-		{
+		if (mediaDetails.bitrate)  {
 			root["bitrate"] = std::to_string(mediaDetails.bitrate);
 		}
-		if (mediaDetails.sampleRate)
-		{
+		if (mediaDetails.sampleRate) {
 			root["sampleRate"] = std::to_string(mediaDetails.sampleRate);
 		}
-		if (mediaDetails.channels)
-		{
+		if (mediaDetails.channels) {
 			root["channels"] = std::to_string(mediaDetails.channels);
 		}
 
