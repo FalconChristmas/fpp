@@ -307,7 +307,7 @@ void FPPOLEDUtils::run() {
                     OLEDPage::SetCurrentPage(statusPage);
                     lastUpdateTime = 0;
                     lastActionTime = ntime;
-                } else if (action != "") {
+                } else if (action != "" && ((ntime - lastActionTime) > 70000)) { //account for some debounce time
                     printf("Action: %s\n", action.c_str());
                     //force immediate update
                     lastUpdateTime = 0;

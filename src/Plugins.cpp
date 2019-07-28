@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <dlfcn.h>
 
 #include <iostream>
 
@@ -26,6 +27,10 @@
 #include <boost/foreach.hpp>
 #include <boost/tokenizer.hpp>
 
+#include "Plugin.h"
+
+
+
 typedef struct plugin_s
 {
 	char *name;
@@ -33,14 +38,66 @@ typedef struct plugin_s
 	int mask;
 } plugin_t;
 
-PluginCallbackManager pluginCallbackManager;
+PluginManager pluginManager;
 
-// TODO: Maybe make this a linked list so we
-// can support more than a hard-coded value.
-#define MAX_PLUGINS 10
+class Callback
+{
+public:
+    Callback(const std::string name, const std::string &filename) {
+        mName = name;
+        mFilename = filename;
+    }
+    virtual ~Callback() {}
+    
+    std::string getName() { return mName; }
+    std::string getFilename() { return mFilename; }
+    
+private:
+    std::string mName;
+    std::string mFilename;
+};
 
-plugin_t plugins[MAX_PLUGINS];
-int plugin_count = 0;
+class MediaCallback : public Callback
+{
+public:
+    MediaCallback(const std::string &a, const std::string &b) : Callback(a, b) {}
+    virtual ~MediaCallback() {}
+    
+    void run();
+private:
+};
+
+class PlaylistCallback : public Callback
+{
+public:
+    PlaylistCallback(const std::string &a, const std::string &b) : Callback(a, b) {}
+    virtual ~PlaylistCallback() {}
+    
+    void run(OldPlaylistDetails *, bool);
+private:
+};
+
+class NextPlaylistEntryCallback : public Callback
+{
+public:
+    NextPlaylistEntryCallback(const std::string &a, const std::string &b) : Callback(a, b) {}
+    virtual ~NextPlaylistEntryCallback() {}
+    
+    int run(const char *, int, int, bool, OldPlaylistEntry *);
+private:
+};
+
+class EventCallback : public Callback
+{
+public:
+    EventCallback(std::string a, std::string b) : Callback(a, b) {}
+    virtual ~EventCallback() {}
+    
+    void run(const char *, const char *);
+private:
+};
+
+
 
 extern MediaDetails	 mediaDetails;
 
@@ -53,57 +110,125 @@ const char *type_to_string[] = {
 	"event",
 };
 
-PluginCallbackManager::PluginCallbackManager()
+
+class ScriptFPPPlugin : public FPPPlugin {
+public:
+    ScriptFPPPlugin(const std::string &n, const std::string &filename, const std::string &lst) : FPPPlugin(n), fileName(filename) {
+        boost::char_separator<char> sep(",");
+        boost::tokenizer< boost::char_separator<char> > tokens(lst, sep);
+        BOOST_FOREACH (const std::string& type, tokens) {
+            if (type == "media") {
+                LogDebug(VB_PLUGIN, "Plugin %s supports media callback.\n", name.c_str());
+                m_mediaCallback = new MediaCallback(name, filename);
+            } else if (type == "playlist") {
+                LogDebug(VB_PLUGIN, "Plugin %s supports playlist callback.\n", name.c_str());
+                m_playlistCallback = new PlaylistCallback(name, filename);
+            } else if (type == "nextplaylist") {
+                LogDebug(VB_PLUGIN, "Plugin %s supports nextplaylist callback.\n", name.c_str());
+                m_nextPlaylistCallback = new NextPlaylistEntryCallback(name, filename);
+            } else if (type == "event") {
+                LogDebug(VB_PLUGIN, "Plugin %s supports event callback.\n", name.c_str());
+                m_eventCallback = new EventCallback(name, filename);
+            } else {
+                otherTypes.push_back(type);
+            }
+        }
+    }
+    virtual ~ScriptFPPPlugin() {
+        if (m_mediaCallback) delete m_mediaCallback;
+        if (m_playlistCallback) delete m_playlistCallback;
+        if (m_nextPlaylistCallback) delete m_nextPlaylistCallback;
+        if (m_eventCallback) delete m_eventCallback;
+    }
+    
+    bool hasCallback() const {
+        return m_mediaCallback != nullptr || m_playlistCallback != nullptr
+        || m_nextPlaylistCallback != nullptr || m_eventCallback != nullptr;
+    }
+    
+    const std::list<std::string> &getOtherTypes() const {
+        return otherTypes;
+    }
+    
+    virtual int nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe) {
+        if (m_nextPlaylistCallback) {
+            return m_nextPlaylistCallback->run(plugin_data, currentPlaylistEntry, mode, repeat, pe);
+        }
+        return 0;
+    }
+    virtual void playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting) {
+        if (m_playlistCallback) {
+            m_playlistCallback->run(oldPlaylistDetails, starting);
+        }
+    }
+    virtual void eventCallback(const char *id, const char *impetus) {
+        if (m_eventCallback) {
+            m_eventCallback->run(id, impetus);
+        }
+    }
+    virtual void mediaCallback() {
+        if (m_mediaCallback) {
+            m_mediaCallback->run();
+        }
+    }
+    
+private:
+    const std::string fileName;
+    
+    std::list<std::string> otherTypes;
+    MediaCallback *m_mediaCallback = nullptr;
+    PlaylistCallback *m_playlistCallback = nullptr;
+    NextPlaylistEntryCallback *m_nextPlaylistCallback = nullptr;
+    EventCallback *m_eventCallback = nullptr;
+};
+
+
+
+PluginManager::PluginManager()
 {
 }
 
-void PluginCallbackManager::init()
+void PluginManager::init()
 {
 	DIR *dp;
 	struct dirent *ep;
 
 	dp = opendir(getPluginDirectory());
-	if (dp != NULL)
-	{
-		while (ep = readdir(dp))
-		{
-			int location = strstr(ep->d_name,".") - ep->d_name;
+	if (dp != NULL) {
+		while (ep = readdir(dp)) {
+			int location = strstr(ep->d_name, ".") - ep->d_name;
 			// We're one of ".", "..", or hidden, so let's skip
-			if ( location == 0 )
+            if (location == 0) {
 				continue;
+            }
 
 			LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
 
 			std::string filename = std::string(getPluginDirectory()) + "/" + ep->d_name + "/callbacks";
 			bool found = false;
 
-			if ( FileExists(filename.c_str()) )
-			{
+			if (FileExists(filename)) {
 				printf("Found callback with no extension");
 				found = true;
-			}
-			else
-			{
+			} else {
 				std::vector<std::string> extensions;
 				extensions.push_back(std::string(".sh"));
 				extensions.push_back(std::string(".pl"));
 				extensions.push_back(std::string(".php"));
 				extensions.push_back(std::string(".py"));
 
-				for ( std::vector<std::string>::iterator i = extensions.begin(); i != extensions.end(); ++i)
-				{
+				for ( std::vector<std::string>::iterator i = extensions.begin(); i != extensions.end(); ++i) {
 					std::string tmpFilename = filename + *i;
-					if ( FileExists( tmpFilename.c_str() ) )
-					{
+					if ( FileExists( tmpFilename.c_str() ) ) {
 						filename += *i;
 						found = true;
 					}
 				}
 			}
+            
 			std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
 
-			if ( !found )
-			{
+			if (!found) {
 				LogExcess(VB_PLUGIN, "No callbacks supported by plugin: '%s'\n", ep->d_name);
 				continue;
 			}
@@ -114,33 +239,27 @@ void PluginCallbackManager::init()
 			char readbuffer[128];
 			std::string callback_list = "";
 
-			if (pipe(output_pipe) == -1)
-			{
+			if (pipe(output_pipe) == -1) {
 				LogErr(VB_PLUGIN, "Failed to make pipe\n");
 				exit(EXIT_FAILURE);
 			}
 
-			if ((pid = fork()) == -1 )
-			{
+			if ((pid = fork()) == -1 ) {
 				LogErr(VB_PLUGIN, "Failed to fork\n");
 				exit(EXIT_FAILURE);
 			}
 
-			if ( pid == 0 )
-			{
+			if ( pid == 0 ) {
 				dup2(output_pipe[1], STDOUT_FILENO);
 				close(output_pipe[1]);
 				execl(eventScript.c_str(), "eventScript", filename.c_str(), "--list", NULL);
 
 				LogErr(VB_PLUGIN, "We failed to exec our callbacks query!\n");
 				exit(EXIT_FAILURE);
-			}
-			else
-			{
+			} else {
 				close(output_pipe[1]);
 
-				while (true)
-				{
+				while (true) {
 					bytes_read = read(output_pipe[0], readbuffer, sizeof(readbuffer)-1);
 
 					if (bytes_read <= 0)
@@ -153,119 +272,90 @@ void PluginCallbackManager::init()
 				boost::trim(callback_list);
 
 				LogExcess(VB_PLUGIN, "Callback output: (%s)\n", callback_list.c_str());
-
 				wait(NULL);
 			}
 
-			boost::char_separator<char> sep(",");
-			boost::tokenizer< boost::char_separator<char> > tokens(callback_list, sep);
-		    BOOST_FOREACH (const std::string& type, tokens)
-			{
-				if (type == "media")
-				{
-					LogDebug(VB_PLUGIN, "Plugin %s supports media callback.\n", ep->d_name);
-					MediaCallback *media = new MediaCallback(std::string(ep->d_name), filename);
-					mCallbacks.push_back(media);
-				}
-				else if (type == "playlist")
-				{
-					LogDebug(VB_PLUGIN, "Plugin %s supports playlist callback.\n", ep->d_name);
-					PlaylistCallback *playlist = new PlaylistCallback(std::string(ep->d_name), filename);
-					mCallbacks.push_back(playlist);
-				}
-				else if (type == "nextplaylist")
-				{
-					LogDebug(VB_PLUGIN, "Plugin %s supports nextplaylist callback.\n", ep->d_name);
-					NextPlaylistEntryCallback *nextplaylistentry = new NextPlaylistEntryCallback(std::string(ep->d_name), filename);
-					mCallbacks.push_back(nextplaylistentry);
-				}
-				else if (type == "event")
-				{
-					LogDebug(VB_PLUGIN, "Plugin %s supports event callback.\n", ep->d_name);
-					EventCallback *eventcallback = new EventCallback(std::string(ep->d_name), filename);
-					mCallbacks.push_back(eventcallback);
-				}
-			}
-
-			plugin_count += 1;
+            ScriptFPPPlugin *spl = new ScriptFPPPlugin(ep->d_name, filename, callback_list);
+            if (spl->hasCallback()) {
+                mPlugins.push_back(spl);
+            } else {
+                for (auto &a : spl->getOtherTypes()) {
+                    if (boost::starts_with(a, "c++")) {
+                        std::string shlibName = std::string(getPluginDirectory()) + "/" + ep->d_name + "/lib" + ep->d_name + ".so";
+                        if (a[3] == ':') {
+                            shlibName = std::string(getPluginDirectory()) + "/" + ep->d_name + "/" + a.substr(4);
+                        }
+                        void *handle = dlopen(shlibName.c_str(), RTLD_NOW);
+                        if (handle == nullptr) {
+                            LogErr(VB_PLUGIN, "Failed to load plugin shlib %s\n", shlibName.c_str());
+                            continue;
+                        }
+                        FPPPlugin* (*fptr)();
+                        *(void **)(&fptr) = dlsym(handle, "createPlugin");
+                        if (fptr == nullptr) {
+                            LogErr(VB_PLUGIN, "Failed to find  createPlugin() function in shlib %s\n", shlibName.c_str());
+                            dlclose(handle);
+                            continue;
+                        }
+                        FPPPlugin *p = fptr();
+                        if (p == nullptr) {
+                            LogErr(VB_PLUGIN, "Failed to create plugin from shlib %s\n", shlibName.c_str());
+                            dlclose(handle);
+                            continue;
+                        }
+                        mPlugins.push_back(p);
+                    }
+                }
+                delete spl;
+            }
 		}
 		closedir(dp);
-	}
-	else
-	{
+	} else {
 		LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", getPluginDirectory(), errno, strerror(errno));
 	}
 
 	return;
 }
 
-PluginCallbackManager::~PluginCallbackManager()
+PluginManager::~PluginManager()
 {
-	while (!mCallbacks.empty())
-	{
-		delete mCallbacks.back();
-		mCallbacks.pop_back();
+	while (!mPlugins.empty()) {
+		delete mPlugins.back();
+		mPlugins.pop_back();
 	}
 }
 
-int PluginCallbackManager::nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe)
+int PluginManager::nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe)
 {
-	BOOST_FOREACH (Callback *callback, mCallbacks)
-	{
-		if ( dynamic_cast<NextPlaylistEntryCallback*>(callback) != NULL )
-		{
-			NextPlaylistEntryCallback *cb = dynamic_cast<NextPlaylistEntryCallback*>(callback);
-			cb->run(plugin_data, currentPlaylistEntry, mode, repeat, pe);
-		}
-	}
-    return 0;
+    int i = 0;
+    for (auto a : mPlugins) {
+        i |= a->nextPlaylistEntryCallback(plugin_data, currentPlaylistEntry, mode, repeat, pe);
+    }
+    return i;
 }
-void PluginCallbackManager::playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting)
+void PluginManager::playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting)
 {
-	BOOST_FOREACH (Callback *callback, mCallbacks)
-	{
-		if ( dynamic_cast<PlaylistCallback*>(callback) != NULL )
-		{
-			PlaylistCallback *cb = dynamic_cast<PlaylistCallback*>(callback);
-			cb->run(oldPlaylistDetails, starting);
-		}
-	}
+    for (auto a : mPlugins) {
+        a->playlistCallback(oldPlaylistDetails, starting);
+    }
 }
-void PluginCallbackManager::eventCallback(const char *id, const char *impetus)
+void PluginManager::eventCallback(const char *id, const char *impetus)
 {
-	BOOST_FOREACH (Callback *callback, mCallbacks)
-	{
-		if ( dynamic_cast<EventCallback*>(callback) != NULL )
-		{
-			EventCallback *cb = dynamic_cast<EventCallback*>(callback);
-			cb->run(id, impetus);
-		}
-	}
+    for (auto a : mPlugins) {
+        a->eventCallback(id, impetus);
+    }
 }
-void PluginCallbackManager::mediaCallback()
+void PluginManager::mediaCallback()
 {
-	BOOST_FOREACH (Callback *callback, mCallbacks)
-	{
-		if ( dynamic_cast<MediaCallback*>(callback) != NULL )
-		{
-			MediaCallback *cb = dynamic_cast<MediaCallback*>(callback);
-			cb->run();
-		}
-	}
+    for (auto a : mPlugins) {
+        a->mediaCallback();
+    }
 }
 
-Callback::Callback(std::string name, std::string filename)
-{
-	mName = name;
-	mFilename = filename;
-}
-Callback::~Callback()
-{
-}
 
-MediaCallback::~MediaCallback()
-{
-}
+
+
+
 
 //blocking
 void MediaCallback::run(void)
@@ -369,9 +459,6 @@ void MediaCallback::run(void)
 	}
 }
 
-PlaylistCallback::~PlaylistCallback()
-{
-}
 
 //blocking
 void PlaylistCallback::run(OldPlaylistDetails *oldPlaylistDetails, bool starting)
@@ -452,9 +539,6 @@ void PlaylistCallback::run(OldPlaylistDetails *oldPlaylistDetails, bool starting
 	}
 }
 
-NextPlaylistEntryCallback::~NextPlaylistEntryCallback()
-{
-}
 
 //blocking
 int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe)
@@ -524,9 +608,6 @@ int NextPlaylistEntryCallback::run(const char *plugin_data, int currentPlaylistE
 	return ret_val;
 }
 
-EventCallback::~EventCallback()
-{
-}
 
 //blocking
 void EventCallback::run(const char *id, const char *impetus)

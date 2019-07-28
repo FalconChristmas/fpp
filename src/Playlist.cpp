@@ -47,7 +47,6 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-extern PluginCallbackManager pluginCallbackManager;
 
 OldPlaylist *oldPlaylist = NULL;
 
@@ -131,7 +130,7 @@ void OldPlaylist::CalculateNextPlayListEntry(void)
 		if ( !m_playlistDetails.playlistStarting )
 		{
 			//callback & populate
-			if ( pluginCallbackManager.nextPlaylistEntryCallback(&(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].data[0]),
+			if ( pluginManager.nextPlaylistEntryCallback(&(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].data[0]),
 										m_playlistDetails.currentPlaylistEntry,
 										getFPPmode(),
 										m_playlistDetails.repeat,
@@ -273,7 +272,7 @@ int OldPlaylist::ReadPlaylist(char const * file)
 			   PL_MAX_ENTRIES);
 
 	m_playlistDetails.playListCount = listIndex;
-	pluginCallbackManager.playlistCallback(&m_playlistDetails, PLAYLIST_STARTING);
+	pluginManager.playlistCallback(&m_playlistDetails, PLAYLIST_STARTING);
 
 	return listIndex;
 }
@@ -328,7 +327,7 @@ void OldPlaylist::PlayListPlayingProcess(void)
 		if (m_playlistDetails.playlistStarting)
 		{
 			//callback & populate
-			if ( pluginCallbackManager.nextPlaylistEntryCallback(&(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].data[0]),
+			if ( pluginManager.nextPlaylistEntryCallback(&(m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry].data[0]),
 										m_playlistDetails.currentPlaylistEntry,
 										getFPPmode(),
 										m_playlistDetails.repeat,
@@ -459,7 +458,7 @@ void OldPlaylist::PlayListPlayingCleanup(void)
 {
 	LogDebug(VB_PLAYLIST, "PlayListPlayingCleanup()\n");
 
-	pluginCallbackManager.playlistCallback(&m_playlistDetails, PLAYLIST_STOPPING);
+	pluginManager.playlistCallback(&m_playlistDetails, PLAYLIST_STOPPING);
 
 	FPPstatus = FPP_STATUS_IDLE;
 	sequence->SendBlankingData();
@@ -513,7 +512,7 @@ void OldPlaylist::PlayPlaylistEntry(bool calculateNext)
 	plEntry = &m_playlistDetails.playList[m_playlistDetails.currentPlaylistEntry];
 
 	ParseMedia(NULL);
-	pluginCallbackManager.mediaCallback();
+	pluginManager.mediaCallback();
 
 	switch(plEntry->type)
 	{
@@ -536,7 +535,7 @@ void OldPlaylist::PlayPlaylistEntry(bool calculateNext)
 		case PL_TYPE_PAUSE:
 			break;
 		case PL_TYPE_EVENT:
-			pluginCallbackManager.eventCallback(plEntry->eventID, "playlist");
+			pluginManager.eventCallback(plEntry->eventID, "playlist");
 			TriggerEventByID(plEntry->eventID);
 			break;
 		default:

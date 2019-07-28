@@ -33,15 +33,18 @@
     "groups": [
         {
             "start": 1,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 9,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 17,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         }
     ],
     "serial": [

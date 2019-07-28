@@ -58,11 +58,13 @@
         },
         {
             "start": 33,
-            "count": 4
+            "count": 4,
+            "type": "differential"
         },
         {
             "start": 37,
-            "count": 4
+            "count": 4,
+            "type": "differential"
         }
     ],
     "serial": [

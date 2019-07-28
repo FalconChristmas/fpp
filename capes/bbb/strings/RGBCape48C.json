@@ -60,27 +60,33 @@
     "groups": [
         {
             "start": 1,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 9,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 17,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 25,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 33,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         },
         {
             "start": 41,
-            "count": 8
+            "count": 8,
+            "type": "expansion"
         }
 
     ],

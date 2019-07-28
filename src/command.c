@@ -56,7 +56,7 @@
 
 #include <jsoncpp/json/json.h>
 
-extern PluginCallbackManager pluginCallbackManager;
+extern PluginManager pluginManager;
 
  int socket_fd;
  struct sockaddr_un server_address;
@@ -335,7 +335,7 @@ char *ProcessCommand(char *command, char *response)
     } else if (!strcmp(CommandStr, "t")) {
         // Trigger an event
         s = strtok(NULL,",");
-        pluginCallbackManager.eventCallback(s, "command");
+        pluginManager.eventCallback(s, "command");
         i = TriggerEventByID(s);
         if (i >= 0)
             sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);

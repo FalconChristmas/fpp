@@ -77,7 +77,7 @@
 
 pid_t pid, sid;
 volatile int runMainFPPDLoop = 1;
-extern PluginCallbackManager pluginCallbackManager;
+extern PluginManager pluginManager;
 
 
 /* Prototypes for functions below */
@@ -494,7 +494,7 @@ int main(int argc, char *argv[])
 
 	SetupGPIOInput();
 
-	pluginCallbackManager.init();
+	pluginManager.init();
 
 	CheckExistanceOfDirectoriesAndFiles();
     if(!FileExists(getPixelnetFile())) {

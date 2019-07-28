@@ -41,11 +41,13 @@
         },
         {
             "start": 9,
-            "count": 4
+            "count": 4,
+            "type": "differential"
         },
         {
             "start": 13,
-            "count": 16
+            "count": 16,
+            "type": "expansion"
         }
     ],
     "serial": [

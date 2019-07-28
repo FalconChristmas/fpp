@@ -116,7 +116,7 @@ int PlaylistEntryMedia::PreparePlay() {
         mqtt->Publish("playlist/media/artist", mediaDetails.artist);
     }
     
-    pluginCallbackManager.mediaCallback();
+    pluginManager.mediaCallback();
     return 1;
 }
 

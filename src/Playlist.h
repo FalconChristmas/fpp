@@ -53,7 +53,8 @@
 #define PL_MAX_ENTRIES			128
 
 
-typedef struct {
+class OldPlaylistEntry {
+public:
 	unsigned char type;
 	char cType;
 	char seqName[256];
@@ -61,9 +62,10 @@ typedef struct {
 	char eventID[6];
 	unsigned int pauselength;
 	char data[256];
-} OldPlaylistEntry;
+};
 
-typedef struct {
+class OldPlaylistDetails {
+public:
 	OldPlaylistEntry playList[PL_MAX_ENTRIES];
 	char currentPlaylist[128];
 	char currentPlaylistFile[128];
@@ -75,7 +77,7 @@ typedef struct {
 	int  first;
 	int  last;
 	int  repeat;
-} OldPlaylistDetails;
+};
 
 class OldPlaylist {
   public:

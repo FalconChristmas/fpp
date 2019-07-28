@@ -50,7 +50,6 @@ public:
 };
 
 GPIOState inputStates[MAX_GPIO_INPUTS];
-extern PluginCallbackManager pluginCallbackManager;
 
 /*
  * Setup pins for configured GPIO Inputs
@@ -125,7 +124,7 @@ void CheckGPIOInputs(void)
 					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
 					sprintf(settingName, "GPIOInput%03dEvent%s", i, (val == 0 ? "Falling" : "Rising"));
 					if (strlen(getSetting(settingName))) {
-						pluginCallbackManager.eventCallback(getSetting(settingName), "GPIO");
+						pluginManager.eventCallback(getSetting(settingName), "GPIO");
 						TriggerEventByID(getSetting(settingName));
 					}
 
