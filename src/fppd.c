@@ -40,7 +40,6 @@
 #include "mediaoutput/mediaoutput.h"
 #include "mqtt.h"
 #include "PixelOverlay.h"
-#include "Playlist.h"
 #include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
@@ -77,8 +76,6 @@
 
 pid_t pid, sid;
 volatile int runMainFPPDLoop = 1;
-extern PluginManager pluginManager;
-
 
 /* Prototypes for functions below */
 void MainLoop(void);

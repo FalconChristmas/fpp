@@ -47,7 +47,6 @@ OBJECTS_fpp_so += \
 	mqtt.o \
 	ping.o \
 	PixelOverlay.o \
-	Playlist.o \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \

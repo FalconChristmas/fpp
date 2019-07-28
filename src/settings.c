@@ -82,8 +82,14 @@ void initSettings(int argc, char **argv)
 {
     char tmpDir[256];
     char mediaDir[256];
-
+    
 	settings.binDirectory = strdup(dirname(argv[0]));
+    if (strlen(settings.binDirectory) == 1 && settings.binDirectory[0] == '.') {
+        getcwd(tmpDir, sizeof(tmpDir));
+        free(settings.binDirectory);
+        settings.binDirectory = strdup(tmpDir);
+    }
+
 	settings.fppMode = PLAYER_MODE;
     
     strcpy(tmpDir, settings.binDirectory);
@@ -101,8 +107,9 @@ void initSettings(int argc, char **argv)
 
     if (offset != NULL)
         *offset = 0;
-
+    
     settings.fppDirectory = strdup(tmpDir);
+    
 
 	if (DirectoryExists("/home/fpp"))
 		strcpy(mediaDir, "/home/fpp");

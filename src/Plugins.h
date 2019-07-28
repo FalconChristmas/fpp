@@ -3,12 +3,7 @@
 
 #include <vector>
 #include <string>
-
-#include "Playlist.h"
-
-// Use these to make code more readable
-#define PLAYLIST_STARTING				true
-#define PLAYLIST_STOPPING				false
+#include <httpserver.hpp>
 
 class FPPPlugin;
 
@@ -19,11 +14,14 @@ public:
 	~PluginManager();
 	void init(void);
 
-	int nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe);
-	void playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting);
 	void eventCallback(const char *id, const char *impetus);
 	void mediaCallback();
 
+    
+    void registerApis(httpserver::webserver *m_ws);
+    void unregisterApis(httpserver::webserver *m_ws);
+    
+    void modifyChannelData(int ms, uint8_t *seqData);
 private:
     std::vector<FPPPlugin *> mPlugins;
 };

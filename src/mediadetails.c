@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "Playlist.h"
 #include "mediadetails.h"
 #include "settings.h"
 #include "common.h"

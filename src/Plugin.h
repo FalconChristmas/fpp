@@ -3,8 +3,9 @@
 
 #include <string>
 
-class OldPlaylistEntry;
-class OldPlaylistDetails;
+namespace httpserver {
+    class webserver;
+}
 
 class FPPPlugin {
 public:
@@ -12,10 +13,14 @@ public:
     virtual ~FPPPlugin() {}
     
     //legacy plugin touch points
-    virtual int nextPlaylistEntryCallback(const char *plugin_data, int currentPlaylistEntry, int mode, bool repeat, OldPlaylistEntry *pe) {return 0;}
-    virtual void playlistCallback(OldPlaylistDetails *oldPlaylistDetails, bool starting) {}
     virtual void eventCallback(const char *id, const char *impetus) {}
     virtual void mediaCallback() {}
+
+    
+    
+    virtual void registerApis(httpserver::webserver *m_ws) {}
+    virtual void unregisterApis(httpserver::webserver *m_ws) {}
+    virtual void modifyChannelData(int ms, uint8_t *seqData) {}
 
 protected:
     std::string name;
