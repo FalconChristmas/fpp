@@ -88,8 +88,7 @@ static void exit_handler(int signum)
      }
 
      mkdir(FPP_SOCKET_PATH, 0777);
-     int i = chmod(FPP_SOCKET_PATH, 0777);
-     printf("chmod %d\n", i);
+     chmod(FPP_SOCKET_PATH, 0777);
      
      fcntl(socket_fd, F_SETFL, O_NONBLOCK);
      memset(&server_address, 0, sizeof(server_address));

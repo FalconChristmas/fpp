@@ -8,7 +8,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <dlfcn.h>
-
+#include <sys/stat.h>
 #include <iostream>
 
 #include "events.h"
@@ -201,7 +201,17 @@ void PluginManager::init()
             if (location == 0) {
 				continue;
             }
-
+            struct stat statbuf;
+            std::string dname = getPluginDirectory();
+            dname += "/";
+            dname += ep->d_name;
+            lstat(dname.c_str(), &statbuf);
+            if (S_ISLNK(statbuf.st_mode)) {
+                //symlink, skip
+                continue;
+            }
+            
+            
 			LogDebug(VB_PLUGIN, "Found Plugin: (%s)\n", ep->d_name);
 
 			std::string filename = std::string(getPluginDirectory()) + "/" + ep->d_name + "/callbacks";
