@@ -21,7 +21,6 @@ else
 CFLAGS += -DPLATFORM_UNKNOWN
 endif
 
-CXXFLAGS += $(shell GraphicsMagick++-config --cppflags)
 LDFLAGS_fppd += -L.
 
 endif

@@ -796,7 +796,9 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     data = new SDLInternalData(sdlManager.getRate(), sdlManager.getBytesPerSample(), sdlManager.isSamplesFloat());
 
     // Initialize FFmpeg codecs
+#if LIBAVFORMAT_VERSION_MAJOR < 58
     av_register_all();
+#endif
     int res = avformat_open_input(&data->formatContext, fullAudioPath.c_str(), nullptr, nullptr);
     if (avformat_find_stream_info(data->formatContext, nullptr) < 0) {
         LogErr(VB_MEDIAOUT, "Could not find suitable input stream!\n");

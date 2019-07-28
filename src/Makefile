@@ -30,8 +30,16 @@ ifeq '$(ARCH)' ''
 endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
+
+GCCVERSIONGTEQ4:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 8)
+
 # Common CFLAGS
-CFLAGS=-O1 -pipe \
+ifeq "$(GCCVERSIONGTEQ4)" "1"
+CFLAGS=-O3 -Wno-psabi
+else
+CFLAGS=-O1
+endif
+CFLAGS+=-pipe \
 	-I $(SRCDIR) \
 	-fpic
 CXXFLAGS += -std=gnu++14
