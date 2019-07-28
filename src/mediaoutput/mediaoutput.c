@@ -164,7 +164,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
             ext = lext;
             result = bfile + lext;
         }
-    } else if (IsExtensionVideo(lext)) {
+    } else if (IsExtensionAudio(lext)) {
         for (auto &n : VIDEO_EXTS) {
             if (FileExists(videoPath + n.first)) {
                 ext = n.second;
