@@ -192,7 +192,7 @@ function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
         $values["32x16 1/2 Scan AB"] = "32x16x2x1";
         $values["32x32 1/16 Scan"] = "32x32x16";
         $values["64x32 1/16 Scan"] = "64x32x16";
-        if (strcmp($variant, 'PocketBeagle') !== FALSE) {
+        if (strpos($variant, 'PocketBeagle') !== false) {
              $values["64x64 1/32 Scan"] = "64x64x32";
         }
         $values["64x32 1/8 Scan"] = "64x32x8";
@@ -205,7 +205,7 @@ function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
     }
     
     if ($addr != "0" && $addr != "") {
-        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def + "x" + $addr, $values, "", "LEDPanelLayoutChanged");
+        PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def . "x" . $addr, $values, "", "LEDPanelLayoutChanged");
     } else {
         PrintSettingSelect("Panel Size", "LEDPanelsSize", 1, 0, $def, $values, "", "LEDPanelLayoutChanged");
     }
@@ -699,6 +699,16 @@ if ($settings['Platform'] == "BeagleBone Black") {
 	}
     
     if (typeof KNOWN_PANEL_CAPE  !== 'undefined') {
+        if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]  !== 'undefined') {
+            $('#LEDPanelsWiringPinout').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsWiringPinout"]);
+            $('#LEDPanelsWiringPinout').hide();
+            $('#LEDPanelsWiringPinoutLabel').hide();
+        }
+        if (KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]  !== 'undefined') {
+            $('#LEDPanelsConnection').val(KNOWN_PANEL_CAPE["defaults"]["LEDPanelsConnection"]);
+            $('#LEDPanelsConnection').hide();
+            $('#LEDPanelsConnectionLabel').hide();
+        }
         LEDPanelOutputs = KNOWN_PANEL_CAPE["outputs"].length;
     }
 
@@ -730,8 +740,8 @@ $(document).ready(function(){
 							<td><b>Start Channel:</b></td>
 							<td><input id='LEDPanelsStartChannel' type=text size=6 maxlength=6 value='1'></td>
 						</tr>
-						<tr><td><b>Single Panel Size (WxH):</b></td>
-							<td><? printLEDPanelSizeSelect($settings['Platform'], isset($settings['Variant']) ? $settings['Variant'] : '', $LEDPanelWidth + "x" + $LEDPanelHeight + "x" + $LEDPanelScan, $LEDPanelAddressing); ?></td>
+                            <tr><td><b>Single Panel Size (WxH):</b></td>
+							<td><? printLEDPanelSizeSelect($settings['Platform'], isset($settings['Variant']) ? $settings['Variant'] : '', $LEDPanelWidth . "x" . $LEDPanelHeight . "x" . $LEDPanelScan, $LEDPanelAddressing); ?></td>
 							<td>&nbsp;</td>
 							<td><b>Channel Count:</b></td>
 							<td><span id='LEDPanelsChannelCount'>1536</span></td>

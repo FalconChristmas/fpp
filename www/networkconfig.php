@@ -13,7 +13,7 @@ $wifiDrivers['External'] = "External";
 $wifiDrivers['Linux Kernel'] = "Kernel";
     
 $defaultWifiDrivers = "External";
-if ($settings['wifiDrivers'] == "Realtek") {
+if (isset($settings['wifiDrivers']) && $settings['wifiDrivers'] == "Realtek") {
     $settings['wifiDrivers'] == "External";
 }
     

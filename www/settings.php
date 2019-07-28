@@ -465,7 +465,7 @@ function ToggleTetherMode()
     </tr>
     <tr>
       <td>Default Video Output Device:</td>
-      <td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, $settings['videoOutput'], $VideoOutputModels); ?></td>
+<td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, isset($settings['videoOutput']) ? $settings['videoOutput'] : array_values($VideoOutputModels)[0], $VideoOutputModels); ?></td>
     </tr>
 <?php
  if ($settings['Platform'] == "Raspberry Pi") {
