@@ -15,8 +15,8 @@ if (isset($_GET['width']))
 	$canvasHeight = (int)($canvasWidth * 9.0 / 16.0);
 }
 ?>
-<script type="text/javascript" src="js/jquery-3.3.1.min.js"></script>
-<script type="text/javascript" src="js/jquery-migrate-3.0.1.min.js"></script>
+<script type="text/javascript" src="js/jquery-3.4.1.min.js"></script>
+<script type="text/javascript" src="js/jquery-migrate-3.1.0.min.js"></script>
 <script type="text/javascript" src="js/jquery-ui.min.js"></script>
 <script type="text/javascript" src="js/jquery.ui.touch-punch.min.js"></script>
 <script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
