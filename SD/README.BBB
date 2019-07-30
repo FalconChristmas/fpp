@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-9.9-console-armhf-2019-04-28-1gb.img.xz
-# from https://rcn-ee.com/rootfs/bb.org/testing/2019-04-28/stretch-console/
+# bone-debian-10.0-iot-armhf-2019-07-28-4gb.img
+# from https://rcn-ee.com/rootfs/bb.org/testing/2019-07-29/buster-iot/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -43,7 +43,7 @@ apt-get -y upgrade
 
 #need to install/generate the UTF-8 locales
 apt-get install -y locales
-echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+#   echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 localectl set-locale LANG="en_US.utf8"
 

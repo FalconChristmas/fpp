@@ -68,7 +68,7 @@
 #############################################################################
 SCRIPTVER="1.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2.8"
+FPPIMAGEVER="3.0"
 FPPCFGVER="47"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -581,7 +581,7 @@ echo "FPP - Disabling services not needed/used"
 systemctl disable olad
 systemctl disable dev-hugepages.mount
 
-echoe "FPP - update BBB boot scripts"
+echo "FPP - update BBB boot scripts"
 cd /opt/scripts
 git reset --hard
 git pull

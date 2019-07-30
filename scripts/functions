@@ -829,8 +829,9 @@ stopWebSocketServer() {
 #############################################################################
 # Detect PiFace
 detectPiFace() {
+	ls -1 /dev/spidev*
 	${FPPD} --detect-piface
-        PIFACEFOUND=$?
+    PIFACEFOUND=$?
 
 	grep -q PiFaceDetected ${CFGFILE}
 	if [ $? -eq 0 ]

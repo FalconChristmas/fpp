@@ -71,7 +71,7 @@
 #############################################################################
 SCRIPTVER="1.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="2.8"
+FPPIMAGEVER="3.0"
 FPPCFGVER="47"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
