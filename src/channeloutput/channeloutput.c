@@ -649,6 +649,7 @@ int CloseChannelOutputs(void) {
             channelOutputs[i].output = NULL;
         }
     }
+    return 0;
 }
 
 

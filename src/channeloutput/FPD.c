@@ -216,6 +216,7 @@ void *RunFPDOutputThread(void *data)
 
 	LogDebug(VB_CHANNELOUT, "FPD output thread complete\n");
 	privData->threadIsRunning = 0;
+    return nullptr;
 }
 
 /*
@@ -375,6 +376,7 @@ int FPD_Close(void *data) {
 	pthread_mutex_destroy(&privData->bufLock);
 	pthread_mutex_destroy(&privData->sendLock);
 	pthread_cond_destroy(&privData->sendCond);
+    return 0;
 }
 
 /*

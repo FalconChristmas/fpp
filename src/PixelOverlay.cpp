@@ -612,6 +612,7 @@ bool PixelOverlayManager::loadModelMap() {
             PrintChannelMapBlocks(ctrlHeader);
         }
     }
+    return true;
 }
 void PixelOverlayManager::ConvertCMMFileToJSON() {
     

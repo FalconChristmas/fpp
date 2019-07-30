@@ -215,6 +215,11 @@ endif
 CURLFLAGS := $(shell curl-config --libs)
 
 # Common CFLAGS
+GCCVERSIONGTEQ4:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 8)
+ifeq "$(GCCVERSIONGTEQ4)" "1"
+CFLAGS+=-Wno-psabi
+endif
+
 CFLAGS += \
 	-I $(SRCDIR) \
 	-I $(SRCDIR)channeloutput \

@@ -96,7 +96,16 @@ int OLAOutput::Close(void)
 
 	return ThreadedChannelOutputBase::Close();
 }
+void OLAOutput::GetRequiredChannelRange(int &min, int & max) {
+    min = FPPD_MAX_CHANNELS;
+    max = 0;
+    for (int universe = 0 ; universe < m_universes.size(); universe++) {
+        Universe u = m_universes[universe];
 
+        min = std::min(min, u.startChannel);
+        max = std::max(max, u.startChannel + u.channelCount);
+    }
+}
 /*
  *
  */

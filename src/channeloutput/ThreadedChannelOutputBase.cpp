@@ -113,6 +113,7 @@ int ThreadedChannelOutputBase::SendData(unsigned char *channelData)
     }
     
     pthread_cond_signal(&m_sendCond);
+    return 0;
 }
 
 int ThreadedChannelOutputBase::SendOutputBuffer(void)
@@ -129,6 +130,7 @@ int ThreadedChannelOutputBase::SendOutputBuffer(void)
 	}
 
 	RawSendData(m_outBuf);
+    return m_channelCount;
 }
 
 void ThreadedChannelOutputBase::DumpConfig(void)
@@ -149,6 +151,7 @@ void *RunChannelOutputBaseThread(void *data)
 	ThreadedChannelOutputBase *output = reinterpret_cast<ThreadedChannelOutputBase*>(data);
 
 	output->OutputThread();
+    return nullptr;
 }
 
 int ThreadedChannelOutputBase::StartOutputThread(void)

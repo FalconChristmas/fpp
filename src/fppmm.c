@@ -79,7 +79,7 @@ void usage(char *appname) {
 /*
  * Parse command line arguments for fppmm binary
  */
-int parseArguments(int argc, char **argv) {
+void parseArguments(int argc, char **argv) {
 	char *s = NULL;
 	int   c;
 

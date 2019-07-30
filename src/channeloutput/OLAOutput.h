@@ -45,6 +45,8 @@ class OLAOutput : public ThreadedChannelOutputBase {
 	int RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
+    
+    virtual void GetRequiredChannelRange(int &min, int & max);
 
   private:
 	ola::DmxBuffer                  m_buffer;
