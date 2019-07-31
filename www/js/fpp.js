@@ -935,7 +935,7 @@ function RemovePlaylistEntry()	{
 
 		function UpgradeFPPVersion(newVersion)
 		{
-			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis should take about 2 or 3 minutes.'))
+            if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time: 20-30 minutes.'))
 			{
 				document.body.style.cursor = "wait";
 				$.get("fppxml.php?command=upgradeFPPVersion&version=v" + newVersion
