@@ -1069,11 +1069,15 @@ function RemovePlaylistEntry()	{
                 
                 var tbody=document.getElementById("tblUniversesBody");  //get the table
                 var origRow = tbody.rows[selectIndex];
+                var origUniverseCount = UniverseCount;
                 while (UniverseCount < count) {
                     var row = origRow.cloneNode(true);
                     tbody.appendChild(row);
-                    SetUniverseInputNames();
-
+                    UniverseCount++;
+                }
+                UniverseCount =  origUniverseCount;
+                SetUniverseInputNames();
+                while (UniverseCount < count) {
                     if (universe != 0) {
                         universe += ucount;
                         document.getElementById("txtUniverse[" + UniverseCount + "]").value = universe;
