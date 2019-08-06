@@ -1335,6 +1335,7 @@ function RemovePlaylistEntry()	{
                 for(i = UniverseSelected; i < UniverseCount; i++, selectedIndex++) {
                     
                     document.getElementById("txtUniverse[" + selectedIndex + "]").value = document.getElementById("txtUniverse[" + i + "]").value
+                    document.getElementById("txtDesc[" + selectedIndex + "]").value = document.getElementById("txtDesc[" + i + "]").value
                     document.getElementById("universeType[" + selectedIndex + "]").value = document.getElementById("universeType[" + i + "]").value;
                     var universeType = document.getElementById("universeType[" + selectedIndex + "]").value;
                     document.getElementById("txtStartAddress[" + selectedIndex + "]").value  = document.getElementById("txtStartAddress[" + i + "]").value;
@@ -1367,6 +1368,7 @@ function RemovePlaylistEntry()	{
 				if((UniverseSelected + cloneNumber -1) < UniverseCount)
 				{
 					var universe=Number(document.getElementById("txtUniverse[" + selectIndex + "]").value)+1;
+                    var universeDesc=document.getElementById("txtDesc[" + selectIndex + "]").value;
 					var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
 					var unicastAddress=document.getElementById("txtIP[" + selectIndex + "]").value;
 					var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
@@ -1377,10 +1379,11 @@ function RemovePlaylistEntry()	{
 
 					for(i=UniverseSelected;i<UniverseSelected+cloneNumber;i++,universe++)
 					{
-						document.getElementById("txtUniverse[" + i + "]").value	 = universe.toString();
-						document.getElementById("universeType[" + i + "]").value	 = universeType;
-						document.getElementById("txtStartAddress[" + i + "]").value	 = startAddress.toString();
-                        document.getElementById("numUniverseCount[" + i + "]").value     = uCount.toString();
+                        document.getElementById("txtDesc[" + i + "]").value = universeDesc;
+						document.getElementById("txtUniverse[" + i + "]").value	= universe.toString();
+						document.getElementById("universeType[" + i + "]").value = universeType;
+						document.getElementById("txtStartAddress[" + i + "]").value	= startAddress.toString();
+                        document.getElementById("numUniverseCount[" + i + "]").value = uCount.toString();
 						document.getElementById("chkActive[" + i + "]").value = active;
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;

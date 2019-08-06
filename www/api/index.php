@@ -5,8 +5,6 @@ $skipJSsettings = 1;
 require_once '../config.php';
 require_once '../common.php';
 
-send_header("Access-Control-Allow-Origin: *");
-
 dispatch_get   ('/help', 'help_help');
 
 dispatch_get   ('/configfile', 'GetConfigFileList');
