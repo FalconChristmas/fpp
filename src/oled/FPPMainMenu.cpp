@@ -226,8 +226,9 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                 RebootPromptPage *pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
                 pg->autoDelete();
                 SetCurrentPage(pg);
+            } else {
+                SetCurrentPage(this);
             }
-            SetCurrentPage(this);
         }, this);
         pg->autoDelete();
         SetCurrentPage(pg);
