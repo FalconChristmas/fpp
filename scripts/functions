@@ -526,26 +526,27 @@ WaitForInterfacesUp() {
 
             break
         done
-	    if [ -z "$IPS" ]; then
+	if [ -z "$IPS" ]; then
             #on some adapters, we need to down/up in order for connman to be able
             #to detect the link on it and attach to wifi
             ifconfig wlan0 down
+            sleep 1
             ifconfig wlan0 up
-            connmanctl scan wifi
+            #connmanctl scan wifi
             # Loop up to 8 times, so max wait time is 8 * 2
             for i in {1..8}
             do
                sleep 2
                IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
-                   if [ -z "$IPS" ]; then
-               continue
+               if [ -z "$IPS" ]; then
+                   continue
                fi
                break
             done
         fi
     fi
 
-    connmanctl services >> /tmp/services.txt
+    # connmanctl services >> /tmp/services.txt
 
     CONFIGS=`ls ${FPPHOME}/media/config/interface.w* 2> /dev/null; ls ${FPPHOME}/media/config/interface.e* 2> /dev/null`
     for f in $CONFIGS; do
@@ -556,12 +557,12 @@ WaitForInterfacesUp() {
     done
     if [ "x$DEFGW" == "x" ]; then
         # no gateway defined
-	    CURDIR=$(pwd)
+	CURDIR=$(pwd)
         ETHS=`ls -d ether* 2> /dev/null`
         WIFIS=`ls -d wifi* 2> /dev/null`
         if [ "x$WIFIS" != "x" ]; then
             for f in $ETHS; do
-	            connmanctl move-before $WIFIS $f
+	        connmanctl move-before $WIFIS $f
             done
         fi
         cd "${CURDIR}"
