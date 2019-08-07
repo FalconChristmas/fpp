@@ -118,15 +118,22 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     // 1/4 scan we need to double the time since we have twice the number of pixels to clock out
     max *= m_panelHeight;
     max /= (m_panelScan * 2);
-
-
+    
     uint32_t origMax = max;
-    if (max < 0x4500) {
+    if (m_colorDepth == 10 && max < 0x8000) {
+        //for depth 10, we'll need a little more on time
+        //or the last bit will be on for too short
+        max = 0x8000;
+    } else if (m_colorDepth == 9 && max < 0x6500) {
+        //for depth 9, we'll need a little more on time
+        max = 0x6500;
+    } else if (max < 0x4500) {
         //if max is too low, the low bit time is too short and
         //extra ghosting occurs
         // At this point, framerate will be supper high anyway >100fps
         max = 0x4500;
     }
+
     uint32_t origMax2 = max;
 
     max *= m_brightness;
@@ -137,12 +144,22 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
         delay = origMax2 - origMax;
     }
     
-    for (int x = 0; x < 8; x++) {
+    int maxBit = 8;
+    if (m_colorDepth > 8) {
+        maxBit = m_colorDepth;
+    }
+    for (int x = 0; x < maxBit; x++) {
         LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
         delayValues[x] = delay;
         brightnessValues[x] = max + delay;
         max >>= 1;
         origMax >>= 1;
+    }
+    
+    if (brightnessValues[maxBit - 2] < 160) {
+        // this will potentally cause maxBit-1 to be too short or too close to maxBit-2
+        // 40 is about the lowest we can go  (200us)
+        brightnessValues[maxBit - 1] = 40;
     }
     
     if (FileExists("/home/fpp/media/config/ledscape_dimming")) {
@@ -438,7 +455,7 @@ int BBBMatrix::Init(Json::Value config)
         m_colorDepth = -m_colorDepth;
         m_colorDepth++;
     }
-    if (m_colorDepth > 8 || m_colorDepth < 6) {
+    if (m_colorDepth > 10 || m_colorDepth < 6) {
         m_colorDepth = 8;
     }
     bool zigZagInterleave = false;
@@ -499,7 +516,11 @@ int BBBMatrix::Init(Json::Value config)
     }
     
     m_rowSize = m_longestChain * m_panelWidth * 3;
-    m_outputFrame = new uint8_t[m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3];
+    int maxBits = 8;
+    if (m_colorDepth > 8) {
+        maxBits = m_colorDepth;
+    }
+    m_outputFrame = new uint8_t[m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3 * maxBits / 8];
 
     std::vector<std::string> compileArgs;
     
@@ -685,16 +706,21 @@ int BBBMatrix::Init(Json::Value config)
                 v = 2;
             }
         }
-        
+        float max = (m_colorDepth == 10) ? 1023.0f : ((m_colorDepth == 9) ? 511.0f : 255.0f);
         float f = v;
-        f = 255.0 * pow(f / 255.0f, gamma);
-        if (f > 255.0) {
-            f = 255.0;
+        f = max * pow(f / 255.0f, gamma);
+        if (f > max) {
+            f = max;
         }
         if (f < 0.0) {
             f = 0.0;
         }
         gammaCurve[x] = round(f);
+        if (gammaCurve[x] == 0 && f > 0.25)  {
+            //don't drop as much of the low end to 0
+            gammaCurve[x] = 1;
+        }
+        //printf("%d   %d  (%f)\n", x, gammaCurve[x], f);
     }
 
     if (isPWM) {
@@ -789,10 +815,15 @@ void BBBMatrix::PrepData(unsigned char *channelData)
 
     channelData += m_startChannel;
     
+    int maxBit = 8;
+    if (m_colorDepth > 8) {
+        maxBit = m_colorDepth;
+    }
+
     size_t rowLen = m_panelWidth * m_longestChain * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
     rowLen /= 8;
     
-    memset(m_outputFrame, 0, m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3);
+    memset(m_outputFrame, 0, m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3 * maxBit / 8);
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         
@@ -811,23 +842,22 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     + (m_longestChain - chain - 1) * m_panelWidth/8 * m_outputs * 3 * 2 * m_panelHeight / (m_panelScan * 2);
                 
                 for (int x = 0; x < m_panelWidth; ++x) {
-                    uint8_t r1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]]];
-                    uint8_t g1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 1]]];
-                    uint8_t b1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 2]]];
+                    uint16_t r1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]]];
+                    uint16_t g1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 1]]];
+                    uint16_t b1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3 + 2]]];
                     
-                    uint8_t r2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3]]];
-                    uint8_t g2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]]];
-                    uint8_t b2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]]];
+                    uint16_t r2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3]]];
+                    uint16_t g2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 1]]];
+                    uint16_t b2 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw2 + x*3 + 2]]];
 
                     
                     int xOut = x;
                     m_handler->mapCol(y, xOut);
                     int bitPos = 1 << (xOut % 8);
                     int xOff = xOut / 8 * (m_outputs * 2 * 3);
-                    
-                    for (int bit = 8; bit > (8-m_colorDepth); ) {
+                    for (int bit = maxBit; bit > (maxBit-m_colorDepth); ) {
                         --bit;
-                        uint8_t mask = 1 << bit;
+                        uint16_t mask = 1 << bit;
                         if (r1 & mask) {
                             m_outputFrame[offset + xOff] |= bitPos;
                         }
@@ -856,8 +886,11 @@ void BBBMatrix::PrepData(unsigned char *channelData)
 int BBBMatrix::SendData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
-    
-    int len = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3;
+    int maxBits = 8;
+    if (m_colorDepth > 8) {
+        maxBits = m_colorDepth;
+    }
+    int len = m_outputs * m_longestChain * m_panelHeight * m_panelWidth * 3 * maxBits / 8;
     if (len < (m_pru->ddr_size / 2)) {
         //we can flip frames
         memcpy(m_pru->ddr + (m_evenFrame ? (m_pru->ddr_size / 2) : 0), m_outputFrame, len);

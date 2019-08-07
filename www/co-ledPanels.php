@@ -835,7 +835,15 @@ if ($settings['Platform'] == "BeagleBone Black") {
 ?>
 						<tr><td><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></td>
 							<td><select id='LEDPanelsColorDepth'>
-									<option value='8'>8 Bit</option>
+<?
+if ($settings['Platform'] == "BeagleBone Black") {
+?>
+                                    <option value='10'>10 Bit</option>
+                                    <option value='9'>9 Bit</option>
+<?
+}
+?>
+									<option value='8' selected>8 Bit</option>
 									<option value='7'>7 Bit</option>
 									<option value='6'>6 Bit</option>
 <?

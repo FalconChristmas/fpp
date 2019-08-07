@@ -99,9 +99,9 @@ class BBBMatrix : public ChannelOutputBase {
     int          m_timing;
     InterleaveHandler *m_handler;
     
-    uint32_t     brightnessValues[8];
-    uint32_t     delayValues[8];
-    uint8_t      gammaCurve[256];
+    uint32_t     brightnessValues[10];
+    uint32_t     delayValues[10];
+    uint16_t     gammaCurve[256];
     
 };
 

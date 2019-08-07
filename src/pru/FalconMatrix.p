@@ -174,6 +174,12 @@
     LBCO gpio0_set, CONST_PRUDRAM, gpio0_set, 2
     MOV gpio1_set, 0
 #else
+#ifdef BRIGHTNESS10
+    QBEQ DO10, brightlevel, 10
+#endif
+#ifdef BRIGHTNESS9
+    QBEQ DO9, brightlevel, 9
+#endif
 #ifdef BRIGHTNESS8
     QBEQ DO8, brightlevel, 8
 #endif
@@ -190,6 +196,18 @@
     MOV gpio1_set, DELAY1
 
     JMP DONETIMES
+#ifdef BRIGHTNESS10
+    DO10:
+        MOV gpio0_set, BRIGHTNESS10
+        MOV gpio1_set, DELAY10
+        JMP DONETIMES
+#endif
+#ifdef BRIGHTNESS9
+    DO9:
+        MOV gpio0_set, BRIGHTNESS9
+        MOV gpio1_set, DELAY9
+        JMP DONETIMES
+#endif
 #ifdef BRIGHTNESS8
     DO8:
         MOV gpio0_set, BRIGHTNESS8
@@ -424,6 +442,7 @@ NEW_ROW_LOOP:
 	ROW_LOOP:
 		// Reset the latch pin; will be toggled at the end of the row
 		LATCH_LO
+        CHECK_FOR_DISPLAY_OFF
 
         MOV pixelCount, ROW_LEN
         NEXT_PIXEL:
@@ -433,28 +452,29 @@ NEW_ROW_LOOP:
             // we do this by transfering the data_addr to the other PRU via XOUT
             // which will LBBO the data and then transfer it back via XIN
             REREAD:
-               XIN 11, gpio_base, 3*2*OUTPUTS + 4
-               QBNE REREAD, gpio_base, data_addr
+                CHECK_FOR_DISPLAY_OFF
+                XIN 11, gpio_base, 3*2*OUTPUTS + 4
+                QBNE REREAD, gpio_base, data_addr
             ADD data_addr, data_addr, 3*2*OUTPUTS
             // XOUT the new data_addr so the other RPU can start working
             // on loading it while we process this data
             XOUT 10, data_addr, 4
 
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 0
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 1
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 2
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 3
             CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 4
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 5
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 6
-            //CHECK_FOR_DISPLAY_OFF
+            CHECK_FOR_DISPLAY_OFF
             OUTPUT_ROWS_FOR_BIT 7
 
             SUB pixelCount, pixelCount, 1;
