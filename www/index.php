@@ -124,7 +124,7 @@ include 'common/menuHead.inc';
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7200000) {
     ?>
-<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="/advancedsettings.php">Advanced Settings</a> to expand the file system or create a new storage partition.</div>
+<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="advancedsettings.php">Advanced Settings</a> to expand the file system or create a new storage partition.</div>
 <br>
 <?php
     }
@@ -145,7 +145,7 @@ include 'common/menuHead.inc';
 						</select>
 <?
 	if (isset($settings['fppMode']) && ($settings['fppMode'] == 'master' || $settings['fppMode'] == 'player'))
-		echo "<a href='/minimal.php'>Switch to Compact Status UI</a>";
+		echo "<a href='minimal.php'>Switch to Compact Status UI</a>";
 ?>
 						</td>
           <td class='controlButton'>&nbsp;</td>

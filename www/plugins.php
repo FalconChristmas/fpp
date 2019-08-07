@@ -9,9 +9,9 @@ writeFPPVersionJavascriptFunctions();
     
 include 'common/menuHead.inc';
 ?>
-<script type="text/javascript" src="/js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
-<script type="text/javascript" src="/jquery/Spin.js/spin.js"></script>
-<script type="text/javascript" src="/jquery/Spin.js/jquery.spin.js"></script>
+<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
+<script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
+<script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
 <script>
 var installedPlugins = [];
 var pluginInfos = [];

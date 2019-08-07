@@ -14,6 +14,21 @@
 		Require all granted
 	</Directory>
 
+        <Directory FPPDIR/www/proxy>
+                Options Indexes FollowSymLinks
+                AllowOverride All
+                Require all granted
+		RequestHeader unset Accept-Encoding
+		SetEnv no-gzip 1
+		ProxyHTMLBufSize 32768
+		ProxyHTMLEnable On
+		ProxyHTMLStripComments Off
+		ProxyHTMLMeta On
+		ProxyHTMLDocType HTML
+		ProxyHTMLExtended On
+		ProxyHTMLCharsetOut UTF-8
+        </Directory>
+
 	SetEnv GIT_PROJECT_ROOT FPPDIR/.git
 	SetEnv GIT_HTTP_EXPORT_ALL 1
 	ScriptAlias /git/ /usr/lib/git-core/git-http-backend/

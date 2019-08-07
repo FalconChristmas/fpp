@@ -46,7 +46,7 @@ $pw = file_exists("$mediaDirectory/config/.htaccess");
 
 <head>
 <?php include 'common/menuHead.inc'; ?>
-<script type="text/javascript" src="/js/validate.min.js"></script>
+<script type="text/javascript" src="js/validate.min.js"></script>
 <title><? echo $pageTitle; ?></title>
 </head>
 <body>

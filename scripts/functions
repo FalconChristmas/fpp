@@ -629,9 +629,12 @@ cleanCompiledBinaries() {
 compileBinaries() {
 	cleanCompiledBinaries
 
+	# export CCACHE_LOGFILE=/tmp/cache.debug
+	export LANG=en_US.UTF-8
+	export TERM=linux
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} make optimized
+		cd ${FPPDIR}/src && ${SUDO} make clean && ${SUDO} -E make optimized
 	else
 		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make optimized
 	fi

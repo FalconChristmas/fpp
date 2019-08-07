@@ -119,6 +119,9 @@
     #ifdef PANEL_USE_GPIO1
         OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
     #endif
+    #if defined(PANEL_USE_GPIO1) || defined(PANEL_USE_GPIO0)
+        CHECK_FOR_DISPLAY_OFF
+    #endif
     #ifdef PANEL_USE_GPIO2
         OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
     #endif

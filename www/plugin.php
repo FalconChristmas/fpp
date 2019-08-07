@@ -41,7 +41,7 @@ if ( file_exists($jsDir))
 		{
 			if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file))
 			{
-				printf( "<script type='text/javascript' src='/plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
+				printf( "<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
 					$_GET['plugin'], $file);
 			}
 		}

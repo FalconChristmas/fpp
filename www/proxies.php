@@ -22,13 +22,13 @@ require_once("common.php");
     }
 ?>
 <head>
-<script type="text/javascript" src="/js/validate.min.js"></script>
+<script type="text/javascript" src="js/validate.min.js"></script>
 
 <script language="Javascript">
 
 function UpdateLink(row) {
     var val = document.getElementById('ipRow' + row).value;
-    document.getElementById('linkRow' + row).innerHTML = "<a href='/proxy/" + val + "'>" + val + "</a>";
+    document.getElementById('linkRow' + row).innerHTML = "<a href='proxy/" + val + "'>" + val + "</a>";
 }
 
 function AddNewProxy() {
@@ -48,7 +48,7 @@ function AddProxyForHost(host) {
 		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
 			"<td><input id='ipRow" + currentRows + "' class='active' type='text' size='40' oninput='UpdateLink(" + (currentRows) + ")' value='" + host + "'></td>" +
-            "<td id='linkRow" + currentRows + "'><a href='/proxy/" + host + "'>" + host + "</a></td>" +
+            "<td id='linkRow" + currentRows + "'><a href='proxy/" + host + "'>" + host + "</a></td>" +
 			"</tr>");
 }
 
@@ -70,7 +70,7 @@ function DeleteSelectedProxy() {
 }
 
 function SetProxies() {
-    var formStr = "<form action='/proxies.php' method='post' id='proxyForm'>";
+    var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
     var currentRows = $("#proxyTable > tbody > tr").length
     for (row = 0; row < currentRows; row++) {
         var val = document.getElementById('ipRow' + row).value;
