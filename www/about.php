@@ -12,6 +12,12 @@ if ( $return_val != 0 )
 	$fpp_version = "Unknown";
 unset($output);
 
+$serialNumber = exec("sed -n 's/^Serial.*: //p' /proc/cpuinfo", $output, $return_val);
+if ( $return_val != 0 )
+    unset($serialNumber);
+unset($output);
+
+    
 if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version"))
 {
 	exec($SUDO . " $fppDir/scripts/upgrade_config");
@@ -200,6 +206,9 @@ a:visited {
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
             <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
+<? if (isset($serialNumber) && $serialNumber != "") { ?>
+        <tr><td>Hardware Serial Number:</td><td><? echo $serialNumber; ?></td></tr>
+<? } ?>
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
 <? if (file_exists($mediaDirectory."/.developer_mode")) { ?>
             <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
