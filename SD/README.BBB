@@ -200,9 +200,8 @@ apt-get -y clean
 
 
 echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
-echo "# allocate 768K instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
-echo "options uio_pruss extram_pool_sz=786432" >> /etc/modprobe.d/uio_pruss.conf
-
+echo "# allocate 3M instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
+echo "options uio_pruss extram_pool_sz=3145728" >> /etc/modprobe.d/uio_pruss.conf
 
 # need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
 echo "blacklist st_pressure_i2c" > /etc/modprobe.d/blacklist-gyro.conf

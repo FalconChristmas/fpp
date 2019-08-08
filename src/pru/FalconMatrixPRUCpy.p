@@ -18,7 +18,7 @@
 #define endVal          r2
 
 #define lastData        r17
-#define pixel_data      r18 // the next 12 registers, too;
+#define pixel_data      r18 // the next 8 registers, too;
 
 
 
@@ -29,7 +29,6 @@ START:
 
     LDI r3, 1
     SBCO r3, C24, 0, 4
-    SBCO lastData, C24, 4, 32
 
 READ_LOOP:
     XIN 10, data_addr, 4
@@ -44,14 +43,11 @@ READ_LOOP:
     //nothing changed
     JMP READ_LOOP
 
-    SBCO data_addr, C24, 4, 4
-
 
     DO_DATA:
-        LBBO pixel_data, data_addr, 0, 3*2*OUTPUTS
+        LBBO pixel_data, data_addr, 0, 32
         MOV lastData, data_addr
-        XOUT 11, lastData, (3*2*OUTPUTS + 4)
-        SBCO lastData, C24, 8, (3*2*OUTPUTS + 4)
+        XOUT 11, lastData, (32 + 4)
 
     JMP READ_LOOP
 

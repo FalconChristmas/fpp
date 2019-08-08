@@ -53,23 +53,15 @@
 #define gpio3_led_mask r15
 #define gpio_base_cache r16    // register to keep a base address cached.  handy if it's used for clocks
 #define gpio_base       r17
-#define pixel_data      r18 // the next 12 registers, too;
+#define pixel_data      r18 // the next 8 registers, too;
+#define last_pixel_data_0 r26
+#define last_pixel_data_1 r27
+#define last_pixel_data_2 r28
+#define last_pixel_data_3 r29
 
 
 
 #define GPIO(R) CAT3(gpio,R,_set)
-
-.macro DO_OUTPUT_ROW
-.mparam rgpio, rpin, reg, bit
-    QBBC skip, reg, bit
-    SET rgpio, rpin
-    skip:
-.endm
-
-#define OUTPUT_ROW(N,reg_r,reg_g,reg_b,bit) \
-    DO_OUTPUT_ROW GPIO(r##N##_gpio), r##N##_pin, reg_r, bit; \
-    DO_OUTPUT_ROW GPIO(g##N##_gpio), g##N##_pin, reg_g, bit; \
-    DO_OUTPUT_ROW GPIO(b##N##_gpio), b##N##_pin, reg_b, bit; \
 
 
 #ifdef USING_PWM
@@ -90,22 +82,52 @@
 
 
 
-.macro OUTPUT_GPIO_WITH_BASE_REG
-.mparam data, mask, gpio_base_reg
+.macro OUTPUT_GPIO
+.mparam data, mask, gpio, last
+    MOV gpio_base, gpio
     // We write 8 bytes since CLR and DATA are contiguous,
     // which will write both the 0 and 1 bits in the
     // same instruction.
-
-    AND out_set, data, mask
-    XOR out_clr, out_set, mask
-    SBBO out_clr, gpio_base_reg, GPIO_CLRDATAOUT, 8
+    QBEQ DONEOUTPUTGPIO, data, last
+    MOV last, data
+    QBEQ SETALL, data, mask
+    QBEQ CLEARALL, data, 0
+        AND out_set, data, mask
+        XOR out_clr, out_set, mask
+        SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+        JMP DONEOUTPUTGPIO
+    SETALL:
+        SBBO data, gpio_base, GPIO_SETDATAOUT, 4
+        JMP DONEOUTPUTGPIO
+    CLEARALL:
+        SBBO mask, gpio_base, GPIO_CLRDATAOUT, 4
+    DONEOUTPUTGPIO:
 .endm
 
-.macro OUTPUT_GPIO
-.mparam data, mask, gpio
+.macro OUTPUT_GPIO_FORCE_CLEAR
+.mparam data, mask, gpio, last
     MOV gpio_base, gpio
-    OUTPUT_GPIO_WITH_BASE_REG data, mask, gpio_base
+    // We write 8 bytes since CLR and DATA are contiguous,
+    // which will write both the 0 and 1 bits in the
+    // same instruction.
+    QBEQ CLEARALL, data, 0
+        QBEQ CLEARNONDATA, data, last
+        AND out_set, data, mask
+        XOR out_clr, out_set, mask
+        SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
+        JMP DONEOUTPUTGPIO
+    CLEARALL:
+        SBBO mask, gpio_base, GPIO_CLRDATAOUT, 4
+        JMP DONEOUTPUTGPIO
+    CLEARNONDATA:
+        AND out_set, data, mask
+        XOR out_clr, out_set, mask
+        SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 4
+    DONEOUTPUTGPIO:
+    MOV last, data
+
 .endm
+
 
 #include "/tmp/PanelPinConfiguration.hp"
 #include "FalconMatrixCommon.p"
@@ -113,21 +135,11 @@
 
 .macro OUTPUT_GPIOS
 .mparam d0, d1, d2, d3
-    #ifdef PANEL_USE_GPIO0
-        OUTPUT_GPIO d0, gpio0_led_mask, GPIO0
-    #endif
-    #ifdef PANEL_USE_GPIO1
-        OUTPUT_GPIO d1, gpio1_led_mask, GPIO1
-    #endif
-    #if defined(PANEL_USE_GPIO1) || defined(PANEL_USE_GPIO0)
-        CHECK_FOR_DISPLAY_OFF
-    #endif
-    #ifdef PANEL_USE_GPIO2
-        OUTPUT_GPIO d2, gpio2_led_mask, GPIO2
-    #endif
-    #ifdef PANEL_USE_GPIO3
-        OUTPUT_GPIO d3, gpio3_led_mask, GPIO3
-    #endif
+    OUTPUT_GPIO_0(d0, gpio0_led_mask, GPIO0, last_pixel_data_0)
+    OUTPUT_GPIO_1(d1, gpio1_led_mask, GPIO1, last_pixel_data_1)
+    CHECK_FOR_DISPLAY_OFF
+    OUTPUT_GPIO_2(d2, gpio2_led_mask, GPIO2, last_pixel_data_2)
+    OUTPUT_GPIO_2(d3, gpio3_led_mask, GPIO3, last_pixel_data_3)
 .endm
 
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
@@ -249,52 +261,6 @@
 .endm
 
 
-.macro OUTPUT_ROWS_FOR_BIT
-.mparam bit
-    ZERO &gpio0_set, 16
-
-    #ifndef NO_OUTPUT_1
-        OUTPUT_ROW(11, r18.b0, r18.b1, r18.b2, bit)
-        OUTPUT_ROW(12, r18.b3, r19.b0, r19.b1, bit)
-    #endif
-    #ifndef NO_OUTPUT_2
-        OUTPUT_ROW(21, r19.b2, r19.b3, r20.b0, bit)
-        OUTPUT_ROW(22, r20.b1, r20.b2, r20.b3, bit)
-    #endif
-    #ifndef NO_OUTPUT_3
-        OUTPUT_ROW(31, r21.b0, r21.b1, r21.b2, bit)
-        OUTPUT_ROW(32, r21.b3, r22.b0, r22.b1, bit)
-    #endif
-    #ifndef NO_OUTPUT_4
-        OUTPUT_ROW(41, r22.b2, r22.b3, r23.b0, bit)
-        OUTPUT_ROW(42, r23.b1, r23.b2, r23.b3, bit)
-    #endif
-    #ifndef NO_OUTPUT_5
-        OUTPUT_ROW(51, r24.b0, r24.b1, r24.b2, bit)
-        OUTPUT_ROW(52, r24.b3, r25.b0, r25.b1, bit)
-    #endif
-    #ifndef NO_OUTPUT_6
-        OUTPUT_ROW(61, r25.b2, r25.b3, r26.b0, bit)
-        OUTPUT_ROW(62, r26.b1, r26.b2, r26.b3, bit)
-    #endif
-    #ifndef NO_OUTPUT_7
-        OUTPUT_ROW(71, r27.b0, r27.b1, r27.b2, bit)
-        OUTPUT_ROW(72, r27.b3, r28.b0, r28.b1, bit)
-    #endif
-    #ifndef NO_OUTPUT_8
-        OUTPUT_ROW(81, r28.b2, r28.b3, r29.b0, bit)
-        OUTPUT_ROW(82, r29.b1, r29.b2, r29.b3, bit)
-    #endif
-
-    CLOCK_LO
-
-    // All bits are configured;
-    // the non-set ones will be cleared
-    OUTPUT_GPIOS gpio0_set, gpio1_set, gpio2_set, gpio3_set
-
-    CLOCK_HI
-.endm
-
 START:
     // Enable OCP master port
     // clear the STANDBY_INIT bit in the SYSCFG register,
@@ -322,18 +288,11 @@ START:
     MOV r2, #0x1
     SBCO r2, CONST_PRUDRAM, 8, 4
 
-    // Wait for the start condition from the main program to indicate
-    // that we have a rendered frame ready to clock out.  This also
-    // handles the exit case if an invalid value is written to the start
-    // start position.
 
     MOV gpio0_led_mask, 0
     MOV gpio1_led_mask, 0
     MOV gpio2_led_mask, 0
     MOV gpio3_led_mask, 0
-
-    // Load the pointer to the buffer from PRU DRAM into r0.
-    LBCO  data_addr, CONST_PRUDRAM, 0, 4
 
 
 #ifndef NO_OUTPUT_1
@@ -450,37 +409,30 @@ NEW_ROW_LOOP:
         MOV pixelCount, ROW_LEN
         NEXT_PIXEL:
 
-			// Load the sixteen RGB outputs into
+			// Load the 8 GPIO bit flags (4 for each of 2 pixels)
 			// consecutive registers, starting at pixel_data
             // we do this by transfering the data_addr to the other PRU via XOUT
             // which will LBBO the data and then transfer it back via XIN
             REREAD:
                 CHECK_FOR_DISPLAY_OFF
-                XIN 11, gpio_base, 3*2*OUTPUTS + 4
+                XIN 11, gpio_base, (32 + 4)
                 QBNE REREAD, gpio_base, data_addr
-            ADD data_addr, data_addr, 3*2*OUTPUTS
+            ADD data_addr, data_addr, 32
             // XOUT the new data_addr so the other RPU can start working
             // on loading it while we process this data
             XOUT 10, data_addr, 4
 
             CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 0
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 1
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 2
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 3
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 4
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 5
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 6
-            CHECK_FOR_DISPLAY_OFF
-            OUTPUT_ROWS_FOR_BIT 7
+            CLOCK_LO
+            OUTPUT_GPIOS r18, r19, r20, r21
+            CLOCK_HI
 
-            SUB pixelCount, pixelCount, 1;
+            CHECK_FOR_DISPLAY_OFF
+            CLOCK_LO
+            OUTPUT_GPIOS r22, r23, r24, r25
+            CLOCK_HI
+
+            SUB pixelCount, pixelCount, 2;
             QBEQ DONE_PIXELS, pixelCount, 0;
             JMP NEXT_PIXEL
         DONE_PIXELS:

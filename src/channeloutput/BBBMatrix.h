@@ -68,7 +68,10 @@ class BBBMatrix : public ChannelOutputBase {
   private:
     void calcBrightnessFlags(std::vector<std::string> &sargs);
     void printStats();
+    void configurePanelPins(int x, Json::Value &root, std::ofstream &outputFile, int *minPort);
+    void configurePanelPin(int x, const std::string &color, int row, Json::Value &root, std::ofstream &outputFile, int *minPort);
     
+
     BBBPru      *m_pru;
     BBBPru      *m_pruCopy;
     BBBPruMatrixData *m_pruData;
@@ -87,7 +90,7 @@ class BBBMatrix : public ChannelOutputBase {
     int          m_panelScan; 
     FPPColorOrder m_colorOrder;
 
-    uint8_t      *m_outputFrame;
+    uint32_t     *m_gpioFrame;
     int          m_panels;
     int          m_rows;
     int          m_width;
@@ -102,6 +105,19 @@ class BBBMatrix : public ChannelOutputBase {
     uint32_t     brightnessValues[10];
     uint32_t     delayValues[10];
     uint16_t     gammaCurve[256];
+    
+    class GPIOPinInfo {
+    public:
+        class {
+        public:
+            uint8_t r_gpio = 0;
+            uint32_t r_pin = 0;
+            uint8_t g_gpio = 0;
+            uint32_t g_pin = 0;
+            uint8_t b_gpio = 0;
+            uint32_t b_pin = 0;
+        } row[2];
+    } m_pinInfo[8];
     
 };
 
