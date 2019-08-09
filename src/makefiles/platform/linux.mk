@@ -18,7 +18,7 @@ ifeq ($(wildcard /usr/include/Magick++.h),)
 CFLAGS += $(shell GraphicsMagick++-config --cppflags)
 endif
 
-ifneq ($(wildcard /usr/include/X11/Xlib.h),)
+ifneq ($(wildcard /.dockerenv),)
 CFLAGS += -DPLATFORM_DOCKER
 else
 CFLAGS += -DPLATFORM_UNKNOWN
