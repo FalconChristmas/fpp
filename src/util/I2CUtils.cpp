@@ -3,8 +3,8 @@
 #include <linux/i2c-dev.h>
 #include <thread>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
-#include <stropts.h>
 
 #include "I2CUtils.h"
 
