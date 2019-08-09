@@ -38,20 +38,23 @@ class PlaylistEntryScript : public PlaylistEntryBase {
 	int  Init(Json::Value &config);
 
 	int  StartPlaying(void);
+    int  Process(void);
 	int  Stop(void);
 
-	int  HandleSigChild(pid_t pid);
-
+    
+    bool isChildRunning();
 	void Dump(void);
 
 	Json::Value GetConfig(void);
-
+    Json::Value GetMqttStatus(void);
 	std::string GetScriptName(void) { return m_scriptFilename; }
 
   private:
 	std::string        m_scriptFilename;
 	std::string        m_scriptArgs;
-	int                m_blocking;
+	bool                m_blocking;
+    int                 m_scriptProcess;
+    long long           m_startTime;
 };
 
 #endif

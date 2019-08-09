@@ -737,6 +737,9 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
             currentSeq = pl["currentEntry"]["sequenceName"].asString();
             secsElapsed = sequence->m_seqSecondsElapsed;
             secsRemaining = sequence->m_seqSecondsRemaining;
+        } else if (pl["currentEntry"]["type"] == "script") {
+            currentSeq = pl["currentEntry"]["scriptFilename"].asString();
+            secsElapsed = pl["currentEntry"]["secondsElapsed"].asInt();
         } else {
             secsElapsed = pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["duration"].asInt() - pl["currentEntry"]["remaining"].asInt() : 0;
             secsRemaining = pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["remaining"].asInt() : 0;

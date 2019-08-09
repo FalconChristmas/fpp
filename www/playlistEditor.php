@@ -274,7 +274,8 @@ function PrintScriptOptions($id)
 			echo "<option value=\"" . $scriptFile . "\">" . $scriptFile . "</option>";
 		}
 	}
-	echo "</select>";
+    echo "</select>";
+    echo " &nbsp; <input type=\"checkbox\" id=\"" . $id . "_blocking\" > Wait For Completion";
 
 	echo "<br>Arguments: <input id=\"" . $id . "_args\" type=\"text\" size=\"60\" maxlength=\"255\">";
 }

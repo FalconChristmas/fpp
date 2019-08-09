@@ -28,6 +28,6 @@
 
 #include <string>
 
-void      RunScript(std::string script, std::string scriptArgs, int blocking = 0);
+pid_t RunScript(std::string script, std::string scriptArgs);
 
 #endif

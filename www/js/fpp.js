@@ -285,8 +285,13 @@ function PlaylistEntryToTR(i, entry, editMode)
 	}
 	else if(entry.type == 'plugin')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", "", entry.data, editMode);
-	else if(entry.type == 'script')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, entry.scriptArgs, "", i.toString(), editMode);
+    else if(entry.type == 'script') {
+        var blocking = "No Wait";
+        if (entry.blocking) {
+            blocking = "Wait";
+        }
+		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, entry.scriptArgs, blocking, i.toString(), editMode);
+    }
 
 	return HTML;
 }
@@ -599,6 +604,7 @@ function AddPlaylistEntry() {
 			{
 				entry.scriptName =  encodeURIComponent($('#selScript').val());
 				entry.scriptArgs =  encodeURIComponent($('#selScript_args').val());
+                entry.blocking = $('#selScript_blocking').prop('checked');;
 			}
 			else if (entry.type == 'mqtt')
 			{

@@ -42,7 +42,7 @@
 /*
  * Fork and run a script with accompanying args
  */
-void RunScript(std::string script, std::string scriptArgs, int blocking)
+pid_t RunScript(std::string script, std::string scriptArgs)
 {
 	pid_t pid = 0;
 	char  userScript[1024];
@@ -58,16 +58,11 @@ void RunScript(std::string script, std::string scriptArgs, int blocking)
 	memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
 	strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
 
-	// FIXME, add blocking support
-	blocking = 0;
-
-	if (!blocking)
-		pid = fork();
+    pid = fork();
 
 	if (pid == 0) // Event Script process
 	{
-		if (!blocking)
-			CloseOpenFiles();
+		CloseOpenFiles();
 
 		char *args[128];
 		char *token = strtok(userScript, " ");
@@ -132,28 +127,20 @@ void RunScript(std::string script, std::string scriptArgs, int blocking)
 		setenv("FPP_SCRIPT", script.c_str(), 0);
 		setenv("FPP_SCRIPTARGS", scriptArgs.c_str(), 0);
 
-		if (blocking)
-		{
-			// FIXME, add blocking support
+        if (chdir(getScriptDirectory()))
+        {
+            LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
+                getScriptDirectory(), strerror(errno));
+            exit(EXIT_FAILURE);
+        }
 
-			// need to free args[] entries here as well
-		}
-		else
-		{
-			if (chdir(getScriptDirectory()))
-			{
-				LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
-					getScriptDirectory(), strerror(errno));
-				exit(EXIT_FAILURE);
-			}
+        execvp(eventScript, args);
 
-			execvp(eventScript, args);
-
-			LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "
-				"this means that execvp() failed trying to run '%s %s': %s\n",
-				eventScript, args[0], strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
+        LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "
+            "this means that execvp() failed trying to run '%s %s': %s\n",
+            eventScript, args[0], strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return pid;
 }
 
