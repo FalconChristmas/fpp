@@ -113,9 +113,9 @@ void PixelOverlayModel::fill(int r, int g, int b) {
     int end = block->startChannel + block->channelCount - 2;
     
     for (int c = start; c <= end;) {
-        chanDataMap[c++] = r;
-        chanDataMap[c++] = g;
-        chanDataMap[c++] = b;
+        chanDataMap[pixelMap[c++]] = r;
+        chanDataMap[pixelMap[c++]] = g;
+        chanDataMap[pixelMap[c++]] = b;
     }
 }
 void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel) {
@@ -140,14 +140,14 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
     end--;
     
     for (int c = start; c <= end; c++) {
-        chanDataMap[c] = value;
+        chanDataMap[pixelMap[c]] = value;
     }
 }
 void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     int c = block->startChannel - 1 + (y*getWidth()*3) + x*3;
-    chanDataMap[c++] = r;
-    chanDataMap[c++] = g;
-    chanDataMap[c++] = b;
+    chanDataMap[pixelMap[c++]] = r;
+    chanDataMap[pixelMap[c++]] = g;
+    chanDataMap[pixelMap[c++]] = b;
 }
 
 void PixelOverlayModel::doText(const std::string &msg,
@@ -752,7 +752,7 @@ void PixelOverlayManager::SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock 
                 int inCh = (cb->startChannel - 1) + (ppos * 3);
                 
                 // X position in output
-                int outX = (LtoR != ((segment % 2) != TtoB)) ? width - x - 1 : x;
+                int outX = (LtoR == (segment % 2)) ? width - x - 1 : x;
                 // Y position in output
                 int outY = (TtoB) ? y : height - y - 1;
                 
@@ -787,7 +787,7 @@ void PixelOverlayManager::SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock 
                 // X position in output
                 int outX = (LtoR) ? x : width - x - 1;
                 // Y position in output
-                int outY = (TtoB != ((segment % 2) != LtoR)) ? height - y - 1 : y;
+                int outY = (TtoB == (segment % 2)) ? height - y - 1 : y;
                 
                 // Relative Mapped Output Pixel 'R' channel
                 int mpos = outX * height + outY;
