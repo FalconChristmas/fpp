@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo $@
+echo $0 $@
 /bin/rm -f /opt/fpp/lib/FalconMatrix.bin
 /bin/rm -f /opt/fpp/lib/FalconMatrixPRUCpy.bin
 /usr/bin/cpp $@ /opt/fpp/src/pru/FalconMatrix.p | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/FalconMatrix.i

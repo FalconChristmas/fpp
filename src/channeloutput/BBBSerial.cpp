@@ -90,17 +90,23 @@ BBBSerialOutput::~BBBSerialOutput()
 
 
 static void compileSerialPRUCode(std::vector<std::string> &sargs) {
+
     pid_t compilePid = fork();
     if (compilePid == 0) {
+        std::string log;
         char * args[sargs.size() + 3];
         args[0] = (char *)"/bin/bash";
         args[1] = (char *)"/opt/fpp/src/pru/compileSerial.sh";
+
+        log = args[1];
         
         for (int x = 0; x < sargs.size(); x++) {
             args[x + 2] = (char*)sargs[x].c_str();
+            log += " " + sargs[x];
         }
         args[sargs.size() + 2] = NULL;
-        
+        LogDebug(VB_CHANNELOUT, "BBBSerial::compilePRUCode() args: %s\n", log.c_str());
+
         execvp("/bin/bash", args);
     } else {
         wait(NULL);

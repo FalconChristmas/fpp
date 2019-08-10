@@ -124,13 +124,23 @@
     CLR r30, ser1_pru30
 #if NUMOUT > 1
     CLR r30, ser2_pru30
+#endif
+#if NUMOUT > 2
     CLR r30, ser3_pru30
+#endif
+#if NUMOUT > 3
     CLR r30, ser4_pru30
 #endif
-#if NUMOUT == 8
+#if NUMOUT > 4
     CLR r30, ser5_pru30
+#endif
+#if NUMOUT > 5
     CLR r30, ser6_pru30
+#endif
+#if NUMOUT > 6
     CLR r30, ser7_pru30
+#endif
+#if NUMOUT > 7
     CLR r30, ser8_pru30
 #endif
 .endm
@@ -138,13 +148,23 @@
     SET r30, ser1_pru30
 #if NUMOUT > 1
     SET r30, ser2_pru30
+#endif
+#if NUMOUT > 2
     SET r30, ser3_pru30
+#endif
+#if NUMOUT > 3
     SET r30, ser4_pru30
 #endif
-#if NUMOUT == 8
+#if NUMOUT > 4
     SET r30, ser5_pru30
+#endif
+#if NUMOUT > 5
     SET r30, ser6_pru30
+#endif
+#if NUMOUT > 6
     SET r30, ser7_pru30
+#endif
+#if NUMOUT > 7
     SET r30, ser8_pru30
 #endif
 .endm
@@ -218,13 +238,23 @@ START:
 	SET	GPIO_MASK(ser1_gpio), ser1_pin
 #if NUMOUT > 1
 	SET	GPIO_MASK(ser2_gpio), ser2_pin
+#endif
+#if NUMOUT > 2
 	SET	GPIO_MASK(ser3_gpio), ser3_pin
+#endif
+#if NUMOUT > 3
 	SET	GPIO_MASK(ser4_gpio), ser4_pin
 #endif
-#if NUMOUT == 8
+#if NUMOUT > 4
 	SET	GPIO_MASK(ser5_gpio), ser5_pin
+#endif
+#if NUMOUT > 5
 	SET	GPIO_MASK(ser6_gpio), ser6_pin
+#endif
+#if NUMOUT > 6
 	SET	GPIO_MASK(ser7_gpio), ser7_pin
+#endif
+#if NUMOUT > 7
 	SET	GPIO_MASK(ser8_gpio), ser8_pin
 #endif
 
@@ -309,13 +339,23 @@ _OUTPUTANYWAY:
         SET_BIT(1, r10.b0, r12)
         #if NUMOUT > 1
             SET_BIT(2, r10.b1, r12)
+        #endif
+        #if NUMOUT > 2
             SET_BIT(3, r10.b2, r12)
+        #endif
+        #if NUMOUT > 3
             SET_BIT(4, r10.b3, r12)
         #endif
-        #if NUMOUT == 8
+        #if NUMOUT > 4
             SET_BIT(5, r11.b0, r12)
+        #endif
+        #if NUMOUT > 5
             SET_BIT(6, r11.b1, r12)
+        #endif
+        #if NUMOUT > 6
             SET_BIT(7, r11.b2, r12)
+        #endif
+        #if NUMOUT > 7
             SET_BIT(8, r11.b3, r12)
         #endif
 
