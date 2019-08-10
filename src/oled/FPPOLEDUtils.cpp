@@ -247,12 +247,12 @@ void FPPOLEDUtils::run() {
         bool forcedOff = currentStatus->forceOff;
         OLEDPage::SetForcedOff(forcedOff);
         if (currentStatus->displayOn && forcedOff) {
-            currentStatus->displayOn = false;
-            OLEDPage::SetCurrentPage(statusPage);
             if (OLEDPage::GetOLEDType() != OLEDPage::OLEDType::NONE) {
                 clearDisplay();
                 Display();
             }
+	    currentStatus->displayOn = false;
+            OLEDPage::SetCurrentPage(statusPage);
         }
         if (ntime > (lastUpdateTime + 1000000)) {
             bool displayOn = currentStatus->displayOn;

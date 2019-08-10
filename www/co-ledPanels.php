@@ -925,6 +925,9 @@ if (count($panelCapes) == 1) {
     if (IsSet($panelCapes[0]["warnings"]["all"])) {
         echo "<li><font color='red'>" . $panelCapes[0]["warnings"]["all"] . "</font></li>\n";
     }
+    if (IsSet($panelCapes[0]["warnings"]["*"])) {
+        echo "<li><font color='red'>" . $panelCapes[0]["warnings"]["*"] . "</font></li>\n";
+    }
 }
 ?>
 	      <li>When wiring panels, divide the panels across as many outputs as possible.  Shorter chains on more outputs will have higher refresh than longer chains on fewer outputs.</li>
