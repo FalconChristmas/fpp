@@ -233,7 +233,9 @@ bool fpp_detectCape() {
     std::string EEPROM;
     if (bus == 2 && !HasI2CDevice(0x50, bus)) {
         printf("Did not find 0x50 on i2c2, trying i2c1.\n");
-        bus = 1;
+        if (HasI2CDevice(0x50, 1)) {
+            bus = 1;
+        }
     }
     if (HasI2CDevice(0x50, bus)) {
         EEPROM = string_sprintf("/sys/bus/i2c/devices/%d-0050/eeprom", bus);
