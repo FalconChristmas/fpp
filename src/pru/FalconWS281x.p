@@ -115,19 +115,6 @@
 
 #include "FalconPRUDefs.hp"
 
-/** Mappings of the GPIO devices */
-#define GPIO0 (0x44E07000 + 0x100)
-#define GPIO1 (0x4804c000 + 0x100)
-#define GPIO2 (0x481AC000 + 0x100)
-#define GPIO3 (0x481AE000 + 0x100)
-
-/** Offsets for the clear and set registers in the devices.
-* Since the offsets can only be 0xFF, we deliberately add offsets
-*/
-#define GPIO_CLRDATAOUT (0x190 - 0x100)
-#define GPIO_SETDATAOUT (0x194 - 0x100)
-
-
 
 /** Register map */
 #define data_addr	r0

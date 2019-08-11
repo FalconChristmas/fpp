@@ -120,7 +120,11 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     max /= (m_panelScan * 2);
 
     uint32_t origMax = max;
-    if (m_colorDepth == 10 && max < 0x8000) {
+    if (m_colorDepth >= 11 && max < 0x9000) {
+        //for depth 10, we'll need a little more on time
+        //or the last bit will be on far too short
+        max = 0x9000;
+    } else if (m_colorDepth >= 10 && max < 0x8000) {
         //for depth 10, we'll need a little more on time
         //or the last bit will be on far too short
         max = 0x8000;
@@ -140,28 +144,30 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     max /= 10;
 
     uint32_t delay = origMax2 - max;
-    if (max < origMax) {
-        delay = origMax2 - origMax;
+    if ((origMax2 > origMax) && (origMax > max)) {
+        delay = origMax - max;
     }
     
     int maxBit = 8;
     if (m_colorDepth > 8) {
         maxBit = m_colorDepth;
     }
+    //printf("Delay : %d      Max:  %d       OrigMax:   %d      OrigMax2:  %d\n", delay, max, origMax, origMax2);
     for (int x = 0; x < maxBit; x++) {
         LogDebug(VB_CHANNELOUT, "Brightness %d:  %X\n", x, max);
         delayValues[x] = delay;
-        brightnessValues[x] = max + delay;
+        brightnessValues[x] = max;
         max >>= 1;
         origMax >>= 1;
     }
-    
-    if (brightnessValues[maxBit - 2] < 160) {
-        // this will potentally cause maxBit-1 to be too short or too close to maxBit-2
-        // 40 is about the lowest we can go  (200us)
-        brightnessValues[maxBit - 1] = 40;
+    // low value cannot be less than 20 or ghosting
+    if (brightnessValues[maxBit - 1] < 20) {
+        brightnessValues[maxBit - 1] = 20;
     }
-    
+    if (brightnessValues[maxBit - 2] < brightnessValues[maxBit - 1]) {
+        brightnessValues[maxBit - 2] = brightnessValues[maxBit - 2] + 5;
+    }
+
     if (FileExists("/home/fpp/media/config/ledscape_dimming")) {
         FILE *file = fopen("/home/fpp/media/config/ledscape_dimming", "r");
         
@@ -466,7 +472,7 @@ int BBBMatrix::Init(Json::Value config)
         m_colorDepth = -m_colorDepth;
         m_colorDepth++;
     }
-    if (m_colorDepth > 10 || m_colorDepth < 6) {
+    if (m_colorDepth > 12 || m_colorDepth < 6) {
         m_colorDepth = 8;
     }
     bool zigZagInterleave = false;
@@ -723,7 +729,21 @@ int BBBMatrix::Init(Json::Value config)
                 v = 2;
             }
         }
-        float max = (m_colorDepth == 10) ? 1023.0f : ((m_colorDepth == 9) ? 511.0f : 255.0f);
+        float max = 255.0f;
+        switch (m_colorDepth) {
+            case 12:
+                max = 4095.0f;
+            break;
+            case 11:
+                max = 2047.0f;
+            break;
+            case 10:
+                max = 1023.0f;
+            break;
+            case 9:
+                max = 511.0f;
+            break;
+        }
         float f = v;
         f = max * pow(f / 255.0f, gamma);
         if (f > max) {

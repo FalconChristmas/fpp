@@ -20,44 +20,43 @@
 #include "FalconPRUDefs.hp"
 #include "FalconUtils.hp"
 
-/** Mappings of the GPIO devices */
-#define GPIO0 (0x44E07000 + 0x100)
-#define GPIO1 (0x4804c000 + 0x100)
-#define GPIO2 (0x481AC000 + 0x100)
-#define GPIO3 (0x481AE000 + 0x100)
-
-/** Offsets for the clear and set registers in the devices.
- * Since the offsets can only be 0xFF, we deliberately add offsets
- */
-#define GPIO_DATAOUT    (0x13C - 0x100)
-#define GPIO_CLRDATAOUT (0x190 - 0x100)
-#define GPIO_SETDATAOUT (0x194 - 0x100)
 
 /** Register map */
 #define data_addr       r1
-#define row             r2.b0
-#define bright          r2.b1
-#define sleep_counter   r3.w0
-#define sleepDone       r3.w2
-#define statOffset      r4.w0
-#define pixelCount      r4.w2
-#define out_clr r6 // must be one less than out_set
-#define out_set r7
-#define gpio0_set r8
-#define gpio1_set r9
-#define gpio2_set r10
-#define gpio3_set r11
-#define gpio0_led_mask r12
-#define gpio1_led_mask r13
-#define gpio2_led_mask r14
-#define gpio3_led_mask r15
-#define gpio_base_cache r16    // register to keep a base address cached.  handy if it's used for clocks
-#define gpio_base       r17
-#define pixel_data      r18 // the next 8 registers, too;
+                        //  r2.w0 ??
+#define row             r2.b2
+#define bright          r2.b3
+
+#define gpio0_led_mask  r3      // led masks for each of the GPIO's
+#define gpio1_led_mask  r4
+#define gpio2_led_mask  r5
+#define gpio3_led_mask  r6
+
+#define sleep_counter   r7.w0
+#define sleepDone       r7.w2
+#define statOffset      r8.w0
+#define pixelCount      r8.w2
+
+#define gpio_base_cache r9      // register to keep a base address cached.  handy if it's used for clocks
+
+#define tmp_reg1        r10
+#define tmp_reg2        r11
+#define tmp_reg3        r12
+#define tmp_reg4        r13
+                        //r15-r16  ??
+
+#define data_from_other_pru   r17   // the address that the other PRU loaded into r18+
+#define pixel_data        r18 // the next 8 registers, too;
 #define last_pixel_data_0 r26
 #define last_pixel_data_1 r27
 #define last_pixel_data_2 r28
 #define last_pixel_data_3 r29
+
+
+#define gpio_base       tmp_reg1 // must be one less than out_clr
+#define out_clr         tmp_reg2 // must be one less than out_set
+#define out_set         tmp_reg3
+
 
 
 
@@ -69,7 +68,7 @@
 #define CHECK_FOR_DISPLAY_OFF
 #else
 .macro CHECK_FOR_DISPLAY_OFF
-.mparam reg1 = gpio0_set, reg2 = gpio1_set
+.mparam reg1 = tmp_reg1, reg2 = tmp_reg2
     QBEQ NO_BLANK, sleep_counter, 0
         GET_PRU_CLOCK reg1, reg2
         QBGT NO_BLANK, reg1, sleep_counter
@@ -84,12 +83,12 @@
 
 .macro OUTPUT_GPIO
 .mparam data, mask, gpio, last
-    MOV gpio_base, gpio
     // We write 8 bytes since CLR and DATA are contiguous,
     // which will write both the 0 and 1 bits in the
     // same instruction.
     QBEQ DONEOUTPUTGPIO, data, last
     MOV last, data
+    MOV gpio_base, gpio
     QBEQ SETALL, data, mask
     QBEQ CLEARALL, data, 0
         AND out_set, data, mask
@@ -103,6 +102,7 @@
         SBBO mask, gpio_base, GPIO_CLRDATAOUT, 4
     DONEOUTPUTGPIO:
 .endm
+
 
 .macro OUTPUT_GPIO_FORCE_CLEAR
 .mparam data, mask, gpio, last
@@ -125,7 +125,7 @@
         SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 4
     DONEOUTPUTGPIO:
     MOV last, data
-
+    CHECK_FOR_DISPLAY_OFF
 .endm
 
 
@@ -135,25 +135,28 @@
 
 .macro OUTPUT_GPIOS
 .mparam d0, d1, d2, d3
+    CHECK_FOR_DISPLAY_OFF
     OUTPUT_GPIO_0(d0, gpio0_led_mask, GPIO0, last_pixel_data_0)
     OUTPUT_GPIO_1(d1, gpio1_led_mask, GPIO1, last_pixel_data_1)
-    CHECK_FOR_DISPLAY_OFF
     OUTPUT_GPIO_2(d2, gpio2_led_mask, GPIO2, last_pixel_data_2)
-    OUTPUT_GPIO_2(d3, gpio3_led_mask, GPIO3, last_pixel_data_3)
+    OUTPUT_GPIO_3(d3, gpio3_led_mask, GPIO3, last_pixel_data_3)
 .endm
+
+
 
 #define GPIO_MASK(X) CAT3(gpio,X,_led_mask)
 #define CONFIGURE_PIN(a) SET GPIO_MASK(a##_gpio), a##_pin
 
 .macro DISABLE_GPIO_PIN_INTERRUPTS
 .mparam ledMask, gpio
-    MOV gpio0_set, ledMask
-    MOV gpio1_set, ledMask
-    MOV gpio2_set, gpio
-    MOV gpio3_set, 0x100
-    SUB gpio2_set, gpio2_set, gpio3_set
-    SBBO gpio0_set, gpio2_set, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
-            // by doing 8 and using both gpio0_set and gpio1_set, we can clear
+    MOV tmp_reg1, ledMask
+    MOV tmp_reg2, ledMask
+    MOV tmp_reg3, gpio
+    MOV tmp_reg4, 0x100
+    SUB tmp_reg3, tmp_reg3, tmp_reg4
+    SBBO tmp_reg1, tmp_reg3, 0x3C, 8
+            //0x3c is the GPIO_IRQSTATUS_CLR_0 register
+            // by doing 8 and using both tmp_reg1 and tmp_reg2, we can clear
             // both the 0 and 1 IRQ status
 .endm
 .macro DISABLE_PIN_INTERRUPTS
@@ -162,33 +165,39 @@
     DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
 
-    ZERO &gpio3_set, 4
+    ZERO &tmp_reg4, 4
     #ifdef gpio_sel0
-        SET gpio3_set, gpio_sel0
-        SET gpio3_set, gpio_sel1
-        SET gpio3_set, gpio_sel2
-        SET gpio3_set, gpio_sel3
+        SET tmp_reg4, gpio_sel0
+        SET tmp_reg4, gpio_sel1
+        SET tmp_reg4, gpio_sel2
+        SET tmp_reg4, gpio_sel3
     #endif
     #ifdef gpio_clock
-        SET gpio3_set, gpio_clock
+        SET tmp_reg4, gpio_clock
     #endif
     #ifdef gpio_oe
-        SET gpio3_set, gpio_oe
+        SET tmp_reg4, gpio_oe
     #endif
     #ifdef gpio_latch
-        SET gpio3_set, gpio_latch
+        SET tmp_reg4, gpio_latch
     #endif
-    DISABLE_GPIO_PIN_INTERRUPTS gpio3_set, gpio_base_cache
+    DISABLE_GPIO_PIN_INTERRUPTS tmp_reg4, gpio_base_cache
 .endm
 
 .macro GET_ON_DELAY_TIMES
 .mparam brightlevel
 #ifdef USING_PWM
-    LSL gpio0_set, brightlevel, 1
-    ADD gpio0_set, gpio0_set, 10
-    LBCO gpio0_set, CONST_PRUDRAM, gpio0_set, 2
-    MOV gpio1_set, 0
+    LSL tmp_reg1, brightlevel, 1
+    ADD tmp_reg1, tmp_reg1, 10
+    LBCO tmp_reg1, CONST_PRUDRAM, tmp_reg1, 2
+    MOV tmp_reg2, 0
 #else
+#ifdef BRIGHTNESS12
+    QBEQ DO12, brightlevel, 12
+#endif
+#ifdef BRIGHTNESS11
+    QBEQ DO11, brightlevel, 11
+#endif
 #ifdef BRIGHTNESS10
     QBEQ DO10, brightlevel, 10
 #endif
@@ -207,53 +216,65 @@
     QBEQ DO3, brightlevel, 3
     QBEQ DO2, brightlevel, 2
 
-    MOV gpio0_set, BRIGHTNESS1
-    MOV gpio1_set, DELAY1
+    MOV tmp_reg1, BRIGHTNESS1
+    MOV tmp_reg2, DELAY1
 
     JMP DONETIMES
+#ifdef BRIGHTNESS12
+    DO12:
+        MOV tmp_reg1, BRIGHTNESS12
+        MOV tmp_reg2, DELAY12
+        JMP DONETIMES
+#endif
+#ifdef BRIGHTNESS11
+    DO11:
+        MOV tmp_reg1, BRIGHTNESS11
+        MOV tmp_reg2, DELAY11
+        JMP DONETIMES
+#endif
 #ifdef BRIGHTNESS10
     DO10:
-        MOV gpio0_set, BRIGHTNESS10
-        MOV gpio1_set, DELAY10
+        MOV tmp_reg1, BRIGHTNESS10
+        MOV tmp_reg2, DELAY10
         JMP DONETIMES
 #endif
 #ifdef BRIGHTNESS9
     DO9:
-        MOV gpio0_set, BRIGHTNESS9
-        MOV gpio1_set, DELAY9
+        MOV tmp_reg1, BRIGHTNESS9
+        MOV tmp_reg2, DELAY9
         JMP DONETIMES
 #endif
 #ifdef BRIGHTNESS8
     DO8:
-        MOV gpio0_set, BRIGHTNESS8
-        MOV gpio1_set, DELAY8
+        MOV tmp_reg1, BRIGHTNESS8
+        MOV tmp_reg2, DELAY8
         JMP DONETIMES
 #endif
 #ifdef BRIGHTNESS7
     DO7:
-        MOV gpio0_set, BRIGHTNESS7
-        MOV gpio1_set, DELAY7
+        MOV tmp_reg1, BRIGHTNESS7
+        MOV tmp_reg2, DELAY7
         JMP DONETIMES
 #endif
     DO6:
-        MOV gpio0_set, BRIGHTNESS6
-        MOV gpio1_set, DELAY6
+        MOV tmp_reg1, BRIGHTNESS6
+        MOV tmp_reg2, DELAY6
         JMP DONETIMES
     DO5:
-        MOV gpio0_set, BRIGHTNESS5
-        MOV gpio1_set, DELAY5
+        MOV tmp_reg1, BRIGHTNESS5
+        MOV tmp_reg2, DELAY5
         JMP DONETIMES
     DO4:
-        MOV gpio0_set, BRIGHTNESS4
-        MOV gpio1_set, DELAY4
+        MOV tmp_reg1, BRIGHTNESS4
+        MOV tmp_reg2, DELAY4
         JMP DONETIMES
     DO3:
-        MOV gpio0_set, BRIGHTNESS3
-        MOV gpio1_set, DELAY3
+        MOV tmp_reg1, BRIGHTNESS3
+        MOV tmp_reg2, DELAY3
         JMP DONETIMES
     DO2:
-        MOV gpio0_set, BRIGHTNESS2
-        MOV gpio1_set, DELAY2
+        MOV tmp_reg1, BRIGHTNESS2
+        MOV tmp_reg2, DELAY2
         JMP DONETIMES
 
     DONETIMES:
@@ -376,7 +397,7 @@ START:
     LDI sleep_counter, 0
     LDI sleepDone, 0
 
-    RESET_PRU_CLOCK gpio0_set, gpio1_set
+    RESET_PRU_CLOCK tmp_reg1, tmp_reg2
     LDI statOffset, 0
 
 READ_LOOP:
@@ -398,6 +419,7 @@ NO_EXIT:
     LDI statOffset, 0
     XOUT 10, data_addr, 4
 
+
 NEW_ROW_LOOP:
     MOV bright, BITS
 
@@ -415,22 +437,21 @@ NEW_ROW_LOOP:
             // which will LBBO the data and then transfer it back via XIN
             REREAD:
                 CHECK_FOR_DISPLAY_OFF
-                XIN 11, gpio_base, (32 + 4)
-                QBNE REREAD, gpio_base, data_addr
+                XIN 11, data_from_other_pru, (32 + 4)
+                QBNE REREAD, data_from_other_pru, data_addr
             ADD data_addr, data_addr, 32
             // XOUT the new data_addr so the other RPU can start working
             // on loading it while we process this data
             XOUT 10, data_addr, 4
 
-            CHECK_FOR_DISPLAY_OFF
             CLOCK_LO
             OUTPUT_GPIOS r18, r19, r20, r21
             CLOCK_HI
 
-            CHECK_FOR_DISPLAY_OFF
             CLOCK_LO
             OUTPUT_GPIOS r22, r23, r24, r25
             CLOCK_HI
+            CHECK_FOR_DISPLAY_OFF
 
             SUB pixelCount, pixelCount, 2;
             QBEQ DONE_PIXELS, pixelCount, 0;
@@ -439,16 +460,16 @@ NEW_ROW_LOOP:
 
 #ifdef ENABLESTATS
         //write some debug data into sram to read in c code
-        MOV gpio2_set, sleep_counter
-        GET_PRU_CLOCK gpio0_set, gpio0_set, 8
+        MOV tmp_reg3, sleep_counter
+        GET_PRU_CLOCK tmp_reg1, tmp_reg1, 8
         QBNE STILLON, sleep_counter, 0
-            MOV gpio2_set, sleepDone
+            MOV tmp_reg3, sleepDone
         STILLON:
 
-        MOV gpio3_set, statOffset
-        LSL gpio3_set, gpio3_set, 2
-        ADD gpio3_set, gpio3_set, 28
-        SBCO gpio0_set, CONST_PRUDRAM, gpio3_set, 12
+        MOV tmp_reg4, statOffset
+        LSL tmp_reg4, tmp_reg4, 2
+        ADD tmp_reg4, tmp_reg4, 28
+        SBCO tmp_reg1, CONST_PRUDRAM, tmp_reg4, 12
         ADD statOffset, statOffset, 3
 #endif
 
@@ -457,8 +478,8 @@ NEW_ROW_LOOP:
 #else
         QBEQ DISPLAY_ALREADY_OFF, sleep_counter, 0
         WAIT_FOR_TIMER:
-            GET_PRU_CLOCK gpio0_set, gpio1_set
-            QBGT WAIT_FOR_TIMER, gpio0_set, sleep_counter
+            GET_PRU_CLOCK tmp_reg1, tmp_reg2
+            QBGT WAIT_FOR_TIMER, tmp_reg1, sleep_counter
             DISPLAY_OFF
         DISPLAY_ALREADY_OFF:
 #endif
@@ -470,18 +491,19 @@ NEW_ROW_LOOP:
 	    // Full data has been clocked out; latch it
 	    LATCH_HI
 
-        RESET_PRU_CLOCK gpio2_set, gpio3_set
 
-        // determine on time (gpio0_set) and delay time (gpio1_set)
+        // determine on time (tmp_reg1) and delay time (tmp_reg2)
         GET_ON_DELAY_TIMES bright
-        QBEQ NO_EXTRA_DELAY, gpio1_set, 0
-            MOV sleep_counter, gpio1_set
+        QBEQ NO_EXTRA_DELAY, tmp_reg2, 0
+            MOV sleep_counter, tmp_reg2
             WAIT_FOR_EXTRA_OFF_TIME:
-                GET_PRU_CLOCK gpio1_set, gpio2_set
-                QBGT WAIT_FOR_EXTRA_OFF_TIME, gpio1_set, sleep_counter
+                GET_PRU_CLOCK tmp_reg2, tmp_reg3
+                QBGT WAIT_FOR_EXTRA_OFF_TIME, tmp_reg2, sleep_counter
         NO_EXTRA_DELAY:
 
-        MOV sleep_counter, gpio0_set
+        RESET_PRU_CLOCK tmp_reg3, tmp_reg4
+
+        MOV sleep_counter, tmp_reg1
         MOV sleepDone, 0
 
         DISPLAY_ON

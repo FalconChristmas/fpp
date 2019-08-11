@@ -24,6 +24,21 @@
 #define CONST_L3RAM     C30
 #define CONST_DDR       C31
 
+
+/** Mappings of the GPIO devices */
+#define GPIO0 (0x44E07000 + 0x100)
+#define GPIO1 (0x4804c000 + 0x100)
+#define GPIO2 (0x481AC000 + 0x100)
+#define GPIO3 (0x481AE000 + 0x100)
+
+/** Offsets for the clear and set registers in the devices.
+ * Since the offsets can only be 0xFF, we deliberately add offsets
+ */
+#define GPIO_DATAOUT    (0x13C - 0x100)
+#define GPIO_CLRDATAOUT (0x190 - 0x100)
+#define GPIO_SETDATAOUT (0x194 - 0x100)
+
+
 // Address for the Constant table Programmable Pointer Register 0(CTPPR_0)
 #define CTBIR_0         0x22020
 // Address for the Constant table Programmable Pointer Register 0(CTPPR_0)

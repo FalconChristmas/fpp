@@ -838,6 +838,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
+                                    <option value='12'>12 Bit</option>
+                                    <option value='11'>11 Bit</option>
                                     <option value='10'>10 Bit</option>
                                     <option value='9'>9 Bit</option>
 <?
