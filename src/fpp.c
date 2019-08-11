@@ -186,20 +186,21 @@ int main (int argc, char *argv[])
       SendCommand(command);
     }
     // Configure the given GPIO to the given mode
-    else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 4)
-    {
-      sprintf(command,"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
-      SendCommand(command);
-    }
+    else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 3) {
+        sprintf(command,"SetupExtGPIO,%s,",argv[2]);
+        SendCommand(command);
+    } else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 4) {
+        sprintf(command,"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
+        SendCommand(command);
     // Set the given GPIO to the given value
-    else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 5)
-    {
-      sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
-      SendCommand(command);
-    }
-    else
-    {
-      Usage(argv[0]);
+    } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 3) {
+        sprintf(command,"ExtGPIO,%s",argv[2]);
+        SendCommand(command);
+    } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 5) {
+        sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
+        SendCommand(command);
+    } else {
+        Usage(argv[0]);
     }
   }
   else
