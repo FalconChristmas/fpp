@@ -98,6 +98,8 @@ class BBBMatrix : public ChannelOutputBase {
     int          m_rowSize;
     
     bool         m_evenFrame;
+    bool         m_outputByRow;
+    bool         m_outputBlankData;
     
     int          m_timing;
     InterleaveHandler *m_handler;

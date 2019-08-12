@@ -323,7 +323,9 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
     m_panelScan(8),
     m_timing(0),
     m_printStats(false),
-    m_handler(nullptr)
+    m_handler(nullptr),
+    m_outputByRow(false),
+    m_outputBlankData(false)
 {
 	LogDebug(VB_CHANNELOUT, "BBBMatrix::BBBMatrix(%u, %u)\n",
 		startChannel, channelCount);
@@ -466,11 +468,15 @@ int BBBMatrix::Init(Json::Value config)
     if (config.isMember("panelColorDepth")) {
         m_colorDepth = config["panelColorDepth"].asInt();
     }
-    bool drop = false;
+    if (config.isMember("panelOutputOrder")) {
+        m_outputByRow = config["panelOutputOrder"].asBool();
+    }
+    if (config.isMember("panelOutputBlankRow")) {
+        m_outputBlankData = config["panelOutputBlankRow"].asBool();
+    }
     if (m_colorDepth < 0) {
-        drop = true;
         m_colorDepth = -m_colorDepth;
-        m_colorDepth++;
+        m_outputBlankData = true;
     }
     if (m_colorDepth > 12 || m_colorDepth < 6) {
         m_colorDepth = 8;
@@ -670,6 +676,14 @@ int BBBMatrix::Init(Json::Value config)
         compileArgs.push_back("-DENABLESTATS=1");
     }
 
+    if (m_outputByRow) {
+        compileArgs.push_back("-DOUTPUTBYROW");
+        if (m_outputBlankData) {
+            compileArgs.push_back("-DOUTPUTBLANKROW");
+        }
+    } else {
+        compileArgs.push_back("-DOUTPUTBYDEPTH");
+    }
     compilePRUMatrixCode(compileArgs);
     std::string pru_program = "/tmp/FalconMatrix.bin";
 
@@ -714,20 +728,10 @@ int BBBMatrix::Init(Json::Value config)
     }
     for (int x = 0; x < 256; x++) {
         int v = x;
-        if (drop) {
-            if (m_colorDepth == 7) {
-                if (v > 0 && v < 4) v = 4;
-                v &= 0xFC;
-            } else {
-                if (v > 0 && v < 2) v = 2;
-                v &= 0xFE;
-            }
-        } else {
-            if (m_colorDepth == 6 && (v == 3 || v == 2)) {
-                v = 4;
-            } else if (m_colorDepth == 7 && v == 1) {
-                v = 2;
-            }
+        if (m_colorDepth == 6 && (v == 3 || v == 2)) {
+            v = 4;
+        } else if (m_colorDepth == 7 && v == 1) {
+            v = 2;
         }
         float max = 255.0f;
         switch (m_colorDepth) {
@@ -885,8 +889,10 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                 int yOut = y;
                 m_handler->mapRow(yOut);
                 
-                int offset = yOut * fullRowLen;
-                offset += (m_longestChain - chain - 1) * 4 * m_panelWidth;
+                int offset = yOut * fullRowLen + (m_longestChain - chain - 1) * 4 * m_panelWidth;
+                if (!m_outputByRow) {
+                    offset = yOut * rowLen + (m_longestChain - chain - 1) * 4 * m_panelWidth;
+                }
                 
                 for (int x = 0; x < m_panelWidth; ++x) {
                     uint16_t r1 = gammaCurve[channelData[m_panelMatrix->m_panels[panel].pixelMap[yw1 + x*3]]];
@@ -923,7 +929,11 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                         if (b2 & mask) {
                             m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].b_gpio] |= m_pinInfo[output].row[1].b_pin;
                         }
-                        xOff += rowLen;
+                        if (m_outputByRow) {
+                            xOff += rowLen;
+                        } else {
+                            xOff += rowLen * m_panelScan;
+                        }
                     }
                 }
             }

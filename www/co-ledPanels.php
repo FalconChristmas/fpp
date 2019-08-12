@@ -446,10 +446,33 @@ function InitializeLEDPanels()
 <?
 	}
 ?>
+        var outputByRow = false;
+        var outputBlank = false;
+        if (channelOutputsLookup["LEDPanelMatrix"].panelOutputOrder != null) {
+            outputByRow = channelOutputsLookup["LEDPanelMatrix"].panelOutputOrder;
+        }
         var colordepth = channelOutputsLookup["LEDPanelMatrix"].panelColorDepth;
         if (typeof colordepth === 'undefined') {
             colordepth = 8;
         }
+        
+<?  if ($settings['Platform'] == "BeagleBone Black") { ?>
+        if (channelOutputsLookup["LEDPanelMatrix"].panelOutputBlankRow != null) {
+            outputBlank = channelOutputsLookup["LEDPanelMatrix"].panelOutputBlankRow;
+        }
+        if (colordepth < 0) {
+            outputBlank = true;
+            colordepth = -colordepth;
+            outputByRow = true;
+        }
+        $('#LEDPanelsOutputByRow').prop("checked", outputByRow);
+        $('#LEDPanelsOutputBlankRow').prop("checked", outputBlank);
+        if (outputByRow == false) {
+            $('#LEDPanelsOutputBlankRow').hide();
+            $('#LEDPanelsOutputBlankLabel').hide();
+        }
+<? } ?>
+        
         $('#LEDPanelsColorDepth').val(colordepth);
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 
@@ -546,6 +569,11 @@ function GetLEDPanelConfig()
 	config.panelWidth = LEDPanelWidth;
 	config.panelHeight = LEDPanelHeight;
     config.panelScan = LEDPanelScan;
+    <? if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") { ?>
+        config.panelOutputOrder = $('#LEDPanelsOutputByRow').is(':checked');
+        config.panelOutputBlankRow = $('#LEDPanelsOutputBlankRow').is(':checked');
+    <? } ?>
+    
     if (LEDPanelAddressing) {
         config.panelAddressing = LEDPanelAddressing;
     }
@@ -642,20 +670,20 @@ function LEDPannelsConnectionChanged()
         $('#LEDPanelsColorDepthLabel').hide();
         $('#LEDPanelsWiringPinoutLabel').hide();
         $('#LEDPanelsWiringPinout').hide();
-        $('#LEDPanelsInterleaveLabel').hide();
-        $('#LEDPanelInterleave').hide();
 		$('#LEDPanelsInterface').show();
 		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
 			$('#LEDPanelsSourceMac').show();
-		}
-		else
-		{
+		} else {
 			$('#LEDPanelsSourceMac').hide();
 		}
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
     echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
     echo "        $('#LEDPanelInterleave').hide();\n";
+    echo "        $('#LEDPanelsOutputByRowLabel').hide();\n";
+    echo "        $('#LEDPanelsOutputByRow').hide();\n";
+    echo "        $('#LEDPanelsOutputBlankRowLabel').hide();\n";
+    echo "        $('#LEDPanelsOutputBlankRow').hide();\n";
 }
 ?>
 
@@ -672,9 +700,23 @@ if ($settings['Platform'] == "BeagleBone Black") {
         $('#LEDPanelsColorDepthLabel').show();
         $('#LEDPanelsWiringPinoutLabel').show();
         $('#LEDPanelsWiringPinout').show();
-
+        
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
+    echo "        $('#LEDPanelsInterleaveLabel').show();\n";
+    echo "        $('#LEDPanelInterleave').show();\n";
+    echo "        $('#LEDPanelsOutputByRowLabel').show();\n";
+    echo "        $('#LEDPanelsOutputByRow').show();\n";
+    echo "        var checked = $('#LEDPanelsOutputByRow').is(':checked')\n";
+    echo "        if (checked != false) {\n";
+    echo "            $('#LEDPanelsOutputBlankRowLabel').show();\n";
+    echo "            $('#LEDPanelsOutputBlankRow').show();\n";
+    echo "        } else {\n";
+    echo "            $('#LEDPanelsOutputBlankRowLabel').hide();\n";
+    echo "            $('#LEDPanelsOutputBlankRow').hide();\n";
+    echo "        }\n";
+    
+    
     if (strpos($settings['SubPlatform'], 'Green Wireless') !== FALSE) {
         echo "        LEDPanelOutputs = 5;\n";
     } else if (strpos($settings['SubPlatform'], 'PocketBeagle') !== FALSE) {
@@ -683,8 +725,6 @@ if ($settings['Platform'] == "BeagleBone Black") {
         echo "        LEDPanelOutputs = 8;\n";
     }
 ?>
-    $('#LEDPanelsInterleaveLabel').show();
-    $('#LEDPanelInterleave').show();
     $('#LEDPanelsGPIOSlowdownLabel').hide();
     $('#LEDPanelsGPIOSlowdown').hide();
 <?
@@ -715,6 +755,20 @@ if ($settings['Platform'] == "BeagleBone Black") {
 	DrawLEDPanelTable();
 }
 
+<?    if ($settings['Platform'] == "BeagleBone Black") {
+    echo "function outputByRowClicked() {\n";
+    echo "        var checked = $('#LEDPanelsOutputByRow').is(':checked')\n";
+    echo "        if (checked != false) {\n";
+    echo "            $('#LEDPanelsOutputBlankRowLabel').show();\n";
+    echo "            $('#LEDPanelsOutputBlankRow').show();\n";
+    echo "        } else {\n";
+    echo "            $('#LEDPanelsOutputBlankRowLabel').hide();\n";
+    echo "            $('#LEDPanelsOutputBlankRow').hide();\n";
+    echo "        }\n";
+    echo "    }\n";
+}
+?>
+    
 $(document).ready(function(){
 	InitializeLEDPanels();
 	LEDPannelsConnectionChanged();
@@ -829,6 +883,9 @@ if ($settings['Platform'] == "BeagleBone Black") {
 ?>
                         <tr><td><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></td>
 							<td><? printLEDPanelInterleaveSelect($settings['Platform'], $LEDPanelInterleave); ?></td>
+                            <td>&nbsp;</td>
+                            <td><span id='LEDPanelsOutputByRowLabel'><b>Output By Row:</b></td>
+                            <td><input id='LEDPanelsOutputByRow' type='checkbox' onclick='outputByRowClicked()'></td>
 						</tr>
 <?
 }
@@ -848,16 +905,18 @@ if ($settings['Platform'] == "BeagleBone Black") {
 									<option value='8' selected>8 Bit</option>
 									<option value='7'>7 Bit</option>
 									<option value='6'>6 Bit</option>
+								</select>
+							</td>
 <?
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
-                                    <option value='-7'>7 Bit, zero lowest</option>
-                                    <option value='-6'>6 Bit, zero lowest</option>
+
+                            <td>&nbsp;</td>
+                            <td><span id='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></td>
+                            <td><input id='LEDPanelsOutputBlankRow' type='checkbox'></td>
 <?
 }
 ?>
-								</select>
-							</td>
 						</tr>
 						<tr><td><span id='LEDPanelsConnectionLabel'><b>Connection:</b></span></td>
 							<td><select id='LEDPanelsConnection' onChange='LEDPannelsConnectionChanged();'>
