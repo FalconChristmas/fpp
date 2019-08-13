@@ -43,7 +43,7 @@ extern "C" {
 
 // These are the number of clock cycles it takes to clock out a single "row" of bits (1 bit) for 32x16 1/8 P10 scan panels.  Other
 // panel types and scan rates and stuff are proportional to these
-uint32_t v1Timings[8][16] = {
+static const uint32_t v1Timings[8][16] = {
     { 0xA65, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
     { 0xA69, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
     { 0xA6A, 0x14EA, 0x1F6F, 0x29ED, 0x346E, 0x3EEE, 0x496C, 0x53EB, 0x5E6B, 0x68ED, 0x7374, 0x7DF0, 0x887B, 0x92F4, 0x9D75, 0xA7FB},
@@ -53,7 +53,7 @@ uint32_t v1Timings[8][16] = {
     { 0xC88, 0x1906, 0x2588, 0x340D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
     { 0xC90, 0x190D, 0x2590, 0x340D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D}
 };
-uint32_t v2Timings[8][16] = {
+static const uint32_t v2Timings[8][16] = {
     { 0x347,  0x64F,  0x95F,  0xC70,  0xF80, 0x129E, 0x15B3, 0x18CB, 0x1BE4, 0x1EFB, 0x2211, 0x252C, 0x2786, 0x2A88, 0x2D85, 0x3088},
     { 0x864, 0x10ED, 0x196C, 0x21EA, 0x2A6C, 0x32E9, 0x3B6A, 0x43EC, 0x4C6A, 0x54EA, 0x5D6B, 0x65EB, 0x6E6D, 0x76ED, 0x7F6E, 0x87EE},
     { 0x864, 0x10ED, 0x196C, 0x21EA, 0x2A6C, 0x32E9, 0x3B6A, 0x43EC, 0x4C6A, 0x54EA, 0x5D6B, 0x65EB, 0x6E6D, 0x76ED, 0x7F6E, 0x87EE},
@@ -63,7 +63,7 @@ uint32_t v2Timings[8][16] = {
     { 0xC88, 0x1906, 0x2588, 0x340D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
     { 0xC88, 0x1906, 0x2588, 0x340D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
 };
-uint32_t psTimings[8][16] = {
+static const uint32_t psTimings[8][16] = {
     { 0x440,  0x820,  0xC30, 0x1000, 0x1400, 0x17F1, 0x1C00, 0x2000, 0x2400, 0x2800, 0x2C00, 0x3000, 0x3400, 0x3800, 0x3C00, 0x4000},
     { 0x940, 0x12C0, 0x1C80, 0x25C0, 0x2F40, 0x3900, 0x4240, 0x4C00, 0x5540, 0x5EC0, 0x6850, 0x71C0, 0x7B40, 0x84C0, 0x8E80, 0x97CE},
     { 0xB70, 0x1700, 0x2280, 0x2E00, 0x3A00, 0x4500, 0x5080, 0x5C00, 0x6780, 0x7320, 0x7E80, 0x8A00, 0x9580, 0xA100, 0xAC80, 0xB7F0},
@@ -74,6 +74,16 @@ uint32_t psTimings[8][16] = {
     { 0xC88, 0x1906, 0x2588, 0x340D, 0x3E8D, 0x4B10, 0x5790, 0x6410, 0x7090, 0x7D10, 0x8990, 0x9610, 0xA291, 0xAF0D, 0xBB90, 0xC80D},
 };
 
+static std::map<int, std::vector<int>> BIT_ORDERS =
+{
+    {6, {5, 2, 1, 4, 3, 0}},
+    {7, {6, 2, 1, 4, 5, 3, 0}},
+    {8, {7, 3, 5, 1, 2, 6, 4, 0}},
+    {9, {8, 3, 5, 1, 7, 2, 6, 4, 0}},
+    {10, {9, 4, 1, 6, 3, 8, 2, 7, 5, 0}},
+    {11, {10, 4, 7, 2, 3, 1, 6, 9, 8, 5, 0}},
+    {12, {11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0}}
+};
 
 static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
     pid_t compilePid = fork();
@@ -94,7 +104,6 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
 }
 
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
-    
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", m_longestChain, m_outputs, m_brightness, m_panelScan, m_panelHeight, m_panelWidth);
     
     
@@ -203,9 +212,10 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     
     for (int x = 0; x < m_colorDepth; x++) {
         char buf[100];
-        sprintf(buf, "-DBRIGHTNESS%d=%d", (m_colorDepth-x), brightnessValues[x]);
+        int idx = BIT_ORDERS[m_colorDepth][x] + 1;
+        sprintf(buf, "-DBRIGHTNESS%d=%d", idx, brightnessValues[x]);
         sargs.push_back(buf);
-        sprintf(buf, "-DDELAY%d=%d", (m_colorDepth-x), delayValues[x]);
+        sprintf(buf, "-DDELAY%d=%d", idx, delayValues[x]);
         sargs.push_back(buf);
     }
 }
@@ -907,32 +917,35 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     m_handler->mapCol(y, xOut);
                     
                     int xOff = xOut * 4;
-                    
+                    int bitOff = 0;
                     for (int bit = m_colorDepth; bit > 0; ) {
                         --bit;
                         uint16_t mask = 1 << bit;
+                        
+                        if (!m_outputByRow) {
+                            bitOff = BIT_ORDERS[m_colorDepth][bit] * rowLen * m_panelScan;
+                        }
+                        
                         if (r1 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].r_gpio] |= m_pinInfo[output].row[0].r_pin;
+                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[0].r_gpio] |= m_pinInfo[output].row[0].r_pin;
                         }
                         if (g1 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].g_gpio] |= m_pinInfo[output].row[0].g_pin;
+                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[0].g_gpio] |= m_pinInfo[output].row[0].g_pin;
                         }
                         if (b1 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].b_gpio] |= m_pinInfo[output].row[0].b_pin;
+                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[0].b_gpio] |= m_pinInfo[output].row[0].b_pin;
                         }
                         if (r2 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].r_gpio] |= m_pinInfo[output].row[1].r_pin;
+                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[1].r_gpio] |= m_pinInfo[output].row[1].r_pin;
                         }
                         if (g2 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].g_gpio] |= m_pinInfo[output].row[1].g_pin;
+                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[1].g_gpio] |= m_pinInfo[output].row[1].g_pin;
                         }
                         if (b2 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].b_gpio] |= m_pinInfo[output].row[1].b_pin;
+                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[1].b_gpio] |= m_pinInfo[output].row[1].b_pin;
                         }
                         if (m_outputByRow) {
                             xOff += rowLen;
-                        } else {
-                            xOff += rowLen * m_panelScan;
                         }
                     }
                 }

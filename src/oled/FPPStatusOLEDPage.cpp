@@ -266,15 +266,15 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
     setCursor(0,startY);
     if (networks.size() > 1) {
         int idx = (count / 3) % networks.size();
-        int lines = 1;
+        int lines = LED_DISPLAY_HEIGHT >= 64 ? 2 : 1;
         if (networks.size() <= 5 && LED_DISPLAY_HEIGHT > 65) {
             idx = 0;
             lines = networks.size() < 5 ? networks.size() : 5;
             if (lines < 2) lines = 2;
-        } else if (networks.size() <= 2 && LED_DISPLAY_HEIGHT == 64) {
-            idx = 0;
-            lines = 2;
         }
+        if (networks.size() <= lines) {
+            idx = 0;
+        }        
         outputNetwork(idx, startY);
         startY += 8;
         if (LED_DISPLAY_HEIGHT > 65) {
@@ -292,7 +292,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
             }
         }
     } else {
-        if (count < 30) {
+        if (count < 40) {
             print_str("FPP Booting...");
         } else {
             print_str("No Network");

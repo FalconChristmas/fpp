@@ -69,25 +69,40 @@ $git_remote_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ l
 if ( $return_val != 0 )
   $git_remote_version = "Unknown";
 unset($output);
+    
+    
+function filterBranch($branch) {
+    if (preg_match("*v[01]\.[0-9x]*", $branch)   // very very old v0.x and v1.x branches
+        || preg_match("*v2\.[0-5x]*", $branch)   // old v2.x branchs, that can no longer work (wrong lib versions)
+        || preg_match("*cpinkham*", $branch)     // privatish branches used by developers, developers should know how to flip from command line
+        || preg_match("*dkulp*", $branch)
+        || $branch == "new-ui"                   // some irrelevant branches at this point
+        || $branch == "stage") {
+        return "";
+    }
+    
+    return $branch;
+}
 
 function PrintGitBranchOptions()
 {
 	global $git_branch;
 
   $branches = Array();
+  exec("git fetch --all && git remote prune origin");
   exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed -e 's/remotes\/origin\///' -e 's/\\* *//' -e 's/ *//' | sort -u", $branches);
   foreach($branches as $branch)
   {
-    if ($branch == $git_branch)
-    {
-//       $branch = preg_replace('/^\\* */', '', $branch);
-       echo "<option value='$branch' selected>$branch</option>";
-    }
-    else
-    {
- //      $branch = preg_replace('/^ */', '', $branch);
-       echo "<option value='$branch'>$branch</option>";
-    }
+      $branch = filterBranch($branch);
+      if ($branch != "") {
+        if ($branch == $git_branch) {
+    //       $branch = preg_replace('/^\\* */', '', $branch);
+           echo "<option value='$branch' selected>$branch</option>\n";
+        } else {
+     //      $branch = preg_replace('/^ */', '', $branch);
+           echo "<option value='$branch'>$branch</option>\n";
+        }
+      }
   }
 }
 

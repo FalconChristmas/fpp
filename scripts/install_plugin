@@ -14,7 +14,7 @@ fi
 logOutput
 
 echo "Installing plugin $1"
-cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2
+cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2 $1
 if [ "x$4" != "x" ]
 then
 	(cd $1 && $SUDO git reset --hard $4)
