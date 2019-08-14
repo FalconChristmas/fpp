@@ -325,6 +325,10 @@ cd /opt/fpp
 git checkout ${FPPBRANCH}
 
 #######################################
+# Upgrade the config if needed
+sh scripts/upgrade_config
+
+#######################################
 echo "FPP - Installing PHP composer"
 cd /tmp/
 curl -sS https://getcomposer.org/installer | php
