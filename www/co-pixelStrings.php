@@ -450,6 +450,16 @@ function getPixelStringOutputJSON()
                     if (mxId < 1) mxId = 1;
                 }
             }
+            var et = $('#ExpansionType' + i);
+            if (et !== undefined) {
+                var exptype = et.val();
+                if (exptype === undefined) {
+                    exptype = 1;
+                } else {
+                    exptype = parseInt(exptype);
+                    port.expansionType = exptype;
+                }
+            }
 
             for (var  oid = 0; oid < mxId; oid++) {
                 var virtualStrings = [];

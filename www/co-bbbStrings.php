@@ -181,7 +181,23 @@ function IsDifferential(subType, s) {
     }
     return false;
 }
-
+function IsExpansion(subType, s) {
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if (s == instance["start"]) {
+            return instance["type"] == "expansion";
+        }
+    }
+    return false;
+}
+function IsDifferentialExpansion(isExpansion, expansionType, s) {
+    if (isExpansion && expansionType == 1) {
+        return (s % 4) == 0;
+    }
+    return false;
+}
 
 function HasSerial(subType) {
     var subType = GetBBB48StringCapeFileName();
@@ -292,9 +308,57 @@ function addSerialOutputJSON(postData) {
     postData.channelOutputs.push(config);
 	return postData;
 }
+function BBB48StringExpansionTypeChanged(port) {
+    var num = 16;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if ((port+1) == instance["start"]) {
+            if (instance["type"] == "expansion") {
+                num = instance["count"];
+            }
+        }
+    }
+    var dt = $('#ExpansionType' + port);
+    var val = parseInt(dt.val());
+
+    if (val == 0) {
+        //droping to standard... need to set everything to non-smart first
+        for (var x = 0; x < num; x++) {
+            BBB48StringDifferentialTypeChangedTo((port+x), 0);
+        }
+        for (var x = 0; x < num; x++) {
+            if ($('#ROW_RULER_DIFFERENTIAL_' + (port+x)).length) {
+                var tr = $('#ROW_RULER_DIFFERENTIAL_' + (port+x));
+                tr.remove();
+            }
+        }
+    } else {
+        //going to differential, need to add receiver type selections
+        for (var x = 0; x < num; x += 4) {
+            var o = port + x;
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" +o + "'><td colSpan='2'><hr></td>";
+            str += "<td></td>";
+            str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
+            
+            
+            str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
+            str += "<option value='0' selected> Standard</option>";
+            str += "<option value='1'>1 Smart Receiver</option>";
+            str += "<option value='2'>2 Smart Receivers</option>";
+            str += "<option value='3'>3 Smart Receivers</option>";
+            str += "</select></td><td colSpan='10'><hr></td>";
+            str += "</tr>";
+            $("#BBB48String_Output_0_" + o + "_0").before(str);
+        }
+    }
+}
 function BBB48StringDifferentialTypeChanged(port) {
     var dt = $('#DifferentialType' + port);
     var val = dt.val();
+    BBB48StringDifferentialTypeChangedTo(port, val);
+}
+function BBB48StringDifferentialTypeChangedTo(port, val) {
     if (val <= 2) {
         if ($('#ROW_RULER_DIFFERENTIAL_' + port + '_1').length) {
             var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_1');
@@ -410,18 +474,38 @@ function populatePixelStringOutputs(data) {
                 var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
+
+                var expansionType = 0;
+                var inExpansion = false;
                 for (var o = 0; o < outputCount; o++)
                 {
-                    var port = {"differentialType" : 0};
+                    var port = {"differentialType" : 0, "expansionType" : 0};
                     var loops = 1;
                     if (o < output.outputCount) {
                         port = output.outputs[o];
                     }
-                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o))) {
-                        if (IsDifferential(subType, o)) {
+                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
+                        if (IsExpansion(subType, o)) {
+                            expansionType = port["expansionType"];
+                            if (expansionType == null) {
+                                expansionType = 0;
+                            }
+                            str += "<tr><td colSpan='2'><hr></td>";
+                            str += "<td></td>";
+                            str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Expansion Type: ";
+                            
+                            
+                            str += "<select id='ExpansionType" + o + "' onChange='BBB48StringExpansionTypeChanged(" + o + ");'>";
+                            str += "<option value='0'" + (expansionType == 0 ? " selected" : "") + ">Standard</option>";
+                            str += "<option value='1'" + (expansionType == 1 ? " selected" : "") + ">Differential</option>";
+                            str += "</select></td><td colSpan='10'><hr></td>";
+                            str += "</tr>";
+                            inExpansion = true;
+                        }
+                        if (IsDifferential(subType, o) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
                             var diffType = port["differentialType"];
                             
-                            str += "<tr><td colSpan='2'><hr></td>";
+                            str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "'><td colSpan='2'><hr></td>";
                             str += "<td></td>";
                             str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
                             
@@ -437,7 +521,7 @@ function populatePixelStringOutputs(data) {
                             if (diffType >= 2) {
                                 loops = diffType;
                             }
-                        } else {
+                        } else if (!inExpansion) {
                             str += "<tr><td colSpan='13'><hr></td></tr>";
                         }
                     }
