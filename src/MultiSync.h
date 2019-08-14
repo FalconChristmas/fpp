@@ -62,6 +62,7 @@ typedef struct {
 #define SYNC_PKT_START 0
 #define SYNC_PKT_STOP  1
 #define SYNC_PKT_SYNC  2
+#define SYNC_PKT_OPEN  3
 
 #define SYNC_FILE_SEQ   0
 #define SYNC_FILE_MEDIA 1
@@ -124,6 +125,29 @@ typedef struct multiSyncSystem {
 	unsigned char        ipd;
 } MultiSyncSystem;
 
+
+class MultiSyncPlugin {
+    public:
+    MultiSyncPlugin() {}
+    virtual ~MultiSyncPlugin() {}
+    
+    virtual void SendSeqOpenPacket(const std::string &filename) {}
+    virtual void SendSeqSyncStartPacket(const std::string &filename) {}
+    virtual void SendSeqSyncStopPacket(const std::string &filename) {}
+    virtual void SendSeqSyncPacket(const std::string &filename, int frames, float seconds) {}
+    virtual void ShutdownSync(void) {}
+    
+    virtual void SendMediaOpenPacket(const std::string &filename) {}
+    virtual void SendMediaSyncStartPacket(const std::string &filename) {}
+    virtual void SendMediaSyncStopPacket(const std::string &filename) {}
+    virtual void SendMediaSyncPacket(const std::string &filename, int frames, float seconds) {}
+    
+    virtual void SendEventPacket(const std::string &eventID) {}
+    virtual void SendBlankingDataPacket(void) {}
+};
+
+
+
 class MultiSync {
   public:
 	MultiSync();
@@ -150,18 +174,24 @@ class MultiSync {
 	void Discover(void) { Ping(1); }
     void PeriodicPing();
 
-	void SendSeqSyncStartPacket(const char *filename);
-	void SendSeqSyncStopPacket(const char *filename);
-	void SendSeqSyncPacket(const char *filename, int frames, float seconds);
+    void SendSeqOpenPacket(const std::string &filename);
+	void SendSeqSyncStartPacket(const std::string &filename);
+	void SendSeqSyncStopPacket(const std::string &filename);
+	void SendSeqSyncPacket(const std::string &filename, int frames, float seconds);
 	void ShutdownSync(void);
 
-	void SendMediaSyncStartPacket(const char *filename);
-	void SendMediaSyncStopPacket(const char *filename);
-	void SendMediaSyncPacket(const char *filename, int frames, float seconds);
+    void SendMediaOpenPacket(const std::string &filename);
+	void SendMediaSyncStartPacket(const std::string &filename);
+	void SendMediaSyncStopPacket(const std::string &filename);
+	void SendMediaSyncPacket(const std::string &filename, int frames, float seconds);
 
-	void SendEventPacket(const char *eventID);
+	void SendEventPacket(const std::string &eventID);
 	void SendBlankingDataPacket(void);
 
+    
+    void addMultiSyncPlugin(MultiSyncPlugin *p) {
+        m_plugins.push_back(p);
+    }
   private:
     void PingSingleRemote(int sysIdx);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
@@ -184,11 +214,12 @@ class MultiSync {
 
 	int  OpenReceiveSocket(void);
 
+    void OpenSyncedSequence(char *filename);
 	void StartSyncedSequence(char *filename);
 	void StopSyncedSequence(char *filename);
-	void SyncSyncedSequence(char *filename, int frameNumber,
-		float secondsElapsed);
+	void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed);
 
+	void OpenSyncedMedia(char *filename);
 	void StartSyncedMedia(char *filename);
 	void StopSyncedMedia(char *filename);
 	void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed);
@@ -219,7 +250,9 @@ class MultiSync {
     unsigned long       m_lastPingTime;
     unsigned long       m_lastCheckTime;
     int m_lastMediaHalfSecond;
-    
+    int m_lastFrame;
+    int m_lastFrameSent;
+
 	float  m_remoteOffset;
 
     struct iovec m_destIovec;
@@ -231,6 +264,7 @@ class MultiSync {
     std::vector<struct mmsghdr> m_destMsgsCSV;
 	std::vector<struct sockaddr_in> m_destAddrCSV;
     
+    std::vector<MultiSyncPlugin *> m_plugins;
     
     #define MAX_MS_RCV_MSG 12
     #define MAX_MS_RCV_BUFSIZE 1500

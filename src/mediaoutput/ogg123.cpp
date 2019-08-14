@@ -76,8 +76,7 @@ int ogg123Output::Start(void)
 	fullAudioPath += "/";
 	fullAudioPath += m_mediaFilename;
 
-	if (!FileExists(fullAudioPath.c_str()))
-	{
+	if (!FileExists(fullAudioPath))	{
 		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
 		return 0;
 	}
@@ -87,7 +86,7 @@ int ogg123Output::Start(void)
 	{
 		oggPlayer = OGG123_BINARY;
 	}
-	else if (!FileExists(oggPlayer.c_str()))
+	else if (!FileExists(oggPlayer))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured oggPlayer %s does not exist, "
 			"falling back to %s\n", oggPlayer.c_str(), OGG123_BINARY);
@@ -233,7 +232,7 @@ void ogg123Output::ParseTimes()
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-        multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+        multiSync->SendMediaSyncPacket(m_mediaFilename, 0,
                                        m_mediaOutputStatus->mediaSeconds);
 	}
 

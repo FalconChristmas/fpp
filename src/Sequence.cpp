@@ -225,7 +225,12 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         m_seqStarting = 0;
         return 0;
     }
-    
+    if (getFPPmode() == MASTER_MODE) {
+        seqLock.unlock();
+        multiSync->SendSeqOpenPacket(filename);
+        seqLock.lock();
+    }
+
     m_seqFile = nullptr;
     FSEQFile *seqFile = FSEQFile::openFSEQFile(tmpFilename);
     if (seqFile == NULL) {
@@ -233,15 +238,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
             tmpFilename);
         m_seqStarting = 0;
         return 0;
-    }
-
-    if (getFPPmode() == MASTER_MODE) {
-        seqLock.unlock();
-        multiSync->SendSeqSyncStartPacket(filename);
-
-        // Give the remotes a head start spining up so they are ready
-        std::this_thread::sleep_for(10ms);
-        seqLock.lock();
     }
 
     m_seqStepTime = seqFile->getStepTime();
@@ -267,7 +263,6 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     m_seqFile = seqFile;
     m_seqStarting = 1;  //beyond header, read loop can start reading frames
     frameLoadSignal.notify_all();
-    m_seqStarting = 0;
     m_seqPaused = 0;
     m_seqSingleStep = 0;
     m_seqSingleStepBack = 0;
@@ -282,6 +277,17 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     return 1;
 }
+
+void Sequence::StartSequence() {
+    if (!IsSequenceRunning() && m_seqFile) {
+        if (getFPPmode() == MASTER_MODE) {
+            multiSync->SendSeqSyncStartPacket(m_seqFilename);
+        }
+        m_seqStarting = 0;
+        StartChannelOutputThread();
+    }
+}
+
 
 void Sequence::SeekSequenceFile(int frameNumber) {
     LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);

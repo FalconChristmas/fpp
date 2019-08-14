@@ -75,7 +75,7 @@ int mpg123Output::Start(void)
 	fullAudioPath += "/";
 	fullAudioPath += m_mediaFilename;
 
-	if (!FileExists(fullAudioPath.c_str()))
+	if (!FileExists(fullAudioPath))
 	{
 		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
 		return 0;
@@ -87,7 +87,7 @@ int mpg123Output::Start(void)
 	{
 		mp3Player = MPG123_BINARY;
 	}
-	else if (!FileExists(mp3Player.c_str()))
+	else if (!FileExists(mp3Player))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured mp3Player %s does not exist, "
 			"falling back to %s\n", mp3Player.c_str(), MPG123_BINARY);
@@ -238,7 +238,7 @@ void mpg123Output::ParseTimes(void)
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-        multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+        multiSync->SendMediaSyncPacket(m_mediaFilename, 0,
 				m_mediaOutputStatus->mediaSeconds);
 	}
 

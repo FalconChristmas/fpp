@@ -405,12 +405,6 @@ int SendChannelData(const char *channelData) {
         }
     }
 
-
-	channelOutputFrame++;
-
-	// Reset channelOutputFrame every week @ 50ms timing
-	if (channelOutputFrame > 12096000)
-		channelOutputFrame = 0;
     return 0;
 }
 

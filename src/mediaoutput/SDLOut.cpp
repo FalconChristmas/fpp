@@ -763,17 +763,17 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         return;
     }
     std::string fullAudioPath = mediaFilename;
-    if (!FileExists(mediaFilename.c_str())) {
+    if (!FileExists(mediaFilename)) {
         fullAudioPath = getMusicDirectory();
         fullAudioPath += "/";
         fullAudioPath += mediaFilename;
     }
-    if (!FileExists(fullAudioPath.c_str())) {
+    if (!FileExists(fullAudioPath)) {
         fullAudioPath = getVideoDirectory();
         fullAudioPath += "/";
         fullAudioPath += mediaFilename;
     }
-    if (!FileExists(fullAudioPath.c_str())) {
+    if (!FileExists(fullAudioPath)) {
         LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
         currentMediaFilename = "";
         return;
@@ -1028,7 +1028,7 @@ int SDLOutput::Process(void)
         }
     }
     if (getFPPmode() == MASTER_MODE) {
-        multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+        multiSync->SendMediaSyncPacket(m_mediaFilename, 0,
                             m_mediaOutputStatus->mediaSeconds);
     }
     

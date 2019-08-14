@@ -83,7 +83,8 @@ MultiSync::MultiSync()
 	m_remoteOffset(0.0),
     m_numLocalSystems(0),
     m_lastPingTime(0),
-    m_lastCheckTime(0)
+    m_lastCheckTime(0),
+    m_lastFrame(0)
 {
 	pthread_mutex_init(&m_systemsLock, NULL);
 	pthread_mutex_init(&m_socketLock, NULL);
@@ -593,21 +594,62 @@ int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int disc
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
-/*
- *
- */
-void MultiSync::SendSeqSyncStartPacket(const char *filename)
+void MultiSync::SendSeqOpenPacket(const std::string &filename)
 {
-	LogDebug(VB_SYNC, "SendSeqSyncStartPacket('%s')\n", filename);
+    if (filename.empty()) {
+        return;
+    }
+    
+    if (m_controlSock < 0) {
+        LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
+        return;
+    }
+    
+    LogDebug(VB_SYNC, "SendSeqOpenPacket('%s')\n", filename.c_str());
+    for (auto a : m_plugins) {
+        a->SendSeqOpenPacket(filename);
+    }
+    m_lastFrame = -1;
+    m_lastFrameSent = -1;
 
-	if (!filename || !filename[0])
-		return;
+    char           outBuf[2048];
+    bzero(outBuf, sizeof(outBuf));
+    
+    ControlPkt    *cpkt = (ControlPkt*)outBuf;
+    SyncPkt *spkt = (SyncPkt*)(outBuf + sizeof(ControlPkt));
+    
+    InitControlPacket(cpkt);
+    
+    cpkt->pktType        = CTRL_PKT_SYNC;
+    cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
+    
+    spkt->pktType  = SYNC_PKT_OPEN;
+    spkt->fileType = SYNC_FILE_SEQ;
+    spkt->frameNumber = 0;
+    spkt->secondsElapsed = 0;
+    strcpy(spkt->filename, filename.c_str());
+    
+    SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
+}
+
+void MultiSync::SendSeqSyncStartPacket(const std::string &filename)
+{
+    if (filename.empty()) {
+        return;
+    }
 
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
 		return;
 	}
 
+    LogDebug(VB_SYNC, "SendSeqSyncStartPacket('%s')\n", filename.c_str());
+    for (auto a : m_plugins) {
+        a->SendSeqSyncStartPacket(filename);
+    }
+    m_lastFrame = -1;
+    m_lastFrameSent = -1;
+    
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
 
@@ -617,20 +659,20 @@ void MultiSync::SendSeqSyncStartPacket(const char *filename)
 	InitControlPacket(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
 	
 	spkt->pktType  = SYNC_PKT_START;
 	spkt->fileType = SYNC_FILE_SEQ;
 	spkt->frameNumber = 0;
 	spkt->secondsElapsed = 0;
-	strcpy(spkt->filename, filename);
+	strcpy(spkt->filename, filename.c_str());
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 
 	if (m_destAddrCSV.size() > 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
-			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename);
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename.c_str());
 		SendCSVControlPacket(outBuf, strlen(outBuf));
 	}
 }
@@ -638,18 +680,21 @@ void MultiSync::SendSeqSyncStartPacket(const char *filename)
 /*
  *
  */
-void MultiSync::SendSeqSyncStopPacket(const char *filename)
+void MultiSync::SendSeqSyncStopPacket(const std::string &filename)
 {
-	LogDebug(VB_SYNC, "SendSeqSyncStopPacket(%s)\n", filename);
-
-	if (!filename || !filename[0])
-		return;
-
+    if (filename.empty()) {
+        return;
+    }
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
 		return;
 	}
+    LogDebug(VB_SYNC, "SendSeqSyncStopPacket(%s)\n", filename.c_str());
 
+    for (auto a : m_plugins) {
+        a->SendSeqSyncStopPacket(filename);
+    }
+    
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
 
@@ -659,40 +704,58 @@ void MultiSync::SendSeqSyncStopPacket(const char *filename)
 	InitControlPacket(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
 	
 	spkt->pktType  = SYNC_PKT_STOP;
 	spkt->fileType = SYNC_FILE_SEQ;
 	spkt->frameNumber = 0;
 	spkt->secondsElapsed = 0;
-	strcpy(spkt->filename, filename);
+	strcpy(spkt->filename, filename.c_str());
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 
     if (m_destAddrCSV.size() > 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
-			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename);
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename.c_str());
 		SendCSVControlPacket(outBuf, strlen(outBuf));
 	}
+    
+    m_lastFrame = -1;
+    m_lastFrameSent = -1;
 }
 
 /*
  *
  */
-void MultiSync::SendSeqSyncPacket(const char *filename, int frames, float seconds)
+void MultiSync::SendSeqSyncPacket(const std::string &filename, int frames, float seconds)
 {
-	LogDebug(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
-		filename, frames, seconds);
-
-	if (!filename || !filename[0])
-		return;
-
+    if (filename.empty()) {
+        return;
+    }
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
 		return;
 	}
-
+    for (auto a : m_plugins) {
+        a->SendSeqSyncPacket(filename, frames, seconds);
+    }
+    m_lastFrame = frames;
+    int diff = frames - m_lastFrameSent;
+    if (frames > 32) {
+        //after 32 frames, we send every 10
+        // that's either twice a second (50ms sequences) or 4 times (25ms)
+        if (diff < 10) {
+            return;
+        }
+    } else if (frames && diff < 4) {
+        //under 32 frames, we send every 4
+        return;
+    }
+    m_lastFrameSent = frames;
+    
+    LogDebug(VB_SYNC, "SendSeqSyncPacket( '%s', %d, %.2f)\n",
+             filename.c_str(), frames, seconds);
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
 
@@ -702,39 +765,42 @@ void MultiSync::SendSeqSyncPacket(const char *filename, int frames, float second
 	InitControlPacket(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
 	
 	spkt->pktType  = SYNC_PKT_SYNC;
 	spkt->fileType = SYNC_FILE_SEQ;
 	spkt->frameNumber = frames;
 	spkt->secondsElapsed = seconds;
-	strcpy(spkt->filename, filename);
+	strcpy(spkt->filename, filename.c_str());
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 
     if (m_destAddrCSV.size() > 0) {
 		// Now send the Broadcast CSV version
 		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d\n",
-			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename,
+			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename.c_str(),
 			(int)seconds, (int)(seconds * 1000) % 1000);
 		SendCSVControlPacket(outBuf, strlen(outBuf));
 	}
 }
 
-/*
- *
- */
-void MultiSync::SendMediaSyncStartPacket(const char *filename)
+void MultiSync::SendMediaOpenPacket(const std::string &filename)
 {
-	LogDebug(VB_SYNC, "SendMediaSyncStartPacket('%s')\n", filename);
-    m_lastMediaHalfSecond = 0;
-	if (!filename || !filename[0])
-		return;
+    if (filename.empty()) {
+        return;
+    }
 
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
 		return;
 	}
+    LogDebug(VB_SYNC, "SendMediaOpenPacket('%s')\n", filename.c_str());
+    
+    for (auto a : m_plugins) {
+        a->SendMediaOpenPacket(filename);
+    }
+    
+    m_lastMediaHalfSecond = 0;
 
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
@@ -745,41 +811,71 @@ void MultiSync::SendMediaSyncStartPacket(const char *filename)
 	InitControlPacket(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
+
+	spkt->pktType  = SYNC_PKT_OPEN;
+	spkt->fileType = SYNC_FILE_MEDIA;
+	spkt->frameNumber = 0;
+	spkt->secondsElapsed = 0;
+	strcpy(spkt->filename, filename.c_str());
+
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
+}
+void MultiSync::SendMediaSyncStartPacket(const std::string &filename)
+{
+    if (filename.empty()) {
+        return;
+    }
+
+	if (m_controlSock < 0) {
+		LogErr(VB_SYNC, "ERROR: Tried to send start packet but sync socket is not open.\n");
+		return;
+	}
+    LogDebug(VB_SYNC, "SendMediaSyncStartPacket('%s')\n", filename.c_str());
+    
+    for (auto a : m_plugins) {
+        a->SendMediaSyncStartPacket(filename);
+    }
+    
+    m_lastMediaHalfSecond = 0;
+
+	char           outBuf[2048];
+	bzero(outBuf, sizeof(outBuf));
+
+	ControlPkt    *cpkt = (ControlPkt*)outBuf;
+	SyncPkt *spkt = (SyncPkt*)(outBuf + sizeof(ControlPkt));
+
+	InitControlPacket(cpkt);
+
+	cpkt->pktType        = CTRL_PKT_SYNC;
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
 
 	spkt->pktType  = SYNC_PKT_START;
 	spkt->fileType = SYNC_FILE_MEDIA;
 	spkt->frameNumber = 0;
 	spkt->secondsElapsed = 0;
-	strcpy(spkt->filename, filename);
+	strcpy(spkt->filename, filename.c_str());
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
-
-#if 0
-	if (m_destAddrCSV.size() > 0)
-	{
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
-			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_START, filename);
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
-#endif
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 }
 
 /*
  *
  */
-void MultiSync::SendMediaSyncStopPacket(const char *filename)
+void MultiSync::SendMediaSyncStopPacket(const std::string &filename)
 {
-	LogDebug(VB_SYNC, "SendMediaSyncStopPacket(%s)\n", filename);
-
-	if (!filename || !filename[0])
-		return;
+    if (filename.empty()) {
+        return;
+    }
 
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
 		return;
 	}
+    LogDebug(VB_SYNC, "SendMediaSyncStopPacket(%s)\n", filename);
+    for (auto a : m_plugins) {
+        a->SendMediaSyncStopPacket(filename);
+    }
 
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
@@ -790,50 +886,44 @@ void MultiSync::SendMediaSyncStopPacket(const char *filename)
 	InitControlPacket(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
 
 	spkt->pktType  = SYNC_PKT_STOP;
 	spkt->fileType = SYNC_FILE_MEDIA;
 	spkt->frameNumber = 0;
 	spkt->secondsElapsed = 0;
-	strcpy(spkt->filename, filename);
+	strcpy(spkt->filename, filename.c_str());
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
-
-#if 0
-	if (m_destAddrCSV.size() > 0)
-	{
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
-			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_STOP, filename);
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
-#endif
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 }
 
 /*
  *
  */
-void MultiSync::SendMediaSyncPacket(const char *filename, int frames, float seconds)
+void MultiSync::SendMediaSyncPacket(const std::string &filename, int frames, float seconds)
 {
+    if (filename.empty()) {
+        return;
+    }
+
+    if (m_controlSock < 0) {
+        LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
+        return;
+    }
+
+    for (auto a : m_plugins) {
+        a->SendMediaSyncPacket(filename, frames, seconds);
+    }
+    
     int curTS = (seconds * 2.0f);
     if (m_lastMediaHalfSecond == curTS) {
         //not time to send
         return;
     }
     m_lastMediaHalfSecond = curTS;
-    
-    
-	LogExcess(VB_SYNC, "SendMediaSyncPacket( '%s', %d, %.2f)\n",
-		filename, frames, seconds);
 
-	if (!filename || !filename[0])
-		return;
-
-	if (m_controlSock < 0) {
-		LogErr(VB_SYNC, "ERROR: Tried to send sync packet but sync socket is not open.\n");
-		return;
-	}
+    LogExcess(VB_SYNC, "SendMediaSyncPacket( '%s', %d, %.2f)\n",
+              filename.c_str(), frames, seconds);
 
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
@@ -844,37 +934,27 @@ void MultiSync::SendMediaSyncPacket(const char *filename, int frames, float seco
 	InitControlPacket(cpkt);
 
 	cpkt->pktType        = CTRL_PKT_SYNC;
-	cpkt->extraDataLen   = sizeof(SyncPkt) + strlen(filename);
+	cpkt->extraDataLen   = sizeof(SyncPkt) + filename.length();
 
 	spkt->pktType  = SYNC_PKT_SYNC;
 	spkt->fileType = SYNC_FILE_MEDIA;
 	spkt->frameNumber = frames;
 	spkt->secondsElapsed = seconds;
-	strcpy(spkt->filename, filename);
+	strcpy(spkt->filename, filename.c_str());
 
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + strlen(filename));
-
-#if 0
-	if (m_destAddrCSV.size() > 0)
-	{
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d\n",
-			CTRL_PKT_SYNC, SYNC_FILE_MEDIA, SYNC_PKT_SYNC, filename,
-			(int)seconds, (int)(seconds * 1000) % 1000);
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
-#endif
+	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 }
 
 /*
  *
  */
-void MultiSync::SendEventPacket(const char *eventID)
+void MultiSync::SendEventPacket(const std::string &eventID)
 {
-	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID);
+    if (eventID.empty()) {
+        return;
+    }
 
-	if (!eventID || !eventID[0])
-		return;
+	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID);
 
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
@@ -892,7 +972,7 @@ void MultiSync::SendEventPacket(const char *eventID)
 	cpkt->pktType        = CTRL_PKT_EVENT;
 	cpkt->extraDataLen   = sizeof(EventPkt);
 
-	strcpy(epkt->eventID, eventID);
+	strcpy(epkt->eventID, eventID.c_str());
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(EventPkt));
 }
@@ -1434,15 +1514,23 @@ void MultiSync::ProcessControlPacket(void)
     }
 }
 
-/*
- *
- */
+
+void MultiSync::OpenSyncedSequence(char *filename)
+{
+    LogDebug(VB_SYNC, "OpenSyncedSequence(%s)\n", filename);
+    
+    ResetMasterPosition();
+    sequence->OpenSequenceFile(filename);
+}
+
 void MultiSync::StartSyncedSequence(char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
 
     ResetMasterPosition();
-    sequence->OpenSequenceFile(filename);
+    if (!strcmp(sequence->m_seqFilename, filename) && !sequence->IsSequenceRunning()) {
+        sequence->StartSequence();
+    }
 }
 
 /*
@@ -1465,27 +1553,32 @@ void MultiSync::SyncSyncedSequence(char *filename, int frameNumber, float second
 
 	if (!sequence->IsSequenceRunning(filename)) {
         sequence->OpenSequenceFile(filename, frameNumber);
+        sequence->StartSequence();
 	}
     if (sequence->IsSequenceRunning(filename)) {
 		UpdateMasterPosition(frameNumber);
     }
 }
 
-/*
- *
- */
+void MultiSync::OpenSyncedMedia(char *filename)
+{
+    LogDebug(VB_SYNC, "OpenSyncedMedia(%s)\n", filename);
+    
+    if (mediaOutput) {
+        LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
+                 filename, mediaOutput->m_mediaFilename.c_str());
+        
+        CloseMediaOutput();
+    }
+    
+    OpenMediaOutput(filename);
+}
+
 void MultiSync::StartSyncedMedia(char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename);
 
-	if (mediaOutput) {
-		LogDebug(VB_SYNC, "Start media %s received while playing media %s\n",
-			filename, mediaOutput->m_mediaFilename.c_str());
-
-		CloseMediaOutput();
-	}
-
-	OpenMediaOutput(filename);
+	StartMediaOutput(filename);
 }
 
 /*
@@ -1565,6 +1658,8 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 
 	if (spkt->fileType == SYNC_FILE_SEQ) {
 		switch (spkt->pktType) {
+			case SYNC_PKT_OPEN:  OpenSyncedSequence(spkt->filename);
+								 break;
 			case SYNC_PKT_START: StartSyncedSequence(spkt->filename);
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
@@ -1579,6 +1674,8 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 		}
 	} else if (spkt->fileType == SYNC_FILE_MEDIA) {
 		switch (spkt->pktType) {
+            case SYNC_PKT_OPEN:  OpenSyncedMedia(spkt->filename);
+                                 break;
 			case SYNC_PKT_START: StartSyncedMedia(spkt->filename);
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedMedia(spkt->filename);

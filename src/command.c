@@ -412,6 +412,7 @@ char *ProcessCommand(char *command, char *response)
             if (s && s2) {
                 i = atoi(s2);
                 sequence->OpenSequenceFile(s, 0, i);
+                sequence->StartSequence();
             } else {
                 LogDebug(VB_COMMAND, "Invalid command: %s\n", command);
             }

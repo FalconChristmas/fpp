@@ -91,9 +91,10 @@ int PlaylistEntryBoth::StartPlaying(void)
     if (!m_mediaEntry) {
         LogDebug(VB_PLAYLIST, "Skipping media playlist entry, likely blacklisted audio: %s\n", m_mediaName.c_str());
     }
-
-	if (!m_sequenceEntry->StartPlaying())
-	{
+    if (!m_sequenceEntry->PreparePlay()) {
+        LogDebug(VB_PLAYLIST, "Problems starting sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
+    }
+	if (!m_sequenceEntry->StartPlaying()) {
         if (m_mediaEntry) {
             m_mediaEntry->Stop();
         }

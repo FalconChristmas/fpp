@@ -94,7 +94,7 @@ int omxplayerOutput::Start(void)
 			fullVideoPath = tmpPath;
 	}
 
-	if (!FileExists(fullVideoPath.c_str()))
+	if (!FileExists(fullVideoPath))
 	{
 		if (getFPPmode() != REMOTE_MODE)
 			LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullVideoPath.c_str());
@@ -308,7 +308,7 @@ void omxplayerOutput::PollPlayerInfo(void)
             }
             
             if (getFPPmode() == MASTER_MODE) {
-                multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+                multiSync->SendMediaSyncPacket(m_mediaFilename, 0,
                                                m_mediaOutputStatus->mediaSeconds);
             }
             

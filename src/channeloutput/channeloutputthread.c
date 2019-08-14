@@ -108,7 +108,6 @@ void *RunChannelOutputThread(void *data)
 	int onceMore = 0;
 	struct timespec ts;
     struct timeval tv;
-	int syncFrameCounter = 99; //set high so first frame sends sync immediately
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
@@ -138,25 +137,18 @@ void *RunChannelOutputThread(void *data)
 
 	while (RunThread) {
 		startTime = GetTime();
-
-		if ((getFPPmode() == MASTER_MODE) &&
-			(sequence->IsSequenceRunning())) {
+        bool seqRunning = sequence->IsSequenceRunning();
+		if ((getFPPmode() == MASTER_MODE) && seqRunning) {
             // send sync every 16 frames except for every 4 frames for first 32
              // to help speed up the initial syncs
-            int syncFrameCounterMax = channelOutputFrame < 32 ? 4 : 16;
-			if (syncFrameCounter >= syncFrameCounterMax) {
-				syncFrameCounter = 1;
-				multiSync->SendSeqSyncPacket(
-					sequence->m_seqFilename, channelOutputFrame,
-					(mediaElapsedSeconds > 0) ? mediaElapsedSeconds
-						: 1.0 * channelOutputFrame / RefreshRate );
-			} else {
-				syncFrameCounter++;
-			}
+            multiSync->SendSeqSyncPacket(
+                sequence->m_seqFilename, channelOutputFrame,
+                (mediaElapsedSeconds > 0) ? mediaElapsedSeconds
+                    : 1.0 * channelOutputFrame / RefreshRate );
 		}
 
         if (OutputFrames) {
-            if (!sequence->isDataProcessed()) {
+            if (seqRunning && !sequence->isDataProcessed()) {
                 //first time through or immediately after sequence load, the data might not be
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
@@ -174,7 +166,7 @@ void *RunChannelOutputThread(void *data)
 
 		sendTime = GetTime();
 
-        if (getFPPmode() != BRIDGE_MODE) {
+        if (getFPPmode() != BRIDGE_MODE && seqRunning) {
             if (FrameSkip) {
                 sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
                 FrameSkip = 0;
@@ -183,7 +175,9 @@ void *RunChannelOutputThread(void *data)
         }
 
         readTime = GetTime();
-		sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
+        if (seqRunning) {
+            sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
+        }
 
 		processTime = GetTime();
 

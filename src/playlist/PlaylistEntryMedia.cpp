@@ -91,7 +91,6 @@ int PlaylistEntryMedia::Init(Json::Value &config)
     if (config.isMember("videoOut")) {
         m_videoOutput = config["videoOut"].asString();
     }
-
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -109,12 +108,15 @@ int PlaylistEntryMedia::PreparePlay() {
         return 0;
     }
 
+    if (getFPPmode() == MASTER_MODE)
+        multiSync->SendMediaOpenPacket(m_mediaFilename);
+    
     if (mqtt) {
         mqtt->Publish("playlist/media/status", m_mediaFilename);
         mqtt->Publish("playlist/media/title", MediaDetails::INSTANCE.title);
         mqtt->Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
     }
-    
+
     PluginManager::INSTANCE.mediaCallback(playlist->GetInfo(), MediaDetails::INSTANCE);
     return 1;
 }
@@ -140,7 +142,7 @@ int PlaylistEntryMedia::StartPlaying(void)
     pthread_mutex_lock(&m_mediaOutputLock);
 
     if (getFPPmode() == MASTER_MODE)
-        multiSync->SendMediaSyncStartPacket(m_mediaFilename.c_str());
+        multiSync->SendMediaSyncStartPacket(m_mediaFilename);
     
     if (!m_mediaOutput->Start()) {
         LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
@@ -346,7 +348,7 @@ int PlaylistEntryMedia::CloseMediaOutput(void)
 	}
 
     if (getFPPmode() == MASTER_MODE)
-        multiSync->SendMediaSyncStopPacket(m_mediaFilename.c_str());
+        multiSync->SendMediaSyncStopPacket(m_mediaFilename);
 
 	if (m_mediaOutput->m_childPID) {
 		pthread_mutex_unlock(&m_mediaOutputLock);

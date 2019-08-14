@@ -40,6 +40,7 @@ extern MediaOutputStatus  mediaOutputStatus;
 void InitMediaOutput(void);
 void CleanupMediaOutput(void);
 int  OpenMediaOutput(char *filename);
+int  StartMediaOutput(char *filename);
 void CloseMediaOutput(void);
 void UpdateMasterMediaPosition(float seconds);
 

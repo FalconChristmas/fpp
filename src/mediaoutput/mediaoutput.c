@@ -231,7 +231,7 @@ int OpenMediaOutput(char *filename) {
 	}
 
     pthread_mutex_lock(&mediaOutputLock);
-
+    bool isOmx = false;
     std::string vOut = getSetting("VideoOutput");
     if (vOut == "") {
 #if !defined(PLATFORM_BBB)
@@ -257,6 +257,7 @@ int OpenMediaOutput(char *filename) {
 #ifdef PLATFORM_PI
 	} else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
 		mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
+        isOmx = true;
 #endif
     } else if (IsExtensionVideo(ext)) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
@@ -273,24 +274,78 @@ int OpenMediaOutput(char *filename) {
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename.c_str());
-
-	if (!mediaOutput->Start()) {
-        LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
-		delete mediaOutput;
-		mediaOutput = 0;
-		pthread_mutex_unlock(&mediaOutputLock);
-		return 0;
-	}
+		multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
 
 	mediaOutputStatus.speedDelta = 0;
     mediaOutputStatus.speedDeltaCount = 0;
-
+    
+#ifdef PLATFORM_PI
+    // at this point, OMX takes a long time to actually start, we'll just start it
+    // there is a patch to add a --start-paused which we could eventually use
+    if (isOmx) {
+        if (getFPPmode() == MASTER_MODE)
+            multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
+        if (!mediaOutput->Start()) {
+            LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
+            delete mediaOutput;
+            mediaOutput = 0;
+            pthread_mutex_unlock(&mediaOutputLock);
+            return 0;
+        }
+    }
+#endif
 	pthread_mutex_unlock(&mediaOutputLock);
 
 	return 1;
 }
+int StartMediaOutput(char *filename) {
+    if (mediaOutput) {
+        if (strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+            CloseMediaOutput();
+        } else {
+            char tmpFile[1024];
+            strcpy(tmpFile, filename);
+            if (HasVideoForMedia(tmpFile)) {
+                if (strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile)) {
+                    CloseMediaOutput();
+                }
+            }
+        }
+    }
+#ifdef PLATFORM_PI
+    omxplayerOutput *omx = dynamic_cast<omxplayerOutput*>(mediaOutput);
+    if (omx) {
+        //its already started
+        return 1;
+    }
+#endif
+    
+    if (mediaOutput && mediaOutput->IsPlaying()) {
+        CloseMediaOutput();
+    }
+    if (!mediaOutput) {
+        OpenMediaOutput(filename);
+    }
+    if (!mediaOutput) {
+        return 0;
+    }
+    pthread_mutex_lock(&mediaOutputLock);
+    if (getFPPmode() == MASTER_MODE)
+        multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
 
+    if (!mediaOutput->Start()) {
+        LogErr(VB_MEDIAOUT, "Could not start media %s\n", mediaOutput->m_mediaFilename.c_str());
+        delete mediaOutput;
+        mediaOutput = 0;
+        pthread_mutex_unlock(&mediaOutputLock);
+        return 0;
+    }
+    mediaOutputStatus.speedDelta = 0;
+    mediaOutputStatus.speedDeltaCount = 0;
+
+    pthread_mutex_unlock(&mediaOutputLock);
+    return 1;
+}
 void CloseMediaOutput(void) {
 	LogDebug(VB_MEDIAOUT, "CloseMediaOutput()\n");
 
@@ -310,7 +365,7 @@ void CloseMediaOutput(void) {
 	}
 
 	if (getFPPmode() == MASTER_MODE)
-		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename.c_str());
+		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
 
 	delete mediaOutput;
 	mediaOutput = 0;
