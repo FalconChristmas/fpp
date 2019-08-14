@@ -200,20 +200,6 @@ setSetting LastBlock $LASTBLOCK
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1
 
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
-then
-	echo "FPP - Setting up SPI"
-	/usr/local/bin/gpio load spi 100 &>/dev/null
-
-	# See if we have a PiFace connected
-	echo "FPP - Checking for PiFace"
-	detectPiFace
-
-	# See if we have any Falcon hardware on the SPI port
-	echo "FPP - Checking for Falcon hardware on SPI port"
-	detectFalconHardware
-fi
-
 
 if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
 then

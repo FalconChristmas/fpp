@@ -75,6 +75,25 @@ then
 	sleep ${SLEEPSECS}
 fi
 
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
+then
+	echo "FPP - Setting up SPI"
+	/usr/local/bin/gpio load spi 100 &>/dev/null
+
+    if [ ! -e /dev/spidev0.0 ]; then
+        sleep 0.5
+    fi
+
+	# See if we have a PiFace connected
+	echo "FPP - Checking for PiFace"
+	detectPiFace
+
+	# See if we have any Falcon hardware on the SPI port
+	echo "FPP - Checking for Falcon hardware on SPI port"
+	detectFalconHardware
+fi
+
+
 ##############################################################################
 # Leave these things till last so user can see output of anything above here
 ##############################################################################
