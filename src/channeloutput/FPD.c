@@ -72,7 +72,7 @@ typedef struct {
 	int startChannel;
 } PixelnetDMXentry;
 
-static SPIUtils *spi = nullptr;
+extern SPIUtils *falconSpi;
 
 pthread_t pixelnetDMXthread;
 unsigned char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
@@ -133,8 +133,8 @@ int SendOutputBuffer(FPDPrivData *privData)
 		HexDump("FPD Channel Header & Data", privData->outBuf, 256);
 
     i = -1;
-    if (spi) {
-        i = spi->xfer(privData->outBuf, nullptr, PIXELNET_DMX_BUF_SIZE);
+    if (falconSpi) {
+        i = falconSpi->xfer(privData->outBuf, nullptr, PIXELNET_DMX_BUF_SIZE);
     }
 	if (i != PIXELNET_DMX_BUF_SIZE)
 	{
@@ -280,10 +280,10 @@ int InitializePixelnetDMX()
 		LogWarn(VB_CHANNELOUT, "Unable to detect attached Falcon "
 			"hardware, setting SPI speed to 8000000.\n");
 
-        spi = new SPIUtils(0, 8000000);
-		if (!spi->isOk()) {
-            delete spi;
-            spi = nullptr;
+        falconSpi = new SPIUtils(0, 8000000);
+		if (!falconSpi->isOk()) {
+            delete falconSpi;
+            falconSpi = nullptr;
 		    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 			return 0;
 		}
@@ -315,8 +315,8 @@ void SendFPDConfig()
 			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3));
 
     i = -1;
-    if (spi) {
-        i = spi->xfer((uint8_t*)bufferPixelnetDMX, nullptr, PIXELNET_DMX_BUF_SIZE);
+    if (falconSpi) {
+        i = falconSpi->xfer((uint8_t*)bufferPixelnetDMX, nullptr, PIXELNET_DMX_BUF_SIZE);
     }
 	if (i != PIXELNET_DMX_BUF_SIZE)
 		LogErr(VB_CHANNELOUT, "Error: SPI->xfer returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);

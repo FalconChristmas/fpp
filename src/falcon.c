@@ -49,7 +49,7 @@
 #define FALCON_CFG_BUF_SIZE           (FALCON_CFG_DATA_SIZE+FALCON_CFG_HEADER_SIZE)
 
 
-static SPIUtils *falconSpi = nullptr;
+SPIUtils *falconSpi = nullptr;
 
 /*
  * Read the specified file into the given buffer
