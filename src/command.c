@@ -144,7 +144,7 @@ char *ProcessCommand(char *command, char *response)
                 char mediaFilename[1024];
 
                 if (sequence->IsSequenceRunning()) {
-                    strcpy(seqFilename, sequence->m_seqFilename);
+                    strcpy(seqFilename, sequence->m_seqFilename.c_str());
                     secsElapsed = sequence->m_seqSecondsElapsed;
                     secsRemaining = sequence->m_seqSecondsRemaining;
                 } else {

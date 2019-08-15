@@ -232,7 +232,7 @@ void ogg123Output::ParseTimes()
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-        multiSync->SendMediaSyncPacket(m_mediaFilename, 0,
+        multiSync->SendMediaSyncPacket(m_mediaFilename,
                                        m_mediaOutputStatus->mediaSeconds);
 	}
 

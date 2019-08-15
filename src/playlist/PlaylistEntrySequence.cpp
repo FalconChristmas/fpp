@@ -72,6 +72,7 @@ int PlaylistEntrySequence::PreparePlay() {
         return 0;
     }
     m_prepared = true;
+    return 1;
 }
 
 /*

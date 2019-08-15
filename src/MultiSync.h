@@ -140,7 +140,7 @@ class MultiSyncPlugin {
     virtual void SendMediaOpenPacket(const std::string &filename) {}
     virtual void SendMediaSyncStartPacket(const std::string &filename) {}
     virtual void SendMediaSyncStopPacket(const std::string &filename) {}
-    virtual void SendMediaSyncPacket(const std::string &filename, int frames, float seconds) {}
+    virtual void SendMediaSyncPacket(const std::string &filename, float seconds) {}
     
     virtual void SendEventPacket(const std::string &eventID) {}
     virtual void SendBlankingDataPacket(void) {}
@@ -183,7 +183,7 @@ class MultiSync {
     void SendMediaOpenPacket(const std::string &filename);
 	void SendMediaSyncStartPacket(const std::string &filename);
 	void SendMediaSyncStopPacket(const std::string &filename);
-	void SendMediaSyncPacket(const std::string &filename, int frames, float seconds);
+	void SendMediaSyncPacket(const std::string &filename, float seconds);
 
 	void SendEventPacket(const std::string &eventID);
 	void SendBlankingDataPacket(void);
@@ -192,6 +192,20 @@ class MultiSync {
     void addMultiSyncPlugin(MultiSyncPlugin *p) {
         m_plugins.push_back(p);
     }
+    
+    
+    void OpenSyncedSequence(const char *filename);
+    void StartSyncedSequence(const char *filename);
+    void StopSyncedSequence(const char *filename);
+    void SyncSyncedSequence(const char *filename, int frameNumber, float secondsElapsed);
+    
+    void OpenSyncedMedia(const char *filename);
+    void StartSyncedMedia(const char *filename);
+    void StopSyncedMedia(const char *filename);
+    void SyncSyncedMedia(const char *filename, int frameNumber, float secondsElapsed);
+
+    int OpenControlSockets();
+
   private:
     void PingSingleRemote(int sysIdx);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
@@ -204,7 +218,6 @@ class MultiSync {
 	int  OpenBroadcastSocket(void);
 	void SendBroadcastPacket(void *outBuf, int len);
 
-	int  OpenControlSockets(void);
 	void SendControlPacket(void *outBuf, int len);
 
 	int  OpenCSVControlSockets(void);
@@ -214,15 +227,6 @@ class MultiSync {
 
 	int  OpenReceiveSocket(void);
 
-    void OpenSyncedSequence(char *filename);
-	void StartSyncedSequence(char *filename);
-	void StopSyncedSequence(char *filename);
-	void SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed);
-
-	void OpenSyncedMedia(char *filename);
-	void StartSyncedMedia(char *filename);
-	void StopSyncedMedia(char *filename);
-	void SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed);
 
 	void ProcessSyncPacket(ControlPkt *pkt, int len);
 	void ProcessCommandPacket(ControlPkt *pkt, int len);

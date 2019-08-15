@@ -177,11 +177,11 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
     return result;
 }
 
-bool HasVideoForMedia(char *filename) {
+bool HasVideoForMedia(std::string &filename) {
     std::string ext;
     std::string fp = GetVideoFilenameForMedia(filename, ext);
     if (fp != "") {
-        strcpy(filename, fp.c_str());
+        filename = fp;
     }
     return fp != "";
 }
@@ -191,7 +191,7 @@ static std::set<std::string> alreadyWarned;
 /*
  *
  */
-int OpenMediaOutput(char *filename) {
+int OpenMediaOutput(const char *filename) {
 	LogDebug(VB_MEDIAOUT, "OpenMediaOutput(%s)\n", filename);
 
 	pthread_mutex_lock(&mediaOutputLock);
@@ -298,15 +298,14 @@ int OpenMediaOutput(char *filename) {
 
 	return 1;
 }
-int StartMediaOutput(char *filename) {
+int StartMediaOutput(const char *filename) {
     if (mediaOutput) {
         if (strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
             CloseMediaOutput();
         } else {
-            char tmpFile[1024];
-            strcpy(tmpFile, filename);
+            std::string tmpFile = filename;
             if (HasVideoForMedia(tmpFile)) {
-                if (strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile)) {
+                if (mediaOutput->m_mediaFilename != tmpFile) {
                     CloseMediaOutput();
                 }
             }

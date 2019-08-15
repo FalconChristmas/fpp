@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 #include <httpserver.hpp>
 #include <jsoncpp/json/json.h>
 
@@ -24,6 +25,7 @@ public:
     void unregisterApis(httpserver::webserver *m_ws);
     
     void modifyChannelData(int ms, uint8_t *seqData);
+    void addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks);
 
 
     static PluginManager INSTANCE;

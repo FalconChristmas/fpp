@@ -170,11 +170,11 @@ void Sequence::ReadFramesLoop() {
     }
 }
 
-int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSecond) {
-    LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d, %d)\n", filename, startFrame, startSecond);
+int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int startSecond) {
+    LogDebug(VB_SEQUENCE, "OpenSequenceFile(%s, %d, %d)\n", filename.c_str(), startFrame, startSecond);
 
-    if (!filename || !filename[0]) {
-        LogErr(VB_SEQUENCE, "Empty Sequence Filename!\n", filename);
+    if (filename == "") {
+        LogErr(VB_SEQUENCE, "Empty Sequence Filename!\n", filename.c_str());
         return 0;
     }
 
@@ -205,13 +205,13 @@ int Sequence::OpenSequenceFile(const char *filename, int startFrame, int startSe
         m_readThread = new std::thread(ReadSequenceDataThread, this);
     }
 
-    strcpy(m_seqFilename, filename);
+    m_seqFilename = filename;
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
     strcpy(tmpFilename,(const char *)getSequenceDirectory());
     strcat(tmpFilename,"/");
-    strcat(tmpFilename, filename);
+    strcat(tmpFilename, filename.c_str());
 
     if (getFPPmode() == REMOTE_MODE)
         CheckForHostSpecificFile(getSetting("HostName"), tmpFilename);
@@ -323,10 +323,6 @@ void Sequence::SeekSequenceFile(int frameNumber) {
 }
 
 
-char *Sequence::CurrentSequenceFilename(void) {
-    return m_seqFilename;
-}
-
 int Sequence::IsSequenceRunning(void) {
     if (m_seqFile && !m_seqStarting)
         return 1;
@@ -334,11 +330,11 @@ int Sequence::IsSequenceRunning(void) {
     return 0;
 }
 
-int Sequence::IsSequenceRunning(char *filename) {
+int Sequence::IsSequenceRunning(const std::string &filename) {
     int result = 0;
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if ((!strcmp(sequence->m_seqFilename, filename)) && m_seqFile)
+    if ((sequence->m_seqFilename == filename) && m_seqFile)
         result = 1;
 
     return result;
@@ -519,9 +515,9 @@ void Sequence::SendBlankingData(void) {
     SendSequenceData();
 }
 
-void Sequence::CloseIfOpen(char *filename) {
+void Sequence::CloseIfOpen(const std::string &filename) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if (!strcmp(m_seqFilename, filename))
+    if (m_seqFilename == filename)
         CloseSequenceFile();
 }
 

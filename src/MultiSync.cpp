@@ -900,7 +900,7 @@ void MultiSync::SendMediaSyncStopPacket(const std::string &filename)
 /*
  *
  */
-void MultiSync::SendMediaSyncPacket(const std::string &filename, int frames, float seconds)
+void MultiSync::SendMediaSyncPacket(const std::string &filename, float seconds)
 {
     if (filename.empty()) {
         return;
@@ -912,7 +912,7 @@ void MultiSync::SendMediaSyncPacket(const std::string &filename, int frames, flo
     }
 
     for (auto a : m_plugins) {
-        a->SendMediaSyncPacket(filename, frames, seconds);
+        a->SendMediaSyncPacket(filename, seconds);
     }
     
     int curTS = (seconds * 2.0f);
@@ -922,8 +922,8 @@ void MultiSync::SendMediaSyncPacket(const std::string &filename, int frames, flo
     }
     m_lastMediaHalfSecond = curTS;
 
-    LogExcess(VB_SYNC, "SendMediaSyncPacket( '%s', %d, %.2f)\n",
-              filename.c_str(), frames, seconds);
+    LogExcess(VB_SYNC, "SendMediaSyncPacket( '%s', %.2f)\n",
+              filename.c_str(), seconds);
 
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
@@ -938,7 +938,7 @@ void MultiSync::SendMediaSyncPacket(const std::string &filename, int frames, flo
 
 	spkt->pktType  = SYNC_PKT_SYNC;
 	spkt->fileType = SYNC_FILE_MEDIA;
-	spkt->frameNumber = frames;
+	spkt->frameNumber = 0;
 	spkt->secondsElapsed = seconds;
 	strcpy(spkt->filename, filename.c_str());
 
@@ -952,6 +952,9 @@ void MultiSync::SendEventPacket(const std::string &eventID)
 {
     if (eventID.empty()) {
         return;
+    }
+    for (auto a : m_plugins) {
+        a->SendEventPacket(eventID);
     }
 
 	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID);
@@ -988,7 +991,9 @@ void MultiSync::SendBlankingDataPacket(void)
 		LogErr(VB_SYNC, "ERROR: Tried to send blanking data packet but control socket is not open.\n");
 		return;
 	}
-
+    for (auto a : m_plugins) {
+        a->SendBlankingDataPacket();
+    }
 	char           outBuf[2048];
 	bzero(outBuf, sizeof(outBuf));
 
@@ -1014,6 +1019,10 @@ void MultiSync::SendBlankingDataPacket(void)
 void MultiSync::ShutdownSync(void)
 {
 	LogDebug(VB_SYNC, "ShutdownSync()\n");
+
+    for (auto a : m_plugins) {
+        a->ShutdownSync();
+    }
 
 	pthread_mutex_lock(&m_socketLock);
 
@@ -1097,9 +1106,12 @@ void MultiSync::SendBroadcastPacket(void *outBuf, int len)
 /*
  *
  */
-int MultiSync::OpenControlSockets(void)
+int MultiSync::OpenControlSockets()
 {
 	LogDebug(VB_SYNC, "OpenControlSockets()\n");
+    if (m_controlSock >= 0) {
+        return 1;
+    }
 
 	m_controlSock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -1515,7 +1527,7 @@ void MultiSync::ProcessControlPacket(void)
 }
 
 
-void MultiSync::OpenSyncedSequence(char *filename)
+void MultiSync::OpenSyncedSequence(const char *filename)
 {
     LogDebug(VB_SYNC, "OpenSyncedSequence(%s)\n", filename);
     
@@ -1523,12 +1535,12 @@ void MultiSync::OpenSyncedSequence(char *filename)
     sequence->OpenSequenceFile(filename);
 }
 
-void MultiSync::StartSyncedSequence(char *filename)
+void MultiSync::StartSyncedSequence(const char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
 
     ResetMasterPosition();
-    if (!strcmp(sequence->m_seqFilename, filename) && !sequence->IsSequenceRunning()) {
+    if (!strcmp(sequence->m_seqFilename.c_str(), filename) && !sequence->IsSequenceRunning()) {
         sequence->StartSequence();
     }
 }
@@ -1536,7 +1548,7 @@ void MultiSync::StartSyncedSequence(char *filename)
 /*
  *
  */
-void MultiSync::StopSyncedSequence(char *filename)
+void MultiSync::StopSyncedSequence(const char *filename)
 {
 	LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
 
@@ -1546,7 +1558,7 @@ void MultiSync::StopSyncedSequence(char *filename)
 /*
  *
  */
-void MultiSync::SyncSyncedSequence(char *filename, int frameNumber, float secondsElapsed)
+void MultiSync::SyncSyncedSequence(const char *filename, int frameNumber, float secondsElapsed)
 {
 	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
@@ -1560,7 +1572,7 @@ void MultiSync::SyncSyncedSequence(char *filename, int frameNumber, float second
     }
 }
 
-void MultiSync::OpenSyncedMedia(char *filename)
+void MultiSync::OpenSyncedMedia(const char *filename)
 {
     LogDebug(VB_SYNC, "OpenSyncedMedia(%s)\n", filename);
     
@@ -1574,7 +1586,7 @@ void MultiSync::OpenSyncedMedia(char *filename)
     OpenMediaOutput(filename);
 }
 
-void MultiSync::StartSyncedMedia(char *filename)
+void MultiSync::StartSyncedMedia(const char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedMedia(%s)\n", filename);
 
@@ -1584,7 +1596,7 @@ void MultiSync::StartSyncedMedia(char *filename)
 /*
  *
  */
-void MultiSync::StopSyncedMedia(char *filename)
+void MultiSync::StopSyncedMedia(const char *filename)
 {
 	LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
 
@@ -1596,10 +1608,9 @@ void MultiSync::StopSyncedMedia(char *filename)
 	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
 		stopSyncedMedia = 1;
 	} else {
-		char tmpFile[1024];
-		strcpy(tmpFile, filename);
+        std::string tmpFile = filename;
         if (HasVideoForMedia(tmpFile)) {
-            if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile)) {
+            if (mediaOutput->m_mediaFilename == tmpFile) {
                 stopSyncedMedia = 1;
             }
         }
@@ -1614,7 +1625,7 @@ void MultiSync::StopSyncedMedia(char *filename)
 /*
  *
  */
-void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsElapsed)
+void MultiSync::SyncSyncedMedia(const char *filename, int frameNumber, float secondsElapsed)
 {
 	LogExcess(VB_SYNC, "SyncSyncedMedia('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
@@ -1628,10 +1639,9 @@ void MultiSync::SyncSyncedMedia(char *filename, int frameNumber, float secondsEl
 	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
 		UpdateMasterMediaPosition(secondsElapsed);
     } else {
-        char tmpFile[1024];
-        strcpy(tmpFile, filename);
+        std::string tmpFile = filename;
         if (HasVideoForMedia(tmpFile)) {
-            if (!strcmp(mediaOutput->m_mediaFilename.c_str(), tmpFile)) {
+            if (mediaOutput->m_mediaFilename == tmpFile) {
                 UpdateMasterMediaPosition(secondsElapsed);
             }
         }

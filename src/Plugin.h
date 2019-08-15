@@ -2,6 +2,9 @@
 #define __FPP_PLUGIN_H__
 
 #include <string>
+#include <map>
+#include <functional>
+
 #include <jsoncpp/json/json.h>
 
 namespace httpserver {
@@ -17,13 +20,13 @@ public:
     //legacy plugin touch points
     virtual void eventCallback(const char *id, const char *impetus) {}
     virtual void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails) {}
-
-    
     
     virtual void registerApis(httpserver::webserver *m_ws) {}
     virtual void unregisterApis(httpserver::webserver *m_ws) {}
     virtual void modifyChannelData(int ms, uint8_t *seqData) {}
 
+    
+    virtual void addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks) {}
 protected:
     std::string name;
 };

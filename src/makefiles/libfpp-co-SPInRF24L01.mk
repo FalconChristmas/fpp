@@ -10,6 +10,6 @@ CFLAGS_channeloutput/SPInRF24L01.o+=-DUSENRF -I../external/RF24/
 LIBS_fpp_co_SPI-nRF24L01_so += -L../external/RF24/ -lrf24-bcm -Wl,-rpath=.:../external/RF24/
 endif
 
-libfpp-co-SPI-nRF24L01.so: libfpp.so $(OBJECTS_fpp_co_SPI-nRF24L01_so) $(DEPS_fpp_co_SPI-nRF24L01_so)
+libfpp-co-SPI-nRF24L01.so: $(OBJECTS_fpp_co_SPI-nRF24L01_so) $(DEPS_fpp_co_SPI-nRF24L01_so) libfpp.so
 	$(CCACHE) $(CC) -shared $(CFLAGS_$@) $(OBJECTS_fpp_co_SPI-nRF24L01_so) $(LIBS_fpp_co_SPI-nRF24L01_so) $(LDFLAGS) $(LDFLAGS_fpp_co_SPI-nRF24L01_so) -o $@
 

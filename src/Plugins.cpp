@@ -308,6 +308,11 @@ void PluginManager::modifyChannelData(int ms, uint8_t *seqData) {
         a->modifyChannelData(ms, seqData);
     }
 }
+void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks) {
+    for (auto a : mPlugins) {
+        a->addControlCallbacks(callbacks);
+    }
+}
 
 
 //blocking

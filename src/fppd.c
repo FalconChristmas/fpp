@@ -559,6 +559,7 @@ void MainLoop(void)
 	fd_set         read_fd_set;
 	struct timeval timeout;
 	int            selectResult;
+    std::map<int, std::function<bool(int)>> callbacks;
 
 	LogDebug(VB_GENERAL, "MainLoop()\n");
 
@@ -579,15 +580,20 @@ void MainLoop(void)
 		Bridge_Initialize(bridgeSock, ddpSock);
 		if (bridgeSock)
 			FD_SET (bridgeSock, &active_fd_set);
-                if (ddpSock)
-                    FD_SET (ddpSock, &active_fd_set);
+        if (ddpSock)
+            FD_SET (ddpSock, &active_fd_set);
 	}
 
 	controlSock = multiSync->GetControlSocket();
 	FD_SET (controlSock, &active_fd_set);
 
-	APIServer apiServer;
-	apiServer.Init();
+    APIServer apiServer;
+    apiServer.Init();
+
+    PluginManager::INSTANCE.addControlCallbacks(callbacks);
+    for (auto &a : callbacks) {
+        FD_SET(a.first, &active_fd_set);
+    }
 
 	multiSync->Discover();
 
@@ -621,14 +627,18 @@ void MainLoop(void)
         bool pushBridgeData = false;
 		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
 			CommandProc();
-
 		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
  			pushBridgeData |= Bridge_ReceiveE131Data();
         if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
             pushBridgeData |= Bridge_ReceiveDDPData();
-
 		if (FD_ISSET(controlSock, &read_fd_set))
 			multiSync->ProcessControlPacket();
+        
+        for (auto &a : callbacks) {
+            if (FD_ISSET(a.first, &read_fd_set)) {
+                pushBridgeData |= a.second(a.first);
+            }
+        }
 
 		// Check to see if we need to start up the output thread.
 		// FIXME, possibly trigger this via a fpp command to fppd

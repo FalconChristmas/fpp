@@ -39,13 +39,13 @@ extern MediaOutputStatus  mediaOutputStatus;
 
 void InitMediaOutput(void);
 void CleanupMediaOutput(void);
-int  OpenMediaOutput(char *filename);
-int  StartMediaOutput(char *filename);
+int  OpenMediaOutput(const char *filename);
+int  StartMediaOutput(const char *filename);
 void CloseMediaOutput(void);
 void UpdateMasterMediaPosition(float seconds);
 
 /* If try, filename will be updated with the media filename */
-bool HasVideoForMedia(char *filename);
+bool HasVideoForMedia(std::string &filename);
 
 bool IsExtensionVideo(const std::string &ext);
 bool IsExtensionAudio(const std::string &ext);

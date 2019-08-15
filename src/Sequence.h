@@ -56,15 +56,15 @@ class Sequence {
 	~Sequence();
 
 	int   IsSequenceRunning(void);
-	int   IsSequenceRunning(char *filename);
-	int   OpenSequenceFile(const char *filename, int startFrame = 0, int startSecond = -1);
+	int   IsSequenceRunning(const std::string &filename);
+	int   OpenSequenceFile(const std::string &filename, int startFrame = 0, int startSecond = -1);
     void  StartSequence();
 	void  ProcessSequenceData(int ms, int checkControlChannels = 1);
 	void  SeekSequenceFile(int frameNumber);
 	void  ReadSequenceData(bool forceFirstFrame = false);
 	void  SendSequenceData(void);
 	void  SendBlankingData(void);
-	void  CloseIfOpen(char *filename);
+    void  CloseIfOpen(const std::string &filename);
 	void  CloseSequenceFile(void);
 	void  ToggleSequencePause(void);
 	void  SingleStepSequence(void);
@@ -77,12 +77,11 @@ class Sequence {
 	int           m_seqSecondsRemaining;
 	int           m_seqMSRemaining;
 	char          m_seqData[FPPD_MAX_CHANNEL_NUM] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
-	char          m_seqFilename[1024];
+    std::string   m_seqFilename;
 
   private:
 	void  BlankSequenceData(void);
 	char  NormalizeControlValue(char in);
-	char *CurrentSequenceFilename(void);
 
 	FSEQFile     *m_seqFile;
 
