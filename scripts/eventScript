@@ -5,7 +5,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-export MEDIADIR FPPDIR CFGDIR CFGFILE SETTINGSFILE
+export MEDIADIR FPPDIR CFGDIR CFGFILE SETTINGSFILE LOGDIR
 EXT=$(basename $1 | sed -e "s/.*\.\([^\.]*\)/\1/")
 
 if [ "x${EXT}" = "xsh" ]
