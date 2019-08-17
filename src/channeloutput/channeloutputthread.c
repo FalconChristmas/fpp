@@ -137,23 +137,15 @@ void *RunChannelOutputThread(void *data)
 
 	while (RunThread) {
 		startTime = GetTime();
-        bool seqRunning = sequence->IsSequenceRunning();
-		if ((getFPPmode() == MASTER_MODE) && seqRunning) {
-            // send sync every 16 frames except for every 4 frames for first 32
-             // to help speed up the initial syncs
+		if ((getFPPmode() == MASTER_MODE) && sequence->IsSequenceRunning()) {
             multiSync->SendSeqSyncPacket(
                 sequence->m_seqFilename, channelOutputFrame,
                 (mediaElapsedSeconds > 0) ? mediaElapsedSeconds
                     : 1.0 * channelOutputFrame / RefreshRate );
 		}
-        if (IsEffectRunning()
-            || PixelOverlayManager::INSTANCE.UsingMemoryMapInput()
-            || ChannelTester::INSTANCE.Testing()){
-            seqRunning = true;
-        }
 
         if (OutputFrames) {
-            if (seqRunning && !sequence->isDataProcessed()) {
+            if (!sequence->isDataProcessed()) {
                 //first time through or immediately after sequence load, the data might not be
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
@@ -171,7 +163,7 @@ void *RunChannelOutputThread(void *data)
 
 		sendTime = GetTime();
 
-        if (getFPPmode() != BRIDGE_MODE && seqRunning) {
+        if (getFPPmode() != BRIDGE_MODE && sequence->IsSequenceRunning()) {
             if (FrameSkip) {
                 sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
                 FrameSkip = 0;
@@ -180,9 +172,7 @@ void *RunChannelOutputThread(void *data)
         }
 
         readTime = GetTime();
-        if (seqRunning) {
-            sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
-        }
+        sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
 
 		processTime = GetTime();
 
