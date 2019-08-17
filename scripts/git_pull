@@ -16,9 +16,9 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
-		cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags && $SUDO git submodule sync && $SUDO git submodule update --init
+		cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
 	else
-		cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
+		cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
 	fi
 
     sudo ${SCRIPTDIR}/upgrade_config
