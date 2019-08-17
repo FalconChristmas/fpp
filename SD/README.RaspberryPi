@@ -104,12 +104,12 @@ If you are installing to create a SD image zip, do the following:
 Put the SD card back in a Linux system and run the following (substitute
 the proper device name for your SD card in place of '/dev/sdg'):
 
-	NOTE: The 3500 on the "BLOCK=" line below must match the new size of the
+	NOTE: The 3800 on the "BLOCK=" line below must be at least the new size of the
 	      second partition created at the top of this document using fdisk.
 
-	VERSION=v2.x-Pi
-	BLOCKS=$(echo "(260 + 3500) / 4" | bc)
-	sudo time dd if=/dev/sdg bs=4M count=${BLOCKS} > FPP-${VERSION}.img
+	VERSION=v3.1-Pi
+	BLOCKS=3800
+	sudo time dd if=/dev/sdg bs=1M count=${BLOCKS} > FPP-${VERSION}.img
 	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
 	unzip -v FPP-$VERSION.zip
 
