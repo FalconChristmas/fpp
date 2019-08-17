@@ -146,6 +146,11 @@ void *RunChannelOutputThread(void *data)
                 (mediaElapsedSeconds > 0) ? mediaElapsedSeconds
                     : 1.0 * channelOutputFrame / RefreshRate );
 		}
+        if (IsEffectRunning()
+            || PixelOverlayManager::INSTANCE.UsingMemoryMapInput()
+            || ChannelTester::INSTANCE.Testing()){
+            seqRunning = true;
+        }
 
         if (OutputFrames) {
             if (seqRunning && !sequence->isDataProcessed()) {
