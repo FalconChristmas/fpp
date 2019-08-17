@@ -192,7 +192,7 @@ function LoadPlugin(data) {
 	var compatibleVersion = -1;
 	for (var i = 0; i < data.versions.length; i++)
 	{
-		if ((CompareFPPVersions(data.versions[i].minFPPVersion, getFPPVersionTriplet()) < 0) &&
+		if ((CompareFPPVersions(data.versions[i].minFPPVersion, getFPPVersionTriplet()) <= 0) &&
 			((data.versions[i].maxFPPVersion == "0") || (data.versions[i].maxFPPVersion == "0.0") ||
 			 (CompareFPPVersions(data.versions[i].maxFPPVersion, getFPPVersionTriplet()) > 0)))
 		{
