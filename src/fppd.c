@@ -488,8 +488,6 @@ int main(int argc, char *argv[])
     Sensors::INSTANCE.Init();
     initCape();
 
-	SetupGPIOInput();
-
 	PluginManager::INSTANCE.init();
 
 	CheckExistanceOfDirectoriesAndFiles();
@@ -523,6 +521,7 @@ int main(int argc, char *argv[])
 	{
 		CloseEffects();
 	}
+    CleanupGPIOInput();
 
 	CloseChannelOutputs();
 
@@ -564,6 +563,8 @@ void MainLoop(void)
 	LogDebug(VB_GENERAL, "MainLoop()\n");
 
 	FD_ZERO (&active_fd_set);
+    
+    SetupGPIOInput(callbacks);
 
 	commandSock = Command_Initialize();
 	if (commandSock)
@@ -721,7 +722,6 @@ void MainLoop(void)
 
 	if (getFPPmode() == BRIDGE_MODE)
 		Bridge_Shutdown();
-
 	LogInfo(VB_GENERAL, "Main Loop complete, shutting down.\n");
 }
 

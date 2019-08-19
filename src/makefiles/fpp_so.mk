@@ -88,6 +88,7 @@ LIBS_fpp_so += \
 	-lboost_date_time \
 	-lpthread -lrt \
     -lzstd -lz \
+	-lgpiod \
 	-lhttpserver \
 	-ljsoncpp \
 	-lm \

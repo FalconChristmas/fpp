@@ -35,10 +35,12 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <vector>
+
+#include <gpiod.h>
 
 #include "util/GPIOUtils.h"
 
-#define MAX_GPIO_INPUTS  255
 #define GPIO_DEBOUNCE_TIME 200000
 
 class GPIOState {
@@ -47,23 +49,47 @@ public:
     const PinCapabilities *pin;
     int lastValue;
     long long lastTriggerTime;
+    
+    struct gpiod_line * gpiodLine = nullptr;
+    int file;
+    std::string fallingAction;
+    std::string risingAction;
 };
 
-GPIOState inputStates[MAX_GPIO_INPUTS];
+std::array<gpiod_chip*, 5> GPIOD_CHIPS;
+std::vector<GPIOState> POLL_STATES;
+std::vector<GPIOState> EVENT_STATES;
+
+void CleanupGPIOInput() {
+    for (auto &a : EVENT_STATES) {
+        if (a.gpiodLine) {
+            gpiod_line_release(a.gpiodLine);
+        }
+    }
+    for (auto a : GPIOD_CHIPS) {
+        if (a) {
+            gpiod_chip_close(a);
+        }
+    }
+}
 
 /*
  * Setup pins for configured GPIO Inputs
  */
-int SetupGPIOInput(void)
+int SetupGPIOInput(std::map<int, std::function<bool(int)>> &callbacks)
 {
 	LogDebug(VB_GPIO, "SetupGPIOInput()\n");
+
+    for (auto &a : GPIOD_CHIPS) {
+        a = nullptr;
+    }
 
 	char settingName[32];
 	int i = 0;
 	int enabled = 0;
 	int enabledCount = 0;
 
-	for (i = 0; i < MAX_GPIO_INPUTS; i++) {
+	for (i = 0; i < 255; i++) {
 		sprintf(settingName, "GPIOInput%03dEnabled", i);
 
 		if (getSettingInt(settingName)) {
@@ -85,22 +111,86 @@ int SetupGPIOInput(void)
             } else if (pu == 2) {
                 mode = "gpio_pd";
             }
-            
-            inputStates[i].pin = PinCapabilities::getPinByGPIO(i).ptr();
-            if (inputStates[i].pin) {
-                inputStates[i].pin->configPin(mode, false);
+            GPIOState state;
+            state.pin = PinCapabilities::getPinByGPIO(i).ptr();
+            if (state.pin) {
+                state.pin->configPin(mode, false);
+
+                sprintf(settingName, "GPIOInput%03dEventFalling", i);
+                state.fallingAction = getSetting(settingName);
+                sprintf(settingName, "GPIOInput%03dEventRising", i);
+                state.risingAction = getSetting(settingName);
 
                 // Set the time immediately to utilize the debounce code
                 // from triggering our GPIOs on startup.
-                inputStates[i].lastTriggerTime = GetTime();
+                state.lastTriggerTime = GetTime();
+                state.lastValue = state.pin->getValue();
                 
-                inputStates[i].lastValue = inputStates[i].pin->getValue();
+                if (!GPIOD_CHIPS[state.pin->gpioIdx]) {
+                    GPIOD_CHIPS[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
+                }
+                
+                state.gpiodLine = gpiod_chip_get_line(GPIOD_CHIPS[state.pin->gpioIdx], state.pin->gpio);
+                
+                struct gpiod_line_request_config lineConfig;
+                lineConfig.consumer = "FPPD";
+                lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
+                lineConfig.flags = 0;
+                if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
+                    LogDebug(VB_GPIO, "Could not config line as input\n");
+                }
+                gpiod_line_release(state.gpiodLine);
+                    
+                if (state.risingAction != "" && state.fallingAction != "") {
+                    lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
+                } else if (state.risingAction != "") {
+                    lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
+                } else {
+                    lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
+                }
+                lineConfig.flags = 0;
+                if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
+                    LogDebug(VB_GPIO, "Could not config line edge\n");
+                }
+                state.file = gpiod_line_event_get_fd(state.gpiodLine);
+                if (state.file > 0) {
+                    EVENT_STATES.push_back(state);
+                } else {
+                    gpiod_line_release(state.gpiodLine);
+                    state.gpiodLine = nullptr;
+                    POLL_STATES.push_back(state);
+                }
+
             }
 			enabledCount++;
 		}
 	}
 
 	LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
+    
+    for (auto &a : EVENT_STATES) {
+        std::function<bool(int)> f = [&a](int i) {
+            struct gpiod_line_event event;
+            int rc = gpiod_line_event_read_fd(i, &event);
+
+            long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
+            if (a.lastTriggerTime < lastAllowedTime) {
+                int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
+                
+                LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", a.pin->name.c_str(), v);
+
+                std::string event = (v == 0) ? a.fallingAction : a.risingAction;
+                if (event != "") {
+                    PluginManager::INSTANCE.eventCallback(event.c_str(), "GPIO");
+                    TriggerEventByID(event.c_str());
+                    a.lastTriggerTime = GetTime();
+                    a.lastValue = v;
+                }
+            }
+            return false;
+        };
+        callbacks[a.file] = f;
+    }
 
 	return enabled;
 }
@@ -111,30 +201,21 @@ int SetupGPIOInput(void)
 // FIXME, how do we handle a second trigger while first is active
 void CheckGPIOInputs(void)
 {
-	char settingName[24];
-	int i = 0;
-	int nc = 0;
-	long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
-
-	for (i = 0; i < MAX_GPIO_INPUTS; i++) {
-		if (inputStates[i].pin)	{
-			int val = inputStates[i].pin->getValue();
-			if (val != inputStates[i].lastValue) {
-				if ((inputStates[i].lastTriggerTime < lastAllowedTime)) {
-					LogDebug(VB_GPIO, "GPIO%d triggered\n", i);
-					sprintf(settingName, "GPIOInput%03dEvent%s", i, (val == 0 ? "Falling" : "Rising"));
-					if (strlen(getSetting(settingName))) {
-						PluginManager::INSTANCE.eventCallback(getSetting(settingName), "GPIO");
-						TriggerEventByID(getSetting(settingName));
-					}
-
-					inputStates[i].lastTriggerTime = GetTime();
-				}
-
-				inputStates[i].lastValue = val;
-			}
-		}
-	}
+    for (auto &a : POLL_STATES) {
+        int val = a.pin->getValue();
+        if (val != a.lastValue) {
+            long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
+            if ((a.lastTriggerTime < lastAllowedTime)) {
+                LogDebug(VB_GPIO, "GPIO %s triggered\n", a.pin->name.c_str());
+                std::string event = (val == 0) ? a.fallingAction : a.risingAction;
+                PluginManager::INSTANCE.eventCallback(event.c_str(), "GPIO");
+                TriggerEventByID(event.c_str());
+                
+                a.lastTriggerTime = GetTime();
+                a.lastValue = val;
+            }
+        }
+    }
 }
 
 /*

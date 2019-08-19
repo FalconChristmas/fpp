@@ -1,5 +1,5 @@
 /*
- *   GPIO Input/Output handler for Falcon Player (FPP)
+/Volumes/opt/fpp/src/makefiles/fpp_so.mk *   GPIO Input/Output handler for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -26,7 +26,11 @@
 #ifndef __GPIO_H__
 #define __GPIO_H__
 
-int  SetupGPIOInput(void);
+#include <map>
+#include <functional>
+
+int  SetupGPIOInput(std::map<int, std::function<bool(int)>> &callbacks);
+void CleanupGPIOInput();
 void CheckGPIOInputs(void);
 int SetupExtGPIO(int gpio, char *mode);
 int ExtGPIO(int gpio, char *mode, int value);
