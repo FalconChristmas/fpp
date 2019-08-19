@@ -351,14 +351,24 @@ int omxplayerOutput::Stop(void)
         int count = 0;
         int brc = 0;
         //try to let it exit cleanly first
+        m_omxBuffer[0] = 0;
+        bool stoppedFound = false;
         while (isChildRunning() && count < 25) {
+            m_omxBuffer[0] = 0;
             int bytesRead = read(m_childPipe[0], m_omxBuffer, MAX_BYTES_OMX );
             if (bytesRead > 0) {
                 brc += bytesRead;
                 m_omxBuffer[bytesRead] = 0;
                 LogExcess(VB_MEDIAOUT, "count: %d    d: %s\n", count, m_omxBuffer);
             }
-            write(m_childPipe[0], "q", 1);
+            if (strstr(m_omxBuffer, "Stopped") != NULL) {
+                stoppedFound = true;
+            }
+            if (m_omxBuffer[0] == 'M' && !stoppedFound && count > 10) {
+                //after 100ms, still didn't stop, try sending another q
+                write(m_childPipe[0], "q", 1);
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             count++;
         }
