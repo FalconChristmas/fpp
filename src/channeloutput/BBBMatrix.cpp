@@ -84,7 +84,6 @@ static std::map<int, std::vector<int>> BIT_ORDERS =
     {11, {10, 4, 7, 2, 3, 1, 6, 9, 8, 5, 0}},
     {12, {11, 5, 8, 2, 4, 1, 7, 10, 3, 9, 6, 0}}
 };
-
 static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
     pid_t compilePid = fork();
     if (compilePid == 0) {
@@ -104,6 +103,7 @@ static void compilePRUMatrixCode(std::vector<std::string> &sargs) {
 }
 
 void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
+    
     LogDebug(VB_CHANNELOUT, "Calc Brightness:   maxPanel:  %d    maxOutput: %d     Brightness: %d    rpo: %d    ph:  %d    pw:  %d\n", m_longestChain, m_outputs, m_brightness, m_panelScan, m_panelHeight, m_panelWidth);
     
     
@@ -210,13 +210,17 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
         }
     }
     
-    for (int x = 0; x < m_colorDepth; x++) {
-        char buf[100];
-        int idx = BIT_ORDERS[m_colorDepth][x] + 1;
-        sprintf(buf, "-DBRIGHTNESS%d=%d", idx, brightnessValues[x]);
+    char buf[255];
+    
+    int x = m_colorDepth;
+    for (auto b : BIT_ORDERS[m_colorDepth]) {
+        int idx = m_colorDepth - b - 1;
+        sprintf(buf, "-DBRIGHTNESS%d=%d", x, brightnessValues[idx]);
+        
         sargs.push_back(buf);
-        sprintf(buf, "-DDELAY%d=%d", idx, delayValues[x]);
+        sprintf(buf, "-DDELAY%d=%d", x, delayValues[idx]);
         sargs.push_back(buf);
+        x--;
     }
 }
 
@@ -917,35 +921,31 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     m_handler->mapCol(y, xOut);
                     
                     int xOff = xOut * 4;
-                    int bitOff = 0;
-                    for (int bit = m_colorDepth; bit > 0; ) {
-                        --bit;
+                    
+                    for (auto bit : BIT_ORDERS[m_colorDepth]) {
                         uint16_t mask = 1 << bit;
-                        
-                        if (!m_outputByRow) {
-                            bitOff = BIT_ORDERS[m_colorDepth][bit] * rowLen * m_panelScan;
-                        }
-                        
                         if (r1 & mask) {
-                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[0].r_gpio] |= m_pinInfo[output].row[0].r_pin;
+                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].r_gpio] |= m_pinInfo[output].row[0].r_pin;
                         }
                         if (g1 & mask) {
-                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[0].g_gpio] |= m_pinInfo[output].row[0].g_pin;
+                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].g_gpio] |= m_pinInfo[output].row[0].g_pin;
                         }
                         if (b1 & mask) {
-                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[0].b_gpio] |= m_pinInfo[output].row[0].b_pin;
+                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].b_gpio] |= m_pinInfo[output].row[0].b_pin;
                         }
                         if (r2 & mask) {
-                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[1].r_gpio] |= m_pinInfo[output].row[1].r_pin;
+                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].r_gpio] |= m_pinInfo[output].row[1].r_pin;
                         }
                         if (g2 & mask) {
-                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[1].g_gpio] |= m_pinInfo[output].row[1].g_pin;
+                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].g_gpio] |= m_pinInfo[output].row[1].g_pin;
                         }
                         if (b2 & mask) {
-                            m_gpioFrame[offset + xOff + bitOff + m_pinInfo[output].row[1].b_gpio] |= m_pinInfo[output].row[1].b_pin;
+                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].b_gpio] |= m_pinInfo[output].row[1].b_pin;
                         }
                         if (m_outputByRow) {
                             xOff += rowLen;
+                        } else {
+                            xOff += rowLen * m_panelScan;
                         }
                     }
                 }
