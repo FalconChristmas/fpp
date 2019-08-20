@@ -155,21 +155,28 @@ if [ ${HASSOUND} -eq 1 ]; then
         setSetting AudioCard0Type "unknown"
     fi
 
-    MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
-    echo "Mixer device: ${MIXERDEVICE}"
-    if [ "x${MIXERDEVICE}" == "x" ]; then 
+    MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+    if [ "x${MIXERDEVICES}" == "x" ]; then 
         # for some sound cards, the mixer devices won't show up
         # until something is played.  Play one second of silence
         aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &
         sleep 0.2
-        MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
-        echo "Mixer device: ${MIXERDEVICE}"
+        MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
     fi
 
+    MIXERDEVICES=$(amixer -c $CARDID scontrols | cut -f2 -d"'")
     MIXERDEVICE=$(getSetting AudioMixerDevice)
     if [ -z ${MIXERDEVICE} ]
     then
         MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+        setSetting AudioMixerDevice $MIXERDEVICE
+    else
+        MD=$(echo $MIXERDEVICES | xargs -n1 echo | grep $MIXERDEVICE)
+        if [ "$MD" != "$MIXERDEVICE" ]; then
+            echo "Did not find mixer device $MIXERDEVICE, resetting to default"
+            MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+            setSetting AudioMixerDevice $MIXERDEVICE
+	fi
     fi
 
     amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
