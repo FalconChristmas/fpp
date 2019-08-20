@@ -299,6 +299,8 @@ int FBMatrixOutput::Close(void)
 
 
 void FBMatrixOutput::PrepData(unsigned char *channelData) {
+    channelData += m_startChannel;
+
 
 	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
 		channelData);
