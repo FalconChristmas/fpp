@@ -1036,6 +1036,8 @@ a2enmod cgi
 a2enmod rewrite
 a2enmod proxy
 a2enmod proxy_http
+a2enmod proxy_html
+a2enmod headers
 
 
 # Fix name of Apache default error log so it gets rotated by our logrotate config
