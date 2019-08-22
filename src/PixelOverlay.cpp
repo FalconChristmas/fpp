@@ -40,6 +40,10 @@
 #include <string>
 #include <chrono>
 
+#include <dirent.h>
+#include <dlfcn.h>
+#include <sys/stat.h>
+
 #include <boost/algorithm/string/replace.hpp>
 #include <jsoncpp/json/json.h>
 
@@ -365,9 +369,7 @@ void PixelOverlayModel::toJson(Json::Value &result) {
 }
 
 
-
 PixelOverlayManager::PixelOverlayManager() {
-    
 }
 PixelOverlayManager::~PixelOverlayManager() {
     for (auto a : models) {
@@ -877,6 +879,57 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
 }
 
 
+
+
+static bool isTTF(const std::string &mainStr)
+{
+    return (mainStr.size() >= 4) && (mainStr.compare(mainStr.size() - 4, 4, ".ttf") == 0);
+}
+static void findFonts(const std::string &dir, std::map<std::string, std::string> &fonts) {
+    DIR *dp;
+    struct dirent *ep;
+    
+    dp = opendir(dir.c_str());
+    if (dp != NULL) {
+        while (ep = readdir(dp)) {
+            int location = strstr(ep->d_name, ".") - ep->d_name;
+            // We're one of ".", "..", or hidden, so let's skip
+            if (location == 0) {
+                continue;
+            }
+            
+            struct stat statbuf;
+            std::string dname = dir;
+            dname += ep->d_name;
+            lstat(dname.c_str(), &statbuf);
+            if (S_ISLNK(statbuf.st_mode)) {
+                //symlink, skip
+                continue;
+            } else if (S_ISDIR(statbuf.st_mode)) {
+                findFonts(dname + "/", fonts);
+            } else if (isTTF(ep->d_name)) {
+                std::string fname = ep->d_name;
+                fname.resize(fname.size() - 4);
+                fonts[fname] = dname;
+            }
+        }
+    }
+}
+
+void PixelOverlayManager::loadFonts() {
+    if (!fontsLoaded) {
+        long unsigned int i = 0;
+        char **mlfonts = MagickLib::GetTypeList("*", &i);
+        for (int x = 0; x < i; x++) {
+            fonts[mlfonts[x]] = "";
+        }
+        findFonts("/usr/share/fonts/truetype/", fonts);
+        findFonts("/usr/local/share/fonts/", fonts);
+        free(mlfonts);
+        fontsLoaded = true;
+    }
+}
+
 const httpserver::http_response PixelOverlayManager::render_GET(const httpserver::http_request &req) {
     std::string p1 = req.get_path_pieces()[0];
     int plen = req.get_path_pieces().size();
@@ -915,14 +968,10 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
         std::string p4 = req.get_path_pieces().size() > 3 ? req.get_path_pieces()[3] : "";
         Json::Value result;
         if (p2 == "fonts") {
-            long unsigned int i = 0;
-            char **fonts = MagickLib::GetTypeList("*", &i);
-            //char **fonts = MagickQueryFonts("*", &i);
-            for (int x = 0; x < i; x++) {
-                result.append(fonts[x]);
+            loadFonts();
+            for (auto & a : fonts) {
+                result.append(a.first);
             }
-            free(fonts);
-            
         } else if (p2 == "models") {
             std::unique_lock<std::mutex> lock(modelsLock);
             for (auto & m : models) {
@@ -1043,6 +1092,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                         }
                     }
                 } else if (p4 == "text") {
+                    loadFonts();
                     Json::Value root;
                     Json::Reader reader;
                     if (reader.parse(req.get_content(), root)) {
@@ -1060,11 +1110,17 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                             int fontSize = root["FontSize"].asInt();
                             bool aa = root["AntiAlias"].asBool();
                             int pps = root["PixelsPerSecond"].asInt();
+                            
+                            std::string f = fonts[font];
+                            if (f == "") {
+                                f = font;
+                            }
+                            
                             m->doText(msg,
                                       (x >> 16) & 0xFF,
                                       (x >> 8) & 0xFF,
                                       x & 0xFF,
-                                      font,
+                                      f,
                                       fontSize,
                                       aa,
                                       position,

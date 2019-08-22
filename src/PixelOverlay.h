@@ -160,12 +160,16 @@ private:
     void ConvertCMMFileToJSON();
     
     std::map<std::string, PixelOverlayModel*> models;
+    std::map<std::string, std::string> fonts;
+    bool fontsLoaded = false;
     std::mutex   modelsLock;
     char         *ctrlMap = nullptr;
     char         *chanDataMap = nullptr;
     uint32_t     *pixelMap = nullptr;
     
     FPPChannelMemoryMapControlHeader *ctrlHeader = nullptr;
+    
+    void loadFonts();
 };
 
 

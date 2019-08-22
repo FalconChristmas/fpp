@@ -89,7 +89,7 @@ function PrintGitBranchOptions()
 	global $git_branch;
 
   $branches = Array();
-  exec("git fetch --all && git remote prune origin");
+  exec("git fetch -p --all && git remote prune origin");
   exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch -a | grep -v -- '->' | sed -e 's/remotes\/origin\///' -e 's/\\* *//' -e 's/ *//' | sort -u", $branches);
   foreach($branches as $branch)
   {
