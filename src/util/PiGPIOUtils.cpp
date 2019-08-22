@@ -16,6 +16,7 @@ PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string &n, uint32_t kg)
 int PiGPIOPinCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
     gpioSetMode(kernelGpio, directionOut ? PI_OUTPUT : PI_INPUT);
+    
     if (mode == "gpio_pu") {
         gpioSetPullUpDown(kernelGpio, PI_PUD_UP);
     } else if (mode == "gpio_pd") {
@@ -34,6 +35,7 @@ void PiGPIOPinCapabilities::setValue(bool i) const {
 }
 
 bool PiGPIOPinCapabilities::setupPWM(int maxValueNS) const {
+    gpioSetMode(kernelGpio, PI_OUTPUT);
     gpioSetPWMfrequency(kernelGpio, 800);
     gpioSetPWMrange(kernelGpio, maxValueNS/10);
     gpioPWM(kernelGpio, 0);
@@ -47,8 +49,10 @@ static std::vector<PiGPIOPinCapabilities> PI_PINS;
 
 
 void PiGPIOPinCapabilities::Init() {
+    unlink(PI_LOCKFILE);
     gpioCfgInterfaces(PI_DISABLE_FIFO_IF | PI_DISABLE_SOCK_IF);
     gpioInitialise();
+    unlink(PI_LOCKFILE);
     PI_PINS.push_back(PiGPIOPinCapabilities("P1-3", 2).setI2C(1));
     PI_PINS.push_back(PiGPIOPinCapabilities("P1-5", 3).setI2C(1));
     PI_PINS.push_back(PiGPIOPinCapabilities("P1-7", 4));
