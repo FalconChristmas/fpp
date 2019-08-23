@@ -169,6 +169,7 @@ function list_plugin_entries($menu)
       </li>
       <li><a>Help</a>
         <ul>
+          <li><a href="https://docs.google.com/viewer?url=https://github.com/FalconChristmas/fpp-manual/raw/a4b2425bc6de29b71b0c353675ac4ac9c53afc9f/FPP_Manual(2.0).pdf" target="_blank">FPP Manual</a></li>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="help.php">Help Index</a></li>
           <li><a href="cliHelp.php">fpp &amp; fppmm Usage</a></li>
