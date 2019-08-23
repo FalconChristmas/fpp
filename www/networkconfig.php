@@ -556,12 +556,14 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
             </tr>
             </table>
                 <br>
-                <b>Warning:</b> Turning on tethering may make FPP unavailable. Many WIFI adapters do not support
-                simultaneous tethering and client modes. Having multiple WIFI adapters will work, but it's relatively
-                unpredictable as to which WIFI adapter CONNMAN will bring tethering up on. Also, enabling tethering
-                disables the automatic IP assignment on the USB0/1 interfaces on the BeagleBones and thus connecting to
-                the BeagleBone via a USB cable will require you to manually set the IP address to 192.168.6.2
-                (OSX/Linux) or 192.168.7.2 (Windows).
+                <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
+        tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
+        192.168.8.1.
+<p>
+<? if ($settings['Platform'] == "BeagleBone Black") { ?>
+    On BeagleBones, USB tethering is always available.  The IP address for USB tethering would be 192.168.6.2
+        (OSX/Linux) or 192.168.7.2 (Windows).
+<? } ?>
             </fieldset>
             <br>
 
