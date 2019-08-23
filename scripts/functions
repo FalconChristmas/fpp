@@ -168,25 +168,12 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
     TetherEnabled=$(getSetting EnableTethering)
+    sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
     if [ "$TetherEnabled" != "1" ]; then
         # make sure tethering is off
-        sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
-        if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-            check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
-            if [ "x${check_dnsmasq}" = "xdisabled" ] ; then
-                systemctl enable dnsmasq &
-            fi
-        fi
-    elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-        check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
-        if [ "x${check_dnsmasq}" = "xenabled" ] ; then
-            systemctl disable dnsmasq &
-        fi
+        rm -f /etc/dnsmasq.d/fpp-tether
+        systemctl disable hostapd
     fi
-
-    #ifconfig -a > /var/tmp/conm.txt
-    #ls -l /sys/class/net/ >>  /var/tmp/conm.txt
-    # connmanctl services > /var/tmp/services.txt
 }
 
 
@@ -576,16 +563,7 @@ MaybeEnableTethering() {
     TetherEnabled=$(getSetting EnableTethering)
 
     if [ "x${TetherEnabled}" == "x" ]; then
-        if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-            # many USB wifi adapters on the BBB don't support AP mode
-            # it also disables the reliable USB connection
-            # thus, on the BBB, make the default to not have Tether mode
-            # and make the user specifically have to enable it
-            setSetting EnableTethering 2
-            TetherEnabled=2
-        else
-            TetherEnabled=0
-        fi
+        TetherEnabled=0
     fi
 
     if [ "$TetherEnabled" == "0" ]; then
@@ -599,18 +577,53 @@ MaybeEnableTethering() {
             fi
         fi
     fi
-    if [ ! -e /sys/class/net/wlan0 ]; then
+    TetherInterface=$(getSetting TetherInterface)
+    if [ "x${TetherInterface}" == "x" ]; then
+        TetherInterface="wlan0";
+    fi
+    if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
+        # no wifi adapter, try wlan0
+        TetherInterface="wlan0";
+    fi
+    if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
         # no wifi adapter, no point enabling tethering
         TetherEnabled=2
-    fi 
+    fi
     if [ "$TetherEnabled" == "1" ]; then
         TetherSSID=$(getSetting TetherSSID)
         TetherPSK=$(getSetting TetherPSK)
-        if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-            systemctl disable dnsmasq
-            systemctl stop dnsmasq
-        fi
-        connmanctl tether wifi on "${TetherSSID:=FPP}" "${TetherPSK:=Christmas}"
+
+        systemctl stop dnsmasq
+
+cat > /etc/dnsmasq.d/fpp-tether <<-EOF
+interface=${TetherInterface}
+dhcp-range=${TetherInterface},192.168.8.2,192.168.8.20,255.255.255.0,24h
+listen-address=192.168.8.1
+dhcp-option=${TetherInterface},3
+dhcp-option=${TetherInterface},6
+EOF
+
+cat > /etc/hostapd/hostapd.conf <<-EOF
+interface=${TetherInterface}
+driver=nl80211
+wpa_passphrase=${TetherPSK}
+ssid=${TetherSSID}
+hw_mode=g
+channel=7
+wmm_enabled=0
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=2
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=TKIP
+rsn_pairwise=CCMP
+EOF
+
+    /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
+    systemctl start dnsmasq
+    systemctl start hostapd
+
     fi
 }
 
