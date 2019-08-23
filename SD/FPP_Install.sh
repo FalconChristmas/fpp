@@ -782,7 +782,7 @@ git checkout ${FPPBRANCH}
 
 #######################################
 # Upgrade the config if needed
-sh scripts/upgrade_config
+sh scripts/upgrade_config -notee
 
 #######################################
 echo "FPP - Installing PHP composer"
