@@ -169,10 +169,17 @@ SetupFPPNetworkConfigViaConnMann() {
     fi
     TetherEnabled=$(getSetting EnableTethering)
     sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
+    if [ -f "/etc/default/bb-wl18xx" ]; then
+        sed -i -e "s/TETHER_ENABLED=.*/TETHER_ENABLED=no/g" /etc/default/bb-wl18xx
+    fi
+
     if [ "$TetherEnabled" != "1" ]; then
         # make sure tethering is off
         rm -f /etc/dnsmasq.d/fpp-tether
-        systemctl disable hostapd
+        ISENABLED=$(systemctl is-enabled hostapd)
+        if [ "$ISENABLED" == "enabled" ]; then
+            systemctl disable hostapd
+        fi
     fi
 }
 

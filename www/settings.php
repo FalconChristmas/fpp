@@ -399,13 +399,6 @@ function ToggleLCDNow()
 		+ enabled).fail(function() { alert("Failed to enable LCD!") });
 }
 
-function ToggleTetherMode()
-{
-    var enabled = $('#BBB_Tethering').is(":checked");
-    $.get("fppxml.php?command=setBBBTether&enabled="
-          + enabled).fail(function() { alert("Failed to disable Tethering!") });
-}
-
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>
@@ -419,18 +412,7 @@ function ToggleTetherMode()
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
 <?php
-    if ($settings['Platform'] == "BeagleBone Black")
-    {
-        exec('cat /proc/device-tree/model', $output, $return_val);
-        if (in_array('Wireless', $output) || strpos($output[0], 'Wireless') !== false ) {
-?>
-    <tr>
-        <td width = "45%">BBB Tethering:</td>
-        <td width = "55%"><? PrintSettingCheckbox("BBB Tethering", "BBB_Tethering", 0, 1, "1", "0", "", "ToggleTetherMode"); ?></td>
-    </tr>
-<?php
-        }
-    } else {
+    if ($settings['Platform'] == "Raspberry Pi") {
 ?>
     <tr>
       <td width = "45%">Blank screen on startup:</td>

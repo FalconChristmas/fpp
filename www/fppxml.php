@@ -94,7 +94,6 @@ $command_array = Array(
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled',
-    "setBBBTether" => 'SetBBBTether',
 	"setupExtGPIO" => 'SetupExtGPIO',
 	"extGPIO" => 'ExtGPIO'
 );
@@ -300,25 +299,6 @@ function SetVolume()
 	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
 
 	EchoStatusXML($status);
-}
-
-function SetBBBTether()
-{
-    global $SUDO;
-    
-    $enabled = $_GET['enabled'];
-    check($enabled, "enabled", __FUNCTION__);
-    
-    if ($enabled == "true")
-    {
-        $status = exec($SUDO . " sed -i -e \"s/TETHER_ENABLED=.*/TETHER_ENABLED=yes/\" /etc/default/bb-wl18xx");
-    }
-    else
-    {
-        $status = exec($SUDO . " sed -i -e \"s/TETHER_ENABLED=.*/TETHER_ENABLED=no/\" /etc/default/bb-wl18xx");
-    }
-    
-    EchoStatusXML($status);
 }
 
 function SetPiLCDenabled()
