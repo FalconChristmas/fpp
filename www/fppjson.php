@@ -226,7 +226,8 @@ function SetSetting()
                 $psk = "Christmas";
                 WriteSettingToFile("TetherPSK", $psk);
             }
-        }
+	}
+    }
     } else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
