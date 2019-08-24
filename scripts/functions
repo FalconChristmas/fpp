@@ -63,6 +63,22 @@ netcalc(){
 	echo "${ip[*]}"
 }
 
+AttemptCreateSoftAP() {
+    TetherInterface=$(getSetting TetherInterface)
+    if [ "x${TetherInterface}" == "x" ]; then
+        TetherInterface="wlan0";
+    fi
+    if [ -e "/sys/class/net/$TetherInterface" ]; then
+        /sbin/iwconfig $TetherInterface power off || true
+    fi
+    TetherInterfaceNum=$(echo $TetherInterface | colrm 1 4)
+    if [ ! -e "/sys/class/net/SoftAp0" ]; then
+        if [ -e "/sys/class/net/$TetherInterface" ]; then
+            iw phy "phy${TetherInterfaceNum}" interface add "SoftAp0" type __ap
+        fi
+    fi
+}
+
 
 SetupFPPNetworkConfigViaConnMann() {
 
@@ -172,7 +188,7 @@ SetupFPPNetworkConfigViaConnMann() {
     if [ -f "/etc/default/bb-wl18xx" ]; then
         sed -i -e "s/TETHER_ENABLED=.*/TETHER_ENABLED=no/g" /etc/default/bb-wl18xx
     fi
-
+    AttemptCreateSoftAP
     if [ "$TetherEnabled" != "1" ]; then
         # make sure tethering is off
         rm -f /etc/dnsmasq.d/fpp-tether
@@ -597,6 +613,11 @@ MaybeEnableTethering() {
         TetherEnabled=2
     fi
     if [ "$TetherEnabled" == "1" ]; then
+        AttemptCreateSoftAP
+        if [ -e "/sys/class/net/SoftAp0" ]; then
+            TetherInterface="SoftAp0"
+        fi
+
         TetherSSID=$(getSetting TetherSSID)
         TetherPSK=$(getSetting TetherPSK)
 
@@ -612,15 +633,14 @@ EOF
 
 cat > /etc/hostapd/hostapd.conf <<-EOF
 interface=${TetherInterface}
-driver=nl80211
+# driver=nl80211
 wpa_passphrase=${TetherPSK}
 ssid=${TetherSSID}
 hw_mode=g
-channel=7
+channel=11
 wmm_enabled=0
 macaddr_acl=0
 auth_algs=1
-ignore_broadcast_ssid=0
 wpa=2
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
@@ -628,6 +648,12 @@ rsn_pairwise=CCMP
 EOF
 
     /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
+
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
+    iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
+
     systemctl start dnsmasq
     systemctl start hostapd
 
