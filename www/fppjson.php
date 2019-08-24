@@ -215,20 +215,17 @@ function SetSetting()
             exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
         }
     } else if ($setting == "EnableTethering") {
-        if ($value == "1") {
-            $ssid = ReadSettingFromFile("TetherSSID");
-            $psk = ReadSettingFromFile("TetherPSK");
-            if ($ssid == "") {
-                $ssid = "FPP";
-                WriteSettingToFile("TetherSSID", $ssid);
-            }
-            if ($psk == "") {
-                $psk = "Christmas";
-                WriteSettingToFile("TetherPSK", $psk);
-            }
-	}
-    }
-    } else if ($setting == "ForceHDMI") {
+        $ssid = ReadSettingFromFile("TetherSSID");
+        $psk = ReadSettingFromFile("TetherPSK");
+        if ($ssid == "") {
+            $ssid = "FPP";
+            WriteSettingToFile("TetherSSID", $ssid);
+        }
+        if ($psk == "") {
+            $psk = "Christmas";
+            WriteSettingToFile("TetherPSK", $psk);
+        }
+    } else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
 			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
