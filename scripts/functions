@@ -903,7 +903,7 @@ detectPiFace() {
 #############################################################################
 # Detect Falcon hardware on SPI port
 detectFalconHardware() {
-	${FPPD} -H > /dev/null 2>&1
+	${FPPD} -H
 	FHWFOUND=$?
 
 	grep -q FalconHardwareDetected ${CFGFILE}
