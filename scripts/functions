@@ -620,6 +620,12 @@ MaybeEnableTethering() {
 
         TetherSSID=$(getSetting TetherSSID)
         TetherPSK=$(getSetting TetherPSK)
+        if [ "${TetherSSID}x" == "x" ]; then
+            TetherSSID="FPP"
+        fi
+        if [ "${TetherPSK}x" == "x" ]; then
+            TetherPSK="Christmas"
+        fi
 
         systemctl stop dnsmasq
 
@@ -654,6 +660,7 @@ EOF
     iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
     iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
 
+    systemctl unmask hostapd
     systemctl start dnsmasq
     systemctl start hostapd
 
