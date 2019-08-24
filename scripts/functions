@@ -77,6 +77,14 @@ AttemptCreateSoftAP() {
             iw phy "phy${TetherInterfaceNum}" interface add "SoftAp0" type __ap
         fi
     fi
+
+    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+	modprobe g_ether iManufacturer="FPP-Tether" iProduct="FPP-Tether"
+	ls /sys/class/net/
+	if [ -e "/sys/class/net/usb0" ]; then
+            ifconfig usb0 192.168.7.2 netmask 255.255.255.0
+	fi
+    fi
 }
 
 
@@ -889,15 +897,9 @@ stopWebSocketServer() {
 detectPiFace() {
 	ls -1 /dev/spidev*
 	${FPPD} --detect-piface
-    PIFACEFOUND=$?
+        PIFACEFOUND=$?
 
-	grep -q PiFaceDetected ${CFGFILE}
-	if [ $? -eq 0 ]
-	then
-		sed -i "s/^PiFaceDetected =.*/PiFaceDetected = ${PIFACEFOUND}/" ${CFGFILE}
-	else
-		echo "PiFaceDetected = ${PIFACEFOUND}" >> ${CFGFILE}
-	fi
+        setSetting PiFaceDetected ${PIFACEFOUND}
 }
 
 #############################################################################
@@ -906,13 +908,8 @@ detectFalconHardware() {
 	${FPPD} -H
 	FHWFOUND=$?
 
-	grep -q FalconHardwareDetected ${CFGFILE}
-	if [ $? -eq 0 ]
-	then
-		sed -i "s/^FalconHardwareDetected =.*/FalconHardwareDetected = ${FHWFOUND}/" ${CFGFILE}
-	else
-		echo "FalconHardwareDetected = ${FHWFOUND}" >> ${CFGFILE}
-	fi
+	echo "Result: ${FHWFOUND}"
+        setSetting FalconHardwareDetected ${FHWFOUND}
 }
 
 #############################################################################

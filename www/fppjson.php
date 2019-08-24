@@ -226,13 +226,8 @@ function SetSetting()
                 $psk = "Christmas";
                 WriteSettingToFile("TetherPSK", $psk);
             }
-            exec(   $SUDO . " systemctl disable dnsmasq", $output, $return_val );
-            exec(   $SUDO . " connmanctl tether wifi on $ssid $psk", $output, $return_val );
-        } else {
-            exec(   $SUDO . " connmanctl tether wifi off", $output, $return_val );
-            exec(   $SUDO . " systemctl enable dnsmasq", $output, $return_val );
         }
-	} else if ($setting == "ForceHDMI") {
+    } else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
 			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
