@@ -22,7 +22,7 @@ if (isSet($settings['cape-info'])) {
 }
 if (!isset($currentCapeInfo['provides'])) {
     $currentCapeInfo['provides'][] = "all";
-    if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1)) {
+    if (isset($settings['FalconHardwareDetected']) && ($settings['FalconHardwareDetected'] == 1)) {
         $currentCapeInfo['provides'][] = "fpd";
     }
 } else if ($settings["showAllOptions"] == 1) {
