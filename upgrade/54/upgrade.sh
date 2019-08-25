@@ -10,7 +10,7 @@ if ! grep -q NetworkInterfaceBlacklist "/etc/connman/main.conf"; then
     echo "NetworkInterfaceBlacklist=SoftAp0,usb0,usb1" >> /etc/connman/main.conf
 fi
 
-cp /opt/fpp/etc/systemdfppd.service /lib/systemd/system
+cp /opt/fpp/etc/systemd/fppd.service /lib/systemd/system
 systemctl daemon-reload
 systemctl reenable fppd
 
