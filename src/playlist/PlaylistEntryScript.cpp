@@ -98,6 +98,7 @@ int PlaylistEntryScript::StartPlaying(void)
     if (!m_blocking) {
         m_scriptProcess = 0;
         FinishPlay();
+        return 0;
     }
 
 	return PlaylistEntryBase::StartPlaying();
@@ -108,7 +109,6 @@ int PlaylistEntryScript::Process(void)
         m_scriptProcess = 0;
         FinishPlay();
     }
-
     return PlaylistEntryBase::Process();
 }
 /*
