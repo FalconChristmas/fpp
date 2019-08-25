@@ -531,10 +531,10 @@ WaitForDHCPIPs() {
 WaitForInterfacesUp() {
     IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
     if [ -z "$IPS" ]; then
-        # Loop up to 4 times, so max wait time is 4 * 2
-        for i in {1..4}
+        # Loop up to 12 times, so max wait time is 12
+        for i in {1..12}
         do
-            sleep 2
+            sleep 1
             IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
             #echo "y:  $IPS" >> /tmp/ips.txt
             if [ -z "$IPS" ]
