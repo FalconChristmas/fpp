@@ -25,7 +25,7 @@ if (!isset($currentCapeInfo['provides'])) {
     if (isset($settings['FalconHardwareDetected']) && ($settings['FalconHardwareDetected'] == 1)) {
         $currentCapeInfo['provides'][] = "fpd";
     }
-} else if ($settings["showAllOptions"] == 1) {
+} else if (isset($settings["showAllOptions"]) && $settings["showAllOptions"] == 1) {
     $currentCapeInfo['provides'][] = "all";
     $currentCapeInfo['provides'][] = "fpd";
 }
