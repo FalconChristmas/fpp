@@ -79,6 +79,7 @@ static std::map<int, std::vector<int>> BIT_ORDERS =
     {6, {5, 2, 1, 4, 3, 0}},
     {7, {6, 2, 1, 4, 5, 3, 0}},
     {8, {7, 3, 5, 1, 2, 6, 4, 0}},
+    //{8, {7, 6, 5, 4, 3, 2, 1, 0}},
     {9, {8, 3, 5, 1, 7, 2, 6, 4, 0}},
     {10, {9, 4, 1, 6, 3, 8, 2, 7, 5, 0}},
     {11, {10, 4, 7, 2, 3, 1, 6, 9, 8, 5, 0}},
@@ -887,7 +888,6 @@ void BBBMatrix::PrepData(unsigned char *channelData)
     size_t fullRowLen = rowLen * m_colorDepth;
     memset(m_gpioFrame, 0, sizeof(uint32_t) * fullRowLen * m_panelScan);
 
-    
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
         
@@ -903,9 +903,9 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                 int yOut = y;
                 m_handler->mapRow(yOut);
                 
-                int offset = yOut * fullRowLen + (m_longestChain - chain - 1) * 4 * m_panelWidth;
+                int offset = yOut * fullRowLen + (m_longestChain - chain - 1) * 4 * m_panelWidth * m_panelHeight / m_panelScan / 2;
                 if (!m_outputByRow) {
-                    offset = yOut * rowLen + (m_longestChain - chain - 1) * 4 * m_panelWidth;
+                    offset = yOut * rowLen + (m_longestChain - chain - 1) * 4 * m_panelWidth * m_panelHeight / m_panelScan / 2;
                 }
                 
                 for (int x = 0; x < m_panelWidth; ++x) {
@@ -923,6 +923,7 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     int xOff = xOut * 4;
                     
                     for (auto bit : BIT_ORDERS[m_colorDepth]) {
+
                         uint16_t mask = 1 << bit;
                         if (r1 & mask) {
                             m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].r_gpio] |= m_pinInfo[output].row[0].r_pin;
