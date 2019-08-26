@@ -70,12 +70,15 @@ NEW_ROW_LOOP:
         DISPLAY_ALREADY_OFF:
 #endif
 
-        //QBNE NO_SET_ROW, bright, BITS //maxBitsToOutput
+        QBNE NO_SET_ROW, bright, BITS //maxBitsToOutput
             OUTPUT_ROW_ADDRESS
-        //NO_SET_ROW:
+            READ_TO_FLUSH
+            READ_TO_FLUSH
+        NO_SET_ROW:
 
 	    // Full data has been clocked out; latch it
 	    LATCH_HI
+        READ_TO_FLUSH
 
 
         // determine on time (tmp_reg1) and delay time (tmp_reg2)
