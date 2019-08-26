@@ -51,9 +51,13 @@ ROW_LOOP:
 #endif
 
         OUTPUT_ROW_ADDRESS
+        READ_TO_FLUSH
+        //some panels are really slow and need an extra delay to propogate
+        READ_TO_FLUSH
 
 	    // Full data has been clocked out; latch it
 	    LATCH_HI
+        READ_TO_FLUSH
 
         // determine on time (tmp_reg1) and delay time (tmp_reg2)
         GET_ON_DELAY_TIMES bright
