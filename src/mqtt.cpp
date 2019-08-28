@@ -190,7 +190,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 		return 0;
 	}
 
-        LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
+    LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
 	return 1;
 }
 
@@ -254,6 +254,17 @@ void MosquittoClient::LogCallback(void *userdata, int level, const char *str)
 	}
 }
 
+void MosquittoClient::AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback) {
+    callbacks[topic] = callback;
+    
+    std::string tp = m_baseTopic + topic;
+    int rc = mosquitto_subscribe(m_mosq, NULL, tp.c_str(), 0);
+    if (rc != MOSQ_ERR_SUCCESS) {
+        LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", tp.c_str(), rc);
+    }
+}
+
+
 /*
  *
  */
@@ -275,9 +286,18 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 
 	// If not our base, then return.
 	// Would only happen if subscribe is wrong
-        if (topic.find(m_baseTopic) != 0) {
+    if (topic.find(m_baseTopic) != 0) {
 		return;
 	}
+    
+    for (auto &a : callbacks) {
+        std::string s = m_baseTopic + a.first;
+        mosquitto_topic_matches_sub(s.c_str(), message->topic, &match);
+        if (match) {
+            a.second(topic, payload);
+            return;
+        }
+    }
 
 	// Normal Playlist
 	mosquitto_topic_matches_sub(m_topicPlaylist.c_str(), message->topic, &match);

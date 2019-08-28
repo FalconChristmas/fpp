@@ -243,7 +243,7 @@ void PluginManager::init()
                         }
                         void *handle = dlopen(shlibName.c_str(), RTLD_NOW);
                         if (handle == nullptr) {
-                            LogErr(VB_PLUGIN, "Failed to load plugin shlib %s\n", shlibName.c_str());
+                            LogErr(VB_PLUGIN, "Failed to load plugin shlib %s: %s\n", shlibName.c_str(), dlerror());
                             continue;
                         }
                         FPPPlugin* (*fptr)();
@@ -311,6 +311,13 @@ void PluginManager::modifyChannelData(int ms, uint8_t *seqData) {
 void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks) {
     for (auto a : mPlugins) {
         a->addControlCallbacks(callbacks);
+    }
+}
+void PluginManager::multiSyncData(const std::string &pn, uint8_t *data, int len) {
+    for (auto a : mPlugins) {
+        if (a->getName() == pn) {
+            a->multiSyncData(data, len);
+        }
     }
 }
 

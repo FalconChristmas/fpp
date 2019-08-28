@@ -24,9 +24,11 @@ public:
     virtual void registerApis(httpserver::webserver *m_ws) {}
     virtual void unregisterApis(httpserver::webserver *m_ws) {}
     virtual void modifyChannelData(int ms, uint8_t *seqData) {}
-
     
     virtual void addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks) {}
+    
+    virtual void multiSyncData(const uint8_t *data, int len) {}
+    const std::string & getName() const { return name; }
 protected:
     std::string name;
 };

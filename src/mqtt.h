@@ -28,6 +28,8 @@
 
 #include <pthread.h>
 #include <string>
+#include <map>
+#include <functional>
 
 #include "mosquitto.h"
 
@@ -46,8 +48,10 @@ class MosquittoClient {
 
 	void LogCallback(void *userdata, int level, const char *str);
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
+    
+    void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
 
-	void PublishStatus(); 
+	void PublishStatus();
 
   private:
 	std::string m_host;
@@ -65,6 +69,8 @@ class MosquittoClient {
 	std::string m_topicPlaylist;
 	std::string m_topicPlaylistOld;
 
+    
+    std::map<std::string, std::function<void(const std::string &topic, const std::string &payload)>> callbacks;
 };
 
 extern MosquittoClient *mqtt;

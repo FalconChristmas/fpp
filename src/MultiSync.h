@@ -44,6 +44,7 @@
 #define CTRL_PKT_EVENT  2
 #define CTRL_PKT_BLANK  3
 #define CTRL_PKT_PING   4
+#define CTRL_PKT_PLUGIN 5
 
 typedef struct __attribute__((packed)) {
 	char     fppd[4];        // 'FPPD'
@@ -144,6 +145,8 @@ class MultiSyncPlugin {
     
     virtual void SendEventPacket(const std::string &eventID) {}
     virtual void SendBlankingDataPacket(void) {}
+    
+    virtual void SendPluginData(const std::string &name, const uint8_t *data, int len) {}
 };
 
 
@@ -188,7 +191,8 @@ class MultiSync {
 	void SendEventPacket(const std::string &eventID);
 	void SendBlankingDataPacket(void);
 
-    
+    void SendPluginData(const std::string &name, const uint8_t *data, int len);
+
     void addMultiSyncPlugin(MultiSyncPlugin *p) {
         m_plugins.push_back(p);
     }
@@ -232,6 +236,7 @@ class MultiSync {
 	void ProcessCommandPacket(ControlPkt *pkt, int len);
 	void ProcessEventPacket(ControlPkt *pkt, int len);
 	void ProcessPingPacket(ControlPkt *pkt, int len);
+    void ProcessPluginPacket(ControlPkt *pkt, int len);
 
 	pthread_mutex_t              m_systemsLock;
 	std::vector<MultiSyncSystem> m_systems;

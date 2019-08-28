@@ -22,13 +22,20 @@ $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
 GCCVERSIONGTEQ4:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 8)
 
+ifeq '$(SRCDIR)' '' 
+    SRCDIR=/opt/fpp/src
+endif
+
 # Common CFLAGS
 ifeq "$(GCCVERSIONGTEQ4)" "1"
-CFLAGS=-O3 -Wno-psabi
+OPTIMIZE_FLAGS=-O3 -Wno-psabi
+debug: OPTIMIZE_FLAGS=-g -Wno-psabi
 else
-CFLAGS=-O1
+OPTIMIZE_FLAGS=-O1
+debug: OPTIMIZE_FLAGS=-g
 endif
-CFLAGS+=-pipe \
+
+CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
 	-I $(SRCDIR) \
 	-fpic
 CXXFLAGS += -std=gnu++14

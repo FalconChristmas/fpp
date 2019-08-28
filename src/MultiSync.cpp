@@ -979,6 +979,36 @@ void MultiSync::SendEventPacket(const std::string &eventID)
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(EventPkt));
 }
+void MultiSync::SendPluginData(const std::string &name, const uint8_t *data, int len) {
+    if (name.empty()) {
+        return;
+    }
+    for (auto a : m_plugins) {
+        a->SendPluginData(name, data, len);
+    }
+    
+    LogDebug(VB_SYNC, "SendPluginData('%s')\n", name.c_str());
+    if (m_controlSock < 0) {
+        LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
+        return;
+    }
+    
+    char           outBuf[2048];
+    bzero(outBuf, sizeof(outBuf));
+    
+    ControlPkt    *cpkt = (ControlPkt*)outBuf;
+    CommandPkt *epkt = (CommandPkt*)(outBuf + sizeof(ControlPkt));
+    
+    InitControlPacket(cpkt);
+    int nlen = strlen(name.c_str()) + 1;  //add the null
+    cpkt->pktType        = CTRL_PKT_PLUGIN;
+    cpkt->extraDataLen   = len + nlen;
+    
+    strcpy(epkt->command, name.c_str());
+    memcpy(&epkt->command[nlen], data, len);
+    
+    SendControlPacket(outBuf, sizeof(ControlPkt) + len + nlen);
+}
 
 /*
  *
@@ -1506,22 +1536,27 @@ void MultiSync::ProcessControlPacket(void)
         }
 
         switch (pkt->pktType) {
-            case CTRL_PKT_CMD:	ProcessCommandPacket(pkt, len);
-                                break;
-            case CTRL_PKT_SYNC: if (getFPPmode() == REMOTE_MODE)
-                                    ProcessSyncPacket(pkt, len);
-                                break;
+            case CTRL_PKT_CMD:
+                ProcessCommandPacket(pkt, len);
+                break;
+            case CTRL_PKT_SYNC:
+                if (getFPPmode() == REMOTE_MODE)
+                    ProcessSyncPacket(pkt, len);
+                break;
             case CTRL_PKT_EVENT:
-                                if (getFPPmode() == REMOTE_MODE)
-                                    ProcessEventPacket(pkt, len);
-                                break;
+                if (getFPPmode() == REMOTE_MODE)
+                    ProcessEventPacket(pkt, len);
+                break;
             case CTRL_PKT_BLANK:
-                                if (getFPPmode() == REMOTE_MODE)
-                                    sequence->SendBlankingData();
-                                break;
+                if (getFPPmode() == REMOTE_MODE)
+                    sequence->SendBlankingData();
+                break;
             case CTRL_PKT_PING:
-                                ProcessPingPacket(pkt, len);
-                                break;
+                ProcessPingPacket(pkt, len);
+                break;
+            case CTRL_PKT_PLUGIN:
+                ProcessPluginPacket(pkt, len);
+                break;
         }
     }
 }
@@ -1825,3 +1860,13 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 }
 
 
+void MultiSync::ProcessPluginPacket(ControlPkt *pkt, int plen) {
+    LogDebug(VB_SYNC, "ProcessPluginPacket()\n");
+    CommandPkt *cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
+    int len = pkt->extraDataLen;
+    char *pn = &cpkt->command[0];
+    int nlen = strlen(pn) + 1;
+    len -= nlen;
+    uint8_t *data = (uint8_t*)&cpkt->command[nlen];
+    PluginManager::INSTANCE.multiSyncData(pn, data, len);
+}
