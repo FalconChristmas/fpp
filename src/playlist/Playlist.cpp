@@ -414,6 +414,7 @@ int Playlist::Start(void)
 	if (!m_subPlaylist)
 		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 
+    std::string origCurState = m_currentState;
 	m_currentState = "playing";
 
 	m_startTime = GetTime();
@@ -467,7 +468,11 @@ int Playlist::Start(void)
 		m_sectionPosition = 0;
 	}
     
-    PluginManager::INSTANCE.playlistCallback(GetInfo(), "start", m_currentSectionStr, m_sectionPosition);
+    if (origCurState == "playing") {
+        PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
+    } else {
+        PluginManager::INSTANCE.playlistCallback(GetInfo(), "start", m_currentSectionStr, m_sectionPosition);
+    }
     if (mqtt) {
         mqtt->Publish("status", m_currentState.c_str());
         mqtt->Publish("playlist/section/status", m_currentSectionStr);
@@ -956,15 +961,11 @@ void Playlist::NextItem(void)
         }
     }
     
-    
-    std::string name = m_name;
-    std::string desc = m_desc;
-    int repeat = m_repeat;
-    StopNow();
+    if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+        m_currentSection->at(m_sectionPosition)->Stop();
+
+    m_sectionPosition = 0;
     m_startPosition = pos;
-    m_repeat = repeat;
-    m_desc = desc;
-    m_name = name;
     Start();
 }
 
@@ -990,14 +991,11 @@ void Playlist::PrevItem(void)
         }
     }
 
-    std::string name = m_name;
-    std::string desc = m_desc;
-    int repeat = m_repeat;
-    StopNow();
+    if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+    m_currentSection->at(m_sectionPosition)->Stop();
+    
+    m_sectionPosition = 0;
     m_startPosition = pos;
-    m_repeat = repeat;
-    m_desc = desc;
-    m_name = name;
     Start();
 }
 

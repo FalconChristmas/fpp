@@ -2543,14 +2543,8 @@ function StatusPopulatePlaylists()
 function StartPlaylistNow()
 	{
 		var Playlist =  $("#selStartPlaylist").val();
-    var xmlhttp=new XMLHttpRequest();
+        var xmlhttp=new XMLHttpRequest();
 		var repeat = $("#chkRepeat").is(':checked')?'checked':'unchecked';
-		if ((PlaySectionSelected != '') &&
-			(PlayEntrySelected >= $('#tblPlaylist' + PlaySectionSelected + ' >tr').length))
-		{
-				PlayEntrySelected = 0;
-				PlaySectionSelected = "";
-		}
 		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected + "&section=" + PlaySectionSelected ;
 		xmlhttp.open("GET",url,true);
 		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
