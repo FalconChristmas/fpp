@@ -132,7 +132,7 @@ private:
 };
 
 FPPMainMenu::FPPMainMenu(FPPStatusOLEDPage *p)
-: MenuOLEDPage("Main Menu", {"FPP Mode", "Teathering", "Testing", "Reboot", "Shutdown", "About", "Back"}, p),
+: MenuOLEDPage("Main Menu", {"FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"}, p),
   aboutPage(nullptr), statusPage(p) {
     
 }
@@ -146,9 +146,9 @@ FPPMainMenu::~FPPMainMenu() {
 void FPPMainMenu::displaying() {
     std::string mode = statusPage->getCurrentMode();
     if (mode == "Bridge") {
-        items = {"Bridge Stats", "FPP Mode", "Teathering", "Testing", "Reboot", "Shutdown", "About", "Back"};
+        items = {"Bridge Stats", "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"};
     } else if (mode != "Remote") {
-        items = {"Start Playlist", "FPP Mode", "Teathering", "Testing", "Reboot", "Shutdown", "About", "Back"};
+        items = {"Start Playlist", "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"};
     }
     MenuOLEDPage::displaying();
 }
@@ -196,7 +196,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         }, this);
         pg->autoDelete();
         SetCurrentPage(pg);
-    } else if (item == "Teathering") {
+    } else if (item == "Tethering") {
         FPPStatusOLEDPage *sp = statusPage;
         std::vector<std::string> options = {
             " Automatic",

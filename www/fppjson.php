@@ -1285,7 +1285,7 @@ function GenerateJSONPlaylistEntry($entry)
 
 function GenerateJSONPlaylistSection($section, $list)
 {
-	if (!count($_SESSION[$list]))
+	if (!isset($_SESSION[$list]) || !count($_SESSION[$list]))
 		return "";
 
 	$result = sprintf(',' . "\n" .

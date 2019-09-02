@@ -679,12 +679,23 @@ EOF
 # Functions for compiling and cleaning up compiled binaries
 BINARIES="fppd fpp fppmm"
 cleanCompiledBinaries() {
+    echo "in Clean stage"
+
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
 		cd ${FPPDIR}/src && ${SUDO} make clean
 	else
 		cd ${FPPDIR}/src && sudo -u ${FPPUSER} make clean
 	fi
+
+    for p in ${MEDIADIR}/plugins/*; do
+        if [ -d "$p" ]; then
+            if [ -f "${p}/Makefile" ]; then
+                echo "Cleaning plugin $p"
+                make -C "${p}" -f "${p}/Makefile" clean
+            fi
+        fi
+    done
 }
 
 compileBinaries() {
@@ -701,26 +712,14 @@ compileBinaries() {
 		cd ${FPPDIR}/src && ${SUDO} -u ${FPPUSER} make clean && sudo -u ${FPPUSER} make -j ${CPUS} optimized
 	fi
 
-	if [ "x${FPPBINDIR}" != "x${FPPDIR}/src" ]
-	then
-		# Clean up any installed binaries that are identical to the one in git
-		for FILE in ${BINARIES}
-		do
-			if [ "x${FPPDIR}" = "x/opt/fpp" ]
-			then
-				${SUDO} strip ${FPPDIR}/src/${FILE}
-			else
-				${SUDO} -u ${FPPUSER} strip ${FPPDIR}/src/${FILE}
-			fi
-
-			BINMD5=$(md5sum ${FPPBINDIR}/${FILE} | awk '{print $1}')
-			SRCMD5=$(md5sum ${FPPDIR}/src/${FILE} | awk '{print $1}')
-			if [ "${BINMD5}" = "${SRCMD5}" ]
-			then
-				${SUDO} rm -f ${FPPDIR}/src/${FILE}
-			fi
-		done
-	fi
+    for p in ${MEDIADIR}/plugins/*; do
+        if [ -d "$p" ]; then
+            if [ -f "${p}/Makefile" ]; then
+                echo "Building plugin $p"
+                make -C "${p}" -f "${p}/Makefile" -j ${CPUS}
+            fi
+        fi
+    done
 }
 
 #############################################################################

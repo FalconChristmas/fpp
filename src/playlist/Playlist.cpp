@@ -43,6 +43,7 @@
 #include "fpp.h"
 #include "log.h"
 #include "mqtt.h"
+#include "Plugins.h"
 #include "Playlist.h"
 #include "settings.h"
 
@@ -253,8 +254,9 @@ int Playlist::Load(const char *filename)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
 
-	if (mqtt)
+    if (mqtt) {
 		mqtt->Publish("playlist/name/status", filename);
+    }
 
 	m_filename = getPlaylistDirectory();
 	m_filename += "/";
@@ -464,16 +466,16 @@ int Playlist::Start(void)
 
 		m_sectionPosition = 0;
 	}
-
+    
+    PluginManager::INSTANCE.playlistCallback(GetInfo(), "start", m_currentSectionStr, m_sectionPosition);
+    if (mqtt) {
+        mqtt->Publish("status", m_currentState.c_str());
+        mqtt->Publish("playlist/section/status", m_currentSectionStr);
+        mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
+    }
 
 	m_currentSection->at(m_sectionPosition)->StartPlaying();
 
-	if (mqtt)
-	{
-		mqtt->Publish("status", m_currentState.c_str());
-		mqtt->Publish("playlist/section/status", m_currentSectionStr);
-		mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
-	}
 
 	return 1;
 }
@@ -716,9 +718,9 @@ int Playlist::Process(void)
 			m_currentSection->at(m_sectionPosition)->StartPlaying();
 		}
 
-		if (mqtt)
-		{
-			mqtt->Publish("playlist/section/status", m_currentSectionStr);
+        PluginManager::INSTANCE.playlistCallback(GetInfo(), "playing", m_currentSectionStr, m_sectionPosition);
+		if (mqtt) {
+		 	mqtt->Publish("playlist/section/status", m_currentSectionStr);
 			mqtt->Publish("playlist/sectionPosition/status", m_sectionPosition);
 		}
 	}
@@ -765,8 +767,8 @@ void Playlist::SetIdle(void)
 	// Remoted per issue #506
 	//Cleanup();
 
-	if (mqtt)
-	{
+    PluginManager::INSTANCE.playlistCallback(GetInfo(), "stop", m_currentSectionStr, m_sectionPosition);
+	if (mqtt) {
 		mqtt->Publish("status", "idle");
 		mqtt->Publish("playlist/name/status", "");
 		mqtt->Publish("playlist/section/status", "");
@@ -866,8 +868,9 @@ void Playlist::SetPosition(int position)
 {
 	m_startPosition = position;
 
-	if (mqtt)
+    if (mqtt) {
 		mqtt->Publish("playlist/position/status", position);
+    }
 }
 
 
@@ -878,8 +881,9 @@ void Playlist::SetRepeat(int repeat)
 {
 	m_repeat = repeat;
 
-	if (mqtt)
+    if (mqtt) {
 		mqtt->Publish("playlist/repeat/status", repeat);
+    }
 }
 
 

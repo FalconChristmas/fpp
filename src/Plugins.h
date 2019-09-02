@@ -19,6 +19,7 @@ public:
 
 	void eventCallback(const char *id, const char *impetus);
 	void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails);
+    void playlistCallback(const Json::Value &playlist, const std::string &action, const std::string &section, int item);
     void multiSyncData(const std::string &pn, uint8_t *data, int len);
     
     void registerApis(httpserver::webserver *m_ws);

@@ -33,6 +33,76 @@
 
 PluginManager PluginManager::INSTANCE;
 
+FPPPlugin::FPPPlugin(const std::string &n) : name(n) {
+    reloadSettings();
+}
+
+
+void FPPPlugin::reloadSettings() {
+    settings.clear();
+    std::string dname = getMediaDirectory();
+    dname += "/config/plugin.";
+    dname += name;
+    if (FileExists(dname)) {
+        FILE *file = fopen(dname.c_str(), "r");
+        
+        if (file != NULL) {
+            char * line = NULL;
+            size_t len = 0;
+            ssize_t read;
+            int sIndex = 0;
+            while ((read = getline(&line, &len, file)) != -1) {
+                if (( ! line ) || ( ! read ) || ( read == 1 )) {
+                    continue;
+                }
+                
+                char *key = NULL, *value = NULL;    // These are values we're looking for and will
+                // run through trimwhitespace which means they
+                // must be freed before we are done.
+                
+                char *token = strtok(line, "=");
+                if (!token) {
+                    continue;
+                }
+                
+                key = trimwhitespace(token);
+                if (!strlen(key)) {
+                    free(key);
+                    continue;
+                }
+                
+                token = strtok(NULL, "=");
+                if (!token) {
+                    fprintf(stderr, "Error tokenizing value for %s setting\n", key);
+                    free(key);
+                    continue;
+                }
+                value = trimwhitespace(token);
+                
+                if (key) {
+                    if (value) {
+                        settings[key] = value;
+                    }
+                    free(key);
+                    key = NULL;
+                }
+                
+                if (value) {
+                    free(value);
+                    value = NULL;
+                }
+            }
+            
+            if (line) {
+                free(line);
+            }
+            fclose(file);
+        }
+    }
+}
+
+
+
 class MediaCallback
 {
 public:
@@ -45,6 +115,23 @@ public:
     
     void run(const Json::Value &playlist, const MediaDetails &mediaDetails);
 private:
+    std::string mName;
+    std::string mFilename;
+};
+
+
+class PlaylistCallback
+{
+    public:
+    PlaylistCallback(const std::string name, const std::string &filename) {
+        mName = name;
+        mFilename = filename;
+    }
+    virtual ~PlaylistCallback() {}
+    
+    
+    void run(const Json::Value &playlist, const std::string &action, const std::string &section, int idx);
+    private:
     std::string mName;
     std::string mFilename;
 };
@@ -91,6 +178,9 @@ public:
             } else if (type == "event") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports event callback.\n", name.c_str());
                 m_eventCallback = new EventCallback(name, filename);
+            } else if (type == "playlist") {
+                LogDebug(VB_PLUGIN, "Plugin %s supports playlist callback.\n", name.c_str());
+                m_playlistCallback = new PlaylistCallback(name, filename);
             } else {
                 otherTypes.push_back(type);
             }
@@ -99,10 +189,11 @@ public:
     virtual ~ScriptFPPPlugin() {
         if (m_mediaCallback) delete m_mediaCallback;
         if (m_eventCallback) delete m_eventCallback;
+        if (m_playlistCallback) delete m_playlistCallback;
     }
     
     bool hasCallback() const {
-        return m_mediaCallback != nullptr || m_eventCallback != nullptr;
+        return m_mediaCallback != nullptr || m_eventCallback != nullptr || m_playlistCallback != nullptr;
     }
     
     const std::list<std::string> &getOtherTypes() const {
@@ -119,13 +210,19 @@ public:
             m_mediaCallback->run(playlist, mediaDetails);
         }
     }
-    
+    virtual void playlistCallback(const Json::Value &playlist, const std::string &action, const std::string &section, int item) {
+        if (m_playlistCallback) {
+            m_playlistCallback->run(playlist, action, section, item);
+        }
+    }
+
 private:
     const std::string fileName;
     
     std::list<std::string> otherTypes;
     MediaCallback *m_mediaCallback = nullptr;
     EventCallback *m_eventCallback = nullptr;
+    PlaylistCallback *m_playlistCallback = nullptr;
 };
 
 
@@ -320,6 +417,11 @@ void PluginManager::multiSyncData(const std::string &pn, uint8_t *data, int len)
         }
     }
 }
+void PluginManager::playlistCallback(const Json::Value &playlist, const std::string &action, const std::string &section, int item) {
+    for (auto a : mPlugins) {
+        a->playlistCallback(playlist, action, section, item);
+    }
+}
 
 
 //blocking
@@ -442,4 +544,39 @@ void EventCallback::run(const char *id, const char *impetus)
 		LogExcess(VB_PLUGIN, "Media parent process, resuming work.\n");
 		wait(NULL);
 	}
+}
+
+
+void PlaylistCallback::run(const Json::Value &playlist, const std::string &action, const std::string &section, int idx)
+{
+    int pid;
+    if ((pid = fork()) == -1 ) {
+        LogErr(VB_PLUGIN, "Failed to fork\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    if ( pid == 0 ) {
+        LogDebug(VB_PLUGIN, "Child process, calling %s callback for media : %s\n", mName.c_str(), mFilename.c_str());
+        
+        std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
+        Json::Value root;
+        
+        root = playlist;
+        root["Action"] = action;
+        root["Section"] = section;
+        root["Item"] = idx;
+        
+        Json::FastWriter writer;
+        
+        LogDebug(VB_PLUGIN, "Playlist plugin data: %s\n", writer.write(root).c_str());
+        execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "playlist", "--data", writer.write(root).c_str(), NULL);
+        
+        LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        LogExcess(VB_PLUGIN, "Playlist parent process, resuming work.\n");
+        wait(NULL);
+    }
 }

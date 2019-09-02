@@ -102,7 +102,7 @@ int PlaylistEntryMedia::PreparePlay() {
         FinishPlay();
         return 0;
     }
-    
+
     if (!OpenMediaOutput()) {
         FinishPlay();
         return 0;
@@ -116,8 +116,6 @@ int PlaylistEntryMedia::PreparePlay() {
         mqtt->Publish("playlist/media/title", MediaDetails::INSTANCE.title);
         mqtt->Publish("playlist/media/artist", MediaDetails::INSTANCE.artist);
     }
-
-    PluginManager::INSTANCE.mediaCallback(playlist->GetInfo(), MediaDetails::INSTANCE);
     return 1;
 }
 
@@ -282,6 +280,12 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
 
+
+
+    MediaDetails::INSTANCE.ParseMedia(m_mediaFilename.c_str());
+    PluginManager::INSTANCE.mediaCallback(playlist->GetInfo(), MediaDetails::INSTANCE);
+
+
     std::string vOut = m_videoOutput;
     if (vOut == "--Default--") {
         vOut = getSetting("VideoOutput");
@@ -323,7 +327,6 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		return 0;
 	}
 
-    MediaDetails::INSTANCE.ParseMedia(m_mediaFilename.c_str());
     pthread_mutex_unlock(&m_mediaOutputLock);
 
 
