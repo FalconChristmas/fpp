@@ -19,9 +19,10 @@ public:
     int readWordData(int reg);
     int writeWordData(int reg, unsigned val);
     
-    int writeBlockData(int reg, uint8_t *buf, int count);
-    int writeI2CBlockData(int reg, uint8_t *buf, int count);
-    
+    int writeBlockData(int reg, const uint8_t *buf, int count);
+    int writeI2CBlockData(int reg, const uint8_t *buf, int count);
+    int readI2CBlockData(int reg, uint8_t *buf, int count);
+
     bool isOk() { return file != -1;}
 private:
     int file;

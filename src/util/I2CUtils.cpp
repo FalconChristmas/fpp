@@ -138,7 +138,7 @@ int I2CUtils::writeWordData(int reg, unsigned val) {
     return -1;
 }
 
-int I2CUtils::writeBlockData(int reg, uint8_t *buf, int count) {
+int I2CUtils::writeBlockData(int reg, const uint8_t *buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
         if (count > 32) count = 32; //max for SMBus
@@ -154,7 +154,7 @@ int I2CUtils::writeBlockData(int reg, uint8_t *buf, int count) {
     }
     return -1;
 }
-int I2CUtils::writeI2CBlockData(int reg, uint8_t *buf, int count) {
+int I2CUtils::writeI2CBlockData(int reg, const uint8_t *buf, int count) {
     if (file != -1) {
         union i2c_smbus_data data;
         if (count > 32) count = 32; //max
@@ -171,3 +171,23 @@ int I2CUtils::writeI2CBlockData(int reg, uint8_t *buf, int count) {
     return -1;
 }
 
+int I2CUtils::readI2CBlockData(int reg, uint8_t *buf, int count) {
+    if (file != -1) {
+        union i2c_smbus_data data;
+        if (count > 32) count = 32; //max
+        data.block[0] = count;
+        for (int x = 0; x < count; x++) {
+            data.block[x+1] = buf[x];
+        }
+        int status = fpp_smbus_access(file, I2C_SMBUS_READ, reg, I2C_SMBUS_I2C_BLOCK_DATA, &data);
+        if (status < 0) {
+            return -1;
+        }
+        for (int i = 0; i < count; i++) {
+            // Skip the first byte, which is the length of the rest of the block.
+            buf[i] = data.block[i+1];
+        }
+        return count;
+    }
+    return -1;
+}
