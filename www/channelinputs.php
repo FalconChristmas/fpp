@@ -212,7 +212,7 @@ tr.rowUniverseDetails td
 		<div class='title'>Channel Inputs</div>
 		<div id="tabs">
 			<ul>
-				<li><a href="#tab-e131">E1.31 Bridge</a></li>
+				<li><a href="#tab-e131">E1.31/ArtNet Bridge</a></li>
 			</ul>
 
 <!-- --------------------------------------------------------------------- -->
@@ -220,7 +220,7 @@ tr.rowUniverseDetails td
 			<div id='tab-e131'>
 				<div id='divE131'>
 					<fieldset class="fs">
-						<legend> E1.31 Bridge Mode Universes </legend>
+						<legend> E1.31/ArtNet Bridge Mode Universes </legend>
 						<div id='divE131Data'>
 
   <div style="overflow: hidden; padding: 10px;">

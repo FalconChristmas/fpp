@@ -1203,7 +1203,8 @@ function RemovePlaylistEntry()	{
                 if (input) {
                     bodyHTML += ">" +
                                 "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
-                                "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>";
+                                "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
+                                "<option value='2' " + typeBroadcastArtNet + ">ArtNet</option>";
                 } else {
                     bodyHTML += " onChange='IPOutputTypeChanged(this);'>" +
                                 "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +

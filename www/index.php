@@ -165,12 +165,12 @@ include 'common/menuHead.inc';
       </table>
         <hr>
     </div>
-    <div id="bytesTransferred"><H3>E1.31 Packets and Bytes Received</H3>
+    <div id="bytesTransferred"><H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
       <table style='width: 100%'>
         <tr><td align='left'>
           <input type='button' onClick='GetUniverseBytesReceived();' value='Update'>
         </td><td align='right'>
-		  <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update E1.31 Stats
+		  <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
         </td></tr>
 	  </table>
       <hr>

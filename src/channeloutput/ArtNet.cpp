@@ -202,6 +202,9 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData) {
         }
     }
     sequenceNumber++;
+    if (sequenceNumber == 0) {
+        sequenceNumber++;
+    }
 }
 void ArtNetOutputData::CreateMessages(std::vector<struct mmsghdr> &udpMsgs) {
     if (valid && active && type == ARTNET_TYPE_UNICAST) {

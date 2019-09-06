@@ -26,7 +26,7 @@
 #ifndef _E131_DEFS_H
 #define _E131_DEFS_H
 
-#define MAX_UNIVERSE_COUNT    512
+
 #define E131_HEADER_LENGTH    126
 #define MAX_STEPS_OUT_OF_SYNC 2
 

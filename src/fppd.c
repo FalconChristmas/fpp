@@ -61,6 +61,7 @@
 #include <execinfo.h>
 #include <fstream>
 #include <sstream>
+#include <sys/epoll.h>
 
 #include <Magick++.h>
 
@@ -548,103 +549,78 @@ void ShutdownFPPD(void)
 
 void MainLoop(void)
 {
-	int            commandSock = 0;
-	int            controlSock = 0;
-	int            bridgeSock = 0;
-    int            ddpSock = 0;
 	int            prevFPPstatus = FPPstatus;
-	int            sleepms = 50000;
-	fd_set         active_fd_set;
-	fd_set         read_fd_set;
-	struct timeval timeout;
-	int            selectResult;
+	int            sleepms = 50;
     std::map<int, std::function<bool(int)>> callbacks;
 
 	LogDebug(VB_GENERAL, "MainLoop()\n");
-
-	FD_ZERO (&active_fd_set);
     
-    SetupGPIOInput(callbacks);
-
-	commandSock = Command_Initialize();
-	if (commandSock)
-		FD_SET (commandSock, &active_fd_set);
-
-	if (getFPPmode() & PLAYER_MODE)
-	{
+	int sock = Command_Initialize();
+    if (sock) {
+        callbacks[sock] = [] (int i) {
+            CommandProc();
+            return false;
+        };
+    }
+	if (getFPPmode() & PLAYER_MODE) {
 		scheduler->CheckIfShouldBePlayingNow();
 		if (getAlwaysTransmit())
 			StartChannelOutputThread();
+	} else if (getFPPmode() == BRIDGE_MODE) {
+		Bridge_Initialize(callbacks);
 	}
-	else if (getFPPmode() == BRIDGE_MODE)
-	{
-		Bridge_Initialize(bridgeSock, ddpSock);
-		if (bridgeSock)
-			FD_SET (bridgeSock, &active_fd_set);
-        if (ddpSock)
-            FD_SET (ddpSock, &active_fd_set);
-	}
+    SetupGPIOInput(callbacks);
 
-	controlSock = multiSync->GetControlSocket();
-	FD_SET (controlSock, &active_fd_set);
+	sock = multiSync->GetControlSocket();
+    if (sock) {
+        callbacks[sock] = [] (int i) {
+            multiSync->ProcessControlPacket();
+            return false;
+        };
+    }
 
     APIServer apiServer;
     apiServer.Init();
 
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
+    
+    int epollf = epoll_create1(EPOLL_CLOEXEC);
     for (auto &a : callbacks) {
-        FD_SET(a.first, &active_fd_set);
+        epoll_event event;
+        event.events = EPOLLIN;
+        event.data.fd = a.first;
+        epoll_ctl(epollf, EPOLL_CTL_ADD, a.first, &event);
     }
 
 	multiSync->Discover();
 
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
-	while (runMainFPPDLoop)
-	{
-		timeout.tv_sec  = 0;
-		timeout.tv_usec = sleepms;
-
-		read_fd_set = active_fd_set;
-
-
-		selectResult = select(FD_SETSIZE, &read_fd_set, NULL, NULL, &timeout);
-		if (selectResult < 0)
-		{
-			if (errno == EINTR)
-			{
+    static const int MAX_EVENTS = 20;
+    epoll_event events[MAX_EVENTS];
+    int idleCount = 0;
+    
+	while (runMainFPPDLoop) {
+        int epollresult = epoll_wait(epollf, events, MAX_EVENTS, sleepms);
+		if (epollresult < 0) {
+			if (errno == EINTR) {
 				// We get interrupted when media players finish
 				continue;
-			}
-			else
-			{
-				LogErr(VB_GENERAL, "Main select() failed: %s\n",
-					strerror(errno));
+			} else {
+				LogErr(VB_GENERAL, "Main epoll() failed: %s\n", strerror(errno));
 				runMainFPPDLoop = 0;
 				continue;
 			}
 		}
 
         bool pushBridgeData = false;
-		if (commandSock && FD_ISSET(commandSock, &read_fd_set))
-			CommandProc();
-		if (bridgeSock && FD_ISSET(bridgeSock, &read_fd_set))
- 			pushBridgeData |= Bridge_ReceiveE131Data();
-        if (ddpSock && FD_ISSET(ddpSock, &read_fd_set))
-            pushBridgeData |= Bridge_ReceiveDDPData();
-		if (FD_ISSET(controlSock, &read_fd_set))
-			multiSync->ProcessControlPacket();
-        
-        for (auto &a : callbacks) {
-            if (FD_ISSET(a.first, &read_fd_set)) {
-                pushBridgeData |= a.second(a.first);
-            }
+        for (int x = 0; x < epollresult; x++) {
+            pushBridgeData |= callbacks[events[x].data.fd](events[x].data.fd);
         }
-
+        
 		// Check to see if we need to start up the output thread.
-		// FIXME, possibly trigger this via a fpp command to fppd
-		if ((!ChannelOutputThreadIsRunning()) &&
-			(getFPPmode() != BRIDGE_MODE) &&
+		if ((getFPPmode() != BRIDGE_MODE) &&
+            (!ChannelOutputThreadIsRunning()) &&
             ((PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
              (ChannelTester::INSTANCE.Testing()) ||
 			 (getAlwaysTransmit()))) {
@@ -655,32 +631,26 @@ void MainLoop(void)
 			StartChannelOutputThread();
 		}
 
-		if (getFPPmode() & PLAYER_MODE)
-		{
+		if (getFPPmode() & PLAYER_MODE) {
 			if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-			{
-				if (prevFPPstatus == FPP_STATUS_IDLE)
-				{
+				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
+				if (prevFPPstatus == FPP_STATUS_IDLE) {
 					playlist->Start();
-					sleepms = 10000;
+					sleepms = 10;
 				}
 
 				// Check again here in case PlayListPlayingInit
 				// didn't find anything and put us back to IDLE
 				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-				{
+					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
 					playlist->Process();
 				}
 			}
 
 			int reactivated = 0;
-			if (FPPstatus == FPP_STATUS_IDLE)
-			{
+			if (FPPstatus == FPP_STATUS_IDLE) {
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-				{
+					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
 					playlist->Cleanup();
 
 					scheduler->ReLoadCurrentScheduleInfo();
@@ -691,7 +661,7 @@ void MainLoop(void)
 					if (FPPstatus != FPP_STATUS_IDLE)
 						reactivated = 1;
 					else
-						sleepms = 50000;
+						sleepms = 50;
 				}
 			}
 
@@ -701,21 +671,34 @@ void MainLoop(void)
 				prevFPPstatus = FPPstatus;
 
 			scheduler->ScheduleProc();
-		}
-		else if (getFPPmode() == REMOTE_MODE)
-		{
-			if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING)
-			{
+		} else if (getFPPmode() == REMOTE_MODE) {
+			if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
 				playlist->ProcessMedia();
 			}
-        }
-        else if (getFPPmode() == BRIDGE_MODE && pushBridgeData)
-        {
+        } else if (getFPPmode() == BRIDGE_MODE && pushBridgeData) {
             ForceChannelOutputNow();
         }
-        multiSync->PeriodicPing();
+        bool doPing = false;
+        if (!epollresult) {
+            idleCount++;
+            if (idleCount >= 20) {
+                doPing = true;
+            }
+        } else if (idleCount > 0) {
+            doPing = true;
+        } else {
+            idleCount--;
+            if (idleCount < -20) {
+                doPing = true;
+            }
+        }
+        if (doPing) {
+            idleCount = 0;
+            multiSync->PeriodicPing();
+        }
 		CheckGPIOInputs();
 	}
+    close(epollf);
 
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
 	StopChannelOutputThread();

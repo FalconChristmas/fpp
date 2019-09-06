@@ -198,7 +198,6 @@ int SetupGPIOInput(std::map<int, std::function<bool(int)>> &callbacks)
 /*
  * Check configured GPIO Inputs
  */
-// FIXME, how do we handle a second trigger while first is active
 void CheckGPIOInputs(void)
 {
     for (auto &a : POLL_STATES) {
