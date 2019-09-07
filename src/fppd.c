@@ -556,7 +556,8 @@ void MainLoop(void)
 	LogDebug(VB_GENERAL, "MainLoop()\n");
 
 	int sock = Command_Initialize();
-    if (sock > 0) {
+    LogDebug(VB_GENERAL, "Command socket: %d\n", sock);
+    if (sock >= 0) {
         callbacks[sock] = [] (int i) {
             CommandProc();
             return false;
@@ -564,7 +565,8 @@ void MainLoop(void)
     }
     
     sock = multiSync->GetControlSocket();
-    if (sock > 0) {
+    LogDebug(VB_GENERAL, "Multisync socket: %d\n", sock);
+    if (sock >= 0) {
         callbacks[sock] = [] (int i) {
             multiSync->ProcessControlPacket();
             return false;

@@ -1394,6 +1394,7 @@ int MultiSync::OpenReceiveSocket(void)
 		LogErr(VB_SYNC, "Error opening Receive socket; %s\n", strerror(errno));
 		return 0;
 	}
+    LogDebug(VB_SYNC, "Receive socket: %d\n", m_receiveSock);
 
 	bzero((char *)&m_receiveSrcAddr, sizeof(m_receiveSrcAddr));
 	m_receiveSrcAddr.sin_family = AF_INET;
