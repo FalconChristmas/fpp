@@ -1389,7 +1389,7 @@ int MultiSync::OpenReceiveSocket(void)
 	char           strMulticastGroup[16];
 
 	/* set up socket */
-	m_receiveSock = socket(AF_INET, SOCK_DGRAM, 0);
+	m_receiveSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
 	if (m_receiveSock < 0) {
 		LogErr(VB_SYNC, "Error opening Receive socket; %s\n", strerror(errno));
 		return 0;
@@ -1479,85 +1479,88 @@ void MultiSync::ProcessControlPacket(void)
 	ControlPkt *pkt;
     
     int msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
-    LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
-    for (int msg = 0; msg < msgcnt; msg++) {
-        int len = rcvMsgs[msg].msg_len;
-        if (len <= 0) {
-            LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
-            continue;
-        }
-        unsigned char *inBuf = rcvBuffers[msg];
+    while (msgcnt > 0) {
+        LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
+        for (int msg = 0; msg < msgcnt; msg++) {
+            int len = rcvMsgs[msg].msg_len;
+            if (len <= 0) {
+                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
+                continue;
+            }
+            unsigned char *inBuf = rcvBuffers[msg];
 
-        if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
-            struct in_addr  recvAddr;
-            struct cmsghdr *cmsg;
+            if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
+                struct in_addr  recvAddr;
+                struct cmsghdr *cmsg;
 
-            for (cmsg = CMSG_FIRSTHDR(&rcvMsgs[msg].msg_hdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&rcvMsgs[msg].msg_hdr, cmsg)) {
-                if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) {
-                    continue;
+                for (cmsg = CMSG_FIRSTHDR(&rcvMsgs[msg].msg_hdr); cmsg != NULL; cmsg = CMSG_NXTHDR(&rcvMsgs[msg].msg_hdr, cmsg)) {
+                    if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_PKTINFO) {
+                        continue;
+                    }
+
+                    struct in_pktinfo *pi = (struct in_pktinfo *)CMSG_DATA(cmsg);
+                    recvAddr = pi->ipi_addr;
+                    recvAddr = pi->ipi_spec_dst;
                 }
 
-                struct in_pktinfo *pi = (struct in_pktinfo *)CMSG_DATA(cmsg);
-                recvAddr = pi->ipi_addr;
-                recvAddr = pi->ipi_spec_dst;
+                ProcessFalconPacket(m_receiveSock, (struct sockaddr_in *)&rcvSrcAddr[msg], recvAddr, inBuf);
+                continue;
             }
 
-            ProcessFalconPacket(m_receiveSock, (struct sockaddr_in *)&rcvSrcAddr[msg], recvAddr, inBuf);
-            continue;
-        }
+            if (len < sizeof(ControlPkt)) {
+                LogErr(VB_SYNC, "Error: Received control packet too short\n");
+                HexDump("Received data:", (void*)inBuf, len);
+                continue;
+            }
 
-        if (len < sizeof(ControlPkt)) {
-            LogErr(VB_SYNC, "Error: Received control packet too short\n");
-            HexDump("Received data:", (void*)inBuf, len);
-            continue;
-        }
+            pkt = (ControlPkt*)inBuf;
 
-        pkt = (ControlPkt*)inBuf;
+            if ((pkt->fppd[0] != 'F') ||
+                (pkt->fppd[1] != 'P') ||
+                (pkt->fppd[2] != 'P') ||
+                (pkt->fppd[3] != 'D')) {
+                LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
+                HexDump("Received data:", (void*)inBuf, len);
+                continue;
+            }
 
-        if ((pkt->fppd[0] != 'F') ||
-            (pkt->fppd[1] != 'P') ||
-            (pkt->fppd[2] != 'P') ||
-            (pkt->fppd[3] != 'D')) {
-            LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
-            HexDump("Received data:", (void*)inBuf, len);
-            continue;
-        }
+            if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
+                LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
+                    pkt->extraDataLen, len - sizeof(ControlPkt));
+                HexDump("Received data:", (void*)inBuf, len);
+                continue;
+            }
 
-        if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
-            LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
-                pkt->extraDataLen, len - sizeof(ControlPkt));
-            HexDump("Received data:", (void*)inBuf, len);
-            continue;
-        }
+            if ((logLevel == LOG_EXCESSIVE) &&
+                (logMask & VB_SYNC)) {
+                HexDump("Received MultiSync packet with contents:", (void*)inBuf, len);
+            }
 
-        if ((logLevel == LOG_EXCESSIVE) &&
-            (logMask & VB_SYNC)) {
-            HexDump("Received MultiSync packet with contents:", (void*)inBuf, len);
+            switch (pkt->pktType) {
+                case CTRL_PKT_CMD:
+                    ProcessCommandPacket(pkt, len);
+                    break;
+                case CTRL_PKT_SYNC:
+                    if (getFPPmode() == REMOTE_MODE)
+                        ProcessSyncPacket(pkt, len);
+                    break;
+                case CTRL_PKT_EVENT:
+                    if (getFPPmode() == REMOTE_MODE)
+                        ProcessEventPacket(pkt, len);
+                    break;
+                case CTRL_PKT_BLANK:
+                    if (getFPPmode() == REMOTE_MODE)
+                        sequence->SendBlankingData();
+                    break;
+                case CTRL_PKT_PING:
+                    ProcessPingPacket(pkt, len);
+                    break;
+                case CTRL_PKT_PLUGIN:
+                    ProcessPluginPacket(pkt, len);
+                    break;
+            }
         }
-
-        switch (pkt->pktType) {
-            case CTRL_PKT_CMD:
-                ProcessCommandPacket(pkt, len);
-                break;
-            case CTRL_PKT_SYNC:
-                if (getFPPmode() == REMOTE_MODE)
-                    ProcessSyncPacket(pkt, len);
-                break;
-            case CTRL_PKT_EVENT:
-                if (getFPPmode() == REMOTE_MODE)
-                    ProcessEventPacket(pkt, len);
-                break;
-            case CTRL_PKT_BLANK:
-                if (getFPPmode() == REMOTE_MODE)
-                    sequence->SendBlankingData();
-                break;
-            case CTRL_PKT_PING:
-                ProcessPingPacket(pkt, len);
-                break;
-            case CTRL_PKT_PLUGIN:
-                ProcessPluginPacket(pkt, len);
-                break;
-        }
+        msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
     }
 }
 

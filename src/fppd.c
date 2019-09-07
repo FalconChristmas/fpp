@@ -554,11 +554,19 @@ void MainLoop(void)
     std::map<int, std::function<bool(int)>> callbacks;
 
 	LogDebug(VB_GENERAL, "MainLoop()\n");
-    
+
 	int sock = Command_Initialize();
-    if (sock) {
+    if (sock > 0) {
         callbacks[sock] = [] (int i) {
             CommandProc();
+            return false;
+        };
+    }
+    
+    sock = multiSync->GetControlSocket();
+    if (sock > 0) {
+        callbacks[sock] = [] (int i) {
+            multiSync->ProcessControlPacket();
             return false;
         };
     }
@@ -571,25 +579,20 @@ void MainLoop(void)
 	}
     SetupGPIOInput(callbacks);
 
-	sock = multiSync->GetControlSocket();
-    if (sock) {
-        callbacks[sock] = [] (int i) {
-            multiSync->ProcessControlPacket();
-            return false;
-        };
-    }
-
     APIServer apiServer;
     apiServer.Init();
 
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
-    
+ 
     int epollf = epoll_create1(EPOLL_CLOEXEC);
     for (auto &a : callbacks) {
         epoll_event event;
         event.events = EPOLLIN;
         event.data.fd = a.first;
-        epoll_ctl(epollf, EPOLL_CTL_ADD, a.first, &event);
+        int rc = epoll_ctl(epollf, EPOLL_CTL_ADD, a.first, &event);
+        if (rc == -1) {
+            LogWarn(VB_GENERAL, "epoll_ctl() failed for socket: %d  %s\n", a.first, strerror(errno));
+        }
     }
 
 	multiSync->Discover();
@@ -612,10 +615,11 @@ void MainLoop(void)
 				continue;
 			}
 		}
-
         bool pushBridgeData = false;
-        for (int x = 0; x < epollresult; x++) {
-            pushBridgeData |= callbacks[events[x].data.fd](events[x].data.fd);
+        if (epollresult > 0) {
+            for (int x = 0; x < epollresult; x++) {
+                pushBridgeData |= callbacks[events[x].data.fd](events[x].data.fd);
+            }
         }
         
 		// Check to see if we need to start up the output thread.
