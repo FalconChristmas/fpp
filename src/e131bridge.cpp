@@ -48,6 +48,7 @@
 #include "Sequence.h"
 #include "settings.h"
 #include "command.h"
+#include "fppversion.h"
 
 #include "e131defs.h"
 #include "channeloutput/channeloutput.h"
@@ -379,7 +380,12 @@ void Bridge_Initialize_Internal()
             LogDebug(VB_E131BRIDGE, "ArtNet socket failed: %s", strerror(errno));
             exit(1);
         }
-        
+        int enable = 1;
+        //need to be able to send broadcase for ArtPollReply
+        setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
+        enable = 1;
+        setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+
         memset((char *)&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -446,13 +452,14 @@ bool Bridge_StoreData(char *bridgeBuffer)
     return false;
 }
 bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
+    
     if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-'
         || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
         || bridgeBuffer[11] != 0xE   //version must be 14
         ) {
         return false;
     }
-    if (bridgeBuffer[9] == 0x50) {
+    if (bridgeBuffer[9] == 0x50 && bridgeBuffer[8] == 0x00) {
         //data packet
         int sn = bridgeBuffer[12];
        
@@ -493,9 +500,93 @@ bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
             LogDebug(VB_E131BRIDGE, "Received ArtNet data packet for unconfigured universe %d\n", univ);
         }
 
-    } else if (bridgeBuffer[9] == 0x52) {
+    } else if (bridgeBuffer[9] == 0x52 && bridgeBuffer[8] == 0x00) {
         //sync packet
         return true;
+    } else if (bridgeBuffer[9] == 0x20 && bridgeBuffer[8] == 0x00) {
+        //ArtNet Poll, need to send a reply
+        char buf[512];
+        memset(buf, 0, sizeof(buf));
+        strcpy(buf, "Art-Net");
+        buf[9] = 0x21; //PollReply
+        buf[10] = 0; //IP
+        buf[11] = 0;
+        buf[12] = 0;
+        buf[13] = 0;
+        buf[14] = 0x36; //port
+        buf[15] = 0x19;
+
+        buf[16] = std::atoi(getFPPMajorVersion());
+        buf[17] = std::atoi(getFPPMinorVersion());
+        
+        buf[18] = 0; //universes?
+        buf[19] = 0;
+        
+        buf[20] = 0; //OEM value?
+        buf[21] = 0;
+
+        buf[23] = 0; //status1
+        
+        buf[24] = 0; //ESTA
+        buf[25] = 0;
+        
+        std::string hostname = getSetting("HostName");
+        
+        if (hostname == "") {
+            hostname = "FPP";
+        }
+        strcpy(&buf[26], hostname.c_str()); //HOSTNAME?
+        strcpy(&buf[44], hostname.c_str()); //Description?
+        strcpy(&buf[108], ""); //Status?
+        
+        buf[172] = 0;
+        buf[173] = 4;
+        buf[174] = 0xc0;
+        buf[175] = 0xc0;
+        buf[176] = 0xc0;
+        buf[177] = 0xc0;
+        
+        buf[178] = 0x0; //input
+        buf[179] = 0x0;
+        buf[180] = 0x0;
+        buf[181] = 0x0;
+        buf[182] = 0x0; //output
+        buf[183] = 0x0;
+        buf[184] = 0x0;
+        buf[185] = 0x0;
+        
+        
+        char addressBuf[128];
+        //get all the addresses
+        struct ifaddrs *interfaces,*tmp;
+        getifaddrs(&interfaces);
+        tmp = interfaces;
+        while (tmp) {
+            if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+                if (strncmp("usb", tmp->ifa_name, 3) != 0
+                    && strncmp("lo", tmp->ifa_name, 2) != 0
+                    && tmp->ifa_addr) {
+                    
+                    struct sockaddr_in *sain = (struct sockaddr_in*)tmp->ifa_addr;
+                    unsigned long s_addr = sain->sin_addr.s_addr;
+                    buf[13] = s_addr >> 24; //IP
+                    buf[12] = s_addr >> 16;
+                    buf[11] = s_addr >> 8;
+                    buf[10] = s_addr & 0xFF;
+                    
+                    struct sockaddr_in s;
+                    memset(&s, '\0', sizeof(struct sockaddr_in));
+                    s.sin_family = AF_INET;
+                    s.sin_port = (in_port_t)htons(0x1936);
+                    s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+                    sendto(artnetSock, buf, 240, 0, (struct sockaddr *)&s, sizeof(struct sockaddr_in));
+                }
+            }
+            tmp = tmp->ifa_next;
+        }
+        freeifaddrs(interfaces);
+
+        
     }
     return false;
 }
