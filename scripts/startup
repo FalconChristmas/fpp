@@ -26,11 +26,7 @@ fi
 teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
-
 checkTimeAgainstUSNO
-
-# Configure fallback IP if necessary
-ConfigureFallbackIP
 
 # Print/Say the IP address
 WaitForInterfacesUp

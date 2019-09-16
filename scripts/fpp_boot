@@ -93,12 +93,3 @@ then
 	detectFalconHardware
 fi
 
-
-##############################################################################
-# Leave these things till last so user can see output of anything above here
-##############################################################################
-applyScreenBlankSetting
-
-
-. ${SCRIPTDIR}/fppd_start
-

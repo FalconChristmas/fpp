@@ -15,9 +15,6 @@ sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 echo "Checking for interfaces"
 WaitForInterfacesUp
 
-echo "Setting up Avahi"
-updateAvahiConfig
-
 echo "Setup channel outputs"
 setupChannelOutputs
 

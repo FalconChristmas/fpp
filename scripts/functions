@@ -1,68 +1,5 @@
 #!/bin/bash
 
-#############################################################################
-# Setup default /etc/network/interfaces and wpa_supplicant.conf files
-SetupDefaultNetworkConfig () {
-	if [ ! -f "/etc/network/interfaces.default" ]
-	then
-		cat <<-EOF > /etc/network/interfaces.default
-		auto lo
-		iface lo inet loopback
-
-		allow-hotplug eth0
-
-		iface eth0 inet dhcp
-
-		iface wlan0 inet dhcp
-		  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
-
-		iface eth0:0 inet static
-		  address 192.168.0.10
-		  netmask 255.255.255.0
-		  network 192.168.0.0
-		EOF
-	fi
-
-	cp /etc/network/interfaces.default /etc/network/interfaces
-
-	if [ ! -f "/etc/wpa_supplicant/wpa_supplicant.conf.default" ]
-	then
-		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.default
-		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-		update_config=1
-		EOF
-	fi
-
-	cp /etc/wpa_supplicant/wpa_supplicant.conf.default /etc/wpa_supplicant/wpa_supplicant.conf
-
-	persistent_net_rules="/etc/udev/rules.d/70-persistent-net.rules"
-	[ $persistent_net_rules ] && sed -i '/ NAME="wlan/d' $persistent_net_rules
-
-	if [ ! -f "/etc/resolv.conf.default" ]
-	then
-		touch /etc/resolv.conf.default
-	fi
-
-	cp /etc/resolv.conf.default /etc/resolv.conf
-}
-
-#############################################################################
-# netcalc function found online on linuxquestions.org
-# http://www.linuxquestions.org/questions/programming-9/bash-cidr-calculator-646701/
-netcalc(){
-	local IFS='.' ip i
-	local -a oct msk
-
-	read -ra oct <<<"$1"
-	read -ra msk <<<"$2"
-
-	for i in ${!oct[@]}; do
-		ip+=( "$(( oct[i] & msk[i] ))" )
-	done
-
-	echo "${ip[*]}"
-}
-
 AttemptCreateSoftAP() {
     TetherInterface=$(getSetting TetherInterface)
     if [ "x${TetherInterface}" == "x" ]; then
@@ -86,7 +23,6 @@ AttemptCreateSoftAP() {
 	fi
     fi
 }
-
 
 SetupFPPNetworkConfigViaConnMann() {
 
@@ -206,327 +142,16 @@ SetupFPPNetworkConfigViaConnMann() {
         fi
     fi
 }
-
-
-#############################################################################
-# Create our version of /etc/network/interfaces and wpa_supplicant.conf files
-SetupFPPNetworkConfigViaInterfaces () {
-
-	if [ ! -f "${FPPHOME}/media/config/interface.eth0" -a ! -f "${FPPHOME}/media/config/interface.wlan0" ]
-	then
-		echo "FPP - Using default network config"
-		return
-	fi
-
-	echo "FPP - Configuring Network"
-
-	TMPFILE="/etc/network/interfaces.FPP"
-	INITETH0="no"
-	UPWLAN0="no"
-
-	cat <<-EOF > ${TMPFILE}
-	auto lo
-	iface lo inet loopback
-
-	EOF
-
-	PROTO="dhcp"
-	if [ -f "${FPPHOME}/media/config/interface.eth0" ]
-	then
-		. ${FPPHOME}/media/config/interface.eth0
-	fi
-
-	kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
-
-	if [ "x${PROTO}" = "xdhcp" ]
-	then
-		cat <<-EOF >> ${TMPFILE}
-		auto eth0
-		iface eth0 inet dhcp
-		EOF
-	else
-		# Re-initialize eth0 since it is not using DHCP
-		INITETH0="yes"
-
-		kill -9 $(ps auxw | grep dhclient | grep -v grep | grep eth0 | awk '{print $2}') > /dev/null 2>&1
-
-		NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
-
-		cat <<-EOF >> ${TMPFILE}
-		auto eth0
-		iface eth0 inet static
-		  address ${ADDRESS}
-		  netmask ${NETMASK}
-		  network ${NETWORK}
-		EOF
-
-		if [ "x${GATEWAY}" != "x" ]
-		then
-			echo "  gateway ${GATEWAY}" >> ${TMPFILE}
-		fi
-	fi
-
-	echo >> ${TMPFILE}
-
-	if [ -f "${FPPHOME}/media/config/interface.wlan0" ]
-	then
-		UPWLAN0="yes"
-
-		. ${FPPHOME}/media/config/interface.wlan0
-
-		kill -9 $(ps auxw | grep ifplugd | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
-
-		if [ "x${PROTO}" = "xdhcp" ]
-		then
-			cat <<-EOF >> ${TMPFILE}
-			allow-hotplug wlan0
-			iface wlan0 inet manual
-			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
-			wireless-power off
-
-			iface FPP-wlan0 inet dhcp
-
-			EOF
-		else
-			NETWORK=$(netcalc ${ADDRESS} ${NETMASK})
-
-			kill -9 $(ps auxw | grep dhclient | grep -v grep | grep wlan0 | awk '{print $2}') > /dev/null 2>&1
-
-			cat <<-EOF >> ${TMPFILE}
-			allow-hotplug wlan0
-			iface wlan0 inet manual
-			  wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
-			wireless-power off
-
-			iface FPP-wlan0 inet static
-			  address ${ADDRESS}
-			  netmask ${NETMASK}
-			  network ${NETWORK}
-			EOF
-
-			if [ "x${GATEWAY}" != "x" ]
-			then
-				echo "  gateway ${GATEWAY}" >> ${TMPFILE}
-			fi
-
-			echo >> ${TMPFILE}
-			echo "iface default inet dhcp" >> ${TMPFILE}
-		fi
-		echo >> ${TMPFILE}
-
-		cat <<-EOF > /etc/wpa_supplicant/wpa_supplicant.conf.FPP
-		ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-		update_config=1
-
-		network={
-		  ssid="${SSID}"
-		EOF
-
-		if [ "x${PSK}" != "x" ]
-		then
-			echo "  psk=\"${PSK}\"" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
-		else
-			echo "  key_mgmt=NONE" >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
-		fi
-
-		cat <<-EOF >> /etc/wpa_supplicant/wpa_supplicant.conf.FPP
-		  scan_ssid=1
-		  id_str="FPP-wlan0"
-		}
-
-		EOF
-
-		cp /etc/wpa_supplicant/wpa_supplicant.conf.FPP /etc/wpa_supplicant/wpa_supplicant.conf
-	fi
-
-	cat <<-EOF >> ${TMPFILE}
-	iface eth0:0 inet static
-	  address 192.168.0.10
-	  netmask 255.255.255.0
-	  network 192.168.0.0
-	EOF
-
-	echo >> ${TMPFILE}
-
-	cp ${TMPFILE} /etc/network/interfaces
-
-	if [ "x${INITETH0}" = "xyes" ]
-	then
-		echo "FPP - Taking eth0 down"
-		ifdown eth0 > /dev/null 2>&1
-
-		echo "FPP - Bringing eth0 back up"
-		ifup eth0
-	fi
-
-	if [ "x${UPWLAN0}" = "xyes" ]
-	then
-		echo "FPP - Taking wlan0 down"
-		ifdown wlan0 > /dev/null 2>&1
-
-		#wpa_cli reconfigure > /dev/null 2>&1
-
-		echo "FPP - Bringing wlan0 up"
-		ifup wlan0 > /dev/null 2>&1
-
-		# Shouldn't need this since we have "wireless-power off" but leave it
-		# in here just in case for now.
-		#echo "FPP - Disabling power management on wlan0"
-		#iwconfig wlan0 power off > /dev/null 2>&1
-	else
-		if [ "x${SSID}" = "x" ]
-		then
-			echo "FPP - Empty SSID, taking wlan0 down"
-			ifdown wlan0 > /dev/null 2>&1
-		fi
-	fi
-}
 SetupFPPNetworkConfig () {
-    if [ -f "/usr/bin/connmanctl" -o -f "/usr/sbin/connmanctl" ]
-    then
-        SetupFPPNetworkConfigViaConnMann
-    else
-        SetupFPPNetworkConfigViaInterfaces
-    fi
-
+    SetupFPPNetworkConfigViaConnMann
     ENABLEROUTING=$(getSetting EnableRouting)
-	if [ "x${ENABLEROUTING}" = "x1" ]
-	then
-		sysctl -w net.ipv4.ip_forward=1
-	else
+    if [ "x${ENABLEROUTING}" = "x1" ]
+    then
+        sysctl -w net.ipv4.ip_forward=1
+    else
         sysctl -w net.ipv4.ip_forward=0
-	fi
+    fi
 }
-
-#############################################################################
-# Configure fallback IP address if necessary
-ConfigureFallbackIP() {
-	if [ -f "${CFGDIR}/interface.eth0" ]
-	then
-		. ${CFGDIR}/interface.eth0
-		if [ "x${PROTO}" = "xstatic" ]
-		then
-			return
-		fi
-	fi
-
-	#####################################################################
-	# Don't configure fallback IP if no link is detected
-	ethtool eth0 | grep -q "Link detected: yes"
-	if [ $? -eq 1 ]
-	then
-		return
-	fi
-
-
-	ETH0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*eth0$" | awk '{print $2}')
-	WLAN0GATEWAY=$(netstat -rn | grep "^0\.0\.0\.0.*wlan0$" | awk '{print $2}')
-	WLAN0NETWORK=$(ifconfig wlan0 2> /dev/null | grep "inet addr:" | awk '{print $2}' | cut -f2 -d: | cut -f1-3 -d\.)
-	NEEDFALLBACKIP=1
-	NEEDFALLBACKGW=1
-
-	if [ ! -z "${ETH0GATEWAY}" ]
-	then
-		ping -c 1 ${ETH0GATEWAY} > /dev/null 2>&1
-		if [ $? -eq 0 ]
-		then
-			# Have a default gateway on eth0 and it is pingable
-			NEEDFALLBACKIP=0
-			NEEDFALLBACKGW=0
-		fi
-	fi
-
-	if [ ! -z "${WLAN0GATEWAY}" ]
-	then
-		ping -c 1 ${WLAN0GATEWAY} > /dev/null 2>&1
-		if [ $? -eq 0 ]
-		then
-			# Have a default gateway on wlan0 and it is pingable
-			NEEDFALLBACKGW=0
-		fi
-	fi
-
-	if [ ${NEEDFALLBACKIP} -eq 1 ]
-	then
-		OTHERNET=1
-		IP=192.168.0.10
-		NETMASK=255.255.255.0
-		BROADCAST=192.168.0.255
-		GATEWAY=192.168.0.1
-
-		arping -q -c 1 -w 1000000 -I eth0 192.168.1.1 2> /dev/null
-		if [ $? -eq 0 ]
-		then
-			# we're on the 192.168.1.0/24 network
-			OTHERNET=0
-			IP=192.168.1.10
-			NETMASK=255.255.255.0
-			BROADCAST=192.168.1.255
-			GATEWAY=192.168.1.1
-		fi
-
-		FBNETWORK=$(echo ${IP} | cut -f1-3 -d\.)
-		if [ "x${WLAN0NETWORK}" = "x${FBNETWORK}" ]
-		then
-			IP=192.168.${OTHERNET}.10
-			NETMASK=255.255.255.0
-			BROADCAST=192.168.${OTHERNET}.255
-			GATEWAY=192.168.${OTHERNET}.1
-		fi
-		ifconfig eth0:0 ${IP} netmask ${NETMASK} broadcast ${BROADCAST} up
-
-		if [ ${NEEDFALLBACKGW} -eq 1 ]
-		then
-			route add default gw ${GATEWAY} eth0:0
-		fi
-	fi
-}
-
-#############################################################################
-# Get a list of all interfaces using dhclient to get an IP and
-# waits for them to all recieve IPs.  If any interface does not
-# have an IP, then the function will sleep for a little while
-# and then jump back to the top of the loop to check again.
-WaitForDHCPIPs() {
-	DHCP_INTERFACES="$(ps auxw | grep "dhclient\.\([a-z0-9]*\)\.pid" | grep -v grep | sed -e 's/.*client\.\([a-z0-9]*\)\.pid.*/\1/' | sort | uniq)"
-	SLEEPTIME=2
-
-	if [ -z "${DHCP_INTERFACES}" ]
-	then
-		return 0
-	fi
-
-	echo "Waiting for DHCP to receive IP addresses: '${DHCP_INTERFACES}'"
-
-	# Loop up to 5 times, so max wait time is 5 * ${SLEEPTIME}
-	for i in {1..5}
-	do
-		IP=""
-		for INTERFACE in ${DHCP_INTERFACES}
-		do
-			LINKUP="N/A"
-			if [ "x${INTERFACE}" = "xeth0" ]
-			then
-				LINKUP=$(ethtool eth0 | grep "Link detected: yes")
-			fi
-
-			IP=$(ifconfig ${INTERFACE} | grep "inet " | sed -e "s/addr://" | awk '{print $2}')
-			if [ -n "${LINKUP}" -a -z "${IP}" ]
-			then
-				echo "${INTERFACE} does not have an IP, waiting for ${SLEEPTIME} seconds"
-				sleep ${SLEEPTIME}
-				continue
-			fi
-		done
-		if [ -z "${IP}" ]
-		then
-			continue
-		fi
-
-		break
-	done
-}
-
 
 WaitForInterfacesUp() {
     IPS="$(ip -o -4 addr | grep -v usb | grep -v 127.0)"
@@ -787,36 +412,6 @@ runPostStopScripts() {
 }
 
 #############################################################################
-# Update the Avahi daemon service config file for fpp
-updateAvahiConfig() {
-	TMPFILE="/var/tmp/fpp.service"
-	AVAHICFGFILE="/etc/avahi/services/fpp.service"
-
-	fppMode=$(getSetting fppMode)
-	platform=$(cat /etc/fpp/platform)
-
-	cat > ${TMPFILE} <<-EOF
-		<?xml version="1.0" standalone='no'?><!--*-nxml-*-->
-		<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
-
-		<service-group>
-		  <name replace-wildcards="yes">%h</name>
-		  <service>
-		    <type>_fpp-httpd._tcp</type>
-		    <port>80</port>
-		  </service>
-		  <service>
-		    <type>_fpp-fppd._udp</type>
-		    <port>32320</port>
-		    <txt-record>fppMode=${fppMode},platform=${platform}</txt-record>
-		  </service>
-		</service-group>
-		EOF
-
-	cp ${TMPFILE} ${AVAHICFGFILE}
-}
-
-#############################################################################
 # Start/Stop OLA Daemon
 startOLADaemonIfNecessary() {
 	# Start OLA daemon if necessary
@@ -896,9 +491,9 @@ stopWebSocketServer() {
 detectPiFace() {
 	ls -1 /dev/spidev*
 	${FPPD} --detect-piface
-        PIFACEFOUND=$?
+    PIFACEFOUND=$?
 
-        setSetting PiFaceDetected ${PIFACEFOUND}
+    setSetting PiFaceDetected ${PIFACEFOUND}
 }
 
 #############################################################################
@@ -908,7 +503,7 @@ detectFalconHardware() {
 	FHWFOUND=$?
 
 	echo "Result: ${FHWFOUND}"
-        setSetting FalconHardwareDetected ${FHWFOUND}
+    setSetting FalconHardwareDetected ${FHWFOUND}
 }
 
 #############################################################################
@@ -1136,11 +731,14 @@ applyReadOnlySDFixups() {
 
 #############################################################################
 applyScreenBlankSetting() {
+echo 0 > /sys/class/graphics/fbcon/cursor_blink
 SCREENSAVER=$(getSetting screensaver)
 if [ "x${SCREENSAVER}" = "x1" ]
 then
         echo "FPP - Turning ON screen blanking"
         TERM=linux setterm --clear all --blank 1  >> /dev/tty0
+        sleep 5
+        dd if=/dev/zero of=/dev/fb0 > /dev/null 2>&1
 else
         echo "FPP - Turning OFF screen blanking"
         TERM=linux setterm --blank 0  >> /dev/tty0

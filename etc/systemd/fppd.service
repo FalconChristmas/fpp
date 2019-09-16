@@ -1,15 +1,13 @@
 [Unit]
 Description=FPPd
-After=network.target generic-board-startup.service remote-fs.target
+After=network.target generic-board-startup.service remote-fs.target getty.target fpp_postnetwork.service
 Requires=network.target 
 DefaultDependencies=no
-Before=rc-local.service
-
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/opt/fpp/scripts/fpp_boot
+ExecStart=/opt/fpp/scripts/fppd_boot
 ExecStop=/opt/fpp/scripts/fppd_stop
 
 
