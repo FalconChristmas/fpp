@@ -27,6 +27,8 @@ include ${SRCDIR}/makefiles/platform/*.mk
 #OBJECTS_fpp_so += channeloutput/X11Matrix.o channeloutput/X11VirtualDisplay.o
 ##############################################################################
 
+debug: CFLAGS += -g
+
 # now include all the targets
 include ${SRCDIR}/makefiles/*.mk
 
@@ -59,7 +61,6 @@ optimized: all
 release: optimized
 
 debug: all
-
 
 fppversion.c: fppversion.sh force
 	@sh $(SRCDIR)fppversion.sh $(PWD)
