@@ -300,14 +300,11 @@ int OpenMediaOutput(const char *filename) {
 }
 int StartMediaOutput(const char *filename) {
     if (mediaOutput) {
-        if (strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
-            CloseMediaOutput();
-        } else {
-            std::string tmpFile = filename;
-            if (HasVideoForMedia(tmpFile)) {
-                if (mediaOutput->m_mediaFilename != tmpFile) {
-                    CloseMediaOutput();
-                }
+        std::string tmpFile = filename;
+        if (HasVideoForMedia(tmpFile)) {
+            if (mediaOutput->m_mediaFilename != filename
+                && !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+                CloseMediaOutput();
             }
         }
     }
