@@ -284,13 +284,23 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         bool success = reader.parse(d, result);
         if (success) {
             std::vector<std::string> playlists;
+            playlists.push_back("-Stop Now-");
+            playlists.push_back("-Stop Gracefully-");
             for (int x = 0; x < result.size(); x++) {
                 playlists.push_back(result[x].asString());
             }
             playlists.push_back("Back");
             FPPStatusOLEDPage *sp = statusPage;
             MenuOLEDPage *pg = new MenuOLEDPage("Playlist", playlists, [sp] (const std::string &item) {
-                if (item != "Back") {
+                if (item == "-Stop Now-") {
+                    std::string url = "http://localhost/fppxml.php?command=stopNow";
+                    url += item;
+                    doCurlGet(url, 1000);
+                } else if (item == "-Stop Gracefully-") {
+                    std::string url = "http://localhost/fppxml.php?command=stopGracefully";
+                    url += item;
+                    doCurlGet(url, 1000);
+                } else if (item != "Back") {
                     std::string url = "http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playEntry=0&section=&playList=";
                     url += item;
                     doCurlGet(url, 1000);

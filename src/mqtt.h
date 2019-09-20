@@ -53,7 +53,9 @@ class MosquittoClient {
 
 	void PublishStatus();
 
+    void SetReady();
   private:
+    bool        m_canProcessMessages;
 	std::string m_host;
 	int         m_port;
 	int         m_keepalive;
@@ -64,11 +66,6 @@ class MosquittoClient {
 	struct mosquitto *m_mosq;
 	pthread_mutex_t   m_mosqLock;
 	pthread_t         m_mqtt_publish_t;
-
-	// Topics we want to take action on
-	std::string m_topicPlaylist;
-	std::string m_topicPlaylistOld;
-
     
     std::map<std::string, std::function<void(const std::string &topic, const std::string &payload)>> callbacks;
 };

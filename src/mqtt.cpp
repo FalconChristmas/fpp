@@ -65,6 +65,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	m_keepalive(60),
 	m_mosq(NULL),
     m_host(host),
+    m_canProcessMessages(false),
     m_topicPrefix(topicPrefix)
 {
 	LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
@@ -84,16 +85,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	}
 	m_baseTopic += hostname;
 
-	m_topicPlaylistOld = m_baseTopic + "/playlist/#"; //Legacy
-	m_topicPlaylist = m_baseTopic + "/set/playlist/#";
-
 	pthread_mutex_init(&m_mosqLock, NULL);
-
-	// create  background Publish Thread
-	int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
-	if (result != 0) {
-		LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
-	}
 }
 
 /*
@@ -131,22 +123,19 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 	}
 
 	mosquitto_log_callback_set(m_mosq, mosq_log_callback);
-	mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
 	mosquitto_disconnect_callback_set(m_mosq, mosq_disc_callback);
 
 	if (username != "") {
-            mosquitto_username_pw_set(m_mosq, username.c_str(), password.c_str());
+        mosquitto_username_pw_set(m_mosq, username.c_str(), password.c_str());
 	}
 
 	if (ca_file != "") {
 	    LogInfo(VB_CONTROL, "Using CA File: %s for MQTT\n", ca_file.c_str());
-            int rc = mosquitto_tls_set(m_mosq, ca_file.c_str(), NULL, NULL, NULL, NULL);
+        int rc = mosquitto_tls_set(m_mosq, ca_file.c_str(), NULL, NULL, NULL, NULL);
 	    if (rc) {
-		LogErr(VB_CONTROL, "Error, unable to set MQTT_Ca_file. RC=  %d\n", rc);
-		return 0;
-
+            LogErr(VB_CONTROL, "Error, unable to set MQTT_Ca_file. RC=  %d\n", rc);
+            return 0;
 	    }
-
 	} else {
 	    LogInfo(VB_CONTROL, "No CA File specified for MQTT\n");
 	}
@@ -155,43 +144,26 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 
 	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
 
-	if (result)
-	{
-		
+	if (result) {
 		LogErr(VB_CONTROL, "Error, unable to connect to Mosquitto Broker at %s: %d\n",
 			m_host.c_str(), result);
 		LogErr(VB_CONTROL, "MQTT Error: %s\n", strerror(result));
 		return 0;
 	}
 
-	std::vector<std::string> subscribe_topics;
-	subscribe_topics.push_back(m_baseTopic + "/set/#");
-	subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
-	subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
-	subscribe_topics.push_back(m_baseTopic + "/playlist/name/set"); // Legacy
-	subscribe_topics.push_back(m_baseTopic + "/playlist/repeat/set"); // Legacy
-	subscribe_topics.push_back(m_baseTopic + "/playlist/selectionPosition/set"); // Legacy
-
-	for (auto t =subscribe_topics.begin(); t != subscribe_topics.end(); t++) {
-		std::string subscribe = *t;
-		LogDebug(VB_CONTROL, "MQTT Connected. Preparing to Subscribe to %s\n", subscribe.c_str());
-		int rc = mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
-		if (rc != MOSQ_ERR_SUCCESS) {
-			LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
-			return 0;
-		}
-	}
-
-
-	int loop = mosquitto_loop_start(m_mosq);
-	if (loop != MOSQ_ERR_SUCCESS)
-	{
-		LogErr(VB_CONTROL, "Error, unable to start Mosquitto loop: %d\n", loop);
-		return 0;
-	}
-
+    int loop = mosquitto_loop_start(m_mosq);
+    if (loop != MOSQ_ERR_SUCCESS) {
+        LogErr(VB_CONTROL, "Error, unable to start Mosquitto loop: %d\n", loop);
+        return 0;
+    }
     LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
-	return 1;
+    
+    // create  background Publish Thread
+    result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
+    if (result != 0) {
+        LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
+    }
+    return 1;
 }
 
 /*
@@ -256,20 +228,57 @@ void MosquittoClient::LogCallback(void *userdata, int level, const char *str)
 
 void MosquittoClient::AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback) {
     callbacks[topic] = callback;
-    
-    std::string tp = m_baseTopic + topic;
-    int rc = mosquitto_subscribe(m_mosq, NULL, tp.c_str(), 0);
-    if (rc != MOSQ_ERR_SUCCESS) {
-        LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", tp.c_str(), rc);
+    if (m_canProcessMessages) {
+        if (topic.rfind("/set/", 0) != 0) {
+            // we are registered on all "/set/" already, no need to re-register
+            std::string tp = m_baseTopic + topic;
+            LogDebug(VB_CONTROL, "MQTT: Preparing to Subscribe to %s\n", tp.c_str());
+            int rc = mosquitto_subscribe(m_mosq, NULL, tp.c_str(), 0);
+            if (rc != MOSQ_ERR_SUCCESS) {
+                LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", tp.c_str(), rc);
+            }
+        }
     }
 }
 
+void MosquittoClient::SetReady() {
+    if (!m_canProcessMessages) {
+        m_canProcessMessages = true;
+        mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
+        
+        std::vector<std::string> subscribe_topics;
+        subscribe_topics.push_back(m_baseTopic + "/set/#");
+        subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
+        subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
+        
+        for (auto &a : callbacks) {
+            std::string topic = a.first;
+            if (topic.rfind("/set/", 0) != 0) {
+                std::string tp = m_baseTopic + topic;
+                subscribe_topics.push_back(tp);
+            }
+        }
+        
+
+        for (auto &subscribe : subscribe_topics) {
+            LogDebug(VB_CONTROL, "MQTT: Preparing to Subscribe to %s\n", subscribe.c_str());
+            int rc = mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
+            if (rc != MOSQ_ERR_SUCCESS) {
+                LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
+            }
+        }
+    }
+}
 
 /*
  *
  */
 void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message *message)
 {
+    if (!m_canProcessMessages) {
+        // FPPd is not yet in a state where incoming messages can be processed
+        return;
+    }
 	bool match = 0;
 	std::string emptyStr;
 	std::string topic;
@@ -294,28 +303,12 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
         std::string s = m_baseTopic + a.first;
         mosquitto_topic_matches_sub(s.c_str(), message->topic, &match);
         if (match) {
-            a.second(topic, payload);
+            std::string tp = message->topic;
+            tp.replace(0, m_baseTopic.size(), emptyStr);
+            a.second(tp, payload);
             return;
         }
     }
-
-	// Normal Playlist
-	mosquitto_topic_matches_sub(m_topicPlaylist.c_str(), message->topic, &match);
-	if (match) {
-		topic.replace(0, m_topicPlaylist.size() -1, emptyStr); // Replace until /#
-		playlist->MQTTHandler(topic, payload);
-		return;
-	}
-
-	// Check deprecated version of Playlist
-	mosquitto_topic_matches_sub(m_topicPlaylistOld.c_str(), message->topic, &match);
-	if (match) {
-		LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n",
-			message->topic);
-		topic.replace(0, m_topicPlaylistOld.size() - 1, emptyStr); // Replace until /#
-		playlist->MQTTHandler(topic, payload);
-		return;
-	}
 
 	std::string eventTopic = m_baseTopic + "/set/event/#";
 	mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
@@ -393,7 +386,7 @@ void *RunMqttPublishThread(void *data) {
 	LogWarn(VB_CONTROL, "MQTT Frequency: %d\nc", frequency);
 	if (frequency == 0) {
 		// kill thread
-		LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequenzy is zero.\nc");
+		LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequency is zero.\nc");
 	       	return 0;
 	}
 

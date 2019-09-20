@@ -131,7 +131,14 @@ if [ ${HASSOUND} -eq 1 ]; then
         echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
         sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
     fi
-    amixer -c ${CARDID} cset numid=3 1 > /dev/null 2>&1
+    HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
+    if [[ $HASCARD == *"Invalid "* ]]; then
+        if [ "${CARDID}" != "0" ]; then
+            echo "Resetting /root/.asoundrc to use card id 0"
+        fi
+        sed -i "s/card [0-9]/card 0/" /root/.asoundrc
+        CARDID=0
+    fi
     VOLUME=$(getSetting volume)
     if [ "x${VOLUME}" = "x" ]; then
         setSetting volume 70

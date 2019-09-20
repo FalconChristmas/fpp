@@ -95,6 +95,28 @@ Playlist::Playlist(void *parent, int subPlaylist)
 	SetIdle();
 
 	SetRepeat(0);
+    
+    if (mqtt) {
+        //Legacy callbacks
+        std::function<void(const std::string &t, const std::string &payload)> f1 = [this] (const std::string &t, const std::string &payload) {
+            std::string emptyStr;
+            LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n", t.c_str());
+            std::string topic = t;
+            topic.replace(0, 10, emptyStr); // Replace until /#
+            this->MQTTHandler(topic, payload);
+        };
+        mqtt->AddCallback("/playlist/name/set", f1);
+        mqtt->AddCallback("/playlist/repeat/set", f1);
+        mqtt->AddCallback("/playlist/selectionPosition/set", f1);
+
+        std::function<void(const std::string &t, const std::string &payload)> f2 = [this] (const std::string &t, const std::string &payload) {
+            std::string emptyStr;
+            std::string topic = t;
+            topic.replace(0, 14, emptyStr); // Replace until /#
+            this->MQTTHandler(topic, payload);
+        };
+        mqtt->AddCallback("/set/playlist/#", f2);
+    }
 }
 
 /*
@@ -114,7 +136,6 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 
 	for (int c = 0; c < entries.size(); c++)
 	{
-#if 1
 		// Long-term handle sub-playlists on-demand instead of at load time
 		if (entries[c]["type"].asString() == "playlist")
 		{
@@ -141,7 +162,6 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 			m_subPlaylistDepth--;
 		}
 		else
-#endif
 		{
 			plEntry = LoadPlaylistEntry(entries[c]);
 			if (plEntry)
@@ -266,7 +286,6 @@ int Playlist::Load(const char *filename)
 	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
 	Json::Value root = LoadJSON(m_filename.c_str());
-
 	int res = Load(root);
 
 	GetConfigStr();
@@ -1039,7 +1058,7 @@ Json::Value Playlist::GetCurrentEntry(void)
 {
 	Json::Value result;
 
-	if (m_currentState == "idle")
+	if (m_currentState == "idle" || m_currentSection == nullptr)
 		return result;
 
 	result = m_currentSection->at(m_sectionPosition)->GetConfig();
@@ -1048,6 +1067,8 @@ Json::Value Playlist::GetCurrentEntry(void)
 }
 
 Json::Value Playlist::GetMqttStatusJSON(void){
+    // this is called on background thread, need to lock
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
 	Json::Value result;
 	result["status"] = m_currentState; // Works because single playlist
@@ -1063,8 +1084,7 @@ Json::Value Playlist::GetMqttStatusJSON(void){
 		playlist["name"] = m_name;
 		playlist["repeat"] = m_repeat;
 		playlist["currentItems"] = entryArray;
-		playlistArray.append(playlist); 
-
+		playlistArray.append(playlist);
 	}
 
 	result["activePlaylists"] = playlistArray;
@@ -1211,7 +1231,11 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 	// Playlist specific versions
 	} else if (topicEnd == "/start") {
 		// Play from begging keeping previous value of repeate
-		Play(newPlaylistName.c_str(), 0, m_repeat);
+        int pos = 0;
+        if (!msg.empty()) {
+            pos = std::stoi(msg);
+        }
+		Play(newPlaylistName.c_str(), pos, m_repeat);
 	} else if (topicEnd == "/next") {
 		NextItem();
 

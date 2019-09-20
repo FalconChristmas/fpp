@@ -2176,7 +2176,7 @@ if (1) {
                 SetButtonState('#btnPrev','enable');
                 SetButtonState('#btnNext','enable');
                 SetButtonState('#btnStopNow','enable');
-                SetButtonState('#btnStopGracefully','disable');
+                SetButtonState('#btnStopGracefully','enable');
                 
                 $('#txtPlayerStatus').html(playerStatusText);
                 $('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );

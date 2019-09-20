@@ -277,7 +277,7 @@ include 'common/menuHead.inc';
         <input id= "btnPlay" type="button"  class ="buttons"value="Play" onClick="StartPlaylistNow();">
         <input id= "btnPrev" type="button"  class ="buttons"value="Previous" onClick="PreviousPlaylistEntry();">
         <input id= "btnNext" type="button"  class ="buttons"value="Next" onClick="NextPlaylistEntry();">
-        <input id= "btnStopGracefully" type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
+        <input id= "btnStopGracefully" type="button"  class ="buttons" value="Stop Gracefully" onClick="StopGracefully();">
         <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
        </div>
     </div>

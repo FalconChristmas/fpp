@@ -599,6 +599,10 @@ void MainLoop(void)
 
 	multiSync->Discover();
 
+    if (mqtt) {
+        mqtt->SetReady();
+    }
+    
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
     static const int MAX_EVENTS = 20;

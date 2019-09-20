@@ -50,6 +50,7 @@ static std::vector<PiGPIOPinCapabilities> PI_PINS;
 
 void PiGPIOPinCapabilities::Init() {
     unlink(PI_LOCKFILE);
+    gpioCfgSetInternals(1<<10);
     gpioCfgInterfaces(PI_DISABLE_FIFO_IF | PI_DISABLE_SOCK_IF);
     gpioInitialise();
     unlink(PI_LOCKFILE);
