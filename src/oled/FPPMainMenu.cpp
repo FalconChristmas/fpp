@@ -294,11 +294,9 @@ void FPPMainMenu::itemSelected(const std::string &item) {
             MenuOLEDPage *pg = new MenuOLEDPage("Playlist", playlists, [sp] (const std::string &item) {
                 if (item == "-Stop Now-") {
                     std::string url = "http://localhost/fppxml.php?command=stopNow";
-                    url += item;
                     doCurlGet(url, 1000);
                 } else if (item == "-Stop Gracefully-") {
                     std::string url = "http://localhost/fppxml.php?command=stopGracefully";
-                    url += item;
                     doCurlGet(url, 1000);
                 } else if (item != "Back") {
                     std::string url = "http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playEntry=0&section=&playList=";
