@@ -158,11 +158,6 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
     }
     LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
     
-    // create  background Publish Thread
-    result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
-    if (result != 0) {
-        LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
-    }
     return 1;
 }
 
@@ -265,6 +260,15 @@ void MosquittoClient::SetReady() {
             int rc = mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
             if (rc != MOSQ_ERR_SUCCESS) {
                 LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
+            }
+        }
+        
+        int frequency = atoi(getSetting("MQTTFrequency"));
+        if (frequency > 0) {
+            // create  background Publish Thread
+            int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
+            if (result != 0) {
+                LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
             }
         }
     }
@@ -375,7 +379,6 @@ void MosquittoClient::PublishStatus(){
 }
 
 void *RunMqttPublishThread(void *data) {
-
 	sleep(3); // Give everything time to start up
 
 	MosquittoClient *me = (MosquittoClient *) data;
@@ -387,7 +390,7 @@ void *RunMqttPublishThread(void *data) {
 	if (frequency == 0) {
 		// kill thread
 		LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequency is zero.\nc");
-	       	return 0;
+        return 0;
 	}
 
 	// Loop for ever
