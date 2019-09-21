@@ -49,13 +49,15 @@ class MosquittoClient {
 	void LogCallback(void *userdata, int level, const char *str);
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
     
-    void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
+	void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
+	void HandleDisconnect();
+	void HandleConnect();
 
 	void PublishStatus();
-
-    void SetReady();
+	void SetReady();
   private:
-    bool        m_canProcessMessages;
+	bool        m_canProcessMessages;
+	bool        m_isConnected;
 	std::string m_host;
 	int         m_port;
 	int         m_keepalive;
