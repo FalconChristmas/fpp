@@ -42,7 +42,21 @@ MosquittoClient *mqtt = NULL;
 
 void mosq_disc_callback(struct mosquitto *mosq, void *userdata, int level)
 {
-	mosquitto_reconnect(mosq);
+	if (userdata) {
+		((MosquittoClient *)userdata)->HandleDisconnect();
+	}
+	/*
+	 * Don't call reconnect here. Per documentation, loop_start() will handle
+	 * reconnect automatically.
+	 */
+	//mosquitto_reconnect(mosq);
+}
+
+void mosq_connect_callback(struct mosquitto *mosq, void *userdata, int level)
+{
+	if (userdata) {
+		((MosquittoClient *)userdata)->HandleConnect();
+	}
 }
 
 void mosq_log_callback(struct mosquitto *mosq, void *userdata, int level, const char *str)
@@ -66,6 +80,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	m_mosq(NULL),
     m_host(host),
     m_canProcessMessages(false),
+    m_isConnected(false),
     m_topicPrefix(topicPrefix)
 {
 	LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
@@ -86,8 +101,8 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	m_baseTopic += hostname;
 
 	pthread_mutex_init(&m_mosqLock, NULL);
-}
 
+}
 /*
  *
  */
@@ -121,9 +136,10 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 		LogErr(VB_CONTROL, "Error, unable to create new Mosquitto instance.\n");
 		return 0;
 	}
-
+        mosquitto_user_data_set(m_mosq, this);
 	mosquitto_log_callback_set(m_mosq, mosq_log_callback);
 	mosquitto_disconnect_callback_set(m_mosq, mosq_disc_callback);
+	mosquitto_connect_callback_set(m_mosq, mosq_connect_callback);
 
 	if (username != "") {
         mosquitto_username_pw_set(m_mosq, username.c_str(), password.c_str());
@@ -157,6 +173,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
         return 0;
     }
     LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
+
     
     return 1;
 }
@@ -223,7 +240,7 @@ void MosquittoClient::LogCallback(void *userdata, int level, const char *str)
 
 void MosquittoClient::AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback) {
     callbacks[topic] = callback;
-    if (m_canProcessMessages) {
+    if (m_canProcessMessages && m_isConnected) {
         if (topic.rfind("/set/", 0) != 0) {
             // we are registered on all "/set/" already, no need to re-register
             std::string tp = m_baseTopic + topic;
@@ -238,14 +255,36 @@ void MosquittoClient::AddCallback(const std::string &topic, std::function<void(c
 
 void MosquittoClient::SetReady() {
     if (!m_canProcessMessages) {
+	LogDebug(VB_CONTROL, "Mosquitto SetReady()\n");
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
+
         
-        std::vector<std::string> subscribe_topics;
+       int frequency = atoi(getSetting("MQTTFrequency"));
+       if (frequency > 0) {
+            // create  background Publish Thread
+            int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
+            if (result != 0) {
+                LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
+            }
+        }
+    }
+    // Register topics
+    HandleConnect();
+}
+        
+void MosquittoClient::HandleConnect() {
+	if (! m_canProcessMessages) {
+		// Abort registrying if ReadyNotSet
+		return;
+	}
+	LogInfo(VB_CONTROL, "Mosquitto Connecting.... Will Subscribe to Topics\n");
+	m_isConnected = true;
+	std::vector<std::string> subscribe_topics;
         subscribe_topics.push_back(m_baseTopic + "/set/#");
         subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
         subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
-        
+
         for (auto &a : callbacks) {
             std::string topic = a.first;
             if (topic.rfind("/set/", 0) != 0) {
@@ -253,7 +292,6 @@ void MosquittoClient::SetReady() {
                 subscribe_topics.push_back(tp);
             }
         }
-        
 
         for (auto &subscribe : subscribe_topics) {
             LogDebug(VB_CONTROL, "MQTT: Preparing to Subscribe to %s\n", subscribe.c_str());
@@ -262,16 +300,13 @@ void MosquittoClient::SetReady() {
                 LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
             }
         }
-        
-        int frequency = atoi(getSetting("MQTTFrequency"));
-        if (frequency > 0) {
-            // create  background Publish Thread
-            int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
-            if (result != 0) {
-                LogErr(VB_CONTROL, "Unable to create background Publish thread. rc=%d", result);
-            }
-        }
-    }
+}
+
+
+void MosquittoClient::HandleDisconnect() 
+{
+	LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
+	m_isConnected = false;
 }
 
 /*
@@ -371,6 +406,9 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 }
 
 void MosquittoClient::PublishStatus(){
+	if (! m_isConnected) {
+		return;
+	}
 	Json::Value json = playlist->GetMqttStatusJSON();
 
 	std::stringstream buffer;
@@ -386,7 +424,7 @@ void *RunMqttPublishThread(void *data) {
 	if (frequency < 0) {
 		frequency = 0;
 	} 
-	LogWarn(VB_CONTROL, "MQTT Frequency: %d\nc", frequency);
+	LogWarn(VB_CONTROL, "Starting Publish Thread with Frequency: %d\n", frequency);
 	if (frequency == 0) {
 		// kill thread
 		LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequency is zero.\nc");
