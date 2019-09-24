@@ -320,6 +320,7 @@ int parseArguments(int argc, char **argv)
 				}
 				break;
             case 4: // detect-piface
+                PinCapabilities::InitGPIO();
                 if (PinCapabilities::getPinByGPIO(200).ptr()) {
                     printf("PiFace found\n");
                     exit(1);
@@ -413,6 +414,7 @@ int parseArguments(int argc, char **argv)
 				break;
 			case 'H': //Detect Falcon hardware
 			case 'C': //Configure Falcon hardware
+                PinCapabilities::InitGPIO();
 				SetLogFile("");
 				SetLogLevel("debug");
 				SetLogMask("setting");
@@ -452,7 +454,6 @@ int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	Magick::InitializeMagick(NULL);
-    PinCapabilities::InitGPIO();
 
     // Parse our arguments first, override any defaults
     parseArguments(argc, argv);
@@ -464,11 +465,12 @@ int main(int argc, char *argv[])
 	printVersionInfo();
 
 	// Start functioning
-	if (getDaemonize())
+    if (getDaemonize()) {
 		CreateDaemon();
+    }
+    PinCapabilities::InitGPIO();
 
-	if (strcmp(getSetting("MQTTHost"),""))
-	{
+	if (strcmp(getSetting("MQTTHost"),"")) {
 		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort"), getSetting("MQTTPrefix"));
 
 		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername"), getSetting("MQTTPassword"), getSetting("MQTTCaFile")))
@@ -483,8 +485,9 @@ int main(int argc, char *argv[])
 	sequence  = new Sequence();
 	multiSync = new MultiSync();
 
-	if (!multiSync->Init())
+    if (!multiSync->Init()) {
 		exit(EXIT_FAILURE);
+    }
     
     Sensors::INSTANCE.Init();
     initCape();
@@ -497,8 +500,7 @@ int main(int argc, char *argv[])
         CreatePixelnetDMXfile(getPixelnetFile());
     }
 
-	if (getFPPmode() != BRIDGE_MODE)
-	{
+	if (getFPPmode() != BRIDGE_MODE) {
 		InitMediaOutput();
 	}
 
@@ -513,13 +515,11 @@ int main(int argc, char *argv[])
 
 	MainLoop();
 
-	if (getFPPmode() != BRIDGE_MODE)
-	{
+	if (getFPPmode() != BRIDGE_MODE) {
 		CleanupMediaOutput();
 	}
 
-	if (getFPPmode() & PLAYER_MODE)
-	{
+	if (getFPPmode() & PLAYER_MODE) {
 		CloseEffects();
 	}
     CleanupGPIOInput();
@@ -720,42 +720,42 @@ void MainLoop(void)
 
 void CreateDaemon(void)
 {
-  /* Fork and terminate parent so we can run in the background */
-  /* Fork off the parent process */
-  pid = fork();
-  if (pid < 0) {
-          exit(EXIT_FAILURE);
-  }
-  /* If we got a good PID, then
+    /* Fork and terminate parent so we can run in the background */
+    /* Fork off the parent process */
+    pid = fork();
+    if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+    /* If we got a good PID, then
+        we can exit the parent process. */
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    }
+
+    /* Change the file mode mask */
+    umask(0);
+
+    /* Create a new SID for the child process */
+    sid = setsid();
+    if (sid < 0) {
+        /* Log any failures here */
+        exit(EXIT_FAILURE);
+    }
+
+    /* Fork a second time to get rid of session leader */
+    /* Fork off the parent process */
+    pid = fork();
+    if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+    /* If we got a good PID, then
       we can exit the parent process. */
-  if (pid > 0) {
-          exit(EXIT_SUCCESS);
-  }
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    }
 
-  /* Change the file mode mask */
-  umask(0);
-
-  /* Create a new SID for the child process */
-  sid = setsid();
-  if (sid < 0) {
-          /* Log any failures here */
-          exit(EXIT_FAILURE);
-  }
-
-  /* Fork a second time to get rid of session leader */
-  /* Fork off the parent process */
-  pid = fork();
-  if (pid < 0) {
-          exit(EXIT_FAILURE);
-  }
-  /* If we got a good PID, then
-      we can exit the parent process. */
-  if (pid > 0) {
-          exit(EXIT_SUCCESS);
-  }
-
-  /* Close out the standard file descriptors */
-  close(STDIN_FILENO);
-  close(STDOUT_FILENO);
-  close(STDERR_FILENO);
+    /* Close out the standard file descriptors */
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 }

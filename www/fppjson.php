@@ -59,7 +59,9 @@ $command_array = Array(
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
 	"extGPIO"             => 'ExtGPIOJson',
     "getSysInfo"          => 'GetSystemInfoJson',
-    "getHostNameInfo"     => 'GetSystemHostInfo'
+    "getHostNameInfo"     => 'GetSystemHostInfo',
+    "clearPersistentNetNames" => 'ClearPersistentNetNames',
+    "createPersistentNetNames" => 'CreatePersistentNetNames'
 );
 
 $command = "";
@@ -2182,4 +2184,33 @@ function GetSystemHostInfo()
 	returnJSON($result);
 }
     
+    
+function ClearPersistentNetNames()
+{
+    shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
+}
+function CreatePersistentNetNames()
+{
+	global $settings;
+    shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
+    $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    $count = 0;
+    foreach ($interfaces as $iface) {
+        $iface = preg_replace("/:$/", "", $iface);
+        $cmd = "ip link show " . $iface . " | grep ether | awk '{split($0, a,\" \"); print a[2];}'";
+        exec($cmd, $output, $return_val);
+        
+        $cont = "[Match]\nMACAddress=" . $output[0];
+        if (substr($iface, 0, strlen("wlan")) === "wlan") {
+            $cont = $cont . "\nOriginalName=wlan*";
+        }
+        $cont = $cont . "\n[Link]\nName=" . $iface . "\n";
+        file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
+        shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
+
+        unset($output);
+        $count = $count + 1;
+    }
+    
+}
 ?>

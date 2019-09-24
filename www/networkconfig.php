@@ -252,6 +252,43 @@ function SaveNetworkConfig()
 	});
 }
 
+function CreatePersistentNames() {
+    $('#dialog-create-persistent').dialog({
+        resizeable: false,
+        height: 300,
+        width: 500,
+        modal: true,
+        buttons: {
+            "Yes" : function() {
+                $(this).dialog("close");
+                SetRebootFlag();
+                $.get("fppjson.php?command=createPersistentNetNames", "", function() {location.reload(true);});
+            },
+            "No" : function() {
+            $(this).dialog("close");
+            }
+        }
+    });
+}
+function ClearPersistentNames() {
+    $('#dialog-clear-persistent').dialog({
+        resizeable: false,
+        height: 300,
+        width: 500,
+        modal: true,
+        buttons: {
+            "Yes" : function() {
+                $(this).dialog("close");
+                SetRebootFlag();
+                $.get("fppjson.php?command=clearPersistentNetNames", "", function() {location.reload(true);});
+            },
+            "No" : function() {
+            $(this).dialog("close");
+            }
+        }
+    });
+}
+
 function LoadNetworkConfig() {
 	var iface = $('#selInterfaces').val();
 	var url = "fppjson.php?command=getInterfaceInfo&interface=" + iface;
@@ -488,6 +525,9 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
           <br>
           <input name="btnSetInterface" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update Interface" onClick="SaveNetworkConfig();">        
           <input id="btnConfigNetwork" type="" style="width:135px; display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
+
+        &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type="" style="width:145px;" class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
+        &nbsp;<input id="btnConfigNetworkPersistClear" type="" style="width:145px; " class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
         </fieldset>
         </div>
         <div id="DNS_Servers">
@@ -582,6 +622,12 @@ into the USB port, not the power-only port.  Don't plug anything into the power 
 
 <div id="dialog-confirm" style="display: none">
 	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
+</div>
+<div id="dialog-clear-persistent" style="display: none">
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Clearing out persistent device names can cause interfaces to use different configuration and become unavailable.  Do you wish to proceed?</p>
+</div>
+<div id="dialog-create-persistent" style="display: none">
+    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persisten device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
 </div>
 <?php include 'common/footer.inc'; ?>
 </div>
