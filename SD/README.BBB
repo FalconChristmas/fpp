@@ -152,7 +152,9 @@ rm -rf /opt/source/dtb*
 rm -rf /opt/source/BB*
 rm -rf /opt/source/adafruit*
 rm -rf /opt/source/Userspace*
-rm /usr/local/bin/node-red*
+rm -rf /opt/source/py-uio
+rm -rf /opt/source/librobotcontrol
+rm -rf /usr/local/bin/node-red*
 rm -rf /var/cache/doc-beaglebone-getting-started
 rm -rf /usr/share/beagle-tester
 rm -rf /usr/sbin/beagle-tester*
@@ -160,7 +162,7 @@ rm -rf /lib/systemd/system/beagle-tester.service
 rm -rf /etc/udev/rules.d/beagle-tester.rules
 rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
-
+rm -f /var/local/bb_usb_mass_storage.img
 
 # need to reboot so that the new kernel is picked up and used
 reboot
