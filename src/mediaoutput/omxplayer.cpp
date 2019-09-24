@@ -37,6 +37,7 @@
 #include <sys/socket.h>
 
 #include "common.h"
+#include "settings.h"
 #include "log.h"
 #include "MultiSync.h"
 #include "omxplayer.h"
@@ -56,7 +57,7 @@ omxplayerOutput::omxplayerOutput(std::string mediaFilename, MediaOutputStatus *s
 
 	m_mediaFilename = mediaFilename;
 	m_mediaOutputStatus = status;
-    m_allowSpeedAdjust = true;
+    m_allowSpeedAdjust = getSettingInt("remoteIgnoreSync") == 0;
 
     m_omxBuffer = new char[MAX_BYTES_OMX + 1];
 }
@@ -104,8 +105,7 @@ int omxplayerOutput::Start(void)
 
 	// Create Pipes to/from omxplayer
 	pid_t omxplayerPID = forkpty(&m_childPipe[0], 0, 0, 0);
-	if (omxplayerPID == 0)			// omxplayer process
-	{
+    if (omxplayerPID == 0) {		// omxplayer process
 		CloseOpenFiles();
 
 		seteuid(1000); // 'pi' user
@@ -117,9 +117,7 @@ int omxplayerOutput::Start(void)
 			"be here, this means that execl() failed\n");
 
 		exit(EXIT_FAILURE);
-	}
-	else							// Parent process
-	{
+    } else {							// Parent process
 		m_childPID = omxplayerPID;
 	}
 
@@ -178,14 +176,12 @@ void omxplayerOutput::SetVolume(int volume)
 	if (!diff)
 		return;
 
-	while (diff > 0)
-	{
+	while (diff > 0) {
 		write(m_childPipe[0], "=", 1);
 		diff--;
 	}
 
-	while (diff < 0)
-	{
+    while (diff < 0) {
 		write(m_childPipe[0], "-", 1);
 		diff++;
 	}

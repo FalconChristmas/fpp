@@ -1639,23 +1639,11 @@ void MultiSync::StopSyncedMedia(const char *filename)
 {
 	LogDebug(VB_SYNC, "StopSyncedMedia(%s)\n", filename);
 
-	if (!mediaOutput)
+    if (!mediaOutput) {
 		return;
+    }
 
-	int stopSyncedMedia = 0;
-
-	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
-		stopSyncedMedia = 1;
-	} else {
-        std::string tmpFile = filename;
-        if (HasVideoForMedia(tmpFile)) {
-            if (mediaOutput->m_mediaFilename == tmpFile) {
-                stopSyncedMedia = 1;
-            }
-        }
-	}
-
-	if (stopSyncedMedia) {
+	if (MatchesRunningMediaFilename(filename)) {
 		LogDebug(VB_SYNC, "Stopping synced media: %s\n", mediaOutput->m_mediaFilename.c_str());
 		CloseMediaOutput();
 	}
@@ -1675,16 +1663,7 @@ void MultiSync::SyncSyncedMedia(const char *filename, int frameNumber, float sec
 		return;
 	}
 
-	if (!strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
-		UpdateMasterMediaPosition(secondsElapsed);
-    } else {
-        std::string tmpFile = filename;
-        if (HasVideoForMedia(tmpFile)) {
-            if (mediaOutput->m_mediaFilename == tmpFile) {
-                UpdateMasterMediaPosition(secondsElapsed);
-            }
-        }
-	}
+    UpdateMasterMediaPosition(filename, secondsElapsed);
 }
 
 /*

@@ -65,6 +65,7 @@
 
 
 long long GetTime(void);
+long long GetTimeMS(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
 int       FileExists(const std::string &File);

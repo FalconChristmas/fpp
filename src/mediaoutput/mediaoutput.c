@@ -298,15 +298,23 @@ int OpenMediaOutput(const char *filename) {
 
 	return 1;
 }
-int StartMediaOutput(const char *filename) {
+
+bool MatchesRunningMediaFilename(const char *filename) {
     if (mediaOutput) {
         std::string tmpFile = filename;
         if (HasVideoForMedia(tmpFile)) {
-            if (mediaOutput->m_mediaFilename != filename
-                && !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
-                CloseMediaOutput();
+            if (mediaOutput->m_mediaFilename == tmpFile
+                || !strcmp(mediaOutput->m_mediaFilename.c_str(), filename)) {
+                return true;
             }
         }
+    }
+    return false;
+}
+
+int StartMediaOutput(const char *filename) {
+    if (!MatchesRunningMediaFilename(filename)) {
+        CloseMediaOutput();
     }
 #ifdef PLATFORM_PI
     omxplayerOutput *omx = dynamic_cast<omxplayerOutput*>(mediaOutput);
@@ -342,7 +350,7 @@ int StartMediaOutput(const char *filename) {
     pthread_mutex_unlock(&mediaOutputLock);
     return 1;
 }
-void CloseMediaOutput(void) {
+void CloseMediaOutput() {
 	LogDebug(VB_MEDIAOUT, "CloseMediaOutput()\n");
 
 	mediaOutputStatus.status = MEDIAOUTPUTSTATUS_IDLE;
@@ -469,14 +477,16 @@ void CheckCurrentPositionAgainstMaster(void)
 	}
 }
 
-void UpdateMasterMediaPosition(float seconds)
+void UpdateMasterMediaPosition(const char *filename, float seconds)
 {
-	if (getFPPmode() != REMOTE_MODE)
+    if (getFPPmode() != REMOTE_MODE) {
 		return;
+    }
 
-	masterMediaPosition = seconds;
-
-	CheckCurrentPositionAgainstMaster();
+    if (MatchesRunningMediaFilename(filename)) {
+        masterMediaPosition = seconds;
+        CheckCurrentPositionAgainstMaster();
+    }
 }
 
 

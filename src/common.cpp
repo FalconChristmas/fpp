@@ -57,12 +57,18 @@
 /*
  * Get the current time down to the microsecond
  */
-long long GetTime(void)
-{
+long long GetTime(void) {
 	struct timeval now_tv;
 	gettimeofday(&now_tv, NULL);
 	return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
 }
+
+long long GetTimeMS(void) {
+    struct timeval now_tv;
+    gettimeofday(&now_tv, NULL);
+    return now_tv.tv_sec * 1000LL + now_tv.tv_usec / 1000;
+}
+
 
 /*
  * Check to see if the specified directory exists
