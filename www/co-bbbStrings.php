@@ -635,20 +635,28 @@ function ValidateBBBStrings(data) {
                 if (KNOWN_CAPES[fn] == null) {
                     fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
                     output.subType = fn.name;
-                    output.pinoutVersion = fn.pinoutVersion;
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
                 } else {
                     fn = KNOWN_CAPES[fn];
-                    output.pinoutVersion = fn.pinoutVersion;
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
                 }
             } else if (type == 'BBBSerial') {
                 var fn = GetBBB48StringCapeFileNameForSubType(output.device);
                 if (KNOWN_CAPES[fn] == null) {
                     fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
                     output.device = fn.name;
-                    output.pinoutVersion = fn.pinoutVersion;
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
                 } else {
                     fn = KNOWN_CAPES[fn];
-                    output.pinoutVersion = fn.pinoutVersion;
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
                 }
             }
         }
