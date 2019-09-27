@@ -294,7 +294,7 @@ void RGBMatrixOutput::PrepData(unsigned char *channelData)
         {
             int panel = m_panelMatrix->m_outputPanels[output][i];
             
-            int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
+            int chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain;
             for (int y = 0; y < m_panelHeight; y++)
             {
                 int px = chain * m_panelWidth;
