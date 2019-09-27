@@ -35,6 +35,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 int logLevel = LOG_INFO;
@@ -55,18 +56,24 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 		return;
 
 	va_list arg;
-	time_t t = time(NULL);
+    
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    
 	struct tm tm;
 	char timeStr[32];
 
-	localtime_r(&t, &tm);
-	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+	localtime_r(&tv.tv_sec, &tm);
+    int ms = tv.tv_usec / 1000;
+    
+	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d",
 					1900+tm.tm_year,
 					tm.tm_mon+1,
 					tm.tm_mday,
 					tm.tm_hour,
 					tm.tm_min,
-					tm.tm_sec);
+					tm.tm_sec,
+                    ms);
 
 	if (logFileName[0])
 	{
