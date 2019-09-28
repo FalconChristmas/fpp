@@ -30,6 +30,8 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <mutex>
+#include <thread>
 
 #include "channeloutput.h"
 #include "common.h"
@@ -52,13 +54,12 @@ float mediaOffset = 0.0;
 
 /* local variables */
 pthread_t ChannelOutputThreadID;
-int       RunThread = 0;
-int       ThreadIsRunning = 0;
+volatile int RunThread = 0;
+volatile int ThreadIsRunning = 0;
 
 
-pthread_mutex_t  outputThreadLock;
-pthread_cond_t   outputThreadCond;
-
+std::mutex outputThreadLock;
+std::condition_variable outputThreadCond;
 
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
@@ -88,7 +89,7 @@ void EnableChannelOutput(void) {
 
 void ForceChannelOutputNow(void) {
     LogDebug(VB_CHANNELOUT, "ForceChannelOutputNow()\n");
-    pthread_cond_signal(&outputThreadCond);
+    outputThreadCond.notify_all();
 }
 
 
@@ -111,6 +112,7 @@ void *RunChannelOutputThread(void *data)
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
+    std::unique_lock<std::mutex> lock(outputThreadLock);
 	ThreadIsRunning = 1;
     StartOutputThreads();
 
@@ -133,7 +135,6 @@ void *RunChannelOutputThread(void *data)
 			RunThread = 0;
 	}
 
-    pthread_mutex_lock(&outputThreadLock);
 
 	while (RunThread) {
 		startTime = GetTime();
@@ -214,28 +215,17 @@ void *RunChannelOutputThread(void *data)
 
 		// Calculate how long we need to nanosleep()
 		long dt = (LightDelay - (GetTime() - startTime)) * 1000;
-		if (dt > 0)
-		{
-			gettimeofday(&tv, NULL);
-			ts.tv_sec = tv.tv_sec;
-			ts.tv_nsec = tv.tv_usec * 1000 + dt;
-
-			if (ts.tv_nsec >= 1000000000)
-			{
-				ts.tv_sec  += 1;
-				ts.tv_nsec -= 1000000000;
-			}
-
-			if (pthread_cond_timedwait(&outputThreadCond, &outputThreadLock, &ts) != ETIMEDOUT) {
+		if (dt > 0) {
+            if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt)) == std::cv_status::no_timeout ) {
 				LogDebug(VB_CHANNELOUT, "Forced output\n");
 			}
         }
 	}
 
 	StopOutputThreads();
-    pthread_mutex_unlock(&outputThreadLock);
+    ThreadIsRunning = 0;
+    lock.unlock();
 
-	ThreadIsRunning = 0;
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() completed\n");
 
@@ -258,9 +248,6 @@ void StartChannelOutputThread(void)
 {
 	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
     
-    pthread_mutex_init(&outputThreadLock, NULL);
-    pthread_cond_init(&outputThreadCond, NULL);
-
 	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 
 	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
@@ -270,15 +257,12 @@ void StartChannelOutputThread(void)
 
 	LightDelay = DefaultLightDelay;
 
-	if (ChannelOutputThreadIsRunning())
-	{
-		// Give a little time in case we were shutting down
-		usleep(200000);
-		if (ChannelOutputThreadIsRunning())
-		{
-			LogDebug(VB_CHANNELOUT, "Channel Output thread is already running\n");
-			return;
-		}
+	if (ChannelOutputThreadIsRunning()) {
+        std::unique_lock<std::mutex> lock(outputThreadLock);
+        if (ChannelOutputThreadIsRunning() && RunThread) {
+            LogDebug(VB_CHANNELOUT, "Channel Output thread is already running\n");
+            return;
+        }
 	}
 
 	int mediaOffsetInt = getSettingInt("mediaOffset");
@@ -292,13 +276,11 @@ void StartChannelOutputThread(void)
 	RunThread = 1;
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);
 
-	if (result)
-	{
+	if (result) {
 		char msg[256];
 
 		RunThread = 0;
-		switch (result)
-		{
+		switch (result) {
 			case EAGAIN: strcpy(msg, "Insufficient Resources");
 				break;
 			case EINVAL: strcpy(msg, "Invalid settings");
@@ -307,15 +289,13 @@ void StartChannelOutputThread(void)
 				break;
 		}
 		LogErr(VB_CHANNELOUT, "ERROR creating channel output thread: %s\n", msg );
-	}
-	else
-	{
+	} else {
 		pthread_detach(ChannelOutputThreadID);
 	}
 
 	// Wait for thread to start
 	while (!ChannelOutputThreadIsRunning())
-		usleep(1000);
+		usleep(200);
 }
 
 /*
@@ -327,20 +307,16 @@ int StopChannelOutputThread(void)
 
 	// Stop the thread and wait a few seconds
 	RunThread = 0;
-	while (ThreadIsRunning && (i < 5))
-	{
-		sleep(1);
+    std::unique_lock<std::mutex> lock(outputThreadLock);
+	while (ThreadIsRunning && (i < 50)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		i++;
 	}
 
 	// Didn't stop for some reason, so it was hung somewhere
 	if (ThreadIsRunning)
 		return -1;
-
     
-    pthread_cond_destroy(&outputThreadCond);
-    pthread_mutex_destroy(&outputThreadLock);
-
 	return 0;
 }
 
