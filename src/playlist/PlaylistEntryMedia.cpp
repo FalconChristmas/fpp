@@ -394,7 +394,7 @@ Json::Value PlaylistEntryMedia::GetMqttStatus(void)
 	Json::Value result = PlaylistEntryBase::GetMqttStatus();
 	result["secondsElapsed"]    = mediaOutputStatus.secondsElapsed;
 	result["secondsRemaining"]  = mediaOutputStatus.secondsRemaining;
-	result["secondsTotal"]      = mediaOutputStatus.secondsTotal;
+	result["secondsTotal"]      = mediaOutputStatus.minutesTotal * 60 + mediaOutputStatus.secondsTotal;
 	result["mediaName"]         = m_mediaFilename;
 	result["mediaTitle"]        = MediaDetails::INSTANCE.title;
 	result["mediaArtist"]       = MediaDetails::INSTANCE.artist;
