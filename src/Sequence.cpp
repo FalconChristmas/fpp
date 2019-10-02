@@ -341,6 +341,7 @@ int Sequence::IsSequenceRunning(const std::string &filename) {
 }
 
 void Sequence::BlankSequenceData(void) {
+    LogExcess(VB_SEQUENCE, "BlankSequenceData()\n");
     memset(m_seqData, 0, FPPD_WHITE_CHANNEL);
 }
 

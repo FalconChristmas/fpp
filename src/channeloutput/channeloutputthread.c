@@ -164,8 +164,8 @@ void *RunChannelOutputThread(void *data)
 
 		sendTime = GetTime();
 
-        if (getFPPmode() != BRIDGE_MODE && sequence->IsSequenceRunning()) {
-            if (FrameSkip) {
+        if (getFPPmode() != BRIDGE_MODE) {
+            if (FrameSkip && sequence->IsSequenceRunning()) {
                 sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
                 FrameSkip = 0;
             }
@@ -304,6 +304,7 @@ void StartChannelOutputThread(void)
 int StopChannelOutputThread(void)
 {
 	int i = 0;
+    LogDebug(VB_CHANNELOUT, "StopChannelOutputThread()\n");
 
 	// Stop the thread and wait a few seconds
 	RunThread = 0;
