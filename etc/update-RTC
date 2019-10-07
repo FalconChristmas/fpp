@@ -10,5 +10,7 @@ then
 	RTCDEVICE="/dev/rtc1"
 fi
 
-hwclock -s -f ${RTCDEVICE}
+if [ -e ${RTCDEVICE} ]; then
+    hwclock -s -f ${RTCDEVICE}  > /dev/null 2>&1
+fi
 
