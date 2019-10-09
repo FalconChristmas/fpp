@@ -85,6 +85,33 @@ class OtherBaseDevice extends OtherBase {
 
 /////////////////////////////////////////////////////////////////////////////
 // Misc. Support functions
+function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass) {
+	var result = selectTitle+": <select class='"+selectClass+"'>";
+
+	if (currentValue == "")
+		result += "<option value=''>"+dropDownTitle+"</option>";
+
+	var found = 0;
+	for (var key in optionArray) {
+		result += "<option value='" + key + "'";
+	
+		if (currentValue == key) {
+			result += " selected";
+			found = 1;
+		}
+
+		result += ">" + optionArray[key] + "</option>";
+	}
+
+	if ((currentValue != '') &&
+		(found == 0)) {
+		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
+	}
+	result += "</select>";
+
+	return result;
+}
+
 function DeviceSelect(deviceArray = ["No Devices"], currentValue) {
 	var result = "Port: <select class='device'>";
 
@@ -112,6 +139,8 @@ function DeviceSelect(deviceArray = ["No Devices"], currentValue) {
 	return result;
 }
 
+
+
 /////////////////////////////////////////////////////////////////////////////
 // SPI and Serial Devices
 
@@ -138,6 +167,16 @@ var SerialDevices = new Array();
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
 		}
 	}
+?>
+
+var I2CDevices = new Array();
+<?
+        foreach(scandir("/dev/") as $fileName)
+        {
+            if (preg_match("/^i2c-[0-9]/", $fileName)) {
+                echo "I2CDevices['$fileName'] = '$fileName';\n";
+            }
+        }
 ?>
 
 
@@ -181,6 +220,40 @@ class SPIWS2801Device extends OtherBaseDevice {
 
 }
 
+class I2COutput extends OtherBaseDevice {
+
+    constructor(name="I2C-Output", friendlyName="I2C Output", maxChannels=512, fixedChans=false, minAddr, maxAddr) {
+        super(name, friendlyName, maxChannels, fixedChans, I2CDevices, {deviceID: minAddr});
+        this._minAddr = minAddr;
+        this._maxAddr = maxAddr;
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+
+        var addrs = {};
+        //build addr array for select option
+        for (var addr = this._minAddr; addr <= this._maxAddr; addr++) {
+            addrs[addr] = "Hex: 0x"+addr.toString(16)+", Dec: "+addr;
+        }
+
+        result += " "+CreateSelect(addrs, config.deviceID, "I2C Address", "Select Address", "addr");
+
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        var addr = cell.find("select.addr").val();
+        
+        if (result == "" || addr == "")
+            return "";
+        
+        result.deviceID = addr;
+        return result;
+    }        
+}
+
 var output_modules = [];
 
 //Outputs for all platforms
@@ -200,7 +273,8 @@ if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleB
 if ($settings['Platform'] == "Raspberry Pi")
 {
 ?>
-	output_modules.push(new SPIWS2801Device());
+    output_modules.push(new SPIWS2801Device());
+    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
 <?
 }
 ?>
