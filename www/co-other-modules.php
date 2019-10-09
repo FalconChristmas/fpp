@@ -113,30 +113,7 @@ function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, d
 }
 
 function DeviceSelect(deviceArray = ["No Devices"], currentValue) {
-	var result = "Port: <select class='device'>";
-
-	if (currentValue == "")
-		result += "<option value=''>-- Port --</option>";
-
-	var found = 0;
-	for (var key in deviceArray) {
-		result += "<option value='" + key + "'";
-	
-		if (currentValue == key) {
-			result += " selected";
-			found = 1;
-		}
-
-		result += ">" + deviceArray[key] + "</option>";
-	}
-
-	if ((currentValue != '') &&
-		(found == 0)) {
-		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
-	}
-	result += "</select>";
-
-	return result;
+    return CreateSelect (deviceArray, currentValue, "Port", "-- Port --", "device");
 }
 
 
@@ -220,6 +197,8 @@ class SPIWS2801Device extends OtherBaseDevice {
 
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// I2C Output
 class I2COutput extends OtherBaseDevice {
 
     constructor(name="I2C-Output", friendlyName="I2C Output", maxChannels=512, fixedChans=false, minAddr, maxAddr) {
@@ -254,6 +233,37 @@ class I2COutput extends OtherBaseDevice {
     }        
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Generic SPI Output
+class GenericSPIDevice extends OtherBaseDevice {
+    
+    constructor(name="generic_spi", friendlyName="Generic SPI", maxChannels=16777215, fixedChans=false, devices=SPIDevices, config={speed: 50000}) {
+        super(name, friendlyName, maxChannels, fixedChans, devices, config);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        result += " Speed (khz): <input type='number' name='speed' min='1' max='999999' class='speed' value='"+config.speed+"'>";
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        var speed = cell.find("select.speed").val();
+       
+        if (result == "" || speed == "")
+            return "";
+
+        result.speed = speed;
+
+        return result;
+    }
+
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+//populate the output devices
 var output_modules = [];
 
 //Outputs for all platforms
@@ -275,6 +285,7 @@ if ($settings['Platform'] == "Raspberry Pi")
 ?>
     output_modules.push(new SPIWS2801Device());
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
+    output_modules.push(new GenericSPIDevice());
 <?
 }
 ?>

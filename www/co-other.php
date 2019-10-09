@@ -1182,8 +1182,8 @@ function PopulateChannelOutputTable(data) {
 				)
                 countDisabled = " disabled='disabled'";
 
-            newRow += "></td>" +
-                    "<td>" + type + "</td>" +
+            newRow += "></td>" +	
+					"<td>" + type + "</td>" +
                     "<td><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
                     "<td><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
                     "<td>";
@@ -1405,6 +1405,7 @@ function SaveOtherChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid" + output_module.typeFriendlyName + "Config");
 				return;
 			}
+			maxChannels = output_module.maxChannels;
 		}
 
 
@@ -1583,7 +1584,7 @@ function AddOtherOutput() {
 
 	///////new method
 	output_modules.forEach(function addOption(output_module) {
-		$('#outputType').append(new Option(output_module.typeName, output_module.typeFriendlyName));
+		$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
 	})
 
 }
