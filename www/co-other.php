@@ -1,32 +1,5 @@
+<?php include 'co-other-modules.php';?>
 <script>
-/////////////////////////////////////////////////////////////////////////////
-// Misc. Support functions
-function DeviceSelect(deviceArray, currentValue) {
-	var result = "Port: <select class='device'>";
-
-	if (currentValue == "")
-		result += "<option value=''>-- Port --</option>";
-
-	var found = 0;
-	for (var key in deviceArray) {
-		result += "<option value='" + key + "'";
-	
-		if (currentValue == key) {
-			result += " selected";
-			found = 1;
-		}
-
-		result += ">" + deviceArray[key] + "</option>";
-	}
-
-	if ((currentValue != '') &&
-		(found == 0)) {
-		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
-	}
-	result += "</select>";
-
-	return result;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // nRF Support functions
@@ -56,23 +29,6 @@ function nRFSpeedSelect(speedArray, currentValue) {
 
 	return result;
 }
-
-/////////////////////////////////////////////////////////////////////////////
-// Serial Devices
-var SerialDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO[0-9]/", $fileName)) ||
-			(preg_match("/^ttyS[0-9]/", $fileName)) ||
-			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
-			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
 
 /////////////////////////////////////////////////////////////////////////////
 function USBDeviceConfig(config) {
@@ -1145,57 +1101,6 @@ function NewLORConfig() {
 	return LOROutputConfig(config);
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// SPI Devices (/dev/spidev*
-var SPIDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if (preg_match("/^spidev[0-9]/", $fileName)) {
-			echo "SPIDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
-
-function SPIDeviceConfig(config) {
-	var result = "";
-
-	result += DeviceSelect(SPIDevices, config.device);
-	result += " PI36: <input type=checkbox class='pi36'";
-	if (config.pi36)
-		result += " checked='checked'";
-
-	result += ">";
-
-	return result;
-}
-
-function NewSPIConfig() {
-	var config = {};
-
-	config.device = "";
-	config.pi36 = 0;
-
-	return SPIDeviceConfig(config);
-}
-
-function GetSPIOutputConfig(result, cell) {
-	$cell = $(cell);
-	var value = $cell.find("select.device").val();
-
-	if (value == "")
-		return "";
-
-	var pi36 = 0;
-
-	if ($cell.find("input.pi36").is(":checked"))
-		pi36 = 1;
-
-	result.device = value;
-	result.pi36 = parseInt(pi36);
-
-	return result;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // nRF/Komby
@@ -1255,14 +1160,26 @@ function PopulateChannelOutputTable(data) {
 
             var countDisabled = "";
 
-            if ((type == "Triks-C") ||
+            ///////used for new way
+			let output_module = output_modules.find(obj => obj.typeName == type);
+			///////
+
+			if ((type == "Triks-C") ||
                 (type == 'GPIO') ||
                 (type == 'USBRelay') ||
                 (type == 'Pixelnet-Lynx') ||
                 (type == 'Pixelnet-Open') ||
                 (type == 'MAX7219Matrix') ||
                 (type == 'VirtualDisplay') ||
-                (type == 'VirtualMatrix'))
+                (type == 'VirtualMatrix') ||
+				(() => {
+					///////used for new way
+					if (output_module != undefined)
+						return output_module.fixedChan;
+					return false;
+					})()
+					///////
+				)
                 countDisabled = " disabled='disabled'";
 
             newRow += "></td>" +
@@ -1282,8 +1199,6 @@ function PopulateChannelOutputTable(data) {
                 newRow += RenardOutputConfig(output);
             } else if (type == "LOR") {
                 newRow += LOROutputConfig(output);
-            } else if (type == "SPI-WS2801") {
-                newRow += SPIDeviceConfig(output);
             } else if (type == "SPI-nRF24L01") {
                 newRow += SPInRFDeviceConfig(output);
             } else if (type == "Triks-C") {
@@ -1300,12 +1215,16 @@ function PopulateChannelOutputTable(data) {
                 newRow += USBRelayConfig(output);
             } else if (type == "VirtualMatrix") {
                 newRow += VirtualMatrixConfig(output);
-            }
+            } else if (output_module != undefined){
+				///////new way
+				newRow += output_module.PopulateHTMLRow(output);
+			}
 
             newRow += "</td>" +
                     "</tr>";
 
             $('#tblOtherOutputs tbody').append(newRow);
+
         }
     }
 }
@@ -1405,14 +1324,6 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 3840;
-		} else if (type == "SPI-WS2801") {
-			config = GetSPIOutputConfig(config, $this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid SPI-WS2801 Config");
-				return;
-			}
-			maxChannels = 1530;
 		} else if (type == "SPI-nRF24L01") {
 			config = GetnRFSpeedConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1485,7 +1396,17 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 500000;
+		} else if (output_modules.find(obj => obj.typeName == type) != undefined){
+			///////new method
+			let output_module = output_modules.find(obj => obj.typeName == type);
+			config = output_module.GetOutputConfig(config, $this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid" + output_module.typeFriendlyName + "Config");
+				return;
+			}
 		}
+
 
 		outputs.push(config);
 
@@ -1532,9 +1453,6 @@ function AddOtherTypeOptions(row, type) {
 		config += NewLORConfig();
 		row.find("td input.count").val("16");
 		row.find("td input.speed").val("19200");
-	} else if (type == "SPI-WS2801") {
-		config += NewSPIConfig();
-		row.find("td input.count").val("1530");
 	} else if (type == "SPI-nRF24L01") {
 		config += NewnRFSPIConfig();
 		row.find("td input.count").val("512");
@@ -1568,6 +1486,11 @@ function AddOtherTypeOptions(row, type) {
 		config += NewVirtualMatrixConfig();
 		row.find("td input.count").val("1536");
 		row.find("td input.count").prop('disabled', true);
+	} else if (output_modules.find(obj => obj.typeName == type) != undefined) {
+		///////new method
+		let output_module = output_modules.find(obj => obj.typeName == type);
+		config += output_module.AddNewRow();
+		output_module.SetDefaults(row);
 	}
 
 	row.find("td:nth-child(6)").html(config);
@@ -1592,17 +1515,15 @@ function OtherTypeSelected(selectbox) {
 		return;
 	}
 
-	if ((Object.keys(SPIDevices).length == 0) &&
-			(type == 'SPI-WS2801'))
-	{
-		DialogError("Add Output", "No available SPI devices detected.");
-		$row.remove();
-		return;
-	}
 
-	if ((type == 'Triks-C') || (type == 'GPIO'))
-	{
-		$row.find('input.count').prop('disabled', true);
+	///////new way
+	let output_module = output_modules.find(obj => obj.typeName == type);
+	if (output_module != undefined) {
+		if(!output_module.CanAddNewOutput()) {
+			DialogError("Add Output", "Can't add output: " + output_module.typeFriendlyName);
+			$row.remove();
+			return;
+		}
 	}
 
 	$row.find("td:nth-child(3)").html(type);
@@ -1611,8 +1532,7 @@ function OtherTypeSelected(selectbox) {
 }
 
 function AddOtherOutput() {
-	if ((Object.keys(SerialDevices).length == 0) &&
-		(Object.keys(SPIDevices).length == 0)) {
+	if (Object.keys(SerialDevices).length == 0 && Object.keys(SPIDevices).length == 0) {
 		DialogError("Add Output", "No available devices found for new outputs");
 		return;
 	}
@@ -1622,7 +1542,7 @@ function AddOtherOutput() {
 	var newRow = 
 		"<tr class='rowUniverseDetails'><td>" + (currentRows + 1) + "</td>" +
 			"<td><input class='act' type=checkbox></td>" +
-			"<td><select class='type' onChange='OtherTypeSelected(this);'>" +
+			"<td><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
 				"<option value=''>Select a type</option>" +
 				"<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
@@ -1644,7 +1564,6 @@ function AddOtherOutput() {
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
 				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
 				"<option value='MAX7219Matrix'>MAX7219 Matrix</option>" +
 <?
@@ -1661,6 +1580,12 @@ function AddOtherOutput() {
 			"</tr>";
 
 	$('#tblOtherOutputs tbody').append(newRow);
+
+	///////new method
+	output_modules.forEach(function addOption(output_module) {
+		$('#outputType').append(new Option(output_module.typeName, output_module.typeFriendlyName));
+	})
+
 }
 
 var otherTableInfo = {
