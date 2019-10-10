@@ -237,7 +237,7 @@ class I2COutput extends OtherBaseDevice {
 // Generic SPI Output
 class GenericSPIDevice extends OtherBaseDevice {
     
-    constructor(name="generic_spi", friendlyName="Generic SPI", maxChannels=16777215, fixedChans=false, devices=SPIDevices, config={speed: 50000}) {
+    constructor(name="generic_spi", friendlyName="Generic SPI", maxChannels=1048576, fixedChans=false, devices=SPIDevices, config={speed: 50000}) {
         super(name, friendlyName, maxChannels, fixedChans, devices, config);
     }
 
@@ -249,7 +249,7 @@ class GenericSPIDevice extends OtherBaseDevice {
 
     GetOutputConfig(result, cell) {
         result = super.GetOutputConfig(result, cell);
-        var speed = cell.find("select.speed").val();
+        var speed = cell.find("input.speed").val();
        
         if (result == "" || speed == "")
             return "";

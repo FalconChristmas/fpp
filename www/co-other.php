@@ -1182,11 +1182,15 @@ function PopulateChannelOutputTable(data) {
 				)
                 countDisabled = " disabled='disabled'";
 
-            newRow += "></td>" +	
-					"<td>" + type + "</td>" +
+			var typeFriendlyName = type;
+			if (output_module != undefined)
+					typeFriendlyName = output_module.typeFriendlyName;
+
+			newRow += "></td>" +	
+					"<td class='type'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
                     "<td><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
                     "<td><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
-                    "<td>";
+                    "<td class='config'>";
 
             if ((type == "DMX-Pro") ||
                 (type == "DMX-Open") ||
@@ -1252,10 +1256,10 @@ function SaveOtherChannelOutputs() {
 		}
 
 		// Type
-		var type = $this.find("td:nth-child(3)").html();
+		var type = $this.find("input.type").val();
 
 		// User has not selected a type yet
-		if (type.indexOf("<select") >= 0) {
+		if (type.indexOf("None Selected") >= 0) {
 			DialogError("Save Channel Outputs",
 				"Output type must be selected on row " + rowNumber);
 			dataError = 1;
@@ -1527,7 +1531,12 @@ function OtherTypeSelected(selectbox) {
 		}
 	}
 
-	$row.find("td:nth-child(3)").html(type);
+	//add frindly type name if available
+	var typeFriendlyName = type;
+	if (output_module != undefined)
+			typeFriendlyName = output_module.typeFriendlyName;
+	$row.find("td.type").html(typeFriendlyName);
+	$row.find("td.type").append("<input class='type' type='hidden' name='type' value='" +type+ "'>");
 
 	AddOtherTypeOptions($row, type);
 }
@@ -1543,7 +1552,7 @@ function AddOtherOutput() {
 	var newRow = 
 		"<tr class='rowUniverseDetails'><td>" + (currentRows + 1) + "</td>" +
 			"<td><input class='act' type=checkbox></td>" +
-			"<td><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
+			"<td class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
 				"<option value=''>Select a type</option>" +
 				"<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
@@ -1574,7 +1583,7 @@ function AddOtherOutput() {
 				"<option value='VirtualDisplay'>Virtual Display</option>" +
 				"<option value='Triks-C'>Triks-C</option>" +
 				"<option value='USBRelay'>USBRelay</option>" +
-			"</select></td>" +
+			"</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td> </td>" +
