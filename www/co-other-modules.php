@@ -1,4 +1,13 @@
 <script>
+/*
+Quick instructions for adding new output types
+If needed extend a class to add input fields on the Output Config column.  Create a new object for the output type and it to the output_modules array at the bottom.  No need to edit co-other.php.
+Name = type, fpp uses this name to load the correct module
+friendlyName = is the display name for the type and is what is displayed in the Output Type column
+maxChannels = is the max channels that can be configured.  It is also the default channel count for a new row.
+fixChans = true when the output has a fixed channel count.
+*/
+
 /////////////////////////////////////////////////////////////////////////////
 //Base Class
 
@@ -283,6 +292,7 @@ if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleB
 if ($settings['Platform'] == "Raspberry Pi")
 {
 ?>
+    //TODO need to see if these modules could run as is on the BeagleBone
     output_modules.push(new SPIWS2801Device());
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
     output_modules.push(new GenericSPIDevice());
