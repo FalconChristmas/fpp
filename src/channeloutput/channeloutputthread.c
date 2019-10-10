@@ -54,12 +54,14 @@ float mediaOffset = 0.0;
 
 /* local variables */
 pthread_t ChannelOutputThreadID;
-volatile int RunThread = 0;
-volatile int ThreadIsRunning = 0;
-
+volatile int     RunThread = 0;
+volatile int     ThreadIsRunning = 0;
+volatile int     ThreadIsExiting = 0;
 
 std::mutex outputThreadLock;
+std::mutex outputThreadStatusLock;
 std::condition_variable outputThreadCond;
+std::condition_variable outputThreadSatusCond;
 
 /* prototypes for functions below */
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
@@ -99,8 +101,6 @@ void ForceChannelOutputNow(void) {
  */
 void *RunChannelOutputThread(void *data)
 {
-	(void)data;
-
 	static long long lastStatTime = 0;
 	long long startTime;
 	long long sendTime;
@@ -113,7 +113,11 @@ void *RunChannelOutputThread(void *data)
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
     std::unique_lock<std::mutex> lock(outputThreadLock);
+    std::unique_lock<std::mutex> statusLock(outputThreadStatusLock);
 	ThreadIsRunning = 1;
+    ThreadIsExiting = 0;
+    statusLock.unlock();
+    
     StartOutputThreads();
 
 	if ((getFPPmode() == REMOTE_MODE) &&
@@ -165,11 +169,13 @@ void *RunChannelOutputThread(void *data)
 		sendTime = GetTime();
 
         if (getFPPmode() != BRIDGE_MODE) {
-            if (FrameSkip && sequence->IsSequenceRunning()) {
-                sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
-                FrameSkip = 0;
+            if (sequence->IsSequenceRunning() || (onceMore <= 1)) {
+                if (FrameSkip && sequence->IsSequenceRunning()) {
+                    sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
+                    FrameSkip = 0;
+                }
+                sequence->ReadSequenceData();
             }
-            sequence->ReadSequenceData();
         }
 
         readTime = GetTime();
@@ -177,6 +183,7 @@ void *RunChannelOutputThread(void *data)
 
 		processTime = GetTime();
 
+        statusLock.lock();
 		if ((sequence->IsSequenceRunning()) ||
 			(IsEffectRunning()) ||
 			(PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
@@ -202,30 +209,46 @@ void *RunChannelOutputThread(void *data)
                     processTime - readTime, 
                     sleepTime, channelOutputFrame);
 			}
-		}
-		else
-		{
+		} else {
 			LightDelay = DefaultLightDelay;
 
-			if (onceMore)
+            if (onceMore) {
 				onceMore--;
-			else
-				RunThread = 0;
+            } else {
+                //we will wait up to 1000ms to see if the thread is still needed
+                ThreadIsExiting = 1;
+                if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(1000)) == std::cv_status::no_timeout) {
+                    //signal to keep going
+                    ThreadIsExiting = 0;
+                    statusLock.unlock();
+                    outputThreadSatusCond.notify_all();
+                    onceMore = 1;
+                    continue;
+                } else {
+                    RunThread = 0;
+                    ThreadIsExiting = 1;
+                }
+            }
 		}
+        statusLock.unlock();
 
 		// Calculate how long we need to nanosleep()
 		long dt = (LightDelay - (GetTime() - startTime)) * 1000;
-		if (dt > 0) {
+		if (RunThread && dt > 0) {
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt)) == std::cv_status::no_timeout ) {
 				LogDebug(VB_CHANNELOUT, "Forced output\n");
 			}
         }
 	}
-
 	StopOutputThreads();
+    statusLock.lock();
     ThreadIsRunning = 0;
+    statusLock.unlock();
     lock.unlock();
-
+    statusLock.lock();
+    ThreadIsExiting = 0;
+    statusLock.unlock();
+    outputThreadSatusCond.notify_all();
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() completed\n");
 
@@ -247,19 +270,24 @@ void SetChannelOutputRefreshRate(int rate)
 void StartChannelOutputThread(void)
 {
 	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
-    
-	int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 
-	if ((getFPPmode() == BRIDGE_MODE) && (E131BridgingInterval))
-		DefaultLightDelay = E131BridgingInterval * 1000;
-	else
-		DefaultLightDelay = 1000000 / RefreshRate;
 
+    DefaultLightDelay = 1000000 / RefreshRate;
+    if (getFPPmode() == BRIDGE_MODE) {
+        int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+        if (E131BridgingInterval) {
+            DefaultLightDelay = E131BridgingInterval * 1000;
+        }
+    }
 	LightDelay = DefaultLightDelay;
-
+    outputThreadSatusCond.notify_all();
 	if (ChannelOutputThreadIsRunning()) {
-        std::unique_lock<std::mutex> lock(outputThreadLock);
-        if (ChannelOutputThreadIsRunning() && RunThread) {
+		// Give a little time in case we were shutting down
+        std::unique_lock<std::mutex> lock(outputThreadStatusLock);
+        if (ThreadIsExiting) {
+            outputThreadSatusCond.wait_for(lock, std::chrono::milliseconds(10));
+        }
+        if (ThreadIsRunning && !ThreadIsExiting) {
             LogDebug(VB_CHANNELOUT, "Channel Output thread is already running\n");
             return;
         }
@@ -274,6 +302,7 @@ void StartChannelOutputThread(void)
 	LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
 
 	RunThread = 1;
+    ThreadIsExiting = 0;
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);
 
 	if (result) {
@@ -308,9 +337,8 @@ int StopChannelOutputThread(void)
 
 	// Stop the thread and wait a few seconds
 	RunThread = 0;
-    std::unique_lock<std::mutex> lock(outputThreadLock);
 	while (ThreadIsRunning && (i < 50)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		i++;
 	}
 

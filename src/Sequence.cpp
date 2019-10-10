@@ -341,7 +341,7 @@ int Sequence::IsSequenceRunning(const std::string &filename) {
 }
 
 void Sequence::BlankSequenceData(void) {
-    LogExcess(VB_SEQUENCE, "BlankSequenceData()\n");
+    LogDebug(VB_SEQUENCE, "BlankSequenceData()\n");
     memset(m_seqData, 0, FPPD_WHITE_CHANNEL);
 }
 
@@ -441,9 +441,9 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             frameLoadSignal.notify_all();
         }
     } else {
-        if (getFPPmode() != REMOTE_MODE || getSettingInt("blankBetweenSequences")) {
+        if (getSettingInt("blankBetweenSequences")) {
             BlankSequenceData();
-        } else {
+        } else if (getFPPmode() == REMOTE_MODE) {
             //on a remote, we will get a "stop" and then a "start" a short time later
             //we don't want to blank immediately (unless the master tells us to)
             //so we don't get black blinks on the remote.  We'll wait the equivalent
@@ -523,7 +523,7 @@ void Sequence::CloseIfOpen(const std::string &filename) {
 }
 
 void Sequence::CloseSequenceFile(void) {
-    LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", m_seqFilename);
+    LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", m_seqFilename.c_str());
 
     if (getFPPmode() == MASTER_MODE)
         multiSync->SendSeqSyncStopPacket(m_seqFilename);
