@@ -78,7 +78,7 @@ fi
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
 	echo "FPP - Setting up SPI"
-	/usr/local/bin/gpio load spi 100 &>/dev/null
+    modprobe spidev
 
     if [ ! -e /dev/spidev0.0 ]; then
         sleep 0.5

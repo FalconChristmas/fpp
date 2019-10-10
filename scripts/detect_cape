@@ -17,9 +17,10 @@ FPPDIR=${FPPDIR:-/opt/fpp}
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 FPPBINDIR="${FPPDIR}/src"
 
-# On the Pi, we
+# On the Pi, we have to load the modules, built in on BBB
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
    modprobe i2c-dev 2>&1
+   modprobe spidev 2>&1
 fi
 
 mkdir -p /home/fpp/media/tmp

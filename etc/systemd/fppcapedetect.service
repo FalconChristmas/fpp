@@ -2,7 +2,7 @@
 Description=FPP Cape Detection
 Documentation=https://falconchristmas.com/forum/
 Before=fpprtc.service fppinit.service network.target multi-user.target apache2.service fppoled.service
-Wants=home-fpp-media.mount
+After=home-fpp-media.mount
 
 [Service]
 ExecStart=/opt/fpp/scripts/detect_cape
