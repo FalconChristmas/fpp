@@ -196,8 +196,8 @@ include 'common/menuHead.inc';
         <div class='playerStatusLeft'>
           <table  width= "100%">
             <tr>
-              <td class='playerStatusHeader'>Player Status: </td>
-              <td id="txtPlayerStatus"></td>
+              <td class='playerStatusHeader'>Player&nbsp;Status: </td>
+              <td id="txtPlayerStatus" style="text-align:left; width=80%"></td>
             </tr>
           </table>
         </div>

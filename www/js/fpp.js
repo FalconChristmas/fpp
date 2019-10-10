@@ -2100,7 +2100,6 @@ function RemovePlaylistEntry()	{
 			var currentPlaylist = jsonStatus.current_playlist;
 
 			if (fppStatus == STATUS_IDLE) {
-			
 				gblCurrentPlaylistIndex =0;
 				gblCurrentPlaylistEntryType = '';
 				gblCurrentPlaylistEntrySeq = '';
@@ -2119,9 +2118,20 @@ function RemovePlaylistEntry()	{
 				SetButtonState('#btnStopGracefully','disable');
 				$('#selStartPlaylist').removeAttr("disabled");
 				UpdateCurrentEntryPlaying(0);
-			
 			} else if (currentPlaylist.playlist != "") {
 				var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
+                if (jsonStatus.current_song != "") {
+                    playerStatusText += " - <strong>'" + jsonStatus.current_song + "'</strong>";
+                    if (jsonStatus.current_sequence != "") {
+                        playerStatusText += "/";
+                    }
+                }
+                if (jsonStatus.current_sequence != "") {
+                    if (jsonStatus.current_song == "") {
+                        playerStatusText += " - ";
+                    }
+                    playerStatusText += "<strong>'" + jsonStatus.current_sequence + "'</strong>";
+                }
                 var repeatMode = jsonStatus.repeat_mode;
 				if ((gblCurrentLoadedPlaylist != currentPlaylist.playlist) ||
 					(gblCurrentPlaylistIndex != currentPlaylist.index) ||
@@ -2148,8 +2158,8 @@ function RemovePlaylistEntry()	{
 				}
 
 				$('#txtPlayerStatus').html(playerStatusText);
-				$('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );				
-				$('#txtTimeRemaining').html("Remaining: " + jsonStatus.time_remaining );	
+				$('#txtTimePlayed').html("Elapsed:&nbsp;" + jsonStatus.time_elapsed );
+				$('#txtTimeRemaining').html("Remaining:&nbsp;" + jsonStatus.time_remaining );
 				$('#txtSeqFilename').html(jsonStatus.current_sequence);
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 

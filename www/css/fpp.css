@@ -446,14 +446,16 @@ fieldset
 }
 
 .playerStatusHeader{
-	width: 40%;
+    width: 1%;
+    white-space: nowrap;
+    padding-right: 15px;
 }
 .playerStatusLeft{
-	width: 50%;
+	width: 70%;
 	float: left;
 }
 .playerStatusRight{
-	width: 50%;
+	width: 30%;
 	float: left;
 }
 
