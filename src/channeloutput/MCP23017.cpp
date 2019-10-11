@@ -121,7 +121,13 @@ int MCP23017Output::Init(Json::Value config)
 
 	m_deviceID = config["deviceID"].asInt();
 
-    i2c = new I2CUtils(1, 0x20);
+	if (m_deviceID < 0x20 || m_deviceID > 0x27)
+	{
+		LogErr(VB_CHANNELOUT, "Invalid MSCP23017 Address: %X\n", m_deviceID);
+		return 0;
+	}
+
+    i2c = new I2CUtils(1, m_deviceID);
 	if (!i2c->isOk())
 	{
 		LogErr(VB_CHANNELOUT, "Error opening I2C device for MCP23017 output\n");
@@ -188,7 +194,7 @@ void MCP23017Output::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "MCP23017Output::DumpConfig()\n");
 
-	LogDebug(VB_CHANNELOUT, "    deviceID: %d\n", m_deviceID);
+	LogDebug(VB_CHANNELOUT, "    deviceID: %X\n", m_deviceID);
 
 	ChannelOutputBase::DumpConfig();
 }
