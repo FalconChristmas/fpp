@@ -106,6 +106,7 @@ static void handleCrash(int s) {
         exit(-1);
     }
 }
+
 bool setupExceptionHandlers()
 {
     // old sig handlers
@@ -133,10 +134,16 @@ bool setupExceptionHandlers()
         ok &= sigaction(SIGSEGV, &act, &s_handlerSEGV) == 0;
         ok &= sigaction(SIGQUIT, &act, nullptr) == 0;
         ok &= sigaction(SIGUSR1, &act, nullptr) == 0;
+        
+        struct sigaction sigchld_action;
+        sigchld_action.sa_handler = SIG_DFL;
+        sigchld_action.sa_flags = SA_NOCLDWAIT;
+        sigemptyset(&sigchld_action.sa_mask);
+        ok &= sigaction(SIGCHLD, &sigchld_action, NULL);
+        
         if (!ok) {
             LogWarn(VB_ALL, "Failed to install our signal handler.");
         }
-        
         s_savedHandlers = true;
     } else if (s_savedHandlers) {
         // uninstall the signal handler
