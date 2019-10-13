@@ -23,8 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GENERIC_SPI_H
-#define _GENERIC_SPI_H
+#ifndef _GENERICSPI_H
+#define _GENERICSPI_H
 
 #include "ThreadedChannelOutputBase.h"
 #include "util/SPIUtils.h"

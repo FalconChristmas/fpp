@@ -170,10 +170,10 @@ var I2CDevices = new Array();
 /////////////////////////////////////////////////////////////////////////////
 // WS2801 Output via SPI
 
-class SPIWS2801Device extends OtherBaseDevice {
+class SPIws2801Device extends OtherBaseDevice {
     
     constructor() {
-        super("SPI-WS2801", "SPI-WS2801", 1530, false, SPIDevices, {pi36: 0});
+        super("SPIws2801", "SPI-WS2801", 1530, false, SPIDevices, {pi36: 0});
     }
 
     PopulateHTMLRow(config) {
@@ -246,7 +246,7 @@ class I2COutput extends OtherBaseDevice {
 // Generic SPI Output
 class GenericSPIDevice extends OtherBaseDevice {
     
-    constructor(name="generic_spi", friendlyName="Generic SPI", maxChannels=1048576, fixedChans=false, devices=SPIDevices, config={speed: 50000}) {
+    constructor(name="GenericSPI", friendlyName="Generic SPI", maxChannels=1048576, fixedChans=false, devices=SPIDevices, config={speed: 50}) {
         super(name, friendlyName, maxChannels, fixedChans, devices, config);
     }
 
@@ -293,7 +293,7 @@ if ($settings['Platform'] == "Raspberry Pi")
 {
 ?>
     //TODO need to see if these modules could run as is on the BeagleBone
-    output_modules.push(new SPIWS2801Device());
+    output_modules.push(new SPIws2801Device());
     output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
     output_modules.push(new GenericSPIDevice());
 <?
