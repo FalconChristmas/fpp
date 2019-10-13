@@ -35,7 +35,7 @@
 #include "log.h"
 #include "settings.h"
 
-#include "generic_spi.h"
+#include "GenericSPI.h"
 
 #define MAX_CHANNELS 16777215
 
