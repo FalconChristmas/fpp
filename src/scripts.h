@@ -27,7 +27,10 @@
 #define _SCRIPTS_H
 
 #include <string>
+#include <utility>
+#include <vector>
 
 pid_t RunScript(std::string script, std::string scriptArgs);
+pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pair<std::string, std::string>> envVars);
 
 #endif

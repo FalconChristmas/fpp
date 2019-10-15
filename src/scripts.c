@@ -37,12 +37,20 @@
 
 #include "common.h"
 #include "log.h"
+#include "scripts.h"
 #include "settings.h"
 
 /*
  * Fork and run a script with accompanying args
  */
 pid_t RunScript(std::string script, std::string scriptArgs)
+{
+	std::vector<std::pair<std::string,std::string>> envVars;
+
+	RunScript(script, scriptArgs, envVars);
+}
+
+pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pair<std::string, std::string>> envVars)
 {
 	pid_t pid = 0;
 	char  userScript[1024];
@@ -126,6 +134,11 @@ pid_t RunScript(std::string script, std::string scriptArgs)
 
 		setenv("FPP_SCRIPT", script.c_str(), 0);
 		setenv("FPP_SCRIPTARGS", scriptArgs.c_str(), 0);
+
+		for (int ev = 0; ev < envVars.size(); ev++)
+		{
+			setenv(envVars[ev].first.c_str(), envVars[ev].second.c_str(), 0);
+		}
 
         if (chdir(getScriptDirectory()))
         {

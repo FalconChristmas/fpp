@@ -261,10 +261,23 @@ FPPevent* LoadEvent(const char *id)
  */
 void RunEventScript(FPPevent *e)
 {
+	char majorID[3];
+	char minorID[3];
+
+	sprintf(majorID, "%d", e->majorID);
+	sprintf(minorID, "%d", e->minorID);
+
+	std::vector<std::pair<std::string,std::string>> envVars;
+
+	envVars.push_back(std::pair<std::string,std::string>("FPP_EVENT_MAJOR_ID", majorID));
+	envVars.push_back(std::pair<std::string,std::string>("FPP_EVENT_MINOR_ID", minorID));
+	envVars.push_back(std::pair<std::string,std::string>("FPP_EVENT_NAME", e->name));
+	envVars.push_back(std::pair<std::string,std::string>("FPP_EVENT_SCRIPT", e->script));
+
 	if (e->scriptArgs)
-		RunScript(e->script, e->scriptArgs);
+		RunScript(e->script, e->scriptArgs, envVars);
 	else
-		RunScript(e->script, "");
+		RunScript(e->script, "", envVars);
 }
 
 /*
