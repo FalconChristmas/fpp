@@ -100,6 +100,7 @@ class BBBMatrix : public ChannelOutputBase {
     bool         m_evenFrame;
     bool         m_outputByRow;
     bool         m_outputBlankData;
+    std::vector<int> m_bitOrder;
     
     int          m_timing;
     InterleaveHandler *m_handler;

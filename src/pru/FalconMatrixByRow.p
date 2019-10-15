@@ -94,6 +94,9 @@ NEW_ROW_LOOP:
 
         MOV sleep_counter, tmp_reg1
         MOV sleepDone, 0
+        LATCH_LO
+        READ_TO_FLUSH
+
 
         DISPLAY_ON
 
@@ -114,6 +117,7 @@ NEW_ROW_LOOP:
         ZERO &r18, 16
         MOV pixelCount, ROW_LEN
         LATCH_LO
+        READ_TO_FLUSH
         NEXT_PIXEL_BLANK:
             CLOCK_LO
             OUTPUT_GPIOS r18, r19, r20, r21
@@ -136,6 +140,9 @@ NEW_ROW_LOOP:
         RESET_PRU_CLOCK tmp_reg3, tmp_reg4
         MOV sleep_counter, 20;
         MOV sleepDone, 0
+        LATCH_LO
+        READ_TO_FLUSH
+
         DISPLAY_ON
 
 #endif

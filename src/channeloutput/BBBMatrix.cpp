@@ -214,7 +214,17 @@ void BBBMatrix::calcBrightnessFlags(std::vector<std::string> &sargs) {
     char buf[255];
     
     int x = m_colorDepth;
-    for (auto b : BIT_ORDERS[m_colorDepth]) {
+    m_bitOrder.clear();
+    if (m_outputByRow) {
+        //if outputing by row, we have to keep in decending order
+        for (int x = m_colorDepth; x > 0; --x) {
+            m_bitOrder.push_back(x-1);
+        }
+    } else {
+        m_bitOrder = BIT_ORDERS[m_colorDepth];
+    }
+    
+    for (auto b : m_bitOrder) {
         int idx = m_colorDepth - b - 1;
         sprintf(buf, "-DBRIGHTNESS%d=%d", x, brightnessValues[idx]);
         
@@ -922,7 +932,7 @@ void BBBMatrix::PrepData(unsigned char *channelData)
                     
                     int xOff = xOut * 4;
                     
-                    for (auto bit : BIT_ORDERS[m_colorDepth]) {
+                    for (auto bit : m_bitOrder) {
 
                         uint16_t mask = 1 << bit;
                         if (r1 & mask) {
