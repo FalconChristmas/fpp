@@ -67,6 +67,27 @@ const std::vector<std::pair<uint32_t, uint32_t>> GetOutputRanges() {
     return outputRanges;
 }
 
+static void addRange(uint32_t min, uint32_t max) {
+    // having the reads be aligned to intervals of 8 can help performance so
+    // we'll expand the range a bit to align things better
+    //round minimum down to interval of 8
+
+    min &= 0xFFFFFFF8;
+    max += 8;
+    max &= 0xFFFFFFF8;
+    max -= 1;
+    
+    for (auto &r : outputRanges) {
+        int rm = r.first + r.second - 1;
+        if (min >= r.first && max <= rm) {
+            //within the range, don't add it
+            return;
+        }
+    }
+    
+    outputRanges.push_back(std::pair<uint32_t, uint32_t>(min, max - min + 1));
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -332,20 +353,28 @@ int InitializeChannelOutputs(void) {
     if (maximumNeededChannel < minimumNeededChannel) {
         maximumNeededChannel = minimumNeededChannel = 0;
     }
-    // having the reads be aligned to intervals of 8 can help performance so
-    // we'll expand the range a bit to align things better
-    //round minimum down to interval of 8
     if (minimumNeededChannel > 0) {
         minimumNeededChannel--;
     }
-    minimumNeededChannel &= 0xFFFFFFF8;
-    maximumNeededChannel += 8;
-    maximumNeededChannel &= 0xFFFFFFF8;
-    maximumNeededChannel -= 1;
     
-    outputRanges.push_back(std::pair<uint32_t, uint32_t>(minimumNeededChannel, maximumNeededChannel - minimumNeededChannel + 1));
+    if (minimumNeededChannel == maximumNeededChannel) {
+        if (!getControlMajor() && !getControlMinor()) {
+            addRange(minimumNeededChannel, maximumNeededChannel);
+        }
+    } else {
+        addRange(minimumNeededChannel, maximumNeededChannel);
+    }
+    
 
-    LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", minimumNeededChannel, maximumNeededChannel);
+    if (getControlMajor() || getControlMinor()) {
+        int min = std::min(getControlMajor(), getControlMinor());
+        int max = std::max(getControlMajor(), getControlMinor());
+        addRange(min, max);
+    }
+    
+    for (auto &r : outputRanges) {
+        LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", r.first, r.first + r.second - 1);
+    }
 
 	return 1;
 }
