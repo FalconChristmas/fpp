@@ -211,6 +211,9 @@ class MultiSync {
     int OpenControlSockets();
 
   private:
+    bool isSupportedForMultisync(char *address, char *intface);
+    
+    void setupMulticastReceive();
     void PingSingleRemote(int sysIdx);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
 
@@ -253,7 +256,6 @@ class MultiSync {
     std::string         m_localAddress;
 	struct sockaddr_in  m_srcAddr;
 	struct sockaddr_in  m_receiveSrcAddr;
-	struct sockaddr_in  m_broadcastDestAddr;
 	pthread_mutex_t     m_socketLock;
 
     unsigned long       m_lastPingTime;

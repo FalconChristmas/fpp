@@ -65,6 +65,7 @@
 #include "mediaoutput/mediaoutput.h"
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
+#include "NetworkMonitor.h"
 
 
 MultiSync *multiSync;
@@ -122,6 +123,15 @@ int MultiSync::Init(void)
 			return 0;
 	}
 
+    std::function<void(int i, int up, const std::string &)> f = [this] (int i, int up, const std::string &name) {
+        if (up) {
+            setupMulticastReceive();
+            FillLocalSystemInfo();
+            Ping(1);
+        }
+    };
+    NetworkMonitor::INSTANCE.registerCallback(f);
+    
 	return 1;
 }
 
@@ -260,7 +270,7 @@ void MultiSync::FillLocalSystemInfo(void)
                 if (strncmp("usb", tmp->ifa_name, 3) != 0) {
                     //skip the usb* interfaces as we won't support multisync on those
                     GetInterfaceAddress(tmp->ifa_name, addressBuf, NULL, NULL);
-                    if (strcmp(addressBuf, "127.0.0.1")) {
+                    if (isSupportedForMultisync(addressBuf, tmp->ifa_name)) {
                         addresses.push_back(addressBuf);
                     }
                 }
@@ -275,11 +285,14 @@ void MultiSync::FillLocalSystemInfo(void)
         addresses.push_back(addressBuf);
     }
 
-	m_hostname = getSetting("HostName");
+    if (m_hostname == "") {
+        m_hostname = getSetting("HostName");
+    }
 
 	if (m_hostname == "")
 		m_hostname = "FPP";
 
+    m_localAddress = "";
 	newSystem.lastSeen     = (unsigned long)time(NULL);
 	newSystem.type         = type;
 	newSystem.majorVersion = atoi(getFPPMajorVersion());
@@ -293,15 +306,22 @@ void MultiSync::FillLocalSystemInfo(void)
         if (m_localAddress == "") {
             m_localAddress = address;
         }
-        newSystem.address = address;
-        std::vector<std::string> parts = split(newSystem.address, '.');
-        newSystem.ipa = atoi(parts[0].c_str());
-        newSystem.ipb = atoi(parts[1].c_str());
-        newSystem.ipc = atoi(parts[2].c_str());
-        newSystem.ipd = atoi(parts[3].c_str());
-
-        m_systems.push_back(newSystem);
-        m_numLocalSystems++;
+        bool found = false;
+        for (auto &sys : m_systems) {
+            if (sys.address == address) {
+                found = true;
+            }
+        }
+        if (!found) {
+            newSystem.address = address;
+            std::vector<std::string> parts = split(newSystem.address, '.');
+            newSystem.ipa = atoi(parts[0].c_str());
+            newSystem.ipb = atoi(parts[1].c_str());
+            newSystem.ipc = atoi(parts[2].c_str());
+            newSystem.ipd = atoi(parts[3].c_str());
+            m_systems.insert(m_systems.begin() + m_numLocalSystems, newSystem);
+            m_numLocalSystems++;
+        }
     }
     LogDebug(VB_SYNC, "m_localAddress = %s\n", m_localAddress.c_str());
 
@@ -590,7 +610,6 @@ int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int disc
     strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
     strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
     strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 41);
-    SendBroadcastPacket(outBuf, sizeof(ControlPkt) + cpkt->extraDataLen);
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
@@ -1106,12 +1125,6 @@ int MultiSync::OpenBroadcastSocket(void)
 		return 0;
 	}
 
-	memset((void *)&m_broadcastDestAddr, 0, sizeof(struct sockaddr_in));
-
-	m_broadcastDestAddr.sin_family      = AF_INET;
-	m_broadcastDestAddr.sin_port        = htons(FPP_CTRL_PORT);
-	m_broadcastDestAddr.sin_addr.s_addr = inet_addr("255.255.255.255");
-
 	return 1;
 }
 
@@ -1125,10 +1138,34 @@ void MultiSync::SendBroadcastPacket(void *outBuf, int len)
 		HexDump("Sending Broadcast packet with contents:", outBuf, len);
 	}
 
-	pthread_mutex_lock(&m_socketLock);
+    struct ifaddrs *interfaces,*tmp;
+    getifaddrs(&interfaces);
+    tmp = interfaces;
 
-	if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&m_broadcastDestAddr, sizeof(struct sockaddr_in)) < 0)
-		LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+    pthread_mutex_lock(&m_socketLock);
+    while (tmp) {
+        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+            if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 3) != 0) {
+                //skip the usb* interfaces as we won't support multisync on those
+                
+                struct sockaddr_in *sa = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
+                struct sockaddr_in  bda;
+                memset((void *)&bda, 0, sizeof(struct sockaddr_in));
+                bda.sin_family      = AF_INET;
+                bda.sin_port        = htons(FPP_CTRL_PORT);
+                bda.sin_addr.s_addr = sa->sin_addr.s_addr;
+
+                
+                if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
+                    LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+            }
+        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+            //FIXME for ipv6 multisync
+        }
+        tmp = tmp->ifa_next;
+    }
+    freeifaddrs(interfaces);
+    
 
 	pthread_mutex_unlock(&m_socketLock);
 }
@@ -1418,36 +1455,6 @@ int MultiSync::OpenReceiveSocket(void)
 		return 0;
 	}
 
-    struct ip_mreq mreq;
-    struct ifaddrs *interfaces,*tmp;
-    getifaddrs(&interfaces);
-    memset(&mreq, 0, sizeof(mreq));
-    mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
-    int multicastJoined = 0;
-    tmp = interfaces;
-    //loop through all the interfaces and subscribe to the group
-    while (tmp) {
-        //struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
-        //strcpy(address, inet_ntoa(sin->sin_addr));
-        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-            char address[16];
-            address[0] = 0;
-            GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
-            if (strcmp(address, "127.0.0.1")) {
-                LogDebug(VB_SYNC, "   Adding interface %s - %s\n", tmp->ifa_name, address);
-                mreq.imr_interface.s_addr = inet_addr(address);
-                if (setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-                    LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s\n", tmp->ifa_name);
-                }
-                multicastJoined = 1;
-            }
-        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
-            //FIXME for ipv6 multicast
-            //LogDebug(VB_SYNC, "   Inet6 interface %s\n", tmp->ifa_name);
-        }
-        tmp = tmp->ifa_next;
-    }
-    freeifaddrs(interfaces);
 
 	int remoteOffsetInt = getSettingInt("remoteOffset");
 	if (remoteOffsetInt)
@@ -1467,8 +1474,53 @@ int MultiSync::OpenReceiveSocket(void)
         rcvMsgs[i].msg_hdr.msg_controllen = 0x100;
     }
 
+    setupMulticastReceive();
 	return 1;
 }
+bool MultiSync::isSupportedForMultisync(char *address, char *intface) {
+    if (!strcmp(address, "127.0.0.1")) {
+        return false;
+    }
+    if (!strncmp(intface, "usb", 3)) {
+        return false;
+    }
+    return true;
+}
+
+void MultiSync::setupMulticastReceive() {
+    struct ip_mreq mreq;
+    struct ifaddrs *interfaces,*tmp;
+    getifaddrs(&interfaces);
+    memset(&mreq, 0, sizeof(mreq));
+    mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
+    int multicastJoined = 0;
+    tmp = interfaces;
+    //loop through all the interfaces and subscribe to the group
+    while (tmp) {
+        //struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
+        //strcpy(address, inet_ntoa(sin->sin_addr));
+        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+            char address[16];
+            address[0] = 0;
+            GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
+            if (isSupportedForMultisync(address, tmp->ifa_name)) {
+                LogDebug(VB_SYNC, "   Adding interface %s - %s\n", tmp->ifa_name, address);
+                mreq.imr_interface.s_addr = inet_addr(address);
+                int rc = 0;
+                if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
+                    LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", tmp->ifa_name, rc);
+                }
+                multicastJoined = 1;
+            }
+        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+            //FIXME for ipv6 multicast
+            //LogDebug(VB_SYNC, "   Inet6 interface %s\n", tmp->ifa_name);
+        }
+        tmp = tmp->ifa_next;
+    }
+    freeifaddrs(interfaces);
+}
+
 
 /*
  *

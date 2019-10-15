@@ -71,6 +71,7 @@
 #include <getopt.h>
 #include "sensors/Sensors.h"
 #include "util/GPIOUtils.h"
+#include "NetworkMonitor.h"
 
 #include <curl/curl.h>
 
@@ -142,7 +143,7 @@ bool setupExceptionHandlers()
         ok &= sigaction(SIGCHLD, &sigchld_action, NULL);
         
         if (!ok) {
-            LogWarn(VB_ALL, "Failed to install our signal handler.");
+            LogWarn(VB_ALL, "Failed to install our signal handler.\n");
         }
         s_savedHandlers = true;
     } else if (s_savedHandlers) {
@@ -152,7 +153,7 @@ bool setupExceptionHandlers()
         ok &= sigaction(SIGBUS, &s_handlerBUS, NULL) == 0;
         ok &= sigaction(SIGSEGV, &s_handlerSEGV, NULL) == 0;
         if (!ok) {
-            LogWarn(VB_ALL, "Failed to install default signal handlers.");
+            LogWarn(VB_ALL, "Failed to install default signal handlers.\n");
         }
         s_savedHandlers = false;
     }
@@ -592,7 +593,8 @@ void MainLoop(void)
     apiServer.Init();
 
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
- 
+    NetworkMonitor::INSTANCE.Init(callbacks);
+    
     int epollf = epoll_create1(EPOLL_CLOEXEC);
     for (auto &a : callbacks) {
         epoll_event event;

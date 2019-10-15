@@ -433,8 +433,6 @@ int parseSetting(char *key, char *value)
 			else
 				fprintf(stderr, "Error, controlMajor value negative\n");
 		}
-		else
-			fprintf(stderr, "Failed to apply controlMajor setting\n");
 	}
 	else if ( strcmp(key, "controlMinor") == 0 )
 	{
@@ -446,8 +444,6 @@ int parseSetting(char *key, char *value)
 			else
 				fprintf(stderr, "Error, controlMinor value negative\n");
 		}
-		else
-			fprintf(stderr, "Failed to apply controlMinor setting\n");
 	}
 
 	return 1;

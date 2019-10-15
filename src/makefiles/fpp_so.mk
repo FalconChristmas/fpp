@@ -45,6 +45,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/omxplayer.o \
 	mediaoutput/SDLOut.o \
 	mqtt.o \
+ 	NetworkMonitor.o \
 	ping.o \
 	PixelOverlay.o \
 	playlist/Playlist.o \
