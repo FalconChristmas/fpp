@@ -27,20 +27,28 @@
 
 class NetworkMonitor {
 public:
+    enum class NetEventType {
+        NEW_LINK,
+        DEL_LINK,
+        NEW_ADDR,
+        DEL_ADDR
+    };
+    
+    
     NetworkMonitor() {}
     ~NetworkMonitor() {}
     
     void Init(std::map<int, std::function<bool(int)>> &callbacks);
     
-    void registerCallback(std::function<void(int, int, const std::string &)> &callback);
-    void addCallback(std::function<void(int, int, const std::string &)> &callback) { registerCallback(callback); }
+    void registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback);
+    void addCallback(std::function<void(NetEventType, int, const std::string &)> &callback) { registerCallback(callback); }
 
     static NetworkMonitor INSTANCE;
     
     
 private:
-    void callCallbacks(int, int, const std::string &n);
-    std::list<std::function<void(int, int, const std::string &)>> callbacks;
+    void callCallbacks(NetEventType, int, const std::string &n);
+    std::list<std::function<void(NetEventType, int, const std::string &)>> callbacks;
 };
 
 #endif

@@ -71,6 +71,16 @@
 MultiSync *multiSync;
 
 static const char * MULTISYNC_MULTICAST_ADDRESS = "239.70.80.80"; // 239.F.P.P
+static uint32_t MULTISYNC_MULTICAST_ADD = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
+
+NetInterfaceInfo::NetInterfaceInfo() : address(0), broadcastAddress(0), multicastSocket(-1) {
+}
+NetInterfaceInfo::~NetInterfaceInfo() {
+    if (multicastSocket != -1) {
+        LogDebug(VB_SYNC, "Closing multicast socket for %s\n", interfaceName.c_str());
+        close(multicastSocket);
+    }
+}
 
 /*
  *
@@ -85,10 +95,10 @@ MultiSync::MultiSync()
     m_numLocalSystems(0),
     m_lastPingTime(0),
     m_lastCheckTime(0),
-    m_lastFrame(0)
+    m_lastFrame(0),
+    m_sendMulticast(false),
+    m_sendBroadcast(false)
 {
-	pthread_mutex_init(&m_systemsLock, NULL);
-	pthread_mutex_init(&m_socketLock, NULL);
 }
 
 /*
@@ -97,9 +107,6 @@ MultiSync::MultiSync()
 MultiSync::~MultiSync()
 {
 	ShutdownSync();
-
-	pthread_mutex_destroy(&m_systemsLock);
-	pthread_mutex_destroy(&m_socketLock);
 }
 
 /*
@@ -107,6 +114,7 @@ MultiSync::~MultiSync()
  */
 int MultiSync::Init(void)
 {
+    FillInInterfaces();
 	FillLocalSystemInfo();
 
 	if (!OpenReceiveSocket())
@@ -123,12 +131,17 @@ int MultiSync::Init(void)
 			return 0;
 	}
 
-    std::function<void(int i, int up, const std::string &)> f = [this] (int i, int up, const std::string &name) {
-        if (up) {
-            setupMulticastReceive();
-            if (FillLocalSystemInfo()) {
-                Ping(1);
+    std::function<void(NetworkMonitor::NetEventType i, int up, const std::string &)> f = [this] (NetworkMonitor::NetEventType i, int up, const std::string &name) {
+        LogDebug(VB_SYNC, "MultiSync::NetworkChanged - Interface: %s   Up: %d   Msg: %d\n", name.c_str(), up, i);
+        if (i == NetworkMonitor::NetEventType::DEL_ADDR && !up) {
+            RemoveInterface(name);
+        } else if (i == NetworkMonitor::NetEventType::NEW_ADDR && up) {
+            bool changed = FillInInterfaces();
+            if (changed) {
+                FillLocalSystemInfo();
+                Ping(0, false);
             }
+            setupMulticastReceive();
         }
     };
     NetworkMonitor::INSTANCE.registerCallback(f);
@@ -149,7 +162,7 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
                              const std::string &ranges
                              )
 {
-	pthread_mutex_lock(&m_systemsLock);
+    std::unique_lock<std::mutex> lock(m_systemsLock);
 	int found = -1;
 	for (int i = 0; i < m_systems.size(); i++) {
 		if ((address == m_systems[i].address) &&
@@ -191,8 +204,6 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
 		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec);
 	m_systems[found].lastSeenStr = timeStr;
-
-	pthread_mutex_unlock(&m_systemsLock);
 }
 
 /*
@@ -291,7 +302,6 @@ bool MultiSync::FillLocalSystemInfo(void)
 	if (m_hostname == "")
 		m_hostname = "FPP";
 
-    m_localAddress = "";
 	newSystem.lastSeen     = (unsigned long)time(NULL);
 	newSystem.type         = type;
 	newSystem.majorVersion = atoi(getFPPMajorVersion());
@@ -300,14 +310,15 @@ bool MultiSync::FillLocalSystemInfo(void)
 	newSystem.fppMode      = getFPPmode();
 	newSystem.version      = getFPPVersion();
 	newSystem.model        = model;
+    newSystem.ipa          = 0;
+    newSystem.ipb          = 0;
+    newSystem.ipc          = 0;
+    newSystem.ipd          = 0;
     
     bool changed = false;
-    pthread_mutex_lock(&m_systemsLock);
+    std::unique_lock<std::mutex> lock(m_systemsLock);
     
     for (auto address : addresses) {
-        if (m_localAddress == "") {
-            m_localAddress = address;
-        }
         bool found = false;
         for (auto &sys : m_systems) {
             if (sys.address == address) {
@@ -326,9 +337,6 @@ bool MultiSync::FillLocalSystemInfo(void)
             m_numLocalSystems++;
         }
     }
-    LogDebug(VB_SYNC, "m_localAddress = %s\n", m_localAddress.c_str());
-
-	pthread_mutex_unlock(&m_systemsLock);
     return changed;
 }
 
@@ -438,8 +446,7 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 {
 	Json::Value result;
 	Json::Value systems(Json::arrayValue);
-
-	pthread_mutex_lock(&m_systemsLock);
+    std::unique_lock<std::mutex> lock(m_systemsLock);
 
     int max = localOnly ? m_numLocalSystems : m_systems.size();
     
@@ -484,9 +491,6 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 
 		systems.append(system);
 	}
-
-	pthread_mutex_unlock(&m_systemsLock);
-
 	result["systems"] = systems;
 
 	return result;
@@ -495,7 +499,7 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 /*
  *
  */
-void MultiSync::Ping(int discover)
+void MultiSync::Ping(int discover, bool broadcast)
 {
 	LogDebug(VB_SYNC, "MultiSync::Ping(%d)\n", discover);
     time_t t = time(NULL);
@@ -520,15 +524,19 @@ void MultiSync::Ping(int discover)
         first = false;
     }
     for (int x = 0; x < m_numLocalSystems; x++) {
-        pthread_mutex_lock(&m_systemsLock);
+        std::unique_lock<std::mutex> lock(m_systemsLock);
         m_systems[x].ranges = range;
         MultiSyncSystem sysInfo = m_systems[x];
-        pthread_mutex_unlock(&m_systemsLock);
+        lock.unlock();
         
         char           outBuf[512];
         bzero(outBuf, sizeof(outBuf));
         int len = CreatePingPacket(sysInfo, outBuf, discover);
-        SendBroadcastPacket(outBuf, len);
+        if (broadcast) {
+            SendBroadcastPacket(outBuf, len);
+        } else {
+            SendMulticastPacket(outBuf, len);
+        }
     }
 }
 void MultiSync::PeriodicPing() {
@@ -540,11 +548,11 @@ void MultiSync::PeriodicPing() {
     if (lpt < (unsigned long)t) {
         //once an hour, we'll send a ping letting everyone know we're still here
         //mark ourselves as seen
-        pthread_mutex_lock(&m_systemsLock);
+        std::unique_lock<std::mutex> lock(m_systemsLock);
         for (int x = 0; x < m_numLocalSystems; x++) {
             m_systems[x].lastSeen = (unsigned long)t;
         }
-        pthread_mutex_unlock(&m_systemsLock);
+        lock.unlock();
         Ping();
     }
     //every 10 minutes we'll loop through real quick and check for instances
@@ -558,7 +566,7 @@ void MultiSync::PeriodicPing() {
         //have caused at least 4 pings to have been sent.  If it has responded
         //to any of those 4, it's got to be down/gone.   Remove it.
         unsigned long timeoutRemove = (unsigned long)t - 60*120;
-        pthread_mutex_lock(&m_systemsLock);
+        std::unique_lock<std::mutex> lock(m_systemsLock);
         for (auto it = m_systems.begin(); it != m_systems.end(); ) {
             if (it->lastSeen < timeoutRemove) {
                 LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
@@ -571,7 +579,6 @@ void MultiSync::PeriodicPing() {
                 ++it;
             }
         }
-        pthread_mutex_unlock(&m_systemsLock);
     }
 }
 void MultiSync::PingSingleRemote(int sysIdx) {
@@ -583,9 +590,8 @@ void MultiSync::PingSingleRemote(int sysIdx) {
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_addr.s_addr = inet_addr(m_systems[sysIdx].address.c_str());
     dest_addr.sin_port   = htons(FPP_CTRL_PORT);
-    pthread_mutex_lock(&m_socketLock);
+    std::unique_lock<std::mutex> lock(m_socketLock);
     sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-    pthread_mutex_unlock(&m_socketLock);
 }
 int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int discover) {
     ControlPkt    *cpkt = (ControlPkt*)outBuf;
@@ -895,7 +901,7 @@ void MultiSync::SendMediaSyncStopPacket(const std::string &filename)
 		LogErr(VB_SYNC, "ERROR: Tried to send stop packet but sync socket is not open.\n");
 		return;
 	}
-    LogDebug(VB_SYNC, "SendMediaSyncStopPacket(%s)\n", filename);
+    LogDebug(VB_SYNC, "SendMediaSyncStopPacket(%s)\n", filename.c_str());
     for (auto a : m_plugins) {
         a->SendMediaSyncStopPacket(filename);
     }
@@ -1077,8 +1083,7 @@ void MultiSync::ShutdownSync(void)
         a->ShutdownSync();
     }
 
-	pthread_mutex_lock(&m_socketLock);
-
+    std::unique_lock<std::mutex> lock(m_socketLock);
 	if (m_broadcastSock >= 0) {
 		close(m_broadcastSock);
 		m_broadcastSock = -1;
@@ -1098,8 +1103,6 @@ void MultiSync::ShutdownSync(void)
 		close(m_receiveSock);
 		m_receiveSock = -1;
 	}
-
-	pthread_mutex_unlock(&m_socketLock);
 }
 
 /*
@@ -1132,47 +1135,6 @@ int MultiSync::OpenBroadcastSocket(void)
 	return 1;
 }
 
-/*
- *
- */
-void MultiSync::SendBroadcastPacket(void *outBuf, int len)
-{
-	if ((logLevel == LOG_EXCESSIVE) &&
-		(logMask & VB_SYNC)) {
-		HexDump("Sending Broadcast packet with contents:", outBuf, len);
-	}
-
-    struct ifaddrs *interfaces,*tmp;
-    getifaddrs(&interfaces);
-    tmp = interfaces;
-
-    pthread_mutex_lock(&m_socketLock);
-    while (tmp) {
-        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-            if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 3) != 0) {
-                //skip the usb* interfaces as we won't support multisync on those
-                
-                struct sockaddr_in *sa = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
-                struct sockaddr_in  bda;
-                memset((void *)&bda, 0, sizeof(struct sockaddr_in));
-                bda.sin_family      = AF_INET;
-                bda.sin_port        = htons(FPP_CTRL_PORT);
-                bda.sin_addr.s_addr = sa->sin_addr.s_addr;
-
-                
-                if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
-                    LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
-            }
-        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
-            //FIXME for ipv6 multisync
-        }
-        tmp = tmp->ifa_next;
-    }
-    freeifaddrs(interfaces);
-    
-
-	pthread_mutex_unlock(&m_socketLock);
-}
 
 /*
  *
@@ -1206,21 +1168,15 @@ int MultiSync::OpenControlSockets()
         remotes.insert(token);
     }
 
-    bool needBroadcast = false;
-    if (remotes.find("255.255.255.255") != remotes.end()) {
-        needBroadcast = true;
-    }
-    if (remotes.find(MULTISYNC_MULTICAST_ADDRESS) != remotes.end()) {
-        needBroadcast = true;
-    }
-	if (needBroadcast) {
-		int broadcast = 1;
-		if (setsockopt(m_controlSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
-			return 0;
-		}
-	}
     for (auto &s : remotes) {
+        if (s == "255.255.255.255") {
+            m_sendBroadcast = true;
+            continue;
+        } else if (s == MULTISYNC_MULTICAST_ADDRESS) {
+            m_sendMulticast = true;
+            continue;
+        }
+        
 		LogDebug(VB_SYNC, "Setting up Remote Sync for %s\n", s.c_str());
 		struct sockaddr_in newRemote;
 
@@ -1260,13 +1216,10 @@ int MultiSync::OpenControlSockets()
 
 	LogDebug(VB_SYNC, "%d Remote Sync systems configured\n",
 		m_destAddr.size());
-
+    FillInInterfaces();
 	return 1;
 }
 
-/*
- *
- */
 void MultiSync::SendControlPacket(void *outBuf, int len)
 {
 	if ((logLevel == LOG_EXCESSIVE) &&
@@ -1275,29 +1228,138 @@ void MultiSync::SendControlPacket(void *outBuf, int len)
 		HexDump("Sending Control packet with contents:", outBuf, len);
 	}
 
-    m_destIovec.iov_base = outBuf;
-    m_destIovec.iov_len = len;
 
     int msgCount = m_destMsgs.size();
-    if (msgCount == 0) {
-        return;
-    }
-    
-    pthread_mutex_lock(&m_socketLock);
-    int oc = sendmmsg(m_controlSock, &m_destMsgs[0], msgCount, 0);
-    int outputCount = oc;
-    while (oc > 0 && outputCount != msgCount) {
-        int oc = sendmmsg(m_controlSock, &m_destMsgs[outputCount], msgCount - outputCount, 0);
-        if (oc >= 0) {
-            outputCount += oc;
+    if (msgCount != 0) {
+        m_destIovec.iov_base = outBuf;
+        m_destIovec.iov_len = len;
+        
+        std::unique_lock<std::mutex> lock(m_socketLock);
+        int oc = sendmmsg(m_controlSock, &m_destMsgs[0], msgCount, 0);
+        int outputCount = oc;
+        while (oc > 0 && outputCount != msgCount) {
+            int oc = sendmmsg(m_controlSock, &m_destMsgs[outputCount], msgCount - outputCount, 0);
+            if (oc >= 0) {
+                outputCount += oc;
+            }
+        }
+        if (outputCount != msgCount) {
+            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s\n", strerror(errno));
         }
     }
-    if (outputCount != msgCount) {
-        LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s\n", strerror(errno));
+    if (m_sendMulticast) {
+        SendMulticastPacket(outBuf, len);
+    }
+    if (m_sendBroadcast) {
+        SendBroadcastPacket(outBuf, len);
+    }
+}
+void MultiSync::SendBroadcastPacket(void *outBuf, int len)
+{
+    if ((logLevel == LOG_EXCESSIVE) &&
+        (logMask & VB_SYNC)) {
+        HexDump("Sending Broadcast packet with contents:", outBuf, len);
     }
 
-	pthread_mutex_unlock(&m_socketLock);
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    for (auto &a : m_interfaces) {
+        struct sockaddr_in  bda;
+        memset((void *)&bda, 0, sizeof(struct sockaddr_in));
+        bda.sin_family      = AF_INET;
+        bda.sin_port        = htons(FPP_CTRL_PORT);
+        bda.sin_addr.s_addr = a.second.broadcastAddress;
+
+        if (sendto(m_broadcastSock, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
+            LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+    }
 }
+void MultiSync::SendMulticastPacket(void *outBuf, int len)
+{
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    for (auto &a : m_interfaces) {
+        struct sockaddr_in  bda;
+        memset((void *)&bda, 0, sizeof(struct sockaddr_in));
+        bda.sin_family      = AF_INET;
+        bda.sin_port        = htons(FPP_CTRL_PORT);
+        bda.sin_addr.s_addr = MULTISYNC_MULTICAST_ADD;
+        
+        if (a.second.multicastSocket == -1) {
+            //create the socket
+            a.second.multicastSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+            if (a.second.multicastSocket < 0) {
+                LogErr(VB_SYNC, "Error opening Multicast socket for %s\n", a.second.interfaceName.c_str());
+            } else {
+                char loopch = 0;
+                if (setsockopt(a.second.multicastSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
+                    LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
+                }
+                
+                if (setsockopt(a.second.multicastSocket, SOL_SOCKET, SO_BINDTODEVICE, a.second.interfaceName.c_str(), a.second.interfaceName.size()) < 0) {
+                    LogErr(VB_SYNC, "Error setting IP_MULTICAST Device for %s: %s\n", a.second.interfaceName.c_str(), strerror(errno));
+                }
+            }
+        }
+
+        if (a.second.multicastSocket >= 0) {
+            if (sendto(a.second.multicastSocket, outBuf, len, 0, (struct sockaddr*)&bda, sizeof(struct sockaddr_in)) < 0)
+                LogErr(VB_SYNC, "Error: Unable to send packet: %s\n", strerror(errno));
+        }
+    }
+}
+bool MultiSync::FillInInterfaces() {
+    struct ifaddrs *interfaces,*tmp;
+    getifaddrs(&interfaces);
+    tmp = interfaces;
+    
+    bool change = false;
+
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    while (tmp) {
+        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
+            if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 3) != 0) {
+                //skip the usb* interfaces as we won't support multisync on those
+                struct sockaddr_in *ba = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
+                struct sockaddr_in *sa = (struct sockaddr_in*)(tmp->ifa_addr);
+
+                NetInterfaceInfo &info = m_interfaces[tmp->ifa_name];
+                change |= info.interfaceName == "";
+                change |= info.interfaceAddress == "";
+                info.interfaceName = tmp->ifa_name;
+                info.interfaceAddress = inet_ntoa(sa->sin_addr);
+                info.address = sa->sin_addr.s_addr;
+                info.broadcastAddress = ba->sin_addr.s_addr;
+            }
+        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
+            //FIXME for ipv6 multisync
+        }
+        tmp = tmp->ifa_next;
+    }
+    freeifaddrs(interfaces);
+    return change;
+}
+bool MultiSync::RemoveInterface(const std::string &interface) {
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    auto it = m_interfaces.find(interface);
+    if (it != m_interfaces.end()) {
+        LogDebug(VB_SYNC, "Removing interface %s - %s\n", it->second.interfaceName.c_str(), it->second.interfaceAddress.c_str());
+
+        struct ip_mreq mreq;
+        memset(&mreq, 0, sizeof(mreq));
+        mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
+        mreq.imr_interface.s_addr = it->second.address;
+        int rc = 0;
+        if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
+            LogDebug(VB_SYNC, "   Did not drop Multicast membership for interface %s - %s\n", it->second.interfaceName.c_str(), it->second.interfaceAddress.c_str());
+        }
+        m_interfaces.erase(it);
+        return true;
+    }
+    return false;
+}
+
+
+
 
 /*
  *
@@ -1386,7 +1448,7 @@ void MultiSync::SendCSVControlPacket(void *outBuf, int len)
         return;
     }
     
-    pthread_mutex_lock(&m_socketLock);
+    std::unique_lock<std::mutex> lock(m_socketLock);
 
     int oc = sendmmsg(m_controlCSVSock, &m_destMsgsCSV[0], msgCount, 0);
     int outputCount = oc;
@@ -1399,8 +1461,6 @@ void MultiSync::SendCSVControlPacket(void *outBuf, int len)
     if (outputCount != msgCount) {
         LogErr(VB_SYNC, "Error: Unable to send CSV multisync packet: %s\n", strerror(errno));
     }
-
-	pthread_mutex_unlock(&m_socketLock);
 }
 
 /*
@@ -1493,41 +1553,23 @@ bool MultiSync::isSupportedForMultisync(char *address, char *intface) {
 
 void MultiSync::setupMulticastReceive() {
     struct ip_mreq mreq;
-    struct ifaddrs *interfaces,*tmp;
-    getifaddrs(&interfaces);
     memset(&mreq, 0, sizeof(mreq));
     mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
-    int multicastJoined = 0;
-    tmp = interfaces;
     //loop through all the interfaces and subscribe to the group
-    while (tmp) {
-        //struct sockaddr_in *sin = (struct sockaddr_in *)tmp->ifa_addr;
-        //strcpy(address, inet_ntoa(sin->sin_addr));
-        if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-            char address[16];
-            address[0] = 0;
-            GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
-            if (isSupportedForMultisync(address, tmp->ifa_name)) {
-                LogDebug(VB_SYNC, "   Adding interface %s - %s\n", tmp->ifa_name, address);
-                mreq.imr_interface.s_addr = inet_addr(address);
-                int rc = 0;
-                if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
-                    if (m_broadcastSock < 0) {
-                        // first time through, log as warning, otherise error is likely due t already being subscribed
-                        LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", tmp->ifa_name, rc);
-                    } else {
-                        LogDebug(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", tmp->ifa_name, rc);
-                    }
-                }
-                multicastJoined = 1;
+    std::unique_lock<std::mutex> lock(m_socketLock);
+    for (auto &a : m_interfaces) {
+        LogDebug(VB_SYNC, "   Adding interface %s - %s\n", a.second.interfaceName.c_str(), a.second.interfaceAddress.c_str());
+        mreq.imr_interface.s_addr = a.second.address;
+        int rc = 0;
+        if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
+            if (m_broadcastSock < 0) {
+                // first time through, log as warning, otherise error is likely due t already being subscribed
+                LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n",  a.second.interfaceName.c_str(), rc);
+            } else {
+                LogDebug(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n",  a.second.interfaceName.c_str(), rc);
             }
-        } else if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET6) {
-            //FIXME for ipv6 multicast
-            //LogDebug(VB_SYNC, "   Inet6 interface %s\n", tmp->ifa_name);
         }
-        tmp = tmp->ifa_next;
     }
-    freeifaddrs(interfaces);
 }
 
 
@@ -1896,11 +1938,19 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
         multiSync->UpdateSystem(type, majorVersion, minorVersion,
                                 systemMode, address, hostname, version, typeStr, ranges);
     }
-
-	if ((discover) &&
-		(hostname != m_hostname) &&
-		(address != m_localAddress))
-		multiSync->Ping();
+    if (discover) {
+        bool isLocal = false;
+        std::unique_lock<std::mutex> lock(m_socketLock);
+        for (auto &a : m_interfaces) {
+            if (address == a.second.interfaceAddress) {
+                isLocal = true;
+            }
+        }
+        lock.unlock();
+        if ((hostname != m_hostname) && !isLocal) {
+            multiSync->Ping();
+        }
+    }
 }
 
 

@@ -73,7 +73,9 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>> &callbacks) {
                     case RTM_DELLINK:
                         {
                             struct ifinfomsg *ifi = (ifinfomsg*)NLMSG_DATA(h);
-                            callCallbacks(h->nlmsg_type, (ifi->ifi_flags & IFF_RUNNING) ? 1 : 0, if_indextoname(ifi->ifi_index, name));
+                            callCallbacks(h->nlmsg_type == RTM_NEWLINK ? NetEventType::NEW_LINK : NetEventType::DEL_LINK,
+                                          (ifi->ifi_flags & IFF_RUNNING) ? 1 : 0,
+                                          if_indextoname(ifi->ifi_index, name));
                         }
                         break;
                     case RTM_NEWADDR:
@@ -81,7 +83,9 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>> &callbacks) {
                         {
                             struct ifaddrmsg *ifi = (ifaddrmsg*)NLMSG_DATA(h);
                             if (ifi->ifa_family == AF_INET) {
-                                callCallbacks(h->nlmsg_type, h->nlmsg_type == RTM_NEWADDR ? 1 : 0, if_indextoname(ifi->ifa_index, name));
+                                callCallbacks(h->nlmsg_type == RTM_NEWADDR ? NetEventType::NEW_ADDR : NetEventType::DEL_ADDR,
+                                              h->nlmsg_type == RTM_NEWADDR ? 1 : 0,
+                                              if_indextoname(ifi->ifa_index, name));
                             }
                         }
                         break;
@@ -95,14 +99,14 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>> &callbacks) {
         return false;
     };
 }
-void NetworkMonitor::callCallbacks(int nl, int up, const std::string &n) {
+void NetworkMonitor::callCallbacks(NetEventType nl, int up, const std::string &n) {
     for (auto &cb : callbacks) {
         cb(nl, up, n);
     }
 }
 
 
-void NetworkMonitor::registerCallback(std::function<void(int, int, const std::string &)> &callback) {
+void NetworkMonitor::registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback) {
     callbacks.push_back(callback);
 }
 

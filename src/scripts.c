@@ -47,7 +47,7 @@ pid_t RunScript(std::string script, std::string scriptArgs)
 {
 	std::vector<std::pair<std::string,std::string>> envVars;
 
-	RunScript(script, scriptArgs, envVars);
+	return RunScript(script, scriptArgs, envVars);
 }
 
 pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pair<std::string, std::string>> envVars)

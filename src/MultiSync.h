@@ -26,6 +26,7 @@
 #ifndef _MULTISYNC_H
 #define _MULTISYNC_H
 
+#include <mutex>
 #include <netinet/in.h>
 #include <pthread.h>
 #include <sys/socket.h>
@@ -150,6 +151,18 @@ class MultiSyncPlugin {
 };
 
 
+class NetInterfaceInfo {
+public:
+    NetInterfaceInfo();
+    ~NetInterfaceInfo();
+    
+    std::string interfaceName;
+    std::string interfaceAddress;
+    uint32_t    address;
+    uint32_t    broadcastAddress;
+    int         multicastSocket;
+};
+
 
 class MultiSync {
   public:
@@ -173,7 +186,7 @@ class MultiSync {
 
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
 
-	void Ping(int discover = 0);
+	void Ping(int discover = 0, bool broadcast = true);
 	void Discover(void) { Ping(1); }
     void PeriodicPing();
 
@@ -224,8 +237,10 @@ class MultiSync {
 
 	int  OpenBroadcastSocket(void);
 	void SendBroadcastPacket(void *outBuf, int len);
-
 	void SendControlPacket(void *outBuf, int len);
+    void SendMulticastPacket(void *outBuf, int len);
+    bool FillInInterfaces();
+    bool RemoveInterface(const std::string &interface);
 
 	int  OpenCSVControlSockets(void);
 	void SendCSVControlPacket(void *outBuf, int len);
@@ -241,22 +256,25 @@ class MultiSync {
 	void ProcessPingPacket(ControlPkt *pkt, int len);
     void ProcessPluginPacket(ControlPkt *pkt, int len);
 
-	pthread_mutex_t              m_systemsLock;
+	std::mutex                   m_systemsLock;
 	std::vector<MultiSyncSystem> m_systems;
     int  m_numLocalSystems;
 
+    std::map<std::string, NetInterfaceInfo> m_interfaces;
+    bool m_sendMulticast;
+    bool m_sendBroadcast;
+    
+    
 	int  m_broadcastSock;
 	int  m_controlSock;
 	int  m_controlCSVSock;
-	int  m_remoteCount;
-	int  m_remoteCSVCount;
 	int  m_receiveSock;
 
+    
 	std::string         m_hostname;
-    std::string         m_localAddress;
 	struct sockaddr_in  m_srcAddr;
 	struct sockaddr_in  m_receiveSrcAddr;
-	pthread_mutex_t     m_socketLock;
+	std::mutex          m_socketLock;
 
     unsigned long       m_lastPingTime;
     unsigned long       m_lastCheckTime;
@@ -269,7 +287,6 @@ class MultiSync {
     struct iovec m_destIovec;
     std::vector<struct mmsghdr> m_destMsgs;
 	std::vector<struct sockaddr_in> m_destAddr;
-    
     
     struct iovec m_destIovecCSV;
     std::vector<struct mmsghdr> m_destMsgsCSV;
