@@ -126,8 +126,9 @@ int MultiSync::Init(void)
     std::function<void(int i, int up, const std::string &)> f = [this] (int i, int up, const std::string &name) {
         if (up) {
             setupMulticastReceive();
-            FillLocalSystemInfo();
-            Ping(1);
+            if (FillLocalSystemInfo()) {
+                Ping(1);
+            }
         }
     };
     NetworkMonitor::INSTANCE.registerCallback(f);
@@ -248,10 +249,8 @@ MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 /*
  *
  */
-void MultiSync::FillLocalSystemInfo(void)
+bool MultiSync::FillLocalSystemInfo(void)
 {
-	pthread_mutex_lock(&m_systemsLock);
-
 	MultiSyncSystem newSystem;
 
 	std::string model = GetHardwareModel();
@@ -301,7 +300,10 @@ void MultiSync::FillLocalSystemInfo(void)
 	newSystem.fppMode      = getFPPmode();
 	newSystem.version      = getFPPVersion();
 	newSystem.model        = model;
-
+    
+    bool changed = false;
+    pthread_mutex_lock(&m_systemsLock);
+    
     for (auto address : addresses) {
         if (m_localAddress == "") {
             m_localAddress = address;
@@ -313,6 +315,7 @@ void MultiSync::FillLocalSystemInfo(void)
             }
         }
         if (!found) {
+            changed = true;
             newSystem.address = address;
             std::vector<std::string> parts = split(newSystem.address, '.');
             newSystem.ipa = atoi(parts[0].c_str());
@@ -326,6 +329,7 @@ void MultiSync::FillLocalSystemInfo(void)
     LogDebug(VB_SYNC, "m_localAddress = %s\n", m_localAddress.c_str());
 
 	pthread_mutex_unlock(&m_systemsLock);
+    return changed;
 }
 
 /*
@@ -1481,7 +1485,7 @@ bool MultiSync::isSupportedForMultisync(char *address, char *intface) {
     if (!strcmp(address, "127.0.0.1")) {
         return false;
     }
-    if (!strncmp(intface, "usb", 3)) {
+    if (!strncmp(intface, "usb", 3) || !strcmp(intface, "lo")) {
         return false;
     }
     return true;
@@ -1508,7 +1512,12 @@ void MultiSync::setupMulticastReceive() {
                 mreq.imr_interface.s_addr = inet_addr(address);
                 int rc = 0;
                 if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
-                    LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", tmp->ifa_name, rc);
+                    if (m_broadcastSock < 0) {
+                        // first time through, log as warning, otherise error is likely due t already being subscribed
+                        LogWarn(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", tmp->ifa_name, rc);
+                    } else {
+                        LogDebug(VB_SYNC, "   Could not setup Multicast Group for interface %s    rc: %d\n", tmp->ifa_name, rc);
+                    }
                 }
                 multicastJoined = 1;
             }

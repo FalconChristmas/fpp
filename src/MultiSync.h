@@ -218,7 +218,7 @@ class MultiSync {
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
 
 	MultiSyncSystemType ModelStringToType(std::string model);
-	void FillLocalSystemInfo(void);
+	bool FillLocalSystemInfo(void);
 	std::string GetHardwareModel(void);
     std::string GetTypeString(MultiSyncSystemType type, bool local = false);
 
