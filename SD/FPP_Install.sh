@@ -304,7 +304,7 @@ Falcon Player OS Image v${FPPIMAGEVER}
 My IP address: \4
 
 EOF
-cp /etc/issue.new /etc/issue.net
+cp /etc/issue.new /etc/issue
 rm /etc/issue.new
 
 
