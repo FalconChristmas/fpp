@@ -294,9 +294,19 @@ cat >> /etc/issue.new <<EOF
 Falcon Player OS Image v${FPPIMAGEVER}
 
 EOF
-cp /etc/issue.new /etc/issue
 cp /etc/issue.new /etc/issue.net
 rm /etc/issue.new
+
+head -1 /etc/issue > /etc/issue.new
+cat >> /etc/issue.new <<EOF
+
+Falcon Player OS Image v${FPPIMAGEVER}
+My IP address: \4
+
+EOF
+cp /etc/issue.new /etc/issue.net
+rm /etc/issue.new
+
 
 #######################################
 # Setup for U.S. users mainly
