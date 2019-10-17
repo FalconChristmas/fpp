@@ -105,6 +105,12 @@ static void sortRanges() {
     if (cur.first != FPPD_MAX_CHANNELS) {
         outputRanges.push_back(cur);
     }
+    
+    if (outputRanges.empty()) {
+        cur.first = 0;
+        cur.second = 8;
+        outputRanges.push_back(cur);
+    }
 }
 static void addRange(uint32_t min, uint32_t max) {
     // having the reads be aligned to intervals of 8 can help performance so
