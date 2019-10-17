@@ -39,8 +39,8 @@ public:
     
     void DumpConfig(void);
     
-    virtual void GetRequiredChannelRange(int &min, int & max);
-    
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+
 private:
     SPInRF24L01PrivData *data;
 };

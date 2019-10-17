@@ -143,9 +143,8 @@ int SPIws2801Output::Close(void)
 
 	return ThreadedChannelOutputBase::Close();
 }
-void SPIws2801Output::GetRequiredChannelRange(int &min, int & max) {
-    min = m_startChannel;
-    max = min + m_channelCount - 1;
+void SPIws2801Output::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*

@@ -391,9 +391,8 @@ int FBMatrixOutput::SendData(unsigned char *channelData) {
 }
 
 
-void FBMatrixOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = m_startChannel;
-    max = min + (m_width * m_height * 3) - 1;
+void FBMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + (m_width * m_height * 3) - 1);
 }
 
 /*

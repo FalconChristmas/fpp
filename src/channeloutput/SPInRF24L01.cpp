@@ -260,10 +260,8 @@ void SPInRF24L01Output::DumpConfig(void) {
     }
 }
 
-void SPInRF24L01Output::GetRequiredChannelRange(int &min, int & max)  {
-    min = m_startChannel;
-    max = m_startChannel + m_channelCount - 1;
+void SPInRF24L01Output::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
-
 
 

@@ -152,4 +152,3 @@ void ChannelOutputBase::ConvertToCSV(Json::Value config, char *configStr) {
         strcat(configStr, config[key].asString().c_str());
     }
 }
-

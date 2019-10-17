@@ -82,7 +82,7 @@ class VirtualDisplayOutput : public ThreadedChannelOutputBase {
 
 	void DumpConfig(void);
 
-    virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
 	std::string  m_backgroundFilename;
 	float        m_backgroundBrightness;

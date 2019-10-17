@@ -42,7 +42,7 @@ class X11MatrixOutput : public ThreadedChannelOutputBase {
 
 	void DumpConfig(void);
 
-	virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
   private:
   	int         m_width;

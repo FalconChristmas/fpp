@@ -869,11 +869,9 @@ void BBBMatrix::printStats() {
     fclose(rfile);
 }
 
-void BBBMatrix::GetRequiredChannelRange(int &min, int & max) {
-    min = m_startChannel;
-    max = m_startChannel + m_channelCount - 1;
+void BBBMatrix::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
-
 
 void BBBMatrix::PrepData(unsigned char *channelData)
 {

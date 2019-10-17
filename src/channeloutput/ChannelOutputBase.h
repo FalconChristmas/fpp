@@ -28,6 +28,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #include <jsoncpp/json/json.h>
 
@@ -52,7 +53,7 @@ class ChannelOutputBase {
 	virtual int   SendData(unsigned char *channelData) = 0;
 
 
-    virtual void  GetRequiredChannelRange(int &min, int & max) = 0;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) = 0;
   private:
 	int   Init(void);
 

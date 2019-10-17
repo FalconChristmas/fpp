@@ -54,7 +54,7 @@ class RGBMatrixOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
-    virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
   private:
 	GPIO        *m_gpio;

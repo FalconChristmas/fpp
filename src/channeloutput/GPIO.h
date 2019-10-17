@@ -43,8 +43,8 @@ class GPIOOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
-    virtual void GetRequiredChannelRange(int &min, int & max) {
-        min = max = m_startChannel;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+        addRange(m_startChannel, m_startChannel);
     }
 
   private:

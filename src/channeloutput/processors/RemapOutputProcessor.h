@@ -36,7 +36,7 @@ public:
     int getLoops() const { return loops;}
     int getReverse() const { return reverse;}
     
-    virtual void GetRequiredChannelRange(int &min, int &max);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
 protected:
     int sourceChannel;

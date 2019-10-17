@@ -281,13 +281,10 @@ int BBBSerialOutput::Init(Json::Value config)
     return ThreadedChannelOutputBase::Init(config);
 }
 
-void BBBSerialOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = FPPD_MAX_CHANNELS;
-    max = 0;
+void BBBSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
     for (int i = 0; i < m_outputs; i++) {
         if (m_startChannels[i] >= 0) {
-            min = std::min(min, m_startChannels[i] + 1);
-            max = std::max(max, m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
+            addRange(m_startChannels[i] + 1, m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
         }
     }
 }

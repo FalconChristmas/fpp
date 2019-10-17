@@ -68,9 +68,8 @@ USBRelayOutput::~USBRelayOutput()
 	LogDebug(VB_CHANNELOUT, "USBRelayOutput::~USBRelayOutput()\n");
 }
 
-void USBRelayOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = m_startChannel;
-    max = m_startChannel + m_relayCount - 1;
+void USBRelayOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_relayCount - 1);
 }
 
 /*

@@ -145,16 +145,13 @@ void UDPOutput::PrepData(unsigned char *channelData) {
         }
     }
 }
-void  UDPOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = FPPD_MAX_CHANNELS;
-    max = 0;
+void  UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
     if (enabled) {
         for (auto a : outputs) {
             if (a->active) {
                 int mi, mx;
                 a->GetRequiredChannelRange(mi, mx);
-                min = std::min(min, mi);
-                max = std::max(max, mx);
+                addRange(mi, mx);
             }
         }
     }

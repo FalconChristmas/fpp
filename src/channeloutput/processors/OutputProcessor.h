@@ -41,7 +41,9 @@ public:
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }
     
-    virtual void GetRequiredChannelRange(int &min, int & max) {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) = 0;
+    
+    virtual void GetRequiredChannelRange(int &min, int & max) final {
         min = 0; max = FPPD_MAX_CHANNELS;
     }
 protected:
@@ -64,7 +66,7 @@ public:
     
     void loadFromJSON(const Json::Value &config, bool clear = true);
     
-    void GetRequiredChannelRange(int &min, int & max);
+    void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 protected:
     void removeAll();
     OutputProcessor *create(const Json::Value &config);

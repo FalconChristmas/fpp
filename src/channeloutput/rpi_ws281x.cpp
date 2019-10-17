@@ -168,20 +168,22 @@ int RPIWS281xOutput::Close(void)
 	return ThreadedChannelOutputBase::Close();
 }
 
-void RPIWS281xOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = FPPD_MAX_CHANNELS;
-    max = 0;
-    
+void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
     PixelString *ps = NULL;
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
         int inCh = 0;
+        int min = FPPD_MAX_CHANNELS;
+        int max = 0;
         for (int p = 0; p < ps->m_outputChannels; p++) {
             int ch = ps->m_outputMap[inCh++];
             if (ch < FPPD_MAX_CHANNELS) {
                 min = std::min(min, ch);
                 max = std::max(max, ch);
             }
+        }
+        if (min < max) {
+            addRange(min, max);
         }
     }
 }

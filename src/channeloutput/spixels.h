@@ -48,7 +48,7 @@ class SpixelsOutput : public ThreadedChannelOutputBase {
 
 	void DumpConfig(void);
 
-	virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
   private:
 	MultiSPI    *m_spi;

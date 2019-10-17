@@ -60,13 +60,52 @@ static int LoadOutputProcessors(void);
 OutputProcessors         outputProcessors;
 
 static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
+
 const std::vector<std::pair<uint32_t, uint32_t>> GetOutputRanges() {
     if (outputRanges.empty()) {
         outputRanges.push_back(std::pair<uint32_t, uint32_t>(0, FPPD_MAX_CHANNELS));
     }
     return outputRanges;
 }
-
+// we'll sort the ranges that the outputs have registered and combine any overlaps
+// or close ranges to keep the range list smaller
+static void sortRanges() {
+    std::map<uint32_t, uint32_t> ranges;
+    //sort
+    for (auto &a : outputRanges) {
+        uint32_t cur = ranges[a.first];
+        if (cur) {
+            ranges[a.first] = std::max(a.second, cur);
+        } else {
+            ranges[a.first] = a.second;
+        }
+    }
+    outputRanges.clear();
+    std::pair<uint32_t, uint32_t> cur(FPPD_MAX_CHANNELS, FPPD_MAX_CHANNELS);
+    for (auto &a : ranges) {
+        if (cur.first == FPPD_MAX_CHANNELS) {
+            cur.first = a.first;
+            cur.second = a.second;
+        } else {
+            if (a.first <= (cur.first + cur.second + 1025)) {
+                // overlap or within 1025 channels of an overlap, need to combine
+                // if the two ranges are "close" (wthin 1025 channels) we'll combine
+                // as the overhead of doing ranges wouldn't benefit with a small gap
+                uint32_t max = cur.first + cur.second - 1;
+                uint32_t amax = a.first + a.second -1 ;
+                max = std::max(max, amax);
+                cur.second = max - cur.first + 1;
+            } else {
+                outputRanges.push_back(cur);
+                cur.first = a.first;
+                cur.second = a.second;
+            }
+        }
+    }
+    if (cur.first != FPPD_MAX_CHANNELS) {
+        outputRanges.push_back(cur);
+    }
+}
 static void addRange(uint32_t min, uint32_t max) {
     // having the reads be aligned to intervals of 8 can help performance so
     // we'll expand the range a bit to align things better
@@ -84,7 +123,6 @@ static void addRange(uint32_t min, uint32_t max) {
             return;
         }
     }
-    
     outputRanges.push_back(std::pair<uint32_t, uint32_t>(min, max - min + 1));
 }
 
@@ -173,11 +211,7 @@ int InitializeChannelOutputs(void) {
 
 	// Reset index so we can start populating the outputs array
 	i = 0;
-    int maximumNeededChannel = 0;
-    int minimumNeededChannel = FPPD_MAX_CHANNELS;
-
-	if (FPDOutput.isConfigured())
-	{
+	if (FPDOutput.isConfigured()) {
 		channelOutputs[i].startChannel = getSettingInt("FPDStartChannelOffset");
 		channelOutputs[i].outputOld = &FPDOutput;
 
@@ -189,9 +223,8 @@ int InitializeChannelOutputs(void) {
             LogInfo(VB_CHANNELOUT, "FPD:  Determined range needed %d - %d\n",
                     m1, m2);
             
-            minimumNeededChannel = std::min(minimumNeededChannel, m1);
-            maximumNeededChannel = std::max(maximumNeededChannel, m2);
-
+            addRange(m1, m2);
+            
 			i++;
 			LogDebug(VB_CHANNELOUT, "Configured FPD Channel Output\n");
 		} else {
@@ -320,16 +353,15 @@ int InitializeChannelOutputs(void) {
                     int m2 = m1 + channelOutputs[i].channelCount - 1;
                     LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
                             type.c_str(), i, m1, m2);
-                    minimumNeededChannel = std::min(minimumNeededChannel, m1);
-                    maximumNeededChannel = std::max(maximumNeededChannel, m2);
+                    addRange(m1, m2);
 					i++;
 				} else if (channelOutputs[i].output && channelOutputs[i].output->Init(outputs[c])) {
-                    int m1, m2;
-                    channelOutputs[i].output->GetRequiredChannelRange(m1, m2);
-                    minimumNeededChannel = std::min(minimumNeededChannel, m1);
-                    maximumNeededChannel = std::max(maximumNeededChannel, m2);
-                    LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
-                            type.c_str(), i, minimumNeededChannel, maximumNeededChannel);
+                    channelOutputs[i].output->GetRequiredChannelRanges([type, i](int m1, int m2) {
+                        LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
+                                type.c_str(), i, m1, m2);
+                        addRange(m1, m2);
+
+                    });
                     i++;
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
@@ -346,32 +378,16 @@ int InitializeChannelOutputs(void) {
 	LogDebug(VB_CHANNELOUT, "%d Channel Outputs configured\n", channelOutputCount);
 
 	LoadOutputProcessors();
-    int m1, m2;
-    outputProcessors.GetRequiredChannelRange(m1, m2);
-    minimumNeededChannel = std::min(minimumNeededChannel, m1);
-    maximumNeededChannel = std::max(maximumNeededChannel, m2);
-    if (maximumNeededChannel < minimumNeededChannel) {
-        maximumNeededChannel = minimumNeededChannel = 0;
-    }
-    if (minimumNeededChannel > 0) {
-        minimumNeededChannel--;
-    }
-    
-    if (minimumNeededChannel == maximumNeededChannel) {
-        if (!getControlMajor() && !getControlMinor()) {
-            addRange(minimumNeededChannel, maximumNeededChannel);
-        }
-    } else {
-        addRange(minimumNeededChannel, maximumNeededChannel);
-    }
-    
-
+    outputProcessors.GetRequiredChannelRanges([](int m1, int m2) {
+        LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
+        addRange(m1, m2);
+    });
     if (getControlMajor() || getControlMinor()) {
         int min = std::min(getControlMajor(), getControlMinor());
         int max = std::max(getControlMajor(), getControlMinor());
         addRange(min, max);
     }
-    
+    sortRanges();
     for (auto &r : outputRanges) {
         LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", r.first, r.first + r.second - 1);
     }

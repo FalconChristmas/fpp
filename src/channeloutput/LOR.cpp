@@ -82,10 +82,10 @@ LOROutput::~LOROutput() {
     }
 }
 
-void LOROutput::GetRequiredChannelRange(int &min, int & max)   {
-    min = m_startChannel;
-    max = m_startChannel + m_channelCount - 1;
+void LOROutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
+
 int LOROutput::Init(Json::Value config) {
     char configStr[2048];
     ConvertToCSV(config, configStr);

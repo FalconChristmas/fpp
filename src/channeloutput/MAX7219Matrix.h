@@ -43,7 +43,7 @@ class MAX7219MatrixOutput : public ChannelOutputBase {
 
 	void DumpConfig(void);
 
-    virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
   private:
 	void WriteCommand(uint8_t cmd, uint8_t value);

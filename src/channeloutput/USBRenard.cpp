@@ -109,9 +109,8 @@ USBRenardOutput::~USBRenardOutput() {
         delete data;
     }
 }
-void USBRenardOutput::GetRequiredChannelRange(int &min, int & max)  {
-    min = m_startChannel;
-    max = m_startChannel + m_channelCount - 1;
+void USBRenardOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 int USBRenardOutput::Init(Json::Value config) {
     char configStr[2048];

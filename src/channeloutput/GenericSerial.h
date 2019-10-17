@@ -45,7 +45,7 @@ class GenericSerialOutput : public ThreadedChannelOutputBase {
 	int RawSendData(unsigned char *channelData);
 
 	void DumpConfig(void);
-    virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 
   private:
 	std::string m_deviceName;

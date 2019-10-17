@@ -41,9 +41,8 @@ class Hill320Output : public ThreadedChannelOutputBase {
 
 	void DumpConfig(void);
 
-    virtual void GetRequiredChannelRange(int &min, int & max) {
-        min = m_startChannel;
-        max = min + m_channelCount - 1;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+        addRange(m_startChannel, m_startChannel + m_channelCount - 1);
     }
 
   private:

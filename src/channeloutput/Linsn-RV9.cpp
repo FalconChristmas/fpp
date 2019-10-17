@@ -376,9 +376,8 @@ int LinsnRV9Output::Close(void)
 }
 
 
-void LinsnRV9Output::GetRequiredChannelRange(int &min, int & max) {
-    min = m_startChannel;
-    max = m_startChannel + m_channelCount - 1;
+void LinsnRV9Output::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 /*
  *

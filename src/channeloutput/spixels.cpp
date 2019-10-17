@@ -193,13 +193,12 @@ int SpixelsOutput::Close(void)
 	return ThreadedChannelOutputBase::Close();
 }
 
-void SpixelsOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = FPPD_MAX_CHANNELS;
-    max = 0;
-    
+void SpixelsOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
     PixelString *ps = NULL;
     for (int s = 0; s < m_strings.size(); s++) {
         ps = m_strings[s];
+        int min = FPPD_MAX_CHANNELS;
+        int max = 0;
         int inCh = 0;
         for (int p = 0; p < ps->m_outputChannels; p++) {
             int ch = ps->m_outputMap[inCh++];
@@ -207,6 +206,9 @@ void SpixelsOutput::GetRequiredChannelRange(int &min, int & max) {
                 min = std::min(min, ch);
                 max = std::max(max, ch);
             }
+        }
+        if (min < max) {
+            addRange(min, max);
         }
     }
 }

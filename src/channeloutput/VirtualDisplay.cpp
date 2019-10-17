@@ -530,13 +530,14 @@ void VirtualDisplayOutput::DrawPixel(int rOffset, int gOffset, int bOffset,
 	}
 }
 
-void VirtualDisplayOutput::GetRequiredChannelRange(int &min, int & max) {
-    min = FPPD_MAX_CHANNELS;
-    max = 0;
+void VirtualDisplayOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    int min = FPPD_MAX_CHANNELS;
+    int max = 0;
     for (auto &pixel : m_pixels) {
         min = std::min(min, pixel.ch);
         max = std::max(max, pixel.ch + (pixel.cpp == 4 ? 3 : 2));
     }
+    addRange(min, max);
 }
 
 
