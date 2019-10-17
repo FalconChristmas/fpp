@@ -163,10 +163,10 @@ echo ""
 dd if=/opt/backup/uboot/MLO of=${DEVICE} count=1 seek=1 conv=notrunc bs=128k
 dd if=/opt/backup/uboot/u-boot.img of=${DEVICE} count=2 seek=1 conv=notrunc bs=384k
 
-if [ "$1" = "ext4" ]; then
-    prepareEXT4Partitions
-else
+if [ "$1" = "btrfs" ]; then
     prepareBTRFSPartitions
+else
+    prepareEXT4Partitions
 fi
 
 
@@ -193,10 +193,10 @@ rm -f boot
 ln -sf . boot
 cd /
 
-if [ "$1" = "ext4" ]; then
-    adjustEnvEXT4
-else
+if [ "$1" = "btrfs" ]; then
     adjustEnvBTRFS
+else
+    adjustEnvEXT4
 fi
 
 echo "---------------------------------------"
