@@ -79,6 +79,7 @@ ChannelTester::~ChannelTester()
 int ChannelTester::SetupTest(std::string configStr)
 {
 	LogDebug(VB_CHANNELOUT, "ChannelTester::SetupTest()\n");
+    LogDebug(VB_CHANNELOUT, "     %s\n", configStr.c_str());
 
 	Json::Value config;
 	Json::Reader reader;
