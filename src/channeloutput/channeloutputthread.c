@@ -94,7 +94,12 @@ void ForceChannelOutputNow(void) {
     outputThreadCond.notify_all();
 }
 
-
+static inline bool forceOutput() {
+    return IsEffectRunning() ||
+        PixelOverlayManager::INSTANCE.UsingMemoryMapInput() ||
+        ChannelTester::INSTANCE.Testing() ||
+        getAlwaysTransmit();
+}
 
 /*
  * Main loop in channel output thread
@@ -120,17 +125,13 @@ void *RunChannelOutputThread(void *data)
     
     StartOutputThreads();
 
-	if ((getFPPmode() == REMOTE_MODE) &&
-		(!IsEffectRunning()) &&
-        (!PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) &&
-        (!ChannelTester::INSTANCE.Testing()) &&
-		(!getAlwaysTransmit()))
+	if ((getFPPmode() == REMOTE_MODE) && !forceOutput())
 	{
 		// Sleep about 2 seconds waiting for the master
 		int loops = 0;
-		while ((MasterFramesPlayed < 0) && (loops < 200))
+		while ((MasterFramesPlayed < 0) && (loops < 2000) && !forceOutput())
 		{
-			usleep(10000);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			loops++;
 		}
 
@@ -155,11 +156,11 @@ void *RunChannelOutputThread(void *data)
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
             }
-            if (getFPPmode() == REMOTE_MODE && !IsEffectRunning()) {
+            if (getFPPmode() == REMOTE_MODE && !forceOutput()) {
                 // Sleep about 1 seconds waiting for the master
                 int loops = 0;
-                while ((MasterFramesPlayed < 0) && (loops < 1000)) {
-                    usleep(1000);
+                while ((MasterFramesPlayed < 0) && (loops < 1000) && !forceOutput()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     loops++;
                 }
             }
@@ -324,7 +325,7 @@ void StartChannelOutputThread(void)
 
 	// Wait for thread to start
 	while (!ChannelOutputThreadIsRunning())
-		usleep(200);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
 }
 
 /*
