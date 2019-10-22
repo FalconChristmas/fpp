@@ -2146,7 +2146,7 @@ function RemovePlaylistEntry()	{
 					gblCurrentPlaylistEntrySong = jsonStatus.current_song;
 				}
 
-				SetButtonState('#btnPlay','disable');
+				SetButtonState('#btnPlay','enable');
 				SetButtonState('#btnStopNow','enable');
                 SetButtonState('#btnPrev','enable');
                 SetButtonState('#btnNext','enable');

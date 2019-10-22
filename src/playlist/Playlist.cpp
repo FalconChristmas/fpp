@@ -854,15 +854,30 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
 	m_scheduled = scheduled;
 
-	// FIXME, handle this better
 	if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-		(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY))
-	{
-		hadToStop = 1;
+		(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
+        
+        std::string fullfilename = getPlaylistDirectory();
+        fullfilename += "/";
+        fullfilename += filename;
+        fullfilename += ".json";
+        
+        if ((m_filename == fullfilename) && (repeat == m_repeat)) {
+            //the requested playlist is already running and loaded, we can jump right to the index
+            if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+                m_currentSection->at(m_sectionPosition)->Stop();
 
-		StopNow(1);
-
-		sleep(1);
+            m_sectionPosition = 0;
+            SetPosition(position);
+            FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+            m_currentState = "playing";
+            Start();
+            return 1;
+        } else {
+            hadToStop = 1;
+            StopNow(1);
+            sleep(1);
+        }
 	}
 
 	m_forceStop = 0;
