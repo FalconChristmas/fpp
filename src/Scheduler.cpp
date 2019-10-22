@@ -166,8 +166,10 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 
 	localtime_r(&currTime, &now);
 
-	if (FPPstatus != FPP_STATUS_IDLE)
+    if (FPPstatus != FPP_STATUS_IDLE) {
+        repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList;
+    }
 
 	int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
 	for(i=0;i<m_ScheduleEntryCount;i++)
@@ -185,7 +187,6 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 					((nowWeeklySeconds >= m_Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j])))
 				{
 					repeat = m_Schedule[i].repeat;
-
 					return m_Schedule[i].playList;
 				}
 			}

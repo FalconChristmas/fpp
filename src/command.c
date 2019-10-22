@@ -260,7 +260,8 @@ char *ProcessCommand(char *command, char *response)
                 // to stop the playlist
                 scheduler->CheckIfShouldBePlayingNow(1);
                 sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-            } else if (playlist->Play(s, entry, repeat, 0)) {
+            }
+            if (playlist->Play(s, entry, repeat, 0)) {
                 FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
                 sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
 		    } else {
