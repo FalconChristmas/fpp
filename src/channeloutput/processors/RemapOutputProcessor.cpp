@@ -39,8 +39,8 @@ RemapOutputProcessor::RemapOutputProcessor(const Json::Value &config) {
 
 RemapOutputProcessor::RemapOutputProcessor(int src, int dst, int c, int l, int r) {
     active = true;
-    sourceChannel = src - 1;
-    destChannel = dst - 1;
+    sourceChannel = src;
+    destChannel = dst;
     count = c;
     loops = l;
     reverse = r;

@@ -53,7 +53,6 @@ class PlaylistEntryRemap : public PlaylistEntryBase {
 	int m_channelCount;
 	int m_loops;
 	int m_reverse;
-    RemapOutputProcessor *m_processor;
 };
 
 #endif
