@@ -111,7 +111,7 @@ void *RunChannelOutputThread(void *data)
 	long long sendTime;
 	long long readTime;
     long long processTime;
-	int onceMore = 0;
+    int onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
 	struct timespec ts;
     struct timeval tv;
 
@@ -170,7 +170,7 @@ void *RunChannelOutputThread(void *data)
 		sendTime = GetTime();
 
         if (getFPPmode() != BRIDGE_MODE) {
-            if (sequence->IsSequenceRunning() || (onceMore <= 1)) {
+            if (sequence->IsSequenceRunning() || (onceMore >= 1)) {
                 if (FrameSkip && sequence->IsSequenceRunning()) {
                     sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
                     FrameSkip = 0;
