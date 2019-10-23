@@ -72,7 +72,7 @@ fppversion.c: fppversion.sh force
 cleanfpp:
 	rm -f fppversion.c ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
 
-clean:
+clean::
 	rm -f fppversion.c ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi

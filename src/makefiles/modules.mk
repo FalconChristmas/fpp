@@ -54,4 +54,7 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 	@echo "Building spixels library"
 	@CC="ccache gcc" CXX="ccache g++" make -C ../external/spixels/lib/
 
+clean::
+	@if [ -e ../external/spixels/lib/libspixels.a ]; then make -C ../external/spixels/lib clean; fi
+    
 endif
