@@ -430,6 +430,7 @@ bool Bridge_StoreData(char *bridgeBuffer)
                    InputUniverses[universeIndex].size);
             InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
             InputUniverses[universeIndex].packetsReceived++;
+            sequence->setDataNotProcessed();
         } else {
             unknownUniverse.packetsReceived++;
             int len = bridgeBuffer[16] & 0xF;
@@ -491,6 +492,7 @@ bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
             memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
                    (void*)(&bridgeBuffer[18]),
                    std::min(InputUniverses[universeIndex].size, len));
+            sequence->setDataNotProcessed();
         } else {
             unknownUniverse.packetsReceived++;
             int len = bridgeBuffer[16] & 0xF;
@@ -633,7 +635,7 @@ bool Bridge_StoreDDPData(char *bridgeBuffer)  {
 
         int offset = tc ? 14 : 10;
         memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
-        
+        sequence->setDataNotProcessed();
         ddpBytesReceived += len;
     }
     return push;

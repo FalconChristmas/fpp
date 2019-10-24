@@ -177,10 +177,12 @@ void *RunChannelOutputThread(void *data)
                 }
                 sequence->ReadSequenceData();
             }
+            readTime = GetTime();
+            sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
+        } else {
+            sequence->setDataNotProcessed();
+            readTime = GetTime();
         }
-
-        readTime = GetTime();
-        sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
 
 		processTime = GetTime();
 

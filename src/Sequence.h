@@ -71,6 +71,7 @@ class Sequence {
 	void  SingleStepSequenceBack(void);
 	int   SequenceIsPaused(void);
     bool  isDataProcessed() const { return m_dataProcessed; }
+    void  setDataNotProcessed() { m_dataProcessed = false; }
 
 	int           m_seqDuration;
 	int           m_seqSecondsElapsed;
