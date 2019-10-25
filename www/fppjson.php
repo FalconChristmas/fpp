@@ -2137,6 +2137,14 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
     
+    if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
+        $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
+        $json = json_decode($content, true);
+        $result['channelRanges'] = $json['channelRanges'];
+        $result['majorVersion'] = $json['majorVersion'];
+        $result['minorVersion'] = $json['minorVersion'];
+    }
+    
     if (! $simple) {
         //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
         $result['Utilization']['CPU'] =  get_server_cpu_usage();
