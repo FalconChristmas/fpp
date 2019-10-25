@@ -439,18 +439,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
 	}
 }
 
-/*
- *
- */
-Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
-{
-	Json::Value result;
-	Json::Value systems(Json::arrayValue);
-    std::unique_lock<std::mutex> lock(m_systemsLock);
 
-    int max = localOnly ? m_numLocalSystems : m_systems.size();
-    
-    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
+static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> ranges, int limit) {
     bool first = true;
     std::string range;
     for (auto &a : ranges) {
@@ -462,6 +452,40 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
         range += buf;
         first = false;
     }
+    while (range.size() > limit) {
+        //range won't fit within the space in the Ping packet, we need to shrink the range
+        // we'll find the smallest gap and combine into a larger range
+        int minGap = 9999999;
+        int minIdx = -1;
+        int last = ranges[0].first + ranges[1].second - 1;
+        for (int x = 1; x < ranges.size(); x++) {
+            int gap = ranges[x].first - last;
+            if (gap < minGap) {
+                minIdx = x;
+                minGap = gap;
+            }
+            last = ranges[x].first + ranges[x].second - 1;
+        }
+        if (minIdx) {
+            int newLast = ranges[minIdx].first + ranges[minIdx].second;
+            ranges[minIdx - 1].second = newLast - ranges[minIdx - 1].first;
+            ranges.erase(ranges.begin() + minIdx);
+        }
+        range = createRanges(ranges, 999999);
+    }
+    return range;
+}
+
+Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
+{
+	Json::Value result;
+	Json::Value systems(Json::arrayValue);
+    std::unique_lock<std::mutex> lock(m_systemsLock);
+
+    int max = localOnly ? m_numLocalSystems : m_systems.size();
+    
+    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
+    std::string range = createRanges(ranges, 999999);
 
     
 	for (int i = 0; i < max; i++) {
@@ -512,17 +536,7 @@ void MultiSync::Ping(int discover, bool broadcast)
     
     //update the range for local systems so it's accurate
     const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
-    bool first = true;
-    std::string range;
-    for (auto &a : ranges) {
-        if (!first) {
-            range += ",";
-        }
-        char buf[64];
-        sprintf(buf, "%d-%d", a.first, (a.first + a.second - 1));
-        range += buf;
-        first = false;
-    }
+    std::string range = createRanges(ranges, 120);
     for (int x = 0; x < m_numLocalSystems; x++) {
         std::unique_lock<std::mutex> lock(m_systemsLock);
         m_systems[x].ranges = range;
@@ -598,12 +612,12 @@ int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int disc
     InitControlPacket(cpkt);
     
     cpkt->pktType        = CTRL_PKT_PING;
-    cpkt->extraDataLen   = 214; // v2 ping length
+    cpkt->extraDataLen   = 294; // v3 ping length
     
     unsigned char *ed = (unsigned char*)(outBuf + 7);
     memset(ed, 0, cpkt->extraDataLen - 7);
     
-    ed[0]  = 2;                    // ping version 1
+    ed[0]  = 3;                    // ping version 3
     ed[1]  = discover > 0 ? 1 : 0; // 0 = ping, 1 = discover
     ed[2]  = sysInfo.type;
     ed[3]  = (sysInfo.majorVersion & 0xFF00) >> 8;
@@ -619,7 +633,7 @@ int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int disc
     strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
     strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
     strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
-    strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 41);
+    strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 121);
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
