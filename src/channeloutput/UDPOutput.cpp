@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 
+#include <netdb.h>
+
 #include "UDPOutput.h"
 #include "log.h"
 #include "ping.h"
@@ -47,26 +49,62 @@ extern "C" {
     }
 }
 
+UDPOutput* UDPOutput::INSTANCE = nullptr;
 
 UDPOutputData::UDPOutputData(const Json::Value &config)
-:  valid(true) {
-    description = config["description"].asString();
-    active = config["active"].asInt();
+:  valid(true), type(0) {
+    
+    if (config.isMember("description")) {
+        description = config["description"].asString();
+    }
     startChannel = config["startChannel"].asInt();
     channelCount = config["channelCount"].asInt();
-    type = config["type"].asInt();
+    if (config.isMember("active")) {
+        active = config["active"].asInt();
+    } else {
+        active = 1;
+    }
+    if (config.isMember("type")) {
+        type = config["type"].asInt();
+    }
+    if (config.isMember("address")) {
+        ipAddress = config["address"].asString();
+    }
 }
 UDPOutputData::~UDPOutputData() {
 }
 
+in_addr_t UDPOutputData::toInetAddr(const std::string &ipAddress, bool &valid) {
+    valid = true;
+    bool isAlpha = false;
+    for (int x = 0; x < ipAddress.length(); x++) {
+        isAlpha |= isalpha(ipAddress[x]);
+    }
+    
+    if (isAlpha) {
+        struct hostent* uhost = gethostbyname(ipAddress.c_str());
+        if (!uhost) {
+            LogErr(VB_CHANNELOUT,
+                   "Error looking up hostname: %s\n",
+                   ipAddress.c_str());
+            valid = false;
+            return 0;
+        } else {
+            return *((unsigned long*)uhost->h_addr);
+        }
+    }
+    return inet_addr(ipAddress.c_str());
+}
 
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
     : pingThread(nullptr), rebuildOutputLists(false)
 {
+    INSTANCE = this;
     sendSocket = -1;
 }
 UDPOutput::~UDPOutput() {
+    INSTANCE = nullptr;
     runDisabledPings = false;
     for (auto a : outputs) {
         delete a;
@@ -156,6 +194,12 @@ void  UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &a
         }
     }
 }
+
+void UDPOutput::addOutput(UDPOutputData* out) {
+    outputs.push_back(out);
+    rebuildOutputLists = true;
+}
+
 
 int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
     errno = 0;

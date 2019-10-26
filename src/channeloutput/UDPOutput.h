@@ -28,6 +28,7 @@
 #include <mutex>
 
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <jsoncpp/json/json.h>
 
 #include "ChannelOutputBase.h"
@@ -58,6 +59,9 @@ public:
         max = startChannel + channelCount - 1;
     }
     
+    static in_addr_t toInetAddr(const std::string &ip, bool &valid);
+    
+    
     std::string   description;
     bool          active;
     int           startChannel;
@@ -85,6 +89,11 @@ public:
     void BackgroundThreadPing();
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    
+    void addOutput(UDPOutputData*);
+    
+    
+    static UDPOutput *INSTANCE;
 private:
     int SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs);
     bool InitNetwork();

@@ -270,6 +270,35 @@ class GenericSPIDevice extends OtherBaseDevice {
 
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Generic UDP Output
+class GenericUDPDevice extends OtherBase {
+    
+    constructor(name="GenericUDP", friendlyName="Generic UDP", maxChannels=300, fixedChans=false, config={address: "", port:8080, tokens:""}) {
+        super(name, friendlyName, maxChannels, fixedChans, config);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        result += "IP: <input type='text' name='address' class='address' value='"+config.address+"'>&nbsp;";
+        result += "Port: <input type='number' name='port' min='1' max='65536' class='port' value='"+config.port+"'>&nbsp;";
+        result += "Data: <input type='text' class='tokens' name='tokens' value='"+config.tokens+"' size='50' maxLength='256'><br>";
+        result += "Data tokens include {data} for channel data, {S1} or {S2} for onebyte or two bit channel count, or 0x00 for hex byte";
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        var port = cell.find("input.port").val();
+        result.port = parseInt(port);
+        result.address =  cell.find("input.address").val();
+        result.tokens =  cell.find("input.tokens").val();
+
+        return result;
+    }
+
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //populate the output devices
@@ -299,6 +328,7 @@ if ($settings['Platform'] == "Raspberry Pi")
 <?
 }
 ?>
+    output_modules.push(new GenericUDPDevice());
 
 
 </script>

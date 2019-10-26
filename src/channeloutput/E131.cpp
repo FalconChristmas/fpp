@@ -104,24 +104,7 @@ E131OutputData::E131OutputData(const Json::Value &config)
         sprintf(sAddress, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
         e131Address.sin_addr.s_addr = inet_addr(sAddress);
     } else {
-        bool isAlpha = false;
-        for (int x = 0; x < ipAddress.length(); x++) {
-            isAlpha |= isalpha(ipAddress[x]);
-        }
-        
-        if (isAlpha) {
-            struct hostent* uhost = gethostbyname(ipAddress.c_str());
-            if (!uhost) {
-                LogErr(VB_CHANNELOUT,
-                       "Error looking up E1.31 hostname: %s\n",
-                       ipAddress.c_str());
-                valid = false;
-            } else {
-                e131Address.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
-            }
-        } else {
-            e131Address.sin_addr.s_addr = inet_addr(ipAddress.c_str());
-        }
+        e131Address.sin_addr.s_addr = toInetAddr(ipAddress, valid);
     }
     
     e131Iovecs.resize(universeCount * 2);

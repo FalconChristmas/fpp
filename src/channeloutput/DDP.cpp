@@ -142,27 +142,7 @@ DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config),
     memset((char *) &ddpAddress, 0, sizeof(sockaddr_in));
     ddpAddress.sin_family = AF_INET;
     ddpAddress.sin_port = htons(DDP_PORT);
-    
-    ipAddress = config["address"].asString();
-    bool isAlpha = false;
-    for (int x = 0; x < ipAddress.length(); x++) {
-        isAlpha |= isalpha(ipAddress[x]);
-    }
-    
-    if (isAlpha) {
-        struct hostent* uhost = gethostbyname(ipAddress.c_str());
-        if (!uhost) {
-            LogErr(VB_CHANNELOUT,
-                   "Error looking up DDP hostname: %s\n",
-                   ipAddress.c_str());
-            valid = false;
-        } else {
-            ddpAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
-        }
-    } else {
-        ddpAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
-    }
-    
+    ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
     
     pktCount = channelCount / DDP_CHANNELS_PER_PACKET;
     if (channelCount % DDP_CHANNELS_PER_PACKET) {
