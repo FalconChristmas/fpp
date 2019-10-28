@@ -79,6 +79,9 @@ int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
 void      CloseOpenFiles(void);
 
+std::string GetFileContents(const std::string &filename);
+void TrimWhiteSpace(std::string &s);
+
 uint8_t   ReverseBitsInByte(uint8_t n);
 
 
@@ -91,5 +94,8 @@ Json::Value JSONStringToObject(const std::string &str);
 std::string tail(std::string const& source, size_t const length);
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 std::vector<std::string> split(const std::string &s, char delim);
+
+// splits the string on , but also honors any double/single quotes so commas within strings are preserved
+std::vector<std::string> splitWithQuotes(const std::string &s, char delim = ',');
 
 #endif

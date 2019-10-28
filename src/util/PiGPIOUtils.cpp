@@ -102,3 +102,11 @@ const PinCapabilities &PiGPIOPinCapabilities::getPinByGPIO(int i) {
     return PiFacePinCapabilities::getPinByGPIO(i);
 }
 
+std::vector<std::string> PiGPIOPinCapabilities::getPinNames() {
+    std::vector<std::string> ret;
+    for (auto &a : PI_PINS) {
+        ret.push_back(a.name);
+    }
+    return ret;
+}
+

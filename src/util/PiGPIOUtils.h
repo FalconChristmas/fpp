@@ -2,6 +2,8 @@
 #ifndef __FPP_PiGPIO_GPIO__
 #define __FPP_PiGPIO_GPIO__
 
+#include <vector>
+
 #include "GPIOUtils.h"
 
 class PiGPIOPinCapabilities : public PinCapabilitiesFluent<PiGPIOPinCapabilities> {
@@ -24,6 +26,9 @@ public:
     static void Init();
     static const PinCapabilities &getPinByName(const std::string &name);
     static const PinCapabilities &getPinByGPIO(int i);
+    
+    static std::vector<std::string> getPinNames();
+
 };
 
 #endif

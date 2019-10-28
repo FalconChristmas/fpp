@@ -518,20 +518,18 @@ void EventCallback::run(const char *id, const char *impetus)
 
 		char *data = NULL;
 		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
-		FPPevent *event = LoadEvent(id);
+		FPPEvent *event = LoadEvent(id);
 		Json::Value root;
 		Json::FastWriter writer;
 
 		root["caller"] = std::string(impetus);
 		root["major"] = event->majorID;
 		root["minor"] = event->minorID;
-		if ( event->name && strlen(event->name) )
-			root["name"] = std::string(event->name);
-		if ( event->effect && strlen(event->effect) )
-			root["effect"] = std::string(event->effect);
-		root["startChannel"] = event->startChannel;
-		if ( event->script && strlen(event->script) )
-			root["script"] = std::string(event->script);
+        root["name"] = event->name;
+        root["command"] = event->command;
+        for (auto &a : event->args) {
+            root["args"].append(a);
+        }
 
 		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
 		execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", writer.write(root).c_str(), NULL);

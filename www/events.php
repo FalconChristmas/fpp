@@ -44,111 +44,232 @@ function SaveControlChannels()
 		});
 }
 
+
+	function TriggerEvent()
+	{
+		var url = "fppxml.php?command=triggerEvent&id=" + TriggerEventSelected;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
+	}
+
+	function AddEvent()
+	{
+		$('#newEventID').val('');
+		$('#newEventName').val('');
+		$('#newEventCommand').val('');
+        NewEventCommandChanged();
+		$('#newEvent').show();
+	}
+
+	function EditEvent()
+	{
+		var IDt = $('#event_' + TriggerEventSelected).find('td:eq(0)').text();
+		var ID = IDt.replace(' \/ ', '_');
+		$('#newEventID').val(ID);
+		if ($('#newEventID').val() != ID) {
+			$('#newEventID').prepend("<option value='" + ID + "' selected>" + IDt + "</option>");
+		}
+
+		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
+		$('#newEventCommand').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
+        NewEventCommandChanged();
+        
+        if (ID.charAt(1) == '_') {
+            ID = "0" + ID;
+        }
+        if (ID.length == 4) {
+            ID = ID.substring(0, 3) + "0" + ID.substring(3);
+        }
+        
+        
+        $.getJSON("api/events/" + ID, function(data) {
+                 var count = 1;
+                 $.each( data['args'], function( key, v ) {
+                        var inp =  $("#tblNewEvent_arg_" + count);
+                        if (inp.attr('type') == 'checkbox') {
+                            var checked = false;
+                            if (v == "true" || v == "1") {
+                                checked = true;
+                            }
+                            inp.prop( "checked", checked);
+                        } else {
+                            inp.val(v);
+                        }
+                        count = count + 1;
+                 })
+                 });
+        
+
+		$('#newEvent').show();
+	}
+
+	function NewEventCommandChanged()
+	{
+        CommandSelectChanged('newEventCommand', 'tblNewEvent');
+	}
+
+	function InsertNewEvent(name, id, json)
+	{
+		var idStr = id.replace('_', ' / ');
+        var row = "<tr id='event_" + id + "'><td class='eventTblID'>" + idStr +
+            "</td><td class='eventTblName'>" + name +
+            "</td><td class='eventTblCommand'>" + json['command'] +
+            "</td><td class='eventTblArgs'>";
+
+        $.each( json['args'], function( key, v ) {
+               row += "\"";
+               row += v;
+               row += "\" ";
+        })
+        row += "</td></tr>";
+         
+        $('#tblEventEntries').append(row);
+	}
+
+	function UpdateExistingEvent(name, id, json)
+	{
+		var idStr = id.replace('_', ' / ');
+		var row = $('#tblEventEntries tr#event_' + id);
+		row.find('td:eq(0)').text(idStr);
+		row.find('td:eq(1)').text(name);
+		row.find('td:eq(2)').text(json['command']);
+        
+        var av = "";
+        $.each( json['args'], function( key, v ) {
+               av += "\"";
+               av += v;
+               av += "\" ";
+        })
+		row.find('td:eq(3)').text(av);
+	}
+
+	function SaveEvent()
+	{
+        //If event name is empty, warn the user and skip saving
+        if (typeof ($('#newEventName').val()) === 'undefined' || $('#newEventName').val() == "") {
+            DialogError("Error Saving Event", "Event Name must be set!")
+        } else {
+            var json = {};
+            json = CommandToJSON('newEventCommand', 'tblNewEvent', json);
+            json['id'] = $('#newEventID').val();
+            json['name'] = $('#newEventName').val();
+            
+            $.ajax({
+                   'dataType': "json",
+                   'data': JSON.stringify(json),
+                   'url': "fppxml.php?command=saveEvent",
+                   'async': false,
+                   'processData': false,
+                   'method' :'POST',
+                   'contentType': 'application/json',
+                   success: function(data) {
+                   }});
+            
+            if ($('#tblEventEntries tr#event_' + $('#newEventID').val()).attr('id')) {
+                UpdateExistingEvent($('#newEventName').val(), $('#newEventID').val(), json);
+            } else {
+                InsertNewEvent($('#newEventName').val(), $('#newEventID').val(), json);
+            }
+            SetButtonState('#btnTriggerEvent', 'disable');
+            SetButtonState('#btnEditEvent', 'disable');
+            SetButtonState('#btnDeleteEvent', 'disable');
+        }
+
+	}
+
+	function CancelNewEvent()
+	{
+		$('#newEvent').hide();
+	}
+
+	function DeleteEvent()
+	{
+		if (TriggerEventSelected == "")
+			return;
+
+		var url = "fppxml.php?command=deleteEvent&id=" + TriggerEventSelected;
+		var xmlhttp=new XMLHttpRequest();
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.onreadystatechange = function () {
+			if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+			{
+				$('#tblEventEntries tr#' + TriggerEventID).remove();
+				SetButtonState('#btnTriggerEvent','disable');
+				SetButtonState('#btnEditEvent','disable');
+				SetButtonState('#btnDeleteEvent','disable');
+			}
+		}
+		xmlhttp.send();
+	}
+
+function SetSpeakerIndicator(value) {
+}
+
 </script>
 
 <title><? echo $pageTitle; ?></title>
 </head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
+<body onLoad="GetFPPDmode();LoadCommandList('newEventCommand');StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
 
 	$eventIDoptions = "";
 
-	function PrintEventRows()
-	{
+	function PrintEventRows() {
 		global $eventDirectory;
 		global $eventIDoptions;
 
 		$usedIDs = array();
-		for ($i = 1; $i < 25; $i++)
-		{
+		for ($i = 1; $i < 25; $i++) {
 			$usedIDs[$i] = array();
-			for ($j = 1; $j < 25; $j++)
-			{
+            for ($j = 1; $j < 25; $j++) {
 				$usedIDs[$i][$j] = 0;
 			}
 		}
 
-		foreach (scandir($eventDirectory) as $eventFile)
-		{
-			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile))
-			{
-				$info = parse_ini_file($eventDirectory . "/" . $eventFile);
-
-		# probably can clean this up a bit
+		foreach (scandir($eventDirectory) as $eventFile) {
+			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile)) {
+                $info = file_get_contents($eventDirectory . "/" . $eventFile);
+				$info = json_decode($info, true);
+                
+                # probably can clean this up a bit
 				$eventFile = preg_replace('/^0/', '', $eventFile);
 				$eventFile = preg_replace('/_0/', '_', $eventFile);
 				$eventFile = preg_replace('/.fevt$/', '', $eventFile);
 
-				$info['effect'] = preg_replace('/.eseq$/', '', $info['effect']);
-
-				if (!isset($info['scriptArgs']))
-					$info['scriptArgs'] = '';
-
 				echo "<tr id='event_" . $eventFile . "'><td class='eventTblID'>" .
-						$info['majorID'] . ' / ' . $info['minorID'] .
+						$info['majorId'] . ' / ' . $info['minorId'] .
 						"</td><td class='eventTblName'>" . $info['name'] .
-						"</td><td class='eventTblScript'>" . $info['script'] .
-						"</td><td class='eventTblScriptArgs'>" . $info['scriptArgs'] .
-						"</td><td class='eventTblEffect'>" . $info['effect'] .
-						"</td><td class='eventTblStartCh'>" . $info['startChannel'] .
-						"</td></tr>\n";
+						"</td><td class='eventTblCommand'>" . $info['command'] .
+                        "</td><td class='eventTblArgs'>";
+                foreach ($info['args'] as $value) {
+                    echo "\"" . $value . "\"   ";
+                }
+                echo "</td></tr>\n";
 
-				$usedIDs[$info['majorID']][$info['minorID']] = 1;
+				$usedIDs[$info['majorId']][$info['minorId']] = 1;
 			}
 		}
 
 		$eventIDoptions = "";
-		for ($i = 1; $i < 25; $i++)
-		{
-			for ($j = 1; $j < 25; $j++)
-			{
-				if ($usedIDs["$i"]["$j"] == 0)
-				{
+		for ($i = 1; $i < 25; $i++) {
+			for ($j = 1; $j < 25; $j++) {
+				if ($usedIDs["$i"]["$j"] == 0) {
 					$eventIDoptions .= sprintf("<option value='" .
-						sprintf( "%d_%d", $i, $j) .
-						"'>%d / %d</option>\n", $i, $j);
+						sprintf( "%d_%d", $i, $j) . "'>%d / %d</option>\n", $i, $j);
 				}
 			}
 		}
 	}
 
-	function PrintEventIDoptions()
-	{
+	function PrintEventIDoptions() {
 		global $eventIDoptions;
-
 		echo $eventIDoptions;
 	}
-
-	function PrintEffectOptions()
-	{
-		global $effectDirectory;
-
-		foreach(scandir($effectDirectory) as $seqFile)
-		{
-			if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
-			{
-				$seqFile = preg_replace('/.eseq$/', '', $seqFile);
-				
-				echo "<option value='" . $seqFile . "'>" . $seqFile . "</option>\n";
-			}
-		}
-	}
-
-	function PrintScriptOptions()
-	{
-		global $scriptDirectory;
-
-		foreach(scandir($scriptDirectory) as $scriptFile)
-		{
-			if($scriptFile != '.' && $scriptFile != '..')
-			{
-				echo "<option value='" . $scriptFile . "'>" . $scriptFile . "</option>\n";
-			}
-		}
-	}
-
 	?>
 <br/>
 <div id="programControl" class="settings">
@@ -195,17 +316,13 @@ function SaveControlChannels()
 					<tr class="eventListHeader">
 						<td class='fppTableHeader eventTblID'>ID</td>
 						<td class='fppTableHeader eventTblName'>Name</td>
-						<td class='fppTableHeader eventTblScript'>Script</td>
-						<td class='fppTableHeader eventTblScriptArgs'>Args</td>
-						<td class='fppTableHeader eventTblEffect'>Effect</td>
-						<td class='fppTableHeader eventTblStartCh'>Ch.</td>
+						<td class='fppTableHeader eventTblCommand'>Command</td>
+						<td class='fppTableHeader eventTblArgs'>Arguments</td>
 					</tr>
 				</table>
-				<div id= "eventListContents">
 				<table id="tblEventEntries" width="100%">
-<? PrintEventRows(); ?>
+                    <? PrintEventRows(); ?>
 				 </table>
-			</div>
 			</div>
 
 			<div id="eventControls" style="margin-top:5px">
@@ -221,18 +338,10 @@ function SaveControlChannels()
 						<td><b><center>Event Editor</center></b></td>
 					</tr>
 				</table>
-				<table width="100%">
+				<table width="100%"  class="tblNewEvent" id="tblNewEvent">
 					<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
 					<tr><td width="20%">Event Name:</td><td width="80%"><input id="newEventName" class="default-value" type="text" value="" size="30" maxlength="60" /></td></tr>
-					<tr><td width="20%">Effect Sequence:</td><td width="80%"><div style="float: left"><select id="newEventEffect" onChange="NewEventEffectChanged();">
-							<option value=''>--- NONE ---</option>
-<? PrintEffectOptions(); ?>
-</select></div><div id='newEventStartChannelWrapper' style='display: none; float: left; margin-left:10px;'>Effect Start Channel: <input id="newEventStartChannel" class="default-value" type="text" value="" size="5" maxlength="5" /></div></td></tr>
-					<tr><td width="20%">Event Script:</td><td width="80%"><select id="newEventScript">
-							<option value=''>--- NONE ---</option>
-<? PrintScriptOptions(); ?>
-</select></td></tr>
-					<tr><td width="20%">Script Args:</td><td width="80%"><input id="newEventScriptArgs" class="default-value" type="text" value="" size="60" maxlength="255" /></td></tr>
+					<tr><td width="20%">Effect Command:</td><td width="80%"><select id="newEventCommand" onChange="NewEventCommandChanged();"></select></td></tr>
 				</table>
 				<input id= "btnSaveNewEvent" type="button" class ="buttons" value="Save Event" onClick="SaveEvent();">
 				<input id= "btnCancelNewEvent" type="button" class ="buttons" value="Cancel Edit" onClick="CancelNewEvent();">

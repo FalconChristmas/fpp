@@ -191,19 +191,13 @@
 	width: 5%;
 }
 .eventTblName{
-	width: 30%;
-}
-.eventTblEffect{
 	width: 20%;
 }
-.eventTblStartCh{
-	width: 5%;
-}
-.eventTblScript{
+.eventTblCommand{
 	width: 20%;
 }
-.eventTblScriptArgs{
-	width: 20%;
+.eventTblArgs{
+	width: 55%;
 }
 
 .aboutLeft{

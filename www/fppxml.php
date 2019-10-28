@@ -603,9 +603,8 @@ function GetRunningEffects()
 	echo $doc->saveHTML();
 }
 
-function GetExpandedEventID()
+function GetExpandedEventID($id)
 {
-	$id = $_GET['id'];
 	check($id, "id", __FUNCTION__);
 
 	$majorID = preg_replace('/_.*/', '', $id);
@@ -618,7 +617,7 @@ function GetExpandedEventID()
 
 function TriggerEvent()
 {
-	$id = GetExpandedEventID();
+	$id = GetExpandedEventID($_GET['id']);
 
 	$status = SendCommand("t," . $id . ",");
 
@@ -628,8 +627,10 @@ function TriggerEvent()
 function SaveEvent()
 {
 	global $eventDirectory;
+    $event = json_decode(file_get_contents("php://input"), true);
+    print_r($event);
 
-	$id = $_GET['id'];
+	$id = $event['id'];
 	check($id, "id", __FUNCTION__);
 
 	$ids = preg_split('/_/', $id);
@@ -637,30 +638,18 @@ function SaveEvent()
 	if (count($ids) < 2)
 		return;
 
-	$id = GetExpandedEventID();
+    
+    $majorID = preg_replace('/_.*/', '', $id);
+    $minorID = preg_replace('/.*_/', '', $id);
+    $event['majorId'] = (int)$majorID;
+    $event['minorId'] = (int)$minorID;
+    unset($event['id']);
+    
+        
+	$id = GetExpandedEventID($id);
 	$filename = $id . ".fevt";
 
-	$name = $_GET['event'];
-	check($name, "name", __FUNCTION__);
-
-	if (isset($_GET['effect']) && $_GET['effect'] != "")
-		$eseq = $_GET['effect'] . ".eseq";
-	else
-		$eseq = "";
-
-	$f=fopen($eventDirectory . '/' . $filename,"w") or exit("Unable to open file! : " . $event);
-	$eventDefinition = sprintf(
-		"majorID=%d\n" .
-		"minorID=%d\n" .
-		"name='%s'\n" .
-		"effect='%s'\n" .
-		"startChannel=%s\n" .
-		"script='%s'\n" .
-		"scriptArgs='%s'\n",
-		$ids[0], $ids[1], $name,
-		$eseq, $_GET['startChannel'], $_GET['script'], $_GET['scriptArgs']);
-	fwrite($f, $eventDefinition);
-	fclose($f);
+    file_put_contents($eventDirectory . '/' . $filename, json_encode($event, JSON_PRETTY_PRINT));
 
 	EchoStatusXML('Success');
 }
@@ -669,7 +658,7 @@ function DeleteEvent()
 {
 	global $eventDirectory;
 
-	$filename = GetExpandedEventID() . ".fevt";
+	$filename = GetExpandedEventID($_GET['id']) . ".fevt";
 
 	unlink($eventDirectory . '/' . $filename);
 

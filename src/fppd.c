@@ -25,10 +25,12 @@
 
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
+#include "commands/Commands.h"
 #include "command.h"
 #include "common.h"
 #include "e131bridge.h"
 #include "effects.h"
+#include "events.h"
 #include "fppd.h"
 #include "fppversion.h"
 #include "fpp.h"
@@ -478,6 +480,8 @@ int main(int argc, char *argv[])
     }
     PinCapabilities::InitGPIO();
 
+    
+    CommandManager::INSTANCE.Init();
 	if (strcmp(getSetting("MQTTHost"),"")) {
 		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort"), getSetting("MQTTPrefix"));
 
@@ -518,6 +522,7 @@ int main(int argc, char *argv[])
 
 	InitEffects();
     PixelOverlayManager::INSTANCE.Initialize();
+    UpgradeEvents();
     
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
 

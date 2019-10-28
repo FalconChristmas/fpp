@@ -10,8 +10,11 @@ function help_help()
 		[ 'POST /configfile/:FileName<br>POST /configfile/:SubDir/:FileName', 'Upload config file.  NOTE: Content-type must equal "text/html" even if content is not HTML.', 'Raw config file contents', '{ "Status": "OK", "Message": "" }' ],
 		[ 'DELETE /configfile/:FileName<br>DELETE /configfile/:SubDir/:FileName', 'Delete config file.', '', '{ "Status": "OK", "Message": "" }' ],
 		[ 'GET /playlists', 'Get list of playlist names', '', '[ "Playlist_1", "Playlist_2", "Playlist_3" ]' ],
+        [ 'GET /playlists/stop', 'Immediately stop the currently running playlist', '', '' ],
+        [ 'GET /playlists/stopgracefully', 'Gracefully stop the currently running playlist', '', '' ],
 		[ 'POST /playlists', 'Insert a new playlist.', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }', '{ "Status": "OK", "Message": "" }' ],
 		[ 'GET /playlist/:PlaylistName', 'Get Playlist named :PlaylistName.  Returns a normal FPP playlist in JSON format.', '', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }' ],
+        [ 'GET /playlist/:PlaylistName/start', 'Start the playlist named :PlaylistName.', '', '' ],
 		[ 'POST /playlist/:PlaylistName', 'Update/Insert the Playlist named :PlaylistName.', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }', '{ "Status": "OK", "Message": "" }' ],
 		[ 'DELETE /playlist/:PlaylistName', 'Delete the Playlist named :PlaylistName', '', '{ "Status": "OK", "Message": "" }' ],
 		[ 'POST /playlist/:PlaylistName/:SectionName/item', 'Insert an item into the :SectionName section of the playlist :PlaylistName', '{ "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 }', '{ "Status": "OK", "Message": "" }' ],
@@ -30,6 +33,8 @@ function help_help()
 	);
     $fppEndpoints = array(
         [ 'GET /fppd/status', 'Gets the current status of the FPPD daemon', '', '{"current_playlist":{"count":"0","index":"0","playlist":"","type":""},"current_sequence":"","current_song":"","fppd":"running","mode":2,"mode_name":"player","next_playlist":{"playlist":"No playlist scheduled.","start_time":""},"repeat_mode":"0","seconds_played":"0","seconds_remaining":"0","status":0,"status_name":"idle","time":"Tue Apr 02 08:06:34 EDT 2019","time_elapsed":"00:00","time_remaining":"00:00","volume":0}'],
+        [ 'GET /commands', 'Gets a JSON description of the commands', '', '[{"name" : "Next Playlist Item"}, {"name" : "Start Playlist", "args" : [ {"description" : "Playlist Name", "type" : "string"}]}]' ],
+        [ 'GET /command/{COMMANDID}/arg1/arg2/...', 'Runs the given command', '', '' ],
         [ 'GET /models', 'Gets all of the Pixel Overlay Models', '', '[{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32}]'],
         [ 'GET /models/:ModelName', 'Gets a single Pixel Overlay Model', '' , '{"ChannelCount":6144,"Name":"Matrix","Orientation":"horizontal","StartChannel":1,"StartCorner":"TL","StrandsPerString":1,"StringCount":32}'],
         [ 'POST /models', 'Uploads a new model-overlays.json file', '{"models" : [ {"ChannelCount" : 6144,"Name" : "Matrix","Orientation" : "horizontal", "StartChannel" : 1,"StartCorner" : "TL","StrandsPerString" : 1,"StringCount" : 32}]}', 'OK'],

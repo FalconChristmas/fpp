@@ -51,6 +51,7 @@
 #include "PlaylistEntryBranch.h"
 #include "PlaylistEntryBrightness.h"
 #include "PlaylistEntryChannelTest.h"
+#include "PlaylistEntryCommand.h"
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryEvent.h"
@@ -340,9 +341,11 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryURL();
 	else if (entry["type"].asString() == "volume")
 		result = new PlaylistEntryVolume();
+    else if (entry["type"].asString() == "command")
+        result = new PlaylistEntryCommand();
 	else
 	{
-		LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["Type"].asString().c_str());
+		LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
 		return NULL;
 	}
 
@@ -868,7 +871,8 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
         
         if ((m_filename == fullfilename)
             && (repeat == m_repeat)
-            && m_currentSection) {
+            && m_currentSection
+            && position >= 0) {
             //the requested playlist is already running and loaded, we can jump right to the index
             if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
                 m_currentSection->at(m_sectionPosition)->Stop();
@@ -891,8 +895,17 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
 	Load(filename);
 
-	if (position >= 0)
-		SetPosition(position);
+    int p = position;
+    if (p == -2) {
+        //random
+        int l = m_mainPlaylist.size();
+        if (l > 2) {
+            p = rand() % l;
+            p = p + m_leadIn.size();
+        }
+    }
+	if (p >= 0)
+		SetPosition(p);
 
 	if (repeat >= 0)
 		SetRepeat(repeat);
@@ -981,9 +994,24 @@ void Playlist::Dump(void)
 	}
 }
 
-/*
- *
- */
+void Playlist::RestartItem(void)
+{
+    LogDebug(VB_PLAYLIST, "RestartItem called for '%s'\n", m_name.c_str());
+    if (m_currentState == "idle") {
+        return;
+    }
+    if (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING) {
+        return;
+    }
+    
+    int pos = GetPosition() - 1;
+    if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+        m_currentSection->at(m_sectionPosition)->Stop();
+
+    m_sectionPosition = 0;
+    m_startPosition = pos;
+    Start();
+}
 void Playlist::NextItem(void)
 {
     LogDebug(VB_PLAYLIST, "NextItem called for '%s'\n", m_name.c_str());

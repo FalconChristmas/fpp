@@ -25,6 +25,10 @@ OBJECTS_fpp_so += \
 	channeltester/RGBFill.o \
 	channeltester/SingleChase.o \
 	command.o \
+	commands/Commands.o \
+	commands/PlaylistCommands.o \
+    commands/EventCommands.o \
+    commands/MediaCommands.o \
 	common.o \
 	e131bridge.o \
 	effects.o \
@@ -54,6 +58,7 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryBranch.o \
 	playlist/PlaylistEntryBrightness.o \
 	playlist/PlaylistEntryChannelTest.o \
+	playlist/PlaylistEntryCommand.o \
 	playlist/PlaylistEntryDynamic.o \
 	playlist/PlaylistEntryEffect.o \
 	playlist/PlaylistEntryEvent.o \

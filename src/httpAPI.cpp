@@ -51,6 +51,7 @@
 
 #include "mediaoutput/mediaoutput.h"
 #include "sensors/Sensors.h"
+#include "commands/Commands.h"
 #include "PixelOverlay.h"
 #include "Plugins.h"
 
@@ -75,6 +76,8 @@ APIServer::~APIServer()
 	m_ws->unregister_resource("/fppd");
     m_ws->unregister_resource("/models");
     m_ws->unregister_resource("/overlays");
+    m_ws->unregister_resource("/command");
+    m_ws->unregister_resource("/commands");
 
 	delete m_pr;
 	delete m_ws;
@@ -95,7 +98,9 @@ void APIServer::Init(void)
 	m_ws->register_resource("/fppd", m_pr, true);
     m_ws->register_resource("/models", &PixelOverlayManager::INSTANCE, true);
     m_ws->register_resource("/overlays", &PixelOverlayManager::INSTANCE, true);
-    
+    m_ws->register_resource("/command", &CommandManager::INSTANCE, true);
+    m_ws->register_resource("/commands", &CommandManager::INSTANCE, true);
+
     PluginManager::INSTANCE.registerApis(m_ws);
 
 	m_ws->start(false);

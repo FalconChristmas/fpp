@@ -260,6 +260,15 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", "URL - " + entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
     else if(entry.type == 'image')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Image", "Image - " + entry.imagePath, entry.imageFilename, entry.data, i.toString(), editMode);
+    else if(entry.type == 'command') {
+        var av = "";
+        $.each( entry.args, function( key, v ) {
+               av += "\"";
+               av += v;
+               av += "\" ";
+        })
+        HTML += GetPlaylistRowHTML((i+1).toString(), "FPP Command", "FPP Command - " + entry.command, av, "", i.toString(), editMode);
+    }
 	else if(entry.type == 'remap')
 	{
 		var desc = "Add ";
@@ -464,6 +473,11 @@ function PlaylistTypeChanged() {
 	else if (type == 'image')
 	{
 		$('#imageOptions').show();
+    }
+    else if (type == 'command')
+	{
+        CommandSelectChanged('commandSelect', 'tblCommand');
+		$('#commandOptions').show();
 	}
 }
 
@@ -646,12 +660,16 @@ function AddPlaylistEntry() {
 				entry.method = $('#urlMethod').val();
 				entry.data = encodeURIComponent($('#urlData').val());
 			}
-			else if (entry.type == 'image')
+			else if (entry.type == 'command')
 			{
-				image.imagePath = encodeURIComponent($('#imagePath').val());
-				image.transitionType = $('#transitionType').val();
-				image.outputDevice = encodeURIComponent($('#outputDevice').val());
+                CommandToJSON('commandSelect', 'tblCommand', entry);
 			}
+            else if (entry.type == 'image')
+            {
+                entry.imagePath = encodeURIComponent($('#imagePath').val());
+                entry.transitionType = $('#transitionType').val();
+                entry.outputDevice = encodeURIComponent($('#outputDevice').val());
+            }
 			else if (entry.type == 'plugin')
 			{
 				entry.data = $('#txtData').val();
@@ -2630,144 +2648,6 @@ function GetRunningEffects()
 	xmlhttp.send();
 }
 
-	function TriggerEvent()
-	{
-		var url = "fppxml.php?command=triggerEvent&id=" + TriggerEventSelected;
-		var xmlhttp=new XMLHttpRequest();
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.send();
-	}
-
-	function AddEvent()
-	{
-		$('#newEventID').val('');
-		$('#newEventName').val('');
-		$('#newEventEffect').val('');
-		$('#newEventStartChannel').val('');
-		$('#newEventScript').val('');
-		$('#newEventScriptArgs').val('');
-		$('#newEvent').show();
-	}
-
-	function EditEvent()
-	{
-		var IDt = $('#event_' + TriggerEventSelected).find('td:eq(0)').text();
-		var ID = IDt.replace(' \/ ', '_');
-		$('#newEventID').val(ID);
-		if ($('#newEventID').val() != ID)
-		{
-			$('#newEventID').prepend("<option value='" + ID + "' selected>" + IDt + "</option>");
-		}
-
-		$('#newEventName').val($('#event_' + TriggerEventSelected).find('td:eq(1)').text());
-		$('#newEventScript').val($('#event_' + TriggerEventSelected).find('td:eq(2)').text());
-		$('#newEventScriptArgs').val($('#event_' + TriggerEventSelected).find('td:eq(3)').text());
-		$('#newEventEffect').val($('#event_' + TriggerEventSelected).find('td:eq(4)').text());
-		$('#newEventStartChannel').val($('#event_' + TriggerEventSelected).find('td:eq(5)').text());
-		$('#newEvent').show();
-
-		NewEventEffectChanged();
-	}
-
-	function NewEventEffectChanged()
-	{
-		if ($('#newEventEffect').val() != "")
-			$('#newEventStartChannelWrapper').show();
-		else
-			$('#newEventStartChannelWrapper').hide();
-	}
-
-	function InsertNewEvent(name, id, effect, startChannel, script, scriptArgs)
-	{
-		var idStr = id.replace('_', ' / ');
-		$('#tblEventEntries').append(
-		"<tr id='event_" + id + "'><td class='eventTblID'>" + idStr +
-            "</td><td class='eventTblName'>" + name +
-            "</td><td class='eventTblScript'>" + script +
-            "</td><td class='eventTblScriptArgs'>" + scriptArgs +
-            "</td><td class='eventTblEffect'>" + effect +
-            "</td><td class='eventTblStartCh'>" + startChannel +
-            "</td></tr>"
-		);
-	}
-
-	function UpdateExistingEvent(name, id, effect, startChannel, script, scriptArgs)
-	{
-		var idStr = id.replace('_', ' / ');
-		var row = $('#tblEventEntries tr#event_' + id);
-		row.find('td:eq(0)').text(idStr);
-		row.find('td:eq(1)').text(name);
-		row.find('td:eq(2)').text(script);
-		row.find('td:eq(3)').text(scriptArgs);
-		row.find('td:eq(4)').text(effect);
-		row.find('td:eq(5)').text(startChannel);
-	}
-
-	function SaveEvent()
-	{
-		var url = "fppxml.php?command=saveEvent&event=" + $('#newEventName').val() +
-			"&id=" + $('#newEventID').val() +
-			"&effect=" + $('#newEventEffect').val() +
-			"&startChannel=" + $('#newEventStartChannel').val() +
-			"&script=" + $('#newEventScript').val() +
-			"&scriptArgs=" + encodeURIComponent($('#newEventScriptArgs').val());
-
-        //If event name is empty, warn the user and skip saving
-        if (typeof ($('#newEventName').val()) === 'undefined' || $('#newEventName').val() == "") {
-            DialogError("Error Saving Event", "Event Name must be set!")
-        } else {
-            var xmlhttp = new XMLHttpRequest();
-            xmlhttp.open("GET", url, true);
-            xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-            xmlhttp.onreadystatechange = function () {
-                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                    if ($('#tblEventEntries tr#event_' + $('#newEventID').val()).attr('id')) {
-                        UpdateExistingEvent($('#newEventName').val(), $('#newEventID').val(),
-                            $('#newEventEffect').val(), $('#newEventStartChannel').val(),
-                            $('#newEventScript').val(), $('#newEventScriptArgs').val());
-                    }
-                    else {
-                        InsertNewEvent($('#newEventName').val(), $('#newEventID').val(),
-                            $('#newEventEffect').val(), $('#newEventStartChannel').val(),
-                            $('#newEventScript').val(), $('#newEventScriptArgs').val());
-                    }
-                    SetButtonState('#btnTriggerEvent', 'disable');
-                    SetButtonState('#btnEditEvent', 'disable');
-                    SetButtonState('#btnDeleteEvent', 'disable');
-                }
-            }
-            xmlhttp.send();
-        }
-
-	}
-
-	function CancelNewEvent()
-	{
-		$('#newEvent').hide();
-	}
-
-	function DeleteEvent()
-	{
-		if (TriggerEventSelected == "")
-			return;
-
-		var url = "fppxml.php?command=deleteEvent&id=" + TriggerEventSelected;
-		var xmlhttp=new XMLHttpRequest();
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-			{
-				$('#tblEventEntries tr#' + TriggerEventID).remove();
-				SetButtonState('#btnTriggerEvent','disable');
-				SetButtonState('#btnEditEvent','disable');
-				SetButtonState('#btnDeleteEvent','disable');
-			}
-		}
-		xmlhttp.send();
-	}
-
 	function RebootPi()
 	{
 		if (confirm('REBOOT the Falcon Player?'))
@@ -3218,3 +3098,92 @@ function handleVisibilityChange() {
    
 }
 
+function CommandToJSON(commandSelect, tblCommand, json) {
+    var args = new Array()
+    json['command'] = $('#' + commandSelect).val();
+    for (var x = 1; x < 20; x++) {
+        var inp =  $("#" + tblCommand + "_arg_" + x);
+        var val = inp.val();
+        if (inp.attr('type') == 'checkbox') {
+            if (inp.is(":checked")) {
+                args.push("true");
+            } else {
+                args.push("false");
+            }
+        } else if (typeof val != "undefined") {
+            args.push(val);
+        }
+    }
+    json['args'] = args;
+    return json;
+}
+
+function LoadCommandList(control) {
+    $.getJSON("api/commands", function(data) {
+          $.each( data, function(key, val) {
+                 option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
+                 $('#' + control).append(option);
+        });
+    });
+}
+
+function CommandSelectChanged(commandSelect, tblCommand)
+{
+    for (var x = 1; x < 20; x++) {
+        $('#commandArg' + x).remove();
+    }
+    var command = $('#' + commandSelect).val();
+    if (typeof command == "undefined"  ||  command == null) {
+        return;
+    }
+    $.getJSON("api/commands/" + command, function(data) {
+              var count = 1;
+              $.each( data['args'], function( key, val ) {
+                     var line = "<tr id='commandArg" + count + "'><td>" + val["description"] + ":</td><td>";
+                     var ID = tblCommand + "_arg_" + count;
+                     
+                     if (val['type'] == "string") {
+                        if (typeof val['contents'] !== "undefined") {
+                            line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
+                            $.each( val['contents'], function( key, v ) {
+                                   line += "<option value='" + v + "'>" + v + "</option>";
+                            })
+                            line += "</select>";
+                        } else if (typeof val['contentListUrl'] == "undefined") {
+                            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' >";
+                            line += "</input>";
+                        } else {
+                            line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
+                            if (val['allowBlanks']) {
+                                line += "<option value=''></option>";
+                            }
+                            line += "</select>";
+                        }
+                     } else if (val['type'] == "bool") {
+                        line += "<input type='checkbox' class='arg_" + val['name'] + "' id='" + ID  + "' value='true'></input>";
+                     } else if (val['type'] == "int") {
+                         line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'></input>";
+                     }
+                     line += "</td></tr>";
+                     $('#' + tblCommand + ' tr:last').after(line);
+                     if (typeof val['contentListUrl'] != "undefined") {
+                        var selId = "#" + tblCommand + "_arg_" + count;
+                        $.ajax({
+                               dataType: "json",
+                               url: val['contentListUrl'],
+                               async: false,
+                               success: function(data) {
+                                   $.each( data, function( key, v ) {
+                                          var line = "<option value='" + v + "'>" + v + "</option>";
+                                          $(selId).append(line);
+                                   })
+                               }
+                               });
+                     }
+                     
+                     count = count + 1;
+              });
+            
+        }
+    );
+}

@@ -50,6 +50,8 @@
 #include <unistd.h>
 
 #include <sstream>
+#include <fstream>
+#include <algorithm>
 
 #include "common.h"
 #include "log.h"
@@ -466,6 +468,38 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
+std::vector<std::string> splitWithQuotes(const std::string &s, char delim) {
+    std::vector<std::string> ret;
+    const char *mystart = s.c_str();
+    bool instring = false;
+    for (const char* p = mystart; *p; p++) {
+        if (*p == '"' || *p == '\'') {
+            instring = !instring;
+        } else if (*p == delim && !instring) {
+            ret.push_back(std::string(mystart, p - mystart));
+            mystart = p + 1;
+        }
+    }
+    ret.push_back(std::string(mystart));
+    return ret;
+}
+
+
+std::string GetFileContents(const std::string &filename)
+{
+    std::ifstream in(filename, std::ios::in | std::ios::binary);
+    if (in) {
+        std::string contents;
+        in.seekg(0, std::ios::end);
+        contents.resize(in.tellg());
+        in.seekg(0, std::ios::beg);
+        in.read(&contents[0], contents.size());
+        in.close();
+        return(contents);
+    }
+    return "";
+}
+
 
 #ifndef PLATFORM_OSX
 /*
@@ -509,3 +543,22 @@ Json::Value JSONStringToObject(const std::string &str)
 	return result;
 }
 #endif
+
+
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
+        return !std::isspace(ch);
+    }));
+}
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+// trim from both ends (in place)
+void TrimWhiteSpace(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}

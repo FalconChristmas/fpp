@@ -2,6 +2,7 @@
 #define __BBB_UTILS__
 
 #include <string>
+#include <vector>
 
 
 #include "GPIOUtils.h"
@@ -41,6 +42,8 @@ public:
     static void Init();
     static const BBBPinCapabilities &getPinByName(const std::string &name);
     static const BBBPinCapabilities &getPinByGPIO(int i);
+    
+    static std::vector<std::string> getPinNames();
 };
 
 

@@ -116,6 +116,7 @@ class Playlist {
 	void               Dump(void);
 
 	void               NextItem(void);
+    void               RestartItem(void);
 	void               PrevItem(void);
 
 	Json::Value        GetCurrentEntry(void);

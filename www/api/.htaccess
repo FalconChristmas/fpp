@@ -8,6 +8,8 @@ RewriteCond %{SCRIPT_FILENAME} !-d
 RewriteRule ^fppd/(.*)$  "http://localhost:32322/fppd/$1"  [P]
 RewriteRule ^overlays/(.*)$  "http://localhost:32322/overlays/$1"  [P]
 RewriteRule ^models(.*)$  "http://localhost:32322/models$1"  [P]
+RewriteRule ^commands(.*)$  "http://localhost:32322/commands$1"  [P]
+RewriteRule ^command(.*)$  "http://localhost:32322/command$1"  [P]
 RewriteRule ^plugin-apis/(.*)$  "http://localhost:32322/$1"  [P]
 RewriteRule ^index.php - [L,NC]
 RewriteRule ^(.*)$   /api/index.php?uri=/$1    [NC,L,QSA]

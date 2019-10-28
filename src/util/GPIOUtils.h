@@ -3,6 +3,8 @@
 #define __FPPGPIOUTILS__
 
 #include <string>
+#include <vector>
+
 class PinCapabilities {
 public:
     static void InitGPIO();
@@ -46,6 +48,7 @@ public:
     
     static const PinCapabilities &getPinByName(const std::string &n);
     static const PinCapabilities &getPinByGPIO(int i);
+    static std::vector<std::string> getPinNames();
 protected:
     static void enableOledScreen(int i2cBus, bool enable);
 

@@ -170,6 +170,8 @@ function DynamicSubTypeChanged()
 
 $(document).ready(function() {
 	playlistEditorDocReady();
+    LoadCommandList('commandSelect');
+    CommandSelectChanged('commandSelect', 'tblCommand');
 });
 
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
@@ -377,6 +379,7 @@ if ($allowDelete)
             <option value = 'remap'>Channel Remap</option>
 <? if (!$simplifiedPlaylist) echo "<option value = 'dynamic'>Dynamic</option>"; ?>
             <option value = 'event'>Event</option>
+            <option value = 'command'>FPP Command</option>
             <option value = 'image'>Image</option>
             <option value = 'mqtt'>MQTT</option>
             <option value = 'pause'>Pause</option>
@@ -425,6 +428,13 @@ if ($allowDelete)
 				<tr><td>Method:</td><td><select id='urlMethod'><option value='GET'>GET</option><option value='POST'>POST</option></select></td></tr>
 				<tr><td>Post Data:</td><td><input id='urlData' type='text' size='60' maxlength='1024' placeholder='POST Data'></td></tr>
 				</table>
+			</td>
+			</tr>
+        <tr id="commandOptions" class="playlistOptions">
+            <td colspan="2">
+                <table id="tblCommand" border=0 cellpadding=0 cellspacing=2>
+                    <tr><td>Command:</td><td><select id="commandSelect" onChange="CommandSelectChanged('commandSelect', 'tblCommand');"></select></td></tr>
+                </table>
 			</td>
 			</tr>
 		<tr id="imageOptions" class='playlistOptions'><td>Image:</td>

@@ -413,3 +413,16 @@ void BBBPinCapabilities::Init() {
     
 }
 
+std::vector<std::string> PiGPIOPinCapabilities::getPinNames() {
+    std::vector<std::string> ret;
+    if (getBeagleBoneType() == PocketBeagle) {
+        for (auto &a : PB_PINS) {
+            ret.push_back(a.name);
+        }
+    } else {
+        for (auto &a : BBB_PINS) {
+            ret.push_back(a.name);
+        }
+    }
+    return ret;
+}

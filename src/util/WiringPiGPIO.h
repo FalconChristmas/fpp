@@ -3,6 +3,7 @@
 #define __FPP_WIRING_PI_GPIO__
 
 #include "GPIOUtils.h"
+#include <vector>
 
 class WPPinCapabilities : public PinCapabilitiesFluent<WPPinCapabilities> {
 public:
@@ -24,6 +25,8 @@ public:
     static void Init();
     static const WPPinCapabilities &getPinByName(const std::string &name);
     static const WPPinCapabilities &getPinByGPIO(int i);
+    
+    static std::vector<std::string> getPinNames() { return std::vector<std::string>(); }
 };
 
 #endif

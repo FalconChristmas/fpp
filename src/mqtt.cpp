@@ -36,9 +36,28 @@
 #include <vector>
 #include <jsoncpp/json/json.h>
 
+#include "commands/Commands.h"
+
 #define FALCON_TOPIC "falcon/player"
 
 MosquittoClient *mqtt = NULL;
+
+class MQTTCommand : public Command {
+public:
+    MQTTCommand() : Command("MQTT") {
+        args.push_back(CommandArg("topic", "string", "Topic"));
+        args.push_back(CommandArg("message", "string", "Message"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+        if (args.size() < 2) {
+            return  std::make_unique<Command::ErrorResult>("MQTT Requires two arguments");
+        }
+        mqtt->PublishRaw(args[0], args[1]);
+        return std::make_unique<Command::Result>("OK");
+    }
+};
+
 
 void mosq_disc_callback(struct mosquitto *mosq, void *userdata, int level)
 {
@@ -173,6 +192,8 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
         return 0;
     }
     LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
+    
+    CommandManager::INSTANCE.addCommand(new MQTTCommand());
 
     
     return 1;
