@@ -5,6 +5,13 @@ require_once('config.php');
 ?>
 <head>
 <?php	include 'common/menuHead.inc'; ?>
+
+
+<?php
+    exec($SUDO . " df -k /home/fpp/media/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
+    $freespace = $output[0];
+    unset($output);
+?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 
@@ -200,7 +207,11 @@ h2 {
 <?php	include 'menu.inc'; ?>
 <div id="fileManager">
   <br />
-  <div class='title'>File Manager</div>
+<div class='title'>File Manager
+<? if ($freespace > 95) { ?>
+&nbsp;&nbsp;-&nbsp;&nbsp;<b><font color='red'>WARNING: storage device is almost full!</font></b>
+<? } ?>
+</div>
   <div id="tabs">
     <ul>
       <li><a href="#tab-sequence">Sequences</a></li>
