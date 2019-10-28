@@ -1336,7 +1336,7 @@ moveBackupFiles_ToBackupDirectory();
                 <legend>FPP Settings Backup</legend>
                 <ul>
                     <li>
-                        <span style="color: #AA0000"><b>Backups made from FPP v1.x are incompatible with the FPP 2.x system.</b></span>
+                        <span style="color: #AA0000"><b>Backups made from FPP v1.x are incompatible with the FPP 3.x system.</b></span>
                     </li>
                 </ul>
                 <?php if ($restore_done == true) {

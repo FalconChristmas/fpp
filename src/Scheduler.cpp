@@ -588,7 +588,6 @@ void Scheduler::PlayListLoadCheck(void)
 
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
         0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
-      playlist->Start();
     }
   }
 }

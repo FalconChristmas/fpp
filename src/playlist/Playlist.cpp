@@ -88,6 +88,7 @@ Playlist::Playlist(void *parent, int subPlaylist)
 	m_fileTime(0),
 	m_configTime(0),
 	m_currentState("idle"),
+    m_currentSection(nullptr),
 	m_currentSectionStr("New"),
 	m_sectionPosition(0),
 	m_startPosition(0)
@@ -222,6 +223,7 @@ int Playlist::Load(Json::Value &config)
 	}
 
 	m_sectionPosition = 0;
+    m_currentSection = nullptr;
 
 	if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
 		Dump();
@@ -521,6 +523,7 @@ int Playlist::StopNow(int forceStop)
 	SetIdle();
 
 	m_forceStop = forceStop;
+    m_currentSection = nullptr;
 
 	return 1;
 }
@@ -612,12 +615,11 @@ int Playlist::Process(void)
 			{
 				ReloadIfNeeded();
 
-				if (m_leadOut.size())
-				{
+				if (m_leadOut.size()) {
 					LogDebug(VB_PLAYLIST, "Stopping Gracefully\n");
 					SwitchToLeadOut();
-				}
-				else {
+				} else {
+                    m_currentSection = nullptr;
 					SetIdle();
 				}
 				return 1;
@@ -733,6 +735,7 @@ int Playlist::Process(void)
 			else
 			{
 				LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
+                m_currentSection = nullptr;
 				SetIdle();
 			}
 		}
@@ -835,6 +838,7 @@ int Playlist::Cleanup(void)
 	m_loopCount = 0;
 	m_startTime = 0;
 	m_currentSectionStr = "New";
+    m_currentSection = nullptr;
 
 	return 1;
 }
@@ -862,10 +866,13 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
         fullfilename += filename;
         fullfilename += ".json";
         
-        if ((m_filename == fullfilename) && (repeat == m_repeat)) {
+        if ((m_filename == fullfilename)
+            && (repeat == m_repeat)
+            && m_currentSection) {
             //the requested playlist is already running and loaded, we can jump right to the index
-            if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+            if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
                 m_currentSection->at(m_sectionPosition)->Stop();
+            }
 
             m_sectionPosition = 0;
             SetPosition(position);
@@ -873,7 +880,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
             m_currentState = "playing";
             Start();
             return 1;
-        } else {
+        } else if (m_currentSection) {
             hadToStop = 1;
             StopNow(1);
             sleep(1);
@@ -893,8 +900,9 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 	FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
 	m_currentState = "playing";
 
-	if (hadToStop)
+    if (hadToStop) {
 		Start();
+    }
 
 	return 1;
 }
