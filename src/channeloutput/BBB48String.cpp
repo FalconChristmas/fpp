@@ -600,7 +600,7 @@ int BBB48StringOutput::SendData(unsigned char *channelData)
             }
             // second 7.5K to other PRU ram
             memcpy(m_pru->other_data_ram + 512, m_curData + 7628, outsize);
-            fullsize -= outsize;
+            fullsize -= 7628;
         }
         if (fullsize > 0) {
             int outsize = fullsize;
@@ -609,11 +609,10 @@ int BBB48StringOutput::SendData(unsigned char *channelData)
             }
             memcpy(m_pru->shared_ram, m_curData + 7628 + 7628, outsize);
         }
-        int off = 7628 * 2 + 12188;
+        int off = 7628 * 2 + 12188 - 100;
         if (off < m_frameSize) {
             // more than what fits in the SRAMs
             //don't need to copy the first part as that's in sram, just copy the last parts
-            off -= 100;
             uint8_t * const realout = (uint8_t *)m_pru->ddr + m_frameSize * frame + off;
             memcpy(realout, m_curData + off, m_frameSize - off);
         }
