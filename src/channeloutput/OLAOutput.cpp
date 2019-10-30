@@ -47,8 +47,6 @@ OLAOutput::OLAOutput(unsigned int startChannel, unsigned int channelCount)
 {
 	LogDebug(VB_CHANNELOUT, "OLAOutput::OLAOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 1;
 }
 
 /*

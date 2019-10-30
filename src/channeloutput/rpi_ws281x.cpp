@@ -77,8 +77,6 @@ RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channel
 {
 	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RPIWS281xOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = FPPD_MAX_CHANNELS;
 }
 
 /*

@@ -59,7 +59,6 @@ USBDMXOutput::USBDMXOutput(unsigned int startChannel, unsigned int channelCount)
 	LogDebug(VB_CHANNELOUT, "USBDMXOutput::USBDMXOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = DMX_MAX_CHANNELS;
 	m_useDoubleBuffer = 1;
 }
 

@@ -75,7 +75,6 @@ MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int
 	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::MAX7219MatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = 8 * 64 * 3; // Eight 8x8 panels with 3 colors per pixel
     m_csPin = PinCapabilities::getPinByGPIO(8).ptr();
 }
 

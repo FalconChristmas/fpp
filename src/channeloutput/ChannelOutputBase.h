@@ -43,7 +43,6 @@ class ChannelOutputBase {
 
 	unsigned int  ChannelCount(void) { return m_channelCount; }
 	unsigned int  StartChannel(void) { return m_startChannel; }
-	int           MaxChannels(void)  { return m_maxChannels; }
 
     virtual int   Init(Json::Value config);
     virtual int   Init(char *configStr);
@@ -62,7 +61,6 @@ class ChannelOutputBase {
     virtual void  ConvertToCSV(Json::Value config, char *configStr);
 
 	std::string      m_outputType;
-	unsigned int     m_maxChannels;
 	unsigned int     m_startChannel;
 	unsigned int     m_channelCount;
 };

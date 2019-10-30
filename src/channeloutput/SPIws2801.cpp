@@ -62,8 +62,6 @@ SPIws2801Output::SPIws2801Output(unsigned int startChannel, unsigned int channel
 {
 	LogDebug(VB_CHANNELOUT, "SPIws2801Output::SPIws2801Output(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = SPIWS2801_MAX_CHANNELS;
 }
 
 /*

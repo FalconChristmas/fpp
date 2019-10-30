@@ -59,7 +59,6 @@ GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int
 	LogDebug(VB_CHANNELOUT, "GenericSerialOutput::GenericSerialOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = GENERICSERIAL_MAX_CHANNELS;
 	m_useDoubleBuffer = 1;
 }
 

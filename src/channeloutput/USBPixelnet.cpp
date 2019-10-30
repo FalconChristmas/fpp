@@ -55,7 +55,6 @@ USBPixelnetOutput::USBPixelnetOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "USBPixelnetOutput::USBPixelnetOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = 4096;
 	m_useDoubleBuffer = 1;
 }
 

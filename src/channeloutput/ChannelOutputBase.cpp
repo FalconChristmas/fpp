@@ -37,7 +37,6 @@
 ChannelOutputBase::ChannelOutputBase(unsigned int startChannel,
 	 unsigned int channelCount)
   : m_outputType(""),
-	m_maxChannels(0),
 	m_startChannel(startChannel),
 	m_channelCount(channelCount)
 {
@@ -53,7 +52,7 @@ int ChannelOutputBase::Init(void)
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init()\n");
 
 	if (m_channelCount == -1)
-		m_channelCount = m_maxChannels;
+		m_channelCount = 0;
 
 	DumpConfig();
 	return 1;
@@ -94,7 +93,6 @@ void ChannelOutputBase::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::DumpConfig()\n");
 
 	LogDebug(VB_CHANNELOUT, "    Output Type      : %s\n", m_outputType.c_str());
-	LogDebug(VB_CHANNELOUT, "    Max Channels     : %u\n", m_maxChannels);
 	LogDebug(VB_CHANNELOUT, "    Start Channel    : %u\n", m_startChannel + 1);
 	LogDebug(VB_CHANNELOUT, "    Channel Count    : %u\n", m_channelCount);
 }

@@ -55,7 +55,6 @@ X11VirtualDisplayOutput::X11VirtualDisplayOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::X11VirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = FPPD_MAX_CHANNELS;
 	m_bytesPerPixel = 4;
 	m_bpp = 32;
 }

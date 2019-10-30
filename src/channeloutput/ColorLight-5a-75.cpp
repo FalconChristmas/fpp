@@ -117,8 +117,6 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 {
 	LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::ColorLight5a75Output(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 256 * 256 * 3;
 }
 
 /*

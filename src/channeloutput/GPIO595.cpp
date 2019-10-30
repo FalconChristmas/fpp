@@ -63,7 +63,6 @@ GPIO595Output::GPIO595Output(unsigned int startChannel, unsigned int channelCoun
 	LogDebug(VB_CHANNELOUT, "GPIO595Output::GPIO595Output(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = GPIO595_MAX_CHANNELS;
 }
 
 /*

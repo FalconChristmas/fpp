@@ -97,8 +97,6 @@ MCP23017Output::MCP23017Output(unsigned int startChannel, unsigned int channelCo
 {
 	LogDebug(VB_CHANNELOUT, "MCP23017Output::MCP23017Output(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 16;
 }
 
 /*

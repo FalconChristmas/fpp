@@ -45,9 +45,6 @@ DebugOutput::DebugOutput(unsigned int startChannel, unsigned int channelCount)
 {
 	LogDebug(VB_CHANNELOUT, "DebugOutput::DebugOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	// Set any max channels limit if necessary
-	m_maxChannels = FPPD_MAX_CHANNELS;
 }
 
 /*

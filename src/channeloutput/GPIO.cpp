@@ -47,8 +47,6 @@ GPIOOutput::GPIOOutput(unsigned int startChannel, unsigned int channelCount)
 {
 	LogDebug(VB_CHANNELOUT, "GPIOOutput::GPIOOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 1;
 }
 
 /*

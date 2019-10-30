@@ -130,8 +130,6 @@ LinsnRV9Output::LinsnRV9Output(unsigned int startChannel, unsigned int channelCo
 
 	struct FormatCode fc_c2 = { 0xc2, 1024, 512, 1632, 0x1f };
 	m_formatCodes.push_back(fc_c2);
-
-	m_maxChannels = m_formatCodes[m_formatCodes.size()-1].width * m_formatCodes[m_formatCodes.size()-1].height * 3;
 }
 
 /*

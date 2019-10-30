@@ -62,7 +62,6 @@ FBVirtualDisplayOutput::FBVirtualDisplayOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::FBVirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = FPPD_MAX_CHANNELS;
 	m_bytesPerPixel = 3;
 	m_bpp = 24;
 }

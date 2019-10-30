@@ -227,7 +227,7 @@ int USBRenardOutput::SendData(unsigned char *channelData) {
     // 0x7F - Escape Byte - map to 0x80
     char *dptr = data->outputData;
     int i = 0;
-    for (i = 0; i < m_maxChannels; i++) {
+    for (i = 0; i < data->maxChannels; i++) {
         if (*dptr == '\x7D')
             *dptr = '\x7C';
         else if (*dptr == '\x7E')

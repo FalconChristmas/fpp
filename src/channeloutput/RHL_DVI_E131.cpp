@@ -65,8 +65,6 @@ RHLDVIE131Output::RHLDVIE131Output(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "RHLDVIE131Output::RHLDVIE131Output(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = FPPD_MAX_CHANNELS;
 }
 
 /*

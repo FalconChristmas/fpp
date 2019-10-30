@@ -60,8 +60,6 @@ SpixelsOutput::SpixelsOutput(unsigned int startChannel, unsigned int channelCoun
 {
 	LogDebug(VB_CHANNELOUT, "SpixelsOutput::SpixelsOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = FPPD_MAX_CHANNELS;
 }
 
 /*

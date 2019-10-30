@@ -56,8 +56,6 @@ USBRelayOutput::USBRelayOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "USBRelayOutput::USBRelayOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 32;
 }
 
 /*

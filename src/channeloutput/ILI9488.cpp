@@ -106,7 +106,6 @@ ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCoun
 		startChannel, channelCount);
 
 	m_pixels = m_rows * m_cols;
-	m_maxChannels = m_pixels * 3;
 	m_useDoubleBuffer = 1;
 }
 

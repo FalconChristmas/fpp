@@ -74,8 +74,6 @@ GenericSPIOutput::GenericSPIOutput(unsigned int startChannel, unsigned int chann
 {
 	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::GenericSPIOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = MAX_CHANNELS;
 }
 
 /*

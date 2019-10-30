@@ -71,7 +71,6 @@ VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::VirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = FPPD_MAX_CHANNELS;
 	m_useDoubleBuffer = 1;
 }
 
