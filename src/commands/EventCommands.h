@@ -55,7 +55,7 @@ public:
     StartEffectCommand() : Command("Effect Start") {
         args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
         args.push_back(CommandArg("startChannel", "int", "Start Channel"));
-        args.push_back(CommandArg("loop", "bool", "Loop Effect"));
+        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
         args.push_back(CommandArg("bg", "bool", "Background"));
     }
     

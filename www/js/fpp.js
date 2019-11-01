@@ -3142,15 +3142,24 @@ function CommandSelectChanged(commandSelect, tblCommand)
                      var line = "<tr id='commandArg" + count + "'><td>" + val["description"] + ":</td><td>";
                      var ID = tblCommand + "_arg_" + count;
                      
+                     var dv = "";
+                     if (typeof val['default'] != "undefined") {
+                        dv = val['default'];
+                     }
+                     
                      if (val['type'] == "string") {
                         if (typeof val['contents'] !== "undefined") {
                             line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
                             $.each( val['contents'], function( key, v ) {
-                                   line += "<option value='" + v + "'>" + v + "</option>";
+                                   line += "<option value='" + v + "'";
+                                   if (v == dv) {
+                                        line += " selected";
+                                   }
+                                   line += ">" + v + "</option>";
                             })
                             line += "</select>";
                         } else if (typeof val['contentListUrl'] == "undefined") {
-                            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' >";
+                            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'>";
                             line += "</input>";
                         } else {
                             line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
@@ -3160,9 +3169,19 @@ function CommandSelectChanged(commandSelect, tblCommand)
                             line += "</select>";
                         }
                      } else if (val['type'] == "bool") {
-                        line += "<input type='checkbox' class='arg_" + val['name'] + "' id='" + ID  + "' value='true'></input>";
+                        line += "<input type='checkbox' class='arg_" + val['name'] + "' id='" + ID  + "' value='true'";
+                         if (dv == "true" || dv == "1") {
+                            line += " checked";
+                         }
+                        line += "></input>";
                      } else if (val['type'] == "int") {
-                         line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'></input>";
+                         line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
+                         if (dv != "") {
+                            line += " value='" + dv + "'";
+                         } else if (typeof val['min'] != "undefined") {
+                             line += " value='" + val['min'] + "'";
+                         }
+                         line += "></input>";
                      }
                      line += "</td></tr>";
                      $('#' + tblCommand + ' tr:last').after(line);
@@ -3174,7 +3193,11 @@ function CommandSelectChanged(commandSelect, tblCommand)
                                async: false,
                                success: function(data) {
                                    $.each( data, function( key, v ) {
-                                          var line = "<option value='" + v + "'>" + v + "</option>";
+                                          var line = "<option value='" + v + "'"
+                                          if (v == dv) {
+                                               line += " selected";
+                                          }
+                                          line += ">" + v + "</option>";
                                           $(selId).append(line);
                                    })
                                }

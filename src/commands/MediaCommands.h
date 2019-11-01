@@ -20,28 +20,28 @@
 class SetVolumeCommand : public Command {
 public:
     SetVolumeCommand() : Command("Volume Set") {
-        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100));
+        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("70"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 class AdjustVolumeCommand : public Command {
 public:
     AdjustVolumeCommand() : Command("Volume Adjust") {
-        args.push_back(CommandArg("volume", "int", "Volume").setRange(-100, 100));
+        args.push_back(CommandArg("volume", "int", "Volume").setRange(-100, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 class IncreaseVolumeCommand : public Command {
 public:
     IncreaseVolumeCommand() : Command("Volume Increase") {
-        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100));
+        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 class DecreaseVolumeCommand : public Command {
 public:
     DecreaseVolumeCommand() : Command("Volume Decrease") {
-        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100));
+        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
@@ -51,7 +51,7 @@ class URLCommand : public Command {
 public:
     URLCommand() : Command("URL") {
         args.push_back(CommandArg("name", "string", "URL"));
-        args.push_back(CommandArg("method", "string", "Method").setContentList({"GET", "POST"}));
+        args.push_back(CommandArg("method", "string", "Method").setContentList({"GET", "POST"}).setDefaultValue("GET"));
         args.push_back(CommandArg("data", "string", "Post Data"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

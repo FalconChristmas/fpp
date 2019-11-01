@@ -65,6 +65,7 @@ public:
         CommandArg &setRange(int mn, int mx) { min = mn; max = mx; return *this;}
         CommandArg &setContentListUrl(const std::string &s, bool ab = false) { contentListUrl = s; allowBlanks = ab; return *this;}
         CommandArg &setContentList(const std::vector<std::string> &v) { contentList = v; return *this;}
+        CommandArg &setDefaultValue(const std::string &d) { defaultValue = d; return *this;}
 
         const std::string name;
         const std::string type;
@@ -76,6 +77,7 @@ public:
         bool allowBlanks;
         int min;
         int max;
+        std::string defaultValue;
     };
     
     std::string name;

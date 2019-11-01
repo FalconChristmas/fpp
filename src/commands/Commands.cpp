@@ -33,6 +33,9 @@ Json::Value Command::getDescription() {
                 a["contents"].append(x);
             }
         }
+        if (ar.defaultValue != "") {
+            a["default"] = ar.defaultValue;
+        }
 
         cmd["args"].append(a);
     }
