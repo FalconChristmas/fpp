@@ -45,7 +45,7 @@ public:
     ~FPPeffect() { if (fp) delete fp; }
     
     std::string name;
-    V2FSEQFile *fp;
+    FSEQFile *fp;
     int       loop;
     int       background;
     uint32_t  currentFrame;
@@ -118,49 +118,16 @@ int IsEffectRunning(void)
 	return result;
 }
 
-/*
- * Start a new effect offset at the specified channel number
- */
-int StartEffect(const std::string &effectName, int startChannel, int loop, bool bg)
-{
-	int   effectID = -1;
-    int   frameTime = 50;
-	LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName.c_str(), startChannel);
-
+int StartEffect(FSEQFile *fseq, const std::string &effectName, int loop, bool bg) {
     std::unique_lock<std::mutex> lock(effectsLock);
-	if (effectCount >= MAX_EFFECTS) {
-		LogErr(VB_EFFECT, "Unable to start effect %s, maximum number of effects already running\n", effectName.c_str());
-		return effectID;
-	}
-
-    std::string filename = getEffectDirectory();
-    filename += "/";
-    filename += effectName;
-    filename += ".eseq";
-
-    FSEQFile *fseq = FSEQFile::openFSEQFile(filename);
-	if (!fseq) {
-		LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
-		return effectID;
-	}
-    V2FSEQFile *v2fseq = dynamic_cast<V2FSEQFile*>(fseq);
-    if (!v2fseq) {
-        delete fseq;
-        LogErr(VB_EFFECT, "Effect file not a correct eseq file: %s\n", filename.c_str());
-        return effectID;
+    if (effectCount >= MAX_EFFECTS) {
+        LogErr(VB_EFFECT, "Unable to start effect %s, maximum number of effects already running\n", effectName.c_str());
+        return -1;
     }
+    int   effectID = -1;
+    int   frameTime = 50;
 
-	if (v2fseq->m_sparseRanges.size() == 0){
-		LogErr(VB_EFFECT, "eseq file must have at least one model range.");
-        delete fseq;
-		return effectID;
-	}
-
-	if (startChannel != 0) {
-		// This will need to change if/when we support multiple models per file
-        v2fseq->m_sparseRanges[0].first = startChannel - 1;
-	}
-    frameTime = v2fseq->getStepTime();
+    frameTime = fseq->getStepTime();
 	effectID = GetNextEffectID();
 
 	if (effectID < 0) {
@@ -171,7 +138,7 @@ int StartEffect(const std::string &effectName, int startChannel, int loop, bool 
 
 	effects[effectID] = new FPPeffect;
 	effects[effectID]->name = effectName;
-	effects[effectID]->fp = v2fseq;
+	effects[effectID]->fp = fseq;
 	effects[effectID]->loop = loop;
 	effects[effectID]->background = bg;
 
@@ -190,6 +157,61 @@ int StartEffect(const std::string &effectName, int startChannel, int loop, bool 
 
 
 	return effectID;
+}
+
+int StartFSEQAsEffect(const std::string &fseqName, int loop, bool bg) {
+    LogInfo(VB_EFFECT, "Starting FSEQ %s as effect\n", fseqName.c_str());
+
+
+    std::string filename = getSequenceDirectory();
+    filename += "/";
+    filename += fseqName;
+    filename += ".fseq";
+
+    FSEQFile *fseq = FSEQFile::openFSEQFile(filename);
+    if (!fseq) {
+        LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
+        return -1;
+    }
+    return StartEffect(fseq, fseqName, loop, bg);
+}
+
+/*
+ * Start a new effect offset at the specified channel number
+ */
+int StartEffect(const std::string &effectName, int startChannel, int loop, bool bg)
+{
+    LogInfo(VB_EFFECT, "Starting effect %s at channel %d\n", effectName.c_str(), startChannel);
+
+
+    std::string filename = getEffectDirectory();
+    filename += "/";
+    filename += effectName;
+    filename += ".eseq";
+
+    FSEQFile *fseq = FSEQFile::openFSEQFile(filename);
+    if (!fseq) {
+        LogErr(VB_EFFECT, "Unable to open effect: %s\n", filename.c_str());
+        return -1;
+    }
+    V2FSEQFile *v2fseq = dynamic_cast<V2FSEQFile*>(fseq);
+    if (!v2fseq) {
+        delete fseq;
+        LogErr(VB_EFFECT, "Effect file not a correct eseq file: %s\n", filename.c_str());
+        return -1;
+    }
+
+    if (v2fseq->m_sparseRanges.size() == 0){
+        LogErr(VB_EFFECT, "eseq file must have at least one model range.");
+        delete fseq;
+        return -1;
+    }
+
+    if (startChannel != 0) {
+        // This will need to change if/when we support multiple models per file
+        v2fseq->m_sparseRanges[0].first = startChannel - 1;
+    }
+    return StartEffect(v2fseq, effectName, loop, bg);
 }
 
 /*

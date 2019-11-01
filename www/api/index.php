@@ -43,6 +43,7 @@ dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 
 dispatch_get   ('/effects', 'effects_list');
+dispatch_get   ('/effects/ALL', 'effects_list_ALL');
 
 dispatch_get   ('/events', 'events_list');
 dispatch_get   ('/events/:eventId', 'event_get');

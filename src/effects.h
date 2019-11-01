@@ -34,6 +34,7 @@ int  IsEffectRunning(void);
 int  InitEffects(void);
 void CloseEffects(void);
 int  StartEffect(const std::string &effectName, int startChannel, int loop = 0, bool bg = false);
+int  StartFSEQAsEffect(const std::string &effectName, int loop = 0, bool bg = false);
 int  StopEffect(const std::string &effectName);
 int  StopEffect(int effectID);
 void StopAllEffects(void);

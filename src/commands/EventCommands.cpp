@@ -66,12 +66,28 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
         loop = args[2] == "true" || args[2] == "1";
     }
     if (args.size() > 3) {
-        bg = args[3] == "true" || args[2] == "1";
+        bg = args[3] == "true" || args[3] == "1";
     }
     StartEffect(args[0], startChannel, loop, bg);
     return std::make_unique<Command::Result>("Effect Started");
 }
+std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
 
+    bool loop = false;
+    bool bg = false;
+    
+    if (args.size() > 1) {
+        loop = args[1] == "true" || args[1] == "1";
+    }
+    if (args.size() > 2) {
+        bg = args[2] == "true" || args[2] == "1";
+    }
+    StartFSEQAsEffect(args[0], loop, bg);
+    return std::make_unique<Command::Result>("Effect Started");
+}
 
 std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {

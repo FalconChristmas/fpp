@@ -61,10 +61,20 @@ public:
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
+class StartFSEQAsEffectCommand : public Command {
+public:
+    StartFSEQAsEffectCommand() : Command("FSEQ Effect Start") {
+        args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
+        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+        args.push_back(CommandArg("bg", "bool", "Background"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
 class StopEffectCommand : public Command {
 public:
     StopEffectCommand() : Command("Effect Stop") {
-        args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
+        args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects/ALL"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

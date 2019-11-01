@@ -81,6 +81,7 @@ void CommandManager::Init() {
     addCommand(new TriggerMultipleEventsCommand());
     addCommand(new RunScriptEvent());
     addCommand(new StartEffectCommand());
+    addCommand(new StartFSEQAsEffectCommand());
     addCommand(new StopEffectCommand());
     addCommand(new SetVolumeCommand());
     addCommand(new AdjustVolumeCommand());

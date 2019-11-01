@@ -24,7 +24,7 @@ function help_help()
 		[ 'POST /plugin/:PluginRepoName/updates', 'Check plugin PluginRepoName for available updates.  this works by running a "git fetch" in the plugin directory and checking for any non-merged updates.', '', '{ "Status": "OK", "Message": "", "updatesAvailable": 1 }' ],
 		[ 'POST /plugin/:PluginRepoName/upgrade', 'Pull in git updates for plugin PluginRepoName', '', '{ "Status": "OK", "Message": "" }' ],
 		[ 'DELETE /plugin/:PluginRepoName', 'Delete plugin PluginRepoName', '', '{ "Status": "OK", "Message": "" }' ],
-        [ 'GET /sequence', 'Get a list of all FSEQ files', '', '{"sequences":["GreatestShow","StPatricksDay","Valentine"]}' ],
+        [ 'GET /sequence', 'Get a list of all FSEQ files', '', '{"GreatestShow","StPatricksDay","Valentine"}' ],
         [ 'GET /sequence/:SequenceName', 'Get the FSEQ file for the named sequence', '', 'Raw FSEQ file'],
         [ 'GET /sequence/:SequenceName/meta', 'Get metadata from the FSEQ file for the named sequence', '', '{"Name":"GreatestShow.fseq","Version":"2.0","ID":"1553194098754908","StepTime":25,"NumFrames":10750,"MaxChannel":84992,"ChannelCount":84992}'],
         [ 'POST /sequence/:SequenceName', 'Upload a new FSEQ file', '', 'Raw FSEQ file'],

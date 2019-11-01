@@ -5,7 +5,6 @@
 // GET /api/sequence
 function GetSequences() {
     global $settings;
-    $result = Array();
     $sequences = Array();
     
     $dir = $settings['sequenceDirectory'];
@@ -13,9 +12,8 @@ function GetSequences() {
         array_push($sequences, basename($filename, ".fseq"));
     }
     
-    $result['sequences'] = $sequences;
     
-    return json($result);
+    return json($sequences);
 }
 
 /////////////////////////////////////////////////////////////////////////////
