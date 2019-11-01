@@ -34,7 +34,7 @@ function effects_list_ALL()
     }
     if ($d = opendir($sequenceDirectory)) {
         while (($file = readdir($d)) !== false) {
-            if (preg_match('/\.eseq$/', $file)) {
+            if (preg_match('/\.fseq$/', $file)) {
                 $file = preg_replace('/\.fseq$/', '', $file);
                 array_push($effects, $file);
             }
