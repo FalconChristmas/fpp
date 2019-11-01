@@ -40,6 +40,8 @@ public:
     static void Init() {}
     static const NoPinCapabilities &getPinByName(const std::string &name);
     static const NoPinCapabilities &getPinByGPIO(int i);
+    static std::vector<std::string> getPinNames();
+
 };
 class NullNoPinCapabilities : public NoPinCapabilities {
 public:
@@ -54,6 +56,10 @@ const NoPinCapabilities &NoPinCapabilities::getPinByName(const std::string &name
 const NoPinCapabilities &NoPinCapabilities::getPinByGPIO(int i) {
     return NULL_PIN_INSTANCE;
 }
+std::vector<std::string> NoPinCapabilities::getPinNames() {
+    return std::vector<std::string>();
+}
+
 
 #define PLAT_GPIO_CLASS NoPinCapabilities
 #endif

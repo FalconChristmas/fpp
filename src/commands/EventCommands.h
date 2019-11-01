@@ -50,12 +50,21 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 
-class RunEffectEvent : public Command {
+class StartEffectCommand : public Command {
 public:
-    RunEffectEvent() : Command("Play Effect") {
+    StartEffectCommand() : Command("Effect Start") {
         args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
         args.push_back(CommandArg("startChannel", "int", "Start Channel"));
         args.push_back(CommandArg("loop", "bool", "Loop Effect"));
+        args.push_back(CommandArg("bg", "bool", "Background"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class StopEffectCommand : public Command {
+public:
+    StopEffectCommand() : Command("Effect Stop") {
+        args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

@@ -77,7 +77,8 @@ void CommandManager::Init() {
     addCommand(new TriggerEventCommand());
     addCommand(new TriggerMultipleEventsCommand());
     addCommand(new RunScriptEvent());
-    addCommand(new RunEffectEvent());
+    addCommand(new StartEffectCommand());
+    addCommand(new StopEffectCommand());
     addCommand(new SetVolumeCommand());
     addCommand(new AdjustVolumeCommand());
     addCommand(new IncreaseVolumeCommand());

@@ -72,11 +72,11 @@ int InitEffects(void)
 		LogInfo(VB_EFFECT, "Automatically starting background effect "
 			"sequence %s\n", localFilename.c_str());
 
-		StartEffect(localFilename.c_str(), 0, 1);
+		StartEffect(localFilename.c_str(), 0, 1, true);
 	} else if (FileExists(localFilename)) {
 		LogInfo(VB_EFFECT, "Automatically starting background effect sequence "
 			"background.eseq\n");
-		StartEffect("background", 0, 1);
+		StartEffect("background", 0, 1, true);
 	}
 
 	pauseBackgroundEffects = getSettingInt("pauseBackgroundEffects");
@@ -121,7 +121,7 @@ int IsEffectRunning(void)
 /*
  * Start a new effect offset at the specified channel number
  */
-int StartEffect(const std::string &effectName, int startChannel, int loop)
+int StartEffect(const std::string &effectName, int startChannel, int loop, bool bg)
 {
 	int   effectID = -1;
     int   frameTime = 50;
@@ -173,19 +173,8 @@ int StartEffect(const std::string &effectName, int startChannel, int loop)
 	effects[effectID]->name = effectName;
 	effects[effectID]->fp = v2fseq;
 	effects[effectID]->loop = loop;
-	effects[effectID]->background = 0;
+	effects[effectID]->background = bg;
 
-	if (effectName == "background") {
-		effects[effectID]->background = 1;
-	} else if ((getFPPmode() == REMOTE_MODE) &&
-			 (effectName.find("background_") == 0)) {
-        std::string localFilename = "background_";
-		localFilename += getSetting("HostName");
-
-        if (localFilename == effectName) {
-			effects[effectID]->background = 1;
-        }
-	}
 	effectCount++;
     int tmpec = effectCount;
     lock.unlock();

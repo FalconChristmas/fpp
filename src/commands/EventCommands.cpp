@@ -50,13 +50,14 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
 }
 
 
-std::unique_ptr<Command::Result> RunEffectEvent::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
 
     int startChannel = 0;
     bool loop = false;
+    bool bg = false;
     
     if (args.size() > 1) {
         startChannel = std::stoi(args[1]);
@@ -64,6 +65,20 @@ std::unique_ptr<Command::Result> RunEffectEvent::run(const std::vector<std::stri
     if (args.size() > 2) {
         loop = args[2] == "true" || args[2] == "1";
     }
-    StartEffect(args[0], startChannel, loop);
+    if (args.size() > 3) {
+        bg = args[3] == "true" || args[2] == "1";
+    }
+    StartEffect(args[0], startChannel, loop, bg);
     return std::make_unique<Command::Result>("Effect Started");
 }
+
+
+std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+
+    StopEffect(args[0]);
+    return std::make_unique<Command::Result>("Effect Stopped");
+}
+
