@@ -11,6 +11,7 @@ src/fppd
 src/fppoled
 src/fppcapedetect
 src/fppversion.c
+src/fppversion_defines.h
 src/fsequtils
 src/util/seqdump
 src/Makefile.local

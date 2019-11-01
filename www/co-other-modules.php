@@ -311,8 +311,8 @@ var output_modules = [];
 if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 {
 ?>
-
-
+    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
+    output_modules.push(new GenericSPIDevice());
 <?
 }
 ?>
@@ -323,8 +323,6 @@ if ($settings['Platform'] == "Raspberry Pi")
 ?>
     //TODO need to see if these modules could run as is on the BeagleBone
     output_modules.push(new SPIws2801Device());
-    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
-    output_modules.push(new GenericSPIDevice());
 <?
 }
 ?>

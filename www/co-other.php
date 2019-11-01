@@ -1515,9 +1515,7 @@ function OtherTypeSelected(selectbox) {
 			 (type == 'Renard') ||
 			 (type == 'Triks-C')))
 	{
-		DialogError("Add Output", "No available serial devices detected.  Do you have a USB Serial Dongle attached?");
 		$row.remove();
-		return;
 	}
 
 
@@ -1525,9 +1523,7 @@ function OtherTypeSelected(selectbox) {
 	let output_module = output_modules.find(obj => obj.typeName == type);
 	if (output_module != undefined) {
 		if(!output_module.CanAddNewOutput()) {
-			DialogError("Add Output", "Can't add output: " + output_module.typeFriendlyName);
 			$row.remove();
-			return;
 		}
 	}
 
@@ -1542,48 +1538,50 @@ function OtherTypeSelected(selectbox) {
 }
 
 function AddOtherOutput() {
-	if (Object.keys(SerialDevices).length == 0 && Object.keys(SPIDevices).length == 0) {
-		DialogError("Add Output", "No available devices found for new outputs");
-		return;
-	}
-
 	var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
 	var newRow = 
 		"<tr class='rowUniverseDetails'><td>" + (currentRows + 1) + "</td>" +
 			"<td><input class='act' type=checkbox></td>" +
 			"<td class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
-				"<option value=''>Select a type</option>" +
-				"<option value='DMX-Pro'>DMX-Pro</option>" +
+            "<option value=''>Select a type</option>";
+ 
+ 
+	if (Object.keys(SerialDevices).length > 0) {
+        newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
 				"<option value='GenericSerial'>Generic Serial</option>" +
+                "<option value='LOR'>LOR</option>" +
+                "<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+                "<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+                "<option value='USBRelay'>USBRelay</option>" +
+                "<option value='Renard'>Renard</option>";
+    }
 <?
 	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
-				"<option value='GPIO'>GPIO</option>" +
-				"<option value='GPIO-595'>GPIO-595</option>" +
+        newRow += "<option value='GPIO'>GPIO</option>" +
+                "<option value='GPIO-595'>GPIO-595</option>";
 <?
 	}
-?>
-				"<option value='LOR'>LOR</option>" +
-				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
-				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
-				"<option value='Renard'>Renard</option>" +
-<?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-				"<option value='MAX7219Matrix'>MAX7219 Matrix</option>" +
+        newRow += "<option value='Triks-C'>Triks-C</option>";
+        if (Object.keys(SPIDevices).length == 0) {
+            newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+                "<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
+        }
 <?
 	}
 ?>
-				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
-				"<option value='VirtualDisplay'>Virtual Display</option>" +
-				"<option value='Triks-C'>Triks-C</option>" +
-				"<option value='USBRelay'>USBRelay</option>" +
-			"</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
+        if (Object.keys(FBDevices).length > 0) {
+            newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>" +
+                "<option value='VirtualDisplay'>Virtual Display</option>";
+        }
+    
+        newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td> </td>" +
