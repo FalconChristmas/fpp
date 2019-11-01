@@ -172,3 +172,14 @@ function getFPPBranch() {
 }
 ?>
 EOF
+
+cat > ./fppversion_defines.h <<EOF
+#ifndef FPP_VERSION_DEFINES
+#define FPP_VERSION_DEFINES
+#define FPP_MAJOR_VERSION ${MAJOR_VERSION}
+#define FPP_MINOR_VERSION ${MINOR_VERSION}
+#define FPP_FULL_VERSION ${MAJOR_VERSION}.${MINOR_VERSION}
+#define FPP_TRIPLET_VERSION ${TRIPLET_VERSION}
+#define FPP_BRANCH ${BRANCH}
+#endif
+EOF

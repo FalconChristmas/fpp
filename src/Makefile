@@ -70,10 +70,10 @@ fppversion.c: fppversion.sh force
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) $(CFLAGS_$@) -c $< -o $@
 
 cleanfpp:
-	rm -f fppversion.c ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
+	rm -f fppversion.c fppversion_defines.h ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
 
 clean::
-	rm -f fppversion.c ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
+	rm -f fppversion.c fppversion_defines.h ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
