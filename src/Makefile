@@ -60,13 +60,13 @@ release: optimized
 debug: all
 
 fppversion.c: fppversion.sh force
-	@sh $(SRCDIR)fppversion.sh $(PWD)
+	sh $(SRCDIR)fppversion.sh $(PWD)
+fppversion_defines.h: fppversion.c
 
-
-%.o: %.cpp %.h Makefile makefiles/*.mk makefiles/platform/*.mk
+%.o: %.cpp %.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $< -o $@
 
-%.o: %.c Makefile makefiles/*.mk makefiles/platform/*.mk
+%.o: %.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) $(CFLAGS_$@) -c $< -o $@
 
 cleanfpp:
