@@ -47,9 +47,6 @@ $commands = array(
 	'Sound Cards'        => $SUDO . ' aplay -l',
 	'Mixer Devices'      => '(/bin/ls -1d /proc/asound/card[0-9] | sed -e "s/.*\/card//" | while read ID; do echo "CardID: ${ID}"; ' . $SUDO . ' amixer -c ${ID} ; echo ; done)',
 
-	// GPIO
-	'GPIO'               => $SUDO . ' gpio readall',
-
 	// Kernel
 	'Kernel Version'     => 'uname -a',
 	'Kernel Modules'     => 'lsmod',
@@ -59,6 +56,12 @@ $commands = array(
 
 	// Processes
 	'Processes'          => 'ps -edaf --forest',  // Keep this last since it is so long
+
+        // Boot
+        'FPP Init Log'          => $SUDO . ' journalctl -u fppinit ',
+        'FPP Cape Detect Log'   => $SUDO . ' journalctl -u fppcapedetect ',
+        'FPP Post Network Logs' => $SUDO . ' journalctl -u fpp_postnetwork ',
+        'FPP OLED Logs' => $SUDO . ' journalctl -u fppoled ',
 	);
 
 $results = array();
