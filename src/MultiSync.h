@@ -58,7 +58,7 @@ typedef struct {
 } CommandPkt;
 
 typedef struct {
-	char eventID[5];         // Event ID MAJOR_MINOR, NULL terminated
+	char eventID[6];         // Event ID MAJOR_MINOR, NULL terminated
 } EventPkt;
 
 #define SYNC_PKT_START 0

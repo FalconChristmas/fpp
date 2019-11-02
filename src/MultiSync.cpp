@@ -1606,6 +1606,7 @@ void MultiSync::ProcessControlPacket(void)
                 continue;
             }
             unsigned char *inBuf = rcvBuffers[msg];
+            inBuf[len] = 0;
 
             if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
                 struct in_addr  recvAddr;
