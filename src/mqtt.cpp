@@ -129,7 +129,14 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
         std::vector<std::string> args = splitWithQuotes(ntopic, '/');
         std::string command = args[0];
         args.erase(args.begin());
-        if (payload != "")  {
+        bool foundp = false;
+        for (int x = 0; x < args.size(); x++) {
+            if (args[x] == "{Payload}") {
+                args[x] = payload;
+                foundp = true;
+            }
+        }
+        if (payload != "" && !foundp)  {
             args.push_back(payload);
         }
         CommandManager::INSTANCE.run(command, args);
