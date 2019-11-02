@@ -468,6 +468,15 @@ std::vector<std::string> split(const std::string &s, char delim) {
     return elems;
 }
 
+inline std::string dequote(const std::string &s) {
+    if ((s[0] == '\'' || s[0] == '"')
+        && s[0] == s[s.length() - 1]
+        && s.length() > 2) {
+        return s.substr(1, s.length() - 2);
+    }
+    return s;
+}
+
 std::vector<std::string> splitWithQuotes(const std::string &s, char delim) {
     std::vector<std::string> ret;
     const char *mystart = s.c_str();
@@ -476,11 +485,11 @@ std::vector<std::string> splitWithQuotes(const std::string &s, char delim) {
         if (*p == '"' || *p == '\'') {
             instring = !instring;
         } else if (*p == delim && !instring) {
-            ret.push_back(std::string(mystart, p - mystart));
+            ret.push_back(dequote(std::string(mystart, p - mystart)));
             mystart = p + 1;
         }
     }
-    ret.push_back(std::string(mystart));
+    ret.push_back(dequote(std::string(mystart)));
     return ret;
 }
 

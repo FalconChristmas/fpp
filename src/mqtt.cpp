@@ -37,6 +37,7 @@
 #include <jsoncpp/json/json.h>
 
 #include "commands/Commands.h"
+#include "common.h"
 
 #define FALCON_TOPIC "falcon/player"
 
@@ -121,6 +122,19 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 
 	pthread_mutex_init(&m_mosqLock, NULL);
 
+    std::function<void(const std::string &, const std::string &)> f = [] (const std::string &topic, const std::string &payload) {
+        std::string ntopic = topic.substr(13); //wrip off /set/command/
+        printf("topic: %s\n",  ntopic.c_str());
+        
+        std::vector<std::string> args = splitWithQuotes(ntopic, '/');
+        std::string command = args[0];
+        args.erase(args.begin());
+        if (payload != "")  {
+            args.push_back(payload);
+        }
+        CommandManager::INSTANCE.run(command, args);
+    };
+    AddCallback("/set/command/#", f);
 }
 /*
  *
@@ -145,17 +159,17 @@ MosquittoClient::~MosquittoClient()
 int MosquittoClient::Init(const std::string &username, const std::string &password, const std::string &ca_file)
 {
 	mosquitto_lib_init();
-        std::string host = getSetting("HostName");
-        if (host == "") {
+    std::string host = getSetting("HostName");
+    if (host == "") {
 	    host = "FPP";
-        }
-        m_mosq = mosquitto_new(host.c_str(), true, NULL);
+    }
+    m_mosq = mosquitto_new(host.c_str(), true, NULL);
 	if (!m_mosq)
 	{
 		LogErr(VB_CONTROL, "Error, unable to create new Mosquitto instance.\n");
 		return 0;
 	}
-        mosquitto_user_data_set(m_mosq, this);
+    mosquitto_user_data_set(m_mosq, this);
 	mosquitto_log_callback_set(m_mosq, mosq_log_callback);
 	mosquitto_disconnect_callback_set(m_mosq, mosq_disc_callback);
 	mosquitto_connect_callback_set(m_mosq, mosq_connect_callback);
@@ -302,25 +316,25 @@ void MosquittoClient::HandleConnect() {
 	LogInfo(VB_CONTROL, "Mosquitto Connecting.... Will Subscribe to Topics\n");
 	m_isConnected = true;
 	std::vector<std::string> subscribe_topics;
-        subscribe_topics.push_back(m_baseTopic + "/set/#");
-        subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
-        subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
+    subscribe_topics.push_back(m_baseTopic + "/set/#");
+    subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
+    subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
-        for (auto &a : callbacks) {
-            std::string topic = a.first;
-            if (topic.rfind("/set/", 0) != 0) {
-                std::string tp = m_baseTopic + topic;
-                subscribe_topics.push_back(tp);
-            }
+    for (auto &a : callbacks) {
+        std::string topic = a.first;
+        if (topic.rfind("/set/", 0) != 0) {
+            std::string tp = m_baseTopic + topic;
+            subscribe_topics.push_back(tp);
         }
-
-        for (auto &subscribe : subscribe_topics) {
-            LogDebug(VB_CONTROL, "MQTT: Preparing to Subscribe to %s\n", subscribe.c_str());
-            int rc = mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
-            if (rc != MOSQ_ERR_SUCCESS) {
-                LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
-            }
+    }
+    
+    for (auto &subscribe : subscribe_topics) {
+        LogDebug(VB_CONTROL, "MQTT: Preparing to Subscribe to %s\n", subscribe.c_str());
+        int rc = mosquitto_subscribe(m_mosq, NULL, subscribe.c_str(), 0);
+        if (rc != MOSQ_ERR_SUCCESS) {
+            LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
         }
+    }
 }
 
 
