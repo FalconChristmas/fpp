@@ -76,4 +76,14 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 
+
+class InsertPlaylistCommand : public Command {
+public:
+    InsertPlaylistCommand() : Command("Insert Playlist After Current") {
+        args.push_back(CommandArg("name", "string", "Playlist Name")
+                        .setContentListUrl("api/playlists"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+
 #endif

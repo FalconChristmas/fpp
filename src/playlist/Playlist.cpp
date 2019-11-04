@@ -49,7 +49,6 @@
 
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryBranch.h"
-#include "PlaylistEntryBrightness.h"
 #include "PlaylistEntryChannelTest.h"
 #include "PlaylistEntryCommand.h"
 #include "PlaylistEntryDynamic.h"
@@ -59,7 +58,6 @@
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryPause.h"
-#include "PlaylistEntryPixelOverlay.h"
 #include "PlaylistEntryPlaylist.h"
 #include "PlaylistEntryPlugin.h"
 #include "PlaylistEntryRemap.h"
@@ -68,12 +66,13 @@
 #include "PlaylistEntryURL.h"
 #include "PlaylistEntryVolume.h"
 
+static std::list<Playlist*> PL_CLEANUPS;
 Playlist *playlist = NULL;
 
 /*
  *
  */
-Playlist::Playlist(void *parent, int subPlaylist)
+Playlist::Playlist(Playlist *parent)
   : m_parent(parent),
 	m_repeat(0),
 	m_loop(0),
@@ -84,7 +83,6 @@ Playlist::Playlist(void *parent, int subPlaylist)
 	m_blankAtEnd(1),
 	m_startTime(0),
 	m_subPlaylistDepth(0),
-	m_subPlaylist(subPlaylist),
 	m_forceStop(0),
 	m_fileTime(0),
 	m_configTime(0),
@@ -92,9 +90,10 @@ Playlist::Playlist(void *parent, int subPlaylist)
     m_currentSection(nullptr),
 	m_currentSectionStr("New"),
 	m_sectionPosition(0),
-	m_startPosition(0)
+	m_startPosition(0),
+    m_status(FPP_STATUS_IDLE)
 {
-	SetIdle();
+	SetIdle(false);
 
 	SetRepeat(0);
     
@@ -307,8 +306,6 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryBoth();
 	else if (entry["type"].asString() == "branch")
 		result = new PlaylistEntryBranch();
-	else if (entry["type"].asString() == "brightness")
-		result = new PlaylistEntryBrightness();
 	else if (entry["type"].asString() == "channelTest")
 		result = new PlaylistEntryChannelTest();
 	else if (entry["type"].asString() == "dynamic")
@@ -325,8 +322,6 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryMQTT();
 	else if (entry["type"].asString() == "pause")
 		result = new PlaylistEntryPause();
-	else if (entry["type"].asString() == "pixelOverlay")
-		result = new PlaylistEntryPixelOverlay();
 	else if (entry["type"].asString() == "playlist")
 		result = new PlaylistEntryPlaylist();
 	else if (entry["type"].asString() == "plugin")
@@ -434,9 +429,7 @@ int Playlist::Start(void)
 		return 0;
 	}
 
-	// FIXME PLAYLIST, get rid of this
-	if (!m_subPlaylist)
-		FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+    m_status = FPP_STATUS_PLAYLIST_PLAYING;
 
     std::string origCurState = m_currentState;
 	m_currentState = "playing";
@@ -516,9 +509,7 @@ int Playlist::StopNow(int forceStop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopNow(%d)\n", forceStop);
 
-	// FIXME PLAYLIST, get rid of this
-	if (!m_subPlaylist)
-		FPPstatus = FPP_STATUS_STOPPING_NOW;
+    m_status = FPP_STATUS_STOPPING_NOW;
 
 	if (m_currentSection->at(m_sectionPosition)->IsPlaying())
 		m_currentSection->at(m_sectionPosition)->Stop();
@@ -538,9 +529,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
-	// FIXME PLAYLIST, get rid of this
-	if (!m_subPlaylist)
-		FPPstatus = FPP_STATUS_STOPPING_GRACEFULLY;
+    m_status = FPP_STATUS_STOPPING_GRACEFULLY;
 
 	if (afterCurrentLoop)
 		m_currentState = "stoppingAfterLoop";
@@ -557,7 +546,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
  */
 int Playlist::IsPlaying(void)
 {
-	return (FPPstatus == FPP_STATUS_PLAYLIST_PLAYING);
+	return (m_status == FPP_STATUS_PLAYLIST_PLAYING);
 }
 
 /*
@@ -582,6 +571,12 @@ int Playlist::FileHasBeenModified(void)
 int Playlist::Process(void)
 {
 	//LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
+    
+    while (!PL_CLEANUPS.empty()) {
+        Playlist *p = PL_CLEANUPS.front();
+        delete p;
+        PL_CLEANUPS.pop_front();
+    }
 
 	if (m_sectionPosition >= m_currentSection->size())
 	{
@@ -591,14 +586,6 @@ int Playlist::Process(void)
 		return 0;
 	}
 
-//	if (FPPstatus == FPP_STATUS_STOPPING_NOW)
-//	{
-//		if (m_currentSection->at(m_sectionPosition)->IsPlaying())
-//			m_currentSection->at(m_sectionPosition)->Stop();
-//
-//		SetIdle();
-//		return 1;
-//	}
 
 	if (m_currentSection->at(m_sectionPosition)->IsPlaying())
 		m_currentSection->at(m_sectionPosition)->Process();
@@ -611,7 +598,7 @@ int Playlist::Process(void)
 
 		LogDebug(VB_PLAYLIST, "============================================================================\n");
 
-		if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)
+		if (m_status == FPP_STATUS_STOPPING_GRACEFULLY)
 		{
 			if ((m_currentSectionStr == "LeadIn") ||
 				(m_currentSectionStr == "MainPlaylist"))
@@ -628,6 +615,11 @@ int Playlist::Process(void)
 				return 1;
 			}
 		}
+        if (m_insertedPlaylist != ""
+            && SwitchToInsertedPlaylist()) {
+            playlist->Start();
+            return playlist->Process();
+        }
 
 		if (m_currentSection->at(m_sectionPosition)->GetNextSection() != "")
 		{
@@ -699,7 +691,7 @@ int Playlist::Process(void)
 				{
 					ReloadIfNeeded();
 
-					if (FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)
+					if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)
 					{
 						if (m_leadOut.size())
 						{
@@ -758,6 +750,22 @@ int Playlist::Process(void)
 	return 1;
 }
 
+bool Playlist::SwitchToInsertedPlaylist() {
+    if (m_insertedPlaylist != "") {
+        Playlist *pl = new Playlist(this);
+        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition);
+        m_insertedPlaylist = "";
+        if (pl->IsPlaying()) {
+            LogDebug(VB_PLAYLIST, "Switching to inserted playlist %s\n", m_insertedPlaylist.c_str());
+            playlist = pl;
+            return true;
+        } else {
+            delete pl;
+        }
+    }
+    return false;
+}
+
 /*
  *
  */
@@ -781,12 +789,10 @@ void Playlist::ProcessMedia(void)
 /*
  *
  */
-void Playlist::SetIdle(void)
+void Playlist::SetIdle(bool exit)
 {
-	// FIXME PLAYLIST, get rid of this
-	if (!m_subPlaylist)
-		FPPstatus = FPP_STATUS_IDLE;
-
+	m_status = FPP_STATUS_IDLE;
+    
 	m_currentState = "idle";
 	m_name = "";
 	m_desc = "";
@@ -805,6 +811,10 @@ void Playlist::SetIdle(void)
 		mqtt->Publish("playlist/sectionPosition/status", 0);
 		mqtt->Publish("playlist/repeat/status", 0);
 	}
+    if (m_parent && exit) {
+        playlist = m_parent;
+        PL_CLEANUPS.push_back(this);
+    }
 }
 
 /*
@@ -846,6 +856,17 @@ int Playlist::Cleanup(void)
 	return 1;
 }
 
+
+void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position) {
+    if (m_status == FPP_STATUS_IDLE) {
+        Play(filename.c_str(), position);
+    } else {
+        m_insertedPlaylist = filename;
+        m_insertedPlaylistPosition = position;
+    }
+}
+
+
 /*
  *
  */
@@ -861,8 +882,8 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
 	m_scheduled = scheduled;
 
-	if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-		(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
+	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
+		(m_status == FPP_STATUS_STOPPING_GRACEFULLY)) {
         
         std::string fullfilename = getPlaylistDirectory();
         fullfilename += "/";
@@ -880,7 +901,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
             m_sectionPosition = 0;
             SetPosition(position);
-            FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+            m_status = FPP_STATUS_PLAYLIST_PLAYING;
             m_currentState = "playing";
             Start();
             return 1;
@@ -910,7 +931,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 	if (repeat >= 0)
 		SetRepeat(repeat);
 
-	FPPstatus = FPP_STATUS_PLAYLIST_PLAYING;
+	m_status = FPP_STATUS_PLAYLIST_PLAYING;
 	m_currentState = "playing";
 
     if (hadToStop) {
@@ -1000,7 +1021,7 @@ void Playlist::RestartItem(void)
     if (m_currentState == "idle") {
         return;
     }
-    if (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING) {
+    if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
     }
     
@@ -1018,7 +1039,7 @@ void Playlist::NextItem(void)
     if (m_currentState == "idle") {
 		return;
     }
-    if (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING) {
+    if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
     }
     
@@ -1048,7 +1069,7 @@ void Playlist::PrevItem(void)
     if (m_currentState == "idle") {
         return;
     }
-    if (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING) {
+    if (m_status != FPP_STATUS_PLAYLIST_PLAYING) {
         return;
     }
 

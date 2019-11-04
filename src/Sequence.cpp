@@ -40,7 +40,6 @@
 #include "common.h"
 #include "events.h"
 #include "effects.h"
-#include "fpp.h" // for FPPstatus && #define-d status values
 #include "fppd.h"
 #include "log.h"
 #include "MultiSync.h"
@@ -50,6 +49,7 @@
 #include "settings.h"
 #include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
+#include "playlist/Playlist.h"
 #include <chrono>
 using namespace std::literals;
 using namespace std::chrono_literals;
@@ -549,7 +549,7 @@ void Sequence::CloseSequenceFile(void) {
 
     if ((!IsEffectRunning()) &&
         ((getFPPmode() != REMOTE_MODE) &&
-         (FPPstatus != FPP_STATUS_PLAYLIST_PLAYING)) ||
+         (playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING)) ||
         (getSettingInt("blankBetweenSequences")))
         SendBlankingData();
 }

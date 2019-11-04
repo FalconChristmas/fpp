@@ -182,7 +182,7 @@ public:
             }
         } else if (file != -1) {
             lseek(file, 0, SEEK_SET);
-            char * buffer = new char [20];
+            char buffer[20];
             int i = read(file, buffer, 20);
             buffer[i] = 0;
             double d = atof(buffer);
@@ -232,7 +232,7 @@ public:
 
         if (file != -1) {
             lseek(file, 0, SEEK_SET);
-            char * buffer = new char [20];
+            char buffer[20];
             int i = read(file, buffer, 20);
             buffer[i] = 0;
             double d = atof(buffer);
@@ -270,7 +270,7 @@ public:
     virtual double getValue() override {
         if (file != -1) {
             lseek(file, 0, SEEK_SET);
-            char * buffer = new char [20];
+            char buffer[20];
             int i = read(file, buffer, 20);
             buffer[i] = 0;
             double d = atof(buffer);

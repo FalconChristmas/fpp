@@ -125,7 +125,7 @@ private:
     char         *chanDataMap;
     uint32_t     *pixelMap;
     
-    volatile std::thread *updateThread;
+    std::thread *updateThread;
     volatile bool threadKeepRunning;
     uint8_t *imageData;
     int imageDataRows;
@@ -148,6 +148,7 @@ public:
     
     void Initialize();
     
+    const std::string &mapFont(const std::string &f);
 private:
     PixelOverlayManager();
     ~PixelOverlayManager();
@@ -158,6 +159,7 @@ private:
     void loadModelMap();
     void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *b);
     void ConvertCMMFileToJSON();
+    void RegisterCommands();
     
     std::map<std::string, PixelOverlayModel*> models;
     std::map<std::string, std::string> fonts;
@@ -170,6 +172,8 @@ private:
     FPPChannelMemoryMapControlHeader *ctrlHeader = nullptr;
     
     void loadFonts();
+    
+    friend class OverlayCommand;
 };
 
 

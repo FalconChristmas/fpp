@@ -51,3 +51,7 @@ std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::ve
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
+std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string> &args) {
+    playlist->InsertPlaylistAsNext(args[0]);
+    return std::make_unique<Command::Result>("Playlist Inserted");
+}

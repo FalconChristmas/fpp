@@ -74,7 +74,7 @@ void Scheduler::ScheduleProc(void)
   if ((m_lastLoadDate != GetCurrentDateInt()) ||
       ((procTime - m_lastProcTime) > 5))
   {
-    if (FPPstatus == FPP_STATUS_IDLE)
+    if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE)
       m_CurrentScheduleHasbeenLoaded = 0;
 
     m_NextScheduleHasbeenLoaded = 0;
@@ -91,7 +91,7 @@ void Scheduler::ScheduleProc(void)
   if(!m_NextScheduleHasbeenLoaded)
     LoadNextScheduleInfo();
 
-  switch(FPPstatus)
+  switch(playlist->getPlaylistStatus())
   {
     case FPP_STATUS_IDLE:
       if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID)
@@ -166,7 +166,7 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 
 	localtime_r(&currTime, &now);
 
-    if (FPPstatus != FPP_STATUS_IDLE) {
+    if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
         repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
 		return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList;
     }
@@ -583,7 +583,7 @@ void Scheduler::PlayListLoadCheck(void)
       LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
-      if ((FPPstatus != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
+      if ((playlist->getPlaylistStatus() != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
         playlist->StopNow(1);
 
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,

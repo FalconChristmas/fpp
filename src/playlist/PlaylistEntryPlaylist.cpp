@@ -49,8 +49,7 @@ PlaylistEntryPlaylist::~PlaylistEntryPlaylist()
  */
 int PlaylistEntryPlaylist::Init(Json::Value &config)
 {
-//	m_playlist = new Playlist(player, 1);
-	m_playlist = new Playlist(NULL, 1);
+	m_playlist = new Playlist(NULL);
 
 	if (!m_playlist)
 	{

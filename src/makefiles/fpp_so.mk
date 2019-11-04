@@ -56,7 +56,6 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
 	playlist/PlaylistEntryBranch.o \
-	playlist/PlaylistEntryBrightness.o \
 	playlist/PlaylistEntryChannelTest.o \
 	playlist/PlaylistEntryCommand.o \
 	playlist/PlaylistEntryDynamic.o \
@@ -66,7 +65,6 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryMedia.o \
 	playlist/PlaylistEntryMQTT.o \
 	playlist/PlaylistEntryPause.o \
-	playlist/PlaylistEntryPixelOverlay.o \
 	playlist/PlaylistEntryPlaylist.o \
 	playlist/PlaylistEntryPlugin.o \
 	playlist/PlaylistEntryRemap.o \

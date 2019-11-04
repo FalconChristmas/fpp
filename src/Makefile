@@ -59,8 +59,9 @@ release: optimized
 
 debug: all
 
-fppversion.c: fppversion.sh force
+fppversion.c: fppversion.sh
 	sh $(SRCDIR)fppversion.sh $(PWD)
+
 fppversion_defines.h: fppversion.c
 
 %.o: %.cpp %.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk

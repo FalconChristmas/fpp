@@ -3139,6 +3139,8 @@ function CommandSelectChanged(commandSelect, tblCommand)
                             line += " checked";
                          }
                         line += "></input>";
+                     } else if (val['type'] == "color") {
+                        line += "<input type='color' class='arg_" + val['name'] + "' id='" + ID  + "' value='" + dv + "'></input>";
                      } else if (val['type'] == "int") {
                          line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
                          if (dv != "") {

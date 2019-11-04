@@ -562,7 +562,7 @@ void ShutdownFPPD(void)
 
 void MainLoop(void)
 {
-	int            prevFPPstatus = FPPstatus;
+	PlaylistStatus prevFPPstatus = FPP_STATUS_IDLE;
 	int            sleepms = 50;
     std::map<int, std::function<bool(int)>> callbacks;
 
@@ -656,8 +656,8 @@ void MainLoop(void)
 		}
 
 		if (getFPPmode() & PLAYER_MODE) {
-			if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-				(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
+			if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
+				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY)) {
 				if (prevFPPstatus == FPP_STATUS_IDLE) {
 					playlist->Start();
 					sleepms = 10;
@@ -665,14 +665,14 @@ void MainLoop(void)
 
 				// Check again here in case PlayListPlayingInit
 				// didn't find anything and put us back to IDLE
-				if ((FPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(FPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
+				if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
+					(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY)) {
 					playlist->Process();
 				}
 			}
 
 			int reactivated = 0;
-			if (FPPstatus == FPP_STATUS_IDLE) {
+			if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
 					playlist->Cleanup();
@@ -682,7 +682,7 @@ void MainLoop(void)
 					if (!playlist->GetForceStop())
 						scheduler->CheckIfShouldBePlayingNow();
 
-					if (FPPstatus != FPP_STATUS_IDLE)
+					if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE)
 						reactivated = 1;
 					else
 						sleepms = 50;
@@ -692,7 +692,7 @@ void MainLoop(void)
 			if (reactivated)
 				prevFPPstatus = FPP_STATUS_IDLE;
 			else
-				prevFPPstatus = FPPstatus;
+				prevFPPstatus = playlist->getPlaylistStatus();
 
 			scheduler->ScheduleProc();
 		} else if (getFPPmode() == REMOTE_MODE) {

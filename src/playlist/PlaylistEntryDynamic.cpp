@@ -37,7 +37,6 @@
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryPause.h"
-#include "PlaylistEntryPixelOverlay.h"
 #include "PlaylistEntryRemap.h"
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
@@ -380,8 +379,6 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 			playlistEntry = new PlaylistEntryMQTT();
 		else if (pe["type"].asString() == "pause")
 			playlistEntry = new PlaylistEntryPause();
-		else if (pe["type"].asString() == "pixelOverlay")
-			playlistEntry = new PlaylistEntryPixelOverlay();
 		else if (pe["type"].asString() == "remap")
 			playlistEntry = new PlaylistEntryRemap();
 		else if (pe["type"].asString() == "script")

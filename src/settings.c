@@ -41,8 +41,6 @@
 #include <ctype.h>
 #include "common.h"
 
-int FPPstatus = FPP_STATUS_IDLE;
-
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
 
 SettingsConfig settings;

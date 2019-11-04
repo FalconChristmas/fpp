@@ -77,6 +77,7 @@ void CommandManager::Init() {
     addCommand(new StartPlaylistCommand());
     addCommand(new StartPlaylistAtCommand());
     addCommand(new StartPlaylistAtRandomCommand());
+    addCommand(new InsertPlaylistCommand());
     addCommand(new TriggerEventCommand());
     addCommand(new TriggerMultipleEventsCommand());
     addCommand(new RunScriptEvent());
@@ -95,6 +96,10 @@ void CommandManager::Init() {
     }
 }
 CommandManager::~CommandManager() {
+    for (auto &a : commands) {
+        delete a.second;
+    }
+    commands.clear();
 }
 
 void CommandManager::addCommand(Command *cmd) {

@@ -631,8 +631,8 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["fppd"] = "running";
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
-    result["status"] = FPPstatus;
-    result["status_name"] = ChannelTester::INSTANCE.Testing() ? "testing" : (FPPstatus == 0 ? "idle" : (FPPstatus == 1 ? "playing" : "stopping gracefully"));
+    result["status"] = playlist->getPlaylistStatus();
+    result["status_name"] = ChannelTester::INSTANCE.Testing() ? "testing" : (playlist->getPlaylistStatus() == 0 ? "idle" : (playlist->getPlaylistStatus() == 1 ? "playing" : "stopping gracefully"));
     result["volume"] = getVolume();
 
     auto t = std::time(nullptr);
@@ -696,7 +696,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         result["seconds_remaining"] = std::to_string(secsRemaining);
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
-    } else if (FPPstatus == FPP_STATUS_IDLE) {
+    } else if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
         result["next_playlist"]["playlist"] = NextPlaylist;
         result["next_playlist"]["start_time"] = NextScheduleStartText;
         result["repeat_mode"] = "0";
@@ -947,7 +947,7 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value &result)
 
 	if (data["command"].asString() == "reload")
 	{
-		if(FPPstatus==FPP_STATUS_IDLE)
+		if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE)
 			scheduler->ReLoadCurrentScheduleInfo();
 
 		scheduler->ReLoadNextScheduleInfo();
