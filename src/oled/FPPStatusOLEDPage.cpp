@@ -659,10 +659,10 @@ void FPPStatusOLEDPage::readImage() {
                 if (!readingBytes) {
                     if (line.find("_width") != std::string::npos) {
                         std::vector<std::string> v = splitAndTrim(line, ' ');
-                        _imageWidth = std::stoi(v[2]);
+                        _imageWidth = std::atoi(v[2].c_str());
                     } else if (line.find("_height") != std::string::npos) {
                         std::vector<std::string> v = splitAndTrim(line, ' ');
-                        _imageHeight = std::stoi(v[2]);
+                        _imageHeight = std::atoi(v[2].c_str());
                     } else if (line.find("{") != std::string::npos) {
                         readingBytes = true;
                         line = line.substr(line.find("{") + 1);

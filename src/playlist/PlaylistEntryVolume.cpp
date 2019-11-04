@@ -56,7 +56,7 @@ int PlaylistEntryVolume::Init(Json::Value &config)
 
     std::string vol = config["volume"].asString();
     m_volAdjust = ((vol[0] == '-') || (vol[0] == '+'));
-    m_volume = std::stoi(vol);
+    m_volume = std::atoi(vol.c_str());
 
 
 	return PlaylistEntryBase::Init(config);

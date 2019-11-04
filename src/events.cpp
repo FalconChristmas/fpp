@@ -95,9 +95,9 @@ void FPPEvent::Load(const std::string &id) {
             }
             
             if (elems[0] == "minorID") {
-                minorID = std::stoi(val);
+                minorID = std::atoi(val.c_str());
             } else if (elems[0] == "majorID") {
-                majorID = std::stoi(val);
+                majorID = std::atoi(val.c_str());
             } else if (elems[0] == "name") {
                 name = val;
             } else if (elems[0] == "effect" && val != "") {

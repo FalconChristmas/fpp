@@ -120,7 +120,7 @@ int GenericSPIOutput::Init(char *configStr)
 		else if (elem[0] == "speed")
 		{
 			//input page ask for speed in khz
-			int config_speed = 1000*std::stoi(elem[1]);
+			int config_speed = 1000*std::atoi(elem[1].c_str());
 			if (config_speed < MIN_SPI_SPEED_HZ)
 				m_speed_hz = MIN_SPI_SPEED_HZ;
 			else if (config_speed > MAX_SPI_SPEED_HZ)

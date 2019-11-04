@@ -34,7 +34,7 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
 }
 std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string> &args) {
     bool r = false;
-    int idx = std::stoi(args[1]);
+    int idx = std::atoi(args[1].c_str());
     if (args.size() > 2) {
         r = args[2] == "true" || args[2] == "1";
     }

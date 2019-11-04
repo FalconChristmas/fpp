@@ -10,8 +10,8 @@ std::unique_ptr<Command::Result> TriggerEventCommand::run(const std::vector<std:
     if (args.size() != 2) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
-    int maj = std::stoi(args[0]);
-    int min = std::stoi(args[1]);
+    int maj = std::atoi(args[0].c_str());
+    int min = std::atoi(args[1].c_str());
     TriggerEvent(maj, min);
     return std::make_unique<Command::Result>("Event Triggered");
 }
@@ -60,7 +60,7 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     bool bg = false;
     
     if (args.size() > 1) {
-        startChannel = std::stoi(args[1]);
+        startChannel = std::atoi(args[1].c_str());
     }
     if (args.size() > 2) {
         loop = args[2] == "true" || args[2] == "1";

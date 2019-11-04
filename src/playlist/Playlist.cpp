@@ -1284,7 +1284,7 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 		// Play from begging keeping previous value of repeate
         int pos = 0;
         if (!msg.empty()) {
-            pos = std::stoi(msg);
+            pos = std::atoi(msg.c_str());
         }
 		Play(newPlaylistName.c_str(), pos, m_repeat);
 	} else if (topicEnd == "/next") {

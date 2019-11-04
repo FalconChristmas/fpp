@@ -9,7 +9,7 @@ std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::st
         return std::make_unique<Command::ErrorResult>("Not found");
     }
 
-    int v = std::stoi(args[0]);
+    int v = std::atoi(args[0].c_str());
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
@@ -19,7 +19,7 @@ std::unique_ptr<Command::Result> AdjustVolumeCommand::run(const std::vector<std:
     }
 
     int v = getVolume();
-    v += std::stoi(args[0]);
+    v += std::atoi(args[0].c_str());
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
@@ -28,7 +28,7 @@ std::unique_ptr<Command::Result> IncreaseVolumeCommand::run(const std::vector<st
         return std::make_unique<Command::ErrorResult>("Not found");
     }
     int v = getVolume();
-    v += std::stoi(args[0]);
+    v += std::atoi(args[0].c_str());
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
@@ -38,7 +38,7 @@ std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<st
     }
 
     int v = getVolume();
-    v -= std::stoi(args[0]);
+    v -= std::atoi(args[0].c_str());
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }

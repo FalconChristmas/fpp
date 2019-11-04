@@ -531,7 +531,7 @@ int BBBMatrix::Init(Json::Value config)
             m_interleave = 64;
             flipRows = true;
         } else {
-            m_interleave = std::stoi(config["panelInterleave"].asString());
+            m_interleave = std::atoi(config["panelInterleave"].asString().c_str());
         }
     } else {
         m_interleave = 0;
