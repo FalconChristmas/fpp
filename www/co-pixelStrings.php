@@ -262,6 +262,9 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     
     result += "<tr id='" + id + "' type='" + type + "' oid='" + oid + "' pid='" + port + "' sid='" + sid + "' protocols='" + protocols + "'>";
     
+    if (groupCount == 0) {
+        groupCount = 1;
+    }
     if (sid)
     {
         result += "<td>&nbsp;</td>";
@@ -278,19 +281,19 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     }
     
     result += "<td><input type='text' class='vsDescription' size='30' value='" + description + "'></td>";
-    result += "<td><input type='text' class='vsStartChannel' size='6' value='" + startChannel + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='text' class='vsPixelCount' size='4' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-    result += "<td><input type='text' class='vsGroupCount' size='3' value='" + groupCount + "' onChange='updateItemEndChannel(this);'></td>";
+    result += "<td><input type='number' class='vsStartChannel' size='6' value='" + startChannel + "' min='1' max='8388608' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsPixelCount' size='4' min='1' max='1600' value='" + pixelCount + "' onChange='updateItemEndChannel(this);' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+    result += "<td><input type='number' class='vsGroupCount' size='3' value='" + groupCount + "' min='1' max='1000' onChange='updateItemEndChannel(this);'></td>";
     if (groupCount == 0) {
         groupCount = 1;
     }
     result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length)/groupCount - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
-    result += "<td><input type='text' class='vsNullNodes' size='2' value='" + nullCount + "'></td>";
-    result += "<td><input type='text' class='vsZigZag' size='3' value='" + zigZag + "'></td>";
+    result += "<td><input type='number' class='vsNullNodes' size='2' value='" + nullCount + "' min='0' max='100'></td>";
+    result += "<td><input type='number' class='vsZigZag' size='3' value='" + zigZag + "' min='0' max='1600'></td>";
     result += pixelOutputTableInputBrightness(brightness);
-    result += "<td><input type='text' class='vsGamma' size='5' value='" + gamma + "'></td>";
+    result += "<td><input type='number' class='vsGamma' size='5' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
     result += "</tr>\n";
     
     return result;
@@ -355,6 +358,9 @@ function setRowData(row, protocol, description, startChannel, pixelCount, groupC
     row.find('.vsDescription').val(description);
     row.find('.vsStartChannel').val(startChannel);
     row.find('.vsPixelCount').val(pixelCount);
+    if (groupCount == 0) {
+        groupCount = 1;
+    }
     row.find('.vsGroupCount').val(groupCount);
     row.find('.vsReverse').val(reverse);
     row.find('.vsColorOrder').val(colorOrder);

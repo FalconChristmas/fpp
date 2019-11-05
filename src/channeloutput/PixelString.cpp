@@ -33,7 +33,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 
-#define MAX_PIXEL_STRING_LENGTH  999
+#define MAX_PIXEL_STRING_LENGTH  1600
 
 #define CHECKPS_SETTING(SETTING) if (SETTING) { \
 LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
