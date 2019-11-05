@@ -1,14 +1,4 @@
 /*
- *   E131 bridge for Falcon Player (FPP)
- *
- *   Copyright (C) 2013-2018 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
- *      For additional credits and developers, see credits.php.
- *
  *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version 2 of
@@ -23,18 +13,25 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _E131_BRIDGE_H
-#define _E131_BRIDGE_H
+#ifndef _FPP_WARNINGS_H
+#define _FPP_WARNINGS_H
 
-#include <map>
-#include <functional>
+#include <set>
+#include <mutex>
+#include <jsoncpp/json/json.h>
 
+class WarningHolder {
+public:
+    
+    static void AddWarning(const std::string &w);
+    static void RemoveWarning(const std::string &w);
 
-void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
-
-void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
-void Bridge_Shutdown(void);
-void ResetBytesReceived();
-Json::Value GetE131UniverseBytesReceived();
+    static void AddWarningsToStatus(Json::Value &root);
+    
+private:
+    static std::mutex warningsLock;
+    static std::set<std::string> warnings;
+};
 
 #endif
+

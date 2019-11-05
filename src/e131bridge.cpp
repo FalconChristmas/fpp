@@ -48,6 +48,7 @@
 #include "Sequence.h"
 #include "settings.h"
 #include "command.h"
+#include "Warnings.h"
 #include "fppversion.h"
 
 #include "e131defs.h"
@@ -71,6 +72,7 @@ int artnetSock = -1;
 struct mmsghdr msgs[MAX_MSG];
 struct iovec iovecs[MAX_MSG];
 unsigned char buffers[MAX_MSG][BUFSIZE+1];
+struct sockaddr_in inAddress[MAX_MSG];
 
 unsigned int UniverseCache[65536];
 
@@ -839,3 +841,58 @@ void InputUniversesPrint()
 	}
 }
 
+
+static std::map<in_addr_t, std::string> ERRORS;
+
+void AddFakeListener(int port, const std::string &protocol,
+                     std::map<int, std::function<bool(int)>> &callbacks) {
+    int sock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    if (sock < 0) {
+        LogDebug(VB_E131BRIDGE, "e131bridge %s socket failed: %s", protocol.c_str(), strerror(errno));
+        exit(1);
+    }
+    memset((char *)&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(port);
+    addrlen = sizeof(addr);
+    // Bind the socket to address/port
+    if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        LogDebug(VB_E131BRIDGE, "e131bridge %s bind failed: %s", protocol.c_str(), strerror(errno));
+        exit(1);
+    }
+    
+    std::function<bool(int)> f = [sock, protocol](int i) {
+        int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+        while (msgcnt > 0) {
+            for (int x = 0; x < msgcnt; x++) {
+                struct in_addr i = inAddress[x].sin_addr;
+                in_addr_t at = i.s_addr;
+                if (ERRORS[at] == "") {
+                    std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
+                    LogWarn(VB_E131BRIDGE, "%s\n", ne.c_str());
+                    WarningHolder::AddWarning(ne);
+                    ERRORS[at] = ne;
+                }
+            }
+            msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+        }
+        return false;
+    };
+    callbacks[sock] = f;
+}
+void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) {
+    // prepare the msg receive buffers
+    memset(msgs, 0, sizeof(msgs));
+    for (int i = 0; i < MAX_MSG; i++) {
+        iovecs[i].iov_base         = buffers[i];
+        iovecs[i].iov_len          = BUFSIZE;
+        msgs[i].msg_hdr.msg_iov    = &iovecs[i];
+        msgs[i].msg_hdr.msg_iovlen = 1;
+        msgs[i].msg_hdr.msg_namelen = sizeof(struct sockaddr_in);
+        msgs[i].msg_hdr.msg_name = &inAddress[i];
+    }
+    AddFakeListener(DDP_PORT, "DDP", callbacks);
+    AddFakeListener(E131_DEST_PORT, "E1.31", callbacks);
+    AddFakeListener(0x1936, "ArtNet", callbacks);
+}

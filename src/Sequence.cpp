@@ -46,6 +46,7 @@
 #include "PixelOverlay.h"
 #include "Plugins.h"
 #include "Sequence.h"
+#include "Warnings.h"
 #include "settings.h"
 #include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
@@ -272,6 +273,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
     StartChannelOutputThread();
 
 
+    m_numSeek = 0;
     LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
     LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
@@ -313,13 +315,19 @@ void Sequence::SeekSequenceFile(int frameNumber) {
     if (!frameCache.empty() && frameNumber < frameCache.front()->frame) {
         clearCaches();
     }
-    LogDebug(VB_SEQUENCE, "Seeking to %d.   Last read is %d\n", frameNumber, (int)m_lastFrameRead);
     if (frameCache.empty()) {
+        LogDebug(VB_SEQUENCE, "Seeking to %d.   Last read is %d\n", frameNumber, (int)m_lastFrameRead);
         m_lastFrameRead = frameNumber - 1;
         frameLoadSignal.notify_all();
+
+        m_numSeek++;
+        if (m_numSeek > 6) {
+            WarningHolder::AddWarning("Multiple Frame Skips During Playback - Likely Slow Storage");
+        }
     }
     lock.unlock();
     frameLoadSignal.notify_all();
+    
 }
 
 

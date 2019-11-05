@@ -97,7 +97,8 @@ class Sequence {
 	char          m_seqLastControlMinor;
     int           m_remoteBlankCount;
     bool          m_dataProcessed;
-
+    int           m_numSeek;
+    
     std::recursive_mutex m_sequenceLock;
     
     std::atomic_int m_lastFrameRead;

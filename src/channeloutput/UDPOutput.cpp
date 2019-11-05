@@ -32,6 +32,7 @@
 #include <netdb.h>
 
 #include "UDPOutput.h"
+#include "Warnings.h"
 #include "log.h"
 #include "ping.h"
 
@@ -48,6 +49,8 @@ extern "C" {
         return new UDPOutput(startChannel, channelCount);
     }
 }
+
+const std::string WARNING_PREFIX = "Cannot Ping UDP Channel Data Target ";
 
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 
@@ -275,6 +278,9 @@ void UDPOutput::BackgroundThreadPing() {
                                 host.c_str());
                     }
                 }
+                if (done[host] > 0) {
+                    WarningHolder::RemoveWarning(WARNING_PREFIX + host);
+                }
                 a->valid = done[host] > 0;
             }
             if (a->valid) {
@@ -307,6 +313,7 @@ void UDPOutput::PingControllers() {
                 done[host] = p;
 
                 if (p > 0 && !o->valid) {
+                    WarningHolder::RemoveWarning(WARNING_PREFIX + host);
                     LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                             host.c_str());
                 }
@@ -326,9 +333,11 @@ void UDPOutput::PingControllers() {
                 done[host] = p;
                 
                 if (p < 0 && o->valid) {
+                    WarningHolder::AddWarning(WARNING_PREFIX + host);
                     LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
                             host.c_str());
                 } else if (p > 0 && !o->valid) {
+                    WarningHolder::RemoveWarning(WARNING_PREFIX + host);
                     LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                             host.c_str());
                 }

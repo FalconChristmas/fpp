@@ -587,11 +587,15 @@ void MainLoop(void)
     }
 	if (getFPPmode() & PLAYER_MODE) {
 		scheduler->CheckIfShouldBePlayingNow();
-		if (getAlwaysTransmit())
+        if (getAlwaysTransmit()) {
 			StartChannelOutputThread();
-	} else if (getFPPmode() == BRIDGE_MODE) {
-		Bridge_Initialize(callbacks);
+        }
 	}
+    if (getFPPmode() == BRIDGE_MODE) {
+		Bridge_Initialize(callbacks);
+    } else {
+        Fake_Bridge_Initialize(callbacks);
+    }
     SetupGPIOInput(callbacks);
 
     APIServer apiServer;

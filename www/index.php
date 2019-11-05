@@ -149,7 +149,7 @@ include 'common/menuHead.inc';
 ?>
 						</td>
           <td class='controlButton'>&nbsp;</td>
-<td rowspan="4"><div id="sensorData">
+<td rowspan="3"><div id="sensorData">
 </div>
 </td>
         </tr>
@@ -160,7 +160,9 @@ include 'common/menuHead.inc';
         </tr>
         <tr>
           <td class='controlHeader'> FPP Time: </td>
-          <td id = "fppTime" colspan = "3"></td>
+          <td id = "fppTime" colspan = "2"></td>
+        </tr>
+        <tr id="warningsRow"><td colspan="4" id="warningsTd"><div id="warningsDiv" style="line-height: 0.5;"></div></td>
         </tr>
       </table>
         <hr>

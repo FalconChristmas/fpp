@@ -80,6 +80,7 @@ OBJECTS_fpp_so += \
 	Sequence.o \
 	settings.o \
 	SunSet.o \
+	Warnings.o \
     util/GPIOUtils.o \
     util/I2CUtils.o \
     util/SPIUtils.o \

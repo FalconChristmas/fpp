@@ -2058,6 +2058,17 @@ function RemovePlaylistEntry()	{
 		SetSpeakerIndicator(Volume);
 
 		SetupUIForMode(fppMode);
+        
+        if (jsonStatus.hasOwnProperty('warnings')) {
+            var txt = "<hr><center><H4>Abnormal Conditions - May Cause Poor Performance</H4></center>";
+            for (var i = 0; i < jsonStatus.warnings.length; i++) {
+                txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+            }
+            document.getElementById('warningsDiv').innerHTML = txt;
+            $('#warningsRow').show();
+        } else {
+            $('#warningsRow').hide();
+        }
 
 		if (fppMode == 1) {
 			// Bridge Mode

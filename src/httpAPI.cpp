@@ -36,6 +36,7 @@
 #include "MultiSync.h"
 #include "playlist/Playlist.h"
 #include "Scheduler.h"
+#include "Warnings.h"
 #include "settings.h"
 
 #include <fstream>
@@ -643,6 +644,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["time"] = str;
     
     Sensors::INSTANCE.reportSensors(result);
+    WarningHolder::AddWarningsToStatus(result);
     if (mode == 1) {
         //bridge mode only returns the base information
         return;
