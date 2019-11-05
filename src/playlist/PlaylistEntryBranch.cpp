@@ -30,7 +30,7 @@
 
 PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_branchType(PE_BRANCH_TYPE_UNDEFINED),
+	m_branchType(),
 	m_comparisonMode(PE_BRANCH_COMP_MODE_UNDEFINED),
 	m_sHour(0),
 	m_sMinute(0),
@@ -54,6 +54,14 @@ PlaylistEntryBranch::~PlaylistEntryBranch()
 {
 }
 
+inline int asInt(Json::Value &v) {
+    if (v.isIntegral()) {
+        return v.asInt();
+    }
+    std::string s = v.asString();
+    return std::atoi(s.c_str());
+}
+
 /*
  *
  */
@@ -65,16 +73,16 @@ int PlaylistEntryBranch::Init(Json::Value &config)
 		m_trueNextSection = config["trueNextSection"].asString();
 
 	if (config.isMember("trueNextItem"))
-		m_trueNextItem = config["trueNextItem"].asInt();
+		m_trueNextItem = asInt(config["trueNextItem"]) - 1;
 
 	if (config.isMember("falseNextSection"))
 		m_falseNextSection = config["falseNextSection"].asString();
 
 	if (config.isMember("falseNextItem"))
-		m_falseNextItem = config["falseNextItem"].asInt();
+		m_falseNextItem = asInt(config["falseNextItem"]) - 1;
 
-	m_branchType = config["branchType"].asInt();
-	m_comparisonMode = config["compMode"].asInt();
+	m_branchType = config["branchType"].asString();
+	m_comparisonMode = asInt(config["compMode"]);
 
 	if (config.isMember("compInfo"))
 	{
@@ -168,15 +176,7 @@ int PlaylistEntryBranch::StartPlaying(void)
 		}
 
 LogDebug(VB_PLAYLIST, "Now: %02d:%02d:%02d, Start: %02d:%02d:%02d, End: %02d:%02d:%02d, NS: %s, NI: %d\n", now.tm_hour, now.tm_min, now.tm_sec, m_sHour, m_sMinute, m_sSecond, m_eHour, m_eMinute, m_eSecond, m_nextSection.c_str(), m_nextItem);
-	}
-	else if (m_branchType == PE_BRANCH_TYPE_PLAYLIST_TIME)
-	{
-		LogErr(VB_PLAYLIST, "ERROR: Playlist time branch is not yet supported!\n");
-		SetNext(0);
-	}
-	else if (m_branchType == PE_BRANCH_TYPE_LOOP_COUNT)
-	{
-		LogErr(VB_PLAYLIST, "ERROR: Playlist loop count branch is not yet supported!\n");
+    } else {
 		SetNext(0);
 	}
 

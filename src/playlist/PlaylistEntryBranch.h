@@ -31,10 +31,8 @@
 #include "Playlist.h"
 #include "PlaylistEntryBase.h"
 
-#define PE_BRANCH_TYPE_UNDEFINED      0
-#define PE_BRANCH_TYPE_CLOCK_TIME     1
-#define PE_BRANCH_TYPE_PLAYLIST_TIME  2
-#define PE_BRANCH_TYPE_LOOP_COUNT     3
+#define PE_BRANCH_TYPE_UNDEFINED      ""
+#define PE_BRANCH_TYPE_CLOCK_TIME     "Time"
 
 #define PE_BRANCH_COMP_MODE_UNDEFINED 0
 #define PE_BRANCH_COMP_MODE_LTEQ      1
@@ -57,7 +55,7 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 	Json::Value GetConfig(void);
 
   private:
-	int  m_branchType;
+	std::string  m_branchType;
 	int  m_comparisonMode;
 
 	// Time comparison

@@ -226,7 +226,7 @@ function PlaylistEntryToTR(i, entry, editMode)
 
 			branchStr += ", True: ";
 			if (entry.trueNextSection != "")
-				branchStr += entry.trueNextSection + "/" + (entry.trueNextItem + 1);
+				branchStr += entry.trueNextSection + "/" + entry.trueNextItem;
 			else
 				branchStr += "+" + entry.trueNextItem;
 
@@ -234,7 +234,7 @@ function PlaylistEntryToTR(i, entry, editMode)
 			{
 				branchStr += ", False: ";
 				if (entry.falseNextSection != "")
-					branchStr += entry.falseNextSection + "/" + (entry.falseNextItem + 1);
+					branchStr += entry.falseNextSection + "/" + entry.falseNextItem;
 				else
 					branchStr += "+" + entry.falseNextItem;
 			}
@@ -603,9 +603,9 @@ function AddPlaylistEntry() {
 				entry.branchType = $('#branchType').val();
 				entry.compMode = 1; // FIXME
 				entry.trueNextSection = $('#branchTrueSection').val();
-				entry.trueNextItem = $('#branchTrueItem').val();
+				entry.trueNextItem = parseInt($('#branchTrueItem').val());
 				entry.falseNextSection = $('#branchFalseSection').val();
-				entry.falseNextItem = $('#branchFalseItem').val();
+				entry.falseNextItem = parseInt($('#branchFalseItem').val());
 				entry.compInfo = new Object();
 				entry.compInfo.startHour = parseInt($('#branchStartTime').val().substring(0,2));
 				entry.compInfo.startMinute = parseInt($('#branchStartTime').val().substring(3,5));
