@@ -303,6 +303,6 @@ $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v
 		</div>
 </div>
 </div>
-<center><a href='/index.php'>Return to Full UI</a></center><br>
+<center><a href='index.php'>Return to Full UI</a></center><br>
 </body>
 </html>

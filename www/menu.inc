@@ -132,7 +132,7 @@ function list_plugin_entries($menu)
     <ul id="fppMenu" class="sm sm-clean">
       <li><a>Status/Control</a>
         <ul>
-          <li><a href="/">Status Page</a></li>
+          <li><a href="index.php">Status Page</a></li>
           <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="timeconfig.php">Config/Set Time</a></li>
           <li><a href="networkconfig.php">Network</a></li>

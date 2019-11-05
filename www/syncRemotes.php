@@ -23,7 +23,7 @@ if (isset($settings['MultiSyncCopyScripts']) && ($settings['MultiSyncCopyScripts
 
 if (sizeof($dirs) == 0)
 {
-	echo "You do not have any files set to be copied.  Please return to the <a href='/multisync.php'>MultiSync setup page</a> and select which files you wish to copy to the remotes.";
+	echo "You do not have any files set to be copied.  Please return to the <a href='multisync.php'>MultiSync setup page</a> and select which files you wish to copy to the remotes.";
 	exit(0);
 }
 
@@ -119,7 +119,7 @@ foreach ( $remotes as $remote ) {
 ==========================================================================
 Sync Complete.
 </pre>
-<a href='/'>Go to FPP Main Status Page</a><br>
+<a href='index.php'>Go to FPP Main Status Page</a><br>
 <a href='multisync.php'>Go to MultiSync config page</a><br>
 
 </body>

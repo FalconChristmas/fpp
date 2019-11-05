@@ -34,7 +34,7 @@ system($SUDO . " $fppDir/scripts/fppd_start");
 ==========================================================================
 Update Complete.
 </pre>
-<a href='/'>Go to FPP Main Status Page</a><br>
+<a href='index.php'>Go to FPP Main Status Page</a><br>
 <a href='about.php'>Go back to FPP About page</a><br>
 
 </body>
