@@ -24,20 +24,12 @@ $SUDO chown -R fpp.fpp $1
 
 if [ -x "${PLUGINDIR}/$1/scripts/fpp_install.sh" ]
 then
-	remountRootReadWrite
-
 	echo "Running fpp_install.sh script for $1"
 	$SUDO ${PLUGINDIR}/$1/scripts/fpp_install.sh
-
-	remountRootReadOnlyIfNeeded
 else
 	if [ -x "${PLUGINDIR}/$1/fpp_install.sh" ]
 	then
-		remountRootReadWrite
-
 		echo "Running fpp_install.sh script for $1"
 		$SUDO ${PLUGINDIR}/$1/fpp_install.sh
-
-		remountRootReadOnlyIfNeeded
 	fi
 fi

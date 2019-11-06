@@ -10,8 +10,6 @@ logOutput
 if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
 	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
-	remountRootReadWrite
-
 	if [ "x${FPPDIR}" = "x/opt/fpp" ]
 	then
 		cd ${FPPDIR} && $SUDO git fetch && $SUDO git fetch --tags -f && $SUDO git submodule foreach git fetch
@@ -19,7 +17,6 @@ if curl --silent --head https://github.com | grep "Content-Type: text/html; char
 		cd ${FPPDIR} && sudo -u ${FPPUSER} git fetch && sudo -u ${FPPUSER} git submodule foreach git fetch
 	fi
 
-	remountRootReadOnlyIfNeeded
 else
 	echo "Can not access github, unable to fetch git updates"
 fi
