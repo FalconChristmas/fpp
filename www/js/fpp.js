@@ -185,7 +185,23 @@ function GetPlaylistRowHTML(ID, type, data1, data2, data3, firstlast, editMode)
 
 	return HTML;
 }
-
+function BranchItemToString(branchType, nextSection, nextIndex) {
+    if (typeof branchType == "undefined") {
+        branchType = "Index";
+    }
+    if (branchType == "None") {
+        return "None";
+    } else if (branchType == "" || branchType == "Index") {
+        var r = "Index: "
+        if (nextSection != "") {
+            r = r + nextSection + "/";
+        }
+        r = r + nextIndex;
+        return r;
+    } else if (branchType == "Offset") {
+        return "Offset: " + nextIndex;
+    }
+}
 function PlaylistEntryToTR(i, entry, editMode)
 {
 	var HTML = "";
@@ -200,11 +216,9 @@ function PlaylistEntryToTR(i, entry, editMode)
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + entry.duration.toString(), "---", "", i.toString(), editMode);
 	else if(entry.type == 'playlist')
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Playlist", "PLAYLIST - " + entry.name, "---", "", i.toString(), editMode);
-	else if(entry.type == 'branch')
-	{
+	else if(entry.type == 'branch') {
 		var branchStr = "Invalid Config";
-		if (entry.trueNextItem < 999)
-		{
+		if (entry.trueNextItem < 999) {
 			branchStr = "";
 			if (entry.compInfo.startHour < 0)
 				branchStr += "**:";
@@ -224,21 +238,11 @@ function PlaylistEntryToTR(i, entry, editMode)
 				+ ((entry.compInfo.endMinute < 10) ? ("0" + entry.compInfo.endMinute) : entry.compInfo.endMinute) + ":"
 				+ ((entry.compInfo.endSecond < 10) ? ("0" + entry.compInfo.endSecond) : entry.compInfo.endSecond);
 
-			branchStr += ", True: ";
-			if (entry.trueNextSection != "")
-				branchStr += entry.trueNextSection + "/" + entry.trueNextItem;
-			else
-				branchStr += "+" + entry.trueNextItem;
-
-			if (entry.falseNextItem < 999)
-			{
-				branchStr += ", False: ";
-				if (entry.falseNextSection != "")
-					branchStr += entry.falseNextSection + "/" + entry.falseNextItem;
-				else
-					branchStr += "+" + entry.falseNextItem;
+			branchStr += ", True: " + BranchItemToString(entry.trueNextBranchType, entry.trueNextSection, entry.trueNextItem);
+            
+			if (entry.falseNextItem < 999) {
+				branchStr += ", False: " + BranchItemToString(entry.falseNextBranchType, entry.falseNextSection, entry.falseNextItem);
 			}
-
 		}
 		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", "BRANCH - " + branchStr, "---", "", i.toString(), editMode);
 	}
@@ -602,8 +606,10 @@ function AddPlaylistEntry() {
 			{
 				entry.branchType = $('#branchType').val();
 				entry.compMode = 1; // FIXME
+                entry.trueNextBranchType = $('#branchTrueType').val();
 				entry.trueNextSection = $('#branchTrueSection').val();
 				entry.trueNextItem = parseInt($('#branchTrueItem').val());
+                entry.falseNextBranchType = $('#branchFalseType').val();
 				entry.falseNextSection = $('#branchFalseSection').val();
 				entry.falseNextItem = parseInt($('#branchFalseItem').val());
 				entry.compInfo = new Object();

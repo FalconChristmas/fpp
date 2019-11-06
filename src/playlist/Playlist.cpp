@@ -135,15 +135,12 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 {
 	PlaylistEntryBase *plEntry = NULL;
 
-	for (int c = 0; c < entries.size(); c++)
-	{
+	for (int c = 0; c < entries.size(); c++) {
 		// Long-term handle sub-playlists on-demand instead of at load time
-		if (entries[c]["type"].asString() == "playlist")
-		{
+		if (entries[c]["type"].asString() == "playlist") {
 			m_subPlaylistDepth++;
 
-			if (m_subPlaylistDepth < 3)
-			{
+			if (m_subPlaylistDepth < 3) {
 				Json::Value subPlaylist = LoadJSON(entries[c]["name"].asString().c_str());
 
 				if (subPlaylist.isMember("leadIn"))
@@ -154,16 +151,12 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 
 				if (subPlaylist.isMember("leadOut"))
 					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"]);
-			}
-			else
-			{
+            } else {
 				LogErr(VB_PLAYLIST, "Error, sub-playlist depth exceeded 3 trying to include '%s'\n", entries[c]["playlistName"].asString().c_str());
 			}
 
 			m_subPlaylistDepth--;
-		}
-		else
-		{
+        } else {
 			plEntry = LoadPlaylistEntry(entries[c]);
 			if (plEntry)
 				playlistPart.push_back(plEntry);
@@ -194,28 +187,23 @@ int Playlist::Load(Json::Value &config)
 
 	m_playlistInfo = config["playlistInfo"];
 
-	PlaylistEntryBase::m_playlistEntryCount = 0;
-
 	PlaylistEntryBase *plEntry = NULL;
 
-	if (config.isMember("leadIn"))
-	{
+	if (config.isMember("leadIn")) {
 		LogDebug(VB_PLAYLIST, "Loading LeadIn:\n");
 		const Json::Value leadIn = config["leadIn"];
 
 		LoadJSONIntoPlaylist(m_leadIn, leadIn);
 	}
 
-	if (config.isMember("mainPlaylist"))
-	{
+	if (config.isMember("mainPlaylist")) {
 		LogDebug(VB_PLAYLIST, "Loading MainPlaylist:\n");
 		const Json::Value playlist = config["mainPlaylist"];
 
 		LoadJSONIntoPlaylist(m_mainPlaylist, playlist);
 	}
 
-	if (config.isMember("leadOut"))
-	{
+	if (config.isMember("leadOut")) {
 		LogDebug(VB_PLAYLIST, "Loading LeadOut:\n");
 		const Json::Value leadOut = config["leadOut"];
 
@@ -241,8 +229,7 @@ Json::Value Playlist::LoadJSON(const char *filename)
 	Json::Value root;
 	Json::Reader reader;
 
-	if (!FileExists(m_filename.c_str()))
-	{
+	if (!FileExists(m_filename.c_str())) {
 		LogErr(VB_PLAYLIST, "Playlist %s does not exist\n", m_filename.c_str());
 		return root;
 	}
@@ -260,8 +247,7 @@ Json::Value Playlist::LoadJSON(const char *filename)
 	buffer << t.rdbuf();
 
 	bool success = reader.parse(buffer.str(), root);
-	if (!success)
-	{
+	if (!success) {
 		LogErr(VB_PLAYLIST, "Error parsing %s\n", m_filename.c_str());
 		return root;
 	}
@@ -338,8 +324,7 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryVolume();
     else if (entry["type"].asString() == "command")
         result = new PlaylistEntryCommand();
-	else
-	{
+    else {
 		LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
 		return NULL;
 	}
@@ -379,8 +364,7 @@ int Playlist::ReloadPlaylist(void)
  */
 void Playlist::ReloadIfNeeded(void)
 {
-	if (FileHasBeenModified())
-	{
+	if (FileHasBeenModified()) {
 		LogDebug(VB_PLAYLIST, "Playlist .json file has been modified, reloading playlist\n");
 
 		if (!ReloadPlaylist())
@@ -423,8 +407,7 @@ int Playlist::Start(void)
 
 	if ((!m_leadIn.size()) &&
 		(!m_mainPlaylist.size()) &&
-		(!m_leadOut.size()))
-	{
+		(!m_leadOut.size())) {
 		SetIdle();
 		return 0;
 	}
@@ -440,44 +423,31 @@ int Playlist::Start(void)
 
 	LogDebug(VB_PLAYLIST, "============================================================================\n");
 
-	if (m_startPosition > 0)
-	{
+	if (m_startPosition > 0) {
 		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size()))
 			m_startPosition = 0;
 
-		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size()))
-		{
+		if (m_startPosition >= (m_leadIn.size() + m_mainPlaylist.size())) {
 			m_sectionPosition = m_startPosition - (m_leadIn.size() + m_mainPlaylist.size());
 			m_currentSectionStr = "LeadOut";
 			m_currentSection = &m_leadOut;
-		}
-		else if (m_startPosition >= m_leadIn.size())
-		{
+		} else if (m_startPosition >= m_leadIn.size()) {
 			m_sectionPosition = m_startPosition - m_leadIn.size();
 			m_currentSectionStr = "MainPlaylist";
 			m_currentSection = &m_mainPlaylist;
-		}
-		else
-		{
+        } else {
 			m_sectionPosition = m_startPosition;
 			m_currentSectionStr = "LeadIn";
 			m_currentSection = &m_leadIn;
 		}
-	}
-	else
-	{
-		if (m_leadIn.size())
-		{
+    } else {
+		if (m_leadIn.size()) {
 			m_currentSectionStr = "LeadIn";
 			m_currentSection = &m_leadIn;
-		}
-		else if (m_mainPlaylist.size())
-		{
+        } else if (m_mainPlaylist.size()) {
 			m_currentSectionStr = "MainPlaylist";
 			m_currentSection = &m_mainPlaylist;
-		}
-		else // must be only lead Out
-		{
+		} else {// must be only lead Out
 			m_currentSectionStr = "LeadOut";
 			m_currentSection = &m_leadOut;
 		}
@@ -578,8 +548,7 @@ int Playlist::Process(void)
         PL_CLEANUPS.pop_front();
     }
 
-	if (m_sectionPosition >= m_currentSection->size())
-	{
+	if (m_sectionPosition >= m_currentSection->size()) {
 		LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
 			m_sectionPosition, m_currentSectionStr.c_str());
 		StopNow();
@@ -587,22 +556,20 @@ int Playlist::Process(void)
 	}
 
 
-	if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+    if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
 		m_currentSection->at(m_sectionPosition)->Process();
+    }
 
-	if (m_currentSection->at(m_sectionPosition)->IsFinished())
-	{
+	if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
 		LogDebug(VB_PLAYLIST, "Playlist entry finished\n");
 		if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
 			m_currentSection->at(m_sectionPosition)->Dump();
 
 		LogDebug(VB_PLAYLIST, "============================================================================\n");
 
-		if (m_status == FPP_STATUS_STOPPING_GRACEFULLY)
-		{
+		if (m_status == FPP_STATUS_STOPPING_GRACEFULLY) {
 			if ((m_currentSectionStr == "LeadIn") ||
-				(m_currentSectionStr == "MainPlaylist"))
-			{
+				(m_currentSectionStr == "MainPlaylist")) {
 				ReloadIfNeeded();
 
 				if (m_leadOut.size()) {
@@ -621,85 +588,78 @@ int Playlist::Process(void)
             return playlist->Process();
         }
 
-		if (m_currentSection->at(m_sectionPosition)->GetNextSection() != "")
-		{
-			LogDebug(VB_PLAYLIST, "Attempting Switch to %s section.\n",
-				m_currentSection->at(m_sectionPosition)->GetNextSection().c_str());
+        
+        auto currentEntry = m_currentSection->at(m_sectionPosition);
+        if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Index) {
+        
+            if (currentEntry->GetNextSection() != "") {
+                LogDebug(VB_PLAYLIST, "Attempting Switch to %s section.\n",
+                    currentEntry->GetNextSection().c_str());
 
-			if (m_currentSection->at(m_sectionPosition)->GetNextSection() == "leadIn")
-			{
-				m_currentSectionStr = "LeadIn";
-				m_currentSection = &m_leadIn;
-			}
-			else if (m_currentSection->at(m_sectionPosition)->GetNextSection() == "leadOut")
-			{
-				m_currentSectionStr = "LeadOut";
-				m_currentSection = &m_leadOut;
-			}
-			else
-			{
-				m_currentSectionStr = "MainPlaylist";
-				m_currentSection = &m_mainPlaylist;
-			}
+                if (currentEntry->GetNextSection() == "leadIn") {
+                    m_currentSectionStr = "LeadIn";
+                    m_currentSection = &m_leadIn;
+                } else if (currentEntry->GetNextSection() == "leadOut") {
+                    m_currentSectionStr = "LeadOut";
+                    m_currentSection = &m_leadOut;
+                } else {
+                    m_currentSectionStr = "MainPlaylist";
+                    m_currentSection = &m_mainPlaylist;
+                }
 
-			if (m_currentSection->at(m_sectionPosition)->GetNextItem() == -1)
-				m_sectionPosition = 0;
-			else if (m_currentSection->at(m_sectionPosition)->GetNextItem() < m_currentSection->size())
-				m_sectionPosition = m_currentSection->at(m_sectionPosition)->GetNextItem();
-			else
-				m_sectionPosition = 0;
-		}
-		else if (m_currentSection->at(m_sectionPosition)->GetNextItem() != -1)
-		{
-			if (m_currentSection->at(m_sectionPosition)->GetNextItem() < m_currentSection->size())
-				m_sectionPosition += m_currentSection->at(m_sectionPosition)->GetNextItem();
-			else
-				m_sectionPosition = m_currentSection->size();
-		}
-		else
-		{
-			m_sectionPosition++;
-		}
+                if (currentEntry->GetNextItem() == -1) {
+                    m_sectionPosition = 0;
+                } else if (currentEntry->GetNextItem() < m_currentSection->size()) {
+                    m_sectionPosition = currentEntry->GetNextItem();
+                } else {
+                    m_sectionPosition = 0;
+                }
+            } else if (currentEntry->GetNextItem() != -1) {
+                if (currentEntry->GetNextItem() < m_currentSection->size()) {
+                    m_sectionPosition = currentEntry->GetNextItem();
+                } else {
+                    m_sectionPosition = m_currentSection->size();
+                }
+            } else {
+                m_sectionPosition++;
+            }
+        } else if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Offset) {
+            m_sectionPosition != currentEntry->GetNextItem();
+            if (m_sectionPosition < 0) {
+                m_sectionPosition = 0;
+            }
+            if (m_sectionPosition > m_currentSection->size()) {
+                m_sectionPosition = m_currentSection->size();
+            }
+        } else {
+            m_sectionPosition++;
+        }
 
-		if (m_sectionPosition >= m_currentSection->size())
-		{
-			if (m_currentSectionStr == "LeadIn")
-			{
+		if (m_sectionPosition >= m_currentSection->size()) {
+			if (m_currentSectionStr == "LeadIn") {
 				LogDebug(VB_PLAYLIST, "At end of leadIn.\n");
 
 				ReloadIfNeeded();
 
-				if (m_mainPlaylist.size())
-				{
+				if (m_mainPlaylist.size()) {
 					SwitchToMainPlaylist();
-				}
-				else if (m_leadOut.size())
-				{
+				} else if (m_leadOut.size()) {
 					SwitchToLeadOut();
-				}
-				else
-				{
+                } else {
 					LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
 					SetIdle();
 				}
-			}
-			else if (m_currentSectionStr == "MainPlaylist")
-			{
+			} else if (m_currentSectionStr == "MainPlaylist") {
 				m_loop++;
 				LogDebug(VB_PLAYLIST, "mainPlaylist loop now: %d\n", m_loop);
-				if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount)))
-				{
+				if ((m_repeat) && (!m_loopCount || (m_loop < m_loopCount))) {
 					ReloadIfNeeded();
 
-					if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)
-					{
-						if (m_leadOut.size())
-						{
+					if (m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
+						if (m_leadOut.size()) {
 							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop\n");
 							SwitchToLeadOut();
-						}
-						else
-						{
+                        } else {
 							LogDebug(VB_PLAYLIST, "Stopping Gracefully after loop. Empty leadOut, setting to Idle state\n");
 							SetIdle();
 						}
@@ -714,28 +674,20 @@ int Playlist::Process(void)
 
 					m_sectionPosition = 0;
 					m_mainPlaylist[0]->StartPlaying();
-				}
-				else if (m_leadOut.size())
-				{
+				} else if (m_leadOut.size()) {
 					ReloadIfNeeded();
 
 					SwitchToLeadOut();
-				}
-				else
-				{
+                } else {
 					LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
 					SetIdle();
 				}
-			}
-			else
-			{
+            } else {
 				LogDebug(VB_PLAYLIST, "No more playlist entries, switching to idle.\n");
                 m_currentSection = nullptr;
 				SetIdle();
 			}
-		}
-		else
-		{
+        } else {
 			// Start the next item in the current section
 			m_currentSection->at(m_sectionPosition)->StartPlaying();
 		}
@@ -822,22 +774,19 @@ void Playlist::SetIdle(bool exit)
  */
 int Playlist::Cleanup(void)
 {
-	while (m_leadIn.size())
-	{
+	while (m_leadIn.size()) {
 		PlaylistEntryBase *entry = m_leadIn.back();
 		m_leadIn.pop_back();
 		delete entry;
 	}
 
-	while (m_mainPlaylist.size())
-	{
+	while (m_mainPlaylist.size()) {
 		PlaylistEntryBase *entry = m_mainPlaylist.back();
 		m_mainPlaylist.pop_back();
 		delete entry;
 	}
 
-	while (m_leadOut.size())
-	{
+	while (m_leadOut.size()) {
 		PlaylistEntryBase *entry = m_leadOut.back();
 		m_leadOut.pop_back();
 		delete entry;
@@ -981,36 +930,27 @@ void Playlist::Dump(void)
 	LogDebug(VB_PLAYLIST, "  Current Section  : %s\n", m_currentSectionStr.c_str());
 	LogDebug(VB_PLAYLIST, "  Section Position : %d\n", m_sectionPosition);
 
-	if (m_leadIn.size())
-	{
+	if (m_leadIn.size()) {
 		LogDebug(VB_PLAYLIST, "  Lead In:\n");
 		for (int c = 0; c < m_leadIn.size(); c++)
 			m_leadIn[c]->Dump();
-	}
-	else
-	{
+    } else {
 		LogDebug(VB_PLAYLIST, "  Lead In          : (No Lead In)\n");
 	}
 
-	if (m_mainPlaylist.size())
-	{
+	if (m_mainPlaylist.size()) {
 		LogDebug(VB_PLAYLIST, "  Main Playlist:\n");
 		for (int c = 0; c < m_mainPlaylist.size(); c++)
 			m_mainPlaylist[c]->Dump();
-	}
-	else
-	{
+    } else {
 		LogDebug(VB_PLAYLIST, "  Main Playlist    : (No Main Playlist)\n");
 	}
 
-	if (m_leadOut.size())
-	{
+	if (m_leadOut.size()) {
 		LogDebug(VB_PLAYLIST, "  Lead Out:\n");
 		for (int c = 0; c < m_leadOut.size(); c++)
 			m_leadOut[c]->Dump();
-	}
-	else
-	{
+    } else {
 		LogDebug(VB_PLAYLIST, "  Lead Out         : (No Lead Out)\n");
 	}
 }
@@ -1172,8 +1112,7 @@ Json::Value Playlist::GetInfo(void)
 
 	result["currentState"] = m_currentState;
 
-	if (m_currentState == "idle")
-	{
+	if (m_currentState == "idle") {
 		result["name"] = "";
 		result["repeat"] = 0;
 		result["loop"] = 0;
@@ -1183,9 +1122,7 @@ Json::Value Playlist::GetInfo(void)
 		result["blankBetweenIterations"] = 0;
 		result["blankAtEnd"] = 0;
 		result["size"] = 0;
-	}
-	else
-	{
+    } else {
 		result["name"] = m_name;
 		result["desc"] = m_desc;
 		result["repeat"] = m_repeat;
@@ -1227,8 +1164,7 @@ Json::Value Playlist::GetConfig(void)
 //	if (m_configTime > m_fileTime)
 //		return m_config;
 
-	if (m_leadIn.size())
-	{
+	if (m_leadIn.size()) {
 		Json::Value jsonArray(Json::arrayValue);
 		for (int c = 0; c < m_leadIn.size(); c++)
 			jsonArray.append(m_leadIn[c]->GetConfig());
@@ -1236,8 +1172,7 @@ Json::Value Playlist::GetConfig(void)
 		result["leadIn"] = jsonArray;
 	}
 
-	if (m_mainPlaylist.size())
-	{
+	if (m_mainPlaylist.size()) {
 		Json::Value jsonArray(Json::arrayValue);
 		for (int c = 0; c < m_mainPlaylist.size(); c++)
 			jsonArray.append(m_mainPlaylist[c]->GetConfig());
@@ -1245,8 +1180,7 @@ Json::Value Playlist::GetConfig(void)
 		result["mainPlaylist"] = jsonArray;
 	}
 
-	if (m_leadOut.size())
-	{
+	if (m_leadOut.size()) {
 		Json::Value jsonArray(Json::arrayValue);
 		for (int c = 0; c < m_leadOut.size(); c++)
 			jsonArray.append(m_leadOut[c]->GetConfig());

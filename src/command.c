@@ -193,7 +193,6 @@ char *ProcessCommand(char *command, char *response)
                     pl["currentEntry"]["type"].asString() == "both"
                         ? pl["currentEntry"]["media"]["mediaFilename"].asString().c_str()
                         : pl["currentEntry"]["mediaFilename"].asString().c_str() ,
-//							pl["currentEntry"]["entryID"].asInt() + 1,
                     playlist->GetPosition(),
                     pl["size"].asInt(),
                     pl["currentEntry"]["type"].asString() == "both"
@@ -214,7 +213,6 @@ char *ProcessCommand(char *command, char *response)
                     pl["currentEntry"]["type"].asString().c_str(),
                     pl["currentEntry"]["sequenceName"].asString().c_str(),
                     "",
-//							pl["currentEntry"]["entryID"].asInt() + 1,
                     playlist->GetPosition(),
                     pl["size"].asInt(),
                     sequence->m_seqSecondsElapsed,
@@ -231,7 +229,6 @@ char *ProcessCommand(char *command, char *response)
                     pl["currentEntry"]["type"].asString().c_str(),
                     "",
                     "",
-//							pl["currentEntry"]["entryID"].asInt() + 1,
                     playlist->GetPosition(),
                     pl["size"].asInt(),
                     pl["currentEntry"]["type"].asString() == "pause" ? pl["currentEntry"]["duration"].asInt() - pl["currentEntry"]["remaining"].asInt() : 0,

@@ -168,6 +168,26 @@ function DynamicSubTypeChanged()
 	$('#dynamicDataWrapper').html(inputStr);
 }
 
+function BranchTypeChanged(tp)
+{
+    var btype = $('#branch' + tp + 'Type').val();
+    if (btype == "Offset") {
+        $('#branch' + tp + 'IndexTd').hide();
+        $('#branch' + tp + 'Item').show();
+        $('#branch' + tp + 'Item').attr({"min": -99, "max": 99});
+    } else if (btype == "Index") {
+        $('#branch' + tp + 'IndexTd').show();
+        $('#branch' + tp + 'Item').show();
+        $('#branch' + tp + 'Item').attr({"min": 1, "max": 99});
+        if ($('#branch' + tp + 'Item').val() < 1) {
+            $('#branch' + tp + 'Item').val(1);
+        }
+    } else {
+        $('#branch' + tp + 'IndexTd').hide();
+        $('#branch' + tp + 'Item').hide();
+    }
+}
+
 $(document).ready(function() {
 	playlistEditorDocReady();
     LoadCommandList('commandSelect');
@@ -461,20 +481,28 @@ if ($allowDelete)
 			</tr>
 		<tr id="branchOptions" class='playlistOptions'><td valign='top'>Branch:</td>
 			<td><table border=0 cellpadding=0 cellspacing=2>
-				<tr><td>True:</td><td>Section: <select id='branchTrueSection'>
-						<option value=''>** Same **</option>
-						<option value='leadIn'>Lead In</option>
-						<option value='mainPlaylist'>Main Playlist</option>
-						<option value='leadOut'>Lead Out</option>
-					</select>
-					<input id='branchTrueItem' type='text' size='3' maxlength='3' value='1'></td></tr>
-				<tr><td>False:</td><td>Section: <select id='branchFalseSection'>
-						<option value=''>** Same **</option>
-						<option value='leadIn'>Lead In</option>
-						<option value='mainPlaylist'>Main Playlist</option>
-						<option value='leadOut'>Lead Out</option>
-					</select>
-					<input id='branchFalseItem' type='text' size='3' maxlength='3' value='2'></td></tr>
+				<tr><td>If True:</td><td>
+                        Type: <select id='branchTrueType' onchange="BranchTypeChanged('True');"><option value='None'>None</option><option value='Index' selected>Index</option><option value='Offset'>Offset</option></select></td>
+                        <td id='branchTrueIndexTd'>
+                            Section: <select id='branchTrueSection'>
+                            <option value=''>** Same **</option>
+                            <option value='leadIn'>Lead In</option>
+                            <option value='mainPlaylist'>Main Playlist</option>
+                            <option value='leadOut'>Lead Out</option>
+                            </select>
+                         </td>
+                         <td><input id='branchTrueItem' type='number' size='3' value='1' min='1' max='99'></td></tr>
+				<tr><td>If False:</td><td>
+                        Type: <select id='branchFalseType' onchange="BranchTypeChanged('False');"><option value='None'>None</option><option value='Index' selected>Index</option><option value='Offset'>Offset</option></select></td>
+                        <td id='branchFalseIndexTd'>
+                            Section: <select id='branchFalseSection'>
+                            <option value=''>** Same **</option>
+                            <option value='leadIn'>Lead In</option>
+                            <option value='mainPlaylist'>Main Playlist</option>
+                            <option value='leadOut'>Lead Out</option>
+                            </select>
+                        </td>
+                        <td><input id='branchFalseItem' type='number' size='3' value='2' min='1' max='99'></td></tr>
 				<tr><td>Type:</td><td><select id='branchType'><option>Time</option></select></td></tr>
 				<tr><td></td>
 					<td><table border=0 cellpadding=0 cellspacing=2>
@@ -498,7 +526,7 @@ if ($allowDelete)
 			</tr>
         <tr id="pluginData" style="display:none;" class='playlistOptions'><td><div><div id='pluginDataText'>Plugin Data:</div></div></td>
             <td><input id="txtData" name="txtData" type="text" size="80" maxlength="255"/></td></tr>
-        <tr id="subPlaylistOptions" style="display:none;" class='playlistOptions'><td><div><div id='playlistDataText'>Plugin Data:</div></div></td>
+        <tr id="subPlaylistOptions" style="display:none;" class='playlistOptions'><td><div><div id='playlistDataText'>Playlist:</div></div></td>
             <td><select id="selSubPlaylist" name="selSubPlaylist">
 <?
 	foreach ($playlistNames as $name)

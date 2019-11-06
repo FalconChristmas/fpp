@@ -58,14 +58,19 @@ class PlaylistEntryBase {
 
 	virtual std::string ReplaceMatches(std::string in);
 
-	int          GetPlaylistEntryID(void) { return m_playlistEntryID; }
-
 	std::string  GetType(void) { return m_type; }
-	std::string  GetNextSection(void) { return m_nextSection; }
-	int          GetNextItem(void) { return m_nextItem; }
 	int          IsPrepped(void) { return m_isPrepped; }
+    
+    
+    enum class PlaylistBranchType {
+        None,
+        Index,
+        Offset
+    };
+    virtual PlaylistBranchType GetNextBranchType() { return PlaylistBranchType::None; }
+    virtual std::string  GetNextSection(void) { return ""; }
+    virtual int          GetNextItem(void) { return 0; }
 
-	static int   m_playlistEntryCount;
 
   protected:
 	int          CanPlay(void);
@@ -79,11 +84,8 @@ class PlaylistEntryBase {
 	int          m_isFinished;
 	int          m_playOnce;
 	int          m_playCount;
-	std::string  m_nextSection;
-	int          m_nextItem;
 	int          m_isPrepped;
 
-	int          m_playlistEntryID;
 
 	Json::Value  m_config;
 	PlaylistEntryBase *m_parent;

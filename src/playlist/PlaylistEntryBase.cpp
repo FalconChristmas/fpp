@@ -28,8 +28,6 @@
 #include "log.h"
 #include "PlaylistEntryBase.h"
 
-int PlaylistEntryBase::m_playlistEntryCount = 0;
-
 /*
  *
  */
@@ -40,12 +38,10 @@ PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
 	m_isFinished(0),
 	m_playOnce(0),
 	m_playCount(0),
-	m_nextItem(-1),
 	m_isPrepped(0),
 	m_parent(parent)
 {
 	m_type = "base";
-	m_playlistEntryID = m_playlistEntryCount++;
 }
 
 /*
@@ -82,14 +78,12 @@ int PlaylistEntryBase::Init(Json::Value &config)
  */
 int PlaylistEntryBase::CanPlay(void)
 {
-	if (m_playOnce && (m_playCount > 0))
-	{
+	if (m_playOnce && (m_playCount > 0)) {
 		LogDebug(VB_PLAYLIST, "%s item exceeds play count\n", m_type.c_str());
 		return 0;
 	}
 
-	if (!m_enabled)
-	{
+	if (!m_enabled) {
 		LogDebug(VB_PLAYLIST, "%s item disabled\n", m_type.c_str());
 		return 0;
 	}
@@ -204,7 +198,6 @@ void PlaylistEntryBase::Dump(void)
 {
 	LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
 	LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());
-	LogDebug(VB_PLAYLIST, "Entry ID  : %d\n", m_playlistEntryID);
 	LogDebug(VB_PLAYLIST, "Entry Note: %s\n", m_note.c_str());
 }
 
@@ -231,7 +224,6 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["isFinished"] = m_isFinished;
 	result["playOnce"]   = m_playOnce;
 	result["playCount"]  = m_playCount;
-	result["entryID"]    = m_playlistEntryID;
 
 	return result;
 }

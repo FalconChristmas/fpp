@@ -54,6 +54,10 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 
 	Json::Value GetConfig(void);
 
+    virtual PlaylistBranchType GetNextBranchType() { return m_nextBranchType; }
+    virtual std::string  GetNextSection(void) override { return m_nextSection; }
+    virtual int          GetNextItem(void) override { return m_nextItem; }
+
   private:
 	std::string  m_branchType;
 	int  m_comparisonMode;
@@ -70,10 +74,16 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 	int  m_eDaySecond;
 	int  m_eHourSecond;
 
+    PlaylistBranchType m_trueNextBranchType;
 	std::string m_trueNextSection;
 	int         m_trueNextItem;
+    PlaylistBranchType m_falseNextBranchType;
 	std::string m_falseNextSection;
 	int         m_falseNextItem;
+    
+    PlaylistBranchType m_nextBranchType;
+    std::string  m_nextSection;
+    int          m_nextItem;
 };
 
 #endif
