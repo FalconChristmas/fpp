@@ -7,7 +7,6 @@
 echo "Enabling Apache Header modules"
 a2enmod headers
 a2enmod proxy_html
-a2enmod proxy_http2
 
 # Copy new Apache site config into place
 echo "Copying new Apache config into place"
