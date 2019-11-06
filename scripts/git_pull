@@ -8,24 +8,21 @@ BINDIR=$(cd $(dirname $0) && pwd)
 teeOutput
 
 if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
-	GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
+    GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
-	echo "Upgrading git revision from branch ${GITBRANCH}"
+    echo "Upgrading git revision from branch ${GITBRANCH}"
 
-	remountRootReadWrite
 
-	if [ "x${FPPDIR}" = "x/opt/fpp" ]
-	then
-		cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
-	else
-		cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
-	fi
+    if [ "x${FPPDIR}" = "x/opt/fpp" ]
+    then
+        cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
+    else
+        cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
+    fi
 
     sudo ${SCRIPTDIR}/upgrade_config
-	compileBinaries
-
-	remountRootReadOnlyIfNeeded
+    compileBinaries
 else
-	echo "Can not access github, unable to pull git updates"
+    echo "Can not access github, unable to pull git updates"
 fi
 

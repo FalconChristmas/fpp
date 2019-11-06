@@ -3,14 +3,8 @@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
 
 FPPDIR=${FPPDIR:-/opt/fpp}
-FPPHOME="/home/pi"
-FPPUSER="pi"
-
-if [ -d "/home/fpp" ]
-then
-	FPPHOME="/home/fpp"
-	FPPUSER="fpp"
-fi
+FPPHOME="/home/fpp"
+FPPUSER="fpp"
 
 if [ -f "${FPPHOME}/fpp/scripts/common" ]
 then

@@ -322,9 +322,35 @@ cleanCompiledBinaries() {
         fi
     done
 }
+populateCCACHE() {
+    FPPBASEVERSION=$(</etc/fpp/rfs_version)
+    MAJVER=${FPPBASEVERSION:1:1}
+    MINVER=${FPPBASEVERSION:3:2}
+    if [[ ${MAJVER} -ge 3 && ${MINVER} -ge 3 ]]; then
+        #at least v3.3
+        BRANCH=$(git branch --list | grep \* | colrm 1 2)
+        if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+            PLAT=Pi
+        elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+            PLAT=BBB
+        fi
+        
+        
+        FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
+        echo $FILETOGET
+
+        curl  -f --fail-early "https://falconchristmas.github.io/ccache/${FILETOGET}" --output "/tmp/$FILETOGET"
+        
+        if [ -f "/tmp/$FILETOGET" ]; then
+            sudo tar -x -z -C /root -f "/tmp/$FILETOGET"
+            rm -f "/tmp/$FILETOGET"
+        fi
+    fi
+}
 
 compileBinaries() {
 	cleanCompiledBinaries
+    populateCCACHE
 
 	# export CCACHE_LOGFILE=/tmp/cache.debug
 	export LANG=en_US.UTF-8
@@ -579,67 +605,6 @@ checkTimeAgainstUSNO() {
 }
 
 #############################################################################
-# Setup RTC on the Pi.
-setupRTC () {
-
-    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-        # RTC Setup
-        # to get the RPi board version:
-        REV=$(cat /proc/cpuinfo|grep Revision)
-        # Extract revision
-        REV=${REV##*: }
-        # Make it readable as hex
-        REV=0x$REV
-        # Convert hex to dec
-        REV=$((REV))
-
-        if [ $REV -lt 4 ]; then
-            I2CBUS="i2c-0"
-        else
-            I2CBUS="i2c-1"
-        fi
-    elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-        I2CBUS="i2c-2"
-    else
-        return
-    fi
-
-	# Read Clock Setting From Settings File
-	piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
-
-	case "$piRTC" in
-	1)
-	  # rasClock chip
-      echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
-      echo "pcf2127 0x51" > /sys/bus/i2c/devices/${I2CBUS}/new_device
-      sleep 1
-	  ;;
-	2)
-	  # DS1307 chip
-      echo "FPP - Configuring RTC, Setting to DS1307/${I2CBUS}"
-      echo "ds1307 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
-      sleep 1
-	  ;;
-	3)
-	  # PiFace Chip
-      echo "FPP - Configuring RTC, Settting to mcp7941x/${I2CBUS}"
-	  echo "mcp7941x 0x6f" > /sys/bus/i2c/devices/${I2CBUS}/new_device
-      sleep 1
-	  ;;
-	4)
-	  # AdaFruit
-      echo "FPP - Configuring RTC, Settting to pcf8523/${I2CBUS}"
-	  echo "pcf8523 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
-      sleep 1
-	  ;;
-	*)
-	  # None
-      echo "FPP - Configuring RTC, None Selected"
-	  ;;
-	esac
-}
-
-#############################################################################
 # Configure BBB Leds
 configureBBBLeds() {
     BBBLedPWR=$(getSetting BBBLedPWR)
@@ -670,63 +635,6 @@ configureBBBLeds() {
     if [ "x$BBBLeds3" != "x" ]; then
         echo "$BBBLeds3" > /sys/class/leds/beaglebone\:green\:usr3/trigger
     fi
-}
-
-
-
-#############################################################################
-# Functions to remount root read-write if read-only and switch back if necessary
-remountRootReadWrite() {
-	if [ "x${MOUNTSTATE}" = "x" ]
-	then
-		export MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
-	fi
-
-	if [ "x${MOUNTSTATE}" = "xro" ]
-	then
-		echo "Remounting root filesystem Read-Write"
-		sudo mount -o remount,rw /
-	fi
-}
-
-remountRootReadOnlyIfNeeded() {
-	if [ "x${MOUNTSTATE}" = "xro" ]
-	then
-		echo "Remounting root filesystem Read-Only"
-		sudo mount -o remount,ro /
-	fi
-}
-
-#############################################################################
-# Some fixups related to running the v1.x SD image read-only.  These are pure
-# hacks for now until we get a new SD image that is designed to be read-only
-# from the start.
-applyReadOnlySDFixups() {
-	if [ "x${MOUNTSTATE}" = "x" ]
-	then
-		export MOUNTSTATE=$(mount | grep "on / type" | cut -f2 -d\( | cut -f1 -d,)
-	fi
-
-	SDVER=$(cat /etc/fpp/rfs_version | cut -f1 -d\.)
-
-	if [ "x${SDVER}" = "xv1" -a "x${MOUNTSTATE}" = "xro" ]
-	then
-		echo "FPP: Root is mounted read-only on a v1.x SD image, applying read-only fixups."
-
-		# Samba's smbd won't start if it can't write to /var/lib/samba
-		cp -rp /var/lib/samba /tmp/
-		mkdir /var/log/samba
-		mount -o bind /tmp/samba /var/lib/samba
-		/etc/init.d/samba restart
-
-		remountRootReadWrite
-
-		# Our startup script can't copy php.ini into place if root is read-only
-		cp /opt/fpp/etc/php.ini /etc/
-		/etc/init.d/apache2 restart
-
-		remountRootReadOnlyIfNeeded
-	fi
 }
 
 #############################################################################

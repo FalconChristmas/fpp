@@ -22,10 +22,6 @@ echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
 checkAudioConfig
 
-
-applyReadOnlySDFixups
-
-
 grep -q "/home/fpp/media" /etc/fstab
 if [ $? -eq 1 ]
 then
