@@ -134,13 +134,40 @@ function SequenceChanged()
 	if ($('#autoSelectMatches').is(':checked') == false)
 		return;
 
-	var value = $('#selSequence').val().replace(/\.fseq/i, "");
-
-	var media = document.getElementById("selMedia")
+    var val = $('#selSequence').val();
+    
+    var value = val.replace(/\.fseq/i, "");
+    var media = document.getElementById("selMedia")
 	for (var i = 0; i < media.length; i++) {
 		if (media.options[i].value.replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "") == value)
 			$('#selMedia').val(media.options[i].value);
 	}
+
+    
+    $.ajax({
+           dataType: "json",
+           url: "api/sequence/" + val + "/meta",
+           async: false,
+           success: function(data) {
+                var media = document.getElementById("selMedia")
+                var mfHeader = data["variableHeaders"]["mf"];
+                if (mfHeader != null) {
+                    var idx = mfHeader.lastIndexOf("/");
+                    if (idx >= 0) {
+                        mfHeader = mfHeader.substring(idx + 1);
+                    }
+                    idx = mfHeader.lastIndexOf("\\");
+                    if (idx >= 0) {
+                        mfHeader = mfHeader.substring(idx + 1);
+                    }
+                    for (var i = 0; i < media.length; i++) {
+                        if (media.options[i].value == mfHeader) {
+                             $('#selMedia').val(media.options[i].value);
+                        }
+                    }
+                }
+           }
+        });
 }
 
 function DynamicSubTypeChanged()
@@ -233,10 +260,8 @@ function PrintSequenceOptions()
 {
 	global $sequenceDirectory;
 	echo "<select id=\"selSequence\" size=\"1\" onChange='SequenceChanged();'>";
-	foreach(scandir($sequenceDirectory) as $seqFile) 
-	{
-		if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)  && !preg_match('/^\./', $seqFile))
-		{
+	foreach(scandir($sequenceDirectory) as $seqFile)  {
+		if($seqFile != '.' && $seqFile != '..' && !preg_match('/.eseq$/', $seqFile)  && !preg_match('/^\./', $seqFile)) {
 			echo "<option value=\"" . $seqFile . "\">" . $seqFile . "</option>";
 		}
 	}
@@ -400,10 +425,10 @@ if ($allowDelete)
           </select>
           <span id='autoSelectWrapper' class='playlistOptions'><input type='checkbox' id='autoSelectMatches' checked> Auto-Select Matching Media/Sequence</span>
 				</td></tr>
-        <tr id="musicOptions" class='playlistOptions'><td>Media:</td>
-            <td><?php PrintMediaOptions();?></td></tr>
         <tr id="sequenceOptions" class='playlistOptions'><td>Sequence:</td>
             <td><?php PrintSequenceOptions();?></td></tr>
+        <tr id="musicOptions" class='playlistOptions'><td>Media:</td>
+            <td><?php PrintMediaOptions();?></td></tr>
         <tr id="scriptOptions" style="display:none;" class='playlistOptions'><td>Script:</td>
             <td><?php PrintScriptOptions('selScript');?></td></tr>
         <tr id="eventOptions" style="display:none;" class='playlistOptions'><td>Event:</td>

@@ -137,6 +137,31 @@ int main(int argc, char *argv[]) {
                    src->getMaxChannel(),
                    src->getChannelCount()
                    );
+            if (!src->getVariableHeaders().empty()) {
+                printf(", \"variableHeaders\": {");
+                bool first = true;
+                for (auto &head : src->getVariableHeaders()) {
+                    if (head.code[0] > 32 && head.code[0] <= 127
+                        && head.code[1] > 32 && head.code[1] <= 127) {
+                        
+                        bool allAscii = true;
+                        for (auto b : head.data) {
+                            if (b && (b < 32 || b > 127)) {
+                                allAscii = false;
+                            }
+                        }
+                        if (allAscii) {
+                            if (!first) {
+                                printf(", ");
+                            } else {
+                                first = false;
+                            }
+                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], &head.data[0]);
+                        }
+                    }
+                }
+                printf("}");
+            }
             if (src->getVersionMajor() >= 2) {
                 V2FSEQFile *f = (V2FSEQFile*)src;
                 if (!f->m_sparseRanges.empty()) {
