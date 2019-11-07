@@ -95,6 +95,7 @@ public:
     Json::Value getDescriptions();
     
     virtual std::unique_ptr<Command::Result> run(const std::string &command, const std::vector<std::string> &args);
+    virtual std::unique_ptr<Command::Result> runRemoteCommand(const std::string &remote, const std::string &command, const std::vector<std::string> &args);
 
     virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
 

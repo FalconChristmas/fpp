@@ -2235,7 +2235,9 @@ if (1) {
             }
             sensorText += "</table>";
             var sensorData = document.getElementById("sensorData");
-            sensorData.innerHTML = sensorText;
+            if (typeof sensorData != "undefined" && sensorData != null) {
+                sensorData.innerHTML = sensorText;
+            }
         }
 
 		firstStatusLoad = 0;
@@ -3128,7 +3130,7 @@ function CommandSelectChanged(commandSelect, tblCommand)
                      if (typeof val['default'] != "undefined") {
                         dv = val['default'];
                      }
-                     
+                     var contentListPostfix = "";
                      if (val['type'] == "string") {
                         if (typeof val['contents'] !== "undefined") {
                             line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
@@ -3150,6 +3152,15 @@ function CommandSelectChanged(commandSelect, tblCommand)
                             }
                             line += "</select>";
                         }
+                     } else if (val['type'] == "datalist") {
+                        line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
+                        line += "<datalist id='" + ID + "_list'>";
+                        $.each( val['contents'], function( key, v ) {
+                               line += "<option value='" + v + "'";
+                               line += ">" + v + "</option>";
+                        })
+                        line += "</datalist>";
+                        contentListPostfix = "_list";
                      } else if (val['type'] == "bool") {
                         line += "<input type='checkbox' class='arg_" + val['name'] + "' id='" + ID  + "' value='true'";
                          if (dv == "true" || dv == "1") {
@@ -3170,20 +3181,31 @@ function CommandSelectChanged(commandSelect, tblCommand)
                      line += "</td></tr>";
                      $('#' + tblCommand + ' tr:last').after(line);
                      if (typeof val['contentListUrl'] != "undefined") {
-                        var selId = "#" + tblCommand + "_arg_" + count;
+                        var selId = "#" + tblCommand + "_arg_" + count + contentListPostfix;
                         $.ajax({
                                dataType: "json",
                                url: val['contentListUrl'],
                                async: false,
                                success: function(data) {
-                                   $.each( data, function( key, v ) {
+                                   if (Array.isArray(data)) {
+                                        $.each( data, function( key, v ) {
                                           var line = "<option value='" + v + "'"
                                           if (v == dv) {
                                                line += " selected";
                                           }
                                           line += ">" + v + "</option>";
                                           $(selId).append(line);
-                                   })
+                                       })
+                                   } else {
+                                        $.each( data, function( key, v ) {
+                                          var line = "<option value='" + key + "'"
+                                          if (key == dv) {
+                                               line += " selected";
+                                          }
+                                          line += ">" + v + "</option>";
+                                          $(selId).append(line);
+                                       })
+                                   }
                                }
                                });
                      }

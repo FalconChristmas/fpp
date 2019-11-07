@@ -54,6 +54,8 @@ dispatch_get   ('/proxies', 'GetProxies');
 dispatch_post  ('/proxies/:ProxyIp', 'AddProxy');
 dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
 
+dispatch_get   ('/remotes', 'GetRemotes');
+
 
 run();
 ?>

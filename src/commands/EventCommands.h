@@ -26,6 +26,16 @@ public:
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
+class TriggerRemoteEventCommand : public Command {
+public:
+    TriggerRemoteEventCommand() : Command("Remote Trigger Event") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("major", "int", "Event Major").setRange(1, 25));
+        args.push_back(CommandArg("minor", "int", "Event Minor").setRange(1, 25));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
 
 class TriggerMultipleEventsCommand : public Command {
 public:
@@ -43,6 +53,17 @@ class RunScriptEvent : public Command {
 public:
     RunScriptEvent() : Command("Run Script") {
         args.push_back(CommandArg("script", "string", "Script Name").setContentListUrl("api/scripts"));
+        args.push_back(CommandArg("args", "string", "Script Arguments"));
+        args.push_back(CommandArg("env", "string", "Environment Variables"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class RunRemoteScriptEvent : public Command {
+public:
+    RunRemoteScriptEvent() : Command("Remote Run Script") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("script", "string", "Script Name"));
         args.push_back(CommandArg("args", "string", "Script Arguments"));
         args.push_back(CommandArg("env", "string", "Environment Variables"));
     }
@@ -75,6 +96,29 @@ class StopEffectCommand : public Command {
 public:
     StopEffectCommand() : Command("Effect Stop") {
         args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects/ALL"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+
+
+class StartRemoteEffectCommand : public Command {
+public:
+    StartRemoteEffectCommand() : Command("Remote Effect Start") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("effect", "string", "Effect Name"));
+        args.push_back(CommandArg("startChannel", "int", "Start Channel"));
+        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+        args.push_back(CommandArg("bg", "bool", "Background"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class StopRemoteEffectCommand : public Command {
+public:
+    StopRemoteEffectCommand() : Command("Remote Effect Stop") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("effect", "string", "Effect Name"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

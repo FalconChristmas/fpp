@@ -34,7 +34,7 @@ function WriteProxyFile($proxies) {
 // GET /api/proxies
 function GetProxies() {
     $proxies = LoadProxyList();
-    return json_encode($proxies, true);
+    return json($proxies, true);
 }
 
 
@@ -45,7 +45,7 @@ function AddProxy() {
         $proxies[] = $pip;
     }
     WriteProxyFile($proxies);
-    return json_encode($proxies);
+    return json($proxies);
 }
 
 
@@ -54,7 +54,29 @@ function DeleteProxy() {
     $proxies = LoadProxyList();
     $proxies = array_diff($proxies, array($pip));
     WriteProxyFile($proxies);
-    return json_encode($proxies);
+    return json($proxies);
+}
+
+
+
+function GetRemotes() {
+    $curl = curl_init('http://localhost:32322/fppd/multiSyncSystems');
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    
+    $remotes = array();
+    $j = json_decode($request_content, true);
+    foreach( $j["systems"] as $host ) {
+        if ($host["address"] != $host["hostname"]) {
+            $remotes[$host["address"]] = $host["address"] . " - " . $host["hostname"];
+        } else {
+            $remotes[$host["address"]] = $host["address"];
+        }
+    }
+    return json($remotes);
 }
 
 ?>

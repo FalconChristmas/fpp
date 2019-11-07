@@ -34,9 +34,16 @@ function event_get()
         if ($d = opendir($dir)) {
             while (($file = readdir($d)) !== false) {
                 if (preg_match('/\.fevt$/', $file)) {                    
+                    $e = file_get_contents($dir . "/" . $file);
                     $file = preg_replace('/\.fevt$/', '', $file);
-                    
-                    $events[] = $file;
+                    $j = json_decode($e, true);
+                    $name = $j["name"];
+                    if ($name != "") {
+                        $eventText = preg_replace("/_/", " / ", $file) . " - " . $name;
+                        $events[$file] = $eventText;
+                    } else{
+                        $events[$file] = $file;
+                    }
                 }
             }
             closedir($d);

@@ -327,23 +327,12 @@ function PrintEventOptions()
 {
 	global $eventDirectory;
 	echo "<select id=\"selEvent\" size=\"1\">";
-	foreach(scandir($eventDirectory) as $eventFile)
-	{
-		if(preg_match('/\.fevt$/', $eventFile))
-		{
-			$f = fopen($eventDirectory . "/" . $eventFile, "r");
-			if ($f == FALSE)
-				die();
+	foreach(scandir($eventDirectory) as $eventFile) {
+		if(preg_match('/\.fevt$/', $eventFile)) {
+            $e = file_get_contents($eventDirectory . "/" . $eventFile);
+            $j = json_decode($e, true);
 
-			$eventName = "";
-			while (!feof($f))
-			{
-				$line = fgets($f);
-				$entry = explode("=", $line, 2);
-				if ($entry[0] == "name")
-					$eventName = $entry[1];
-			}
-			fclose($f);
+			$eventName = $j["name"];
 
 			$eventFile = preg_replace("/.fevt$/", "", $eventFile);
 			$eventText = preg_replace("/_/", " / ", $eventFile);

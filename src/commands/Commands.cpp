@@ -90,6 +90,12 @@ void CommandManager::Init() {
     addCommand(new DecreaseVolumeCommand());
     addCommand(new URLCommand());
     
+    addCommand(new TriggerRemoteEventCommand());
+    addCommand(new StartRemoteEffectCommand());
+    addCommand(new StopRemoteEffectCommand());
+    addCommand(new RunRemoteScriptEvent());
+
+    
     std::vector<std::string> pins = PinCapabilities::getPinNames();
     if (!pins.empty()) {
         addCommand(new GPIOCommand(pins));
@@ -124,6 +130,18 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
     }
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
+}
+std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string &remote, const std::string &command, const std::vector<std::string> &args) {
+    std::string url = "http://" + remote + "/api/command/" + command;
+    for (auto &a : args) {
+        url += "/";
+        url += a;
+    }
+    std::vector<std::string> uargs;
+    uargs.push_back(url);
+    uargs.push_back("GET");
+    uargs.push_back("");
+    return run("URL", uargs);
 }
 
 

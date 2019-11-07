@@ -15,6 +15,17 @@ std::unique_ptr<Command::Result> TriggerEventCommand::run(const std::vector<std:
     TriggerEvent(maj, min);
     return std::make_unique<Command::Result>("Event Triggered");
 }
+std::unique_ptr<Command::Result> TriggerRemoteEventCommand::run(const std::vector<std::string> &args) {
+    if (args.size() != 3) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Event", newargs);
+}
+
 std::unique_ptr<Command::Result> TriggerMultipleEventsCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
@@ -96,5 +107,36 @@ std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::s
 
     StopEffect(args[0]);
     return std::make_unique<Command::Result>("Effect Stopped");
+}
+
+std::unique_ptr<Command::Result> StartRemoteEffectCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Effect Start", newargs);
+}
+std::unique_ptr<Command::Result> StopRemoteEffectCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Effect Stop", newargs);
+}
+std::unique_ptr<Command::Result> RunRemoteScriptEvent::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Run Script", newargs);
 }
 
