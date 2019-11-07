@@ -241,6 +241,15 @@ MaybeEnableTethering() {
         # no wifi adapter, try wlan0
         TetherInterface="wlan0";
     fi
+    if [ "$TetherEnabled" == "1" ]; then
+        for i in {1..10}
+        do
+            if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
+                echo "${TetherInterface} is not available, waiting..."
+                sleep 1
+            fi
+        done
+    fi
     if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
         # no wifi adapter, no point enabling tethering
         TetherEnabled=2
@@ -277,9 +286,9 @@ wpa_passphrase=${TetherPSK}
 ssid=${TetherSSID}
 hw_mode=g
 channel=11
-wmm_enabled=0
+wmm_enabled=1
 macaddr_acl=0
-auth_algs=1
+auth_algs=3
 wpa=2
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
