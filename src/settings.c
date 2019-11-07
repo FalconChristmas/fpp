@@ -57,7 +57,6 @@ SettingsConfig::~SettingsConfig() {
     if (scriptDirectory) free(scriptDirectory);
     if (pluginDirectory) free(pluginDirectory);
     if (playlistDirectory) free(playlistDirectory);
-    if (universeFile) free(universeFile);
     if (pixelnetFile) free(pixelnetFile);
     if (scheduleFile) free(scheduleFile);
     if (logFile) free(logFile);
@@ -133,8 +132,6 @@ void initSettings(int argc, char **argv)
 	settings.scriptDirectory = strdup(strcat(tmpDir, "/scripts"));
 	strcpy(tmpDir, mediaDir);
 	settings.pluginDirectory = strdup(strcat(tmpDir, "/plugins"));
-	strcpy(tmpDir, mediaDir);
-	settings.universeFile = strdup(strcat(tmpDir, "/universes"));
 	strcpy(tmpDir, mediaDir);
 	settings.pixelnetFile = strdup(strcat(tmpDir, "/config/Falcon.FPDV1"));
 	strcpy(tmpDir, mediaDir);
@@ -336,16 +333,6 @@ int parseSetting(char *key, char *value)
 		}
 		else
 			fprintf(stderr, "Failed to apply playlistDirectory\n");
-	}
-	else if ( strcmp(key, "universeFile") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.universeFile);
-			settings.universeFile = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply universeFile\n");
 	}
 	else if ( strcmp(key, "pixelnetFile") == 0 )
 	{
@@ -623,10 +610,6 @@ char *getPlaylistDirectory(void)
 {
 	return settings.playlistDirectory;
 }
-char *getUniverseFile(void)
-{
-	return settings.universeFile;
-}
 char *getPixelnetFile(void)
 {
 	return settings.pixelnetFile;
@@ -715,8 +698,6 @@ int saveSettingsFile(void)
 	snprintf(buffer, 1024, "%s = %s\n", "pluginDirectory", getPluginDirectory());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "playlistDirectory", getPlaylistDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "universeFile", getUniverseFile());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "pixelnetFile", getPixelnetFile());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
@@ -824,21 +805,6 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 			LogErr(VB_SETTING, "Error: Unable to create playlist directory.\n");
 			exit(EXIT_FAILURE);
 		}
-	}
-
-	if(!FileExists(getUniverseFile()))
-	{
-		LogWarn(VB_SETTING, "Universe file does not exist, creating it.\n");
-
-		char *cmd, *file = getUniverseFile();
-		cmd = (char *)malloc(strlen(file)+7);
-		snprintf(cmd, strlen(file)+7, "touch %s", file);
-		if ( system(cmd) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create universe file.\n");
-			exit(EXIT_FAILURE);
-		}
-		free(cmd);
 	}
 
 	if(!FileExists(getScheduleFile()))

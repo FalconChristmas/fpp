@@ -229,7 +229,6 @@ printf("Usage: %s [OPTION...]\n"
 "  -M, --music-directory DIR     - Set the music directory\n"
 "  -S, --sequence-directory DIR  - Set the sequence directory\n"
 "  -P, --playlist-directory DIR  - Set the playlist directory\n"
-"  -u, --universe-file FILENAME  - Set the universe file\n"
 "  -p, --pixelnet-file FILENAME  - Set the pixelnet file\n"
 "  -s, --schedule-file FILENAME  - Set the schedule-file\n"
 "  -l, --log-file FILENAME       - Set the log file\n"
@@ -290,7 +289,6 @@ int parseArguments(int argc, char **argv)
 			{"playlist-directory",	required_argument,	0, 'P'},
 			{"event-directory",		required_argument,	0, 'E'},
 			{"video-directory",		required_argument,	0, 'F'},
-			{"universe-file",		required_argument,	0, 'u'},
 			{"pixelnet-file",		required_argument,	0, 'p'},
 			{"schedule-file",		required_argument,	0, 's'},
 			{"log-file",			required_argument,	0, 'l'},
@@ -401,10 +399,6 @@ int parseArguments(int argc, char **argv)
 			case 'P': //playlist-directory
 				free(settings.playlistDirectory);
 				settings.playlistDirectory = strdup(optarg);
-				break;
-			case 'u': //universe-file
-				free(settings.universeFile);
-				settings.universeFile = strdup(optarg);
 				break;
 			case 'p': //pixelnet-file
 				free(settings.pixelnetFile);

@@ -59,7 +59,6 @@ public:
     char    *scriptDirectory = nullptr;
     char    *pluginDirectory = nullptr;
     char    *playlistDirectory = nullptr;
-    char    *universeFile = nullptr;
     char    *pixelnetFile = nullptr;
     char    *scheduleFile = nullptr;
     char    *logFile = nullptr;
