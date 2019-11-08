@@ -28,7 +28,6 @@ public:
     Command(const std::string &n) : name(n) {}
     virtual ~Command() {}
     
-    virtual bool canRunFromPlaylist() { return true; }
     virtual Json::Value getDescription();
     
     
@@ -66,6 +65,7 @@ public:
         CommandArg &setContentListUrl(const std::string &s, bool ab = false) { contentListUrl = s; allowBlanks = ab; return *this;}
         CommandArg &setContentList(const std::vector<std::string> &v) { contentList = v; return *this;}
         CommandArg &setDefaultValue(const std::string &d) { defaultValue = d; return *this;}
+        CommandArg &setGetAdjustableValueURL(const std::string &g) { adjustableGetValueURL = g; return *this;}
 
         const std::string name;
         const std::string type;
@@ -78,6 +78,7 @@ public:
         int min;
         int max;
         std::string defaultValue;
+        std::string adjustableGetValueURL;
     };
     
     std::string name;

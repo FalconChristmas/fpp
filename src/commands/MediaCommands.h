@@ -20,7 +20,8 @@
 class SetVolumeCommand : public Command {
 public:
     SetVolumeCommand() : Command("Volume Set") {
-        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("70"));
+        args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("70")
+                       .setGetAdjustableValueURL("api/fppd/volume?simple=true"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };

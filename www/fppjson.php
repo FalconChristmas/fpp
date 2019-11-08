@@ -53,6 +53,8 @@ $command_array = Array(
 	"convertPlaylists"    => 'ConvertPlaylistsToJSON',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
+    "getPluginJSON"       => 'GetPluginJSON',
+    "setPluginJSON"       => 'SetPluginJSON',
 	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode',
@@ -1512,6 +1514,35 @@ function SetPluginSetting()
 	GetPluginSetting();
 }
 
+    
+function GetPluginJSON()
+{
+	global $args;
+    global $settings;
+
+	$plugin  = $args['plugin'];
+    
+    $cfgFile = $settings['configDirectory'] . "/plugin." . $plugin . ".json";
+    if (file_exists($cfgFile)) {
+        $js = file_get_contents($cfgFile);
+        returnJSON($js);
+    }
+	$result = Array();
+	returnJSON($result);
+}
+
+function SetPluginJSON()
+{
+	global $args;
+    global $settings;
+	$plugin  = $args['plugin'];
+    
+    $cfgFile = $settings['configDirectory'] . "/plugin." . $plugin . ".json";
+    $js = json_decode(file_get_contents("php://input"), true);
+    file_put_contents($cfgFile, json_encode($js, JSON_PRETTY_PRINT));
+
+    return GetPluginJSON();
+}
 /////////////////////////////////////////////////////////////////////////////
 
 function GetFPPSystems()

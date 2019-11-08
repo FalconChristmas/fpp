@@ -196,6 +196,14 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	}
 	else if (url == "volume")
 	{
+        if (req.get_arg("set") != "") {
+            int i = std::atoi(req.get_arg("set").c_str());
+            setVolume(i);
+        }
+        if (req.get_arg("simple") == "true") {
+            std::string v = std::to_string(getVolume());
+            return http_response_builder(v, 200, "text/plain");
+        }
 		result["volume"] = getVolume();
 		SetOKResult(result, "");
 	}
@@ -231,7 +239,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	std::string resultStr = fastWriter.write(result);
 	LogResponse(req, responseCode, resultStr);
 
-	return http_response_builder(resultStr, responseCode, "application/json");;
+	return http_response_builder(resultStr, responseCode, "application/json");
 }
 
 /*

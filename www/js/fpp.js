@@ -3094,6 +3094,24 @@ function CommandToJSON(commandSelect, tblCommand, json) {
             } else {
                 args.push("false");
             }
+        } else if (inp.attr('type') == 'number') {
+            args.push(val);
+            var adj =  $("#" + tblCommand + "_arg_" + x + "_adjustable");
+            if (adj.attr('type') == "checkbox") {
+                if (adj.is(":checked")) {
+                    if (typeof json['adjustable'] == "undefined") {
+                        json['adjustable'] = {};
+                    }
+                    json['adjustable'][x] = true;
+                } else {
+                    if (typeof json['adjustable'] != "undefined") {
+                        delete json['adjustable'][x];
+                        if (jQuery.isEmptyObject(json['adjustable'])) {
+                            delete json['adjustable'];
+                        }
+                    }
+                }
+            }
         } else if (typeof val != "undefined") {
             args.push(val);
         }
@@ -3102,29 +3120,37 @@ function CommandToJSON(commandSelect, tblCommand, json) {
     return json;
 }
 
-function LoadCommandList(control) {
-    $.getJSON("api/commands", function(data) {
-          $.each( data, function(key, val) {
-                 option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-                 $('#' + control).append(option);
-        });
-    });
+function LoadCommandList(commandSelect) {
+   $.ajax({
+           dataType: "json",
+           url: "api/commands",
+           async: false,
+           success: function(data) {
+                $.each( data, function(key, val) {
+                       option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
+                       $('#' + commandSelect).append(option);
+                });
+          }});
 }
 
-function CommandSelectChanged(commandSelect, tblCommand)
+function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false)
 {
     for (var x = 1; x < 20; x++) {
-        $('#commandArg' + x).remove();
+        $('#' + tblCommand + '_arg_' + x + '_row').remove();
     }
     var command = $('#' + commandSelect).val();
     if (typeof command == "undefined"  ||  command == null) {
         return;
     }
-    $.getJSON("api/commands/" + command, function(data) {
+    $.ajax({
+          dataType: "json",
+          async: false,
+          url: "api/commands/" + command,
+          success: function(data) {
               var count = 1;
               $.each( data['args'], function( key, val ) {
-                     var line = "<tr id='commandArg" + count + "'><td>" + val["description"] + ":</td><td>";
                      var ID = tblCommand + "_arg_" + count;
+                     var line = "<tr id='" + ID + "_row'><td>" + val["description"] + ":</td><td>";
                      
                      var dv = "";
                      if (typeof val['default'] != "undefined") {
@@ -3177,7 +3203,11 @@ function CommandSelectChanged(commandSelect, tblCommand)
                              line += " value='" + val['min'] + "'";
                          }
                          line += "></input>";
+                         if (configAdjustable && val['adjustableGetValueURL'] != "") {
+                            line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
+                         }
                      }
+                     
                      line += "</td></tr>";
                      $('#' + tblCommand + ' tr:last').after(line);
                      if (typeof val['contentListUrl'] != "undefined") {
@@ -3214,5 +3244,36 @@ function CommandSelectChanged(commandSelect, tblCommand)
               });
             
         }
-    );
+    });
+}
+
+function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustable = false) {
+    if (typeof json != "undefined") {
+        $('#' + commandSelect).val(json["command"]);
+        CommandSelectChanged(commandSelect, tblCommand, configAdjustable);
+    
+        if (typeof json['args'] != "undefined") {
+            var count = 1;
+            $.each( json['args'], function( key, v ) {
+                   var inp =  $("#" + tblCommand + "_arg_" + count);
+                   if (inp.attr('type') == 'checkbox') {
+                       var checked = false;
+                       if (v == "true" || v == "1") {
+                           checked = true;
+                       }
+                       inp.prop( "checked", checked);
+                   } else {
+                       inp.val(v);
+                   }
+                   
+                   if (typeof json['adjustable'] != "undefined"
+                       && typeof json['adjustable'][count] != "undefined") {
+                       if (json['adjustable'][count]) {
+                           $("#" + tblCommand + "_arg_" + count + "_adjustable").prop("checked", true);
+                       }
+                   }
+                   count = count + 1;
+            });
+        }
+    }
 }
