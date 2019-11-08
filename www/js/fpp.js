@@ -1739,12 +1739,12 @@ function RemovePlaylistEntry()	{
 										'changeMonth': true,
 										'changeYear': true,
 										'dateFormat': 'yy-mm-dd',
-										'minDate': new Date(2014, 1 - 1, 1),
+										'minDate': new Date(2019, 1 - 1, 1),
 										'maxDate': new Date(2099, 12 - 1, 31),
 										'showButtonPanel': true,
 										'selectOtherMonths': true,
 										'showOtherMonths': true,
-										'yearRange': "2014:2099"
+										'yearRange': "2019:2099"
 										});
 
 							}
