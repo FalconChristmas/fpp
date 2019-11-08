@@ -3,6 +3,8 @@ ifeq '$(ARCH)' 'Linux'
 ISLINUX=1
 else ifeq '$(ARCH)' 'Debian'
 ISLINUX=1
+else ifeq '$(ARCH)' 'Ubuntu'
+ISLINUX=1
 else ifeq '$(ARCH)' 'Pine64'
 ISLINUX=1
 else ifeq '$(ARCH)' 'CHIP'
@@ -25,5 +27,7 @@ CFLAGS += -DPLATFORM_UNKNOWN
 endif
 
 LDFLAGS_fppd += -L.
+
+LDFLAGS_fppd += $(shell log4cpp-config --libs)
 
 endif

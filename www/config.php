@@ -223,6 +223,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
     }
 	$settings['Logo'] = "debian_logo.png";
 	$settings['LogoLink'] = "https://www.debian.org/";
+} else if ($settings['Platform'] == "Ubuntu") {
+	$settings['Logo'] = "ubuntu_logo.png";
+	$settings['LogoLink'] = "https://ubuntu.com/";
 } else if ($settings['Platform'] == "Linux") {
 	$settings['Logo'] = "tux_logo.png";
 	$settings['LogoLink'] = "http://www.linux.com/";
