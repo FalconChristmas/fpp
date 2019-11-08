@@ -53,7 +53,7 @@ class RunScriptEvent : public Command {
 public:
     RunScriptEvent() : Command("Run Script") {
         args.push_back(CommandArg("script", "string", "Script Name").setContentListUrl("api/scripts"));
-        args.push_back(CommandArg("args", "string", "Script Arguments"));
+        args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
         args.push_back(CommandArg("env", "string", "Environment Variables"));
     }
     
@@ -64,7 +64,7 @@ public:
     RunRemoteScriptEvent() : Command("Remote Run Script") {
         args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
         args.push_back(CommandArg("script", "string", "Script Name"));
-        args.push_back(CommandArg("args", "string", "Script Arguments"));
+        args.push_back(CommandArg("args", "string", "Script Arguments").setAdjustable());
         args.push_back(CommandArg("env", "string", "Environment Variables"));
     }
     
