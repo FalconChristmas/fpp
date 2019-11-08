@@ -1169,7 +1169,7 @@ class EnableOverlayCommand : public OverlayCommand {
 public:
     EnableOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model State", m) {
         args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
-        args.push_back(CommandArg("State", "string", "State").setContentList({"Disabled", "Enabled", "Transparent", "Transparent RGB"}));
+        args.push_back(CommandArg("State", "string", "State").setContentList({"Disabled", "Enabled", "Transparent", "TransparentRGB"}));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
@@ -1181,6 +1181,25 @@ public:
         if (m) {
             m->setState(PixelOverlayState(args[1]));
             return std::make_unique<Command::Result>("Model State Set");
+        }
+        return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
+    }
+};
+class ClearOverlayCommand : public OverlayCommand {
+public:
+    ClearOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Clear", m) {
+        args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+        if (args.size() != 1) {
+            return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
+        }
+        std::unique_lock<std::mutex> lock(getLock());
+        auto m = manager->getModel(args[0]);
+        if (m) {
+            m->clear();
+            return std::make_unique<Command::Result>("Model Cleared");
         }
         return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
     }
@@ -1223,7 +1242,7 @@ public:
         args.push_back(CommandArg("FontAntiAlias", "bool", "Anti-Aliased").setDefaultValue("false"));
         args.push_back(CommandArg("Position", "string", "Position").setContentList({"Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom"}));
         args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
-        args.push_back(CommandArg("Text", "string", "Text"));
+        args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
     }
     
     const std::string mapPosition(const std::string &p) {
@@ -1287,4 +1306,5 @@ void PixelOverlayManager::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new EnableOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new FillOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new TextOverlayCommand(this));
+    CommandManager::INSTANCE.addCommand(new ClearOverlayCommand(this));
 }

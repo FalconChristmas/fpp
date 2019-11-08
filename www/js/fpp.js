@@ -3094,7 +3094,7 @@ function CommandToJSON(commandSelect, tblCommand, json) {
             } else {
                 args.push("false");
             }
-        } else if (inp.attr('type') == 'number') {
+        } else if (inp.attr('type') == 'number' || inp.attr('type') == 'text') {
             args.push(val);
             var adj =  $("#" + tblCommand + "_arg_" + x + "_adjustable");
             if (adj.attr('type') == "checkbox") {
@@ -3102,7 +3102,7 @@ function CommandToJSON(commandSelect, tblCommand, json) {
                     if (typeof json['adjustable'] == "undefined") {
                         json['adjustable'] = {};
                     }
-                    json['adjustable'][x] = true;
+                    json['adjustable'][x] = inp.attr('type');
                 } else {
                     if (typeof json['adjustable'] != "undefined") {
                         delete json['adjustable'][x];
@@ -3171,6 +3171,9 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
                         } else if (typeof val['contentListUrl'] == "undefined") {
                             line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'>";
                             line += "</input>";
+                            if (configAdjustable && val['adjustable']) {
+                                line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
+                            }
                         } else {
                             line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
                             if (val['allowBlanks']) {
@@ -3203,7 +3206,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
                              line += " value='" + val['min'] + "'";
                          }
                          line += "></input>";
-                         if (configAdjustable && val['adjustableGetValueURL'] != "") {
+                         if (configAdjustable && val['adjustableGetValueURL'] != "" && val['adjustableGetValueURL'] != null) {
                             line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
                          }
                      }
@@ -3268,9 +3271,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    
                    if (typeof json['adjustable'] != "undefined"
                        && typeof json['adjustable'][count] != "undefined") {
-                       if (json['adjustable'][count]) {
-                           $("#" + tblCommand + "_arg_" + count + "_adjustable").prop("checked", true);
-                       }
+                       $("#" + tblCommand + "_arg_" + count + "_adjustable").prop("checked", true);
                    }
                    count = count + 1;
             });

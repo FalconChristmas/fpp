@@ -36,8 +36,11 @@ Json::Value Command::getDescription() {
         if (ar.defaultValue != "") {
             a["default"] = ar.defaultValue;
         }
-        if (ar.adjustableGetValueURL != "") {
-            a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
+        if (ar.adjustable) {
+            a["adjustable"] = true;
+            if (ar.adjustableGetValueURL != "") {
+                a["adjustableGetValueURL"] = ar.adjustableGetValueURL;
+            }
         }
 
         cmd["args"].append(a);

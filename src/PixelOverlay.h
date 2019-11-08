@@ -55,7 +55,7 @@ public:
             state = PixelState::Enabled;
         } else if (v == "Transparent") {
             state = PixelState::Transparent;
-        } else if (v == "TransparentRGB") {
+        } else if (v == "TransparentRGB" || v == "Transparent RGB") {
             state = PixelState::TransparentRGB;
         } else {
             state = PixelState::Disabled;

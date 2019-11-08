@@ -58,14 +58,16 @@ public:
     class CommandArg {
     public:
         CommandArg(const std::string &n, const std::string &t, const std::string &d, bool o = false)
-            : name(n), type(t), description(d), optional(o), min(-1), max(-1), allowBlanks(false) {}
+            : name(n), type(t), description(d), optional(o), min(-1), max(-1), allowBlanks(false), adjustable(false) {}
 
         
         CommandArg &setRange(int mn, int mx) { min = mn; max = mx; return *this;}
         CommandArg &setContentListUrl(const std::string &s, bool ab = false) { contentListUrl = s; allowBlanks = ab; return *this;}
         CommandArg &setContentList(const std::vector<std::string> &v) { contentList = v; return *this;}
         CommandArg &setDefaultValue(const std::string &d) { defaultValue = d; return *this;}
-        CommandArg &setGetAdjustableValueURL(const std::string &g) { adjustableGetValueURL = g; return *this;}
+        CommandArg &setGetAdjustableValueURL(const std::string &g) { adjustableGetValueURL = g; adjustable = true; return *this;}
+        CommandArg &setAdjustable() { adjustable = true; return *this;}
+
 
         const std::string name;
         const std::string type;
@@ -79,6 +81,7 @@ public:
         int max;
         std::string defaultValue;
         std::string adjustableGetValueURL;
+        bool adjustable;
     };
     
     std::string name;
