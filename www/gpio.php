@@ -25,17 +25,15 @@ include 'common/menuHead.inc';
 		$value = "";
 
 		$key = 'GPIOInput' . sprintf('%03d', $gpio) . 'Event' . ( $rising ? "Rising" : "Falling" );
-		if (isset($settings[$key]))
-		{
+		if (isset($settings[$key])) {
 			$value = $settings[$key];
 		}
 
 		$eventOptions .= "<option value=''> -- No Event -- </option>";
-		foreach ($eventFiles as $eventFile)
-		{
-			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile))
-			{
-				$info = parse_ini_file($eventDirectory . "/" . $eventFile);
+		foreach ($eventFiles as $eventFile) {
+			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile)) {
+                $e = file_get_contents($eventDirectory . "/" . $eventFile);
+                $j = json_decode($e, true);
 
 				$eventFile = preg_replace('/.fevt$/', '', $eventFile);
 
@@ -43,8 +41,8 @@ include 'common/menuHead.inc';
 				if ($value == $eventFile)
 					$eventOptions .= " selected";
 				$eventOptions .= ">" .
-						$info['majorID'] . ' / ' . $info['minorID'] . " - " .
-						$info['name'] .
+						$j['majorId'] . ' / ' . $j['minorId'] . " - " .
+						$j['name'] .
 						"</option>";
 			}
 		}
