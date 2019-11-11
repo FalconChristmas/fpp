@@ -5,6 +5,7 @@
 
 #include "effects.h"
 #include "scripts.h"
+#include "Sequence.h"
 
 std::unique_ptr<Command::Result> TriggerEventCommand::run(const std::vector<std::string> &args) {
     if (args.size() != 2) {
@@ -138,5 +139,10 @@ std::unique_ptr<Command::Result> RunRemoteScriptEvent::run(const std::vector<std
         newargs.push_back(args[x]);
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Run Script", newargs);
+}
+
+std::unique_ptr<Command::Result> AllLightsOffCommand::run(const std::vector<std::string> &args) {
+    sequence->SendBlankingData();
+    return std::make_unique<Command::Result>("All Lights Off");
 }
 
