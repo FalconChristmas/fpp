@@ -51,6 +51,14 @@ FPPEvent::FPPEvent(uint8_t major, uint8_t minor) : minorID(1), majorID(1) {
 FPPEvent::FPPEvent(const std::string &id) {
     Load(id);
 }
+inline void insertAtStart(std::vector<std::string> &a, const std::string &s) {
+    if (a.empty()) {
+        a.push_back(s);
+    } else {
+        a.insert(a.begin(), s);
+    }
+}
+
 void FPPEvent::Load(const std::string &id) {
     std::string filename = getEventFileName(id);
     if (!FileExists(filename)) {
@@ -101,12 +109,12 @@ void FPPEvent::Load(const std::string &id) {
             } else if (elems[0] == "name") {
                 name = val;
             } else if (elems[0] == "effect" && val != "") {
-                effectArgs.insert(args.begin(), "false");
-                effectArgs.insert(args.begin(), val);
+                insertAtStart(effectArgs, "false");
+                insertAtStart(effectArgs, val);
             } else if (elems[0] == "startChannel" && val != "") {
                 effectArgs.push_back(val);
             } else if (elems[0] == "script") {
-                scriptArgs.insert(args.begin(), val);
+                insertAtStart(scriptArgs, val);
             } else if (elems[0] == "scriptArgs") {
                 scriptArgs.push_back(val);
             }
