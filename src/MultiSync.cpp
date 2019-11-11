@@ -299,8 +299,9 @@ bool MultiSync::FillLocalSystemInfo(void)
         m_hostname = getSetting("HostName");
     }
 
-	if (m_hostname == "")
+    if (m_hostname == "") {
 		m_hostname = "FPP";
+    }
 
 	newSystem.lastSeen     = (unsigned long)time(NULL);
 	newSystem.type         = type;
@@ -315,6 +316,10 @@ bool MultiSync::FillLocalSystemInfo(void)
     newSystem.ipc          = 0;
     newSystem.ipd          = 0;
     
+    LogDebug(VB_SYNC, "Host name: \n", newSystem.hostname.c_str());
+    LogDebug(VB_SYNC, "Version: \n", newSystem.version.c_str());
+    LogDebug(VB_SYNC, "Model: \n", newSystem.model.c_str());
+    
     bool changed = false;
     std::unique_lock<std::mutex> lock(m_systemsLock);
     
@@ -326,6 +331,7 @@ bool MultiSync::FillLocalSystemInfo(void)
             }
         }
         if (!found) {
+            LogDebug(VB_SYNC, "Adding Local System Address: \n", address.c_str());
             changed = true;
             newSystem.address = address;
             std::vector<std::string> parts = split(newSystem.address, '.');
@@ -333,7 +339,11 @@ bool MultiSync::FillLocalSystemInfo(void)
             newSystem.ipb = atoi(parts[1].c_str());
             newSystem.ipc = atoi(parts[2].c_str());
             newSystem.ipd = atoi(parts[3].c_str());
-            m_systems.insert(m_systems.begin() + m_numLocalSystems, newSystem);
+            if (m_numLocalSystems >= m_systems.size()) {
+                m_systems.push_back(newSystem);
+            } else {
+                m_systems.insert(m_systems.begin() + m_numLocalSystems, newSystem);
+            }
             m_numLocalSystems++;
         }
     }
