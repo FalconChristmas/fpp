@@ -123,4 +123,14 @@ public:
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
+
+
+class AllLightsOffCommand : public Command {
+public:
+    AllLightsOffCommand() : Command("All Lights Off") {
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+
 #endif
