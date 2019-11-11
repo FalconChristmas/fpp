@@ -57,6 +57,7 @@ extern "C"
 #include "Sequence.h"
 #include "settings.h"
 #include "PixelOverlay.h"
+#include "Warnings.h"
 #include "channeloutput/channeloutputthread.h"
 
 //Only keep 30 frames in buffer
@@ -574,6 +575,7 @@ void SDL::runDecode() {
 }
 
 static bool noDeviceWarning = false;
+static std::string noDeviceError;
 bool SDL::openAudio() {
     if (_state == SDLSTATE::SDLINITIALISED) {
         int tp = getSettingInt("AudioFormat");
@@ -638,7 +640,9 @@ bool SDL::openAudio() {
         SDL_AudioSpec have;
         audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_FORMAT_CHANGE);
         if (audioDev == 0 && !noDeviceWarning) {
-            LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
+            noDeviceError = "Could not open audio device - ";
+            noDeviceError += SDL_GetError();
+            LogErr(VB_MEDIAOUT, "%s\n", noDeviceError.c_str());
             noDeviceWarning = true;
         } else {
             LogDebug(VB_MEDIAOUT, "Opened Audio Device -  Rates:  %d -> %d     AudioFormat:  %X -> %X \n", _wanted_spec.freq, have.freq, _wanted_spec.format, have.format);
@@ -648,7 +652,9 @@ bool SDL::openAudio() {
                 SDL_CloseAudioDevice(audioDev);
                 audioDev = SDL_OpenAudioDevice(NULL, 0, &_wanted_spec, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
                 if (audioDev == 0 && !noDeviceWarning) {
-                    LogErr(VB_MEDIAOUT, "Could not open audio device - %s\n", SDL_GetError());
+                    noDeviceError = "Could not open audio device - ";
+                    noDeviceError += SDL_GetError();
+                    LogErr(VB_MEDIAOUT, "%s\n", noDeviceError.c_str());
                     noDeviceWarning = true;
                 }
                 LogDebug(VB_MEDIAOUT, "Repened Audio Device -  Rates:  %d -> %d     AudioFormat:  %X -> %X \n", _wanted_spec.freq, have.freq, _wanted_spec.format, have.format);
@@ -925,6 +931,9 @@ int SDLOutput::Start(void)
     if (data) {
         SetChannelOutputFrameNumber(0);
         if (!sdlManager.Start(data)) {
+            if (noDeviceWarning) {
+                WarningHolder::AddWarning(noDeviceError);
+            }
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             Stop();
             return 0;
@@ -932,6 +941,9 @@ int SDLOutput::Start(void)
         if (data->audioDev == 0 && data->video_stream_idx == -1) {
             //no audio device so audio data is useless and no video stream so not useful either,
             //bail
+            if (noDeviceWarning) {
+                WarningHolder::AddWarning(noDeviceError);
+            }
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
             Stop();
             return 0;

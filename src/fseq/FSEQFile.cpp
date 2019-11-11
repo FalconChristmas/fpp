@@ -812,7 +812,7 @@ public:
         m_inBuffer.src = nullptr;
         m_inBuffer.size = 0;
         m_inBuffer.pos = 0;
-        LogDebug(VB_SEQUENCE, "  Prepared to write a ZSTD compress fseq file.\n");
+        LogDebug(VB_SEQUENCE, "  Prepared to read/write a ZSTD compress fseq file.\n");
     }
     virtual ~V2ZSTDCompressionHandler() {
         free(m_outBuffer.dst);

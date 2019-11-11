@@ -192,6 +192,8 @@ int PlaylistEntryMedia::Process(void)
             CloseMediaOutput();
             pthread_mutex_lock(&m_mediaOutputLock);
         }
+    } else {
+        FinishPlay();
     }
 
 	pthread_mutex_unlock(&m_mediaOutputLock);

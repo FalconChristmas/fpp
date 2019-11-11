@@ -136,13 +136,12 @@ if (isset($_GET['advancedView'])) {
 				status = 'Stopped';
 			} else if (data.status_name == 'testing') {
 				status = 'Testing';
+            } else if (data.status_name == 'unreachable') {
+                status = '<font color="red">Unreachable</font>';
+            } else if (data.status_name == 'password') {
+                status = '<font color="red">Protected</font>';
 			} else if (data.status_name == 'unknown') {
                 status = '-';
-                if (typeof(data.reason) !== 'undefined'){
-                    DialogError("Get FPP System Status", "Get Status Failed for " + ip + "\n " + data.reason);
-                } else {
-                    DialogError("Get FPP System Status", "Get Status Failed for " + ip);
-                }
             } else if (data.status_name == 'idle') {
 				if (data.mode_name == 'remote') {
 					if ((data.sequence_filename != "") ||
@@ -193,8 +192,6 @@ if (isset($_GET['advancedView'])) {
                     "<br>" +
                     "Uptime: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? data.advancedView.Utilization.Uptime : 'Unk.'));
             }
-		}).fail(function() {
-			DialogError("Get FPP System Status", "Get Status Failed for " + ip + " via getFPPstatus");
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
 				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);

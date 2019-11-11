@@ -232,7 +232,7 @@ function SetSpeakerIndicator(value) {
 		}
 
 		foreach (scandir($eventDirectory) as $eventFile) {
-			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile)) {
+			if ($eventFile[0] != '.' && preg_match('/.fevt$/', $eventFile)) {
                 $info = file_get_contents($eventDirectory . "/" . $eventFile);
 				$info = json_decode($info, true);
                 
@@ -246,6 +246,7 @@ function SetSpeakerIndicator(value) {
 						"</td><td class='eventTblName'>" . $info['name'] .
 						"</td><td class='eventTblCommand'>" . $info['command'] .
                         "</td><td class='eventTblArgs'>";
+                
                 foreach ($info['args'] as $value) {
                     echo "\"" . $value . "\"   ";
                 }
