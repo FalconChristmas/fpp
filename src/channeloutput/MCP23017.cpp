@@ -117,7 +117,11 @@ int MCP23017Output::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "MCP23017Output::Init(JSON)\n");
 
-	m_deviceID = config["deviceID"].asInt();
+    if (config["deviceID"].isString()) {
+        m_deviceID = std::atoi(config["deviceID"].asString().c_str());
+    } else {
+        m_deviceID = config["deviceID"].asInt();
+    }
 
 	if (m_deviceID < 0x20 || m_deviceID > 0x27)
 	{
