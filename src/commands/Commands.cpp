@@ -2,6 +2,7 @@
 
 #include "Commands.h"
 #include "log.h"
+#include "common.h"
 
 #include "PlaylistCommands.h"
 #include "EventCommands.h"
@@ -199,3 +200,35 @@ const httpserver::http_response CommandManager::render_GET(const httpserver::htt
     return httpserver::http_response_builder("Not Found", 404, "text/plain").string_response();
 }
 
+const httpserver::http_response CommandManager::render_POST(const httpserver::http_request &req) {
+    std::string p1 = req.get_path_pieces()[0];
+    if (p1 == "command") {
+        std::string command = req.get_path_pieces()[1];
+        Json::Value val = JSONStringToObject(req.get_content());
+        std::vector<std::string> args;
+        for (int x = 0; x < val.size(); x++) {
+            args.push_back(val[x].asString());
+        }
+        auto f = commands.find(command);
+        if (f != commands.end()) {
+            LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+            std::unique_ptr<Command::Result> r = f->second->run(args);
+            int count = 0;
+            while (!r->isDone() && count < 1000) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                count++;
+            }
+            if (r->isDone()) {
+                if (r->isError()) {
+                    return httpserver::http_response_builder(r->get(), 500, r->contentType());
+                }
+                return httpserver::http_response_builder(r->get(), 200, r->contentType());
+            } else {
+                return httpserver::http_response_builder("Timeout running command", 500, "text/plain");
+            }
+        }
+        return httpserver::http_response_builder("Not Found", 404, "text/plain");
+    }
+    return httpserver::http_response_builder("Not Found", 404, "text/plain").string_response();
+    
+}

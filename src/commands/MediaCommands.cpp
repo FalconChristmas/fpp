@@ -1,5 +1,6 @@
 #include <thread>
 
+#include "log.h"
 #include "MediaCommands.h"
 #include "mediaoutput/mediaoutput.h"
 
@@ -56,9 +57,14 @@ class CURLResult : public Command::Result {
 public:
     CURLResult(const std::vector<std::string> &args) : Command::Result() {
         std::string url = args[0];
+        LogDebug(VB_COMMAND, "URL: \"%s\"\n", url.c_str());
+        
         std::string method = "GET";
         if (args.size() > 1) {
             method = args[1];
+            if (method == "") {
+                method = "GET";
+            }
         }
         std::string data;
         if (args.size() > 2) {
@@ -110,9 +116,13 @@ public:
         }
         cleanupCurl();
     }
+    virtual const std::string &contentType() { return m_contentType; }
     virtual bool isError() { return m_curl == nullptr || m_curlm == nullptr; }
     virtual bool isDone() {
         if (!isError()) {
+            if (m_isDone) {
+                return true;
+            }
             int handleCount;
             CURLMcode mstatus = curl_multi_perform(m_curlm, &handleCount);
             if (mstatus != CURLM_OK) {
@@ -123,7 +133,11 @@ public:
             if (handleCount == 0) {
                 int messagesLeft = 0;
                 CURLMsg *msg = curl_multi_info_read(m_curlm, &messagesLeft);
-                if (msg->msg == CURLMSG_DONE) {
+                if (msg && msg->msg == CURLMSG_DONE) {
+                    char *ct = nullptr;
+                    if (CURLE_OK == curl_easy_getinfo(m_curl, CURLINFO_CONTENT_TYPE, &ct)) {
+                        m_contentType = ct;
+                    }
                     m_isDone = true;
                 }
             }
@@ -149,6 +163,7 @@ private:
     CURL *m_curl;
     CURLM *m_curlm;
     bool m_isDone;
+    std::string m_contentType = "text/plain";
 };
 
 std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string> &args) {

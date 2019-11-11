@@ -162,7 +162,7 @@ include 'common/menuHead.inc';
           <td class='controlHeader'> FPP Time: </td>
           <td id = "fppTime" colspan = "2"></td>
         </tr>
-        <tr id="warningsRow"><td colspan="4" id="warningsTd"><div id="warningsDiv" style="line-height: 0.5;"></div></td>
+        <tr id="warningsRow"><td colspan="4" id="warningsTd"><div id="warningsDiv"></div></td>
         </tr>
       </table>
         <hr>
