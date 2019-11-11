@@ -237,7 +237,7 @@ class I2COutput extends OtherBaseDevice {
         if (result == "" || addr == "")
             return "";
         
-        result.deviceID = addr;
+        result.deviceID = parseInt(addr);
         return result;
     }        
 }
