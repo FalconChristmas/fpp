@@ -2066,7 +2066,7 @@ function RemovePlaylistEntry()	{
 		SetupUIForMode(fppMode);
         
         if (jsonStatus.hasOwnProperty('warnings')) {
-            var txt = "<hr><center><H4>Abnormal Conditions - May Cause Poor Performance</H4></center>";
+            var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
             for (var i = 0; i < jsonStatus.warnings.length; i++) {
                 txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
             }

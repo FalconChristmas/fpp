@@ -40,6 +40,7 @@ public:
         virtual bool isDone() { return true; }
         virtual bool isError() { return false; }
         virtual const std::string &get() { return m_result; }
+        virtual const std::string &contentType() { return "text/plain"; }
     protected:
         std::string m_result;
     };
@@ -102,6 +103,7 @@ public:
     virtual std::unique_ptr<Command::Result> runRemoteCommand(const std::string &remote, const std::string &command, const std::vector<std::string> &args);
 
     virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
+    virtual const httpserver::http_response render_POST(const httpserver::http_request &req) override;
 
     static CommandManager INSTANCE;
 private:
