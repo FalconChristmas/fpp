@@ -33,16 +33,17 @@ public:
     
     class Result {
     public:
-        Result() {}
+        Result() : m_contentType("text/plain") {}
         Result(const std::string &r) : m_result(r) {}
         virtual ~Result() {}
         
         virtual bool isDone() { return true; }
         virtual bool isError() { return false; }
         virtual const std::string &get() { return m_result; }
-        virtual const std::string &contentType() { return "text/plain"; }
+        virtual const std::string &contentType() { return m_contentType; }
     protected:
         std::string m_result;
+        std::string m_contentType;
     };
     class ErrorResult : public Result {
     public:

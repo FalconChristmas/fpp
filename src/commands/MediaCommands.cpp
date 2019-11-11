@@ -116,7 +116,6 @@ public:
         }
         cleanupCurl();
     }
-    virtual const std::string &contentType() { return m_contentType; }
     virtual bool isError() { return m_curl == nullptr || m_curlm == nullptr; }
     virtual bool isDone() {
         if (!isError()) {
@@ -163,7 +162,6 @@ private:
     CURL *m_curl;
     CURLM *m_curlm;
     bool m_isDone;
-    std::string m_contentType = "text/plain";
 };
 
 std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string> &args) {
