@@ -319,13 +319,21 @@ function GetFPPStatusJson()
             if ($request_content === FALSE) {
             	//check the response header
 				//check for a 401 - Unauthorized response
-				if(stristr($http_response_header[0],'401')){
-					//set a reason so we can inform the user
-                    $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
-				}
-				error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert . " - " . json_encode($http_response_header));
-                //error return default response
-				$result = $default_return_json;
+                if (isset($http_response_header)) {
+                    if (stristr($http_response_header[0], '401')){
+                        //set a reason so we can inform the user
+                        $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
+                    }
+                    //error return default response
+                    $result = $default_return_json;
+                    $result["status_name"] = "password";
+                    error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert . " - " . json_encode($http_response_header));
+                } else {
+                    //error return default response
+                    $result = $default_return_json;
+                    $result["status_name"] = "unreachable";
+                    error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert);
+                }
             } else {
             	//Work around for older versioned devices where the advanced data was pulled in separately rather than being
 				//included (when requested) with the standard data via getFPPStatus

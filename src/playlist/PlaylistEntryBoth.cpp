@@ -104,15 +104,19 @@ int PlaylistEntryBoth::StartPlaying(void)
     }
     
 	if (!m_sequenceEntry->StartPlaying()) {
+        LogDebug(VB_PLAYLIST, "Could not start sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
         if (m_mediaEntry) {
             m_mediaEntry->Stop();
         }
+        FinishPlay();
 		return 0;
 	}
     if (m_mediaEntry && !m_mediaEntry->StartPlaying()) {
+        LogDebug(VB_PLAYLIST, "Could not start media: %s\n", m_mediaName.c_str());
         delete m_mediaEntry;
         m_mediaEntry = nullptr;
         m_sequenceEntry->Stop();
+        FinishPlay();
         return 0;
     }
 
@@ -124,6 +128,8 @@ int PlaylistEntryBoth::StartPlaying(void)
  */
 int PlaylistEntryBoth::Process(void)
 {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Process()\n");
+
 	if (m_mediaEntry) m_mediaEntry->Process();
 	m_sequenceEntry->Process();
 
