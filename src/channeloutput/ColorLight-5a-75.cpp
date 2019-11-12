@@ -343,6 +343,8 @@ void ColorLight5a75Output::GetRequiredChannelRanges(const std::function<void(int
  */
 void ColorLight5a75Output::PrepData(unsigned char *channelData)
 {
+	m_matrix->OverlaySubMatrices(channelData);
+
 	unsigned char *r = NULL;
 	unsigned char *g = NULL;
 	unsigned char *b = NULL;
