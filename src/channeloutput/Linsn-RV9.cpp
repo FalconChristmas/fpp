@@ -382,6 +382,8 @@ void LinsnRV9Output::GetRequiredChannelRanges(const std::function<void(int, int)
  */
 void LinsnRV9Output::PrepData(unsigned char *channelData)
 {
+	m_matrix->OverlaySubMatrices(channelData);
+
 	unsigned char *r = NULL;
 	unsigned char *g = NULL;
 	unsigned char *b = NULL;
