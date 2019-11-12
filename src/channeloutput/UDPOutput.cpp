@@ -181,6 +181,9 @@ int  UDPOutput::Close() {
 }
 void UDPOutput::PrepData(unsigned char *channelData) {
     if (enabled) {
+        if (rebuildOutputLists) {
+            RebuildOutputMessageLists();
+        }
         for (auto a : outputs) {
             a->PrepareData(channelData);
         }
@@ -224,9 +227,6 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
 }
 
 int UDPOutput::SendData(unsigned char *channelData) {
-    if (rebuildOutputLists) {
-        RebuildOutputMessageLists();
-    }
     
     if ((udpMsgs.size() == 0 && broadcastMsgs.size() == 0) || !enabled) {
         return 0;
