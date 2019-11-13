@@ -289,9 +289,9 @@ int FBVirtualDisplayOutput::Close(void)
 /*
  *
  */
-int FBVirtualDisplayOutput::RawSendData(unsigned char *channelData)
+int FBVirtualDisplayOutput::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::RawSendData(%p)\n",
+	LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::SendData(%p)\n",
 		channelData);
 	DrawPixels(channelData);
 

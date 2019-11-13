@@ -41,7 +41,8 @@ class HTTPVirtualDisplayOutput : protected VirtualDisplayOutput {
 	int Init(Json::Value config);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+	void PrepData(unsigned char *channelData);
+	int  SendData(unsigned char *channelData);
 
 	void ConnectionThread(void);
 	void SelectThread(void);
@@ -53,6 +54,8 @@ class HTTPVirtualDisplayOutput : protected VirtualDisplayOutput {
 	int  m_screenSize;
 
 	int m_socket;
+
+	std::string m_sseData;
 
 	volatile bool m_running;
 	volatile bool m_connListChanged;

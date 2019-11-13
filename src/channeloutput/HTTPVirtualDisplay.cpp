@@ -338,18 +338,18 @@ int HTTPVirtualDisplayOutput::WriteSSEPacket(int fd, std::string data)
 /*
  *
  */
-int HTTPVirtualDisplayOutput::RawSendData(unsigned char *channelData)
+void HTTPVirtualDisplayOutput::PrepData(unsigned char *channelData)
 {
 	static int id = 0;
 
-	LogExcess(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::RawSendData(%p)\n",
+	LogExcess(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::PrepData(%p)\n",
 		channelData);
 
 	{
 		// Short circuit if no current connections
 		std::unique_lock<std::mutex> lock(m_connListLock);
 		if (!m_connList.size())
-			return m_channelCount;
+			return;
 	}
 
 	std::string data;
@@ -420,10 +420,10 @@ int HTTPVirtualDisplayOutput::RawSendData(unsigned char *channelData)
 
 	if (colors.size())
 	{
-		data = "id: ";
-		data += std::to_string(id) + "\r\n";
-		data += "event: message\r\n";
-		data += "data: ";
+		m_sseData = "id: ";
+		m_sseData += std::to_string(id) + "\r\n";
+		m_sseData += "event: message\r\n";
+		m_sseData += "data: ";
 
 		std::string data2;
 		for (const auto &pair : colors)
@@ -433,17 +433,28 @@ int HTTPVirtualDisplayOutput::RawSendData(unsigned char *channelData)
 
 			data2 += pair.second;
 		}
-		data += data2 + "\r\n\r\n";
+		m_sseData += data2 + "\r\n\r\n";
 
-		LogExcess(VB_CHANNELOUT, "PixelsChanged: %d, Colors: %d, Data: %d\n",
-			pixelsChanged, colors.size(), data.size());
-
-		std::unique_lock<std::mutex> lock(m_connListLock);
-		for (int i = 0; i < m_connList.size(); i++)
-			WriteSSEPacket(m_connList[i], data);
+		LogExcess(VB_CHANNELOUT, "PixelsChanged: %d, Colors: %d, Data Size: %d\n",
+			pixelsChanged, colors.size(), m_sseData.size());
 	}
+	else
+		m_sseData = "";
 
 	id++;
+}
+
+/*
+ *
+ */
+int HTTPVirtualDisplayOutput::SendData(unsigned char *channelData)
+{
+	if (m_sseData != "")
+	{
+		std::unique_lock<std::mutex> lock(m_connListLock);
+		for (int i = 0; i < m_connList.size(); i++)
+			WriteSSEPacket(m_connList[i], m_sseData);
+	}
 
 	return m_channelCount;
 }

@@ -158,11 +158,19 @@ int X11VirtualDisplayOutput::Close(void)
 /*
  *
  */
-int X11VirtualDisplayOutput::RawSendData(unsigned char *channelData)
+void X11VirtualDisplayOutput::PrepData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::PrepData(%p)\n", channelData);
 
 	DrawPixels(channelData);
+}
+
+/*
+ *
+ */
+int X11VirtualDisplayOutput::SendData(unsigned char *channelData)
+{
+	LogExcess(VB_CHANNELOUT, "X11VirtualDisplayOutput::SendData(%p)\n", channelData);
 
 	XLockDisplay(m_display);
 

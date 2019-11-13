@@ -53,7 +53,7 @@
  */
 VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ThreadedChannelOutputBase(startChannel, channelCount),
+  : ChannelOutputBase(startChannel, channelCount),
 	m_backgroundFilename("virtualdisplaybackground.jpg"),
 	m_backgroundBrightness(0.5),
 	m_width(1280),
@@ -70,8 +70,6 @@ VirtualDisplayOutput::VirtualDisplayOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "VirtualDisplayOutput::VirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_useDoubleBuffer = 1;
 }
 
 /*
@@ -125,7 +123,7 @@ int VirtualDisplayOutput::Init(Json::Value config)
 	if (config.isMember("backgroundBrightness"))
 		m_backgroundBrightness = 1.0 * config["backgroundBrightness"].asInt() / 100;
 
-	return ThreadedChannelOutputBase::Init(config);
+	return ChannelOutputBase::Init(config);
 }
 
 /*
@@ -175,6 +173,8 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 	unsigned char customG;
 	unsigned char customB;
 	VirtualPixelColor vpc = kVPC_RGB;
+	std::string colorPart;
+	int BPP = 3;
 
 	while ((read = getline(&line, &len, file)) != -1)
 	{
@@ -232,12 +232,27 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			continue;
 		}
 
-		if (parts.size() >= 4)
+		if (parts.size() >= 5)
 		{
 			x  = atoi(parts[0].c_str());
 			y  = atoi(parts[1].c_str());
-			z  = atoi(parts[2].c_str());
-			ch = atoi(parts[3].c_str());
+
+			if (parts.size() == 5)
+			{
+				z = 0;
+				ch = atoi(parts[2].c_str());
+				BPP = atoi(parts[3].c_str());
+				colorPart = parts[4];
+			}
+			else if (parts.size() == 6)
+			{
+				z  = atoi(parts[2].c_str());
+				ch = atoi(parts[3].c_str());
+				BPP = atoi(parts[4].c_str());
+				colorPart = parts[5];
+			}
+			else
+				continue;
 
 			customR = customG = customB = 0;
 
@@ -281,42 +296,42 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 				b = s + 0;
 			}
 
-			if (parts[5] == "RGB")
+			if (colorPart == "RGB")
 				vpc = kVPC_RGB;
-			else if (parts[5] == "RBG")
+			else if (colorPart == "RBG")
 				vpc = kVPC_RBG;
-			else if (parts[5] == "GRB")
+			else if (colorPart == "GRB")
 				vpc = kVPC_GRB;
-			else if (parts[5] == "GBR")
+			else if (colorPart == "GBR")
 				vpc = kVPC_GBR;
-			else if (parts[5] == "BRG")
+			else if (colorPart == "BRG")
 				vpc = kVPC_BRG;
-			else if (parts[5] == "BGR")
+			else if (colorPart == "BGR")
 				vpc = kVPC_BGR;
-			else if (parts[5] == "RGBW")
+			else if (colorPart == "RGBW")
 				vpc = kVPC_RGBW;
-			else if (parts[5] == "Red")
+			else if (colorPart == "Red")
 				vpc = kVPC_Red;
-			else if (parts[5] == "Green")
+			else if (colorPart == "Green")
 				vpc = kVPC_Green;
-			else if (parts[5] == "Blue")
+			else if (colorPart == "Blue")
 				vpc = kVPC_Blue;
-			else if (parts[5] == "White")
+			else if (colorPart == "White")
 				vpc = kVPC_White;
-			else if (boost::starts_with(parts[5], "#"))
+			else if (boost::starts_with(colorPart, "#"))
 			{
-				std::string colorPart;
+				std::string tmpColor;
 
 				vpc = kVPC_Custom;
 
-				colorPart = parts[5].substr(1,2);
-				customR = std::stoi(colorPart, NULL, 16);
+				tmpColor = colorPart.substr(1,2);
+				customR = std::stoi(tmpColor, NULL, 16);
 
-				colorPart = parts[5].substr(3,2);
-				customG = std::stoi(colorPart, NULL, 16);
+				tmpColor = colorPart.substr(3,2);
+				customG = std::stoi(tmpColor, NULL, 16);
 
-				colorPart = parts[5].substr(5,2);
-				customB = std::stoi(colorPart, NULL, 16);
+				tmpColor = colorPart.substr(5,2);
+				customB = std::stoi(tmpColor, NULL, 16);
 			}
 
 			found = 0;
@@ -327,7 +342,7 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 			}
 
 			if (!found)
-				m_pixels.push_back({ x, y, z, ch, r, g, b, atoi(parts[4].c_str()), customR, customG, customB, vpc });
+				m_pixels.push_back({ x, y, z, ch, r, g, b, BPP, customR, customG, customB, vpc });
 		}
 	}
 
@@ -357,7 +372,7 @@ int VirtualDisplayOutput::ScaleBackgroundImage(std::string &bgFile, std::string 
  */
 void VirtualDisplayOutput::LoadBackgroundImage(void)
 {
-	std::string bgFile = "/home/fpp/media/upload/";
+	std::string bgFile = "/home/fpp/media/images/";
 	bgFile += m_backgroundFilename;
 
 	std::string rgbFile = bgFile + ".rgb";
@@ -604,6 +619,6 @@ void VirtualDisplayOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    color Order   : %s\n", m_colorOrder.c_str());
 	LogDebug(VB_CHANNELOUT, "    pixel count   : %d\n", m_pixels.size());
 	LogDebug(VB_CHANNELOUT, "    pixel size    : %d\n", m_pixelSize);
-    ThreadedChannelOutputBase::DumpConfig();
+    ChannelOutputBase::DumpConfig();
 }
 

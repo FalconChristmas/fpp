@@ -38,7 +38,7 @@ class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
 	int Init(Json::Value config);
 	int Close(void);
 
-	int RawSendData(unsigned char *channelData);
+	int SendData(unsigned char *channelData);
 
   private:
 	int     m_fbFd;
