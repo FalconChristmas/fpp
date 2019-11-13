@@ -316,7 +316,7 @@ int InitializeChannelOutputs(void) {
                 } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
                     type = OUTPUT_REMAPS[type];
                 }
-                
+
                 if (channelOutputs[i].outputOld == nullptr && channelOutputs[i].output == nullptr) {
                     std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
                     void *handle = dlopen(libname.c_str(), RTLD_NOW);
@@ -361,14 +361,20 @@ int InitializeChannelOutputs(void) {
                             type.c_str(), i, m1, m2);
                     addRange(m1, m2);
 					i++;
-				} else if (channelOutputs[i].output && channelOutputs[i].output->Init(outputs[c])) {
-                    channelOutputs[i].output->GetRequiredChannelRanges([type, i](int m1, int m2) {
-                        LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
-                                type.c_str(), i, m1, m2);
-                        addRange(m1, m2);
+                } else if (channelOutputs[i].output) {
+                    
+                    if (channelOutputs[i].output->Init(outputs[c])) {
+                        channelOutputs[i].output->GetRequiredChannelRanges([type, i](int m1, int m2) {
+                            LogInfo(VB_CHANNELOUT, "%s %d:  Determined range needed %d - %d\n",
+                                    type.c_str(), i, m1, m2);
+                            addRange(m1, m2);
 
-                    });
-                    i++;
+                        });
+                        i++;
+                    } else {
+                        delete channelOutputs[i].output;
+                        channelOutputs[i].output = nullptr;
+                    }
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
 					continue;
