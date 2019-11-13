@@ -510,8 +510,9 @@ function AddEventDesc(&$entry)
 
 	$eventFile = $settings['eventDirectory'] . "/" . $id . ".fevt";
 	if ( file_exists($eventFile)) {
-		$eventInfo = parse_ini_file($eventFile);
-		$entry->desc = $eventInfo['name'];
+        $e = file_get_contents($eventDirectory . "/" . $eventFile);
+        $j = json_decode($e, true);
+		$entry->desc = $j['name'];
 	} else {
 		$entry->desc = "ERROR: Undefined Event: " . $id;
 	}

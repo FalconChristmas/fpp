@@ -96,6 +96,7 @@ void CommandManager::Init() {
     addCommand(new IncreaseVolumeCommand());
     addCommand(new DecreaseVolumeCommand());
     addCommand(new URLCommand());
+    addCommand(new AllLightsOffCommand());
     
     addCommand(new TriggerRemoteEventCommand());
     addCommand(new StartRemoteEffectCommand());
