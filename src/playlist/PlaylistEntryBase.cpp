@@ -41,6 +41,7 @@ PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
 	m_isPrepped(0),
 	m_parent(parent)
 {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryBase::PlaylistEntryBase()\n");
 	m_type = "base";
 }
 

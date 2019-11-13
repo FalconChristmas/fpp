@@ -47,7 +47,7 @@ PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
     m_nextBranchType(PlaylistBranchType::None),
     m_trueNextBranchType(PlaylistBranchType::Index),
     m_falseNextBranchType(PlaylistBranchType::Index),
-    m_nextSection(0)
+    m_nextSection()
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::PlaylistEntryBranch()\n");
 	m_type = "branch";
