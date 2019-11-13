@@ -107,7 +107,7 @@ function initCanvas()
 	$('#vCanvas').drawImage({
 		layer: true,
 		opacity: 0.2,
-		source: '/fppxml.php?command=getFile&filename=virtualdisplaybackground.jpg&dir=Uploads',
+		source: '/fppxml.php?command=getFile&filename=virtualdisplaybackground.jpg&dir=Images',
 		width: canvasWidth,
 		height: canvasHeight
 	});
@@ -139,6 +139,9 @@ function processEvent(e)
 		var b = base64[rgb.substring(2,3)];
 
 		ctx.fillStyle = '#' + r + g + b;
+
+		// Uncomment to see the incoming color and location data in real time
+		// $('#data').html(ctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
 
 		var locs = data[1].split(';');
 		for (j = 0; j < locs.length; j++)
@@ -181,7 +184,7 @@ $(document).ready(function() {
 
 <input type='button' id='stopButton' onClick='stopSSE();' value='Stop Virtual Display'><br>
 <table border=0>
-<tr><td>
+<tr><td valign='top'>
 <canvas id='vCanvas' width='<? echo $canvasWidth; ?>' height='<? echo $canvasHeight; ?>'></canvas></td>
 <td id='data'></td></tr></table>
 
