@@ -465,7 +465,8 @@ function read_directory_files($directory, $return_data = true)
             // do something with the file
             // note that '.' and '..' is returned even
             // if file isn't this directory or its parent, add it to the results
-            if ($file != "." && $file != "..") {
+            // also must include ._* files as binary files that OSX may create
+            if ($file[0] != "." || (strlen($file) > 1 && $file[1] != "." && $file[1] != "_")) {
                 // collect the filenames & data
                 if ($return_data == true) {
                     $file_data = explode("\n", file_get_contents($directory . '/' . $file));
@@ -1057,6 +1058,11 @@ function LoadPixelnetDMXFile_FPDv1()
     require_once './pixelnetdmxentry.php';
     //Store data in an array instead of session
     $return_data = array();
+    
+    
+    if (filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
+        return $return_data;
+    }
 
     $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
     if ($f == FALSE) {
@@ -1178,10 +1184,13 @@ function doBackupDownload($settings_data, $area)
             mkdir($fpp_backup_location);
         }
 
+
         //Write a copy locally as well
         $backup_local_fpath = $fpp_backup_location . '/' . $backup_fname;
+        $json = json_encode($settings_data);
+        
         //Write data into backup file
-        file_put_contents($backup_local_fpath, json_encode($settings_data));
+        file_put_contents($backup_local_fpath, $json);
 
         ///Generate the headers to prompt browser to start download
         header("Content-Disposition: attachment; filename=\"" . $backup_fname . "\"");
