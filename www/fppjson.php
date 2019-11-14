@@ -510,7 +510,7 @@ function AddEventDesc(&$entry)
 
 	$eventFile = $settings['eventDirectory'] . "/" . $id . ".fevt";
 	if ( file_exists($eventFile)) {
-        $e = file_get_contents($eventDirectory . "/" . $eventFile);
+        $e = file_get_contents($settings['eventDirectory'] . "/" . $eventFile);
         $j = json_decode($e, true);
 		$entry->desc = $j['name'];
 	} else {
