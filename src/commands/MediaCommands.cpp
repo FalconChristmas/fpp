@@ -135,7 +135,9 @@ public:
                 if (msg && msg->msg == CURLMSG_DONE) {
                     char *ct = nullptr;
                     if (CURLE_OK == curl_easy_getinfo(m_curl, CURLINFO_CONTENT_TYPE, &ct)) {
-                        m_contentType = ct;
+                        if (ct != nullptr) {
+                            m_contentType = ct;
+                        }
                     }
                     m_isDone = true;
                 }
