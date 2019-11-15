@@ -48,6 +48,7 @@
 #include "Sequence.h"
 #include "settings.h"
 
+#include <pwd.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -183,6 +184,9 @@ inline void WriteRuntimeInfoFile(Json::Value v) {
     {
         fprintf(file, "%s\n", resultStr.c_str());
         fclose(file);
+        
+        struct passwd *pwd = getpwnam("fpp");
+        chown("/home/fpp/media/fpp-info.json", pwd->pw_uid, pwd->pw_gid);
     }
 }
 
@@ -292,7 +296,6 @@ int parseArguments(int argc, char **argv)
 			{"pixelnet-file",		required_argument,	0, 'p'},
 			{"schedule-file",		required_argument,	0, 's'},
 			{"log-file",			required_argument,	0, 'l'},
-			{"bytes-file",			required_argument,	0, 'b'},
 			{"detect-hardware",		no_argument,		0, 'H'},
 			{"detect-piface",		no_argument,		0, 4},
 			{"configure-hardware",		no_argument,		0, 'C'},
@@ -411,10 +414,6 @@ int parseArguments(int argc, char **argv)
 			case 'l': //log-file
 				free(settings.logFile);
 				settings.logFile = strdup(optarg);
-				break;
-			case 'b': //bytes-file
-				free(settings.bytesFile);
-				settings.bytesFile = strdup(optarg);
 				break;
 			case 'H': //Detect Falcon hardware
 			case 'C': //Configure Falcon hardware
