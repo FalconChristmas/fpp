@@ -37,8 +37,10 @@
 #include <strings.h>
 #include <getopt.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <pwd.h>
 #include "common.h"
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
@@ -62,7 +64,6 @@ SettingsConfig::~SettingsConfig() {
     if (logFile) free(logFile);
     if (silenceMusic) free(silenceMusic);
     if (settingsFile) free(settingsFile);
-    if (bytesFile) free(bytesFile);
     if (E131interface) free(E131interface);
     
     for (auto &a :keyVal) {
@@ -140,8 +141,6 @@ void initSettings(int argc, char **argv)
 	settings.logFile = strdup(strcat(tmpDir, "/logs/fppd.log"));
 	strcpy(tmpDir, mediaDir);
 	settings.silenceMusic = strdup(strcat(tmpDir, "/silence.ogg"));
-	strcpy(tmpDir, mediaDir);
-	settings.bytesFile = strdup(strcat(tmpDir, "/bytesReceived"));
 	strcpy(tmpDir, mediaDir);
 	settings.settingsFile = strdup(strcat(tmpDir, "/settings"));
 	settings.daemonize = 1;
@@ -388,16 +387,6 @@ int parseSetting(char *key, char *value)
 		else
 			fprintf(stderr, "Failed to apply silenceMusic\n");
 	}
-	else if ( strcmp(key, "bytesFile") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.bytesFile);
-			settings.bytesFile = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply bytesFile\n");
-	}
 	else if ( strcmp(key, "E131interface") == 0 )
 	{
 		if ( strlen(value) )
@@ -626,10 +615,6 @@ char *getSilenceMusic(void)
 {
 	return settings.silenceMusic;
 }
-char *getBytesFile(void)
-{
-	return settings.bytesFile;
-}
 
 char *getSettingsFile(void)
 {
@@ -709,8 +694,6 @@ int saveSettingsFile(void)
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %s\n", "mpg123Path", getMPG123Path());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "bytesFile", getBytesFile());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %d\n", "controlMajor", getControlMajor());
 	bytes += fwrite(buffer, 1, strlen(buffer), fd);
 	snprintf(buffer, 1024, "%s = %d\n", "controlMinor", getControlMinor());
@@ -723,6 +706,18 @@ int saveSettingsFile(void)
 	return 0;
 }
 */
+
+static inline bool createFile(const char *file) {
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    int i = open(file, O_RDWR | O_CREAT | O_TRUNC, mode);
+    if (i < 0) {
+        return false;
+    }
+    struct passwd *pwd = getpwnam("fpp");
+    fchown(i, pwd->pw_uid, pwd->pw_gid);
+    close(i);
+    return true;
+}
 
 void CheckExistanceOfDirectoriesAndFiles(void)
 {
@@ -810,45 +805,19 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 	if(!FileExists(getScheduleFile()))
 	{
 		LogWarn(VB_SETTING, "Schedule file does not exist, creating it.\n");
-
-		char *cmd, *file = getScheduleFile();
-		cmd = (char *)malloc(strlen(file)+7);
-		snprintf(cmd, strlen(file)+7, "touch %s", file);
-		if ( system(cmd) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create schedule file.\n");
-			exit(EXIT_FAILURE);
-		}
-		free(cmd);
-	}
-	if(!FileExists(getBytesFile()))
-	{
-		LogWarn(VB_SETTING, "Bytes file does not exist, creating it.\n");
-
-		char *cmd, *file = getBytesFile();
-		cmd = (char *)malloc(strlen(file)+7);
-		snprintf(cmd, strlen(file)+7, "touch %s", file);
-		if ( system(cmd) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create bytes file.\n");
-			exit(EXIT_FAILURE);
-		}
-		free(cmd);
+        if (!createFile(getScheduleFile())) {
+            LogErr(VB_SETTING, "Error: Unable to create schedule file.\n");
+            exit(EXIT_FAILURE);
+        }
 	}
 
 	if(!FileExists(getSettingsFile()))
 	{
 		LogWarn(VB_SETTING, "Settings file does not exist, creating it.\n");
-
-		char *cmd, *file = getSettingsFile();
-		cmd = (char *)malloc(strlen(file)+7);
-		snprintf(cmd, strlen(file)+7, "touch %s", file);
-		if ( system(cmd) != 0 )
-		{
+        if (!createFile(getSettingsFile())) {
 			LogErr(VB_SETTING, "Error: Unable to create settings file.\n");
 			exit(EXIT_FAILURE);
 		}
-		free(cmd);
 	}
   
 

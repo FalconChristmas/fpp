@@ -64,7 +64,6 @@ public:
     char    *logFile = nullptr;
     char    *silenceMusic = nullptr;
     char    *settingsFile = nullptr;
-    char    *bytesFile = nullptr;
     char    *E131interface = nullptr;
     
     unsigned int controlMajor;
@@ -111,7 +110,6 @@ char *getPixelnetFile(void);
 char *getScheduleFile(void);
 char *getLogFile(void);
 char *getSilenceMusic(void);
-char *getBytesFile(void);
 char *getSettingsFile(void);
 char *getE131interface(void);
 unsigned int getControlMajor(void);
