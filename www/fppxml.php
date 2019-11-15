@@ -1857,6 +1857,7 @@ function GetPlaylists()
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
 		if (($pFile != "." && $pFile != "..") &&
+			(is_file($playlistDirectory . '/' . $pFile)) &&
 			($filter == "" || preg_match('/' . $filter . '/', $pFile)))
 		{
 			$pFile = preg_replace("/\.json/", "", $pFile);
