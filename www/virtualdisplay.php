@@ -31,7 +31,7 @@ if (isset($_GET['width']))
 <meta name="apple-mobile-web-app-capable" content="yes" />
 </head>
 <body>
-<h3>FPP HTML Virtual Display</h3>
+<h3>FPP Virtual Display</h3>
 <?
 require_once('virtualdisplaybody.php');
 ?>
