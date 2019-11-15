@@ -469,8 +469,7 @@ function GetJSONPlaylistEntry($entry, $index)
 		return new PlaylistEntry($entry->type,'', '',$entry->duration,'','','','', $entry, $index);
 	else if ($entry->type == 'script')
 		return new PlaylistEntry($entry->type,'', '', 0, $entry->scriptName,'','','', $entry, $index);
-	else if ($entry->type == 'event')
-	{
+	else if ($entry->type == 'event') {
         $majorID = intval(ltrim($entry->majorID, 0));
         if ($majorID < 10)
 			$majorID = '0' . $majorID;
@@ -481,11 +480,10 @@ function GetJSONPlaylistEntry($entry, $index)
 
 		$id = $majorID . '_' . $minorID;
 
-		AddEventDesc($entry);
+		$entry = AddEventDesc($entry);
 
 		return new PlaylistEntry($entry->type,'', '', 0, '', $entry->desc, $id,'', $entry, $index);
-	}
-	else if ($entry->type == 'plugin')
+	} else if ($entry->type == 'plugin')
 		return new PlaylistEntry($entry->type, '', '', 0, '', '', '', $entry->data, $entry, $index);
 	else
 		return new PlaylistEntry($entry->type,'', '', 0, '','','','', $entry, $index);
@@ -510,12 +508,13 @@ function AddEventDesc(&$entry)
 
 	$eventFile = $settings['eventDirectory'] . "/" . $id . ".fevt";
 	if ( file_exists($eventFile)) {
-        $e = file_get_contents($settings['eventDirectory'] . "/" . $eventFile);
+        $e = file_get_contents($eventFile);
         $j = json_decode($e, true);
 		$entry->desc = $j['name'];
 	} else {
 		$entry->desc = "ERROR: Undefined Event: " . $id;
 	}
+    return $entry;
 }
 
 function LoadCSVPlayListDetails($file)
