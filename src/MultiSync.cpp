@@ -1010,7 +1010,7 @@ void MultiSync::SendEventPacket(const std::string &eventID)
         a->SendEventPacket(eventID);
     }
 
-	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID);
+	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID.c_str());
 
 	if (m_controlSock < 0) {
 		LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
