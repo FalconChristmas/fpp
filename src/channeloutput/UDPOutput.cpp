@@ -413,6 +413,12 @@ bool UDPOutput::InitNetwork() {
         close(sendSocket);
         return false;
     }
+    
+    if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localAddress, sizeof(localAddress)) < 0) {
+        LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
+        close(sendSocket);
+        return false;
+    }
     if (bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1) {
         LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
     }
