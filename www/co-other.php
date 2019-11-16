@@ -864,8 +864,8 @@ function NewHTTPVirtualDisplayConfig() {
 
     config.width = 1280;
     config.height = 1024;
-    config.pixelSize = 1;
-    return VirtualDisplayConfig(config);
+    config.pixelSize = 2;
+    return HTTPVirtualDisplayConfig(config);
 }
 function HTTPVirtualDisplayConfig(config) {
     var result = "";
