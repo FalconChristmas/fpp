@@ -93,6 +93,10 @@ VirtualDisplayOutput::~VirtualDisplayOutput()
 
 		delete[] m_rgb565map;
 	}
+    
+    if (m_virtualDisplay) {
+        free(m_virtualDisplay);
+    }
 }
 
 /*

@@ -79,6 +79,10 @@ int X11VirtualDisplayOutput::Init(Json::Value config)
 	if (!VirtualDisplayOutput::Init(config))
 		return 0;
 
+    if (m_virtualDisplay) {
+        free(m_virtualDisplay);
+    }
+
 	m_virtualDisplay = new unsigned char[m_width * m_height * m_bytesPerPixel];
 	if (!m_virtualDisplay)
 	{
@@ -151,6 +155,7 @@ int X11VirtualDisplayOutput::Close(void)
 	XCloseDisplay(m_display);
 	XUnlockDisplay(m_display);
 	delete [] m_virtualDisplay;
+    m_virtualDisplay = nullptr;
 
 	return ChannelOutputBase::Close();
 }

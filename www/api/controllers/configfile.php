@@ -63,12 +63,10 @@ function DownloadConfigFile()
 function UploadConfigFile()
 {
 	global $settings;
-	$result = Array();
 
-	// Content-Type: text/html is unprocessed by limonade
-	$contents = $GLOBALS['HTTP_RAW_POST_DATA'];
+    $result = Array();
+    
 	$fileName = params(0);
-
 	if (preg_match('/\//', $fileName))
 	{
 		// FileName contains a subdir, so create if needed
@@ -83,7 +81,11 @@ function UploadConfigFile()
 	$f = fopen($fileName, "w");
 	if ($f)
 	{
-		fwrite($f, $contents);
+        $postdata = fopen("php://input", "r");
+        while ($data = fread($postdata, 1024*16)) {
+            fwrite($f, $data);
+        }
+        fclose($postdata);
 		fclose($f);
 
 		$result['Status'] = 'OK';
