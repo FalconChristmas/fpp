@@ -144,6 +144,18 @@ function list_plugin_entries($menu)
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>
           <li><a href="testing.php">Display Testing</a></li>
+          <?
+          if (file_exists($settings['co-other'])) {
+            $js = json_decode(file_get_contents($settings['co-other']), true);
+            foreach($js["channelOutputs"] as $key => $val) {
+                if (($val["enabled"] == 1) && ($val["type"] == "HTTPVirtualDisplay")) {
+                echo "<li><a href='virtualdisplaywrapper.php'>Virtual Display</a></li>";
+                }
+            }
+          
+          }
+          ?>
+          
           <?php list_plugin_entries("status"); ?>
         </ul>
       </li>

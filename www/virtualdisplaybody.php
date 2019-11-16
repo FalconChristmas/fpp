@@ -55,7 +55,6 @@ if ($f) {
 		$z = (int)($oz * $scale);
 		$ch = $entry[3];
 		$colors = $entry[4];
-		$type = $entry[5];
 		$iy = $canvasHeight - $y;
 
 		if (($ox >= 4096) || ($oy >= 4096))
