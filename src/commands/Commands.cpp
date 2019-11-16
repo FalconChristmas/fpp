@@ -140,15 +140,20 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
 std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string &remote, const std::string &command, const std::vector<std::string> &args) {
-    std::string url = "http://" + remote + "/api/command/" + command;
+    std::string url = "http://" + remote + ":32322/command/" + command;
+    
+    Json::Value j;
     for (auto &a : args) {
-        url += "/";
-        url += a;
+        j.append(a);
     }
     std::vector<std::string> uargs;
     uargs.push_back(url);
-    uargs.push_back("GET");
-    uargs.push_back("");
+    uargs.push_back("POST");
+    
+    Json::FastWriter fastWriter;
+    std::string config = fastWriter.write(j);
+    
+    uargs.push_back(config);
     return run("URL", uargs);
 }
 
