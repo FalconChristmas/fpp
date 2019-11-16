@@ -233,7 +233,7 @@ void PlaylistEntryBranch::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Branch Type       : %d\n", m_branchType);
+	LogDebug(VB_PLAYLIST, "Branch Type       : %s\n", m_branchType.c_str());
 	LogDebug(VB_PLAYLIST, "Comparison Mode   : %d\n", m_comparisonMode);
 	LogDebug(VB_PLAYLIST, "Start Hour        : %d\n", m_sHour);
 	LogDebug(VB_PLAYLIST, "Start Minute      : %d\n", m_sMinute);

@@ -139,9 +139,13 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 		// Long-term handle sub-playlists on-demand instead of at load time
 		if (entries[c]["type"].asString() == "playlist") {
 			m_subPlaylistDepth++;
-
 			if (m_subPlaylistDepth < 3) {
-				Json::Value subPlaylist = LoadJSON(entries[c]["name"].asString().c_str());
+				std::string filename = getPlaylistDirectory();
+				filename += "/";
+				filename += entries[c]["name"].asString();
+				filename += ".json";
+
+				Json::Value subPlaylist = LoadJSON(filename.c_str());
 
 				if (subPlaylist.isMember("leadIn"))
 					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadIn"]);
@@ -152,7 +156,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 				if (subPlaylist.isMember("leadOut"))
 					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"]);
             } else {
-				LogErr(VB_PLAYLIST, "Error, sub-playlist depth exceeded 3 trying to include '%s'\n", entries[c]["playlistName"].asString().c_str());
+				LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 3 trying to include '%s'\n", entries[c]["name"].asString().c_str());
 			}
 
 			m_subPlaylistDepth--;
@@ -229,28 +233,34 @@ Json::Value Playlist::LoadJSON(const char *filename)
 	Json::Value root;
 	Json::Reader reader;
 
-	if (!FileExists(m_filename.c_str())) {
-		LogErr(VB_PLAYLIST, "Playlist %s does not exist\n", m_filename.c_str());
+	if (!FileExists(filename)) {
+		LogErr(VB_PLAYLIST, "Playlist %s does not exist\n", filename);
 		return root;
 	}
 
-	struct stat attr;
-	stat(m_filename.c_str(), &attr);
+	if (m_filename == filename)
+	{
+		struct stat attr;
+		stat(filename, &attr);
 
-	LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
+		LogDebug(VB_PLAYLIST, "Playlist Last Modified: %s\n", ctime(&attr.st_mtime));
 
-	m_fileTime = attr.st_mtime;
+		m_fileTime = attr.st_mtime;
+	}
 
-	std::ifstream t(m_filename);
+	std::string sFilename = filename;
+	std::ifstream t(sFilename);
 	std::stringstream buffer;
 
 	buffer << t.rdbuf();
 
 	bool success = reader.parse(buffer.str(), root);
 	if (!success) {
-		LogErr(VB_PLAYLIST, "Error parsing %s\n", m_filename.c_str());
+		LogErr(VB_PLAYLIST, "Error parsing %s\n", filename);
 		return root;
 	}
+
+	LogDebug(VB_PLAYLIST, "Playlist: \n%s\n", buffer.str().c_str());
 
 	return root;
 }
@@ -624,12 +634,16 @@ int Playlist::Process(void)
                 m_sectionPosition++;
             }
         } else if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Offset) {
-            m_sectionPosition != currentEntry->GetNextItem();
-            if (m_sectionPosition < 0) {
+            int nextPosition = m_sectionPosition + currentEntry->GetNextItem();
+            LogDebug(VB_PLAYLIST, "Attempting Offset Branch to section position %d\n", nextPosition);
+            if (nextPosition < 0) {
+                LogDebug(VB_PLAYLIST, "New position negative, branching to first position in section\n");
                 m_sectionPosition = 0;
-            }
-            if (m_sectionPosition > m_currentSection->size()) {
+            } else if (nextPosition > m_currentSection->size()) {
                 m_sectionPosition = m_currentSection->size();
+                LogDebug(VB_PLAYLIST, "Offset outside current section, ending section\n");
+            } else {
+                m_sectionPosition = nextPosition;
             }
         } else {
             m_sectionPosition++;
