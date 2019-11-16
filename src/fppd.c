@@ -143,7 +143,7 @@ bool setupExceptionHandlers()
         sigchld_action.sa_handler = SIG_DFL;
         sigchld_action.sa_flags = SA_NOCLDWAIT;
         sigemptyset(&sigchld_action.sa_mask);
-        ok &= sigaction(SIGCHLD, &sigchld_action, NULL);
+        ok &= sigaction(SIGCHLD, &sigchld_action, NULL) == 0;
         
         if (!ok) {
             LogWarn(VB_ALL, "Failed to install our signal handler.\n");
