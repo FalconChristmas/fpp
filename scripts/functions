@@ -128,11 +128,28 @@ SetupFPPNetworkConfigViaConnMann() {
         cp $TMPFILE /var/lib/connman/fpp.config
     fi
     TetherEnabled=$(getSetting EnableTethering)
+    TetherTechnology=$(getSetting TetherTechnology)
     sed -i -e 's/Tethering=true/Tethering=false/g' /var/lib/connman/settings
     if [ -f "/etc/default/bb-wl18xx" ]; then
         sed -i -e "s/TETHER_ENABLED=.*/TETHER_ENABLED=no/g" /etc/default/bb-wl18xx
     fi
-    AttemptCreateSoftAP
+    if [ "$TetherTechnology" == "1" ]; then
+        if [ "$TetherEnabled" != "1" ]; then
+            if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+                check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
+                if [ "x${check_dnsmasq}" = "xdisabled" ] ; then
+                    systemctl enable dnsmasq &
+                fi
+            fi
+        elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+            check_dnsmasq=$(systemctl is-enabled dnsmasq.service || true)
+            if [ "x${check_dnsmasq}" = "xenabled" ] ; then
+                systemctl disable dnsmasq &
+            fi
+        fi
+    else
+        AttemptCreateSoftAP
+    fi
     if [ "$TetherEnabled" != "1" ]; then
         # make sure tethering is off
         rm -f /etc/dnsmasq.d/fpp-tether
@@ -255,11 +272,6 @@ MaybeEnableTethering() {
         TetherEnabled=2
     fi
     if [ "$TetherEnabled" == "1" ]; then
-        AttemptCreateSoftAP
-        if [ -e "/sys/class/net/SoftAp0" ]; then
-            TetherInterface="SoftAp0"
-        fi
-
         TetherSSID=$(getSetting TetherSSID)
         TetherPSK=$(getSetting TetherPSK)
         if [ "${TetherSSID}x" == "x" ]; then
@@ -269,7 +281,20 @@ MaybeEnableTethering() {
             TetherPSK="Christmas"
         fi
 
-        systemctl stop dnsmasq
+        TetherTechnology=$(getSetting TetherTechnology)
+        if [ "$TetherTechnology" == "1" ]; then
+            if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+                systemctl disable dnsmasq
+                systemctl stop dnsmasq
+            fi
+            connmanctl tether wifi on "${TetherSSID}" "${TetherPSK}"
+        else
+            AttemptCreateSoftAP
+            if [ -e "/sys/class/net/SoftAp0" ]; then
+                TetherInterface="SoftAp0"
+            fi
+
+            systemctl stop dnsmasq
 
 cat > /etc/dnsmasq.d/fpp-tether <<-EOF
 interface=${TetherInterface}
@@ -295,17 +320,17 @@ wpa_pairwise=TKIP
 rsn_pairwise=CCMP
 EOF
 
-    /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
+            /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
 
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-    iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
-    iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
+            echo 1 > /proc/sys/net/ipv4/ip_forward
+            iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+            iptables -A FORWARD -i eth0 -o  ${TetherInterface} -m state --state RELATED,ESTABLISHED -j ACCEPT
+            iptables -A FORWARD -i  ${TetherInterface} -o eth0 -j ACCEPT
 
-    systemctl unmask hostapd
-    systemctl start dnsmasq
-    systemctl start hostapd
-
+            systemctl unmask hostapd
+            systemctl start dnsmasq
+            systemctl start hostapd
+        fi
     fi
 }
 

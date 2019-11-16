@@ -39,7 +39,12 @@ function printTetheringSelect() {
     $tetherValues["Disabled"] = 2;
     PrintSettingSelect("Enable Tethering", "EnableTethering", 0, 1, "0", $tetherValues);
 }
-
+function printTetheringTechnology() {
+    $tetherValues = array();
+    $tetherValues["Hostapd"] = 0;
+    $tetherValues["ConnMan"] = 1;
+    PrintSettingSelect("Tether Technology", "TetherTechnology", 0, 1, "0", $tetherValues);
+}
 function printTetheringInterfaces() {
     $tinterfacesRaw = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep wlan | colrm 6")));
     $tingerfaces = Array();
@@ -586,6 +591,10 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                 <td width = "75%"><? printTetheringInterfaces(); ?></td>
             </tr>
             <tr>
+                <td width = "25%">Tethering Technology:</td>
+                <td width = "75%"><? printTetheringTechnology(); ?></td>
+            </tr>
+            <tr>
                 <td width = "25%">Tethering SSID:</td>
                 <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
             </tr>
@@ -598,10 +607,10 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
                 <br>
                 <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
         tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
-        192.168.8.1.
+192.168.8.1 for Hostapd tethering, but unprecitable for ConnMan (although likely 192.168.0.1).
 <p>
 <? if ($settings['Platform'] == "BeagleBone Black") { ?>
-    On BeagleBones, USB tethering is always available.  The IP address for USB tethering would be 192.168.6.2
+    On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
         (OSX/Linux) or 192.168.7.2 (Windows).
 <? } ?>
 <? if ($settings['Platform'] == "Raspberry Pi") { ?>
