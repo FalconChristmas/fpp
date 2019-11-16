@@ -92,7 +92,7 @@ public:
         }
 
         if (method == "POST") {
-            curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, 4096);
+            curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, data.size());
             status = curl_easy_setopt(m_curl, CURLOPT_COPYPOSTFIELDS, data.c_str());
             if (status != CURLE_OK) {
                 cleanupCurl();
