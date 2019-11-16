@@ -139,7 +139,15 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
-std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string &remote, const std::string &command, const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::string &remote, const std::string &cmd, const std::vector<std::string> &args) {
+    
+    size_t startPos = 0;
+    std::string command = cmd;
+    while ((startPos = command.find(" ", startPos)) != std::string::npos) {
+        command.replace(startPos, 1, "%20");
+        startPos += 3;
+    }
+    
     std::string url = "http://" + remote + ":32322/command/" + command;
     
     Json::Value j;
