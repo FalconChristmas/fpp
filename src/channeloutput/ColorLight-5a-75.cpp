@@ -467,6 +467,7 @@ void ColorLight5a75Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Outputs        : %d\n", m_outputs);
 	LogDebug(VB_CHANNELOUT, "    Longest Chain  : %d\n", m_longestChain);
 	LogDebug(VB_CHANNELOUT, "    Inverted Data  : %d\n", m_invertedData);
+	LogDebug(VB_CHANNELOUT, "    Interface      : %s\n", m_ifName.c_str());
 
 	ChannelOutputBase::DumpConfig();
 }
