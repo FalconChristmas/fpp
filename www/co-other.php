@@ -812,7 +812,7 @@ function VirtualDisplayConfig(config) {
 	for (i = 1; i <= 3; i++)
 	{
 		result += "<option value='" + i + "'";
-		if (config.channelsPerPixel == i)
+        if (config.pixelSize == i)
 			result += " selected";
 		result += ">" + i + "</option>";
 	}
@@ -857,6 +857,53 @@ function GetVirtualDisplayConfig(result, cell) {
 	result.device = device;
 
 	return result;
+}
+
+function NewHTTPVirtualDisplayConfig() {
+    var config = {};
+
+    config.width = 1280;
+    config.height = 1024;
+    config.pixelSize = 1;
+    return VirtualDisplayConfig(config);
+}
+function HTTPVirtualDisplayConfig(config) {
+    var result = "";
+
+    result += "Width: <input type=text class='width' size=4 maxlength=4 value='" + config.width + "'> ";
+    result += "Height: <input type=text class='height' size=4 maxlength=4 value='" + config.height + "'> ";
+    result += "Pixel Size: <select class='pixelSize'>";
+    for (i = 1; i <= 3; i++)
+    {
+        result += "<option value='" + i + "'";
+        if (config.pixelSize == i)
+            result += " selected";
+        result += ">" + i + "</option>";
+    }
+    result += "</select>";
+    return result;
+}
+
+function GetHTTPVirtualDisplayConfig(result, cell) {
+    $cell = $(cell);
+
+    var width = $cell.find("input.width").val();
+    if (width == "")
+        return "";
+
+    result.width = parseInt(width);
+
+    var height = $cell.find("input.height").val();
+    if (height == "")
+        return "";
+
+    result.height = parseInt(height);
+    
+    var pixelSize = $cell.find("select.pixelSize").val();
+    if (pixelSize == "")
+        pixelSize = "1";
+    result.pixelSize = parseInt(pixelSize);
+    return result;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1213,6 +1260,8 @@ function PopulateChannelOutputTable(data) {
                 newRow += GPIO595DeviceConfig(output);
             } else if (type == "VirtualDisplay") {
                 newRow += VirtualDisplayConfig(output);
+            } else if (type == "HTTPVirtualDisplay") {
+                newRow += HTTPVirtualDisplayConfig(output);
             } else if (type == "MAX7219Matrix") {
                 newRow += MAX7219MatrixConfig(output);
             } else if (type == "USBRelay") {
@@ -1368,6 +1417,14 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 1048576;
+		} else if (type == "HTTPVirtualDisplay") {
+			config = GetHTTPVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid HTTPVirtual Display Config");
+				return;
+			}
+			maxChannels = 1048576;
 		} else if (type == "MAX7219Matrix") {
 			config = GetMAX7219MatrixConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1476,6 +1533,10 @@ function AddOtherTypeOptions(row, type) {
 		config += NewVirtualDisplayConfig();
 		row.find("td input.count").val("1048576");
 		row.find("td input.count").prop('disabled', true);
+    } else if (type == "HTTPVirtualDisplay") {
+        config += NewHTTPVirtualDisplayConfig();
+        row.find("td input.count").val("1048576");
+        row.find("td input.count").prop('disabled', true);
 	} else if (type == "MAX7219Matrix") {
 		config += NewMAX7219MatrixConfig();
 		row.find("td input.count").val("64");
@@ -1580,7 +1641,7 @@ function AddOtherOutput() {
             newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>" +
                 "<option value='VirtualDisplay'>Virtual Display</option>";
         }
-    
+        newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
         newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
