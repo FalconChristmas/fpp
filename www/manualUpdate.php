@@ -19,7 +19,11 @@ FPP Manual Update
 <pre>
 Stopping fppd...
 <?php
-system($SUDO . " $fppDir/scripts/fppd_stop");
+if (file_exists("/.dockerenv")) {
+    system($SUDO . " $fppDir/scripts/fppd_stop");
+} else {
+    exec($SUDO . " systemctl stop fppd");
+}
 ?>
 ==========================================================================
 Pulling in updates...
@@ -29,7 +33,11 @@ system("$fppDir/scripts/git_pull");
 ==========================================================================
 Restarting fppd...
 <?
-system($SUDO . " $fppDir/scripts/fppd_start");
+if (file_exists("/.dockerenv")) {
+    system($SUDO . " $fppDir/scripts/fppd_start");
+} else {
+    exec($SUDO . " systemctl start fppd");
+}
 ?>
 ==========================================================================
 Update Complete.

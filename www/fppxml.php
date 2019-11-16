@@ -150,9 +150,15 @@ function ManualGitUpdate()
 {
 	global $fppDir, $SUDO;
 
-	exec($SUDO . " $fppDir/scripts/fppd_stop");
-	exec("$fppDir/scripts/git_pull");
-	exec($SUDO . " $fppDir/scripts/fppd_start");
+    if (file_exists("/.dockerenv")) {
+        exec($SUDO . " $fppDir/scripts/fppd_stop");
+        exec("$fppDir/scripts/git_pull");
+        exec($SUDO . " $fppDir/scripts/fppd_start");
+    } else {
+        exec($SUDO . " systemctl stop fppd");
+        exec("$fppDir/scripts/git_pull");
+        exec($SUDO . " systemctl start fppd");
+    }
 
 	EchoStatusXML("OK");
 }
@@ -751,9 +757,14 @@ function StopFPPDNoStatus()
     // Shutdown
     SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
     // wait half a second for shutdown and outputs to close
-    usleep(500000);
-    // kill it if it's still running
-    exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+    
+    if (file_exists("/.dockerenv")) {
+        usleep(500000);
+        // kill it if it's still running
+        exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+    } else {
+        exec($SUDO . " systemctl stop fppd");
+    }
 }
 function StopFPPD()
 {
@@ -768,7 +779,11 @@ function StartFPPD()
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
+        if (file_exists("/.dockerenv")) {
+            $status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
+        } else {
+            exec($SUDO . " systemctl start fppd");
+        }
 	}
 	EchoStatusXML($status);
 }
