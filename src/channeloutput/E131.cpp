@@ -191,7 +191,6 @@ void E131OutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
             struct mmsghdr msg;
             memset(&msg, 0, sizeof(msg));
             
-            printf("add: %s\n", inet_ntoa(e131Addresses[x].sin_addr));
             msg.msg_hdr.msg_name = &e131Addresses[x];
             msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
             msg.msg_hdr.msg_iov = &e131Iovecs[x * 2];
