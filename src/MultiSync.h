@@ -224,7 +224,7 @@ class MultiSync {
     int OpenControlSockets();
 
   private:
-    bool isSupportedForMultisync(char *address, char *intface);
+    bool isSupportedForMultisync(const char *address, const char *intface);
     
     void setupMulticastReceive();
     void PingSingleRemote(int sysIdx);

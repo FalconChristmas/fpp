@@ -1566,7 +1566,7 @@ int MultiSync::OpenReceiveSocket(void)
     setupMulticastReceive();
 	return 1;
 }
-bool MultiSync::isSupportedForMultisync(char *address, char *intface) {
+bool MultiSync::isSupportedForMultisync(const char *address, const char *intface) {
     if (!strcmp(address, "127.0.0.1")) {
         return false;
     }
@@ -1698,7 +1698,7 @@ void MultiSync::ProcessControlPacket(void)
 void MultiSync::OpenSyncedSequence(const char *filename)
 {
     LogDebug(VB_SYNC, "OpenSyncedSequence(%s)\n", filename);
-    
+
     ResetMasterPosition();
     sequence->OpenSequenceFile(filename);
 }
@@ -1706,10 +1706,10 @@ void MultiSync::OpenSyncedSequence(const char *filename)
 void MultiSync::StartSyncedSequence(const char *filename)
 {
 	LogDebug(VB_SYNC, "StartSyncedSequence(%s)\n", filename);
-
+    
     ResetMasterPosition();
-    if (!strcmp(sequence->m_seqFilename.c_str(), filename) && !sequence->IsSequenceRunning()) {
-        sequence->StartSequence();
+    if (!sequence->IsSequenceRunning(filename)) {
+        sequence->StartSequence(filename, 0);
     }
 }
 
@@ -1732,8 +1732,7 @@ void MultiSync::SyncSyncedSequence(const char *filename, int frameNumber, float 
 		filename, frameNumber, secondsElapsed);
 
 	if (!sequence->IsSequenceRunning(filename)) {
-        sequence->OpenSequenceFile(filename, frameNumber);
-        sequence->StartSequence();
+        sequence->StartSequence(filename, frameNumber);
 	}
     if (sequence->IsSequenceRunning(filename)) {
 		UpdateMasterPosition(frameNumber);
