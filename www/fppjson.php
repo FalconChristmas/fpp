@@ -1040,23 +1040,12 @@ function GetSequenceInfo()
 	returnJSON($return_arr);
 }
 
-/**
+/*
  * Returns the total playlist duration & number of items in the body/main playlist
- * @throws getid3_exception
  */
-function GetPlayListInfo()
+function GetPlayListInfoFromPlaylist($playlist, $reload)
 {
-	global $args;
 	global $settings;
-	$reload = false;
-
-	$playlist = $args['pl'];
-	check($playlist, "playlist", __FUNCTION__);
-
-	if (isset($args['reload'])) {
-		$reload = $args['reload'];
-		check($reload, "reload", __FUNCTION__);
-	}
 
 	$returnStr = array();
 	//load in the playlist
@@ -1076,7 +1065,7 @@ function GetPlayListInfo()
 			$fileinfo_Items = $fileInfo_data->total_items;
 
 			//Then use this value, it's stored in raw seconds so make it readable
-			$returnStr['total_duration'] = human_playtime($fileinfo_Duration);
+			$returnStr['total_duration'] = $fileinfo_Duration;
 			$returnStr['total_items'] = $fileinfo_Items;
 		}
 //		else if (!array_key_exists('playlistInfo',$data) || $reload == true){
@@ -1106,7 +1095,7 @@ function GetPlayListInfo()
 //				}
 //
 //				//Build up the formatted string
-//				$returnStr['total_duration'] = human_playtime($total_duration);
+//				$returnStr['total_duration'] = $total_duration;
 //				$returnStr['total_items'] = $total_items;
 //				unset($getID3);
 //			}
@@ -1115,7 +1104,33 @@ function GetPlayListInfo()
 		error_log("GetPlayListInfo:: Playlist doesn't exist - " . $playlist);
 	}
 
-	returnJSON($returnStr);
+	return $returnStr;
+}
+
+/**
+ * Returns the total playlist duration & number of items in the body/main playlist
+ * @throws getid3_exception
+ */
+function GetPlayListInfo()
+{
+	global $args;
+	global $settings;
+	$reload = false;
+
+	$playlist = $args['pl'];
+	check($playlist, "playlist", __FUNCTION__);
+
+	if (isset($args['reload'])) {
+		$reload = $args['reload'];
+		check($reload, "reload", __FUNCTION__);
+	}
+
+	$data = GetPlayListInfoFromPlaylist($playlist, $reload);
+
+	// Make the total_duration human-readable
+	$data['total_duration'] = human_playtime($data['total_duration']);
+
+	returnJSON($data);
 }
 
 function GetPlayListEntries()
@@ -1376,6 +1391,12 @@ function GenerateJSONPlaylistInfo($list)
 					//Consider pause duration also
 					if ($type == "pause") {
 						$total_duration = $playlistEntry->entry->duration + $total_duration;
+					}
+
+					if ($type == 'playlist') {
+						$data = GetPlayListInfoFromPlaylist($playlistEntry->entry->name, true);
+						$total_duration += $data['total_duration'];
+						$total_items += $data['total_items'];
 					}
 				}
 			}
