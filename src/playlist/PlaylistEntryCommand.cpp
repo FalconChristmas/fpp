@@ -127,9 +127,12 @@ Json::Value PlaylistEntryCommand::GetConfig(void)
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
 	result["command"]  = m_command;
+
+	Json::Value args(Json::arrayValue);
     for (auto &a : m_args) {
-        result["args"].append(a);
+        args.append(a);
     }
+	result["args"] = args;
 	return result;
 }
 
