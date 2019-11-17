@@ -36,7 +36,7 @@ Restarting fppd...
 if (file_exists("/.dockerenv")) {
     system($SUDO . " $fppDir/scripts/fppd_start");
 } else {
-    exec($SUDO . " systemctl start fppd");
+    exec($SUDO . " systemctl restart fppd");
 }
 ?>
 ==========================================================================
