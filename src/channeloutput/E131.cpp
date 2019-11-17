@@ -73,6 +73,8 @@ const unsigned char E131header[] = {
 
 E131OutputData::E131OutputData(const Json::Value &config)
 : UDPOutputData(config), E131sequenceNumber(1), universeCount(1) {
+    
+    sockaddr_in e131Address;
     memset((char *) &e131Address, 0, sizeof(sockaddr_in));
     e131Address.sin_family = AF_INET;
     e131Address.sin_port = htons(E131_DEST_PORT);
@@ -109,7 +111,21 @@ E131OutputData::E131OutputData(const Json::Value &config)
     
     e131Iovecs.resize(universeCount * 2);
     e131Headers.resize(universeCount);
+    e131Addresses.resize(universeCount);
     for (int x = 0; x < universeCount; x++) {
+        
+        if (type == E131_TYPE_MULTICAST) {
+            int UniverseOctet[2];
+            char sAddress[32];
+
+            int u = universe + x;
+            UniverseOctet[0] = u/256;
+            UniverseOctet[1] = u%256;
+            sprintf(sAddress, "239.255.%d.%d", UniverseOctet[0],UniverseOctet[1]);
+            e131Address.sin_addr.s_addr = inet_addr(sAddress);
+        }
+        e131Addresses[x] = e131Address;
+        
         unsigned char *e131Buffer = (unsigned char *)malloc(E131_HEADER_LENGTH);
         e131Headers[x] = e131Buffer;
         memcpy(e131Buffer, E131header, E131_HEADER_LENGTH);
@@ -175,7 +191,8 @@ void E131OutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
             struct mmsghdr msg;
             memset(&msg, 0, sizeof(msg));
             
-            msg.msg_hdr.msg_name = &e131Address;
+            printf("add: %s\n", inet_ntoa(e131Addresses[x].sin_addr));
+            msg.msg_hdr.msg_name = &e131Addresses[x];
             msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
             msg.msg_hdr.msg_iov = &e131Iovecs[x * 2];
             msg.msg_hdr.msg_iovlen = 2;

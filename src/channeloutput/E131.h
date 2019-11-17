@@ -50,7 +50,7 @@ public:
     int           priority;
     char          E131sequenceNumber;
 
-    sockaddr_in   e131Address;
+    std::vector<sockaddr_in>   e131Addresses;
     std::vector<struct iovec>  e131Iovecs;
     std::vector<unsigned char *> e131Headers;
 };
