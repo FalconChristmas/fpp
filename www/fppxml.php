@@ -157,7 +157,7 @@ function ManualGitUpdate()
     } else {
         exec($SUDO . " systemctl stop fppd");
         exec("$fppDir/scripts/git_pull");
-        exec($SUDO . " systemctl start fppd");
+        exec($SUDO . " systemctl restart fppd");
     }
 
 	EchoStatusXML("OK");
@@ -782,7 +782,7 @@ function StartFPPD()
         if (file_exists("/.dockerenv")) {
             $status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
         } else {
-            exec($SUDO . " systemctl start fppd");
+            exec($SUDO . " systemctl restart fppd");
         }
 	}
 	EchoStatusXML($status);
