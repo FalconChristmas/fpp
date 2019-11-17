@@ -488,7 +488,13 @@ int Playlist::Start(void)
 int Playlist::StopNow(int forceStop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopNow(%d)\n", forceStop);
+    
+    if (m_status == FPP_STATUS_IDLE) {
+        return 1;
+    }
 
+
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
 
 	if (m_currentSection->at(m_sectionPosition)->IsPlaying())
@@ -557,6 +563,8 @@ int Playlist::Process(void)
         delete p;
         PL_CLEANUPS.pop_front();
     }
+
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
 	if (m_sectionPosition >= m_currentSection->size()) {
 		LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
@@ -821,6 +829,7 @@ int Playlist::Cleanup(void)
 
 
 void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position) {
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
         Play(filename.c_str(), position);
     } else {
@@ -844,6 +853,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 		filename, position, repeat, scheduled);
 
 	m_scheduled = scheduled;
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
 	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
 		(m_status == FPP_STATUS_STOPPING_GRACEFULLY)) {
@@ -979,6 +989,7 @@ void Playlist::RestartItem(void)
         return;
     }
     
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     int pos = GetPosition() - 1;
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
@@ -997,6 +1008,7 @@ void Playlist::NextItem(void)
         return;
     }
     
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     int pos = GetPosition() - 1;
     if (m_currentSectionStr == "MainPlaylist") {
         if (pos < (m_leadIn.size() + m_mainPlaylist.size())) {
@@ -1027,6 +1039,7 @@ void Playlist::PrevItem(void)
         return;
     }
 
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     int pos = GetPosition() - 1;
     if (m_currentSectionStr == "MainPlaylist") {
         if (pos > m_leadIn.size()) {
