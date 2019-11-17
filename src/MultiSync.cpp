@@ -1341,7 +1341,8 @@ bool MultiSync::FillInInterfaces() {
     std::unique_lock<std::mutex> lock(m_socketLock);
     while (tmp) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-            if (strncmp("usb", tmp->ifa_name, 3) != 0 && strncmp("lo", tmp->ifa_name, 3) != 0) {
+            
+            if (isSupportedForMultisync("", tmp->ifa_name)) {
                 //skip the usb* interfaces as we won't support multisync on those
                 struct sockaddr_in *ba = (struct sockaddr_in*)(tmp->ifa_ifu.ifu_broadaddr);
                 struct sockaddr_in *sa = (struct sockaddr_in*)(tmp->ifa_addr);
@@ -1569,7 +1570,7 @@ bool MultiSync::isSupportedForMultisync(char *address, char *intface) {
     if (!strcmp(address, "127.0.0.1")) {
         return false;
     }
-    if (!strncmp(intface, "usb", 3) || !strcmp(intface, "lo")) {
+    if (!strncmp(intface, "usb", 3) || !strcmp(intface, "lo") || !strncmp(intface, "tether", 6) || !strncmp(intface, "SoftAp", 6)) {
         return false;
     }
     return true;
