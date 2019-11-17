@@ -292,11 +292,15 @@ void Sequence::StartSequence() {
 
 void Sequence::StartSequence(const std::string &filename, int frameNumber) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    if (sequence->m_seqFilename != filename) {
+        CloseSequenceFile();
+        OpenSequenceFile(filename);
+    }
     if (sequence->m_seqFilename == filename) {
+        StartSequence();
         if (frameNumber != 0) {
             SeekSequenceFile(frameNumber);
         }
-        StartSequence();
     }
 }
 

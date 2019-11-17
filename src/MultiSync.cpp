@@ -1731,7 +1731,7 @@ void MultiSync::SyncSyncedSequence(const char *filename, int frameNumber, float 
 	LogExcess(VB_SYNC, "SyncSyncedSequence('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	if (!sequence->IsSequenceRunning(filename)) {
+    if (!sequence->IsSequenceRunning(filename)) {
         sequence->StartSequence(filename, frameNumber);
 	}
     if (sequence->IsSequenceRunning(filename)) {
