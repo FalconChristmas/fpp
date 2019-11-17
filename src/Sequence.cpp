@@ -290,6 +290,15 @@ void Sequence::StartSequence() {
     }
 }
 
+void Sequence::StartSequence(const std::string &filename, int frameNumber) {
+    std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
+    if (sequence->m_seqFilename == filename) {
+        if (frameNumber != 0) {
+            SeekSequenceFile(frameNumber);
+        }
+        StartSequence();
+    }
+}
 
 void Sequence::SeekSequenceFile(int frameNumber) {
     LogDebug(VB_SEQUENCE, "SeekSequenceFile(%d)\n", frameNumber);
@@ -342,8 +351,8 @@ int Sequence::IsSequenceRunning(const std::string &filename) {
     int result = 0;
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
-    if ((sequence->m_seqFilename == filename) && m_seqFile)
-        result = 1;
+    if (sequence->m_seqFilename == filename)
+        result = sequence->IsSequenceRunning();
 
     return result;
 }

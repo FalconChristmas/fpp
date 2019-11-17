@@ -58,6 +58,7 @@ class Sequence {
 	int   IsSequenceRunning(void);
 	int   IsSequenceRunning(const std::string &filename);
 	int   OpenSequenceFile(const std::string &filename, int startFrame = 0, int startSecond = -1);
+    void  StartSequence(const std::string &filename, int startFrame);
     void  StartSequence();
 	void  ProcessSequenceData(int ms, int checkControlChannels = 1);
 	void  SeekSequenceFile(int frameNumber);
