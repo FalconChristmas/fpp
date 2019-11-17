@@ -3221,6 +3221,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
                                async: false,
                                success: function(data) {
                                    if (Array.isArray(data)) {
+                                        data.sort();
                                         $.each( data, function( key, v ) {
                                           var line = "<option value='" + v + "'"
                                           if (v == dv) {
