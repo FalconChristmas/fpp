@@ -221,6 +221,8 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
         int oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, 0);
         if (oc >= 0) {
             outputCount += oc;
+        } else {
+            return outputCount;
         }
     }
     return outputCount;
@@ -231,24 +233,26 @@ int UDPOutput::SendData(unsigned char *channelData) {
     if ((udpMsgs.size() == 0 && broadcastMsgs.size() == 0) || !enabled) {
         return 0;
     }
-    std::chrono::high_resolution_clock clock;
-    auto t1 = clock.now();
-    int outputCount = SendMessages(sendSocket, udpMsgs);
-    auto t2 = clock.now();
-    long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-    if ((outputCount != udpMsgs.size()) || (diff > 100)) {
-        //failed to send all messages or it took more than 100ms to send them
-        LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (output count: %d/%d   time: %u ms) with error: %d   %s\n",
-               outputCount, udpMsgs.size(), diff,
-               errno,
-               strerror(errno));
-        
-        //we'll ping the controllers and rebuild the valid message list, this could take time
-        
-        PingControllers();
-        return 0;
+    if (udpMsgs.size() > 0) {
+        std::chrono::high_resolution_clock clock;
+        auto t1 = clock.now();
+        int outputCount = SendMessages(sendSocket, udpMsgs);
+        auto t2 = clock.now();
+        long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+        if ((outputCount != udpMsgs.size()) || (diff > 100)) {
+            //failed to send all messages or it took more than 100ms to send them
+            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (output count: %d/%d   time: %u ms) with error: %d   %s\n",
+                   outputCount, udpMsgs.size(), diff,
+                   errno,
+                   strerror(errno));
+            
+            //we'll ping the controllers and rebuild the valid message list, this could take time
+            
+            PingControllers();
+            return 0;
+        }
     }
-    outputCount = SendMessages(broadcastSocket, broadcastMsgs);
+    SendMessages(broadcastSocket, broadcastMsgs);
     
     return 1;
 }

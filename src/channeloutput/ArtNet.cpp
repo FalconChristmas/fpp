@@ -111,7 +111,7 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
     
     memset((char *) &ArtNetSyncAddress, 0, sizeof(sockaddr_in));
     ArtNetSyncAddress.sin_family = AF_INET;
-    ArtNetSyncAddress.sin_port = htons(0);
+    ArtNetSyncAddress.sin_port = htons(ARTNET_DEST_PORT);
     ArtNetSyncAddress.sin_addr.s_addr = inet_addr("255.255.255.255");
 
     universe = config["id"].asInt();
