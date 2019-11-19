@@ -591,10 +591,13 @@ void MultiSync::PeriodicPing() {
         //to any of those 4, it's got to be down/gone.   Remove it.
         unsigned long timeoutRemove = (unsigned long)t - 60*120;
         std::unique_lock<std::mutex> lock(m_systemsLock);
+        int i = 0;
         for (auto it = m_systems.begin(); it != m_systems.end(); ) {
             if (it->lastSeen < timeoutRemove) {
-                LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
-                m_systems.erase(it);
+                if (i >= m_numLocalSystems) {
+                    LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
+                    m_systems.erase(it);
+                }
             } else if (it->lastSeen < timeoutRePing) {
                 //do a ping
                 PingSingleRemote(it - m_systems.begin());
@@ -602,6 +605,7 @@ void MultiSync::PeriodicPing() {
             } else {
                 ++it;
             }
+            i++;
         }
     }
 }
