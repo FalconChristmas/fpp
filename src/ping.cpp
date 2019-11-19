@@ -143,9 +143,9 @@ int ping(string target)
     // Watch stdin (fd 0) to see when it has input.
     FD_ZERO(&rfds);
     FD_SET(pingSocket, &rfds);
-    // Wait up to one seconds.
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
+    // Wait up to 1/4 second.
+    tv.tv_sec = 0;
+    tv.tv_usec = 250000;
     
     while(cont)
     {
@@ -207,7 +207,7 @@ int ping(string target)
         }
         else
         {
-            //cout << "No data within one seconds.\n";
+            //cout << "No data within 1/4 second.\n";
             return 0;
         }
     }

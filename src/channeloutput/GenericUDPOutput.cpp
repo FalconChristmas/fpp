@@ -12,7 +12,7 @@ extern "C" {
     }
 }
 
-
+static const std::string GENERIC_UDP_TYPE = "GenericUDP";
 
 class GenericUDPOutputData : public UDPOutputData {
 public:
@@ -101,6 +101,11 @@ public:
     }
     ~GenericUDPOutputData() {
     }
+    
+    const std::string &GetOutputTypeString() const {
+        return GENERIC_UDP_TYPE;
+    }
+
     void addLittleEndian(std::vector<uint8_t> &bytes, int v) {
         int a = v & 0xFF;
         int b = (v >> 8) & 0xFF;

@@ -138,6 +138,12 @@
 
 #define DDP_PACKET_LEN (DDP_HEADER_LEN + DDP_CHANNELS_PER_PACKET)
 
+static const std::string DDPTYPE = "DDP";
+
+const std::string &DDPOutputData::GetOutputTypeString() const {
+    return DDPTYPE;
+}
+
 DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config), sequenceNumber(1) {
     memset((char *) &ddpAddress, 0, sizeof(sockaddr_in));
     ddpAddress.sin_family = AF_INET;

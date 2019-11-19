@@ -44,6 +44,7 @@ public:
     virtual void DumpConfig();
     virtual void GetRequiredChannelRange(int &min, int & max);
 
+    virtual const std::string &GetOutputTypeString() const;
 
     int           universe;
     int           universeCount;

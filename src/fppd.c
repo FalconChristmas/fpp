@@ -106,6 +106,7 @@ static void handleCrash(int s) {
     }
     free(strs);
     inCrashHandler = false;
+    runMainFPPDLoop = 0;
     if (s != SIGQUIT && s != SIGUSR1) {
         exit(-1);
     }

@@ -40,6 +40,8 @@ public:
     virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
     virtual void DumpConfig();
     
+    virtual const std::string &GetOutputTypeString() const;
+
     char          sequenceNumber;
     
     sockaddr_in   ddpAddress;

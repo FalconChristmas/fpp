@@ -59,6 +59,8 @@ public:
         max = startChannel + channelCount - 1;
     }
     
+    virtual const std::string &GetOutputTypeString();
+    
     static in_addr_t toInetAddr(const std::string &ip, bool &valid);
     
     
@@ -97,22 +99,25 @@ public:
 private:
     int SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs);
     bool InitNetwork();
-    void PingControllers();
+    bool PingControllers();
     void RebuildOutputMessageLists();
     
     int sendSocket;
     int broadcastSocket;
     bool enabled;
     
+    int errCount;
+    
     std::list<UDPOutputData*> outputs;
     std::vector<struct mmsghdr> udpMsgs;
     std::vector<struct mmsghdr> broadcastMsgs;
     
+    volatile bool runPingThread;
     std::thread *pingThread;
-    volatile bool runDisabledPings;
+    std::mutex pingThreadMutex;
+    std::condition_variable pingThreadCondition;
+    
     volatile bool rebuildOutputLists;
-    std::mutex invalidOutputsMutex;
-    std::list<UDPOutputData*> invalidOutputs;
 };
 
 #endif
