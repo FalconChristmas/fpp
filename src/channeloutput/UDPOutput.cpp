@@ -38,6 +38,7 @@
 
 #include "common.h"
 #include "settings.h"
+#include "NetworkMonitor.h"
 
 #include "E131.h"
 #include "DDP.h"
@@ -85,8 +86,8 @@ UDPOutputData::UDPOutputData(const Json::Value &config)
 UDPOutputData::~UDPOutputData() {
 }
 
-static const std::string UNKNOWN_TYPE = "Unknown";
-const std::string &UDPOutputData::GetOutputTypeString() {
+static const std::string UNKNOWN_TYPE = "UDP";
+const std::string &UDPOutputData::GetOutputTypeString() const {
     return UNKNOWN_TYPE;
 }
 
@@ -119,6 +120,7 @@ UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
 {
     INSTANCE = this;
     sendSocket = -1;
+    broadcastSocket = -1;
 }
 UDPOutput::~UDPOutput() {
     INSTANCE = nullptr;
@@ -187,6 +189,22 @@ int UDPOutput::Init(Json::Value config) {
     }
     
     
+    std::function<void(NetworkMonitor::NetEventType, int, const std::string &)> f = [this](NetworkMonitor::NetEventType i, int up, const std::string &s) {
+        std::string interface = getE131interface();
+        if (s == interface && i == NetworkMonitor::NetEventType::NEW_ADDR && up) {
+            LogInfo(VB_CHANNELOUT, "UDP Interface now up\n");
+            PingControllers();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            InitNetwork();
+            rebuildOutputLists = true;
+        } else if (s == interface && i == NetworkMonitor::NetEventType::DEL_ADDR) {
+            LogInfo(VB_CHANNELOUT, "UDP Interface now down\n");
+            CloseNetwork();
+        }
+    };
+    NetworkMonitor::INSTANCE.registerCallback(f);
+
+    
     InitNetwork();
     PingControllers();
     rebuildOutputLists = true;
@@ -234,6 +252,10 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
         return 0;
     }
     
+    if (sendSocket == -1) {
+        return msgCount;
+    }
+    
     errno = 0;
     int oc = sendmmsg(socket, msgs, msgCount, MSG_DONTWAIT);
     int outputCount = oc;
@@ -243,7 +265,7 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
         }
         if (outputCount != msgCount) {
             errno = 0;
-            int oc = sendmmsg(sendSocket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+            int oc = sendmmsg(socket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
             if (oc > 0) {
                 outputCount += oc;
             }
@@ -257,6 +279,7 @@ int UDPOutput::SendData(unsigned char *channelData) {
     if ((udpMsgs.size() == 0 && broadcastMsgs.size() == 0) || !enabled) {
         return 0;
     }
+    isSending = true;
     if (udpMsgs.size() > 0) {
         std::chrono::high_resolution_clock clock;
         auto t1 = clock.now();
@@ -283,7 +306,7 @@ int UDPOutput::SendData(unsigned char *channelData) {
         }
     }
     SendMessages(broadcastSocket, broadcastMsgs);
-    
+    isSending = false;
     return 1;
 }
 
@@ -304,7 +327,7 @@ void UDPOutput::BackgroundThreadPing() {
     delete t;
 }
 bool UDPOutput::PingControllers() {
-    LogDebug(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
+    LogExcess(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
 
     std::map<std::string, int> done;
     bool newOutputs = false;
@@ -381,14 +404,38 @@ void UDPOutput::DumpConfig() {
         u->DumpConfig();
     }
 }
+void UDPOutput::CloseNetwork() {
+    int ts = sendSocket;
+    int bs = broadcastSocket;
+        
+    sendSocket = -1;
+    broadcastSocket = -1;
+    //if other thread is sending data, give it time to compete
+    while (isSending) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    close(sendSocket);
+    close(broadcastSocket);
+
+    PingControllers();
+    rebuildOutputLists = true;
+}
 
 bool UDPOutput::InitNetwork() {
+    if (sendSocket != -1) {
+        return true;
+    }
     char E131LocalAddress[16];
     GetInterfaceAddress(getE131interface(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n",E131LocalAddress);
 
+    if (strcmp(E131LocalAddress, "127.0.0.1") == 0) {
+        return false;
+    }
 
-    sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+    int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
     if (sendSocket < 0) {
         LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
         exit(1);
@@ -421,7 +468,7 @@ bool UDPOutput::InitNetwork() {
         LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
     }
     
-    broadcastSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    int broadcastSocket = socket(AF_INET, SOCK_DGRAM, 0);
     if (broadcastSocket < 0) {
         LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
         exit(1);
@@ -446,6 +493,8 @@ bool UDPOutput::InitNetwork() {
         LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
     }
 
+    this->sendSocket = sendSocket;
+    this->broadcastSocket = broadcastSocket;
     return true;
 }
 
