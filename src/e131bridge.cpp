@@ -842,7 +842,6 @@ void InputUniversesPrint()
 }
 
 
-static std::map<in_addr_t, std::string> ERRORS;
 
 void AddFakeListener(int port, const std::string &protocol,
                      std::map<int, std::function<bool(int)>> &callbacks) {
@@ -863,16 +862,17 @@ void AddFakeListener(int port, const std::string &protocol,
     }
     
     std::function<bool(int)> f = [sock, protocol](int i) {
+        std::map<in_addr_t, std::string> errrors;
         int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
         while (msgcnt > 0) {
             for (int x = 0; x < msgcnt; x++) {
                 struct in_addr i = inAddress[x].sin_addr;
                 in_addr_t at = i.s_addr;
-                if (ERRORS[at] == "") {
+                if (errrors[at] == "") {
                     std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
-                    LogWarn(VB_E131BRIDGE, "%s\n", ne.c_str());
-                    WarningHolder::AddWarning(ne);
-                    ERRORS[at] = ne;
+                    LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
+                    WarningHolder::AddWarningTimeout(ne, 30);
+                    errrors[at] = ne;
                 }
             }
             msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);

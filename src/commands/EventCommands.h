@@ -100,7 +100,14 @@ public:
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
-
+class StopFSEQAsEffectCommand : public Command {
+public:
+    StopFSEQAsEffectCommand() : Command("FSEQ Effect Stop") {
+        args.push_back(CommandArg("effect", "string", "FSEQ Name").setContentListUrl("api/sequence"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
 
 class StartRemoteEffectCommand : public Command {
 public:
@@ -108,6 +115,17 @@ public:
         args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
         args.push_back(CommandArg("effect", "string", "Effect Name"));
         args.push_back(CommandArg("startChannel", "int", "Start Channel"));
+        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+        args.push_back(CommandArg("bg", "bool", "Background"));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class StartRemoteFSEQEffectCommand : public Command {
+public:
+    StartRemoteFSEQEffectCommand() : Command("Remote FSEQ Effect Start") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("fseq", "string", "FSEQ Name"));
         args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
         args.push_back(CommandArg("bg", "bool", "Background"));
     }
