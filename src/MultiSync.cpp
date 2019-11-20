@@ -316,9 +316,9 @@ bool MultiSync::FillLocalSystemInfo(void)
     newSystem.ipc          = 0;
     newSystem.ipd          = 0;
     
-    LogDebug(VB_SYNC, "Host name: \n", newSystem.hostname.c_str());
-    LogDebug(VB_SYNC, "Version: \n", newSystem.version.c_str());
-    LogDebug(VB_SYNC, "Model: \n", newSystem.model.c_str());
+    LogDebug(VB_SYNC, "Host name: %s\n", newSystem.hostname.c_str());
+    LogDebug(VB_SYNC, "Version: %s\n", newSystem.version.c_str());
+    LogDebug(VB_SYNC, "Model: %s\n", newSystem.model.c_str());
     
     bool changed = false;
     std::unique_lock<std::mutex> lock(m_systemsLock);
@@ -331,7 +331,7 @@ bool MultiSync::FillLocalSystemInfo(void)
             }
         }
         if (!found) {
-            LogDebug(VB_SYNC, "Adding Local System Address: \n", address.c_str());
+            LogDebug(VB_SYNC, "Adding Local System Address: %s\n", address.c_str());
             changed = true;
             newSystem.address = address;
             std::vector<std::string> parts = split(newSystem.address, '.');
