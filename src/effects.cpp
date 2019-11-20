@@ -116,6 +116,7 @@ int IsEffectRunning(void)
 	int result = 0;
     std::unique_lock<std::mutex> lock(effectsLock);
 	result = effectCount;
+    result |= !clearRanges.empty();
 	return result;
 }
 
@@ -348,12 +349,9 @@ int OverlayEffects(char *channelData)
 
     std::unique_lock<std::mutex> lock(effectsLock);
     
-    if (!sequence->IsSequenceRunning()) {
-        //for effects that have been stopped, we need to clear the data if a sequence
-        //isn't running that would have loaded data into the ranges
-        for (auto &rng : clearRanges) {
-            memset(&channelData[rng.first], 0, rng.second);
-        }
+    //for effects that have been stopped, we need to clear the data 
+    for (auto &rng : clearRanges) {
+        memset(&channelData[rng.first], 0, rng.second);
     }
     clearRanges.clear();
 

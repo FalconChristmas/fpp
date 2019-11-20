@@ -46,6 +46,7 @@
 #include "Plugins.h"
 #include "Playlist.h"
 #include "settings.h"
+#include "Sequence.h"
 
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryBranch.h"
@@ -788,6 +789,8 @@ void Playlist::SetIdle(bool exit)
     if (m_parent && exit) {
         playlist = m_parent;
         PL_CLEANUPS.push_back(this);
+    } else if (exit) {
+        sequence->SendBlankingData();
     }
 }
 
