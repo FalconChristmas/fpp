@@ -46,13 +46,18 @@ typedef struct fppChannelOutput {
 	int              (*stopThread)(void *data);
 } FPPChannelOutput;
 
-typedef struct fppChannelOutputInstance {
-	unsigned int      startChannel;
-	unsigned int      channelCount;
-	FPPChannelOutput *outputOld;
-	ChannelOutputBase *output;
-	void             *privData;
-} FPPChannelOutputInstance;
+class FPPChannelOutputInstance {
+public:
+    FPPChannelOutputInstance() {}
+    ~FPPChannelOutputInstance() {}
+    
+	unsigned int      startChannel = 0;
+	unsigned int      channelCount = 0;
+	FPPChannelOutput  *outputOld = nullptr;
+	ChannelOutputBase *output = nullptr;
+	void              *privData = nullptr;
+    void              *libHandle = nullptr;
+};
 
 extern char            channelData[];
 extern pthread_mutex_t channelDataLock;

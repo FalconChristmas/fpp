@@ -178,9 +178,28 @@ void PixelOverlayModel::doText(const std::string &msg,
     image.antiAlias(antialias);
 
 
-    Magick::TypeMetric metrics;
-    image.fontTypeMetrics(msg, &metrics);
     
+    int maxWid = 0;
+    int totalHi = 0;
+    
+    int lines = 1;
+    int last = 0;
+    for (int x = 0; x < msg.length(); x++) {
+        if (msg[x] == '\n') {
+            lines++;
+            std::string newM = msg.substr(last, x);
+            Magick::TypeMetric metrics;
+            image.fontTypeMetrics(newM, &metrics);
+            maxWid = std::max(maxWid,  (int)metrics.textWidth());
+            totalHi += (int)metrics.textHeight();
+            last = x + 1;
+        }
+    }
+    std::string newM = msg.substr(last);
+    Magick::TypeMetric metrics;
+    image.fontTypeMetrics(newM, &metrics);
+    maxWid = std::max(maxWid,  (int)metrics.textWidth());
+    totalHi += (int)metrics.textHeight();
     
     if (position == "Centered" || position == "Center") {
         image.magick("RGB");
@@ -210,8 +229,9 @@ void PixelOverlayModel::doText(const std::string &msg,
         rr /= 255.0f;
         rg /= 255.0f;
         rb /= 255.0f;
+                
         
-        Magick::Image image2(Magick::Geometry(metrics.textWidth(), metrics.textHeight()), Magick::Color("black"));
+        Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
         image2.quiet(true);
         image2.depth(8);
         image2.font(font);
@@ -225,12 +245,12 @@ void PixelOverlayModel::doText(const std::string &msg,
         image2.strokeAntiAlias(antialias);
         image2.annotate(msg, Magick::CenterGravity);
 
-        double y = (getHeight() / 2.0) - (metrics.textHeight() / 2.0);
-        double x = (getWidth() / 2.0) - (metrics.textWidth() / 2.0);
+        double y = (getHeight() / 2.0) - ((totalHi) / 2.0);
+        double x = (getWidth() / 2.0) - (maxWid / 2.0);
         if (position == "R2L") {
             x = getWidth();
         } else if (position == "L2R") {
-            x = -metrics.textWidth();
+            x = -maxWid;
         } else if (position == "B2T") {
             y = getHeight();
         } else if (position == "T2B") {

@@ -37,7 +37,7 @@
 class TestPatternBase {
   public:
     TestPatternBase();
-	~TestPatternBase();
+	virtual ~TestPatternBase();
 
 	std::string  Name(void) { return m_testPatternName; }
 	int          Init(std::string configStr);

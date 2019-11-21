@@ -36,7 +36,7 @@
 class ChannelTester {
   public:
     ChannelTester();
-	~ChannelTester();
+	virtual ~ChannelTester();
 
 	int  SetupTest(std::string configStr);
 

@@ -35,20 +35,22 @@ public:
     };
     
     
-    NetworkMonitor() {}
+    NetworkMonitor() : curId(0) {}
     ~NetworkMonitor() {}
     
     void Init(std::map<int, std::function<bool(int)>> &callbacks);
     
-    void registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback);
-    void addCallback(std::function<void(NetEventType, int, const std::string &)> &callback) { registerCallback(callback); }
+    int registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback);
+    int addCallback(std::function<void(NetEventType, int, const std::string &)> &callback) { return registerCallback(callback); }
+    void removeCallback(int id);
 
     static NetworkMonitor INSTANCE;
     
     
 private:
     void callCallbacks(NetEventType, int, const std::string &n);
-    std::list<std::function<void(NetEventType, int, const std::string &)>> callbacks;
+    std::map<int, std::function<void(NetEventType, int, const std::string &)>> callbacks;
+    int curId;
 };
 
 #endif

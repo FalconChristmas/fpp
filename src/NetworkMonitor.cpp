@@ -101,12 +101,17 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>> &callbacks) {
 }
 void NetworkMonitor::callCallbacks(NetEventType nl, int up, const std::string &n) {
     for (auto &cb : callbacks) {
-        cb(nl, up, n);
+        cb.second(nl, up, n);
     }
 }
 
 
-void NetworkMonitor::registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback) {
-    callbacks.push_back(callback);
+int NetworkMonitor::registerCallback(std::function<void(NetEventType, int, const std::string &)> &callback) {
+    int id = curId++;
+    callbacks[id] = callback;
+    return id;
 }
 
+void NetworkMonitor::removeCallback(int id) {
+    callbacks.erase(id);
+}

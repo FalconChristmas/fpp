@@ -338,9 +338,11 @@ int InitializeChannelOutputs(void) {
                     if (fptr == nullptr) {
                         LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
                         WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
+                        dlclose(handle);
                         continue;
                     }
                     channelOutputs[i].output = fptr(start, count);
+                    channelOutputs[i].libHandle = handle;
                 }
 
 				if ((channelOutputs[i].outputOld) &&
@@ -377,6 +379,9 @@ int InitializeChannelOutputs(void) {
                         WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
                         delete channelOutputs[i].output;
                         channelOutputs[i].output = nullptr;
+                        if (channelOutputs[i].libHandle) {
+                            dlclose(channelOutputs[i].libHandle);
+                        }
                     }
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
@@ -517,6 +522,9 @@ void CloseChannelOutputs(void) {
         if (channelOutputs[i].output) {
             delete channelOutputs[i].output;
             channelOutputs[i].output = NULL;
+            if (channelOutputs[i].libHandle) {
+                dlclose(channelOutputs[i].libHandle);
+            }
         }
     }
 }

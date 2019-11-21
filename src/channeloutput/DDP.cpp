@@ -202,6 +202,7 @@ DDPOutputData::~DDPOutputData() {
     for (int x = 0; x < pktCount; x++) {
         free(ddpBuffers[x]);
     }
+    free(ddpBuffers);
     free(ddpIovecs);
 }
 

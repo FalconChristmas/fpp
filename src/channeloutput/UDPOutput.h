@@ -115,6 +115,8 @@ private:
     std::vector<struct mmsghdr> udpMsgs;
     std::vector<struct mmsghdr> broadcastMsgs;
     
+    int  networkCallbackId;
+
     volatile bool runPingThread;
     std::thread *pingThread;
     std::mutex pingThreadMutex;

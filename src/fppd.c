@@ -543,6 +543,7 @@ int main(int argc, char *argv[])
 	if (mqtt)
 		delete mqtt;
 
+    MagickLib::DestroyMagick();
 	curl_global_cleanup();
 
 	return 0;

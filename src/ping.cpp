@@ -70,6 +70,7 @@ int ping(string target)
     u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
     u_char outpack[MAXPACKET];
     char hnamebuf[MAXHOSTNAMELEN];
+    
     string hostname;
     struct icmp *icp;
     int ret, fromlen, hlen;
@@ -83,6 +84,8 @@ int ping(string target)
     memset(outpack, 0, sizeof(outpack));
     memset(packet, 0, sizeof(packet));
     memset(hnamebuf, 0, sizeof(hnamebuf));
+    memset(&to, 0, sizeof(to));
+    memset(&from, 0, sizeof(to));
 
     to.sin_family = AF_INET;
     

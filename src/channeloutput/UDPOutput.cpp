@@ -116,7 +116,8 @@ in_addr_t UDPOutputData::toInetAddr(const std::string &ipAddress, bool &valid) {
 
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
-    : pingThread(nullptr), runPingThread(true), rebuildOutputLists(false), errCount(0)
+    : pingThread(nullptr), runPingThread(true), rebuildOutputLists(false),
+      errCount(0), networkCallbackId(0)
 {
     INSTANCE = this;
     sendSocket = -1;
@@ -126,6 +127,12 @@ UDPOutput::~UDPOutput() {
     INSTANCE = nullptr;
     runPingThread = false;
     pingThreadCondition.notify_all();
+    if (pingThread) {
+        pingThread->join();
+        delete pingThread;
+        pingThread = nullptr;
+    }
+    NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     for (auto a : outputs) {
         delete a;
     }
@@ -203,7 +210,7 @@ int UDPOutput::Init(Json::Value config) {
             CloseNetwork();
         }
     };
-    NetworkMonitor::INSTANCE.registerCallback(f);
+    networkCallbackId = NetworkMonitor::INSTANCE.registerCallback(f);
 
     
     InitNetwork();
@@ -212,9 +219,15 @@ int UDPOutput::Init(Json::Value config) {
     pingThread = new std::thread(DoPingThread, this);
     return ChannelOutputBase::Init(config);
 }
-int  UDPOutput::Close() {
+int UDPOutput::Close() {
     runPingThread = false;
     pingThreadCondition.notify_all();
+    if (pingThread) {
+        pingThread->join();
+        delete pingThread;
+        pingThread = nullptr;
+    }
+    NetworkMonitor::INSTANCE.removeCallback(networkCallbackId);
     return ChannelOutputBase::Close();
 }
 void UDPOutput::PrepData(unsigned char *channelData) {
@@ -323,9 +336,6 @@ void UDPOutput::BackgroundThreadPing() {
         }
         pingThreadCondition.wait_for(lk, std::chrono::seconds(10));
     }
-    std::thread *t = pingThread;
-    pingThread = nullptr;
-    delete t;
 }
 bool UDPOutput::PingControllers() {
     LogExcess(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
