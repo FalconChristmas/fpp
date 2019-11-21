@@ -33,7 +33,7 @@ std::string FPPEvent::getEventFileName(const std::string &id) {
     return filename;
 }
 std::string FPPEvent::getEventFileName() {
-    char id[6];
+    char id[6] = {0};
     sprintf(id, "%02d_%02d", majorID, minorID);
 
     std::string filename = getEventDirectory();
@@ -232,6 +232,7 @@ int TriggerEventByID(const char *id)
 
 void UpgradeEvents() {
     char id[6];
+    memset(id, 0, sizeof(id));
     for (int major = 1; major <= MAX_EVENT_MAJOR; major++) {
         for (int minor = 1; minor <= MAX_EVENT_MAJOR; minor++) {
             sprintf(id, "%02d_%02d", major, minor);

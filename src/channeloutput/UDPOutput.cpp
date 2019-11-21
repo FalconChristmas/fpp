@@ -165,9 +165,10 @@ int UDPOutput::Init(Json::Value config) {
     getifaddrs(&interfaces);
     tmp = interfaces;
     //loop through all the interfaces and get the addresses
+    char address[16];
+    memset(address, 0, sizeof(address));
     while (tmp) {
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
-            char address[16];
             GetInterfaceAddress(tmp->ifa_name, address, NULL, NULL);
             myIps.emplace(address);
         }

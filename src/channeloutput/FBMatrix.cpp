@@ -291,7 +291,7 @@ int FBMatrixOutput::Close(void)
 	}
 
     if (m_frame) {
-        delete m_frame;
+        delete [] m_frame;
         m_frame = nullptr;
     }
 	return ChannelOutputBase::Close();

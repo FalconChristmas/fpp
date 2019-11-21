@@ -109,23 +109,26 @@ typedef enum systemType {
     kSysTypeESPixelStick                 = 0xC2
 } MultiSyncSystemType;
 
-typedef struct multiSyncSystem {
-	unsigned long        lastSeen;
+class MultiSyncSystem {
+public:
+    MultiSyncSystem() {
+    }
+	unsigned long        lastSeen = 0;
 	std::string          lastSeenStr;
-	MultiSyncSystemType  type;
-	unsigned int         majorVersion;
-	unsigned int         minorVersion;
-	FPPMode              fppMode;
+	MultiSyncSystemType  type = kSysTypeUnknown;
+	unsigned int         majorVersion = 0;
+	unsigned int         minorVersion = 0;
+	FPPMode              fppMode = FPPMode::PLAYER_MODE;
 	std::string          address;
 	std::string          hostname;
 	std::string          version;
 	std::string          model;
     std::string          ranges;
-	unsigned char        ipa;
-	unsigned char        ipb;
-	unsigned char        ipc;
-	unsigned char        ipd;
-} MultiSyncSystem;
+	unsigned char        ipa = 0;
+	unsigned char        ipb = 0;
+	unsigned char        ipc = 0;
+	unsigned char        ipd = 0;
+};
 
 
 class MultiSyncPlugin {

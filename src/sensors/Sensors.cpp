@@ -291,7 +291,7 @@ Sensors Sensors::INSTANCE;
 
 void Sensors::Init() {
     int i = 0;
-    char path[256];
+    char path[256] = {0};
     sprintf(path, "/sys/class/thermal/thermal_zone%d/temp", i);
     while (FileExists(path)) {
         Json::Value v;

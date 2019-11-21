@@ -99,6 +99,8 @@ MultiSync::MultiSync()
     m_sendMulticast(false),
     m_sendBroadcast(false)
 {
+    memset(rcvBuffers, 0, sizeof(rcvBuffers));
+    memset(rcvCmbuf, 0, sizeof(rcvCmbuf));
 }
 
 /*
@@ -279,6 +281,7 @@ bool MultiSync::FillLocalSystemInfo(void)
             if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
                 if (strncmp("usb", tmp->ifa_name, 3) != 0) {
                     //skip the usb* interfaces as we won't support multisync on those
+                    memset(addressBuf, 0, sizeof(addressBuf));
                     GetInterfaceAddress(tmp->ifa_name, addressBuf, NULL, NULL);
                     if (isSupportedForMultisync(addressBuf, tmp->ifa_name)) {
                         addresses.push_back(addressBuf);
@@ -291,6 +294,7 @@ bool MultiSync::FillLocalSystemInfo(void)
         }
         freeifaddrs(interfaces);
     } else {
+        memset(addressBuf, 0, sizeof(addressBuf));
         GetInterfaceAddress(multiSyncInterface.c_str(), addressBuf, NULL, NULL);
         addresses.push_back(addressBuf);
     }
@@ -452,12 +456,13 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
 
 static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> ranges, int limit) {
     bool first = true;
-    std::string range;
+    std::string range("");
+    char buf[64];
+    memset(buf, 0, sizeof(buf));
     for (auto &a : ranges) {
         if (!first) {
             range += ",";
         }
-        char buf[64];
         sprintf(buf, "%d-%d", a.first, (a.first + a.second - 1));
         range += buf;
         first = false;
@@ -593,23 +598,27 @@ void MultiSync::PeriodicPing() {
         std::unique_lock<std::mutex> lock(m_systemsLock);
         int i = 0;
         for (auto it = m_systems.begin(); it != m_systems.end(); ) {
-            if (it->lastSeen < timeoutRemove) {
-                if (i >= m_numLocalSystems) {
+            if (i >= m_numLocalSystems) {
+                if (it->lastSeen < timeoutRemove) {
                     LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
                     m_systems.erase(it);
+                    i--;
+                } else if (it->lastSeen < timeoutRePing) {
+                    //do a ping
+                    PingSingleRemote(it - m_systems.begin());
+                    ++it;
+                } else {
+                    ++it;
                 }
-            } else if (it->lastSeen < timeoutRePing) {
-                //do a ping
-                PingSingleRemote(it - m_systems.begin());
-                ++it;
-            } else {
-                ++it;
             }
             i++;
         }
     }
 }
 void MultiSync::PingSingleRemote(int sysIdx) {
+    if (sysIdx >= m_systems.size()) {
+        return;
+    }
     char           outBuf[512];
     memset(outBuf, 0, sizeof(outBuf));
     int len = CreatePingPacket(m_systems[0], outBuf, 1);
@@ -1929,6 +1938,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	FPPMode systemMode = (FPPMode)extraData[7];
 
 	char addrStr[16];
+    memset(addrStr, 0, sizeof(addrStr));
     bool isInstance = true;
     if (extraData[8] == 0
         && extraData[9] == 0
@@ -1947,6 +1957,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	std::string address = addrStr;
 
 	char tmpStr[128];
+    memset(tmpStr, 0, sizeof(tmpStr));
 	strcpy(tmpStr, (char*)(extraData + 12));
 	std::string hostname(tmpStr);
 

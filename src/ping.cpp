@@ -80,6 +80,10 @@ int ping(string target)
     int /*start_t, */end_t;
     bool cont = true;
     
+    memset(outpack, 0, sizeof(outpack));
+    memset(packet, 0, sizeof(packet));
+    memset(hnamebuf, 0, sizeof(hnamebuf));
+
     to.sin_family = AF_INET;
     
     // try to convert as dotted decimal address, else if that fails assume it's a hostname

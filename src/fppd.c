@@ -601,6 +601,7 @@ void MainLoop(void)
     int epollf = epoll_create1(EPOLL_CLOEXEC);
     for (auto &a : callbacks) {
         epoll_event event;
+        memset(&event, 0, sizeof(event));
         event.events = EPOLLIN;
         event.data.fd = a.first;
         int rc = epoll_ctl(epollf, EPOLL_CTL_ADD, a.first, &event);
@@ -619,6 +620,7 @@ void MainLoop(void)
 
     static const int MAX_EVENTS = 20;
     epoll_event events[MAX_EVENTS];
+    memset(events, 0, sizeof(events));
     int idleCount = 0;
     
 	while (runMainFPPDLoop) {

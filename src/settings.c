@@ -81,6 +81,9 @@ void initSettings(int argc, char **argv)
     char tmpDir[256];
     char mediaDir[256];
     
+    memset(tmpDir, 0, sizeof(tmpDir));
+    memset(mediaDir, 0, sizeof(mediaDir));
+    
 	settings.binDirectory = strdup(dirname(argv[0]));
     if (strlen(settings.binDirectory) == 1 && settings.binDirectory[0] == '.') {
         getcwd(tmpDir, sizeof(tmpDir));
@@ -435,8 +438,8 @@ int loadSettings(const char *filename)
 
 	if (file != NULL)
 	{
-		char * line = NULL;
-		size_t len = 0;
+		char * line = (char*)calloc(256, 1);
+		size_t len = 256;
 		ssize_t read;
 		int sIndex = 0;
 
