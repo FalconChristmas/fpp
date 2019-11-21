@@ -33,7 +33,6 @@
 #include "ScheduleEntry.h"
 
 #define SCHEDULE_INDEX_INVALID  -1
-#define MAX_SCHEDULE_ENTRIES  64 
 #define SECONDS_PER_MINUTE    60
 #define SECONDS_PER_HOUR      3600
 #define SECONDS_PER_DAY       86400
@@ -65,31 +64,17 @@
 #define INX_DAY_MASK_FRIDAY         0x00200
 #define INX_DAY_MASK_SATURDAY       0x00100
 
-typedef struct{
-	char enable;
-	char playList[128];
-	int  dayIndex;
-	int  startHour;
-	int  startMinute;
-	int  startSecond;
-	int  endHour;
-	int  endMinute;
-	int  endSecond;
-	char repeat;
-	int  weeklySecondCount;
-	int  weeklyStartSeconds[DAYS_PER_WEEK];
-	int  weeklyEndSeconds[DAYS_PER_WEEK];
-	int  startDate; // YYYYMMDD format as an integer
-	int  endDate;   // YYYYMMDD format as an integer
-} ScheduleEntryStruct;
 
-typedef struct {
-	int ScheduleEntryIndex;
-	int weeklySecondIndex;
-	int startWeeklySeconds;
-	int endWeeklySeconds;
-} SchedulePlaylistDetails;
-
+class SchedulePlaylistDetails {
+public:
+    SchedulePlaylistDetails() {}
+    ~SchedulePlaylistDetails() {}
+    
+	int ScheduleEntryIndex = 0;
+	int weeklySecondIndex = 0;
+	int startWeeklySeconds = 0;
+	int endWeeklySeconds = 0;
+};
 
 class Scheduler {
   public:
@@ -110,7 +95,7 @@ class Scheduler {
 	void LoadCurrentScheduleInfo(void);
 	void LoadNextScheduleInfo(void);
 	void GetSunInfo(int set, int &hour, int &minute, int &second);
-	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry);
+	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry);
 	void PlayListLoadCheck(void);
 	void PlayListStopCheck(void);
 	void LoadScheduleFromFile(void);
@@ -123,7 +108,6 @@ class Scheduler {
 	void GetDayTextFromDayIndex(int index,char * txt);
 
 
-	int           m_ScheduleEntryCount;
 	unsigned char m_CurrentScheduleHasbeenLoaded;
 	unsigned char m_NextScheduleHasbeenLoaded;
 	int           m_nowWeeklySeconds2;
@@ -138,9 +122,8 @@ class Scheduler {
 	int           m_threadIsRunning;
 
 	pthread_mutex_t             m_scheduleLock;
-	std::vector<ScheduleEntry>  m_schedule;
+	std::vector<ScheduleEntry>  m_Schedule;
 
-	ScheduleEntryStruct     m_Schedule[MAX_SCHEDULE_ENTRIES];
 	SchedulePlaylistDetails m_currentSchedulePlaylist;
 	SchedulePlaylistDetails m_nextSchedulePlaylist;
 };

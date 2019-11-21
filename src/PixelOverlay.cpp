@@ -935,6 +935,7 @@ static void findFonts(const std::string &dir, std::map<std::string, std::string>
                 fonts[fname] = dname;
             }
         }
+        closedir(dp);
     }
 }
 
@@ -944,6 +945,7 @@ void PixelOverlayManager::loadFonts() {
         char **mlfonts = MagickLib::GetTypeList("*", &i);
         for (int x = 0; x < i; x++) {
             fonts[mlfonts[x]] = "";
+            free(mlfonts[x]);
         }
         findFonts("/usr/share/fonts/truetype/", fonts);
         findFonts("/usr/local/share/fonts/", fonts);
