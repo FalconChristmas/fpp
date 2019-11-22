@@ -162,7 +162,8 @@ void PixelOverlayModel::doText(const std::string &msg,
                                int fontSize,
                                bool antialias,
                                const std::string &position,
-                               int pixelsPerSecond) {
+                               int pixelsPerSecond,
+                               bool autoEnable) {
     if (updateThread) {
         threadKeepRunning = false;
         updateThread->join();
@@ -177,7 +178,12 @@ void PixelOverlayModel::doText(const std::string &msg,
     image.fontPointsize(fontSize);
     image.antiAlias(antialias);
 
-
+    bool disableWhenDone = false;
+    if ((autoEnable) && (getState().getState() == PixelOverlayState::PixelState::Disabled))
+    {
+        setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+        disableWhenDone = true;
+    }
     
     int maxWid = 0;
     int totalHi = 0;
@@ -221,6 +227,9 @@ void PixelOverlayModel::doText(const std::string &msg,
         image.write( &blob );
         
         setData((uint8_t*)blob.data());
+
+        if (disableWhenDone)
+            setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
     } else {
         //movement
         double rr = r;
@@ -287,10 +296,10 @@ void PixelOverlayModel::doText(const std::string &msg,
         copyImageData(x, y);
         lock();
         threadKeepRunning = true;
-        updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond);
+        updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond, disableWhenDone);
     }
 }
-void PixelOverlayModel::doImageMovementThread(const std::string direction, int x, int y, int speed) {
+void PixelOverlayModel::doImageMovementThread(const std::string direction, int x, int y, int speed, bool disableWhenDone) {
     int msDelay = 1000 / speed;
     bool done = false;
     while (threadKeepRunning && !done) {
@@ -318,6 +327,9 @@ void PixelOverlayModel::doImageMovementThread(const std::string direction, int x
         }
         copyImageData(x, y);
     }
+    if (disableWhenDone)
+        setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+
     unlock();
 }
 
@@ -1143,6 +1155,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                             int fontSize = root["FontSize"].asInt();
                             bool aa = root["AntiAlias"].asBool();
                             int pps = root["PixelsPerSecond"].asInt();
+                            bool autoEnable = root["AutoEnable"].asBool();
                             
                             std::string f = fonts[font];
                             if (f == "") {
@@ -1157,7 +1170,8 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                                       fontSize,
                                       aa,
                                       position,
-                                      pps);
+                                      pps,
+                                      autoEnable);
                             return httpserver::http_response_builder("OK", 200);
                         }
                     }
@@ -1265,6 +1279,7 @@ public:
         args.push_back(CommandArg("Position", "string", "Position").setContentList({"Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom"}));
         args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
         args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
+        args.push_back(CommandArg("AutoEnable", "bool", "Auto Enable/Disable Model").setDefaultValue("false"));
     }
     
     const std::string mapPosition(const std::string &p) {
@@ -1283,8 +1298,8 @@ public:
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
-        if (args.size() != 8) {
-            return std::make_unique<Command::ErrorResult>("Command needs 8 arguments, found " + std::to_string(args.size()));
+        if (args.size() != 9) {
+            return std::make_unique<Command::ErrorResult>("Command needs 9 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
         auto m = manager->getModel(args[0]);
@@ -1304,6 +1319,7 @@ public:
             std::string position = mapPosition(args[5]);
             int pps = std::atoi(args[6].c_str());
             std::string msg = args[7];
+            bool autoEnable = args[8] == "true" || args[8] == "1";
             
             
             m->doText(msg,
@@ -1314,7 +1330,8 @@ public:
                       fontSize,
                       aa,
                       position,
-                      pps);
+                      pps,
+                      autoEnable);
         }
         return std::make_unique<Command::Result>("Model Filled");
     }

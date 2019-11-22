@@ -46,7 +46,7 @@ function help_help()
         [ 'PUT /overlays/model/:ModelName/state', 'Sets the state of the overlay model', '{"State": 1}', 'OK'],
         [ 'PUT /overlays/model/:ModelName/fill', 'Fills the entire overlay with the given color', '{"RGB": [255, 0, 0]}', 'OK'],
         [ 'PUT /overlays/model/:ModelName/pixel', 'Sets a specific pixel in the model to the given color', '{"X": 10, "Y": 12, "RGB": [255, 0, 0]}', 'OK'],
-        [ 'PUT /overlays/model/:ModelName/text', 'Displays text on the overlay model', '{"Message": "Hello", "Position": "L2R", "Font": "Helvetica", "FontSize": 12, "AntiAlias": false, "PixelsPerSecond": 5, "Color": "#FF000"}', 'OK'],
+        [ 'PUT /overlays/model/:ModelName/text', 'Displays text on the overlay model', '{"Message": "Hello", "Position": "L2R", "Font": "Helvetica", "FontSize": 12, "AntiAlias": false, "PixelsPerSecond": 5, "Color": "#FF000", "AutoEnable": false}', 'OK'],
         [ 'GET /fppd/log', 'Gets the current log mask', '', '{"log":{"level":"info","mask":"channelout,command,control,e131bridge"},"message":"","respCode":200,"status":"OK"}' ],
         [ 'GET /fppd/playlists', 'Get the current playing playlists', '', '{"message":"","playlists":["Test"],"respCode":200,"status":"OK"}'],
         [ 'GET /fppd/e131stats', 'Gets the current bridge mode input statistics', '', ''],
