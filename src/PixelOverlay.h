@@ -103,7 +103,8 @@ public:
                 int fontSize,
                 bool antialias,
                 const std::string &position,
-                int pixelsPerSecond);
+                int pixelsPerSecond,
+                bool autoEnable);
     
     
     int getStartChannel() const;
@@ -118,7 +119,7 @@ public:
     
 private:
     void copyImageData(int xoff, int yoff);
-    void doImageMovementThread(const std::string direction, int x, int y, int speed);
+    void doImageMovementThread(const std::string &direction, int x, int y, int speed, bool disableWhenDone);
     
     std::string name;
     FPPChannelMemoryMapControlBlock *block;

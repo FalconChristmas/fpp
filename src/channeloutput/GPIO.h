@@ -34,16 +34,16 @@ class GPIOOutput : public ChannelOutputBase {
 	GPIOOutput(unsigned int startChannel, unsigned int channelCount);
 	~GPIOOutput();
 
-    virtual int Init(Json::Value config);
+    virtual int Init(Json::Value config) override;
 
-	int Init(char *configStr);
-	int Close(void);
+	virtual int Init(char *configStr) override;
+	virtual int Close(void) override;
 
-	int SendData(unsigned char *channelData);
+	virtual int SendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
         addRange(m_startChannel, m_startChannel);
     }
 

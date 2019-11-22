@@ -33,17 +33,17 @@
 class USBPixelnetOutput : public ThreadedChannelOutputBase {
   public:
 	USBPixelnetOutput(unsigned int startChannel, unsigned int channelCount);
-	~USBPixelnetOutput();
+	virtual ~USBPixelnetOutput();
 
-    virtual int Init(Json::Value config);
-	int Init(char *configStr);
-	int Close(void);
+    virtual int Init(Json::Value config) override;
+	virtual int Init(char *configStr) override;
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+	virtual int RawSendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	enum DongleType {

@@ -33,16 +33,16 @@
 class X11MatrixOutput : public ThreadedChannelOutputBase {
   public:
 	X11MatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~X11MatrixOutput();
+	virtual ~X11MatrixOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+	virtual int RawSendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
   	int         m_width;

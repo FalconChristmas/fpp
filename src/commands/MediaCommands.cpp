@@ -116,8 +116,8 @@ public:
         }
         cleanupCurl();
     }
-    virtual bool isError() { return m_curl == nullptr || m_curlm == nullptr; }
-    virtual bool isDone() {
+    virtual bool isError() override { return m_curl == nullptr || m_curlm == nullptr; }
+    virtual bool isDone() override {
         if (!isError()) {
             if (m_isDone) {
                 return true;

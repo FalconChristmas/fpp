@@ -253,8 +253,8 @@ public:
     NoInterleaveHandler() {}
     virtual ~NoInterleaveHandler() {}
     
-    virtual void mapRow(int &y) {}
-    virtual void mapCol(int y, int &x) {}
+    virtual void mapRow(int &y) override {}
+    virtual void mapCol(int y, int &x) override {}
 };
 class SimpleInterleaveHandler : public InterleaveHandler {
 public:
@@ -262,12 +262,12 @@ public:
         : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps), m_flipRows(flip) {}
     virtual ~SimpleInterleaveHandler() {}
 
-    virtual void mapRow(int &y) {
+    virtual void mapRow(int &y) override {
         while (y >= m_panelScan) {
             y -= m_panelScan;
         }
     }
-    virtual void mapCol(int y, int &x) {
+    virtual void mapCol(int y, int &x) override {
         int whichInt = x / m_interleave;
         if (m_flipRows) {
             if (y & m_panelScan) {
@@ -295,12 +295,12 @@ public:
         : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
     virtual ~ZigZagInterleaveHandler() {}
     
-    virtual void mapRow(int &y) {
+    virtual void mapRow(int &y) override {
         while (y >= m_panelScan) {
             y -= m_panelScan;
         }
     }
-    virtual void mapCol(int y, int &x) {
+    virtual void mapCol(int y, int &x) override {
         int whichInt = x / m_interleave;
         int offInInt = x % m_interleave;
         int mult = y / m_panelScan;

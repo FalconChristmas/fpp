@@ -162,7 +162,8 @@ void PixelOverlayModel::doText(const std::string &msg,
                                int fontSize,
                                bool antialias,
                                const std::string &position,
-                               int pixelsPerSecond) {
+                               int pixelsPerSecond,
+                               bool autoEnable) {
     if (updateThread) {
         threadKeepRunning = false;
         updateThread->join();
@@ -177,10 +178,34 @@ void PixelOverlayModel::doText(const std::string &msg,
     image.fontPointsize(fontSize);
     image.antiAlias(antialias);
 
-
-    Magick::TypeMetric metrics;
-    image.fontTypeMetrics(msg, &metrics);
+    bool disableWhenDone = false;
+    if ((autoEnable) && (getState().getState() == PixelOverlayState::PixelState::Disabled))
+    {
+        setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+        disableWhenDone = true;
+    }
     
+    int maxWid = 0;
+    int totalHi = 0;
+    
+    int lines = 1;
+    int last = 0;
+    for (int x = 0; x < msg.length(); x++) {
+        if (msg[x] == '\n') {
+            lines++;
+            std::string newM = msg.substr(last, x);
+            Magick::TypeMetric metrics;
+            image.fontTypeMetrics(newM, &metrics);
+            maxWid = std::max(maxWid,  (int)metrics.textWidth());
+            totalHi += (int)metrics.textHeight();
+            last = x + 1;
+        }
+    }
+    std::string newM = msg.substr(last);
+    Magick::TypeMetric metrics;
+    image.fontTypeMetrics(newM, &metrics);
+    maxWid = std::max(maxWid,  (int)metrics.textWidth());
+    totalHi += (int)metrics.textHeight();
     
     if (position == "Centered" || position == "Center") {
         image.magick("RGB");
@@ -202,6 +227,9 @@ void PixelOverlayModel::doText(const std::string &msg,
         image.write( &blob );
         
         setData((uint8_t*)blob.data());
+
+        if (disableWhenDone)
+            setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
     } else {
         //movement
         double rr = r;
@@ -210,8 +238,9 @@ void PixelOverlayModel::doText(const std::string &msg,
         rr /= 255.0f;
         rg /= 255.0f;
         rb /= 255.0f;
+                
         
-        Magick::Image image2(Magick::Geometry(metrics.textWidth(), metrics.textHeight()), Magick::Color("black"));
+        Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
         image2.quiet(true);
         image2.depth(8);
         image2.font(font);
@@ -225,12 +254,12 @@ void PixelOverlayModel::doText(const std::string &msg,
         image2.strokeAntiAlias(antialias);
         image2.annotate(msg, Magick::CenterGravity);
 
-        double y = (getHeight() / 2.0) - (metrics.textHeight() / 2.0);
-        double x = (getWidth() / 2.0) - (metrics.textWidth() / 2.0);
+        double y = (getHeight() / 2.0) - ((totalHi) / 2.0);
+        double x = (getWidth() / 2.0) - (maxWid / 2.0);
         if (position == "R2L") {
             x = getWidth();
         } else if (position == "L2R") {
-            x = -metrics.textWidth();
+            x = -maxWid;
         } else if (position == "B2T") {
             y = getHeight();
         } else if (position == "T2B") {
@@ -267,10 +296,10 @@ void PixelOverlayModel::doText(const std::string &msg,
         copyImageData(x, y);
         lock();
         threadKeepRunning = true;
-        updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond);
+        updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond, disableWhenDone);
     }
 }
-void PixelOverlayModel::doImageMovementThread(const std::string direction, int x, int y, int speed) {
+void PixelOverlayModel::doImageMovementThread(const std::string &direction, int x, int y, int speed, bool disableWhenDone) {
     int msDelay = 1000 / speed;
     bool done = false;
     while (threadKeepRunning && !done) {
@@ -298,6 +327,9 @@ void PixelOverlayModel::doImageMovementThread(const std::string direction, int x
         }
         copyImageData(x, y);
     }
+    if (disableWhenDone)
+        setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+
     unlock();
 }
 
@@ -915,6 +947,7 @@ static void findFonts(const std::string &dir, std::map<std::string, std::string>
                 fonts[fname] = dname;
             }
         }
+        closedir(dp);
     }
 }
 
@@ -924,6 +957,7 @@ void PixelOverlayManager::loadFonts() {
         char **mlfonts = MagickLib::GetTypeList("*", &i);
         for (int x = 0; x < i; x++) {
             fonts[mlfonts[x]] = "";
+            free(mlfonts[x]);
         }
         findFonts("/usr/share/fonts/truetype/", fonts);
         findFonts("/usr/local/share/fonts/", fonts);
@@ -1121,6 +1155,10 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                             int fontSize = root["FontSize"].asInt();
                             bool aa = root["AntiAlias"].asBool();
                             int pps = root["PixelsPerSecond"].asInt();
+                            bool autoEnable = false;
+                            if (root.isMember("AutoEnable")) {
+                                autoEnable = root["AutoEnable"].asBool();
+                            }
                             
                             std::string f = fonts[font];
                             if (f == "") {
@@ -1135,7 +1173,8 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                                       fontSize,
                                       aa,
                                       position,
-                                      pps);
+                                      pps,
+                                      autoEnable);
                             return httpserver::http_response_builder("OK", 200);
                         }
                     }
@@ -1242,6 +1281,11 @@ public:
         args.push_back(CommandArg("FontAntiAlias", "bool", "Anti-Aliased").setDefaultValue("false"));
         args.push_back(CommandArg("Position", "string", "Position").setContentList({"Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom"}));
         args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
+        args.push_back(CommandArg("AutoEnable", "bool", "Auto Enable/Disable Model").setDefaultValue("false"));
+        
+        // keep text as last argument if possible as the MQTT commands will, by default, use the payload of the mqtt
+        // msg as the last argument.  Thus, this allows all of the above to be topic paths, but the text to be
+        // sent in the payload
         args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
     }
     
@@ -1261,8 +1305,8 @@ public:
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
-        if (args.size() != 8) {
-            return std::make_unique<Command::ErrorResult>("Command needs 8 arguments, found " + std::to_string(args.size()));
+        if (args.size() < 8) {
+            return std::make_unique<Command::ErrorResult>("Command needs 9 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
         auto m = manager->getModel(args[0]);
@@ -1281,8 +1325,13 @@ public:
             bool aa = args[4] == "true" || args[4] == "1";
             std::string position = mapPosition(args[5]);
             int pps = std::atoi(args[6].c_str());
-            std::string msg = args[7];
             
+            std::string msg = args[7];
+            bool autoEnable = false;
+            if (args.size() == 9) {
+                autoEnable = (msg == "true" || msg == "1");
+                msg = args[8];
+            }
             
             m->doText(msg,
                       (cint >> 16) & 0xFF,
@@ -1292,7 +1341,8 @@ public:
                       fontSize,
                       aa,
                       position,
-                      pps);
+                      pps,
+                      autoEnable);
         }
         return std::make_unique<Command::Result>("Model Filled");
     }

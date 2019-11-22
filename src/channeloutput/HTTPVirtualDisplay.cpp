@@ -31,9 +31,14 @@
 #include <unistd.h>
 
 #include <map>
+#include <fstream>
+#include <iostream>
+#include <iomanip>
+#include <ctime>
 #include <sstream>
 
 #include "common.h"
+#include "fppversion_defines.h"
 #include "log.h"
 #include "HTTPVirtualDisplay.h"
 #include "Sequence.h"
@@ -205,17 +210,6 @@ int HTTPVirtualDisplayOutput::Close(void)
 void HTTPVirtualDisplayOutput::ConnectionThread(void)
 {
 	int client;
-	const char sseResp[] = "HTTP/1.1 200 OK\r\n"
-		"Content-Type: text/event-stream;charset=UTF-8\r\n"
-		"Transfer-Encoding: chunked\r\n"
-		"Connection: close\r\n"
-		"Date: Mon, 01 Jan 1970 00:00:00 GMT\r\n"
-		"Server: fppd\r\n"
-		"X-Powered-By: FPP/7.2.14\r\n"
-		"Cache-Control: no-cache, private\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Access-Control-Allow-Credentials: true\r\n"
-		"\r\n";
 
 	while (m_running)
 	{
@@ -223,10 +217,35 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void)
 
 		if (client >= 0)
 		{
+			auto t = std::time(nullptr);
+			auto tm = *std::localtime(&t);
+			std::stringstream sstr;
+			sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
+
+			std::string sseResp;
+			sseResp =
+				"HTTP/1.1 200 OK\r\n"
+				"Content-Type: text/event-stream;charset=UTF-8\r\n"
+				"Transfer-Encoding: chunked\r\n"
+				"Connection: close\r\n"
+				"Date: ";
+			sseResp += sstr.str();
+			sseResp +=
+				"\r\n"
+				"Server: fppd\r\n"
+				"X-Powered-By: FPP/" FPP_SOURCE_VERSION_STR "\r\n"
+				"Cache-Control: no-cache, private\r\n"
+				"Access-Control-Allow-Origin: *\r\n"
+				"Access-Control-Allow-Credentials: true\r\n"
+				"\r\n";
+
+			// Reset our display cache so we draw everything needed
+			bzero(m_virtualDisplay, m_screenSize);
+
 			std::unique_lock<std::mutex> lock(m_connListLock);
 			m_connList.push_back(client);
 
-			write(client, sseResp, strlen(sseResp));
+			write(client, sseResp.c_str(), sseResp.length());
 
 			m_connListChanged = true;
 		}
@@ -240,7 +259,7 @@ void HTTPVirtualDisplayOutput::SelectThread(void)
 {
 	fd_set active_fd_set;
 	fd_set read_fd_set;
-    int    selectResult;
+	int    selectResult;
 	struct timeval timeout;
 	char   buf[1024];
 	int    bytesRead;

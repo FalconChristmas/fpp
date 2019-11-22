@@ -50,7 +50,7 @@ public:
         ErrorResult() : Result() {}
         ErrorResult(const std::string &r) : Result(r) {}
         virtual ~ErrorResult() {}
-        virtual bool isError() { return true; }
+        virtual bool isError() override { return true; }
     };
     
     

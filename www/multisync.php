@@ -169,6 +169,20 @@ if (isset($_GET['advancedView'])) {
 			$('#' + rowID + '_status').html(status);
 			$('#' + rowID + '_elapsed').html(elapsed);
 			$('#' + rowID + '_files').html(files);
+               
+            if (data.warnings != null && data.warnings.length > 0) {
+               var result_style = document.getElementById(rowID + '_warnings').style;
+               result_style.display = 'table-row';
+               var wHTML = "";
+               for(var i = 0; i < data.warnings.length; i++) {
+                wHTML += "<font color='red'>" + data.warnings[i] + "</font><br>";
+               }
+               $('#' + rowID + '_warningCell').html(wHTML);
+            } else {
+               var result_style = document.getElementById(rowID + '_warnings').style;
+               result_style.display = 'none';
+            }
+               
 			//Expert View Rows
             if(advancedView === true && data.status_name !== 'unknown') {
                 $('#' + rowID + '_platform').html(data.advancedView.Platform + "<br><small class='hostDescriptionSM'>" + data.advancedView.Variant + "</small>");
@@ -300,6 +314,9 @@ if (isset($_GET['advancedView'])) {
 
             newRow = newRow + "</tr>";
 			$('#fppSystems tbody').append(newRow);
+            
+            newRow = "<tr id='" + rowID + "_warnings' style='display:none'><td></td><td></td><td colspan='6' id='" + rowID + "_warningCell'></td></tr>";
+            $('#fppSystems tbody').append(newRow);
 
 			getFPPSystemStatus(ip, data[i].Platform);
 			getFPPSystemInfo(ip, data[i].Platform);

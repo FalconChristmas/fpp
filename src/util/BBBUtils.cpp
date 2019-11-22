@@ -371,7 +371,7 @@ int BBBPinCapabilities::getPWMRegisterAddress() const {
 class NullBBBPinCapabilities : public BBBPinCapabilities {
 public:
     NullBBBPinCapabilities() : BBBPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const { return nullptr; }
+    virtual const PinCapabilities *ptr() const override { return nullptr; }
 };
 static NullBBBPinCapabilities NULL_BBB_INSTANCE;
 

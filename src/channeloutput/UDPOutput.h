@@ -59,6 +59,8 @@ public:
         max = startChannel + channelCount - 1;
     }
     
+    virtual const std::string &GetOutputTypeString() const;
+    
     static in_addr_t toInetAddr(const std::string &ip, bool &valid);
     
     
@@ -69,26 +71,29 @@ public:
     int           type;
     std::string   ipAddress;
     bool          valid;
+    
+    
+    UDPOutputData(UDPOutputData const &) = delete;
+    void operator=(UDPOutputData const &x) = delete;
 };
-
 
 class UDPOutput : public ChannelOutputBase {
 public:
     UDPOutput(unsigned int startChannel, unsigned int channelCount);
-    ~UDPOutput();
+    virtual ~UDPOutput();
     
     
-    int  Init(Json::Value config);
-    int  Close(void);
+    virtual int  Init(Json::Value config) override;
+    virtual int  Close(void) override;
     
-    void PrepData(unsigned char *channelData);
-    int  SendData(unsigned char *channelData);
+    virtual void PrepData(unsigned char *channelData) override;
+    virtual int  SendData(unsigned char *channelData) override;
     
-    void DumpConfig(void);
+    virtual void DumpConfig(void) override;
 
     void BackgroundThreadPing();
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
     
     void addOutput(UDPOutputData*);
     
@@ -97,22 +102,30 @@ public:
 private:
     int SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs);
     bool InitNetwork();
-    void PingControllers();
+    void CloseNetwork();
+    bool PingControllers();
     void RebuildOutputMessageLists();
     
     int sendSocket;
     int broadcastSocket;
     bool enabled;
     
+    int errCount;
+
+    std::atomic_bool isSending;
+    
     std::list<UDPOutputData*> outputs;
     std::vector<struct mmsghdr> udpMsgs;
     std::vector<struct mmsghdr> broadcastMsgs;
     
+    int  networkCallbackId;
+
+    volatile bool runPingThread;
     std::thread *pingThread;
-    volatile bool runDisabledPings;
+    std::mutex pingThreadMutex;
+    std::condition_variable pingThreadCondition;
+    
     volatile bool rebuildOutputLists;
-    std::mutex invalidOutputsMutex;
-    std::list<UDPOutputData*> invalidOutputs;
 };
 
 #endif

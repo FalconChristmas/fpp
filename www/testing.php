@@ -686,7 +686,7 @@ if (file_exists($settings['model-overlays'])) {
 				<span style='float: left'>Update Interval: </span><span id="testModeCycleMS"></span> <span style='float: left' id='testModeCycleMSText'>1000</span><span style='float: left'> ms</span></br>
 				<hr>
 				<div id='testModeModeDiv'>
-				<b>Test Patterns</b><br><br>
+<b>Test Patterns:</b><br><small>Note: RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</small><br>
 				<table border=0 cellpadding=0 cellspacing=0>
 				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
 				<tr><td colspan=3>&nbsp;<b>Color Order:</b>

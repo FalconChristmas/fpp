@@ -32,37 +32,24 @@
 #include "ScheduleEntry.h"
 
 ScheduleEntry::ScheduleEntry()
-  : m_enabled(0),
-	m_playlistName(""),
-	m_priority(0),
-	m_repeating(0),
-	m_dayIndex(0),
-	m_weeklySecondCount(0),
-	m_startTime(0),
-	m_endTime(0),
-	m_startHour(0),
-	m_startMinute(0),
-	m_startSecond(0),
-	m_endHour(0),
-	m_endMinute(0),
-	m_endSecond(0),
-	m_startDate(0),
-	m_endDate(0),
-	m_state(SS_IDLE),
-	m_lastStartTime(0),
-	m_lastEndTime(0),
-	m_thisStartTime(0),
-	m_thisEndTime(0),
-	m_nextStartTime(0),
-	m_nextEndTime(0)
+  : enabled(false),
+	playlist(""),
+	repeat(false),
+	dayIndex(0),
+	weeklySecondCount(0),
+	startHour(0),
+	startMinute(0),
+	startSecond(0),
+	endHour(0),
+	endMinute(0),
+	endSecond(0),
+	startDate(0),
+	endDate(0)
 {
-	for (int i = 0; i < DAYS_PER_WEEK; i++)
-	{
-		m_weeklyStartSeconds[i] = 0;
-		m_weeklyEndSeconds[i] = 0;
+	for (int i = 0; i < DAYS_PER_WEEK; i++) {
+		weeklyStartSeconds[i] = 0;
+		weeklyEndSeconds[i] = 0;
 	}
-
-	m_state = SS_IDLE;
 }
 
 ScheduleEntry::~ScheduleEntry()
@@ -73,86 +60,35 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 {
 	std::vector<std::string> elems = split(entryStr, ',');
 
-	if (elems.size() < 10)
-	{
+	if (elems.size() < 10) {
 		LogErr(VB_SCHEDULE, "Invalid Schedule Entry: '%s', %d elements\n",
 			entryStr.c_str(), elems.size());
 		return 0;
 	}
 
-	m_enabled            = atoi(elems[0].c_str());
-	m_playlistName       = elems[1];
-	m_dayIndex           = atoi(elems[2].c_str());
-	m_startHour          = atoi(elems[3].c_str());
-	m_startMinute        = atoi(elems[4].c_str());
-	m_startSecond        = atoi(elems[5].c_str());
-	m_endHour            = atoi(elems[6].c_str());
-	m_endMinute          = atoi(elems[7].c_str());
-	m_endSecond          = atoi(elems[8].c_str());
-	m_repeating          = atoi(elems[9].c_str());
+	enabled            = atoi(elems[0].c_str());
+	playlist           = elems[1];
+	dayIndex           = atoi(elems[2].c_str());
+	startHour          = atoi(elems[3].c_str());
+	startMinute        = atoi(elems[4].c_str());
+	startSecond        = atoi(elems[5].c_str());
+	endHour            = atoi(elems[6].c_str());
+	endMinute          = atoi(elems[7].c_str());
+	endSecond          = atoi(elems[8].c_str());
+	repeat             = atoi(elems[9].c_str());
 
 	if ((elems.size() > 10) &&
 		(elems[10].length() == 10))
-		m_startDate = DateStrToInt(elems[10].c_str());
+		startDate = DateStrToInt(elems[10].c_str());
 	else
-		m_startDate = 20150101;
+		startDate = 20150101;
 
 	if ((elems.size() > 11) &&
 		(elems[11].length() == 10))
-		m_endDate = DateStrToInt(elems[11].c_str());
+		endDate = DateStrToInt(elems[11].c_str());
 	else
-		m_startDate = 20991231;
-
-	m_state = SS_IDLE;
+		startDate = 20991231;
 
 	return 1;
 }
-
-void ScheduleEntry::CalculateTimes(void)
-{
-	if (!m_enabled)
-	{
-		m_nextStartTime = 0;
-		m_nextEndTime   = 0;
-		m_thisStartTime = 0;
-		m_thisEndTime   = 0;
-
-		return;
-	}
-
-	time_t currTime = time(NULL);
-	struct tm now;
-	int nextStartDate = GetCurrentDateInt();
-
-	localtime_r(&currTime, &now);
-
-	if (CurrentDateInRange(m_startDate, m_endDate))
-	{
-		if (now.tm_hour > m_endHour)
-		{
-			nextStartDate = GetCurrentDateInt(1);
-		}
-		else if (now.tm_hour < m_startHour)
-		{
-		}
-		else if (now.tm_hour == m_startHour)
-		{
-		}
-	}
-	else
-	{
-		nextStartDate = m_startDate;
-	}
-
-
-
-	if (m_state != ScheduleEntry::SS_IDLE)
-	{
-		m_thisStartTime = m_nextStartTime;
-		m_thisEndTime   = m_nextEndTime;
-	}
-
-	return;
-}
-
 

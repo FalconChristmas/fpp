@@ -22,6 +22,10 @@ public:
     
     OLEDPage() : autoDeleteOnHide(false) {}
     virtual ~OLEDPage() {}
+
+
+    OLEDPage(const OLEDPage &) = delete;
+    void operator=(OLEDPage const &) = delete;
     
     virtual void displaying() {}
     virtual void hiding() {}
@@ -63,8 +67,8 @@ public:
                    const std::function<void (const std::string &)>& itemSelectedCallback);
     virtual ~PromptOLEDPage() {}
     
-    virtual void displaying();
-    virtual bool doAction(const std::string &action);
+    virtual void displaying() override;
+    virtual bool doAction(const std::string &action) override;
     virtual void ItemSelected(const std::string &item);
 protected:
     virtual void display();
@@ -106,7 +110,7 @@ public:
     
     virtual void itemSelected(const std::string &item);
 protected:
-    virtual void display();
+    virtual void display() override;
     int curSelected;
     std::function<void (const std::string &)> itemSelectedCallback;
 };

@@ -90,6 +90,7 @@ void CommandManager::Init() {
     addCommand(new RunScriptEvent());
     addCommand(new StartEffectCommand());
     addCommand(new StartFSEQAsEffectCommand());
+    addCommand(new StopFSEQAsEffectCommand());
     addCommand(new StopEffectCommand());
     addCommand(new SetVolumeCommand());
     addCommand(new AdjustVolumeCommand());
@@ -102,6 +103,7 @@ void CommandManager::Init() {
     addCommand(new StartRemoteEffectCommand());
     addCommand(new StopRemoteEffectCommand());
     addCommand(new RunRemoteScriptEvent());
+    addCommand(new StartRemoteFSEQEffectCommand());
 
     
     std::vector<std::string> pins = PinCapabilities::getPinNames();

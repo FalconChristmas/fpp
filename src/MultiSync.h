@@ -109,23 +109,37 @@ typedef enum systemType {
     kSysTypeESPixelStick                 = 0xC2
 } MultiSyncSystemType;
 
-typedef struct multiSyncSystem {
-	unsigned long        lastSeen;
+class MultiSyncSystem {
+public:
+    MultiSyncSystem() {
+    }
+	unsigned long        lastSeen = 0;
 	std::string          lastSeenStr;
-	MultiSyncSystemType  type;
-	unsigned int         majorVersion;
-	unsigned int         minorVersion;
-	FPPMode              fppMode;
+	MultiSyncSystemType  type = kSysTypeUnknown;
+	unsigned int         majorVersion = 0;
+	unsigned int         minorVersion = 0;
+	FPPMode              fppMode = FPPMode::PLAYER_MODE;
 	std::string          address;
 	std::string          hostname;
 	std::string          version;
 	std::string          model;
     std::string          ranges;
-	unsigned char        ipa;
-	unsigned char        ipb;
-	unsigned char        ipc;
-	unsigned char        ipd;
-} MultiSyncSystem;
+	unsigned char        ipa = 0;
+	unsigned char        ipb = 0;
+	unsigned char        ipc = 0;
+	unsigned char        ipd = 0;
+    
+    
+    void update(MultiSyncSystemType type,
+                unsigned int majorVersion, unsigned int minorVersion,
+                FPPMode fppMode,
+                const std::string &address,
+                const std::string &hostname,
+                const std::string &version,
+                const std::string &model,
+                const std::string &ranges);
+    Json::Value toJSON(bool local, bool timestamps);
+};
 
 
 class MultiSyncPlugin {
@@ -223,17 +237,18 @@ class MultiSync {
 
     int OpenControlSockets();
 
+    static std::string GetTypeString(MultiSyncSystemType type, bool local = false);
+
   private:
     bool isSupportedForMultisync(const char *address, const char *intface);
     
     void setupMulticastReceive();
-    void PingSingleRemote(int sysIdx);
+    void PingSingleRemote(MultiSyncSystem &sys);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
 
 	MultiSyncSystemType ModelStringToType(std::string model);
 	bool FillLocalSystemInfo(void);
 	std::string GetHardwareModel(void);
-    std::string GetTypeString(MultiSyncSystemType type, bool local = false);
 
 	int  OpenBroadcastSocket(void);
 	void SendBroadcastPacket(void *outBuf, int len);
@@ -257,8 +272,8 @@ class MultiSync {
     void ProcessPluginPacket(ControlPkt *pkt, int len);
 
 	std::mutex                   m_systemsLock;
-	std::vector<MultiSyncSystem> m_systems;
-    int  m_numLocalSystems;
+	std::vector<MultiSyncSystem> m_localSystems;
+    std::vector<MultiSyncSystem> m_remoteSystems;
 
     std::map<std::string, NetInterfaceInfo> m_interfaces;
     bool m_sendMulticast;

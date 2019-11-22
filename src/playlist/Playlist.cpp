@@ -46,6 +46,7 @@
 #include "Plugins.h"
 #include "Playlist.h"
 #include "settings.h"
+#include "Sequence.h"
 
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryBranch.h"
@@ -497,7 +498,7 @@ int Playlist::StopNow(int forceStop)
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
 
-	if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+	if (m_currentSection && m_currentSection->at(m_sectionPosition)->IsPlaying())
 		m_currentSection->at(m_sectionPosition)->Stop();
 
 	SetIdle();
@@ -566,7 +567,7 @@ int Playlist::Process(void)
 
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
-	if (m_sectionPosition >= m_currentSection->size()) {
+	if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
 		LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
 			m_sectionPosition, m_currentSectionStr.c_str());
 		StopNow();
@@ -788,6 +789,8 @@ void Playlist::SetIdle(bool exit)
     if (m_parent && exit) {
         playlist = m_parent;
         PL_CLEANUPS.push_back(this);
+    } else if (exit) {
+        sequence->SendBlankingData();
     }
 }
 

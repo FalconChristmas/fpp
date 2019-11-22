@@ -57,7 +57,7 @@
 #include <jsoncpp/json/json.h>
 
 
- int socket_fd;
+ int socket_fd = -1;
  struct sockaddr_un server_address;
  int integer_buffer;
  int fppdStartTime = 0;
@@ -66,11 +66,15 @@
 static void exit_handler(int signum)
 {
     LogInfo(VB_GENERAL, "Caught signal %d\n",signum);
-    CloseCommand();
+    char buf[256] = {0};
     if(mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
         CloseMediaOutput();
     }
-    exit(signum);
+    ShutdownFPPD();
+    sleep(1);
+
+    
+    CloseCommand();
 }
 
  int Command_Initialize()
@@ -113,8 +117,11 @@ static void exit_handler(int signum)
 
  void CloseCommand()
  {
-     close(socket_fd);
-     unlink(FPP_SERVER_SOCKET);
+     if (socket_fd >= 0) {
+         close(socket_fd);
+         unlink(FPP_SERVER_SOCKET);
+         socket_fd = -1;
+     }
  }
 
 

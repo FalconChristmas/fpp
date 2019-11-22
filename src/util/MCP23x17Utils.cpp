@@ -152,7 +152,7 @@ void MCP23x17PinCapabilities::setValue(bool i) const {
 class NullMCP23x17GPIOPinCapabilities : public MCP23x17PinCapabilities {
 public:
     NullMCP23x17GPIOPinCapabilities() : MCP23x17PinCapabilities("-none-", 0, 0) {}
-    virtual const PinCapabilities *ptr() const { return nullptr; }
+    virtual const PinCapabilities *ptr() const override { return nullptr; }
 };
 static NullMCP23x17GPIOPinCapabilities NULL_WP_INSTANCE;
 

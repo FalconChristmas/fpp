@@ -21,7 +21,7 @@
 		RequestHeader unset Accept-Encoding
 		SetEnv no-gzip 1
 		ProxyHTMLBufSize 32768
-		ProxyHTMLEnable On
+		# ProxyHTMLEnable On
 		ProxyHTMLStripComments Off
 		ProxyHTMLMeta On
 		ProxyHTMLDocType HTML

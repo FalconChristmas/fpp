@@ -33,16 +33,16 @@
 class RHLDVIE131Output : public ChannelOutputBase {
   public:
 	RHLDVIE131Output(unsigned int startChannel, unsigned int channelCount);
-	~RHLDVIE131Output();
+	virtual ~RHLDVIE131Output();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	int SendData(unsigned char *channelData);
+	virtual int SendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
         //FIXME??
         addRange(0, FPPD_MAX_CHANNELS);
     }

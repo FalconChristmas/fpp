@@ -82,6 +82,57 @@ NetInterfaceInfo::~NetInterfaceInfo() {
     }
 }
 
+
+void MultiSyncSystem::update(MultiSyncSystemType type,
+                             unsigned int majorVersion, unsigned int minorVersion,
+                             FPPMode fppMode,
+                             const std::string &address,
+                             const std::string &hostname,
+                             const std::string &version,
+                             const std::string &model,
+                             const std::string &ranges) {
+    this->type         = type;
+    this->majorVersion = majorVersion;
+    this->minorVersion = minorVersion;
+    this->address      = address;
+    this->hostname     = hostname;
+    this->fppMode      = fppMode;
+    this->version      = version;
+    this->model        = model;
+    this->ranges       = ranges;
+    std::vector<std::string> parts = split(address, '.');
+    this->ipa = atoi(parts[0].c_str());
+    this->ipb = atoi(parts[1].c_str());
+    this->ipc = atoi(parts[2].c_str());
+    this->ipd = atoi(parts[3].c_str());
+}
+
+Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
+    Json::Value system;
+
+    system["type"] = MultiSync::GetTypeString(type, local);
+    if (timestamps) {
+        system["lastSeen"]     = (Json::UInt64)lastSeen;
+        system["lastSeenStr"]  = lastSeenStr;
+    }
+    system["majorVersion"] = majorVersion;
+    system["minorVersion"] = minorVersion;
+    system["fppMode"]      = fppMode;
+    
+    char *s = modeToString(fppMode);
+    system["fppModeString"] = s;
+    free(s);
+    
+    system["address"]      = address;
+    system["hostname"]     = hostname;
+    system["version"]      = version;
+    system["model"]        = model;
+    system["channelRanges"] = ranges;
+
+    return system;
+}
+
+
 /*
  *
  */
@@ -92,13 +143,14 @@ MultiSync::MultiSync()
 	m_receiveSock(-1),
     m_lastMediaHalfSecond(0),
 	m_remoteOffset(0.0),
-    m_numLocalSystems(0),
     m_lastPingTime(0),
     m_lastCheckTime(0),
     m_lastFrame(0),
     m_sendMulticast(false),
     m_sendBroadcast(false)
 {
+    memset(rcvBuffers, 0, sizeof(rcvBuffers));
+    memset(rcvCmbuf, 0, sizeof(rcvCmbuf));
 }
 
 /*
@@ -162,48 +214,43 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
                              const std::string &ranges
                              )
 {
+    
+    char timeStr[32];
+    memset(timeStr, 0, sizeof(timeStr));
+    time_t t = time(NULL);
+    struct tm tm;
+    localtime_r(&t, &tm);
+    sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+        1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
+        tm.tm_hour, tm.tm_min, tm.tm_sec);
+    
     std::unique_lock<std::mutex> lock(m_systemsLock);
-	int found = -1;
-	for (int i = 0; i < m_systems.size(); i++) {
-		if ((address == m_systems[i].address) &&
-			(hostname == m_systems[i].hostname)) {
-			found = i;
-		}
-	}
-
-	if (found < 0) {
-		MultiSyncSystem newSystem;
-
-		m_systems.push_back(newSystem);
-
-		found = m_systems.size() - 1;
-	}
-
-	char timeStr[32];
-	time_t t = time(NULL);
-	struct tm tm;
-
-	m_systems[found].lastSeen     = (unsigned long)t;
-	m_systems[found].type         = type;
-	m_systems[found].majorVersion = majorVersion;
-	m_systems[found].minorVersion = minorVersion;
-	m_systems[found].address      = address;
-	m_systems[found].hostname     = hostname;
-	m_systems[found].fppMode      = fppMode;
-	m_systems[found].version      = version;
-	m_systems[found].model        = model;
-    m_systems[found].ranges       = ranges;
-	std::vector<std::string> parts = split(address, '.');
-	m_systems[found].ipa = atoi(parts[0].c_str());
-	m_systems[found].ipb = atoi(parts[1].c_str());
-	m_systems[found].ipc = atoi(parts[2].c_str());
-	m_systems[found].ipd = atoi(parts[3].c_str());
-
-	localtime_r(&t, &tm);
-	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
-		1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
-		tm.tm_hour, tm.tm_min, tm.tm_sec);
-	m_systems[found].lastSeenStr = timeStr;
+    bool found = false;
+    for (auto & sys : m_remoteSystems) {
+        if ((address == sys.address) &&
+            (hostname == sys.hostname)) {
+            found = true;
+            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges);
+            sys.lastSeenStr = timeStr;
+            sys.lastSeen = t;
+        }
+    }
+    for (auto & sys : m_localSystems) {
+        if ((address == sys.address) &&
+            (hostname == sys.hostname)) {
+            found = true;
+            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges);
+            sys.lastSeen = t;
+            sys.lastSeenStr = timeStr;
+        }
+    }
+    if (!found) {
+        MultiSyncSystem sys;
+        sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges);
+        sys.lastSeenStr = timeStr;
+        sys.lastSeen = t;
+        m_remoteSystems.push_back(sys);
+    }
 }
 
 /*
@@ -279,6 +326,7 @@ bool MultiSync::FillLocalSystemInfo(void)
             if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
                 if (strncmp("usb", tmp->ifa_name, 3) != 0) {
                     //skip the usb* interfaces as we won't support multisync on those
+                    memset(addressBuf, 0, sizeof(addressBuf));
                     GetInterfaceAddress(tmp->ifa_name, addressBuf, NULL, NULL);
                     if (isSupportedForMultisync(addressBuf, tmp->ifa_name)) {
                         addresses.push_back(addressBuf);
@@ -291,6 +339,7 @@ bool MultiSync::FillLocalSystemInfo(void)
         }
         freeifaddrs(interfaces);
     } else {
+        memset(addressBuf, 0, sizeof(addressBuf));
         GetInterfaceAddress(multiSyncInterface.c_str(), addressBuf, NULL, NULL);
         addresses.push_back(addressBuf);
     }
@@ -316,22 +365,22 @@ bool MultiSync::FillLocalSystemInfo(void)
     newSystem.ipc          = 0;
     newSystem.ipd          = 0;
     
-    LogDebug(VB_SYNC, "Host name: \n", newSystem.hostname.c_str());
-    LogDebug(VB_SYNC, "Version: \n", newSystem.version.c_str());
-    LogDebug(VB_SYNC, "Model: \n", newSystem.model.c_str());
+    LogDebug(VB_SYNC, "Host name: %s\n", newSystem.hostname.c_str());
+    LogDebug(VB_SYNC, "Version: %s\n", newSystem.version.c_str());
+    LogDebug(VB_SYNC, "Model: %s\n", newSystem.model.c_str());
     
     bool changed = false;
     std::unique_lock<std::mutex> lock(m_systemsLock);
     
     for (auto address : addresses) {
         bool found = false;
-        for (auto &sys : m_systems) {
+        for (auto &sys : m_localSystems) {
             if (sys.address == address) {
                 found = true;
             }
         }
         if (!found) {
-            LogDebug(VB_SYNC, "Adding Local System Address: \n", address.c_str());
+            LogDebug(VB_SYNC, "Adding Local System Address: %s\n", address.c_str());
             changed = true;
             newSystem.address = address;
             std::vector<std::string> parts = split(newSystem.address, '.');
@@ -339,12 +388,7 @@ bool MultiSync::FillLocalSystemInfo(void)
             newSystem.ipb = atoi(parts[1].c_str());
             newSystem.ipc = atoi(parts[2].c_str());
             newSystem.ipd = atoi(parts[3].c_str());
-            if (m_numLocalSystems >= m_systems.size()) {
-                m_systems.push_back(newSystem);
-            } else {
-                m_systems.insert(m_systems.begin() + m_numLocalSystems, newSystem);
-            }
-            m_numLocalSystems++;
+            m_localSystems.push_back(newSystem);
         }
     }
     return changed;
@@ -452,12 +496,13 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
 
 static std::string createRanges(std::vector<std::pair<uint32_t, uint32_t>> ranges, int limit) {
     bool first = true;
-    std::string range;
+    std::string range("");
+    char buf[64];
+    memset(buf, 0, sizeof(buf));
     for (auto &a : ranges) {
         if (!first) {
             range += ",";
         }
-        char buf[64];
         sprintf(buf, "%d-%d", a.first, (a.first + a.second - 1));
         range += buf;
         first = false;
@@ -490,43 +535,22 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 {
 	Json::Value result;
 	Json::Value systems(Json::arrayValue);
-    std::unique_lock<std::mutex> lock(m_systemsLock);
-
-    int max = localOnly ? m_numLocalSystems : m_systems.size();
+    
     
     const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
     std::string range = createRanges(ranges, 999999);
 
-    
-	for (int i = 0; i < max; i++) {
-		Json::Value system;
-
-		system["type"] = GetTypeString(m_systems[i].type, i < m_numLocalSystems);
-        if (timestamps) {
-            system["lastSeen"]     = (Json::UInt64)m_systems[i].lastSeen;
-            system["lastSeenStr"]  = m_systems[i].lastSeenStr;
+    std::unique_lock<std::mutex> lock(m_systemsLock);
+    for (auto &sys : m_localSystems) {
+        sys.ranges = range;
+        systems.append(sys.toJSON(true, timestamps));
+    }
+    if (!localOnly) {
+        for (auto &sys : m_remoteSystems) {
+            systems.append(sys.toJSON(false, timestamps));
         }
-		system["majorVersion"] = m_systems[i].majorVersion;
-		system["minorVersion"] = m_systems[i].minorVersion;
-		system["fppMode"]      = m_systems[i].fppMode;
-        
-        char *s = modeToString(m_systems[i].fppMode);
-        system["fppModeString"] = s;
-        free(s);
-        
-		system["address"]      = m_systems[i].address;
-		system["hostname"]     = m_systems[i].hostname;
-		system["version"]      = m_systems[i].version;
-		system["model"]        = m_systems[i].model;
-        if (i < m_numLocalSystems) {
-            m_systems[i].ranges = range;
-        }
-        system["channelRanges"] = m_systems[i].ranges;
-
-		systems.append(system);
-	}
+    }
 	result["systems"] = systems;
-
 	return result;
 }
 
@@ -535,7 +559,7 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
  */
 void MultiSync::Ping(int discover, bool broadcast)
 {
-	LogDebug(VB_SYNC, "MultiSync::Ping(%d)\n", discover);
+	LogDebug(VB_SYNC, "MultiSync::Ping(%d, %d)\n", discover, broadcast);
     time_t t = time(NULL);
     m_lastPingTime = (unsigned long)t;
 
@@ -547,20 +571,20 @@ void MultiSync::Ping(int discover, bool broadcast)
     //update the range for local systems so it's accurate
     const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
     std::string range = createRanges(ranges, 120);
-    for (int x = 0; x < m_numLocalSystems; x++) {
-        std::unique_lock<std::mutex> lock(m_systemsLock);
-        m_systems[x].ranges = range;
-        MultiSyncSystem sysInfo = m_systems[x];
+    char outBuf[768];
+    
+    std::unique_lock<std::mutex> lock(m_systemsLock);
+    for (auto & sys : m_localSystems) {
+        memset(outBuf, 0, sizeof(outBuf));
+        sys.ranges = range;
+        int len = CreatePingPacket(sys, outBuf, discover);
         lock.unlock();
-        
-        char           outBuf[512];
-        bzero(outBuf, sizeof(outBuf));
-        int len = CreatePingPacket(sysInfo, outBuf, discover);
         if (broadcast) {
             SendBroadcastPacket(outBuf, len);
         } else {
             SendMulticastPacket(outBuf, len);
         }
+        lock.lock();
     }
 }
 void MultiSync::PeriodicPing() {
@@ -573,13 +597,13 @@ void MultiSync::PeriodicPing() {
         //once an hour, we'll send a ping letting everyone know we're still here
         //mark ourselves as seen
         std::unique_lock<std::mutex> lock(m_systemsLock);
-        for (int x = 0; x < m_numLocalSystems; x++) {
-            m_systems[x].lastSeen = (unsigned long)t;
+        for (auto &sys : m_localSystems) {
+            sys.lastSeen = (unsigned long)t;
         }
         lock.unlock();
         Ping();
     }
-    //every 10 minutes we'll loop through real quick and check for instances
+    //every 10 minutes we'll loop through real quick and check for remote instances
     //we haven't heard from in a while
     lpt = m_lastCheckTime + 60*10;
     if (lpt < (unsigned long)t) {
@@ -591,13 +615,13 @@ void MultiSync::PeriodicPing() {
         //to any of those 4, it's got to be down/gone.   Remove it.
         unsigned long timeoutRemove = (unsigned long)t - 60*120;
         std::unique_lock<std::mutex> lock(m_systemsLock);
-        for (auto it = m_systems.begin(); it != m_systems.end(); ) {
+        for (auto it = m_remoteSystems.begin(); it != m_remoteSystems.end(); ) {
             if (it->lastSeen < timeoutRemove) {
                 LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
-                m_systems.erase(it);
+                m_remoteSystems.erase(it);
             } else if (it->lastSeen < timeoutRePing) {
                 //do a ping
-                PingSingleRemote(it - m_systems.begin());
+                PingSingleRemote(*it);
                 ++it;
             } else {
                 ++it;
@@ -605,14 +629,17 @@ void MultiSync::PeriodicPing() {
         }
     }
 }
-void MultiSync::PingSingleRemote(int sysIdx) {
+void MultiSync::PingSingleRemote(MultiSyncSystem &sys) {
+    if (m_localSystems.empty()) {
+        return;
+    }
     char           outBuf[512];
     memset(outBuf, 0, sizeof(outBuf));
-    int len = CreatePingPacket(m_systems[0], outBuf, 1);
+    int len = CreatePingPacket(m_localSystems[0], outBuf, 1);
     struct sockaddr_in dest_addr;
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
-    dest_addr.sin_addr.s_addr = inet_addr(m_systems[sysIdx].address.c_str());
+    dest_addr.sin_addr.s_addr = inet_addr(sys.address.c_str());
     dest_addr.sin_port   = htons(FPP_CTRL_PORT);
     std::unique_lock<std::mutex> lock(m_socketLock);
     sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
@@ -1577,13 +1604,14 @@ bool MultiSync::isSupportedForMultisync(const char *address, const char *intface
 }
 
 void MultiSync::setupMulticastReceive() {
-    struct ip_mreq mreq;
-    memset(&mreq, 0, sizeof(mreq));
-    mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
+    LogDebug(VB_SYNC, "setupMulticastReceive()\n");
     //loop through all the interfaces and subscribe to the group
     std::unique_lock<std::mutex> lock(m_socketLock);
     for (auto &a : m_interfaces) {
         LogDebug(VB_SYNC, "   Adding interface %s - %s\n", a.second.interfaceName.c_str(), a.second.interfaceAddress.c_str());
+        struct ip_mreq mreq;
+        memset(&mreq, 0, sizeof(mreq));
+        mreq.imr_multiaddr.s_addr = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
         mreq.imr_interface.s_addr = a.second.address;
         int rc = 0;
         if ((rc = setsockopt(m_receiveSock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
@@ -1925,6 +1953,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	FPPMode systemMode = (FPPMode)extraData[7];
 
 	char addrStr[16];
+    memset(addrStr, 0, sizeof(addrStr));
     bool isInstance = true;
     if (extraData[8] == 0
         && extraData[9] == 0
@@ -1943,6 +1972,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	std::string address = addrStr;
 
 	char tmpStr[128];
+    memset(tmpStr, 0, sizeof(tmpStr));
 	strcpy(tmpStr, (char*)(extraData + 12));
 	std::string hostname(tmpStr);
 

@@ -47,8 +47,7 @@ Scheduler *scheduler = NULL;
 /////////////////////////////////////////////////////////////////////////////
 
 Scheduler::Scheduler()
-  : m_ScheduleEntryCount(0),
-	m_CurrentScheduleHasbeenLoaded(0),
+  : m_CurrentScheduleHasbeenLoaded(0),
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
 	m_lastLoadDate(0),
@@ -58,7 +57,6 @@ Scheduler::Scheduler()
 	m_runThread(0),
 	m_threadIsRunning(0)
 {
-	bzero(&m_currentSchedulePlaylist, sizeof(m_currentSchedulePlaylist));
 	pthread_mutex_init(&m_scheduleLock, NULL);
 }
 
@@ -119,11 +117,11 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 
   int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
   LoadScheduleFromFile();
-  for(i=0;i<m_ScheduleEntryCount;i++)
+  for( i = 0; i < m_Schedule.size(); i++)
   {
 		// only check schedule entries that are enabled and set to repeat.
 		// Do not start non repeatable entries
-		if ((m_Schedule[i].enable) &&
+		if ((m_Schedule[i].enabled) &&
 			(m_Schedule[i].repeat || ignoreRepeat) &&
 			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
 		{
@@ -148,7 +146,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 					m_CurrentScheduleHasbeenLoaded = 1;
 					m_NextScheduleHasbeenLoaded = 0;
 
-					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
 						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
 				}				
 			}
@@ -168,13 +166,13 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 
     if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
         repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
-		return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList;
+		return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist;
     }
 
 	int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
-	for(i=0;i<m_ScheduleEntryCount;i++)
+	for( i = 0; i < m_Schedule.size(); i++)
 	{
-		if ((m_Schedule[i].enable) &&
+		if ((m_Schedule[i].enabled) &&
 			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
 		{
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
@@ -187,7 +185,7 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 					((nowWeeklySeconds >= m_Schedule[i].weeklyStartSeconds[j]) && (nowWeeklySeconds < m_Schedule[i].weeklyEndSeconds[j])))
 				{
 					repeat = m_Schedule[i].repeat;
-					return m_Schedule[i].playList;
+					return m_Schedule[i].playlist;
 				}
 			}
 		}
@@ -208,9 +206,9 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
   localtime_r(&currTime, &now);
 
   int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
-  for(i=0;i<m_ScheduleEntryCount;i++)
+  for (i = 0; i < m_Schedule.size(); i++)
   {
-		if ((m_Schedule[i].enable) &&
+		if ((m_Schedule[i].enabled) &&
 			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
 		{
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
@@ -243,31 +241,31 @@ void Scheduler::ReLoadNextScheduleInfo(void)
 
 void Scheduler::LoadCurrentScheduleInfo(void)
 {
-  m_currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_currentSchedulePlaylist.weeklySecondIndex);
-	m_currentSchedulePlaylist.startWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
-	m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
+    m_currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_currentSchedulePlaylist.weeklySecondIndex);
+    if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
+        m_currentSchedulePlaylist.startWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
+        m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
 
-	// Make end time non-inclusive
-	if (m_currentSchedulePlaylist.startWeeklySeconds != m_currentSchedulePlaylist.endWeeklySeconds)
-		m_currentSchedulePlaylist.endWeeklySeconds--;
+    }
+    // Make end time non-inclusive
+    if (m_currentSchedulePlaylist.startWeeklySeconds != m_currentSchedulePlaylist.endWeeklySeconds)
+        m_currentSchedulePlaylist.endWeeklySeconds--;
 
-  m_CurrentScheduleHasbeenLoaded = 1;
+    m_CurrentScheduleHasbeenLoaded = 1;
 }
 
 void Scheduler::LoadNextScheduleInfo(void)
 {
-  char t[64];
-  char p[64];
+    m_nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_nextSchedulePlaylist.weeklySecondIndex);
+    m_NextScheduleHasbeenLoaded = 1;
 
-  m_nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_nextSchedulePlaylist.weeklySecondIndex);
-  m_NextScheduleHasbeenLoaded = 1;
-
-  if (m_nextSchedulePlaylist.ScheduleEntryIndex >= 0)
-  {
-    GetNextPlaylistText(p);
-    GetNextScheduleStartText(t);
-    LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
-  }
+    if (m_nextSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
+        char t[64];
+        char p[64];
+        GetNextPlaylistText(p);
+        GetNextScheduleStartText(t);
+        LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
+    }
 }
 
 void Scheduler::GetSunInfo(int set, int &hour, int &minute, int &second)
@@ -317,7 +315,7 @@ void Scheduler::GetSunInfo(int set, int &hour, int &minute, int &second)
 		LogDebug(VB_SCHEDULE, "Sunrise is at %02d:%02d:%02d\n", hour, minute, second);
 }
 
-void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntryStruct * entry)
+void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry)
 {
 	if (entry->dayIndex & INX_DAY_MASK)
 	{
@@ -578,7 +576,7 @@ void Scheduler::PlayListLoadCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
         m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
       LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
@@ -586,7 +584,7 @@ void Scheduler::PlayListLoadCheck(void)
       if ((playlist->getPlaylistStatus() != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
         playlist->StopNow(1);
 
-      playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playList,
+      playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
         0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
     }
   }
@@ -660,13 +658,13 @@ void Scheduler::LoadScheduleFromFile(void)
   FILE *fp;
   char buf[512];
   char *s;
-  m_ScheduleEntryCount=0;
+  int scheduleEntryCount = 0;
   int day;
 
   m_lastLoadDate = GetCurrentDateInt();
 
   pthread_mutex_lock(&m_scheduleLock);
-  m_schedule.clear();
+  m_Schedule.clear();
 
   LogInfo(VB_SCHEDULE, "Loading Schedule from %s\n",getScheduleFile());
   fp = fopen((const char *)getScheduleFile(), "r");
@@ -678,82 +676,33 @@ void Scheduler::LoadScheduleFromFile(void)
   {
 	ScheduleEntry scheduleEntry;
 	scheduleEntry.LoadFromString(buf);
-	m_schedule.push_back(scheduleEntry);
-
-    while (isspace(buf[strlen(buf)-1]))
-        buf[strlen(buf)-1] = 0x0;
-
-    // Enable
-    s=strtok(buf,",");
-    m_Schedule[m_ScheduleEntryCount].enable = atoi(s);
-    // Playlist Name
-    s=strtok(NULL,",");
-    strcpy(m_Schedule[m_ScheduleEntryCount].playList,s);
-    // Start Day index
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].dayIndex = atoi(s);
-    // Start Hour
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].startHour = atoi(s);
-    // Start Minute
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].startMinute = atoi(s);
-    // Start Second
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].startSecond = atoi(s);
-    // End Hour
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].endHour = atoi(s);
-    // End Minute
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].endMinute = atoi(s);
-    // End Second
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].endSecond = atoi(s);
-		// Repeat
-    s=strtok(NULL,",");
-    m_Schedule[m_ScheduleEntryCount].repeat = atoi(s);
-
-    // Start Date
-    s=strtok(NULL,",");
-    if (s && strcmp(s, ""))
-      m_Schedule[m_ScheduleEntryCount].startDate = DateStrToInt(s);
-    else
-      m_Schedule[m_ScheduleEntryCount].startDate = 20140101;
-
-    // End Date
-    s=strtok(NULL,",");
-    if (s && strcmp(s, ""))
-      m_Schedule[m_ScheduleEntryCount].endDate = DateStrToInt(s);
-    else
-      m_Schedule[m_ScheduleEntryCount].endDate = 20991231;
 
 	// Check for sunrise/sunset flags
-	if (m_Schedule[m_ScheduleEntryCount].startHour == 25)
+	if (scheduleEntry.startHour == 25)
 		GetSunInfo( 0,
-					m_Schedule[m_ScheduleEntryCount].startHour,
-					m_Schedule[m_ScheduleEntryCount].startMinute,
-					m_Schedule[m_ScheduleEntryCount].startSecond);
-	else if (m_Schedule[m_ScheduleEntryCount].startHour == 26)
+					scheduleEntry.startHour,
+					scheduleEntry.startMinute,
+					scheduleEntry.startSecond);
+	else if (scheduleEntry.startHour == 26)
 		GetSunInfo( 1,
-					m_Schedule[m_ScheduleEntryCount].startHour,
-					m_Schedule[m_ScheduleEntryCount].startMinute,
-					m_Schedule[m_ScheduleEntryCount].startSecond);
+					scheduleEntry.startHour,
+					scheduleEntry.startMinute,
+					scheduleEntry.startSecond);
 
-	if (m_Schedule[m_ScheduleEntryCount].endHour == 25)
+	if (scheduleEntry.endHour == 25)
 		GetSunInfo( 0,
-					m_Schedule[m_ScheduleEntryCount].endHour,
-					m_Schedule[m_ScheduleEntryCount].endMinute,
-					m_Schedule[m_ScheduleEntryCount].endSecond);
-	else if (m_Schedule[m_ScheduleEntryCount].endHour == 26)
+					scheduleEntry.endHour,
+					scheduleEntry.endMinute,
+					scheduleEntry.endSecond);
+	else if (scheduleEntry.endHour == 26)
 		GetSunInfo( 1,
-					m_Schedule[m_ScheduleEntryCount].endHour,
-					m_Schedule[m_ScheduleEntryCount].endMinute,
-					m_Schedule[m_ScheduleEntryCount].endSecond);
+					scheduleEntry.endHour,
+					scheduleEntry.endMinute,
+					scheduleEntry.endSecond);
 
     // Set WeeklySecond start and end times
-    SetScheduleEntrysWeeklyStartAndEndSeconds(&m_Schedule[m_ScheduleEntryCount]);
-    m_ScheduleEntryCount++;
+    SetScheduleEntrysWeeklyStartAndEndSeconds(&scheduleEntry);
+    m_Schedule.push_back(scheduleEntry);
   }
   fclose(fp);
 
@@ -771,12 +720,11 @@ void Scheduler::SchedulePrint(void)
   LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat)\n");
   LogInfo(VB_SCHEDULE, "St  Start & End Dates       Days         Start & End Times   Playlist\n");
   LogInfo(VB_SCHEDULE, "--- ----------------------- ------------ ------------------- ---------------------------------------------\n");
-  for(i=0;i<m_ScheduleEntryCount;i++)
-  {
+  for (i = 0; i < m_Schedule.size(); i++) {
     char dayStr[32];
     GetDayTextFromDayIndex(m_Schedule[i].dayIndex, dayStr);
     LogInfo(VB_SCHEDULE, "%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
-      m_Schedule[i].enable ? '+': '-',
+      m_Schedule[i].enabled ? '+': '-',
       CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
       m_Schedule[i].repeat ? '*': ' ',
       (int)(m_Schedule[i].startDate / 10000),
@@ -788,7 +736,7 @@ void Scheduler::SchedulePrint(void)
       dayStr,
       m_Schedule[i].startHour,m_Schedule[i].startMinute,m_Schedule[i].startSecond,
       m_Schedule[i].endHour,m_Schedule[i].endMinute,m_Schedule[i].endSecond,
-      m_Schedule[i].playList);
+      m_Schedule[i].playlist.c_str());
   }
 
   LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
@@ -828,12 +776,10 @@ int Scheduler::FindNextStartingScheduleIndex(void)
 	int currentDate = GetCurrentDateInt();
 	int schedDate = 99999999;
 	int weeklySecondStart = 999999;
-	for(i = 0; i < m_ScheduleEntryCount; i++)
-	{
-		if ((m_Schedule[i].enable) &&
+	for(i = 0; i < m_Schedule.size(); i++) {
+		if ((m_Schedule[i].enabled) &&
 			(m_Schedule[i].startDate >= currentDate) &&
-			(m_Schedule[i].endDate < schedDate))
-		{
+			(m_Schedule[i].endDate < schedDate)) {
 			index = i;
 			schedDate = m_Schedule[i].endDate;
 		}
@@ -847,16 +793,12 @@ void Scheduler::GetNextScheduleStartText(char * txt)
 	if (!m_NextScheduleHasbeenLoaded)
 		return;
 
-	if (m_nextSchedulePlaylist.ScheduleEntryIndex >= 0)
-	{
+	if (m_nextSchedulePlaylist.ScheduleEntryIndex >= 0) {
 		GetScheduleEntryStartText(m_nextSchedulePlaylist.ScheduleEntryIndex,m_nextSchedulePlaylist.weeklySecondIndex,txt);
-	}
-	else
-	{
+    } else {
 		char dayText[16];
 		int found = FindNextStartingScheduleIndex();
-		if (found >= 0)
-		{
+		if (found >= 0) {
 			GetDayTextFromDayIndex(m_Schedule[found].dayIndex,dayText);
 			sprintf(txt, "%04d-%02d-%02d @ %02d:%02d:%02d - (%s)\n",
 				(int)(m_Schedule[found].startDate / 10000),
@@ -877,14 +819,14 @@ void Scheduler::GetNextPlaylistText(char * txt)
 
 	if (m_nextSchedulePlaylist.ScheduleEntryIndex >= 0)
 	{
-		strcpy(txt,m_Schedule[m_nextSchedulePlaylist.ScheduleEntryIndex].playList);
+		strcpy(txt, m_Schedule[m_nextSchedulePlaylist.ScheduleEntryIndex].playlist.c_str());
 	}
 	else
 	{
 		int found = FindNextStartingScheduleIndex();
 
 		if (found >= 0)
-			strcpy(txt,m_Schedule[found].playList);
+			strcpy(txt, m_Schedule[found].playlist.c_str());
 	}
 }
 

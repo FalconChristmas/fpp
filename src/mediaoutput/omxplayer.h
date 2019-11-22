@@ -31,16 +31,16 @@
 class omxplayerOutput : public MediaOutputBase {
   public:
 	omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status);
-	~omxplayerOutput();
+	virtual ~omxplayerOutput();
 
-	virtual int  Start(void);
-	virtual int  Stop(void);
-	virtual int  Process(void);
-    virtual int  IsPlaying(void);
-    virtual int  Close(void);
+	virtual int  Start(void) override;
+	virtual int  Stop(void) override;
+	virtual int  Process(void) override;
+    virtual int  IsPlaying(void) override;
+    virtual int  Close(void) override;
 
-	int  AdjustSpeed(int delta);
-	void SetVolume(int volume);
+	virtual int  AdjustSpeed(int delta) override;
+	virtual void SetVolume(int volume) override;
 
   private:
 	int  GetVolumeShift(int volume);

@@ -42,19 +42,19 @@
 class PlaylistEntryBranch : public PlaylistEntryBase {
   public:
 	PlaylistEntryBranch(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryBranch();
+	virtual ~PlaylistEntryBranch();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
+	virtual int  StartPlaying(void) override;
 
 	void SetNext(int isTrue);
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
 
-    virtual PlaylistBranchType GetNextBranchType() { return m_nextBranchType; }
+    virtual PlaylistBranchType GetNextBranchType() override { return m_nextBranchType; }
     virtual std::string  GetNextSection(void) override { return m_nextSection; }
     virtual int          GetNextItem(void) override { return m_nextItem; }
 

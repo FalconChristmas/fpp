@@ -54,6 +54,7 @@ public:
 static int        effectCount = 0;
 static int        pauseBackgroundEffects = 0;
 static std::array<FPPeffect*, MAX_EFFECTS> effects;
+static std::list<std::pair<uint32_t, uint32_t>> clearRanges;
 static std::mutex effectsLock;
 
 /*
@@ -115,6 +116,7 @@ int IsEffectRunning(void)
 	int result = 0;
     std::unique_lock<std::mutex> lock(effectsLock);
 	result = effectCount;
+    result |= !clearRanges.empty();
 	return result;
 }
 
@@ -221,6 +223,18 @@ void StopEffectHelper(int effectID)
 {
 	FPPeffect *e = NULL;
 	e = effects[effectID];
+    
+    if (e->fp) {
+        V2FSEQFile *v2fseq = dynamic_cast<V2FSEQFile*>(e->fp);
+        if (!v2fseq && v2fseq->m_sparseRanges.size() == 0) {
+            for (auto &a : v2fseq->m_sparseRanges) {
+                clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
+            }
+        } else {
+            //not sparse and not eseq, entire range
+            clearRanges.push_back(std::pair<uint32_t, uint32_t>(0, e->fp->getChannelCount()));
+        }
+    }
     delete e;
 	effects[effectID] = NULL;
 	effectCount--;
@@ -314,9 +328,13 @@ int OverlayEffect(int effectID, char *channelData)
         d->readFrame((uint8_t*)channelData, FPPD_MAX_CHANNELS);
         delete d;
         return 1;
-    }
-    else
+    } else {
         StopEffectHelper(effectID);
+        for (auto &rng : clearRanges) {
+            memset(&channelData[rng.first], 0, rng.second);
+        }
+        clearRanges.clear();
+    }
 
     return 0;
 }
@@ -330,6 +348,12 @@ int OverlayEffects(char *channelData)
 	int  dataRead = 0;
 
     std::unique_lock<std::mutex> lock(effectsLock);
+    
+    //for effects that have been stopped, we need to clear the data 
+    for (auto &rng : clearRanges) {
+        memset(&channelData[rng.first], 0, rng.second);
+    }
+    clearRanges.clear();
 
 	if (effectCount == 0) {
 		return 0;

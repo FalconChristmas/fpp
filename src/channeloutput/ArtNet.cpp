@@ -101,6 +101,11 @@ static struct iovec ArtNetSyncIovecs = { (void*)ArtNetSyncPacket, ARTNET_SYNC_PA
 static struct sockaddr_in   ArtNetSyncAddress;
 
 
+static const std::string ARTNETTYPE = "ArtNet";
+
+const std::string &ArtNetOutputData::GetOutputTypeString() const {
+    return ARTNETTYPE;
+}
 
 ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
 : UDPOutputData(config), sequenceNumber(1), universeCount(1) {
@@ -111,7 +116,7 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
     
     memset((char *) &ArtNetSyncAddress, 0, sizeof(sockaddr_in));
     ArtNetSyncAddress.sin_family = AF_INET;
-    ArtNetSyncAddress.sin_port = htons(0);
+    ArtNetSyncAddress.sin_port = htons(ARTNET_DEST_PORT);
     ArtNetSyncAddress.sin_addr.s_addr = inet_addr("255.255.255.255");
 
     universe = config["id"].asInt();

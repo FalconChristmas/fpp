@@ -109,6 +109,14 @@ std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::s
     StopEffect(args[0]);
     return std::make_unique<Command::Result>("Effect Stopped");
 }
+std::unique_ptr<Command::Result> StopFSEQAsEffectCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+
+    StopEffect(args[0]);
+    return std::make_unique<Command::Result>("Effect Stopped");
+}
 
 std::unique_ptr<Command::Result> StartRemoteEffectCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {
@@ -119,6 +127,16 @@ std::unique_ptr<Command::Result> StartRemoteEffectCommand::run(const std::vector
         newargs.push_back(args[x]);
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Effect Start", newargs);
+}
+std::unique_ptr<Command::Result> StartRemoteFSEQEffectCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "FSEQ Effect Start", newargs);
 }
 std::unique_ptr<Command::Result> StopRemoteEffectCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {

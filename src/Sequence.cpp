@@ -571,8 +571,10 @@ void Sequence::CloseSequenceFile(void) {
     if ((!IsEffectRunning()) &&
         ((getFPPmode() != REMOTE_MODE) &&
          (playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING)) ||
-        (getSettingInt("blankBetweenSequences")))
+        (getSettingInt("blankBetweenSequences"))) {
         SendBlankingData();
+    }
+    
 }
 
 /*

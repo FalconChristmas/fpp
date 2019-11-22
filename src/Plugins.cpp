@@ -106,9 +106,7 @@ void FPPPlugin::reloadSettings() {
 class MediaCallback
 {
 public:
-    MediaCallback(const std::string name, const std::string &filename) {
-        mName = name;
-        mFilename = filename;
+    MediaCallback(const std::string &name, const std::string &filename) : mName(name), mFilename(filename) {
     }
     virtual ~MediaCallback() {}
     
@@ -123,9 +121,7 @@ private:
 class PlaylistCallback
 {
     public:
-    PlaylistCallback(const std::string name, const std::string &filename) {
-        mName = name;
-        mFilename = filename;
+    PlaylistCallback(const std::string &name, const std::string &filename) : mName(name), mFilename(filename)  {
     }
     virtual ~PlaylistCallback() {}
     
@@ -140,9 +136,7 @@ class PlaylistCallback
 class EventCallback
 {
 public:
-    EventCallback(const std::string name, const std::string &filename) {
-        mName = name;
-        mFilename = filename;
+    EventCallback(const std::string &name, const std::string &filename) : mName(name), mFilename(filename)  {
     }
     virtual ~EventCallback() {}
     
@@ -200,17 +194,17 @@ public:
         return otherTypes;
     }
     
-    virtual void eventCallback(const char *id, const char *impetus) {
+    virtual void eventCallback(const char *id, const char *impetus) override {
         if (m_eventCallback) {
             m_eventCallback->run(id, impetus);
         }
     }
-    virtual void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails) {
+    virtual void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails) override {
         if (m_mediaCallback) {
             m_mediaCallback->run(playlist, mediaDetails);
         }
     }
-    virtual void playlistCallback(const Json::Value &playlist, const std::string &action, const std::string &section, int item) {
+    virtual void playlistCallback(const Json::Value &playlist, const std::string &action, const std::string &section, int item) override {
         if (m_playlistCallback) {
             m_playlistCallback->run(playlist, action, section, item);
         }

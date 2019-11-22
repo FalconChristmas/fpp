@@ -61,9 +61,9 @@ template<typename... Args> static void LogErr(int i, const char *fmt, Args... ar
     static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
     char buf[256];
     const char *nfmt = fmt;
-    if (nfmt[strlen(nfmt) - 1] == '\n') {
+    if (fmt[strlen(fmt) - 1] == '\n') {
         strcpy(buf, fmt);
-        buf[strlen(nfmt) - 1] = 0;
+        buf[strlen(fmt) - 1] = 0;
         nfmt = buf;
     }
     fseq_logger_base.error(nfmt, args...);
@@ -72,9 +72,9 @@ template<typename... Args> static void LogInfo(int i, const char *fmt, Args... a
     static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
     char buf[256];
     const char *nfmt = fmt;
-    if (nfmt[strlen(nfmt) - 1] == '\n') {
+    if (fmt[strlen(fmt) - 1] == '\n') {
         strcpy(buf, fmt);
-        buf[strlen(nfmt) - 1] = 0;
+        buf[strlen(fmt) - 1] = 0;
         nfmt = buf;
     }
     fseq_logger_base.info(nfmt, args...);
@@ -83,9 +83,9 @@ template<typename... Args> static void LogDebug(int i, const char *fmt, Args... 
     static log4cpp::Category &fseq_logger_base = log4cpp::Category::getInstance(std::string("log_base"));
     char buf[256];
     const char *nfmt = fmt;
-    if (nfmt[strlen(nfmt) - 1] == '\n') {
+    if (fmt[strlen(fmt) - 1] == '\n') {
         strcpy(buf, fmt);
-        buf[strlen(nfmt) - 1] = 0;
+        buf[strlen(fmt) - 1] = 0;
         nfmt = buf;
     }
     fseq_logger_base.debug(nfmt, args...);
@@ -525,7 +525,7 @@ public:
         }
     }
 
-    virtual bool readFrame(uint8_t *data, uint32_t maxChannels) {
+    virtual bool readFrame(uint8_t *data, uint32_t maxChannels) override {
         if (m_data == nullptr) return false;
         uint32_t offset = 0;
         for (auto &rng : m_ranges) {

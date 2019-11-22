@@ -41,6 +41,7 @@
 #include "settings.h"
 #include "channeloutput.h"
 #include "ChannelOutputBase.h"
+#include "Warnings.h"
 
 //old style that still need porting
 #include "FPD.h"
@@ -336,9 +337,12 @@ int InitializeChannelOutputs(void) {
                     }
                     if (fptr == nullptr) {
                         LogErr(VB_CHANNELOUT, "Could not create Channel Output type: %s\n", type.c_str());
+                        WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
+                        dlclose(handle);
                         continue;
                     }
                     channelOutputs[i].output = fptr(start, count);
+                    channelOutputs[i].libHandle = handle;
                 }
 
 				if ((channelOutputs[i].outputOld) &&
@@ -372,11 +376,16 @@ int InitializeChannelOutputs(void) {
                         });
                         i++;
                     } else {
+                        WarningHolder::AddWarning("Could not initialize output type " + type + ". Check logs for details.");
                         delete channelOutputs[i].output;
                         channelOutputs[i].output = nullptr;
+                        if (channelOutputs[i].libHandle) {
+                            dlclose(channelOutputs[i].libHandle);
+                        }
                     }
 				} else {
 					LogErr(VB_CHANNELOUT, "ERROR Opening %s Channel Output\n", type.c_str());
+                    WarningHolder::AddWarning("Could not create output type " + type + ". Check logs for details.");
 					continue;
 				}
 
@@ -513,6 +522,9 @@ void CloseChannelOutputs(void) {
         if (channelOutputs[i].output) {
             delete channelOutputs[i].output;
             channelOutputs[i].output = NULL;
+            if (channelOutputs[i].libHandle) {
+                dlclose(channelOutputs[i].libHandle);
+            }
         }
     }
 }

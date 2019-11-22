@@ -106,6 +106,7 @@ static void handleCrash(int s) {
     }
     free(strs);
     inCrashHandler = false;
+    runMainFPPDLoop = 0;
     if (s != SIGQUIT && s != SIGUSR1) {
         exit(-1);
     }
@@ -542,6 +543,7 @@ int main(int argc, char *argv[])
 	if (mqtt)
 		delete mqtt;
 
+    MagickLib::DestroyMagick();
 	curl_global_cleanup();
 
 	return 0;
@@ -600,6 +602,7 @@ void MainLoop(void)
     int epollf = epoll_create1(EPOLL_CLOEXEC);
     for (auto &a : callbacks) {
         epoll_event event;
+        memset(&event, 0, sizeof(event));
         event.events = EPOLLIN;
         event.data.fd = a.first;
         int rc = epoll_ctl(epollf, EPOLL_CTL_ADD, a.first, &event);
@@ -618,6 +621,7 @@ void MainLoop(void)
 
     static const int MAX_EVENTS = 20;
     epoll_event events[MAX_EVENTS];
+    memset(events, 0, sizeof(events));
     int idleCount = 0;
     
 	while (runMainFPPDLoop) {

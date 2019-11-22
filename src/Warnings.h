@@ -16,7 +16,7 @@
 #ifndef _FPP_WARNINGS_H
 #define _FPP_WARNINGS_H
 
-#include <set>
+#include <map>
 #include <mutex>
 #include <jsoncpp/json/json.h>
 
@@ -26,11 +26,13 @@ public:
     static void AddWarning(const std::string &w);
     static void RemoveWarning(const std::string &w);
 
+    static void AddWarningTimeout(const std::string &w, int seconds);
+
     static void AddWarningsToStatus(Json::Value &root);
     
 private:
     static std::mutex warningsLock;
-    static std::set<std::string> warnings;
+    static std::map<std::string, int> warnings;
 };
 
 #endif

@@ -70,6 +70,11 @@ const unsigned char E131header[] = {
 	};
 
 
+static const std::string E131TYPE = "e1.31";
+
+const std::string &E131OutputData::GetOutputTypeString() const {
+    return E131TYPE;
+}
 
 E131OutputData::E131OutputData(const Json::Value &config)
 : UDPOutputData(config), E131sequenceNumber(1), universeCount(1) {
