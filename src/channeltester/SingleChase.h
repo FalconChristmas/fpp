@@ -44,7 +44,7 @@ class TestPatternSingleChase : public TestPatternBase {
 	virtual void DumpConfig(void) override;
 
   private:
-	void CycleData(void);
+	void CycleData(void) override;
 
 	int  m_chaseSize;
 	char m_chaseValue;

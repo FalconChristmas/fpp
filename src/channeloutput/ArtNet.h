@@ -36,18 +36,18 @@
 
 class ArtNetOutputData : public UDPOutputData {
 public:
-    ArtNetOutputData(const Json::Value &config);
+    explicit ArtNetOutputData(const Json::Value &config);
     virtual ~ArtNetOutputData();
     
-    virtual bool IsPingable();
-    virtual void PrepareData(unsigned char *channelData);
-    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
-    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs);
-    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs);
-    virtual void DumpConfig();
-    virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual bool IsPingable() override;
+    virtual void PrepareData(unsigned char *channelData) override;
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs) override;
+    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) override;
+    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs) override;
+    virtual void DumpConfig() override;
+    virtual void GetRequiredChannelRange(int &min, int & max) override;
     
-    virtual const std::string &GetOutputTypeString() const;
+    virtual const std::string &GetOutputTypeString() const override;
 
     int           universe;
     int           universeCount;

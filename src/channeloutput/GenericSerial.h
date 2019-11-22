@@ -35,17 +35,17 @@
 class GenericSerialOutput : public ThreadedChannelOutputBase {
   public:
 	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~GenericSerialOutput();
+	virtual ~GenericSerialOutput();
 
-    virtual int Init(Json::Value config);
-	int Init(char *configStr);
+    virtual int Init(Json::Value config) override;
+	virtual int Init(char *configStr) override;
 
-	int Close(void);
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+	virtual int RawSendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+	virtual void DumpConfig(void) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	std::string m_deviceName;

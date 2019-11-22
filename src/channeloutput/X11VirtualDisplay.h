@@ -35,13 +35,13 @@
 class X11VirtualDisplayOutput : protected VirtualDisplayOutput {
   public:
 	X11VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-	~X11VirtualDisplayOutput();
+	virtual ~X11VirtualDisplayOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	void PrepData(unsigned char *channelData);
-	int  SendData(unsigned char *channelData);
+	virtual void PrepData(unsigned char *channelData) override;
+	virtual int  SendData(unsigned char *channelData) override;
 
   private:
 	char       *m_imageData;

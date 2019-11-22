@@ -39,22 +39,22 @@
 class DebugOutput : public ChannelOutputBase {
   public:
 	DebugOutput(unsigned int startChannel, unsigned int channelCount);
-	~DebugOutput();
+	virtual ~DebugOutput();
 
     virtual int Init(Json::Value config) override;
     
 	// Close the derived class.  This method must also call the
 	// base class Close() method.
-	int Close(void);
+	virtual int Close(void) override;
 
 	// Main routine to send channel data out
-	int SendData(unsigned char *channelData);
+	virtual int SendData(unsigned char *channelData) override;
 
 	// Dump the config variables for debugging.  This method must
 	// also call the base class DumpConfig() method.
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
     
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
         addRange(m_startChannel, m_startChannel + m_channelCount - 1);
     }
 

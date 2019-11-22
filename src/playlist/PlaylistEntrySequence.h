@@ -33,19 +33,19 @@
 class PlaylistEntrySequence : public PlaylistEntryBase {
   public:
 	PlaylistEntrySequence(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntrySequence();
+	virtual ~PlaylistEntrySequence();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
     int  PreparePlay();
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
+	virtual int  StartPlaying(void) override;
+	virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
-	Json::Value GetMqttStatus(void);
+	virtual Json::Value GetConfig(void) override;
+	virtual Json::Value GetMqttStatus(void) override;
 
 
 	std::string GetSequenceName(void) { return m_sequenceName; }

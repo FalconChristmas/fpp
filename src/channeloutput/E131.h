@@ -35,16 +35,16 @@
 
 class E131OutputData : public UDPOutputData {
 public:
-    E131OutputData(const Json::Value &config);
+    explicit E131OutputData(const Json::Value &config);
     virtual ~E131OutputData();
     
-    virtual bool IsPingable();
-    virtual void PrepareData(unsigned char *channelData);
-    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
-    virtual void DumpConfig();
-    virtual void GetRequiredChannelRange(int &min, int & max);
+    virtual bool IsPingable() override;
+    virtual void PrepareData(unsigned char *channelData) override;
+    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs) override;
+    virtual void DumpConfig() override;
+    virtual void GetRequiredChannelRange(int &min, int & max) override;
 
-    virtual const std::string &GetOutputTypeString() const;
+    virtual const std::string &GetOutputTypeString() const override;
 
     int           universe;
     int           universeCount;

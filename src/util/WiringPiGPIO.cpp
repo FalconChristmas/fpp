@@ -46,7 +46,7 @@ void WPPinCapabilities::setPWMValue(int valueNS) const {
 class NullWPPinCapabilities : public WPPinCapabilities {
 public:
     NullWPPinCapabilities() : WPPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const { return nullptr; }
+    virtual const PinCapabilities *ptr() const override { return nullptr; }
 };
 static NullWPPinCapabilities NULL_WP_INSTANCE;
 

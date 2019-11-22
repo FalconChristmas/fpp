@@ -26,16 +26,16 @@ public:
     
     
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const { return 0;}
+                          bool directionOut = true) const override { return 0;}
     
-    virtual bool getValue() const { return false; }
-    virtual void setValue(bool i) const {}
+    virtual bool getValue() const override { return false; }
+    virtual void setValue(bool i) const override {}
     
-    virtual bool setupPWM(int maxValueNS = 25500) const {return false;}
-    virtual void setPWMValue(int valueNS) const {}
+    virtual bool setupPWM(int maxValueNS = 25500) const override {return false;}
+    virtual void setPWMValue(int valueNS) const override {}
     
-    virtual int getPWMRegisterAddress() const { return 0;};
-    virtual bool supportPWM() const { return true; };
+    virtual int getPWMRegisterAddress() const override { return 0;};
+    virtual bool supportPWM() const override { return true; };
     
     static void Init() {}
     static const NoPinCapabilities &getPinByName(const std::string &name);
@@ -46,7 +46,7 @@ public:
 class NullNoPinCapabilities : public NoPinCapabilities {
 public:
     NullNoPinCapabilities() : NoPinCapabilities("-none-", 0) {}
-    virtual const PinCapabilities *ptr() const { return nullptr; }
+    virtual const PinCapabilities *ptr() const override { return nullptr; }
 };
 static NullNoPinCapabilities NULL_PIN_INSTANCE;
 

@@ -66,9 +66,9 @@ typedef struct virtualDisplayPixel {
 class VirtualDisplayOutput : public ChannelOutputBase {
   public:
 	VirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-	~VirtualDisplayOutput();
+	virtual ~VirtualDisplayOutput();
 
-	virtual int  Init(Json::Value config);
+	virtual int  Init(Json::Value config) override;
 
 	int  InitializePixelMap(void);
 	int  ScaleBackgroundImage(std::string &bgFile, std::string &rgbFile);
@@ -80,9 +80,9 @@ class VirtualDisplayOutput : public ChannelOutputBase {
 		unsigned char r, unsigned char g, unsigned char b);
 	void DrawPixels(unsigned char *channelData);
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
 	std::string  m_backgroundFilename;
 	float        m_backgroundBrightness;

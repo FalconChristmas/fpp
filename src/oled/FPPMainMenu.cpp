@@ -98,11 +98,11 @@ public:
     virtual ~BridgeStatsPage() {}
     
     
-    virtual void displaying() {
+    virtual void displaying() override {
         bool on = true;
         doIteration(on);
     }
-    virtual bool doIteration(bool &displayOn) {
+    virtual bool doIteration(bool &displayOn) override {
         std::string d = doCurlGet("http://localhost:32322/fppd/e131stats", 10000);
         Json::Value result;
         Json::Reader reader;

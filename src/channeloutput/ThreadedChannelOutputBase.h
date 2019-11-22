@@ -42,11 +42,11 @@ class ThreadedChannelOutputBase : public ChannelOutputBase {
 	virtual ~ThreadedChannelOutputBase();
 
 
-	virtual int   Init(Json::Value config);
-	virtual int   Init(char *configStr);
-	virtual int   Close(void)  override;
+	virtual int   Init(Json::Value config) override;
+	virtual int   Init(char *configStr) override;
+	virtual int   Close(void) override;
 
-    virtual int   SendData(unsigned char *channelData)  override;
+    virtual int   SendData(unsigned char *channelData) override;
 
 	void          OutputThread(void);
 
@@ -54,7 +54,7 @@ class ThreadedChannelOutputBase : public ChannelOutputBase {
 	int           Init(void);
 
   protected:
-	virtual void  DumpConfig(void);
+	virtual void  DumpConfig(void) override;
 	virtual int   RawSendData(unsigned char *channelData) = 0;
 	int           StartOutputThread(void);
 	int           StopOutputThread(void);

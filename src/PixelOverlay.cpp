@@ -299,7 +299,7 @@ void PixelOverlayModel::doText(const std::string &msg,
         updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond, disableWhenDone);
     }
 }
-void PixelOverlayModel::doImageMovementThread(const std::string direction, int x, int y, int speed, bool disableWhenDone) {
+void PixelOverlayModel::doImageMovementThread(const std::string &direction, int x, int y, int speed, bool disableWhenDone) {
     int msDelay = 1000 / speed;
     bool done = false;
     while (threadKeepRunning && !done) {

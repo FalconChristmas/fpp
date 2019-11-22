@@ -99,10 +99,10 @@ public:
             udpIovecs[idx].iov_len = channelCount;
         }
     }
-    ~GenericUDPOutputData() {
+    virtual ~GenericUDPOutputData() {
     }
     
-    const std::string &GetOutputTypeString() const {
+    virtual const std::string &GetOutputTypeString() const override {
         return GENERIC_UDP_TYPE;
     }
 
@@ -118,10 +118,10 @@ public:
         bytes.push_back(a);
         bytes.push_back(b);
     }
-    virtual bool IsPingable() {
+    virtual bool IsPingable() override {
         return !isMulticast && !isBroadcast;
     };
-    virtual void PrepareData(unsigned char *channelData) {
+    virtual void PrepareData(unsigned char *channelData) override {
         if (valid && active) {
             count++;
             int start = startChannel - 1;
@@ -132,7 +132,7 @@ public:
     }
     
     // unicast and multicast messages for data
-    virtual void CreateMessages(std::vector<struct mmsghdr> &udpMsgs) {
+    virtual void CreateMessages(std::vector<struct mmsghdr> &udpMsgs) override {
         if (!isBroadcast) {
             if (valid && active) {
                 struct mmsghdr msg;
@@ -150,7 +150,7 @@ public:
             }
         }
     }
-    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) {
+    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) override {
         if (isBroadcast) {
             if (valid && active) {
                 struct mmsghdr msg;
@@ -169,7 +169,7 @@ public:
         }
     }
 
-    virtual void DumpConfig() {
+    virtual void DumpConfig() override {
     }
     
     int port;

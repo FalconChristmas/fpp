@@ -71,26 +71,29 @@ public:
     int           type;
     std::string   ipAddress;
     bool          valid;
+    
+    
+    UDPOutputData(UDPOutputData const &) = delete;
+    void operator=(UDPOutputData const &x) = delete;
 };
-
 
 class UDPOutput : public ChannelOutputBase {
 public:
     UDPOutput(unsigned int startChannel, unsigned int channelCount);
-    ~UDPOutput();
+    virtual ~UDPOutput();
     
     
-    int  Init(Json::Value config);
-    int  Close(void);
+    virtual int  Init(Json::Value config) override;
+    virtual int  Close(void) override;
     
-    void PrepData(unsigned char *channelData);
-    int  SendData(unsigned char *channelData);
+    virtual void PrepData(unsigned char *channelData) override;
+    virtual int  SendData(unsigned char *channelData) override;
     
-    void DumpConfig(void);
+    virtual void DumpConfig(void) override;
 
     void BackgroundThreadPing();
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
     
     void addOutput(UDPOutputData*);
     

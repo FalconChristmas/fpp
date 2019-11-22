@@ -35,15 +35,15 @@ class RemapOutputProcessor;
 class PlaylistEntryRemap : public PlaylistEntryBase {
   public:
 	PlaylistEntryRemap(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryRemap();
+	virtual ~PlaylistEntryRemap();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
+	virtual int  StartPlaying(void) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
 
   private:
 	std::string m_action;

@@ -119,7 +119,7 @@ public:
     
 private:
     void copyImageData(int xoff, int yoff);
-    void doImageMovementThread(const std::string direction, int x, int y, int speed, bool disableWhenDone);
+    void doImageMovementThread(const std::string &direction, int x, int y, int speed, bool disableWhenDone);
     
     std::string name;
     FPPChannelMemoryMapControlBlock *block;

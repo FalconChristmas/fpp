@@ -41,13 +41,13 @@ private:
         std::string pin;
         std::string mode;
         std::string edge;
-        int file;
-        int pollIndex;
+        int file = -1;
+        int pollIndex = -1;
         std::vector<Action> actions;
         
         const std::string &checkAction(int i, long long time);
         
-        struct gpiod_line *gpiodLine;
+        struct gpiod_line *gpiodLine = nullptr;
     };
     
     std::vector<InputAction> actions;

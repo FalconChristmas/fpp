@@ -43,18 +43,18 @@ using rgb_matrix::FrameCanvas;
 class RGBMatrixOutput : public ChannelOutputBase {
   public:
 	RGBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~RGBMatrixOutput();
+	virtual ~RGBMatrixOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	void PrepData(unsigned char *channelData);
+	virtual void PrepData(unsigned char *channelData) override;
 
-	int SendData(unsigned char *channelData);
+	virtual int SendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	GPIO        *m_gpio;

@@ -36,7 +36,7 @@ class TestPatternRGBCycle : public TestPatternBase {
 	virtual void DumpConfig(void) override;
 
   private:
-	void CycleData(void);
+	void CycleData(void) override;
 
 	std::string       m_colorPatternStr;
 	std::vector<char> m_colorPattern;

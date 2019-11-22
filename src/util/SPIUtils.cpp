@@ -55,7 +55,10 @@ int SPIUtils::xfer(uint8_t *tx, uint8_t *rx, int count) {
 #include "wiringPiSPI.h"
 
 SPIUtils::SPIUtils(int channel, int baud) {
+    this->channel = channel;
     file = channel;
+    speed = baud;
+    bitsPerWord = 8;
     if (wiringPiSPISetup (channel, 8000000) < 0) {
         file = -1;
     }

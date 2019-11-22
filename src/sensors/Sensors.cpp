@@ -42,8 +42,7 @@ static std::string exec(const std::string &cmd) {
 
 class Sensor {
 public:
-    Sensor(Json::Value &s) {
-        label = s["label"].asString();
+    explicit Sensor(Json::Value &s) : label(s["label"].asString())  {
         if (s.isMember("prefix")) {
             prefix = s["prefix"].asString();
         }
@@ -58,6 +57,10 @@ public:
         }
     }
     virtual ~Sensor() {}
+        
+    Sensor(Sensor const &) = delete;
+    void operator=(Sensor const &x) = delete;
+    
     virtual double getValue() = 0;
     
     void report(Json::Value &s) {
@@ -88,10 +91,9 @@ public:
 
 class I2CSensor : public Sensor {
 public:
-    I2CSensor(Json::Value &s) : Sensor(s) {
-        address = s["address"].asString();
-        path = s["path"].asString();
-        driver = s["driver"].asString();
+    explicit I2CSensor(Json::Value &s) : Sensor(s), address(s["address"].asString()),
+        path(s["path"].asString()), driver(s["driver"].asString()), file(-1)  {
+        
         if (s.isMember("multiplier")) {
             multiplier = s["multiplier"].asDouble();
         }
@@ -113,7 +115,6 @@ public:
                 out.close();
             }
         }
-        file = -1;
         int count = 0;
         while (count < 5 && !CheckForFile(path)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -203,16 +204,15 @@ public:
 
 class AINSensor : public Sensor {
 public:
-    AINSensor(Json::Value &s) : Sensor(s), errcount(0) {
-        address = s["address"].asString();
-        path = s["path"].asString();
+    explicit AINSensor(Json::Value &s) : Sensor(s), errcount(0), address(s["address"].asString()),
+        path(s["path"].asString()), file(-1) {
+        
         if (s.isMember("max")) {
             max = s["max"].asDouble();
         }
         if (s.isMember("min")) {
             min = s["min"].asDouble();
         }
-        file = -1;
     }
     virtual ~AINSensor() {
         close(file);
@@ -259,8 +259,7 @@ public:
 
 class ThermalSensor : public Sensor {
 public:
-    ThermalSensor(Json::Value &s) : Sensor(s) {
-        path = s["path"].asString();
+    explicit ThermalSensor(Json::Value &s) : Sensor(s), path(s["path"].asString()) {
         file = open(path.c_str(), O_RDONLY);
     }
     virtual ~ThermalSensor() {

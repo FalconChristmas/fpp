@@ -33,7 +33,7 @@
 class PlaylistEntryPlugin : public PlaylistEntryBase {
   public:
 	PlaylistEntryPlugin(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryPlugin();
+	virtual ~PlaylistEntryPlugin();
 
   private:
 	std::string m_plugin;

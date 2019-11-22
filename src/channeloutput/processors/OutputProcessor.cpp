@@ -64,7 +64,7 @@ void OutputProcessors::loadFromJSON(const Json::Value &config, bool clear) {
     if (clear) {
         removeAll();
     }
-    for( Json::Value::const_iterator itr = config.begin() ; itr != config.end() ; itr++ ) {
+    for (Json::Value::const_iterator itr = config.begin() ; itr != config.end() ; ++itr) {
         std::string name = itr.key().asString();
         if (name == "outputProcessors") {
             Json::Value val = *itr;

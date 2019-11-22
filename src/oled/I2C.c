@@ -217,7 +217,7 @@ int i2c_multiple_writes(int fd, int num, unsigned char *Ptr_buff)
  ****************************************************************/
 int i2c_write_register(int fd, unsigned char reg_addr_or_cntrl, unsigned char val)
 {
-	unsigned char buff[1];
+	unsigned char buff[2];
 	int ret = 0;
 	buff[0] = reg_addr_or_cntrl;
 	buff[1] = val;

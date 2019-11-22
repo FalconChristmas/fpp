@@ -277,12 +277,10 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return outputCount;
         }
-        if (outputCount != msgCount) {
-            errno = 0;
-            int oc = sendmmsg(socket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
-            if (oc > 0) {
-                outputCount += oc;
-            }
+        errno = 0;
+        int oc = sendmmsg(socket, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+        if (oc > 0) {
+            outputCount += oc;
         }
     }
     return outputCount;
@@ -425,8 +423,8 @@ void UDPOutput::CloseNetwork() {
     while (isSending) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    close(sendSocket);
-    close(broadcastSocket);
+    close(ts);
+    close(bs);
 
     PingControllers();
     rebuildOutputLists = true;

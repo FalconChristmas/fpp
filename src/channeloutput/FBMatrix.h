@@ -34,17 +34,17 @@
 class FBMatrixOutput : public ChannelOutputBase {
   public:
 	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~FBMatrixOutput();
+	virtual ~FBMatrixOutput();
 
-    virtual int Init(Json::Value config);
-	int Close(void);
+    virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-    int SendData(unsigned char *channelData);
-    void PrepData(unsigned char *channelData);
+    virtual int SendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
 
-    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	int     m_fbFd;

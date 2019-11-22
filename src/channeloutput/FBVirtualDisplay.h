@@ -33,12 +33,12 @@
 class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
   public:
 	FBVirtualDisplayOutput(unsigned int startChannel, unsigned int channelCount);
-	~FBVirtualDisplayOutput();
+	virtual ~FBVirtualDisplayOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	int SendData(unsigned char *channelData);
+	virtual int SendData(unsigned char *channelData) override;
 
   private:
 	int     m_fbFd;

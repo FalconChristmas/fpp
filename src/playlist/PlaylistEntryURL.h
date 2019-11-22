@@ -35,19 +35,19 @@
 class PlaylistEntryURL : public PlaylistEntryBase {
   public:
 	PlaylistEntryURL(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryURL();
+	virtual ~PlaylistEntryURL();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
+	virtual int  StartPlaying(void) override;
+	virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	std::string ReplaceMatches(std::string in);
+	virtual std::string ReplaceMatches(std::string in) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	Json::Value GetConfig(void) override;
 
   private:
 	int ProcessData(void *buffer, size_t size, size_t nmemb);

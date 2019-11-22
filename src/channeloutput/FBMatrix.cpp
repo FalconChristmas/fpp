@@ -336,7 +336,6 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 		unsigned char *dR;
 		unsigned char *dG;
 		unsigned char *dB;
-        unsigned char *dA;
         int add = m_bpp / 8;
 
 		for (int y = 0; y < m_height; y++) {
@@ -362,7 +361,6 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 				dR += add;
 				dG += add;
 				dB += add;
-                dA += add;
 			}
 
 			srow++;

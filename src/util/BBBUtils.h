@@ -27,17 +27,17 @@ public:
     
     
     virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const;
+                          bool directionOut = true) const override;
 
-    virtual bool getValue() const;
-    virtual void setValue(bool i) const;
+    virtual bool getValue() const override;
+    virtual void setValue(bool i) const override;
     virtual int openValueForPoll() const;
     
-    virtual bool setupPWM(int maxValueNS = 25500) const;
-    virtual void setPWMValue(int valueNS) const;
-    virtual int getPWMRegisterAddress() const;
+    virtual bool setupPWM(int maxValueNS = 25500) const override;
+    virtual void setPWMValue(int valueNS) const override;
+    virtual int getPWMRegisterAddress() const override;
     
-    virtual bool supportPWM() const;
+    virtual bool supportPWM() const override;
     
     static void Init();
     static const BBBPinCapabilities &getPinByName(const std::string &name);

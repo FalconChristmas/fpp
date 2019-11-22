@@ -37,18 +37,18 @@
 class PlaylistEntryDynamic : public PlaylistEntryBase {
   public:
 	PlaylistEntryDynamic(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryDynamic();
+	virtual ~PlaylistEntryDynamic();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
-	int  Prep(void);
-	int  Process(void);
-	int  Stop(void);
+	virtual int  StartPlaying(void) override;
+	virtual int  Prep(void) override;
+	virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
 
   private:
 	int ReadFromCommand(void);

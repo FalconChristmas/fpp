@@ -51,16 +51,16 @@ typedef struct {
 class BBB48StringOutput : public ChannelOutputBase {
   public:
     BBB48StringOutput(unsigned int startChannel, unsigned int channelCount);
-    ~BBB48StringOutput();
+    virtual ~BBB48StringOutput();
 
-    int Init(Json::Value config);
-    int Close(void);
+    virtual int Init(Json::Value config) override;
+    virtual int Close(void) override;
 
-    int SendData(unsigned char *channelData);
-    void PrepData(unsigned char *channelData);
-    void DumpConfig(void);
+    virtual int SendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char *channelData) override;
+    virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
     void StopPRU(bool wait = true);

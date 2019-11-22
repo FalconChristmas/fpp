@@ -26,9 +26,9 @@ public:
     RemapOutputProcessor(int src, int dst, int count, int loop, int reverse);
     virtual ~RemapOutputProcessor();
     
-    virtual void ProcessData(unsigned char *channelData) const;
+    virtual void ProcessData(unsigned char *channelData) const override;
     
-    virtual OutputProcessorType getType() const { return REMAP; }
+    virtual OutputProcessorType getType() const override { return REMAP; }
 
     int getSourceChannel() const { return sourceChannel;}
     int getDestChannel() const { return destChannel;}
@@ -36,7 +36,7 @@ public:
     int getLoops() const { return loops;}
     int getReverse() const { return reverse;}
     
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
 protected:
     int sourceChannel;
