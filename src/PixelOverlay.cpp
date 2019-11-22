@@ -1155,7 +1155,10 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                             int fontSize = root["FontSize"].asInt();
                             bool aa = root["AntiAlias"].asBool();
                             int pps = root["PixelsPerSecond"].asInt();
-                            bool autoEnable = root["AutoEnable"].asBool();
+                            bool autoEnable = false;
+                            if (root.isMember("AutoEnable")) {
+                                autoEnable = root["AutoEnable"].asBool();
+                            }
                             
                             std::string f = fonts[font];
                             if (f == "") {
@@ -1278,8 +1281,12 @@ public:
         args.push_back(CommandArg("FontAntiAlias", "bool", "Anti-Aliased").setDefaultValue("false"));
         args.push_back(CommandArg("Position", "string", "Position").setContentList({"Center", "Right to Left", "Left to Right", "Bottom to Top", "Top to Bottom"}));
         args.push_back(CommandArg("Speed", "int", "Scroll Speed").setRange(0, 200).setDefaultValue("10"));
-        args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
         args.push_back(CommandArg("AutoEnable", "bool", "Auto Enable/Disable Model").setDefaultValue("false"));
+        
+        // keep text as last argument if possible as the MQTT commands will, by default, use the payload of the mqtt
+        // msg as the last argument.  Thus, this allows all of the above to be topic paths, but the text to be
+        // sent in the payload
+        args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
     }
     
     const std::string mapPosition(const std::string &p) {
@@ -1298,7 +1305,7 @@ public:
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
-        if (args.size() != 9) {
+        if (args.size() < 8) {
             return std::make_unique<Command::ErrorResult>("Command needs 9 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
@@ -1318,9 +1325,13 @@ public:
             bool aa = args[4] == "true" || args[4] == "1";
             std::string position = mapPosition(args[5]);
             int pps = std::atoi(args[6].c_str());
-            std::string msg = args[7];
-            bool autoEnable = args[8] == "true" || args[8] == "1";
             
+            std::string msg = args[7];
+            bool autoEnable = false;
+            if (args.size() == 9) {
+                autoEnable = (msg == "true" || msg == "1");
+                msg = args[8];
+            }
             
             m->doText(msg,
                       (cint >> 16) & 0xFF,
