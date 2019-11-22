@@ -21,8 +21,10 @@ public:
     static void SetForcedOff(bool b) {oledForcedOff = b;};
     
     OLEDPage() : autoDeleteOnHide(false) {}
-    OLEDPage(const OLEDPage&) delete;
     virtual ~OLEDPage() {}
+
+
+    OLEDPage(const OLEDPage &) = delete;
     void operator=(OLEDPage const &) = delete;
     
     virtual void displaying() {}
