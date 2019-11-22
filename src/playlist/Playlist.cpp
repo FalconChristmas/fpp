@@ -567,7 +567,7 @@ int Playlist::Process(void)
 
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
-	if (m_sectionPosition >= m_currentSection->size()) {
+	if (m_currentSection == nullptr || m_sectionPosition >= m_currentSection->size()) {
 		LogErr(VB_PLAYLIST, "Section position %d is outside of section %s\n",
 			m_sectionPosition, m_currentSectionStr.c_str());
 		StopNow();
