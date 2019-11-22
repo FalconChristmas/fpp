@@ -128,7 +128,7 @@ int PlaylistEntryBoth::StartPlaying(void)
  */
 int PlaylistEntryBoth::Process(void)
 {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Process()\n");
+    LogExcess(VB_PLAYLIST, "PlaylistEntryBoth::Process()\n");
 
 	if (m_mediaEntry) m_mediaEntry->Process();
 	m_sequenceEntry->Process();
