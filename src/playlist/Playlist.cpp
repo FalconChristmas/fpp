@@ -498,7 +498,7 @@ int Playlist::StopNow(int forceStop)
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
 
-	if (m_currentSection->at(m_sectionPosition)->IsPlaying())
+	if (m_currentSection && m_currentSection->at(m_sectionPosition)->IsPlaying())
 		m_currentSection->at(m_sectionPosition)->Stop();
 
 	SetIdle();
