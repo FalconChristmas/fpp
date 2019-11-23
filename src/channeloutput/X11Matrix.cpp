@@ -59,6 +59,8 @@ X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "X11MatrixOutput::X11MatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
 
+	XInitThreads();
+
 	m_useDoubleBuffer = 1;
 }
 
