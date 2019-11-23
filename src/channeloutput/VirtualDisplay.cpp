@@ -368,7 +368,7 @@ void VirtualDisplayOutput::LoadBackgroundImage(void)
 
 	if (!FileExists(bgFile))
 	{
-		LogErr(VB_CHANNELOUT, "Background image does not exist: %s\n",
+		LogWarn(VB_CHANNELOUT, "Background image does not exist: %s\n",
 			bgFile.c_str());
 		return;
 	}
@@ -396,78 +396,48 @@ void VirtualDisplayOutput::LoadBackgroundImage(void)
 	unsigned int imgHeight = image.rows();
 	unsigned int imgBytes = imgWidth * imgHeight * 4; // RGBA
 	unsigned long RGBx = 0;
+	bool letterboxed = false;
 	int offset = 0;
+	int colOffset = (m_width - imgWidth) / 2;
+	int r = 0;
+	int c = 0;
 
-	if ((1.0 * m_width / m_previewWidth) < (1.0 * m_height / m_previewHeight))
+	if ((1.0 * m_width / m_previewWidth) > (1.0 * m_height / m_previewHeight))
+		letterboxed = true;
+
+	offset = (m_height - imgHeight) / 2 * m_width * m_bytesPerPixel;
+
+	for (int i = 0; i < imgBytes;)
 	{
-		// Virtual Display is taller than the preview aspect, so background
-		// image width should equal virtual display width
-		offset = (m_height - imgHeight) / 2 * m_width * m_bytesPerPixel;
-
-//LogDebug(VB_CHANNELOUT, "here\n");
-		for (int i = 0; i < imgBytes;)
+		if ((letterboxed) && (c == 0))
 		{
-//LogDebug(VB_CHANNELOUT, "i: %d\n", i);
-			if ((m_bpp == 24) || (m_bpp == 32))
-			{
-				m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
-				m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
-				m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
-				i++; // RGBA
-
-				if (m_bpp == 32)
-					offset++;
-			}
-			else // 16bpp RGB565
-			{
-				RGBx = *(unsigned long *)(imgData + i);
-				*(uint16_t*)(m_virtualDisplay + offset) =
-					(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
-					(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
-					(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
-
-				i += 4; // RGBA
-				offset += 2;
-			}
+			offset = ((r * m_width) + colOffset) * m_bytesPerPixel;
 		}
-	}
-	else
-	{
-		// Virtual Display is wider than the preview aspect, so background
-		// image height should equal virtual display height
-		int colOffset = (m_width - imgWidth) / 2;
-		int r = 0;
-		int c = 0;
 
-		for (int i = 0; i < imgBytes;)
+		if ((m_bpp == 24) || (m_bpp == 32))
 		{
-			if (c == 0)
-			{
-				offset = ((r * m_width) + colOffset) * m_bytesPerPixel;
-			}
+			m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
+			m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
+			m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
+			i++;
 
-			if ((m_bpp == 24) || (m_bpp == 32))
-			{
-				m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
-				m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
-				m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
-				i++;
+			if (m_bpp == 32)
+				offset++;
+		}
+		else // 16bpp RGB565
+		{
+			RGBx = *(unsigned long *)(imgData + i);
+			*(uint16_t*)(m_virtualDisplay + offset) =
+				(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
+				(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
+				(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
 
-				if (m_bpp == 32)
-					offset++;
-			}
-			else
-			{
-				RGBx = *(unsigned long *)(imgData + i);
-				*(uint16_t*)(m_virtualDisplay + offset) =
-					(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
-					(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
-					(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
+			i += 4;
+			offset += 2;
+		}
 
-				i += 4;
-				offset += 2;
-			}
-
+		if (letterboxed)
+		{
 			c++;
 
 			if (c >= imgWidth)
