@@ -296,13 +296,15 @@ void StartChannelOutputThread(void)
         }
 	}
 
-	int mediaOffsetInt = getSettingInt("mediaOffset");
-	if (mediaOffsetInt)
-		mediaOffset = (float)mediaOffsetInt * 0.001;
-	else
-		mediaOffset = 0.0;
+	if (getFPPmode() & PLAYER_MODE) {
+		int mediaOffsetInt = getSettingInt("mediaOffset");
+		if (mediaOffsetInt)
+			mediaOffset = (float)mediaOffsetInt * 0.001;
+		else
+			mediaOffset = 0.0;
 
-	LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
+		LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
+	}
 
 	RunThread = 1;
     ThreadIsExiting = 0;
