@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build the docker image
-docker build --no-cache -t falconchristmas/fpp:latest -f Docker/Dockerfile .
+docker build -t falconchristmas/fpp:latest -f Docker/Dockerfile .
 #or
 #docker build -t falconchristmas/fpp:latest  --build-arg EXTRA_INSTALL_FLAG=--skip-clone -f Docker/Dockerfile .
 
@@ -15,4 +15,4 @@ docker build --no-cache -t falconchristmas/fpp:latest -f Docker/Dockerfile .
 # However, editing files from OSX may take an extra second
 # before the changes are available within the docker container.
 
-# docker run --rm -t -i -p 80:80 -p 4048:4048/udp -p 5568:5568/udp -p 32320:32320/udp -v ${PWD}:/opt/fpp${DOCKER_MOUNT_FLAG} falconchristmas/fpp:latest
+# docker run -t -i -p 80:80 -p 4048:4048/udp -p 5568:5568/udp -p 32320:32320/udp -v ${PWD}:/opt/fpp${DOCKER_MOUNT_FLAG} falconchristmas/fpp:latest

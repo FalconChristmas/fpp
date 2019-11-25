@@ -236,53 +236,65 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
         vs.gamma = 50.0f;
     }
     
-    CHECKPS_SETTING(vs.startChannel < 0);
-    CHECKPS_SETTING(vs.startChannel > FPPD_MAX_CHANNELS);
     CHECKPS_SETTING(vs.pixelCount < 0);
     CHECKPS_SETTING(vs.pixelCount > MAX_PIXEL_STRING_LENGTH);
-    CHECKPS_SETTING(vs.nullNodes < 0);
-    CHECKPS_SETTING(vs.nullNodes > MAX_PIXEL_STRING_LENGTH);
-    CHECKPS_SETTING((vs.nullNodes + vs.pixelCount) > MAX_PIXEL_STRING_LENGTH);
-    CHECKPS_SETTING(vs.reverse < 0);
-    CHECKPS_SETTING(vs.reverse > 1);
-    CHECKPS_SETTING(vs.groupCount < 0);
     if (vs.pixelCount) {
+        // only validate settings and such if there are pixels on this string
+        CHECKPS_SETTING(vs.startChannel < 0);
+        CHECKPS_SETTING(vs.startChannel > FPPD_MAX_CHANNELS);
+        CHECKPS_SETTING(vs.nullNodes < 0);
+        CHECKPS_SETTING(vs.nullNodes > MAX_PIXEL_STRING_LENGTH);
+        CHECKPS_SETTING((vs.nullNodes + vs.pixelCount) > MAX_PIXEL_STRING_LENGTH);
+        CHECKPS_SETTING(vs.reverse < 0);
+        CHECKPS_SETTING(vs.reverse > 1);
+        CHECKPS_SETTING(vs.groupCount < 0);
         CHECKPS_SETTING(vs.groupCount > vs.pixelCount);
         CHECKPS_SETTING(vs.zigZag > vs.pixelCount);
-    }
-    CHECKPS_SETTING(vs.zigZag < 0);
-    
-    std::string colorOrder = vsc["colorOrder"].asString();
-    if (colorOrder.length() == 4) {
-        if (colorOrder[0] == 'W') {
-            vs.whiteOffset = 0;
-            colorOrder = colorOrder.substr(1);
-        } else {
-            vs.whiteOffset = 3;
-            colorOrder = colorOrder.substr(0, 3);
+        CHECKPS_SETTING(vs.zigZag < 0);
+
+        std::string colorOrder = vsc["colorOrder"].asString();
+        if (colorOrder.length() == 4) {
+            if (colorOrder[0] == 'W') {
+                vs.whiteOffset = 0;
+                colorOrder = colorOrder.substr(1);
+            } else {
+                vs.whiteOffset = 3;
+                colorOrder = colorOrder.substr(0, 3);
+            }
         }
-    }
-    vs.colorOrder = ColorOrderFromString(colorOrder);
-    
-    if (vs.groupCount == 1)
-        vs.groupCount = 0;
-    
-    if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
+        vs.colorOrder = ColorOrderFromString(colorOrder);
+        
+        if (vs.groupCount == 1)
+            vs.groupCount = 0;
+        
+        if ((vs.zigZag == vs.pixelCount) || (vs.zigZag == 1))
+            vs.zigZag = 0;
+        
+        float bf = vs.brightness;
+        float maxB = bf * 2.55f;
+        for (int x = 0; x < 256; x++) {
+            float f = x;
+            f = maxB * pow(f / 255.0f, vs.gamma);
+            if (f > 255.0) {
+                f = 255.0;
+            }
+            if (f < 0.0) {
+                f = 0.0;
+            }
+            vs.brightnessMap[x] = round(f);
+        }
+    } else {
+        vs.colorOrder = ColorOrderFromString("RGB");
+        vs.groupCount = 1;
         vs.zigZag = 0;
-    
-    float bf = vs.brightness;
-    float maxB = bf * 2.55f;
-    for (int x = 0; x < 256; x++) {
-        float f = x;
-        f = maxB * pow(f / 255.0f, vs.gamma);
-        if (f > 255.0) {
-            f = 255.0;
+        vs.reverse = 0;
+        vs.nullNodes = 0;
+        vs.startChannel = 0;
+        for (int x = 0; x < 256; x++) {
+            vs.brightnessMap[x] = x;
         }
-        if (f < 0.0) {
-            f = 0.0;
-        }
-        vs.brightnessMap[x] = round(f);
     }
+    
     return 1;
 }
 void PixelString::AddNullPixelString() {

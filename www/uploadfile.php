@@ -234,7 +234,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "DownloadFile('Sequences', SequenceNameSelected);" id="btnDownloadSequence" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Sequences', ScriptNameSelected);" id="btnRenameSequence" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Sequences', SequenceNameSelected);" id="btnRenameSequence" class="disableButtons" type="button"  value="Rename" />
             <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -255,7 +255,7 @@ h2 {
           <div class='right'>
             <input onclick= "PlayFileInBrowser('Music', SongNameSelected);" id="btnPlayMusicInBrowser" class="disableButtons" type="button"  value="Listen" />
             <input onclick= "DownloadFile('Music', SongNameSelected);" id="btnDownloadMusic" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Music', ScriptNameSelected);" id="btnRenameMusic" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Music', SongNameSelected);" id="btnRenameMusic" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -279,7 +279,7 @@ h2 {
             -->
             <input onclick= "GetVideoInfo(VideoNameSelected);" id="btnVideoInfo" class="disableButtons" type="button"  value="Video Info" />
             <input onclick= "DownloadFile('Videos', VideoNameSelected);" id="btnDownloadVideo" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Videos', ScriptNameSelected);" id="btnRenameVideo" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Videos', VideoNameSelected);" id="btnRenameVideo" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -317,7 +317,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "DownloadFile('Effects', EffectNameSelected);" id="btnDownloadEffect" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Effects', ScriptNameSelected);" id="btnRenameEffect" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Effects', EffectNameSelected);" id="btnRenameEffect" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Effects', EffectNameSelected);" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
