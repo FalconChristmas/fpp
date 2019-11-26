@@ -152,6 +152,16 @@
 #define SCRATCH_PAD 10
 #endif
 
+#if defined(USES_GPIO0) && !defined(SPLIT_GPIO0)
+#define T0_TIME_PASS1    T0_TIME_GPIO0
+#define T1_TIME_PASS1    T1_TIME_GPIO0
+#define LOW_TIME_PASS1   LOW_TIME_GPIO0
+#else
+#define T0_TIME_PASS1    T0_TIME
+#define T1_TIME_PASS1    T1_TIME
+#define LOW_TIME_PASS1   LOW_TIME
+#endif
+
 
 .macro DISABLE_GPIO_PIN_INTERRUPTS
 .mparam ledMask, gpio
@@ -189,6 +199,68 @@
     MOV r9, 0x44E00500
     LDI r10, 2
     SBBO r10, r9, 0x3c, 4     //use the accurate clock
+
+    MOV r9, 0x44E00400        //CM_WKUP registers
+    LBBO r10, r13, 0x08, 4    //0x08 is the CM_WKUP_GPIO0_CLKCTRL register
+    SET r10, 1     //ENABLE
+    CLR r10, 0     //ENABLE
+    CLR r10, 16     //IDLEST
+    CLR r10, 17     //IDLEST
+    SET r10, 18
+    SBBO r10, r13, 0x08, 4
+    
+    LBBO r10, r13, 0x00, 4    //0x00 is the CM_WKUP_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    SET r10, 2
+    SET r10, 8
+    SBBO r10, r13, 0x00, 4
+    
+    LBBO r10, r13, 0x04, 4    //0x04 is the CM_WKUP_CONTROL_CLKCTRL register
+    CLR r10, 17
+    CLR r10, 16
+    SET r10, 1
+    CLR r10, 0
+    SBBO r10, r13, 0x04, 4
+
+    LBBO r10, r13, 0x0C, 4    //0x04 is the CM_WKUP_L4WKUP_CLKCTRL register
+    CLR r10, 17
+    CLR r10, 16
+    SET r10, 1
+    CLR r10, 0
+    SBBO r10, r13, 0x0C, 4    //0x10 is the SYSCONFIG register
+    
+    MOV r9, 0x44E00400        //CM_MPU registers
+    LBBO r10, r13, 0x00, 8    //0x00 is the CM_MPU_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    CLR r11, 0
+    SET r11, 1
+    SBBO r10, r13, 0x00, 8
+
+    MOV r9, 0x44E00000        //CM_PER registers
+    LBBO r10, r13, 0x00, 8    //0x00 is the CM_PER_L4LS_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    CLR r11, 0
+    CLR r11, 1
+    SBBO r10, r13, 0x00, 8
+    LBBO r10, r13, 0x0C, 4    //0x0C is the CM_PER_L3_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    CLR r11, 0
+    CLR r11, 1
+    SBBO r10, r13, 0x00, 4
+
+    
+
+    MOV r13, 0x50000000       //GPMC registers
+    LBBO r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
+    CLR r10, 0     //AUTOIDLE
+    CLR r10, 2     //ENAWAKEUP
+    SET r10, 3     //No-Idle
+    CLR r10, 4     //
+    SBBO r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
 #endif
 .endm
 
@@ -255,6 +327,14 @@ skip:
         LBBO    r10, data_addr, 0, OUTPUTS
     DATALOADED:
     ADD data_addr, data_addr, OUTPUTS
+.endm
+
+.macro WAIT_AND_CHECK_TIMEOUT
+.mparam TIMEOUT, reg1, reg2, timeoutLabel
+    // need to subtract 2 clock cycles (10ns) for the MOVE/QBGT atfer the WAITNS
+    WAITNS    (TIMEOUT - 10), reg1, reg2
+    MOV reg1, ((TIMEOUT+50)/5)
+    QBGT timeoutLabel, reg1, reg2
 .endm
 
 
@@ -390,6 +470,9 @@ _LOOP:
     LDI     r2, 0
     MOV     r3, 1
     SBCO    r2, CONST_PRUDRAM, 4, 8
+    
+    //start the clock
+    RESET_PRU_CLOCK r8, r9
 
 	WORD_LOOP:
     LOOP WORD_LOOP_DONE, data_len
@@ -435,7 +518,7 @@ _LOOP:
 #endif
 
             //wait for the full cycle to complete
-            WAITNS    LOW_TIME, r8, r9
+            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, r8, r9, WORD_LOOP_DONE
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -468,7 +551,7 @@ _LOOP:
 #endif
 
 			// wait for the length of the zero bits
-            WAITNS    T0_TIME, r8, r9
+            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, r8, r9, WORD_LOOP_DONE
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
@@ -486,7 +569,7 @@ _LOOP:
 #endif
 
 			// Wait until the length of the one bits
-			WAITNS	T1_TIME, r8, r9
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, r8, r9, WORD_LOOP_DONE
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
@@ -553,7 +636,7 @@ _LOOP:
             DO_OUTPUT_GPIO0
 
             //wait for the full cycle to complete
-            WAITNS    LOW_TIME_GPIO0, r8, r9
+            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -562,14 +645,14 @@ _LOOP:
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 
 			// wait for the length of the zero bits
-            WAITNS    T0_TIME_GPIO0, r8, r9
+            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
-			WAITNS	T1_TIME_GPIO0, r8, r9
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
