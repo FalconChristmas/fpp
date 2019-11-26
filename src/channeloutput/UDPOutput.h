@@ -33,7 +33,7 @@
 
 #include "ChannelOutputBase.h"
 
-
+typedef void CURLM;
 
 class UDPOutputData {
 public:
@@ -124,6 +124,7 @@ private:
     std::thread *pingThread;
     std::mutex pingThreadMutex;
     std::condition_variable pingThreadCondition;
+    CURLM *m_curlm;
     
     volatile bool rebuildOutputLists;
 };

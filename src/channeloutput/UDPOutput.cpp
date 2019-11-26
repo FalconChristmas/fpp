@@ -31,6 +31,9 @@
 
 #include <netdb.h>
 
+#include <curl/curl.h>
+
+
 #include "UDPOutput.h"
 #include "Warnings.h"
 #include "log.h"
@@ -122,6 +125,7 @@ UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
     INSTANCE = this;
     sendSocket = -1;
     broadcastSocket = -1;
+    m_curlm = curl_multi_init();
 }
 UDPOutput::~UDPOutput() {
     INSTANCE = nullptr;
@@ -136,6 +140,8 @@ UDPOutput::~UDPOutput() {
     for (auto a : outputs) {
         delete a;
     }
+    curl_multi_cleanup(m_curlm);
+    m_curlm = nullptr;
 }
 
 int UDPOutput::Init(Json::Value config) {
@@ -339,6 +345,7 @@ bool UDPOutput::PingControllers() {
     LogExcess(VB_CHANNELOUT, "Pinging controllers to see what is online\n");
 
     std::map<std::string, int> done;
+    std::map<std::string, CURL*> curls;
     bool newOutputs = false;
     for (auto o : outputs) {
         if (o->IsPingable() && o->active) {
@@ -355,9 +362,45 @@ bool UDPOutput::PingControllers() {
                     LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                             host.c_str());
                     newOutputs = true;
+                } else {
+                    // ping failed, try GET
+                    std::string url = "http://" + host;
+                    CURL *curl = curl_easy_init();
+                    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+                    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 3000);
+                    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 6000);
+                    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+                    curl_multi_add_handle(m_curlm, curl);
+                    curls[host] = curl;
                 }
             }
         }
+    }
+    int numCurls = curls.size();
+    while (numCurls) {
+        int handleCount;
+        curl_multi_perform(m_curlm, &handleCount);
+        if (handleCount != numCurls) {
+            //progress
+            int msgs;
+            CURLMsg * curlm = curl_multi_info_read(m_curlm, &msgs);
+            while (curlm) {
+                if (curlm->msg == CURLMSG_DONE && curlm->data.result == CURLE_OK) {
+                    for (auto &c : curls) {
+                        if (c.second == curlm->easy_handle) {
+                            // the HEAD request worked, mark as OK
+                            done[c.first] = 1;
+                        }
+                    }
+                }
+                curlm = curl_multi_info_read(m_curlm, &msgs);
+            }
+        }
+        numCurls = handleCount;
+    }
+    for (auto &c : curls) {
+        curl_multi_remove_handle(m_curlm, c.second);
+        curl_easy_cleanup(c.second);
     }
     for (auto o : outputs) {
         if (o->IsPingable() && o->active) {
