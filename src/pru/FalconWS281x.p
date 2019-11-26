@@ -600,6 +600,22 @@ _LOOP:
 #endif
 		//  QBNE	WORD_LOOP, data_len, #0
     WORD_LOOP_DONE:
+    
+    
+    // Turn all the bits off
+    #ifdef USES_GPIO1
+                CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, 0
+    #endif
+    #ifdef USES_GPIO2
+                CLEAR_IF_NOT_EQUAL gpio2_led_mask, gpio2_address, 0
+    #endif
+    #ifdef USES_GPIO3
+                CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, 0
+    #endif
+    #if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+                CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+    #endif
+    
 
 #if defined(SPLIT_GPIO0) && defined(USES_GPIO0)
     // do a second pass for GPIO0 only
@@ -670,6 +686,8 @@ _LOOP:
         CALL    next_check
 		//  QBNE	WORD_LOOP_PASS2, data_len, #0
     WORD_LOOP_DONE_PASS2:
+    CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+
 #endif   // GPIO0 second pass
 
 	// Delay at least 300 usec; this is the required reset
