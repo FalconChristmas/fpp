@@ -1042,6 +1042,7 @@ function RemovePlaylistEntry()	{
                     universe.type = 0;
                     universe.address = "";
                     universe.priority = 0;
+                    universe.monitor = 1;
                     channelData.universes.push(universe);
                     if (input) {
                         data.channelInputs = [];
@@ -1061,6 +1062,7 @@ function RemovePlaylistEntry()	{
                 var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value);
                 var active=document.getElementById("chkActive[" + selectIndex + "]").value;
                 var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
+                var monitor=document.getElementById("txtMonitor[" + selectIndex + "]").checked ? 1 : 0;
                 
                 var tbody=document.getElementById("tblUniversesBody");  //get the table
                 var origRow = tbody.rows[selectIndex];
@@ -1081,7 +1083,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        row.cells[10].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        row.cells[11].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     
                     UniverseCount++;
@@ -1099,6 +1101,9 @@ function RemovePlaylistEntry()	{
                 univc.prop('disabled', true);
                 var sz = $(item).parent().parent().find("input.txtSize");
                 sz.prop('max', 512000);
+                
+                var monitor = $(item).parent().parent().find("input.txtMonitor");
+                monitor.prop('disabled', false);
             } else {
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', false);
@@ -1116,6 +1121,13 @@ function RemovePlaylistEntry()	{
                     sz.val(512);
                 }
                 sz.prop('max', 512);
+                
+                var monitor = $(item).parent().parent().find("input.txtMonitor");
+                if (itemVal == 0 || itemVal == 2) {
+                    monitor.prop('disabled', true);
+                } else {
+                    monitor.prop('disabled', false);
+                }
             }
         }
         function populateUniverseData(data, reload, input) {
@@ -1139,8 +1151,9 @@ function RemovePlaylistEntry()	{
                 "<th width=\"8%\" align='left'>Universe<br>Size</th>" +
                 "<th width=\"15%\" align='left'>Universe Type</th>" +
                 "<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
-                "<th width=\"8%\" align='left' " + inputStyle + ">Priority</th>" +
-                "<th width=\"12%\" align='left' " + inputStyle + ">Ping</th>" +
+                "<th width=\"6%\" align='left' " + inputStyle + ">Priority</th>" +
+                "<th width=\"6%\" align='left' " + inputStyle + ">Monitor</th>" +
+                "<th width=\"8%\" align='left' " + inputStyle + ">Ping</th>" +
                 "</tr>";
             }
             UniverseCount = channelData.universes.length;
@@ -1167,14 +1180,22 @@ function RemovePlaylistEntry()	{
                 var typeUnicastArtNet = type == 3 ? "selected": "";
                 var typeDDPR = type == 4 ? "selected": "";
                 var typeDDP1 = type == 5 ? "selected": "";
+                var monitor = 1;
+                if (universe.monitor != null) {
+                    monitor = universe.monitor;
+                }
 
                 var universeSize = 512;
                 var universeCountDisable = "";
                 var universeNumberDisable = "";
+                var monitorDisabled = "";
                 if (type == 4 || type == 5) {
                     universeSize = 512000;
                     universeCountDisable = " disabled";
                     universeNumberDisable = " disabled";
+                }
+                if (type == 0 || type == 2) {
+                    monitorDisabled = " disabled";
                 }
 
                 bodyHTML += "<tr class=\"rowUniverseDetails\">" +
@@ -1207,6 +1228,7 @@ function RemovePlaylistEntry()	{
                 bodyHTML += "</select></td>" +
                             "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
                             "<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
+                            "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
             }
@@ -1298,7 +1320,7 @@ function RemovePlaylistEntry()	{
         function SetUniverseRowInputNames(row, id) {
             var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
                                'txtUniverse', 'numUniverseCount', 'txtSize', 'universeType', 'txtIP',
-                               'txtPriority');
+                               'txtPriority', 'txtMonitor');
             row.find('span.rowID').html((id + 1).toString());
             
             for (var i = 0; i < fields.length; i++)
@@ -1342,6 +1364,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtSize[" + selectedIndex + "]").value = document.getElementById("txtSize[" + i + "]").value;
                     document.getElementById("txtIP[" + selectedIndex + "]").value = document.getElementById("txtIP[" + i + "]").value;
                     document.getElementById("txtPriority[" + selectedIndex + "]").value = document.getElementById("txtPriority[" + i + "]").value;
+                    document.getElementById("txtMonitor[" + selectedIndex + "]").checked = document.getElementById("txtMonitor[" + i + "]").checked;
                     if ((universeType == '1') || (universeType == '3')) {
                         document.getElementById("txtIP[" + selectedIndex + "]").disabled = false;
                     } else {
@@ -1372,6 +1395,7 @@ function RemovePlaylistEntry()	{
 					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
 					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
+                    var monitor=document.getElementById("txtMonitor[" + selectIndex + "]").checked ? 1 : 0;
 
 					for(i=UniverseSelected;i<UniverseSelected+cloneNumber;i++,universe++)
 					{
@@ -1384,6 +1408,7 @@ function RemovePlaylistEntry()	{
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
 						document.getElementById("txtPriority[" + i + "]").value = priority;
+                        document.getElementById("txtMonitor[" + i + "]").prop('checked', monitor == 1);
 						if((universeType == '1') || (universeType == '3'))
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = false;
@@ -1461,6 +1486,9 @@ function RemovePlaylistEntry()	{
                 universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
                 universe.address = document.getElementById("txtIP[" + i + "]").value;
                 universe.priority = parseInt(document.getElementById("txtPriority[" + i + "]").value);
+                if (!input) {
+                    universe.monitor = document.getElementById("txtMonitor[" + i + "]").checked ? 1 : 0;
+                }
                 output.universes.push(universe);
             }
             if (input) {

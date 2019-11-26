@@ -67,7 +67,7 @@ static void DoPingThread(UDPOutput *output) {
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 
 UDPOutputData::UDPOutputData(const Json::Value &config)
-:  valid(true), type(0) {
+:  valid(true), type(0), monitor(true) {
     
     if (config.isMember("description")) {
         description = config["description"].asString();
@@ -84,6 +84,9 @@ UDPOutputData::UDPOutputData(const Json::Value &config)
     }
     if (config.isMember("address")) {
         ipAddress = config["address"].asString();
+    }
+    if (config.isMember("monitor")) {
+        monitor = config["monitor"].asInt() ? true : false;
     }
 }
 UDPOutputData::~UDPOutputData() {
@@ -201,7 +204,6 @@ int UDPOutput::Init(Json::Value config) {
             }
         }
     }
-    
     
     std::function<void(NetworkMonitor::NetEventType, int, const std::string &)> f = [this](NetworkMonitor::NetEventType i, int up, const std::string &s) {
         std::string interface = getE131interface();
@@ -348,7 +350,7 @@ bool UDPOutput::PingControllers() {
     std::map<std::string, CURL*> curls;
     bool newOutputs = false;
     for (auto o : outputs) {
-        if (o->IsPingable() && o->active) {
+        if (o->IsPingable() && o->Monitor() && o->active) {
             std::string host = o->ipAddress;
             if (done[host] == 0) {
                 int p = ping(host);
@@ -398,7 +400,7 @@ bool UDPOutput::PingControllers() {
         curl_easy_cleanup(c.second);
     }
     for (auto o : outputs) {
-        if (o->IsPingable() && o->active) {
+        if (o->IsPingable() && o->Monitor() && o->active) {
             std::string host = o->ipAddress;
             int p = done[host];
             if (p == -1) {

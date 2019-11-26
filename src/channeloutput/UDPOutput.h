@@ -41,6 +41,7 @@ public:
     virtual ~UDPOutputData();
     
     virtual bool IsPingable() = 0;
+    virtual bool Monitor() const { return monitor; }
     virtual void PrepareData(unsigned char *channelData) = 0;
 
     // unicast and multicast messages for data
@@ -71,6 +72,7 @@ public:
     int           type;
     std::string   ipAddress;
     bool          valid;
+    bool          monitor;
     
     
     UDPOutputData(UDPOutputData const &) = delete;
