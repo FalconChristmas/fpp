@@ -357,12 +357,7 @@ bool UDPOutput::PingControllers() {
                 }
                 done[host] = p;
 
-                if (p > 0 && !o->valid) {
-                    WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString()));
-                    LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
-                            host.c_str());
-                    newOutputs = true;
-                } else {
+                if (p < 0) {
                     // ping failed, try GET
                     std::string url = "http://" + host;
                     CURL *curl = curl_easy_init();
@@ -413,19 +408,19 @@ bool UDPOutput::PingControllers() {
                     p = -2;
                 }
                 done[host] = p;
-                
-                if (p < 0 && o->valid) {
-                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
-                    LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
-                            host.c_str());
-                    newOutputs = true;
-                } else if (p > 0 && !o->valid) {
-                    WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString()));
-                    LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
-                            host.c_str());
-                    newOutputs = true;
-                }
             }
+            if (p > 0 && !o->valid) {
+                WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString()));
+                LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
+                        host.c_str());
+                newOutputs = true;
+            } else if (p < 0 && o->valid) {
+                WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
+                LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
+                        host.c_str());
+                newOutputs = true;
+            }
+
             o->valid = p > 0;
         }
     }
