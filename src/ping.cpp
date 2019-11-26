@@ -59,7 +59,7 @@ inline uint16_t in_cksum(uint16_t *addr, unsigned len)
 }
 
 
-int ping(string target)
+int ping(string target, int timeoutMs)
 {
     
     int i, cc, packlen, datalen = DEFDATALEN;
@@ -150,9 +150,8 @@ int ping(string target)
     // Watch stdin (fd 0) to see when it has input.
     FD_ZERO(&rfds);
     FD_SET(pingSocket, &rfds);
-    // Wait up to 1/4 second.
     tv.tv_sec = 0;
-    tv.tv_usec = 250000;
+    tv.tv_usec = timeoutMs * 1000;
     
     while(cont)
     {

@@ -405,7 +405,7 @@ bool UDPOutput::PingControllers() {
             int p = done[host];
             if (p == -1) {
                 //give a second chance before completely marking invalid
-                p = ping(host);
+                p = ping(host, 1000);
                 if (p <= 0) {
                     p = -2;
                 }
