@@ -163,26 +163,7 @@
 #endif
 
 
-.macro DISABLE_GPIO_PIN_INTERRUPTS
-.mparam ledMask, gpio
-    MOV r10, ledMask
-    MOV r11, ledMask
-    MOV r12, gpio
-    MOV r13, 0x100
-    SUB r12, r12, r13
-    SBBO r10, r12, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
-    // by doing 8 and using both r10 and r11, we can clear
-    // both the 0 and 1 IRQ status
-    MOV r10, 0
-    ADD r12, r12, r13         // set clock to highest speed
-    SBBO r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
-.endm
-.macro DISABLE_PIN_INTERRUPTS
-    DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
-    DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
-    DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
-    DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
-
+.macro SETUP_GPIO0_REGS
 #ifdef USES_GPIO0
     // also need to turn off the GPIO0 idle and wakeup domain stuff
     MOV r12, GPIO0
@@ -260,8 +241,50 @@
     CLR r10, 2     //ENAWAKEUP
     SET r10, 3     //No-Idle
     CLR r10, 4     //
-    SBBO r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
+    SBBO r10, r13, 0x10, 4
+    
+    MOV r13, 0x44E10608       //CONTROL_MODULE registers
+    //            0x608       //0x608 is the INITPRIORITY register
+    //LBBO r10, r13, r12, 8
+    LDI r10, 0
+    LDI r11, 0
+    SET r10, 0
+    SET r10, 4
+    SET r10, 5
+    SET r10, 6
+    SBBO r10, r13, r12, 8
+    
+    MOV r13, 0x44E10670       //CONTROL_MODULE registers
+    //            0x670       //0x670 is the mreqprio register
+    LBBO r10, r13, 0, 4
+    CLR r10, 8
+    CLR r10, 9
+    CLR r10, 10
+    SBBO r10, r13, 0, 4
 #endif
+.endm
+
+
+.macro DISABLE_GPIO_PIN_INTERRUPTS
+.mparam ledMask, gpio
+    MOV r10, ledMask
+    MOV r11, ledMask
+    MOV r12, gpio
+    MOV r13, 0x100
+    SUB r12, r12, r13
+    SBBO r10, r12, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
+    // by doing 8 and using both r10 and r11, we can clear
+    // both the 0 and 1 IRQ status
+    MOV r10, 0
+    ADD r12, r12, r13         // set clock to highest speed
+    SBBO r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
+.endm
+.macro DISABLE_PIN_INTERRUPTS
+    DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
+    DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
+    DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
+    DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
+    SETUP_GPIO0_REGS
 .endm
 
 .macro CLEAR_IF_NOT_EQUAL
@@ -470,6 +493,10 @@ _LOOP:
     LDI     r2, 0
     MOV     r3, 1
     SBCO    r2, CONST_PRUDRAM, 4, 8
+
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+    SETUP_GPIO0_REGS
+#endif
     
     //start the clock
     RESET_PRU_CLOCK r8, r9
@@ -619,6 +646,7 @@ _LOOP:
 
 #if defined(SPLIT_GPIO0) && defined(USES_GPIO0)
     // do a second pass for GPIO0 only
+    SETUP_GPIO0_REGS
 
     // restore the address and such
     XIN    SCRATCH_PAD, data_addr, 12
