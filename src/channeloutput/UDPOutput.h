@@ -74,6 +74,7 @@ public:
     bool          valid;
     bool          monitor;
     
+    int           failCount;
     
     UDPOutputData(UDPOutputData const &) = delete;
     void operator=(UDPOutputData const &x) = delete;

@@ -67,7 +67,7 @@ static void DoPingThread(UDPOutput *output) {
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 
 UDPOutputData::UDPOutputData(const Json::Value &config)
-:  valid(true), type(0), monitor(true) {
+:  valid(true), type(0), monitor(true), failCount(99) {
     
     if (config.isMember("description")) {
         description = config["description"].asString();
@@ -403,7 +403,7 @@ bool UDPOutput::PingControllers() {
         if (o->IsPingable() && o->Monitor() && o->active) {
             std::string host = o->ipAddress;
             int p = done[host];
-            if (p == -1) {
+            if (p == -1 && o->valid) {
                 //give a second chance before completely marking invalid
                 p = ping(host, 1000);
                 if (p <= 0) {
@@ -411,19 +411,26 @@ bool UDPOutput::PingControllers() {
                 }
                 done[host] = p;
             }
+            
             if (p > 0 && !o->valid) {
                 WarningHolder::RemoveWarning(createWarning(host, o->GetOutputTypeString()));
                 LogWarn(VB_CHANNELOUT, "Could ping host %s, re-adding to outputs\n",
                         host.c_str());
                 newOutputs = true;
+                o->failCount = 0;
+                o->valid = true;
             } else if (p < 0 && o->valid) {
-                WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
-                LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
-                        host.c_str());
-                newOutputs = true;
+                if (o->failCount < 1) {
+                    o->failCount++;
+                } else {
+                    WarningHolder::AddWarning(createWarning(host, o->GetOutputTypeString()));
+                    LogWarn(VB_CHANNELOUT, "Could not ping host %s, removing from output\n",
+                            host.c_str());
+                    newOutputs = true;
+                    o->valid = false;
+                }
             }
 
-            o->valid = p > 0;
         }
     }
     return newOutputs;

@@ -55,6 +55,7 @@
 #include "fpp.h"
 #include "log.h"
 #include "settings.h"
+#include "Warnings.h"
 
 
 #define MAX_ARTNET_UNIVERSE_COUNT    512
@@ -140,23 +141,10 @@ ArtNetOutputData::ArtNetOutputData(const Json::Value &config)
     if (type == ARTNET_TYPE_BROADCAST) {
         anAddress.sin_addr.s_addr = inet_addr("255.255.255.255");
     } else {
-        bool isAlpha = false;
-        for (int x = 0; x < ipAddress.length(); x++) {
-            isAlpha |= isalpha(ipAddress[x]);
-        }
-        
-        if (isAlpha) {
-            struct hostent* uhost = gethostbyname(ipAddress.c_str());
-            if (!uhost) {
-                LogErr(VB_CHANNELOUT,
-                       "Error looking up E1.31 hostname: %s\n",
-                       ipAddress.c_str());
-                valid = false;
-            }
-            
-            anAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
-        } else {
-            anAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
+        anAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+        if (!valid) {
+            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            active = false;
         }
     }
     
