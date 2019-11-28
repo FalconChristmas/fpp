@@ -1571,12 +1571,15 @@ int MultiSync::OpenReceiveSocket(void)
 		return 0;
 	}
 
+	if (getFPPmode() == REMOTE_MODE) {
+		int remoteOffsetInt = getSettingInt("remoteOffset");
+		if (remoteOffsetInt)
+			m_remoteOffset = (float)remoteOffsetInt * -0.001;
+		else
+			m_remoteOffset = 0.0;
 
-	int remoteOffsetInt = getSettingInt("remoteOffset");
-	if (remoteOffsetInt)
-		m_remoteOffset = (float)remoteOffsetInt * -0.001;
-	else
-		m_remoteOffset = 0.0;
+		LogDebug(VB_SYNC, "Using remoteOffset of %.3f\n", m_remoteOffset);
+	}
     
     memset(rcvMsgs, 0, sizeof(rcvMsgs));
     for (int i = 0; i < MAX_MS_RCV_MSG; i++) {

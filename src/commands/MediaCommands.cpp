@@ -1,4 +1,5 @@
 #include <thread>
+#include <curl/curl.h>
 
 #include "log.h"
 #include "MediaCommands.h"
@@ -43,8 +44,6 @@ std::unique_ptr<Command::Result> DecreaseVolumeCommand::run(const std::vector<st
     setVolume(v);
     return std::make_unique<Command::Result>("Volume Set");
 }
-
-#include <curl/curl.h>
 
 static size_t URL_write_data(void *buffer, size_t size, size_t nmemb, void *userp)
 {

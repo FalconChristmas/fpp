@@ -56,7 +56,7 @@
 #include "settings.h"
 #include "Universe.h"
 #include "ping.h"
-
+#include "Warnings.h"
 
 const unsigned char E131header[] = {
 	0x00,0x10,0x00,0x00,0x41,0x53,0x43,0x2d,0x45,0x31,0x2e,0x31,0x37,0x00,0x00,0x00,
@@ -112,6 +112,10 @@ E131OutputData::E131OutputData(const Json::Value &config)
         e131Address.sin_addr.s_addr = inet_addr(sAddress);
     } else {
         e131Address.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+        if (!valid) {
+            WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+            active = false;
+        }
     }
     
     e131Iovecs.resize(universeCount * 2);

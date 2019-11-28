@@ -33,7 +33,7 @@
 
 #include "ChannelOutputBase.h"
 
-
+typedef void CURLM;
 
 class UDPOutputData {
 public:
@@ -41,6 +41,7 @@ public:
     virtual ~UDPOutputData();
     
     virtual bool IsPingable() = 0;
+    virtual bool Monitor() const { return monitor; }
     virtual void PrepareData(unsigned char *channelData) = 0;
 
     // unicast and multicast messages for data
@@ -71,7 +72,9 @@ public:
     int           type;
     std::string   ipAddress;
     bool          valid;
+    bool          monitor;
     
+    int           failCount;
     
     UDPOutputData(UDPOutputData const &) = delete;
     void operator=(UDPOutputData const &x) = delete;
@@ -124,6 +127,7 @@ private:
     std::thread *pingThread;
     std::mutex pingThreadMutex;
     std::condition_variable pingThreadCondition;
+    CURLM *m_curlm;
     
     volatile bool rebuildOutputLists;
 };

@@ -546,7 +546,7 @@ function populatePixelStringOutputs(data) {
                                         strings = port.virtualStringsC;
                                     }
                                     
-                                    if (strings.length > 0) {
+                                    if (strings != null && strings.length > 0) {
                                         for (var v = 0; v < strings.length; v++) {
                                             var vs = strings[v];
                                             

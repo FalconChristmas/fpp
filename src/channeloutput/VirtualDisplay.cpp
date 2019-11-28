@@ -38,6 +38,9 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include <Magick++.h>
+#include <magick/type.h>
+
 #include "common.h"
 #include "log.h"
 #include "VirtualDisplay.h"
@@ -228,7 +231,7 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 					// image width should equal virtual display width
 					m_scale = 1.0 * m_width / m_previewWidth;
 					colOffset = 0;
-					rowOffset = (m_height - (m_previewHeight * m_scale));
+					rowOffset = ((m_height - (m_previewHeight * m_scale)) / 2);
 				}
 			}
 
@@ -260,7 +263,7 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 
 			customR = customG = customB = 0;
 
-			s = ((m_height - (int)(y * m_scale) - 1) * m_width
+			s = ((m_height - (int)(y * m_scale + rowOffset) - 1) * m_width
 					+ (int)(x * m_scale + colOffset)) * m_bytesPerPixel;
 
 			if (m_colorOrder == "RGB")
@@ -358,151 +361,91 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 /*
  *
  */
-int VirtualDisplayOutput::ScaleBackgroundImage(std::string &bgFile, std::string &rgbFile)
-{
-	std::string command;
-
-	command = "convert -scale " + std::to_string(m_width) + "x"
-		+ std::to_string(m_height) + " " + bgFile + " " + rgbFile;
-
-	LogDebug(VB_CHANNELOUT, "Generating scaled RGB background image: %s\n", command.c_str());
-	system(command.c_str());
-
-	return 1;
-}
-
-/*
- *
- */
 void VirtualDisplayOutput::LoadBackgroundImage(void)
 {
 	std::string bgFile = "/home/fpp/media/images/";
 	bgFile += m_backgroundFilename;
 
-	std::string rgbFile = bgFile + ".rgb";
-
 	if (!FileExists(bgFile))
 	{
-		LogErr(VB_CHANNELOUT, "Background image does not exist: %s\n",
+		LogWarn(VB_CHANNELOUT, "Background image does not exist: %s\n",
 			bgFile.c_str());
 		return;
 	}
 
-	if ((!FileExists(rgbFile)) && (!ScaleBackgroundImage(bgFile, rgbFile)))
-		return;
+	Magick::Image image;
+	Magick::Blob blob;
 
-	struct stat ostat;
-	struct stat sstat;
-
-	stat(bgFile.c_str(), &ostat);
-	stat(rgbFile.c_str(), &sstat);
-
-	// Check if original is newer than scaled version
-	if ((ostat.st_mtim.tv_sec > sstat.st_mtim.tv_sec) && (!ScaleBackgroundImage(bgFile, rgbFile)))
-		return;
-
-	FILE *fd = fopen(rgbFile.c_str(), "rb");
-	if (fd)
+	try {
+		image.quiet(true);
+		image.read(bgFile.c_str());
+		image.modifyImage();
+		image.scale(Magick::Geometry(m_width, m_height));
+		image.type(Magick::TrueColorType);
+		image.magick("RGBA");
+		image.write(&blob);
+	}
+	catch (Magick::Exception &error_)
 	{
-		unsigned char buf[3072];
-		int bytesRead = -1;
-		int offset = 0;
-		unsigned long RGBx;
-		int imgWidth = 0;
-		int imgHeight = 0;
+		LogErr(VB_CHANNELOUT, "GraphicsMagick exception reading %s: %s\n",
+			bgFile.c_str(), error_.what());
+	}
 
-		if ((1.0 * m_width / m_previewWidth) < (1.0 * m_height / m_previewHeight))
+	unsigned char *imgData = (unsigned char *)blob.data();
+	unsigned int imgWidth = image.columns();
+	unsigned int imgHeight = image.rows();
+	unsigned int imgBytes = imgWidth * imgHeight * 4; // RGBA
+	unsigned long RGBx = 0;
+	bool letterboxed = false;
+	int offset = 0;
+	int colOffset = (m_width - imgWidth) / 2;
+	int r = 0;
+	int c = 0;
+
+	if ((1.0 * m_width / m_previewWidth) > (1.0 * m_height / m_previewHeight))
+		letterboxed = true;
+
+	offset = (m_height - imgHeight) / 2 * m_width * m_bytesPerPixel;
+
+	for (int i = 0; i < imgBytes;)
+	{
+		if ((letterboxed) && (c == 0))
 		{
-			// Virtual Display is taller than the preview aspect, so background
-			// image width should equal virtual display width
-			imgWidth = m_width;
-			imgHeight = sstat.st_size / m_width / 3;
-			offset = (m_height - imgHeight) * m_width * m_bytesPerPixel;
-
-			while (bytesRead != 0)
-			{
-				bytesRead = fread(buf, 1, 3072, fd);
-
-				for (int i = 0; i < bytesRead;)
-				{
-					if ((m_bpp == 24) || (m_bpp == 32))
-					{
-						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
-						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
-						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
-
-						if (m_bpp == 32)
-							offset++;
-					}
-					else // 16bpp RGB565
-					{
-						RGBx = *(unsigned long *)(buf + i);
-						*(uint16_t*)(m_virtualDisplay + offset) =
-							(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
-							(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
-							(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
-
-						i += 3;
-						offset += 2;
-					}
-				}
-			}
-		}
-		else
-		{
-			// Virtual Display is wider than the preview aspect, so background
-			// image height should equal virtual display height
-			imgHeight = m_height;
-			imgWidth = sstat.st_size / m_height / 3;
-
-			int colOffset = (m_width - imgWidth) / 2;
-			int r = 0;
-			int c = 0;
-
-			while (bytesRead != 0)
-			{
-				bytesRead = fread(buf, 1, 3072, fd);
-
-				for (int i = 0; i < bytesRead;)
-				{
-					if (c == 0)
-					{
-						offset = ((r * m_width) + colOffset) * m_bytesPerPixel;
-					}
-
-					if ((m_bpp == 24) || (m_bpp == 32))
-					{
-						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
-						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
-						m_virtualDisplay[offset++] = buf[i++] * m_backgroundBrightness;
-
-						if (m_bpp == 32)
-							offset++;
-					}
-					else
-					{
-						RGBx = *(unsigned long *)(buf + i);
-						*(uint16_t*)(m_virtualDisplay + offset) =
-							(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
-							(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
-							(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
-
-						i += 3;
-						offset += 2;
-					}
-
-					c++;
-
-					if (c >= imgWidth)
-					{
-						c = 0;
-						r++;
-					}
-				}
-			}
+			offset = ((r * m_width) + colOffset) * m_bytesPerPixel;
 		}
 
-		fclose(fd);
+		if ((m_bpp == 24) || (m_bpp == 32))
+		{
+			m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
+			m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
+			m_virtualDisplay[offset++] = imgData[i++] * m_backgroundBrightness;
+			i++;
+
+			if (m_bpp == 32)
+				offset++;
+		}
+		else // 16bpp RGB565
+		{
+			RGBx = *(unsigned long *)(imgData + i);
+			*(uint16_t*)(m_virtualDisplay + offset) =
+				(((int)((RGBx & 0x000000FF) * m_backgroundBrightness) <<  8) & 0b1111100000000000) |
+				(((int)((RGBx & 0x0000FF00) * m_backgroundBrightness) >>  5) & 0b0000011111100000) |
+				(((int)((RGBx & 0x00FF0000) * m_backgroundBrightness) >> 19)); // & 0b0000000000011111);
+
+			i += 4;
+			offset += 2;
+		}
+
+		if (letterboxed)
+		{
+			c++;
+
+			if (c >= imgWidth)
+			{
+				c = 0;
+				r++;
+			}
+		}
 	}
 }
 
@@ -576,34 +519,37 @@ void VirtualDisplayOutput::DrawPixels(unsigned char *channelData)
 
 		GetPixelRGB(pixel, channelData, r, g, b);
 
+		DrawPixel(pixel.r, pixel.g, pixel.b, r, g, b);
+
 		if (m_pixelSize == 2)
 		{
-			DrawPixel(pixel.r, pixel.g, pixel.b, r, g, b);
-
 			r /= 2;
 			g /= 2;
 			b /= 2;
 
-			DrawPixel(pixel.r + m_bytesPerPixel,
-					  pixel.g + m_bytesPerPixel,
-					  pixel.b + m_bytesPerPixel,
-					  r, g, b);
-			DrawPixel(pixel.r - m_bytesPerPixel,
-					  pixel.g - m_bytesPerPixel,
-					  pixel.b - m_bytesPerPixel,
-					  r, g, b);
-			DrawPixel(pixel.r + stride,
-					  pixel.g + stride,
-					  pixel.b + stride,
-					  r, g, b);
-			DrawPixel(pixel.r - stride,
-					  pixel.g - stride,
-					  pixel.b - stride,
-					  r, g, b);
-		}
-		else
-		{
-			DrawPixel(pixel.r, pixel.g, pixel.b, r, g, b);
+			if (pixel.y < (m_width - 1))
+				DrawPixel(pixel.r + m_bytesPerPixel,
+						  pixel.g + m_bytesPerPixel,
+						  pixel.b + m_bytesPerPixel,
+						  r, g, b);
+
+			if (pixel.y > 0)
+				DrawPixel(pixel.r - m_bytesPerPixel,
+						  pixel.g - m_bytesPerPixel,
+						  pixel.b - m_bytesPerPixel,
+						  r, g, b);
+
+			if (pixel.x > 0)
+				DrawPixel(pixel.r + stride,
+						  pixel.g + stride,
+						  pixel.b + stride,
+						  r, g, b);
+
+			if (pixel.x < (m_height - 1))
+				DrawPixel(pixel.r - stride,
+						  pixel.g - stride,
+						  pixel.b - stride,
+						  r, g, b);
 		}
 	}
 }

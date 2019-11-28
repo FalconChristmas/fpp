@@ -55,6 +55,8 @@ X11VirtualDisplayOutput::X11VirtualDisplayOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "X11VirtualDisplayOutput::X11VirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
 
+	XInitThreads();
+
 	m_bytesPerPixel = 4;
 	m_bpp = 32;
 }

@@ -108,6 +108,7 @@
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "Warnings.h"
 
 #include <fstream>
 #include <sstream>
@@ -149,6 +150,11 @@ DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config),
     ddpAddress.sin_family = AF_INET;
     ddpAddress.sin_port = htons(DDP_PORT);
     ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
+    
+    if (!valid) {
+        WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+        active = false;
+    }
     
     pktCount = channelCount / DDP_CHANNELS_PER_PACKET;
     if (channelCount % DDP_CHANNELS_PER_PACKET) {

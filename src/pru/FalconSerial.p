@@ -40,14 +40,6 @@
 ///  #define USING_PRU_RAM
 #endif
 
-
-/** Mappings of the GPIO devices */
-#define GPIO3		0x481AE000
-
-/** Offsets for the clear and set registers in the devices */
-#define GPIO_CLEARDATAOUT	0x190
-#define GPIO_SETDATAOUT		0x194
-
 /** Register map */
 #define data_addr	          r0
 #define data_len	          r1
