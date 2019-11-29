@@ -384,6 +384,7 @@ function SetAudio()
 {
 	$.get("fppjson.php?command=setSetting&key=AudioOutput&value="
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
+    location.reload();
 }
 
 function SetMixerDevice()
@@ -454,7 +455,7 @@ function ToggleLCDNow()
 ?>
     <tr>
       <td>OMXPlayer (mp4 playback) Audio Output:</td>
-      <td><? PrintSettingSelect("OMXPlayer Audio Device", "OMXPlayerAudioOutput", 0, 0, $settings['OMXPlayerAudioOutput'],
+      <td><? PrintSettingSelect("OMXPlayer Audio Device", "OMXPlayerAudioOutput", 0, 0, isset($settings['OMXPlayerAudioOutput']) ? $settings['OMXPlayerAudioOutput'] : "0",
                                 Array("ALSA" => "alsa", "HDMI" => "hdmi", "Local" => "local", "Both" => "both", "Disabled" => "disabled")); ?>
      </td>
     </tr>

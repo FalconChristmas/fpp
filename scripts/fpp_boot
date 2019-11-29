@@ -24,6 +24,7 @@ then
 	${SCRIPTDIR}/git_pull
 fi
 
+
 ${SCRIPTDIR}/upgrade_config
 
 ${SCRIPTDIR}/timezone_sync
@@ -45,35 +46,105 @@ WaitForInterfacesUp
 
 MaybeEnableTethering
 
-# Print/Say the IP address
-if [ -f /usr/bin/flite ]
-then
-	_IP=$(hostname -I) || true
-	if [ "$_IP" ]; then
-		echo "FPP - Found IP(s): $_IP"
-
-		DISABLEIPANN=$(getSetting disableIPAnnouncement)
-		if [ "x${DISABLEIPANN}" != "x1" ]
-		then
-			arrHost=(${_IP// / })
-			FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
-			if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-			then
-				(flite -voice awb -o /var/tmp/flite.wav "${FLITESTR}" && mplayer -ao alsa /var/tmp/flite.wav) &
-			else
-				flite -voice awb "${FLITESTR}" &
-			fi
-		fi
-	else
-		echo "FPP - No IP(s) found"
-	fi
-fi
-
 SLEEPSECS=$(getSetting bootDelay)
 if [ "x${SLEEPSECS}" != "x" ]
 then
+    echo "FPP - Sleeping for ${SLEEPSECS} seconds"
 	sleep ${SLEEPSECS}
 fi
+
+
+checkAudioConfig
+
+aplay -l 2>&1 | grep -q "no soundcards"
+HASSOUND=$?
+echo "FPP - Configuring Audio: ${HASSOUND}"
+if [ ${HASSOUND} -eq 1 ]; then
+    CARDID=0
+    if [ -e /root/.asoundrc ]; then
+        CARDID=$(grep card /root/.asoundrc | head -n 1 | awk '{print $2}')
+    fi
+
+    AUDIOOUTPUT=$(getSetting AudioOutput)
+    if [ "x${AUDIOOUTPUT}" != "x${CARDID}" -a -n "${AUDIOOUTPUT}" ]
+    then
+        echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
+        sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
+    fi
+    
+    HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
+    ## if invlid, we can wait a few seconds to see if the card appears 
+    if [[ $HASCARD == *"Invalid "* ]]; then
+        sleep 1
+        HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
+    fi
+    if [[ $HASCARD == *"Invalid "* ]]; then
+        sleep 1
+        HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
+    fi
+    if [[ $HASCARD == *"Invalid "* ]]; then
+        sleep 1
+        HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
+    fi
+    if [[ $HASCARD == *"Invalid "* ]]; then
+        if [ "${CARDID}" != "0" ]; then
+            echo "Resetting /root/.asoundrc to use card id 0"
+        fi
+        sed -i "s/card [0-9]/card 0/" /root/.asoundrc
+        CARDID=0
+        setSetting "AudioOutput" "0"
+    fi
+    VOLUME=$(getSetting volume)
+    if [ "x${VOLUME}" = "x" ]; then
+        setSetting volume 70
+        VOLUME=70
+    fi
+
+    # Pi needs a volume adjustment, in reality a lot of sound cards do, but we
+    # don't want to put in a lot of special cases here so only handle the Pi
+    if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        if [ "$CARDID" = "0" ]; then
+            CARD0STR=$(aplay -l | grep '^card 0' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq | colrm 1 2 | colrm 5)
+            if [ "$CARD0STR" == "bcm2" ]; then
+                # Switch to this more accurate setting for or after v0.3.0
+                VOLUME=$(echo "scale=2 ; ${VOLUME} / 2.0 + 50" | bc)
+            fi
+            setSetting AudioCard0Type $CARD0STR
+        else
+            setSetting AudioCard0Type "unknown"
+        fi
+    else
+        setSetting AudioCard0Type "unknown"
+    fi
+
+    MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+    if [ "x${MIXERDEVICES}" == "x" ]; then
+        # for some sound cards, the mixer devices won't show up
+        # until something is played.  Play one second of silence
+        aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &
+        sleep 0.2
+        MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+    fi
+
+    MIXERDEVICES=$(amixer -c $CARDID scontrols | cut -f2 -d"'")
+    MIXERDEVICE=$(getSetting AudioMixerDevice)
+    if [ -z ${MIXERDEVICE} ]
+    then
+        MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+        setSetting AudioMixerDevice $MIXERDEVICE
+    else
+        MD=$(echo $MIXERDEVICES | xargs -n1 echo | grep $MIXERDEVICE)
+        if [ "$MD" != "$MIXERDEVICE" ]; then
+            echo "Did not find mixer device $MIXERDEVICE, resetting to default"
+            MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
+            setSetting AudioMixerDevice $MIXERDEVICE
+    fi
+    fi
+
+    amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
+fi
+
+
 
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
@@ -91,6 +162,30 @@ then
 	# See if we have any Falcon hardware on the SPI port
 	echo "FPP - Checking for Falcon hardware on SPI port"
 	detectFalconHardware
+fi
+
+# Print/Say the IP address
+if [ -f /usr/bin/flite ]
+then
+    _IP=$(hostname -I) || true
+    if [ "$_IP" ]; then
+        echo "FPP - Found IP(s): $_IP"
+
+        DISABLEIPANN=$(getSetting disableIPAnnouncement)
+        if [ "x${DISABLEIPANN}" != "x1" ]
+        then
+            arrHost=(${_IP// / })
+            FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
+            if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
+            then
+                (flite -voice awb -o /var/tmp/flite.wav "${FLITESTR}" && mplayer -ao alsa /var/tmp/flite.wav) &
+            else
+                flite -voice awb "${FLITESTR}" &
+            fi
+        fi
+    else
+        echo "FPP - No IP(s) found"
+    fi
 fi
 
 # set the Source port for outgoing ARTNET packets to match the spec

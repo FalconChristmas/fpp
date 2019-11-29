@@ -20,8 +20,6 @@ teeOutput
 
 echo "FPP - Setting up for the Falcon Player on the ${FPPPLATFORM} platform"
 
-checkAudioConfig
-
 grep -q "/home/fpp/media" /etc/fstab
 if [ $? -eq 1 ]
 then
@@ -33,38 +31,10 @@ EOF
 
 fi
 
-# Check to make sure media is mounted
-grep -q "^[^#].*${FPPHOME}/media" /etc/fstab
-MOUNTMEDIA=$?
-COUNTER=0
-while [ ${MOUNTMEDIA} -eq 0 ]
-do
-    let COUNTER+=1
-
-    # max of 60 seconds
-    if [ $COUNTER -gt 12 ]; then
-        break;
-    fi
-
-    if [ "$(df -h ${MEDIADIR} | tail -n 1 | awk '{print $1}')" == "$(df -h / | tail -n 1 | awk '{print $1}')" ];
-    then
-	    echo "FPP - Checking for mounted flash drive, Flash Media Is Missing.  Please Insert.";
-        aplay -l > /dev/null 2>&1
-        HASSOUND=$?
-        if [ ${HASSOUND} -eq 1 -a -f "/usr/bin/flite" ]; then
-	        flite -voice kal "Boot Stalled, Flash Media Is Missing.  Please Insert."
-        fi
-	    sleep 5;
-	    mount -a;
-    else
-	    echo "FPP - Checking for mounted flash drive, Flash Media mounted.";
-	    break
-    fi
-done
-
 
 DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4 images cache tmp"
 echo "FPP - Checking for required directories"
+chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
 for DIR in ${DIRS}
 do
     if [ ! -d ${FPPHOME}/media/${DIR} ]
@@ -112,78 +82,7 @@ fi
 echo "FPP - Configuring DNS"
 ${BINDIR}/config_dns
 
-aplay -l 2>&1 | grep -q "no soundcards"
-HASSOUND=$?
-echo "FPP - Configuring Audio: ${HASSOUND}"
-if [ ${HASSOUND} -eq 1 ]; then
-    CARDID=0
-    if [ -e /root/.asoundrc ]; then
-    	CARDID=$(grep card /root/.asoundrc | head -n 1 | awk '{print $2}')
-    fi
 
-    AUDIOOUTPUT=$(getSetting AudioOutput)
-    if [ "x${AUDIOOUTPUT}" != "x${CARDID}" -a -n "${AUDIOOUTPUT}" ]
-    then
-        echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
-        sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
-    fi
-    HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
-    if [[ $HASCARD == *"Invalid "* ]]; then
-        if [ "${CARDID}" != "0" ]; then
-            echo "Resetting /root/.asoundrc to use card id 0"
-        fi
-        sed -i "s/card [0-9]/card 0/" /root/.asoundrc
-        CARDID=0
-    fi
-    VOLUME=$(getSetting volume)
-    if [ "x${VOLUME}" = "x" ]; then
-        setSetting volume 70
-        VOLUME=70
-    fi
-
-    # Pi needs a volume adjustment, in reality a lot of sound cards do, but we
-    # don't want to put in a lot of special cases here so only handle the Pi
-    if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-        if [ "$CARDID" = "0" ]; then
-            CARD0STR=$(aplay -l | grep '^card 0' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq | colrm 1 2 | colrm 5)
-            if [ "$CARD0STR" == "bcm2" ]; then
-                # Switch to this more accurate setting for or after v0.3.0
-                VOLUME=$(echo "scale=2 ; ${VOLUME} / 2.0 + 50" | bc)
-            fi
-            setSetting AudioCard0Type $CARD0STR
-        else
-            setSetting AudioCard0Type "unknown"
-        fi
-    else
-        setSetting AudioCard0Type "unknown"
-    fi
-
-    MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
-    if [ "x${MIXERDEVICES}" == "x" ]; then 
-        # for some sound cards, the mixer devices won't show up
-        # until something is played.  Play one second of silence
-        aplay -d 1 /opt/fpp/media/silence_5sec.wav >> /dev/null 2>&1  &
-        sleep 0.2
-        MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
-    fi
-
-    MIXERDEVICES=$(amixer -c $CARDID scontrols | cut -f2 -d"'")
-    MIXERDEVICE=$(getSetting AudioMixerDevice)
-    if [ -z ${MIXERDEVICE} ]
-    then
-        MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
-        setSetting AudioMixerDevice $MIXERDEVICE
-    else
-        MD=$(echo $MIXERDEVICES | xargs -n1 echo | grep $MIXERDEVICE)
-        if [ "$MD" != "$MIXERDEVICE" ]; then
-            echo "Did not find mixer device $MIXERDEVICE, resetting to default"
-            MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
-            setSetting AudioMixerDevice $MIXERDEVICE
-	fi
-    fi
-
-    amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
-fi
 
 # Clear any restart/reboot flags
 echo "FPP - Clearing reboot flags"
