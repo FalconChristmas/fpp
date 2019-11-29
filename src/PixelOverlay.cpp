@@ -361,7 +361,7 @@ void PixelOverlayModel::copyImageData(int xoff, int yoff) {
 
 void PixelOverlayModel::getDataJson(Json::Value &v) {
     for (int c = 0; c < block->channelCount; c++) {
-        int i = chanDataMap[pixelMap[block->startChannel + c - 1]];
+        unsigned char i = chanDataMap[pixelMap[block->startChannel + c - 1]];
         v.append(i);
     }
 }
