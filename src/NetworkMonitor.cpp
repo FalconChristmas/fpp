@@ -73,9 +73,12 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>> &callbacks) {
                     case RTM_DELLINK:
                         {
                             struct ifinfomsg *ifi = (ifinfomsg*)NLMSG_DATA(h);
+                            std::string strName;
+                            if (if_indextoname(ifi->ifi_index, name)) {
+                                strName = name;
+                            }
                             callCallbacks(h->nlmsg_type == RTM_NEWLINK ? NetEventType::NEW_LINK : NetEventType::DEL_LINK,
-                                          (ifi->ifi_flags & IFF_RUNNING) ? 1 : 0,
-                                          if_indextoname(ifi->ifi_index, name));
+                                          (ifi->ifi_flags & IFF_RUNNING) ? 1 : 0, strName);
                         }
                         break;
                     case RTM_NEWADDR:
@@ -83,9 +86,12 @@ void NetworkMonitor::Init(std::map<int, std::function<bool(int)>> &callbacks) {
                         {
                             struct ifaddrmsg *ifi = (ifaddrmsg*)NLMSG_DATA(h);
                             if (ifi->ifa_family == AF_INET) {
+                                std::string strName;
+                                if (if_indextoname(ifi->ifa_index, name)) {
+                                    strName = name;
+                                }
                                 callCallbacks(h->nlmsg_type == RTM_NEWADDR ? NetEventType::NEW_ADDR : NetEventType::DEL_ADDR,
-                                              h->nlmsg_type == RTM_NEWADDR ? 1 : 0,
-                                              if_indextoname(ifi->ifa_index, name));
+                                              h->nlmsg_type == RTM_NEWADDR ? 1 : 0, strName);
                             }
                         }
                         break;
