@@ -855,7 +855,6 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 	LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d)\n",
 		filename, position, repeat, scheduled);
 
-	m_scheduled = scheduled;
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
 	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
@@ -887,7 +886,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
             sleep(1);
         }
 	}
-
+    m_scheduled = scheduled;
 	m_forceStop = 0;
 
 	Load(filename);

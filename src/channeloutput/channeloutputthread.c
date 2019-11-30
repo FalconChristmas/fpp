@@ -218,9 +218,9 @@ void *RunChannelOutputThread(void *data)
             if (onceMore) {
 				onceMore--;
             } else {
-                //we will wait up to 1000ms to see if the thread is still needed
+                //we will wait up to 2500ms to see if the thread is still needed
                 ThreadIsExiting = 1;
-                if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(1000)) == std::cv_status::no_timeout) {
+                if (outputThreadSatusCond.wait_for(statusLock, std::chrono::milliseconds(2500)) == std::cv_status::no_timeout) {
                     //signal to keep going
                     ThreadIsExiting = 0;
                     statusLock.unlock();

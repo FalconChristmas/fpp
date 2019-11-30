@@ -1669,33 +1669,45 @@ function GetFPPSystems()
 
 function SetAudioOutput($card)
 {
-	global $args, $SUDO, $debug;
+	global $args, $SUDO, $debug, $settings;
 
-	if ($card != 0 && file_exists("/proc/asound/card$card"))
-	{
+	if ($card != 0 && file_exists("/proc/asound/card$card")) {
 		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
-		if ($return_val)
-		{
+		if ($return_val) {
 			error_log("Failed to set audio to card $card!");
 			return;
 		}
-		if ( $debug )
+        if ( $debug ) {
 			error_log("Setting to audio output $card");
-	}
-	else if ($card == 0)
-	{
+        }
+	} else if ($card == 0) {
 		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
-		if ($return_val)
-		{
+		if ($return_val) {
 			error_log("Failed to set audio back to default!");
 			return;
 		}
 		if ( $debug )
 			error_log("Setting default audio");
 	}
-
+    // need to also reset mixer device
+    $AudioMixerDevice = exec("sudo amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+    unset($output);
+    if ($return_val == 0) {
+        WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
+        if ($settings['Platform'] == "Raspberry Pi" && $card == 0) {
+            $type = exec("sudo aplay -l | grep \"card $card\"", $output, $return_val);
+            if (strpos($type, '[bcm') !== false) {
+                WriteSettingToFile("AudioCard0Type", "bcm");
+            } else {
+                WriteSettingToFile("AudioCard0Type", "unknown");
+            }
+            unset($output);
+        } else {
+            WriteSettingToFile("AudioCard0Type", "unknown");
+        }
+    }
 	return $card;
 }
 
