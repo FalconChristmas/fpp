@@ -32,6 +32,7 @@
 #include "common.h"
 #include "log.h"
 #include "PlaylistEntryBoth.h"
+#include "PlaylistEntryCommand.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryEvent.h"
 #include "PlaylistEntryMedia.h"
@@ -217,7 +218,7 @@ int PlaylistEntryDynamic::Stop(void)
 		return 1;
 	}
 
-	return 0;
+	return PlaylistEntryBase::Stop();
 }
 
 /*
@@ -369,6 +370,8 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 
 		if (pe["type"].asString() == "both")
 			playlistEntry = new PlaylistEntryBoth();
+		else if (pe["type"].asString() == "command")
+			playlistEntry = new PlaylistEntryCommand();
 		else if (pe["type"].asString() == "effect")
 			playlistEntry = new PlaylistEntryEffect();
 		else if (pe["type"].asString() == "event")
