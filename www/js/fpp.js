@@ -1130,6 +1130,16 @@ function RemovePlaylistEntry()	{
                 }
             }
         }
+
+function updateUniverseEndChannel(row) {
+	var startChannel = parseInt($(row).find("input.txtStartAddress").val());
+	var count = parseInt($(row).find("input.numUniverseCount").val());
+	var size = parseInt($(row).find("input.txtSize").val());
+	var end = startChannel + (count * size) - 1;
+
+	$(row).find("span.numEndChannel").html(end);
+}
+
         function populateUniverseData(data, reload, input) {
 			var headHTML="";
 			var bodyHTML="";
@@ -1142,18 +1152,22 @@ function RemovePlaylistEntry()	{
             
             if (channelData.universes.length > 0) {
                 headHTML = "<tr class=\"tblheader\">" +
-                "<th width=\"5%\" align='left'>Line<br>#</th>" +
-                "<th width=\"5%\" align='left'>Active</th>" +
-                "<th width=\"30%\" align='left'>Description</th>" +
-                "<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
-                "<th width=\"8%\" align='left'>Universe<br>#</th>" +
-                "<th width=\"8%\" align='left'>Universe<br>Count</th>" +
-                "<th width=\"8%\" align='left'>Universe<br>Size</th>" +
-                "<th width=\"15%\" align='left'>Universe Type</th>" +
-                "<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
-                "<th width=\"6%\" align='left' " + inputStyle + ">Priority</th>" +
-                "<th width=\"6%\" align='left' " + inputStyle + ">Monitor</th>" +
-                "<th width=\"8%\" align='left' " + inputStyle + ">Ping</th>" +
+                "<th rowspan=2>Line<br>#</th>" +
+                "<th rowspan=2>Active</th>" +
+                "<th rowspan=2>Description</th>" +
+                "<th colspan=2>FPP Channel</th>" +
+                "<th colspan=4>Universe</th>" +
+                "<th rowspan=2 " + inputStyle + ">Unicast<br>Address</th>" +
+                "<th rowspan=2 " + inputStyle + ">Priority</th>" +
+                "<th rowspan=2 " + inputStyle + ">Monitor</th>" +
+                "<th rowspan=2 " + inputStyle + ">Ping</th>" +
+                "</tr><tr class=\"tblheader\">" +
+                "<th>Start</th>" +
+                "<th>End</th>" +
+                "<th>#</th>" +
+                "<th>Count</th>" +
+                "<th>Size</th>" +
+                "<th>Type</th>" +
                 "</tr>";
             }
             UniverseCount = channelData.universes.length;
@@ -1172,6 +1186,7 @@ function RemovePlaylistEntry()	{
                 var unicastAddress =  universe.address;
                 var priority =  universe.priority;
                 unicastAddress = unicastAddress.trim();
+                var endChannel = universe.startChannel + (ucount * size) - 1;
 
                 var activeChecked = active == 1  ? "checked=\"checked\"" : "";
                 var typeMulticastE131 = type == 0 ? "selected" : "";
@@ -1202,12 +1217,13 @@ function RemovePlaylistEntry()	{
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
-                            "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
+                            "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>" +
+                            "<td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>" +
                             "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
-                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + "/></td>";
+                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
 
-                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
+                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>" +
                             "<td><select class='universeType' style='width:150px'";
 
                 if (input) {
@@ -1227,7 +1243,7 @@ function RemovePlaylistEntry()	{
 
                 bodyHTML += "</select></td>" +
                             "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
-                            "<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
+                            "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>" +
                             "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
