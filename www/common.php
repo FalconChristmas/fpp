@@ -737,6 +737,9 @@ function get_cpu_stats() {
                     $statLineData[2],
                     $statLineData[3],
                     $statLineData[4],
+                    $statLineData[5],
+                    $statLineData[6],
+                    $statLineData[7],
                 );
             }
         }
@@ -751,7 +754,7 @@ function get_cpu_stats() {
 function get_server_cpu_usage(){
     if (!file_exists("/tmp/cpustats.txt")) {
         $ostats = get_cpu_stats();
-        $vs = sprintf("%d %d %d %d", $ostats[0],$ostats[1], $ostats[2], $ostats[3]);
+        $vs = sprintf("%d %d %d %d %d %d %d", $ostats[0],$ostats[1], $ostats[2], $ostats[3], $ostats[4], $ostats[5], $ostats[6]);
         @file_put_contents("/tmp/cpustats.txtt", $vs);
         usleep(10000);
     } else {
@@ -759,15 +762,18 @@ function get_server_cpu_usage(){
         $ostats = explode(" ", trim($statLine));
     }
     $stats = get_cpu_stats();
-    $vs = sprintf("%d %d %d %d", $stats[0],$pstats[1], $stats[2], $stats[3]);
+    $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
     @file_put_contents("/tmp/cpustats.txt", $vs);
     
     $user = $stats[0] - $ostats[0];
     $nice = $stats[1] - $ostats[1];
     $system = $stats[2] - $ostats[2];
     $idle = $stats[3] - $ostats[3];
+    $iowait = $stats[4] - $ostats[4];
+    $irq = $stats[5] - $ostats[5];
+    $softirq = $stats[6] - $ostats[6];
 
-    $total = $user + $nice + $system + $idle;
+    $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq;
     $val = $idle * 100.0;
     // 100 - the percent idle
     $val = 100.0 - ($val / $total);
