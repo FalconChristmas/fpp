@@ -1669,6 +1669,34 @@ function SetScheduleInputNames() {
 		SetScheduleRowInputNames($(this), id);
 		id += 1;
 	});
+
+	$('.time').timepicker({
+		'timeFormat': 'H:i:s',
+		'typeaheadHighlight': false,
+		'show2400': true,
+		'noneOption': [
+				{
+					'label': 'SunRise',
+					'value': 'SunRise'
+				},
+				{
+					'label': 'SunSet',
+					'value': 'SunSet'
+				}
+			]
+		});
+
+	$('.date').datepicker({
+		'changeMonth': true,
+		'changeYear': true,
+		'dateFormat': 'yy-mm-dd',
+		'minDate': new Date(2019, 1 - 1, 1),
+		'maxDate': new Date(2099, 12 - 1, 31),
+		'showButtonPanel': true,
+		'selectOtherMonths': true,
+		'showOtherMonths': true,
+		'yearRange': "2019:2099"
+		});
 }
 
 		function getSchedule(reload)
@@ -1789,34 +1817,6 @@ function SetScheduleInputNames() {
 															"</tr>";
 															
 									$('#tblScheduleBody').append(tableRow);
-									$('.time').timepicker({
-										'timeFormat': 'H:i:s',
-										'typeaheadHighlight': false,
-										'show2400': true,
-										'noneOption': [
-												{
-													'label': 'SunRise',
-													'value': 'SunRise'
-												},
-												{
-													'label': 'SunSet',
-													'value': 'SunSet'
-												}
-											]
-										});
-
-									$('.date').datepicker({
-										'changeMonth': true,
-										'changeYear': true,
-										'dateFormat': 'yy-mm-dd',
-										'minDate': new Date(2019, 1 - 1, 1),
-										'maxDate': new Date(2099, 12 - 1, 31),
-										'showButtonPanel': true,
-										'selectOtherMonths': true,
-										'showOtherMonths': true,
-										'yearRange': "2019:2099"
-										});
-
 							}
 
 							SetScheduleInputNames();
