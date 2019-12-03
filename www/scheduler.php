@@ -40,18 +40,41 @@ this.value = default_value;
 });
 </script>
 <script>
-    $(function() {
-		$('#tblSchedule').on('mousedown', 'tr', function(event,ui){
-					$('#tblSchedule tr').removeClass('selectedEntry');
-          $(this).addClass('selectedEntry');
-					var items = $('#tblSchedule tr');
-					ScheduleEntrySelected  = items.index(this);
-					
+	$(function() {
+		$('#tblScheduleBody').on('mousedown', 'tr', function(event,ui){
+			$('#tblScheduleBody tr').removeClass('selectedEntry');
+			$(this).addClass('selectedEntry');
+			var items = $('#tblScheduleBody tr');
+			ScheduleEntrySelected  = items.index(this);
 		});
 	});
 </script>
 <script>
 $(document).ready(function(){
+	$('#tblScheduleBody').sortable({
+		start: function (event, ui) {
+			start_pos = ui.item.index();
+		},
+		update: function(event, ui) {
+			SetScheduleInputNames();
+		},
+		beforeStop: function (event, ui) {
+			//undo the firefox fix.
+			// Not sure what this is, but copied from playlists.php to here
+			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+				$(window).unbind('scroll.sortableplaylist');
+				ui.helper.css('margin-top', 0);
+			}
+		},
+		helper: function (e, ui) {
+			ui.children().each(function () {
+				$(this).width($(this).width());
+			});
+			return ui;
+		},
+		scroll: true
+	}).disableSelection();
+
 	$('#frmSchedule').submit(function(event) {
 			 event.preventDefault();
 			 var success =true;
@@ -140,6 +163,10 @@ a:visited {
           </tr>
         </table>
         <table id="tblSchedule">
+            <thead id='tblScheduleHead'>
+            </thead>
+            <tbody id='tblScheduleBody'>
+            </tbody>
         </table>
       </form>
     </fieldset>

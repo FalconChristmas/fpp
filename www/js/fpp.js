@@ -1646,11 +1646,37 @@ function updateUniverseEndChannel(row) {
 				$('#' + maskSpan).hide();
 		}
 
+
+function SetScheduleRowInputNames(row, id) {
+	var fields = Array('chkEnable', 'txtStartDate', 'txtEndDate',
+						'selPlaylist', 'selDay', 'dayMask', 'maskSunday', 'maskMonday',
+						'maskTuesday', 'maskWednesday', 'maskThursday', 'maskFriday',
+						'maskSaturday', 'txtStartTime', 'txtEndTime', 'chkRepeat');
+	row.find('span.rowID').html((id + 1).toString());
+
+	for (var i = 0; i < fields.length; i++)
+	{
+		row.find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+		row.find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+		row.find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+		row.find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+	}
+}
+
+function SetScheduleInputNames() {
+	var id = 0;
+	$('#tblScheduleBody tr').each(function() {
+		SetScheduleRowInputNames($(this), id);
+		id += 1;
+	});
+}
+
 		function getSchedule(reload)
 		{
     	var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=getSchedule&reload=" + reload;
-			$(tblSchedule).empty();
+			$('#tblScheduleHead').empty();
+			$('#tblScheduleBody').empty();
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.onreadystatechange = function () {
@@ -1675,7 +1701,7 @@ function updateUniverseEndChannel(row) {
 
 
 							
-						$('#tblSchedule').append(headerHTML);					
+							$('#tblScheduleHead').html(headerHTML);
 							ScheduleCount = entries.childNodes.length;
 							for(i=0;i<ScheduleCount;i++)
 							{
@@ -1716,14 +1742,14 @@ function updateUniverseEndChannel(row) {
 										playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\" " + playListChecked + ">" + playListArray[j] + "</option>";
 									}
 									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
-								              "<td class='center'>" + (i+1).toString() + "</td>" +
-															"<td class='center' ><input  name=\"chkEnable[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + enableChecked +"/></td>" +
-															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
-																"<input class='date center'  name=\"txtEndDate[" + i.toString() + "]\" id=\"txtEndDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
+								              "<td class='center'><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
+															"<td class='center' ><input class='chkEnable' type=\"checkbox\" " + enableChecked +"/></td>" +
+															"<td><input class='date center txtStartDate' type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
+																"<input class='date center txtEndDate' type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
 
-															"<td><select id=\"selPlaylist[" + i.toString() + "]\" name=\"selPlaylist[" + i.toString() + "]\">" +
+															"<td><select class='selPlaylist'>" +
 															playlistOptionsText + "</select></td>" +
-															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\" onChange='ScheduleDaysSelectChanged(this);'>" +
+															"<td><select class='selDay' onChange='ScheduleDaysSelectChanged(this);'>" +
 															      "<option value=\"7\" " + dayChecked_7 + ">Everyday</option>" +
 															      "<option value=\"0\" " + dayChecked_0 + ">Sunday</option>" +
 															      "<option value=\"1\" " + dayChecked_1 + ">Monday</option>" +
@@ -1741,28 +1767,28 @@ function updateUniverseEndChannel(row) {
 															      "<option value=\"14\" " + dayChecked_14 + ">Odd</option>" +
 															      "<option value=\"15\" " + dayChecked_15 + ">Even</option>" +
 															      "<option value=\"65536\" " + dayChecked_0x10000 + ">Day Mask</option></select><br>" +
-																  "<span id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
-																  "S:<input type='checkbox' name='maskSunday[" + i + "]'" +
+																  "<span class='dayMask' id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
+																  "S:<input class='maskSunday' type='checkbox' " +
 																	((day & 0x04000) ? " checked" : "") + "> " +
-																  "M:<input type='checkbox' name='maskMonday[" + i + "]'" +
+																  "M:<input class='maskMonday' type='checkbox' " +
 																	((day & 0x02000) ? " checked" : "") + "> " +
-																  "T:<input type='checkbox' name='maskTuesday[" + i + "]'" +
+																  "T:<input class='maskTuesday' type='checkbox' " +
 																	((day & 0x01000) ? " checked" : "") + "> " +
-																  "W:<input type='checkbox' name='maskWednesday[" + i + "]'" +
+																  "W:<input class='maskWednesday' type='checkbox' " +
 																	((day & 0x00800) ? " checked" : "") + "> " +
-																  "T:<input type='checkbox' name='maskThursday[" + i + "]'" +
+																  "T:<input class='maskThursday' type='checkbox' " +
 																	((day & 0x00400) ? " checked" : "") + "> " +
-																  "F:<input type='checkbox' name='maskFriday[" + i + "]'" +
+																  "F:<input class='maskFriday' type='checkbox' " +
 																	((day & 0x00200) ? " checked" : "") + "> " +
-																  "S:<input type='checkbox' name='maskSaturday[" + i + "]'" +
+																  "S:<input class='maskSaturday' type='checkbox' " +
 																	((day & 0x00100) ? " checked" : "") + "> " +
 																  "</span></td>" +
-															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
-															"<input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
-															"<td class='center' ><input name=\"chkRepeat[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + repeatChecked +"/></td>" +
+															"<td><input class='time center txtStartTime' type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
+															"<input class='time center txtEndTime' type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
+															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
 															
-									$('#tblSchedule').append(tableRow);
+									$('#tblScheduleBody').append(tableRow);
 									$('.time').timepicker({
 										'timeFormat': 'H:i:s',
 										'typeaheadHighlight': false,
@@ -1792,6 +1818,8 @@ function updateUniverseEndChannel(row) {
 										});
 
 							}
+
+							SetScheduleInputNames();
 					}
 				}
 			};
