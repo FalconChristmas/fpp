@@ -42,8 +42,6 @@
 #define FPPD_MAX_CHANNELS (8192*1024)
 #define DATA_DUMP_SIZE    28
 
-#define SEQUENCE_CACHE_FRAMECOUNT 20
-
 //reserve 4 channels of 0 and 4 channels of 0xFF for indexes
 //that require one or the other
 #define FPPD_OFF_CHANNEL FPPD_MAX_CHANNELS

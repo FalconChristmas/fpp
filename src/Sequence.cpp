@@ -58,8 +58,10 @@ using namespace std::literals::chrono_literals;
 
 #include "mediaoutput/SDLOut.h"
 
-Sequence *sequence = NULL;
+#define SEQUENCE_CACHE_FRAMECOUNT 50
 
+
+Sequence *sequence = NULL;
 Sequence::Sequence()
   :
     m_seqDuration(0),
@@ -136,6 +138,7 @@ void Sequence::ReadFramesLoop() {
             if (frame < m_seqFile->getNumFrames()) {
                 lock.unlock();
                 
+                long long start = GetTimeMS();
                 std::unique_lock<std::mutex> readlock(readFileLock);
                 FSEQFile *file = m_seqFile;
                 FSEQFile::FrameData *fd = nullptr;
@@ -145,7 +148,12 @@ void Sequence::ReadFramesLoop() {
                     fd = m_seqFile->getFrame(frame);
                 }
                 readlock.unlock();
-                
+                long long end = GetTimeMS();
+                long long total = end - start;
+                if (total > 20 || fd == nullptr) {
+                    LogDebug(VB_SEQUENCE, "Problem reading frame %d:   %X    Time: %d ms", frame, fd, ((int)total));
+                }
+
                 lock.lock();
                 if (fd) {
                     if (m_lastFrameRead == (frame - 1)) {
@@ -154,7 +162,7 @@ void Sequence::ReadFramesLoop() {
 
                         lock.unlock();
                         frameLoadedSignal.notify_all();
-                        std::this_thread::sleep_for(5ms);
+                        std::this_thread::sleep_for(1ms);
                         lock.lock();
                     } else {
                         //a skip is in progress, we don't need this frame anymore
@@ -162,8 +170,11 @@ void Sequence::ReadFramesLoop() {
                     }
                 }
             } else {
-                frameLoadedSignal.notify_all();
                 m_doneRead = true;
+                lock.unlock();
+                frameLoadedSignal.notify_all();
+                std::this_thread::sleep_for(1ms);
+                lock.lock();
             }
         } else {
             frameLoadSignal.wait_for(lock, 25ms);
@@ -424,6 +435,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         std::unique_lock<std::mutex> lock(frameCacheLock);
         if (frameCache.empty() && !m_doneRead) {
             //wait up to the step time, if we don't have the frame, bail
+            frameLoadSignal.notify_all();
             frameLoadedSignal.wait_for(lock, std::chrono::milliseconds(m_seqStepTime - 1));
         }
         if (!frameCache.empty()) {
