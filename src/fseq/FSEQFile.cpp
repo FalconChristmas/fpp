@@ -838,6 +838,13 @@ public:
         
         long long startTime = GetTimeMS();
         long long setupTime = startTime;
+        long long initTime = setupTime;
+        long long readTime = setupTime;
+        int bread = 0;
+        uint64_t curPos = 0;
+        uint64_t nextPos = curPos;
+        uint64_t nextLen = 0;
+
         if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
             //frame is not in the current block
             m_curBlock = 0;
@@ -848,8 +855,9 @@ public:
                 m_dctx = ZSTD_createDStream();
             }
             ZSTD_initDStream(m_dctx);
+            curPos = tell();
             seek(m_file->m_frameOffsets[m_curBlock].second, SEEK_SET);
-
+            
             uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
             len -= m_file->m_frameOffsets[m_curBlock].second;
             int max = m_file->getNumFrames() * m_file->getChannelCount();
@@ -862,16 +870,21 @@ public:
             m_inBuffer.src = malloc(len);
             m_inBuffer.pos = 0;
             m_inBuffer.size = len;
-            int bread = read((void*)m_inBuffer.src, len);
+            initTime = GetTimeMS();
+
+            bread = read((void*)m_inBuffer.src, len);
             if (bread != len) {
                 LogErr(VB_SEQUENCE, "Failed to read channel data for frame %d!   Needed to read %" PRIu64 " but read %d\n", frame, len, (int)bread);
             }
+            readTime = GetTimeMS();
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
                 uint64_t len2 = m_file->m_frameOffsets[m_curBlock + 2].second;
                 len2 -= m_file->m_frameOffsets[m_curBlock+1].second;
-                preload(tell(), len2);
+                nextPos = tell();
+                nextLen = len2;
+                preload(nextPos, len2);
             }
 
             free(m_outBuffer.dst);
@@ -924,7 +937,15 @@ public:
             int setup = setupTime - startTime;
             int decomp = decompTime - setupTime;
             int copy = endTime - decompTime;
+            
+            int iTime = initTime - startTime;
+            int rTime = readTime - initTime;
+            int sTime = setupTime - readTime;
+
             LogErr(VB_SEQUENCE, "Total: %d    setup: %d    decomp: %d    copy: %d\n", total, setup, decomp, copy);
+            LogErr(VB_SEQUENCE, "    i: %d  r: %d    s:%d   read: %d     block: %d/%d\n", iTime, rTime, sTime, bread, m_curBlock, (int)m_file->m_frameOffsets.size());
+            uint64_t fp = m_file->m_frameOffsets[m_curBlock].second;
+            LogErr(VB_SEQUENCE, "    startPos %" PRIu64 "/%" PRIu64 "    nextPos: %" PRIu64 "  Len: %" PRIu64 "\n", curPos, fp, nextPos, nextLen);
         }
 
         return data;
