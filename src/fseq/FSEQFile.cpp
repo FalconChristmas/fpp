@@ -135,6 +135,11 @@ inline uint64_t GetTime(void) {
     return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
 }
 
+inline long long GetTimeMS(void) {
+    struct timeval now_tv;
+    gettimeofday(&now_tv, NULL);
+    return now_tv.tv_sec * 1000LL + now_tv.tv_usec / 1000;
+}
 inline long roundTo4(long i) {
     long remainder = i % 4;
     if (remainder == 0) {
@@ -830,6 +835,9 @@ public:
     virtual std::string GetType() const override { return "Compressed ZSTD"; }
 
     virtual FrameData *getFrame(uint32_t frame) override {
+        
+        long long startTime = GetTimeMS();
+        long long setupTime = startTime;
         if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
             //frame is not in the current block
             m_curBlock = 0;
@@ -872,13 +880,16 @@ public:
             m_outBuffer.dst = malloc(m_outBuffer.size);
             m_outBuffer.pos = 0;
             m_curFrameInBlock = 0;
+            setupTime = GetTimeMS();
         }
         int fidx = frame - m_file->m_frameOffsets[m_curBlock].first;
 
+        long long decompTime = setupTime;
         if (fidx >= m_curFrameInBlock) {
             m_outBuffer.size = (fidx + 1) * m_file->getChannelCount();
             ZSTD_decompressStream(m_dctx, &m_outBuffer, &m_inBuffer);
             m_curFrameInBlock = fidx + 1;
+            decompTime = GetTimeMS();
         }
         
         fidx *= m_file->getChannelCount();
@@ -906,6 +917,16 @@ public:
                 }
             }
         }
+        long long endTime = GetTimeMS();
+        
+        if ((endTime - startTime) > 100) {
+            int total = endTime - startTime;
+            int setup = setupTime - startTime;
+            int decomp = decompTime - setupTime;
+            int copy = endTime - decompTime;
+            LogErr(VB_SEQUENCE, "Total: %d    setup: %d    decomp: %d    copy: %d\n", total, setup, decomp, copy);
+        }
+
         return data;
     }
     void compressData(ZSTD_CStream* m_cctx, ZSTD_inBuffer_s &input, ZSTD_outBuffer_s &output) {
