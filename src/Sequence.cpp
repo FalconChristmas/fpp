@@ -58,8 +58,7 @@ using namespace std::literals::chrono_literals;
 
 #include "mediaoutput/SDLOut.h"
 
-#define SEQUENCE_CACHE_FRAMECOUNT 15
-
+#define SEQUENCE_CACHE_FRAMECOUNT 30
 
 Sequence *sequence = NULL;
 Sequence::Sequence()

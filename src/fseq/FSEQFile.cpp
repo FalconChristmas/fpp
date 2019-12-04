@@ -936,12 +936,6 @@ public:
     virtual std::string GetType() const override { return "Compressed ZSTD"; }
 
     virtual FrameData *getFrame(uint32_t frame) override {
-        
-        long long startTime = GetTimeMS();
-        long long setupTime = startTime;
-        long long initTime = setupTime;
-        long long readTime = setupTime;
-
         if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
             //frame is not in the current block
             m_curBlock = 0;
@@ -961,10 +955,8 @@ public:
             }
             m_inBuffer.pos = 0;
             m_inBuffer.size = len;
-            initTime = GetTimeMS();
 
             m_inBuffer.src = getBlock(m_curBlock);
-            readTime = GetTimeMS();
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
@@ -981,16 +973,13 @@ public:
             m_outBuffer.dst = malloc(m_outBuffer.size);
             m_outBuffer.pos = 0;
             m_curFrameInBlock = 0;
-            setupTime = GetTimeMS();
         }
         int fidx = frame - m_file->m_frameOffsets[m_curBlock].first;
 
-        long long decompTime = setupTime;
         if (fidx >= m_curFrameInBlock) {
             m_outBuffer.size = (fidx + 1) * m_file->getChannelCount();
             ZSTD_decompressStream(m_dctx, &m_outBuffer, &m_inBuffer);
             m_curFrameInBlock = fidx + 1;
-            decompTime = GetTimeMS();
         }
         
         fidx *= m_file->getChannelCount();
@@ -1017,21 +1006,6 @@ public:
                     sz += rng.second;
                 }
             }
-        }
-        long long endTime = GetTimeMS();
-        
-        if ((endTime - startTime) > 100) {
-            int total = endTime - startTime;
-            int setup = setupTime - startTime;
-            int decomp = decompTime - setupTime;
-            int copy = endTime - decompTime;
-            
-            int iTime = initTime - startTime;
-            int rTime = readTime - initTime;
-            int sTime = setupTime - readTime;
-
-            LogErr(VB_SEQUENCE, "Total: %d    setup: %d    decomp: %d    copy: %d\n", total, setup, decomp, copy);
-            LogErr(VB_SEQUENCE, "    i: %d  r: %d    s:%    block: %d/%d\n", iTime, rTime, sTime,  m_curBlock, (int)m_file->m_frameOffsets.size());
         }
 
         return data;
@@ -1155,9 +1129,6 @@ public:
         if (m_outBuffer) {
             free(m_outBuffer);
         }
-        if (m_inBuffer) {
-            free(m_inBuffer);
-        }
     }
     virtual uint8_t getCompressionType() override { return 2; }
     virtual std::string GetType() const override { return "Compressed ZLIB"; }
@@ -1169,24 +1140,18 @@ public:
             while (frame >= m_file->m_frameOffsets[m_curBlock + 1].first) {
                 m_curBlock++;
             }
-            seek(m_file->m_frameOffsets[m_curBlock].second, SEEK_SET);
+            
             uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
             len -= m_file->m_frameOffsets[m_curBlock].second;
-            if (m_inBuffer) {
-                free(m_inBuffer);
-            }
-            m_inBuffer = (uint8_t*)malloc(len);
-
-            int bread = read((void*)m_inBuffer, len);
-            if (bread != len) {
-                LogErr(VB_SEQUENCE, "Failed to read channel data for frame %d!   Needed to read %" PRIu64 " but read %d\n", frame, len, (int)bread);
-            }
+            m_inBuffer = getBlock(m_curBlock);
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
-                uint64_t len = m_file->m_frameOffsets[m_curBlock + 2].second;
-                len -= m_file->m_frameOffsets[m_curBlock+1].second;
-                preload(tell(), len);
+                preloadBlock(m_curBlock + 1);
+                if (m_curBlock < m_file->m_frameOffsets.size() - 3) {
+                    //let the kernel know that we'll likely need the next block in the near future
+                    preloadBlock(m_curBlock + 2);
+                }
             }
 
             if (m_stream == nullptr) {
