@@ -195,7 +195,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
     unsigned char tmpData[48];
     int bytesRead = fread(tmpData, 1, 48, seqFile);
 #ifndef PLATFORM_UNKNOWN
-    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_RANDOM);
+    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
     posix_fadvise(fileno(seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 #endif
 
@@ -397,7 +397,9 @@ uint64_t FSEQFile::read(void *ptr, uint64_t size) {
 
 void FSEQFile::preload(uint64_t pos, uint64_t size) {
 #ifndef PLATFORM_UNKNOWN
-    posix_fadvise(fileno(m_seqFile), pos, size, POSIX_FADV_WILLNEED);
+    if (posix_fadvise(fileno(m_seqFile), pos, size, POSIX_FADV_WILLNEED) != 0) {
+        LogErr(VB_SEQUENCE, "Could not advise kernel %d  size: %d\n", (int)pos, (int)size);
+    }
 #endif
 }
 
@@ -881,6 +883,9 @@ public:
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
                 uint64_t len2 = m_file->m_frameOffsets[m_curBlock + 2].second;
+                if (m_curBlock < m_file->m_frameOffsets.size() - 3) {
+                    len2 = m_file->m_frameOffsets[m_curBlock + 3].second;
+                }
                 len2 -= m_file->m_frameOffsets[m_curBlock+1].second;
                 nextPos = tell();
                 nextLen = len2;
@@ -943,7 +948,7 @@ public:
             int sTime = setupTime - readTime;
 
             LogErr(VB_SEQUENCE, "Total: %d    setup: %d    decomp: %d    copy: %d\n", total, setup, decomp, copy);
-            LogErr(VB_SEQUENCE, "    i: %d  r: %d    s:%d   read: %d     block: %d/%d\n", iTime, rTime, sTime, bread, m_curBlock, (int)m_file->m_frameOffsets.size());
+            LogErr(VB_SEQUENCE, "    i: %d  r: %d    s:%d   read: %d     block: %d/%d\n", iTime, rTime, sTime, (int)bread, m_curBlock, (int)m_file->m_frameOffsets.size());
             uint64_t fp = m_file->m_frameOffsets[m_curBlock].second;
             LogErr(VB_SEQUENCE, "    startPos %" PRIu64 "/%" PRIu64 "    nextPos: %" PRIu64 "  Len: %" PRIu64 "\n", curPos, fp, nextPos, nextLen);
         }
