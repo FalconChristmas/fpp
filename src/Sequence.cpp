@@ -134,7 +134,7 @@ void Sequence::ReadFramesLoop() {
         }
         int cacheSize = frameCache.size();
         if (frameCache.size() < SEQUENCE_CACHE_FRAMECOUNT && m_seqStarting < 2 && m_seqFile && !m_doneRead) {
-            uint64_t frame = m_lastFrameRead + 1;
+            uint32_t frame = (m_lastFrameRead + 1);
             if (frame < m_seqFile->getNumFrames()) {
                 lock.unlock();
                 
@@ -151,7 +151,8 @@ void Sequence::ReadFramesLoop() {
                 long long end = GetTimeMS();
                 long long total = end - start;
                 if (total > 20 || fd == nullptr) {
-                    LogDebug(VB_SEQUENCE, "Problem reading frame %d:   %X    Time: %d ms", frame, fd, ((int)total));
+                    uint32_t lfr = m_lastFrameRead;
+                    LogDebug(VB_SEQUENCE, "Problem reading frame %d:   %X    Time: %d ms     Last: %d\n", frame, fd, ((int)total), lfr);
                 }
 
                 lock.lock();
