@@ -140,6 +140,7 @@ void Sequence::ReadFramesLoop() {
                 
                 long long start = GetTimeMS();
                 std::unique_lock<std::mutex> readlock(readFileLock);
+                long long lockt = GetTimeMS();
                 FSEQFile *file = m_seqFile;
                 FSEQFile::FrameData *fd = nullptr;
                 if (m_doneRead || file == nullptr) {
@@ -147,12 +148,18 @@ void Sequence::ReadFramesLoop() {
                 } else {
                     fd = m_seqFile->getFrame(frame);
                 }
+                long long unlock = GetTimeMS();
                 readlock.unlock();
                 long long end = GetTimeMS();
                 long long total = end - start;
                 if (total > 20 || fd == nullptr) {
                     uint32_t lfr = m_lastFrameRead;
-                    LogDebug(VB_SEQUENCE, "Problem reading frame %d:   %X    Time: %d ms     Last: %d\n", frame, fd, ((int)total), lfr);
+                    int lt = lockt - start;
+                    int ul = end - unlock;
+                    int gf = unlock - lockt;
+                    
+                    LogDebug(VB_SEQUENCE, "Problem reading frame %d:   %X    Time: %d ms     Last: %d     Lock: %d   GetFrame: %d   Unlock: %d\n",
+                             frame, fd, ((int)total), lfr,  lt, gf, ul);
                 }
 
                 lock.lock();
