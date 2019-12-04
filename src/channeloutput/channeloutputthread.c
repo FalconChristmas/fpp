@@ -185,6 +185,17 @@ void *RunChannelOutputThread(void *data)
         }
 
 		processTime = GetTime();
+        
+        long long totalTime = processTime - startTime;
+        if (totalTime > 10000) {
+            LogWarn(VB_CHANNELOUT,
+                 "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld\n",
+            LightDelay,
+            sendTime - startTime,
+            readTime - sendTime,
+            processTime - readTime,
+            channelOutputFrame);
+        }
 
         statusLock.lock();
 		if ((sequence->IsSequenceRunning()) ||

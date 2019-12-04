@@ -78,6 +78,7 @@
 #include <cmath>
 
 #include "common.h"
+#include "Warnings.h"
 #include "ColorLight-5a-75.h"
 #include "log.h"
 
@@ -407,6 +408,8 @@ int ColorLight5a75Output::SendData(unsigned char *channelData)
 	int bytesInPacket = 0;
 	int pixelsInPacket = 0;
 	int pktSize = 0;
+    long long startTime = GetTimeMS();
+
 	for (row = 0; row < m_rows; row++) {
 		if (row < 256) {
 			m_eh->ether_type = htons(0x5500);
@@ -448,7 +451,12 @@ int ColorLight5a75Output::SendData(unsigned char *channelData)
 
 		rowPtr += m_rowSize;
 	}
-
+    long long endTime = GetTimeMS();
+    long long totalTime = endTime - startTime;
+    if (totalTime > 20) {
+        LogInfo(VB_CHANNELOUT, "Long time to send frame to colorlight: %d ms\n", ((int)totalTime));
+        WarningHolder::AddWarning("Long time to send frame to colorlight: " + std::to_string((int)totalTime) + "ms\n");
+    }
 	return m_channelCount;
 }
 
