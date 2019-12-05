@@ -7,7 +7,8 @@ BINDIR=$(cd $(dirname $0) && pwd)
 if [ "${FPPPLATFORM}" == "Raspberry Pi" ]; then
     # disable the swap file, wears out the SD card faster
     systemctl disable dphys-swapfile
-    
+    systemctl stop dphys-swapfile
+
     #unset the old gpu_mem setting
     sed -i -e "s/gpu_mem/#gpu_mem/" /boot/config.txt
 
@@ -26,5 +27,6 @@ if [ "${FPPPLATFORM}" == "Raspberry Pi" ]; then
     echo >> /boot/config.txt
         
     echo "A reboot will be required to get the new Apache config working working"
+    setSetting rebootFlag 1
 fi
 
