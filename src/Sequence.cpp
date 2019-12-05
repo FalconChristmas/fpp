@@ -383,7 +383,9 @@ int Sequence::IsSequenceRunning(const std::string &filename) {
 
 void Sequence::BlankSequenceData(void) {
     LogDebug(VB_SEQUENCE, "BlankSequenceData()\n");
-    memset(m_seqData, 0, FPPD_WHITE_CHANNEL);
+    for (auto &a : GetOutputRanges()) {
+        memset(&m_seqData[a.first], 0, a.second);
+    }
 }
 
 int Sequence::SequenceIsPaused(void) {

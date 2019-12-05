@@ -62,7 +62,7 @@ OutputProcessors         outputProcessors;
 
 static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
 
-const std::vector<std::pair<uint32_t, uint32_t>> GetOutputRanges() {
+const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges() {
     if (outputRanges.empty()) {
         outputRanges.push_back(std::pair<uint32_t, uint32_t>(0, FPPD_MAX_CHANNELS));
     }
