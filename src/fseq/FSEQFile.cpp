@@ -66,12 +66,8 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 //for FPP, use FPP logging
 #include "log.h"
 #include "Warnings.h"
-static bool SlowStorageWarningAdded = false;
 inline void AddSlowStorageWarning() {
-    if (!SlowStorageWarningAdded) {
-        WarningHolder::AddWarning("FSEQ Data Block not available - Likely slow storage");
-        SlowStorageWarningAdded = true;
-    }
+    WarningHolder::AddWarningTimeout("FSEQ Data Block not available - Likely slow storage", 90);
 }
 #else
 //compiling within xLights, use log4cpp
@@ -910,7 +906,8 @@ public:
                 //if not one of the first few blocks and it's not already
                 //available, then something is really slow
                 AddSlowStorageWarning();
-                LogWarn(VB_SEQUENCE, "Data block not available when needed %d/%d.  Likely slow storage.\n", block, m_maxBlocks);
+                LogWarn(VB_SEQUENCE, "Data block not available when needed %d/%d.  First block requested: %d.   Likely slow storage.\n", block, m_maxBlocks, m_firstBlock);
+                LogWarn(VB_SEQUENCE, "Blocks: %d     First: %d\n", m_blocksToRead.size(), m_blocksToRead.empty() ? -1 : m_blocksToRead.front());
             }
             m_blocksToRead.push_front(block);
             m_readSignal.wait_for(readerlock, 10s);

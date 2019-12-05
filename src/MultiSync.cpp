@@ -1622,6 +1622,23 @@ void MultiSync::setupMulticastReceive() {
 }
 
 
+static bool shouldSkipPacket(int i, int num, std::vector<unsigned char *> &rcvBuffers) {
+    ControlPkt *pkt = (ControlPkt*)(rcvBuffers[i]);
+    for (int x = i + 1; x < num; x++) {
+        ControlPkt *npkt = (ControlPkt*)(rcvBuffers[x]);
+        if (pkt->pktType == npkt->pktType && pkt->pktType == CTRL_PKT_SYNC) {
+            SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
+            SyncPkt *snpkt = (SyncPkt*)(((char*)npkt) + sizeof(ControlPkt));
+            if (spkt->fileType == snpkt->fileType
+                && spkt->pktType == snpkt->pktType) {
+                return true;
+            }
+
+        }
+    }
+    return false;
+}
+
 /*
  *
  */
@@ -1633,7 +1650,7 @@ void MultiSync::ProcessControlPacket(void)
     
     int msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
     while (msgcnt > 0) {
-        LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
+        std::vector<unsigned char *>v;
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
@@ -1642,6 +1659,16 @@ void MultiSync::ProcessControlPacket(void)
             }
             unsigned char *inBuf = rcvBuffers[msg];
             inBuf[len] = 0;
+            v.push_back(inBuf);
+        }
+        LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
+        for (int msg = 0; msg < msgcnt; msg++) {
+            int len = rcvMsgs[msg].msg_len;
+            if (len <= 0) {
+                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
+                continue;
+            }
+            unsigned char *inBuf = rcvBuffers[msg];
 
             if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
                 struct in_addr  recvAddr;
@@ -1664,6 +1691,10 @@ void MultiSync::ProcessControlPacket(void)
             if (len < sizeof(ControlPkt)) {
                 LogErr(VB_SYNC, "Error: Received control packet too short\n");
                 HexDump("Received data:", (void*)inBuf, len);
+                continue;
+            }
+            if (shouldSkipPacket(msg, msgcnt, v)) {
+                LogExcess(VB_SYNC, "Skipping sync packet %d/%d\n", msg, msgcnt);
                 continue;
             }
 
