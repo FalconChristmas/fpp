@@ -181,7 +181,10 @@ int RHLDVIE131Output::Close(void)
 
 	return 1;
 }
-
+void RHLDVIE131Output::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    //FIXME??
+    addRange(0, 480*8);
+}
 /*
  *
  */

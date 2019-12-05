@@ -32,8 +32,6 @@
 
 #include <jsoncpp/json/json.h>
 
-#include "channeloutput.h"
-#include "../Sequence.h"
 
 class ChannelOutputBase {
   public:

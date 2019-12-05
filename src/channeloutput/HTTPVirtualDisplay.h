@@ -28,6 +28,7 @@
 
 #include <thread>
 #include <vector>
+#include <mutex>
 
 #include "VirtualDisplay.h"
 

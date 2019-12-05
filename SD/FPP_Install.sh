@@ -678,7 +678,16 @@ case "${FPPPLATFORM}" in
 		echo >> /boot/config.txt
 
 		echo "# GPU memory set to 128 to deal with error in omxplayer with hi-def videos" >> /boot/config.txt
-		echo "gpu_mem=128" >> /boot/config.txt
+        echo "[pi4]" >> /boot/config.txt
+        echo "gpu_mem=128" >> /boot/config.txt
+        echo "[pi3]" >> /boot/config.txt
+        echo "gpu_mem=128" >> /boot/config.txt
+        echo "[pi0]" >> /boot/config.txt
+        echo "gpu_mem=64" >> /boot/config.txt
+        echo "[pi1]" >> /boot/config.txt
+        echo "gpu_mem=64" >> /boot/config.txt
+        echo "[pi2]" >> /boot/config.txt
+        echo "gpu_mem=64" >> /boot/config.txt
 		echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
@@ -691,7 +700,7 @@ case "${FPPPLATFORM}" in
 		done
 
 		echo "FPP - Disabling Swap to save SD card"
-		update-rc.d -f dphys-swapfile remove
+        systemctl disable dphys-swapfile
 
 		echo "FPP - Kernel doesn't support cgroups so remove to silence warnings on boot"
 		update-rc.d -f cgroup-bin remove

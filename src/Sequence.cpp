@@ -51,6 +51,7 @@
 #include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
 #include "playlist/Playlist.h"
+#include "channeloutput/channeloutput.h"
 #include <chrono>
 using namespace std::literals;
 using namespace std::chrono_literals;
