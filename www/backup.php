@@ -1287,6 +1287,8 @@ function genSelectList($area_name = "backuparea")
 
 /**
  * Returns a list of plugin Config files
+ *
+ * @return array Array of plugins and respective config file data
  */
 function retrievePluginList()
 {
@@ -1295,16 +1297,24 @@ function retrievePluginList()
     $config_files = read_directory_files($settings['configDirectory'], false);
     $plugin_names = array();
 
-    //find the plugin configs
-    foreach ($config_files as $fname => $fdata) {
-        if ((stripos(strtolower($fname), "plugin") !== false) && (stripos(strtolower($fname), ".json") == false)) {
-            //split the string to get jsut the plugin name
-            $plugin_name = explode(".", $fname);
-            $plugin_name = $plugin_name[1];
-            $plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
-            //array('name' => $plugin_name, 'config' => $fname);
-        }
-    }
+	//find the plugin configs, ignore JSON files
+	foreach ($config_files as $fname => $fdata) {
+		//Make sure we pickup plugin config files, plugin config files are prepended with plugin.
+		if ((stripos(strtolower($fname), "plugin.") !== false)) {
+		    //Fine out the MINE type of the file we're backing up
+			$finfo_open_handle = finfo_open(FILEINFO_MIME_TYPE);
+			$fileInfo = finfo_file($finfo_open_handle, $settings['configDirectory'] . "/" . $fname);
+
+			//If it's a plain text file then we can back it up, things like databases are skipped
+			if (stripos(strtolower($fileInfo), "text") !== FALSE) {
+				//split the string to get just the plugin name
+				$plugin_name = explode(".", $fname);
+				$plugin_name = $plugin_name[1];
+				$plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
+				//array('name' => $plugin_name, 'config' => $fname);
+			}
+		}
+	}
 
     return $plugin_names;
 }
