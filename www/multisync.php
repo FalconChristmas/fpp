@@ -184,7 +184,7 @@ if (isset($_GET['advancedView'])) {
             }
                
 			//Expert View Rows
-            if(advancedView === true && data.status_name !== 'unknown') {
+            if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'password') {
                 $('#' + rowID + '_platform').html(data.advancedView.Platform + "<br><small class='hostDescriptionSM'>" + data.advancedView.Variant + "</small>");
                 $('#advancedViewVersion_' + rowID).html(data.advancedView.Version);
                 //$('#advancedViewBranch_' + rowID).html(data.advancedView.Branch);
