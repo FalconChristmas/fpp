@@ -873,29 +873,31 @@ public:
     }
     
     void preloadBlock(int block) {
-        if (block < m_file->m_frameOffsets.size() - 1) {
-            //let the kernel know that we'll likely need the next block in the near future
-            uint64_t len2 = m_file->m_frameOffsets[block + 1].second;
-            if (block < m_file->m_frameOffsets.size() - 2) {
-                len2 = m_file->m_frameOffsets[block + 2].second;
+        for (int b = block; b < block + 4; b++) {
+            //let the kernel know that we'll likely need the next few blocks in the near future
+            if (b < m_file->m_frameOffsets.size() - 1) {
+                uint64_t len2 = m_file->m_frameOffsets[b + 1].second;
+                if (b < m_file->m_frameOffsets.size() - 2) {
+                    len2 = m_file->m_frameOffsets[b + 2].second;
+                }
+                len2 -= m_file->m_frameOffsets[b].second;
+                uint64_t pos = m_file->m_frameOffsets[b].second;
+                preload(pos, len2);
             }
-            len2 -= m_file->m_frameOffsets[block].second;
-            uint64_t pos = m_file->m_frameOffsets[block].second;
-            preload(pos, len2);
-            
+            std::unique_lock<std::mutex> readerlock(m_readMutex);
+            m_blocksToRead.push_back(b);
+            m_readSignal.notify_all();
         }
-        std::unique_lock<std::mutex> readerlock(m_readMutex);
-        m_blocksToRead.push_back(block);
-        m_readSignal.notify_all();
     }
     uint8_t *getBlock(int block) {
         std::unique_lock<std::mutex> readerlock(m_readMutex);
         uint8_t *data = m_blockMap[block];
         while (data == nullptr) {
-            if (block > 2) {
-                //if not one of the first three blocks and it's not already
+            if (block > 3) {
+                //if not one of the first few blocks and it's not already
                 //available, then something is really slow
                 AddSlowStorageWarning();
+                LogWarn(VB_SEQUENCE, "Data block not available when needed %d/%d.  Likely slow storage.\n", block, m_maxBlocks);
             }
             m_blocksToRead.push_front(block);
             m_readSignal.wait_for(readerlock, 10s);
@@ -977,10 +979,6 @@ public:
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
                 preloadBlock(m_curBlock + 1);
-                if (m_curBlock < m_file->m_frameOffsets.size() - 3) {
-                    //let the kernel know that we'll likely need the next block in the near future
-                    preloadBlock(m_curBlock + 2);
-                }
             }
 
             free(m_outBuffer.dst);
@@ -1164,10 +1162,6 @@ public:
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
                 preloadBlock(m_curBlock + 1);
-                if (m_curBlock < m_file->m_frameOffsets.size() - 3) {
-                    //let the kernel know that we'll likely need the next block in the near future
-                    preloadBlock(m_curBlock + 2);
-                }
             }
 
             if (m_stream == nullptr) {
