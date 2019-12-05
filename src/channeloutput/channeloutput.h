@@ -26,8 +26,8 @@
 #ifndef _CHANNELOUTPUT_H
 #define _CHANNELOUTPUT_H
 
-#include <pthread.h>
 #include <vector>
+#include <pthread.h>
 #include <stdint.h>
 
 #define FPPD_MAX_CHANNEL_OUTPUTS   64

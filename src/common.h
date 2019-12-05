@@ -98,4 +98,9 @@ std::vector<std::string> split(const std::string &s, char delim);
 // splits the string on , but also honors any double/single quotes so commas within strings are preserved
 std::vector<std::string> splitWithQuotes(const std::string &s, char delim = ',');
 
+bool startsWith(const std::string &str, const std::string &prefix);
+bool endsWith(const std::string& str, const std::string& suffix);
+bool contains(const std::string &str, const std::string &v);
+void replaceAll(std::string& str, const std::string& from, const std::string& to);
+
 #endif

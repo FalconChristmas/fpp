@@ -571,3 +571,20 @@ void TrimWhiteSpace(std::string &s) {
     ltrim(s);
     rtrim(s);
 }
+
+bool startsWith(const std::string &str, const std::string &prefix) {
+    return ((prefix.size() <= str.size()) && std::equal(prefix.begin(), prefix.end(), str.begin()));
+}
+bool endsWith(const std::string& str, const std::string& suffix) {
+    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+}
+bool contains(const std::string &str, const std::string &v) {
+    return str.find(v) != std::string::npos;
+}
+void replaceAll(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // ...
+    }
+}

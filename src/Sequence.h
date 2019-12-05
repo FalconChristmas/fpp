@@ -26,7 +26,6 @@
 #ifndef _SEQUENCE_H
 #define _SEQUENCE_H
 
-#include <pthread.h>
 #include <stdio.h>
 #include <string>
 
