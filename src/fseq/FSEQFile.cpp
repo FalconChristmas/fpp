@@ -50,7 +50,6 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 }
 #define ftello _ftelli64
 #define fseeko _fseeki64
-#define NO_ZLIB
 
 #else
 #include <sys/time.h>
@@ -66,6 +65,14 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 #if defined(PLATFORM_PI) || defined(PLATFORM_BBB) || defined(PLATFORM_ODROID) || defined(PLATFORM_ORANGEPI) || defined(PLATFORM_UNKNOWN) || defined(PLATFORM_DOCKER)
 //for FPP, use FPP logging
 #include "log.h"
+#include "Warnings.h"
+static bool SlowStorageWarningAdded = false;
+inline void AddSlowStorageWarning() {
+    if (!SlowStorageWarningAdded) {
+        WarningHolder::AddWarning("FSEQ Data Block not available - Likely slow storage");
+        SlowStorageWarningAdded = true;
+    }
+}
 #else
 //compiling within xLights, use log4cpp
 #define PLATFORM_UNKNOWN
@@ -103,6 +110,9 @@ template<typename... Args> static void LogDebug(int i, const char *fmt, Args... 
     }
     fseq_logger_base.debug(nfmt, args...);
 }
+inline void AddSlowStorageWarning() {
+}
+
 #define VB_SEQUENCE 1
 #define VB_ALL 0
 #endif
@@ -830,6 +840,7 @@ public:
         m_blocksToRead.push_back(0);
         m_blocksToRead.push_back(1);
         m_blocksToRead.push_back(2);
+        m_blocksToRead.push_back(3);
         m_readThreadRunning = true;
         m_readThread = new std::thread([this]() {
             while (m_readThreadRunning) {
@@ -881,6 +892,11 @@ public:
         std::unique_lock<std::mutex> readerlock(m_readMutex);
         uint8_t *data = m_blockMap[block];
         while (data == nullptr) {
+            if (block > 2) {
+                //if not one of the first three blocks and it's not already
+                //available, then something is really slow
+                AddSlowStorageWarning();
+            }
             m_blocksToRead.push_front(block);
             m_readSignal.wait_for(readerlock, 10s);
             data = m_blockMap[block];

@@ -1,6 +1,7 @@
 OBJECTS_fsequtils = \
 	fppversion.o \
-	log.o \
+    log.o \
+	Warnings.o \
     fseq/FSEQUtils.o \
     fseq/FSEQFile.o
 

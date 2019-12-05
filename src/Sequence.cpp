@@ -58,7 +58,7 @@ using namespace std::literals::chrono_literals;
 
 #include "mediaoutput/SDLOut.h"
 
-#define SEQUENCE_CACHE_FRAMECOUNT 30
+#define SEQUENCE_CACHE_FRAMECOUNT 40
 
 Sequence *sequence = NULL;
 Sequence::Sequence()
@@ -351,9 +351,11 @@ void Sequence::SeekSequenceFile(int frameNumber) {
         m_lastFrameRead = frameNumber - 1;
         frameLoadSignal.notify_all();
 
-        m_numSeek++;
-        if (m_numSeek > 6) {
-            WarningHolder::AddWarning("Multiple Frame Skips During Playback - Likely Slow Storage");
+        if ((frameNumber < 100) && (getFPPmode() == REMOTE_MODE)) {
+            m_numSeek++;
+            if (m_numSeek > 6) {
+                WarningHolder::AddWarning("Multiple Frame Skips During Playback - Likely Slow Network");
+            }
         }
     }
     lock.unlock();
