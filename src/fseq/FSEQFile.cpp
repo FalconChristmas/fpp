@@ -848,6 +848,7 @@ public:
             block++;
         }
         
+        LogDebug(VB_SEQUENCE, "Preparing to read starting frame:  %d    block: %d\n", frame, block);
         m_blocksToRead.push_back(block);
         m_blocksToRead.push_back(block + 1);
         m_blocksToRead.push_back(block + 2);

@@ -187,7 +187,7 @@ void *RunChannelOutputThread(void *data)
 		processTime = GetTime();
         
         long long totalTime = processTime - startTime;
-        if (totalTime > 49000) {
+        if (totalTime > 50000) {
             LogWarn(VB_CHANNELOUT,
                  "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld\n",
             LightDelay,

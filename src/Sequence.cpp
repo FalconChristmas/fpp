@@ -313,7 +313,7 @@ void Sequence::StartSequence(const std::string &filename, int frameNumber) {
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     if (sequence->m_seqFilename != filename) {
         CloseSequenceFile();
-        OpenSequenceFile(filename);
+        OpenSequenceFile(filename, frameNumber);
     }
     if (sequence->m_seqFilename == filename) {
         StartSequence();
