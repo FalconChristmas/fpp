@@ -576,7 +576,7 @@ public:
     std::vector<std::pair<uint32_t, uint32_t>> m_ranges;
 };
 
-void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges) {
+void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges, uint32_t startFrame) {
     m_rangesToRead = ranges;
     m_dataBlockSize = 0;
     for (auto &rng : m_rangesToRead) {
@@ -588,7 +588,7 @@ void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &r
         }
         m_dataBlockSize += toRead;
     }
-    FrameData *f = getFrame(0);
+    FrameData *f = getFrame(startFrame);
     if (f) {
         delete f;
     }
@@ -598,7 +598,7 @@ FrameData *V1FSEQFile::getFrame(uint32_t frame) {
     if (m_rangesToRead.empty()) {
         std::vector<std::pair<uint32_t, uint32_t>> range;
         range.push_back(std::pair<uint32_t, uint32_t>(0, m_seqChannelCount));
-        prepareRead(range);
+        prepareRead(range, frame);
     }
     uint64_t offset = m_seqChannelCount;
     offset *= frame;
@@ -681,7 +681,7 @@ public:
         m_file->preload(pos, size);
     }
 
-    virtual void prepareRead() {}
+    virtual void prepareRead(uint32_t frame) {}
     
     V2FSEQFile *m_file;
     uint64_t   m_seqChanDataOffset;
@@ -695,6 +695,12 @@ public:
     virtual uint8_t getCompressionType() override { return 0;}
     virtual uint32_t computeMaxBlocks() override {return 0;}
     virtual std::string GetType() const override { return "No Compression"; }
+    virtual void prepareRead(uint32_t frame) {
+        FrameData *f = getFrame(frame);
+        if (f) {
+            delete f;
+        }
+    }
     virtual FrameData *getFrame(uint32_t frame) override {
         UncompressedFrameData *data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
         uint64_t offset = m_file->getChannelCount();
@@ -835,12 +841,18 @@ public:
         seek(curr, SEEK_SET);
     }
 
-    virtual void prepareRead() override {
+    virtual void prepareRead(uint32_t frame) override {
         //start reading the first couple blocks immediately
-        m_blocksToRead.push_back(0);
-        m_blocksToRead.push_back(1);
-        m_blocksToRead.push_back(2);
-        m_blocksToRead.push_back(3);
+        int block = 0;
+        while (frame >= m_file->m_frameOffsets[block + 1].first) {
+            block++;
+        }
+        
+        m_blocksToRead.push_back(block);
+        m_blocksToRead.push_back(block + 1);
+        m_blocksToRead.push_back(block + 2);
+        m_blocksToRead.push_back(block + 3);
+        m_firstBlock = block;
         m_readThreadRunning = true;
         m_readThread = new std::thread([this]() {
             while (m_readThreadRunning) {
@@ -893,7 +905,7 @@ public:
         std::unique_lock<std::mutex> readerlock(m_readMutex);
         uint8_t *data = m_blockMap[block];
         while (data == nullptr) {
-            if (block > 3) {
+            if (block > (m_firstBlock + 3)) {
                 //if not one of the first few blocks and it's not already
                 //available, then something is really slow
                 AddSlowStorageWarning();
@@ -924,6 +936,7 @@ public:
     std::map<int, uint8_t*> m_blockMap;
     std::list<int> m_blocksToRead;
     std::condition_variable m_readSignal;
+    int m_firstBlock = 0;
 };
 
 #ifndef NO_ZSTD
@@ -1534,7 +1547,7 @@ void V2FSEQFile::dumpInfo(bool indent) {
     //}
 }
 
-void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges) {
+void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges, uint32_t startFrame) {
     if (m_sparseRanges.empty()) {
         m_rangesToRead.clear();
         m_dataBlockSize = 0;
@@ -1569,17 +1582,13 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &r
         m_dataBlockSize = m_seqChannelCount;
         m_rangesToRead = m_sparseRanges;
     }
-    m_handler->prepareRead();
-    FrameData *f = getFrame(0);
-    if (f) {
-        delete f;
-    }
+    m_handler->prepareRead(startFrame);
 }
 FrameData *V2FSEQFile::getFrame(uint32_t frame) {
     if (m_rangesToRead.empty()) {
         std::vector<std::pair<uint32_t, uint32_t>> range;
         range.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel() + 1));
-        prepareRead(range);
+        prepareRead(range, frame);
     }
     if (frame >= m_seqNumFrames) {
         return nullptr;

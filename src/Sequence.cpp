@@ -270,7 +270,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
         if (m_lastFrameRead < -1) m_lastFrameRead = -1;
     }
 
-    seqFile->prepareRead(GetOutputRanges());
+    seqFile->prepareRead(GetOutputRanges(), startFrame < 0 ? 0 : startFrame);
     // Calculate duration
     m_seqMSRemaining = seqFile->getNumFrames() * seqFile->getStepTime();
     m_seqDuration = m_seqMSRemaining;
