@@ -353,10 +353,10 @@ skip:
 .endm
 
 .macro WAIT_AND_CHECK_TIMEOUT
-.mparam TIMEOUT, reg1, reg2, timeoutLabel
+.mparam TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
     // need to subtract 2 clock cycles (10ns) for the MOVE/QBGT atfer the WAITNS
     WAITNS    (TIMEOUT - 10), reg1, reg2
-    MOV reg1, ((TIMEOUT+50)/5)
+    MOV reg1, ((TIMEOUT+ALLOW)/5)
     QBGT timeoutLabel, reg1, reg2
 .endm
 
@@ -545,7 +545,7 @@ _LOOP:
 #endif
 
             //wait for the full cycle to complete
-            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, r8, r9, WORD_LOOP_DONE
+            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, 500, r8, r9, WORD_LOOP_DONE
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -578,7 +578,7 @@ _LOOP:
 #endif
 
 			// wait for the length of the zero bits
-            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, r8, r9, WORD_LOOP_DONE
+            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, 50, r8, r9, WORD_LOOP_DONE
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
@@ -596,7 +596,7 @@ _LOOP:
 #endif
 
 			// Wait until the length of the one bits
-			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, r8, r9, WORD_LOOP_DONE
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, 50, r8, r9, WORD_LOOP_DONE
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
@@ -680,7 +680,7 @@ _LOOP:
             DO_OUTPUT_GPIO0
 
             //wait for the full cycle to complete
-            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
+            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, 500, r8, r9, WORD_LOOP_DONE_PASS2
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -689,14 +689,14 @@ _LOOP:
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 
 			// wait for the length of the zero bits
-            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
+            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, 50, r8, r9, WORD_LOOP_DONE_PASS2
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
-			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, 50, r8, r9, WORD_LOOP_DONE_PASS2
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
