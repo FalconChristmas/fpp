@@ -1083,7 +1083,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        row.cells[11].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        row.cells[12].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     
                     UniverseCount++;
