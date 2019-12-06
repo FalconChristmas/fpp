@@ -630,10 +630,6 @@ void PixelOverlayManager::loadModelMap() {
             strncpy(cb->startCorner, models[c]["StartCorner"].asString().c_str(), 2);
             cb->stringCount = models[c]["StringCount"].asInt();
             cb->strandsPerString = models[c]["StrandsPerString"].asInt();
-            // Sanity check our string count
-            if (cb->stringCount > (cb->channelCount / 3)) {
-                cb->stringCount = cb->channelCount / 3;
-            }
             
             SetupPixelMapForBlock(cb);
             
