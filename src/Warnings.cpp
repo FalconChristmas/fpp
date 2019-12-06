@@ -23,15 +23,15 @@ void WarningHolder::RemoveWarning(const std::string &w) {
     std::unique_lock<std::mutex> lock(warningsLock);
     warnings.erase(w);
 }
-
-void WarningHolder::AddWarningsToStatus(Json::Value &root) {
+std::list<std::string> WarningHolder::GetWarnings() {
+    std::list<std::string> ret;
     auto nowtime = std::chrono::steady_clock::now();
     int now = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
     std::list<std::string> remove;
     std::unique_lock<std::mutex> lock(warningsLock);
     for (auto &a : warnings) {
         if (a.second == -1 || a.second > now) {
-            root["warnings"].append(a.first);
+            ret.push_back(a.first);
         } else {
             remove.push_back(a.first);
         }
@@ -39,5 +39,6 @@ void WarningHolder::AddWarningsToStatus(Json::Value &root) {
     for (auto &a : remove) {
         warnings.erase(a);
     }
+    return ret;
 }
 

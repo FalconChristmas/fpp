@@ -45,6 +45,7 @@ $system_config_areas = array(
             'friendly_name' => 'System Settings (incl. GPIO Input, Email, Timezone)',
             'file' => array(
                 'system_settings' => array('type' => 'file', 'location' => $settingsFile),
+                'proxies' => array('type' => 'file', 'location' => "$mediaDirectory/config/proxies"),
                 'email' => array('type' => 'file', 'location' => false),
                 'timezone' => array('type' => 'file', 'location' => $timezoneFile)
             ),
@@ -488,7 +489,7 @@ function read_directory_files($directory, $return_data = true)
  */
 function process_restore_data($restore_area, $restore_area_data)
 {
-    global $SUDO, $settings, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored,
+    global $SUDO, $settings, $mediaDirectory, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored,
            $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
            $known_ini_config_files, $known_json_config_files;
     global $args;
@@ -859,6 +860,22 @@ function process_restore_data($restore_area, $restore_area_data)
                     }
                 }
 
+				//PROXY CONFIG RESTORATION
+				if ($restore_areas_idx == "proxies") {
+					$settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
+
+					//Get the restore data out of the array
+					$restore_data = $restore_area_data['proxies'][0];
+					$data = implode("\n", $restore_data);
+
+					//This is a standard file with webserver config, just write it out
+					if (file_put_contents("$mediaDirectory/config/proxies", $data) === FALSE) {
+						$save_result = false;
+					} else {
+						$save_result = true;
+					}
+				}
+
                 $settings_restored[$restore_area_key][$restore_areas_idx]['SUCCESS'] = $save_result;
             }
         }
@@ -877,7 +894,7 @@ function process_restore_data($restore_area, $restore_area_data)
 				if (!empty($restore_area_sub_key)) {
 					if ($network_type != $restore_area_sub_key) {
 						//break the loop
-						break;
+						continue;
 					}
 				}
 
@@ -886,12 +903,13 @@ function process_restore_data($restore_area, $restore_area_data)
 				$network_setting_filepath = $network_setting_filepath['location'];
 
 				$network_data = $restore_area_data[$network_type][0];
-				//Check to make sure we have data, so we don't accidently wipe out the network
+				//Check to make sure we have data, so we don't accidentally wipe out the network
 				if (!empty($network_data)) {
 
 					$ini_string = "";
 					foreach ($network_data as $ini_key => $ini_value) {
-						$ini_string .= "$ini_key=\"$ini_value\"\n";
+//						$ini_string .= "$ini_key='$ini_value'\n";
+						$ini_string .= "$ini_value\n";
 					}
 
 					//If we can parse out generated INI string, then it's value.
@@ -983,20 +1001,29 @@ function SetTimezone($timezone_setting)
     //TODO: Check timezone for validity
     $timezone = $timezone_setting;
     error_log("RESTORE: Changing timezone to '" . $timezone . "'.");
-    if (file_exists('/usr/bin/timedatectl')) {
-        exec($SUDO . " timedatectl set-timezone $timezone", $output, $return_val);
-        unset($output);
-    } else {
-        exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
-        unset($output);
-        //TODO: check return
-        exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
-        unset($output);
-        //TODO: check return
-    }
-    exec(" bash -c \"echo $timezone > $mediaDirectory/timezone\"", $output, $return_val);
-    unset($output);
-    //TODO: check return
+	if (file_exists("/.dockerenv")) {
+		exec($SUDO . " ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime", $output, $return_val);
+		unset($output);
+
+		exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
+		unset($output);
+		//TODO: check return
+		exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
+		unset($output);
+	} else if (file_exists('/usr/bin/timedatectl')) {
+		exec($SUDO . " timedatectl set-timezone $timezone", $output, $return_val);
+		unset($output);
+	} else {
+		exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
+		unset($output);
+		//TODO: check return
+		exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
+		unset($output);
+		//TODO: check return
+	}
+	exec(" bash -c \"echo $timezone > $mediaDirectory/timezone\"", $output, $return_val);
+	unset($output);
+	//TODO: check return
 }
 
 /**
@@ -1022,27 +1049,46 @@ function SetAudioOutput($card)
 {
     global $args, $SUDO, $debug;
 
+	global $args, $SUDO, $debug, $settings;
+
 	if ($card != 0 && file_exists("/proc/asound/card$card")) {
-		exec($SUDO . " sed -i 's/card [0-9]/card " . $card . "/' /root/.asoundrc", $output, $return_val);
+		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
 		if ($return_val) {
 			error_log("Failed to set audio to card $card!");
 			return;
 		}
-		if ($debug)
+		if ( $debug ) {
 			error_log("Setting to audio output $card");
+		}
 	} else if ($card == 0) {
-		exec($SUDO . " sed -i 's/card [0-9]/card " . $card . "/' /root/.asoundrc", $output, $return_val);
+		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
 		if ($return_val) {
 			error_log("Failed to set audio back to default!");
 			return;
 		}
-		if ($debug)
+		if ( $debug )
 			error_log("Setting default audio");
 	}
-
-    return $card;
+	// need to also reset mixer device
+	$AudioMixerDevice = exec("sudo amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+	unset($output);
+	if ($return_val == 0) {
+		WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
+		if ($settings['Platform'] == "Raspberry Pi" && $card == 0) {
+			$type = exec("sudo aplay -l | grep \"card $card\"", $output, $return_val);
+			if (strpos($type, '[bcm') !== false) {
+				WriteSettingToFile("AudioCard0Type", "bcm");
+			} else {
+				WriteSettingToFile("AudioCard0Type", "unknown");
+			}
+			unset($output);
+		} else {
+			WriteSettingToFile("AudioCard0Type", "unknown");
+		}
+	}
+	return $card;
 }
 
 /**
@@ -1241,6 +1287,8 @@ function genSelectList($area_name = "backuparea")
 
 /**
  * Returns a list of plugin Config files
+ *
+ * @return array Array of plugins and respective config file data
  */
 function retrievePluginList()
 {
@@ -1249,16 +1297,24 @@ function retrievePluginList()
     $config_files = read_directory_files($settings['configDirectory'], false);
     $plugin_names = array();
 
-    //find the plugin configs
-    foreach ($config_files as $fname => $fdata) {
-        if ((stripos(strtolower($fname), "plugin") !== false) && (stripos(strtolower($fname), ".json") == false)) {
-            //split the string to get jsut the plugin name
-            $plugin_name = explode(".", $fname);
-            $plugin_name = $plugin_name[1];
-            $plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
-            //array('name' => $plugin_name, 'config' => $fname);
-        }
-    }
+	//find the plugin configs, ignore JSON files
+	foreach ($config_files as $fname => $fdata) {
+		//Make sure we pickup plugin config files, plugin config files are prepended with plugin.
+		if ((stripos(strtolower($fname), "plugin.") !== false)) {
+		    //Fine out the MINE type of the file we're backing up
+			$finfo_open_handle = finfo_open(FILEINFO_MIME_TYPE);
+			$fileInfo = finfo_file($finfo_open_handle, $settings['configDirectory'] . "/" . $fname);
+
+			//If it's a plain text file then we can back it up, things like databases are skipped
+			if (stripos(strtolower($fileInfo), "text") !== FALSE) {
+				//split the string to get just the plugin name
+				$plugin_name = explode(".", $fname);
+				$plugin_name = $plugin_name[1];
+				$plugin_names[$plugin_name] = array('type' => 'file', 'location' => $settings['configDirectory'] . "/" . $fname);
+				//array('name' => $plugin_name, 'config' => $fname);
+			}
+		}
+	}
 
     return $plugin_names;
 }

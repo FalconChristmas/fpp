@@ -116,7 +116,9 @@ int IsEffectRunning(void)
 	int result = 0;
     std::unique_lock<std::mutex> lock(effectsLock);
 	result = effectCount;
-    result |= !clearRanges.empty();
+    if (!clearRanges.empty()) {
+        ++result;
+    }
 	return result;
 }
 
@@ -226,8 +228,11 @@ void StopEffectHelper(int effectID)
     
     if (e->fp) {
         V2FSEQFile *v2fseq = dynamic_cast<V2FSEQFile*>(e->fp);
-        if (!v2fseq && v2fseq->m_sparseRanges.size() == 0) {
+        if (v2fseq && v2fseq->m_sparseRanges.size() != 0) {
             for (auto &a : v2fseq->m_sparseRanges) {
+                clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
+            }
+            for (auto &a : v2fseq->m_rangesToRead) {
                 clearRanges.push_back(std::pair<uint32_t, uint32_t>(a.first, a.second));
             }
         } else {
@@ -255,8 +260,9 @@ int StopEffect(const std::string &effectName)
     lock.unlock();
 
 	if ((!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
+        (!sequence->IsSequenceRunning())) {
 		sequence->SendBlankingData();
+    }
 
 	return 1;
 }
@@ -279,8 +285,9 @@ int StopEffect(int effectID)
     lock.unlock();
 
 	if ((!IsEffectRunning()) &&
-		(!sequence->IsSequenceRunning()))
+        (!sequence->IsSequenceRunning())) {
 		sequence->SendBlankingData();
+    }
 
 	return 1;
 }

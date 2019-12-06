@@ -42,10 +42,7 @@ class RHLDVIE131Output : public ChannelOutputBase {
 
 	virtual void DumpConfig(void) override;
 
-    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
-        //FIXME??
-        addRange(0, FPPD_MAX_CHANNELS);
-    }
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	int     m_fbFd;

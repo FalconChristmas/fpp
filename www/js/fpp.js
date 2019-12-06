@@ -1130,6 +1130,16 @@ function RemovePlaylistEntry()	{
                 }
             }
         }
+
+function updateUniverseEndChannel(row) {
+	var startChannel = parseInt($(row).find("input.txtStartAddress").val());
+	var count = parseInt($(row).find("input.numUniverseCount").val());
+	var size = parseInt($(row).find("input.txtSize").val());
+	var end = startChannel + (count * size) - 1;
+
+	$(row).find("span.numEndChannel").html(end);
+}
+
         function populateUniverseData(data, reload, input) {
 			var headHTML="";
 			var bodyHTML="";
@@ -1142,18 +1152,22 @@ function RemovePlaylistEntry()	{
             
             if (channelData.universes.length > 0) {
                 headHTML = "<tr class=\"tblheader\">" +
-                "<th width=\"5%\" align='left'>Line<br>#</th>" +
-                "<th width=\"5%\" align='left'>Active</th>" +
-                "<th width=\"30%\" align='left'>Description</th>" +
-                "<th width=\"8%\" align='left'>FPP Start<br>Channel</th>" +
-                "<th width=\"8%\" align='left'>Universe<br>#</th>" +
-                "<th width=\"8%\" align='left'>Universe<br>Count</th>" +
-                "<th width=\"8%\" align='left'>Universe<br>Size</th>" +
-                "<th width=\"15%\" align='left'>Universe Type</th>" +
-                "<th width=\"12%\" align='left' " + inputStyle + ">Unicast<br>Address</th>" +
-                "<th width=\"6%\" align='left' " + inputStyle + ">Priority</th>" +
-                "<th width=\"6%\" align='left' " + inputStyle + ">Monitor</th>" +
-                "<th width=\"8%\" align='left' " + inputStyle + ">Ping</th>" +
+                "<th rowspan=2>Line<br>#</th>" +
+                "<th rowspan=2>Active</th>" +
+                "<th rowspan=2>Description</th>" +
+                "<th colspan=2>FPP Channel</th>" +
+                "<th colspan=4>Universe</th>" +
+                "<th rowspan=2 " + inputStyle + ">Unicast<br>Address</th>" +
+                "<th rowspan=2 " + inputStyle + ">Priority</th>" +
+                "<th rowspan=2 " + inputStyle + ">Monitor</th>" +
+                "<th rowspan=2 " + inputStyle + ">Ping</th>" +
+                "</tr><tr class=\"tblheader\">" +
+                "<th>Start</th>" +
+                "<th>End</th>" +
+                "<th>#</th>" +
+                "<th>Count</th>" +
+                "<th>Size</th>" +
+                "<th>Type</th>" +
                 "</tr>";
             }
             UniverseCount = channelData.universes.length;
@@ -1172,6 +1186,7 @@ function RemovePlaylistEntry()	{
                 var unicastAddress =  universe.address;
                 var priority =  universe.priority;
                 unicastAddress = unicastAddress.trim();
+                var endChannel = universe.startChannel + (ucount * size) - 1;
 
                 var activeChecked = active == 1  ? "checked=\"checked\"" : "";
                 var typeMulticastE131 = type == 0 ? "selected" : "";
@@ -1202,12 +1217,13 @@ function RemovePlaylistEntry()	{
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
-                            "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "'/></td>" +
+                            "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>" +
+                            "<td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>" +
                             "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
-                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + "/></td>";
+                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
 
-                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "'></td>" +
+                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>" +
                             "<td><select class='universeType' style='width:150px'";
 
                 if (input) {
@@ -1227,7 +1243,7 @@ function RemovePlaylistEntry()	{
 
                 bodyHTML += "</select></td>" +
                             "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
-                            "<td " + inputStyle + "><input class='txtPriority' type='text' size='4' maxlength='4' value='" + priority.toString() + "'/></td>" +
+                            "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>" +
                             "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
@@ -1630,11 +1646,65 @@ function RemovePlaylistEntry()	{
 				$('#' + maskSpan).hide();
 		}
 
+
+function SetScheduleRowInputNames(row, id) {
+	var fields = Array('chkEnable', 'txtStartDate', 'txtEndDate',
+						'selPlaylist', 'selDay', 'dayMask', 'maskSunday', 'maskMonday',
+						'maskTuesday', 'maskWednesday', 'maskThursday', 'maskFriday',
+						'maskSaturday', 'txtStartTime', 'txtEndTime', 'chkRepeat');
+	row.find('span.rowID').html((id + 1).toString());
+
+	for (var i = 0; i < fields.length; i++)
+	{
+		row.find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+		row.find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+		row.find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
+		row.find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
+	}
+}
+
+function SetScheduleInputNames() {
+	var id = 0;
+	$('#tblScheduleBody tr').each(function() {
+		SetScheduleRowInputNames($(this), id);
+		id += 1;
+	});
+
+	$('.time').timepicker({
+		'timeFormat': 'H:i:s',
+		'typeaheadHighlight': false,
+		'show2400': true,
+		'noneOption': [
+				{
+					'label': 'SunRise',
+					'value': 'SunRise'
+				},
+				{
+					'label': 'SunSet',
+					'value': 'SunSet'
+				}
+			]
+		});
+
+	$('.date').datepicker({
+		'changeMonth': true,
+		'changeYear': true,
+		'dateFormat': 'yy-mm-dd',
+		'minDate': new Date(2019, 1 - 1, 1),
+		'maxDate': new Date(2099, 12 - 1, 31),
+		'showButtonPanel': true,
+		'selectOtherMonths': true,
+		'showOtherMonths': true,
+		'yearRange': "2019:2099"
+		});
+}
+
 		function getSchedule(reload)
 		{
     	var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=getSchedule&reload=" + reload;
-			$(tblSchedule).empty();
+			$('#tblScheduleHead').empty();
+			$('#tblScheduleBody').empty();
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.onreadystatechange = function () {
@@ -1659,7 +1729,7 @@ function RemovePlaylistEntry()	{
 
 
 							
-						$('#tblSchedule').append(headerHTML);					
+							$('#tblScheduleHead').html(headerHTML);
 							ScheduleCount = entries.childNodes.length;
 							for(i=0;i<ScheduleCount;i++)
 							{
@@ -1700,14 +1770,14 @@ function RemovePlaylistEntry()	{
 										playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\" " + playListChecked + ">" + playListArray[j] + "</option>";
 									}
 									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
-								              "<td class='center'>" + (i+1).toString() + "</td>" +
-															"<td class='center' ><input  name=\"chkEnable[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + enableChecked +"/></td>" +
-															"<td><input class='date center'  name=\"txtStartDate[" + i.toString() + "]\" id=\"txtStartDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
-																"<input class='date center'  name=\"txtEndDate[" + i.toString() + "]\" id=\"txtEndDate[" + i.toString() + "]\" type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
+								              "<td class='center'><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
+															"<td class='center' ><input class='chkEnable' type=\"checkbox\" " + enableChecked +"/></td>" +
+															"<td><input class='date center txtStartDate' type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
+																"<input class='date center txtEndDate' type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
 
-															"<td><select id=\"selPlaylist[" + i.toString() + "]\" name=\"selPlaylist[" + i.toString() + "]\">" +
+															"<td><select class='selPlaylist'>" +
 															playlistOptionsText + "</select></td>" +
-															"<td><select id=\"selDay[" + i.toString() + "]\" name=\"selDay[" + i.toString() + "]\" onChange='ScheduleDaysSelectChanged(this);'>" +
+															"<td><select class='selDay' onChange='ScheduleDaysSelectChanged(this);'>" +
 															      "<option value=\"7\" " + dayChecked_7 + ">Everyday</option>" +
 															      "<option value=\"0\" " + dayChecked_0 + ">Sunday</option>" +
 															      "<option value=\"1\" " + dayChecked_1 + ">Monday</option>" +
@@ -1725,57 +1795,31 @@ function RemovePlaylistEntry()	{
 															      "<option value=\"14\" " + dayChecked_14 + ">Odd</option>" +
 															      "<option value=\"15\" " + dayChecked_15 + ">Even</option>" +
 															      "<option value=\"65536\" " + dayChecked_0x10000 + ">Day Mask</option></select><br>" +
-																  "<span id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
-																  "S:<input type='checkbox' name='maskSunday[" + i + "]'" +
+																  "<span class='dayMask' id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
+																  "S:<input class='maskSunday' type='checkbox' " +
 																	((day & 0x04000) ? " checked" : "") + "> " +
-																  "M:<input type='checkbox' name='maskMonday[" + i + "]'" +
+																  "M:<input class='maskMonday' type='checkbox' " +
 																	((day & 0x02000) ? " checked" : "") + "> " +
-																  "T:<input type='checkbox' name='maskTuesday[" + i + "]'" +
+																  "T:<input class='maskTuesday' type='checkbox' " +
 																	((day & 0x01000) ? " checked" : "") + "> " +
-																  "W:<input type='checkbox' name='maskWednesday[" + i + "]'" +
+																  "W:<input class='maskWednesday' type='checkbox' " +
 																	((day & 0x00800) ? " checked" : "") + "> " +
-																  "T:<input type='checkbox' name='maskThursday[" + i + "]'" +
+																  "T:<input class='maskThursday' type='checkbox' " +
 																	((day & 0x00400) ? " checked" : "") + "> " +
-																  "F:<input type='checkbox' name='maskFriday[" + i + "]'" +
+																  "F:<input class='maskFriday' type='checkbox' " +
 																	((day & 0x00200) ? " checked" : "") + "> " +
-																  "S:<input type='checkbox' name='maskSaturday[" + i + "]'" +
+																  "S:<input class='maskSaturday' type='checkbox' " +
 																	((day & 0x00100) ? " checked" : "") + "> " +
 																  "</span></td>" +
-															"<td><input class='time center'  name=\"txtStartTime[" + i.toString() + "]\" id=\"txtStartTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
-															"<input class='time center' name=\"txtEndTime[" + i.toString() + "]\" id=\"txtEndTime[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
-															"<td class='center' ><input name=\"chkRepeat[" + i.toString() + "]\" id=\"chkEnable[" + i.toString() + "]\" type=\"checkbox\" " + repeatChecked +"/></td>" +
+															"<td><input class='time center txtStartTime' type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
+															"<input class='time center txtEndTime' type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
+															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
 															
-									$('#tblSchedule').append(tableRow);
-									$('.time').timepicker({
-										'timeFormat': 'H:i:s',
-										'typeaheadHighlight': false,
-										'show2400': true,
-										'noneOption': [
-												{
-													'label': 'SunRise',
-													'value': 'SunRise'
-												},
-												{
-													'label': 'SunSet',
-													'value': 'SunSet'
-												}
-											]
-										});
-
-									$('.date').datepicker({
-										'changeMonth': true,
-										'changeYear': true,
-										'dateFormat': 'yy-mm-dd',
-										'minDate': new Date(2019, 1 - 1, 1),
-										'maxDate': new Date(2099, 12 - 1, 31),
-										'showButtonPanel': true,
-										'selectOtherMonths': true,
-										'showOtherMonths': true,
-										'yearRange': "2019:2099"
-										});
-
+									$('#tblScheduleBody').append(tableRow);
 							}
+
+							SetScheduleInputNames();
 					}
 				}
 			};

@@ -4,11 +4,14 @@
 #include <vector>
 #include <string>
 #include <functional>
-#include <httpserver.hpp>
 #include <jsoncpp/json/json.h>
 
 class FPPPlugin;
 class MediaDetails;
+
+namespace httpserver {
+class webserver;
+}
 
 class PluginManager
 {

@@ -24,7 +24,8 @@
  */
 
 #include "string.h"
-#include "unistd.h"
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include <fstream>
 #include <sstream>

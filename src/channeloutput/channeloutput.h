@@ -26,8 +26,8 @@
 #ifndef _CHANNELOUTPUT_H
 #define _CHANNELOUTPUT_H
 
-#include <pthread.h>
 #include <vector>
+#include <pthread.h>
 #include <stdint.h>
 
 #define FPPD_MAX_CHANNEL_OUTPUTS   64
@@ -74,6 +74,6 @@ void ResetChannelOutputFrameNumber(void);
 void StartOutputThreads(void);
 void StopOutputThreads(void);
 
-const std::vector<std::pair<uint32_t, uint32_t>> GetOutputRanges();
+const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges();
 
 #endif /* _CHANNELOUTPUT_H */

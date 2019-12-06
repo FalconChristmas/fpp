@@ -61,6 +61,11 @@ SetupFPPNetworkConfigViaConnMann() {
     unset DOWAIT
         . ${f}
 
+        # Handle the PSK differently since variable substitution is
+        # performed when sourcing the config file which prevents using a PSK
+        # with a dollar sign in it.  Rather than trying to escape/unescape
+        # things in the settings UI code, handle it here.
+        PSK=$(grep "^PSK=" ${f} | sed -e "s/^PSK=\"//" -e "s/\"$//")
 
         DOWAIT=0
         echo "[service_$INTERFACE]" >> ${TMPFILE}

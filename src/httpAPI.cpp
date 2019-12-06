@@ -652,7 +652,10 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["time"] = str;
     
     Sensors::INSTANCE.reportSensors(result);
-    WarningHolder::AddWarningsToStatus(result);
+    std::list<std::string> warnings = WarningHolder::GetWarnings();
+    for (auto & warn : warnings) {
+        result["warnings"].append(warn);
+    }
     if (mode == 1) {
         //bridge mode only returns the base information
         return;

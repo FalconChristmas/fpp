@@ -26,9 +26,7 @@
 #ifndef _MEDIAOUTPUT_H
 #define _MEDIAOUTPUT_H
 
-#include <unistd.h>
 #include <pthread.h>
-#include <sys/wait.h>
 
 #include "MediaOutputBase.h"
 #include "MediaOutputStatus.h"

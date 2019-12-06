@@ -25,32 +25,20 @@
  */
 
 #include <arpa/inet.h>
-#include <errno.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <linux/version.h>
-
 #include <netinet/in.h>
 #include <netdb.h>
 #include <ifaddrs.h>
-#include <fstream>
-
-
 
 #include <string>
 #include <vector>
 #include <set>
+#include <cstring>
+#include <algorithm>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/tokenizer.hpp>
-#include <jsoncpp/json/json.h>
+#include "MultiSync.h"
 
 #include "command.h"
 #include "common.h"
@@ -58,8 +46,8 @@
 #include "falcon.h"
 #include "fppversion.h"
 #include "log.h"
-#include "MultiSync.h"
 #include "Plugins.h"
+
 #include "Sequence.h"
 #include "settings.h"
 #include "mediaoutput/mediaoutput.h"
@@ -258,46 +246,46 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
  */
 MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 {
-	if (boost::starts_with(model, "Raspberry Pi Model A Rev"))
+	if (startsWith(model, "Raspberry Pi Model A Rev"))
 		return kSysTypeFPPRaspberryPiA;
-	if (boost::starts_with(model, "Raspberry Pi Model B Rev"))
+	if (startsWith(model, "Raspberry Pi Model B Rev"))
 		return kSysTypeFPPRaspberryPiB;
-	if (boost::starts_with(model, "Raspberry Pi Model A Plus"))
+	if (startsWith(model, "Raspberry Pi Model A Plus"))
 		return kSysTypeFPPRaspberryPiAPlus;
-	if (boost::starts_with(model, "Raspberry Pi Model B Plus"))
+	if (startsWith(model, "Raspberry Pi Model B Plus"))
 		return kSysTypeFPPRaspberryPiBPlus;
-	if ((boost::starts_with(model, "Raspberry Pi 2 Model B 1.1")) ||
-		(boost::starts_with(model, "Raspberry Pi 2 Model B 1.0")))
+	if ((startsWith(model, "Raspberry Pi 2 Model B 1.1")) ||
+		(startsWith(model, "Raspberry Pi 2 Model B 1.0")))
 		return kSysTypeFPPRaspberryPi2B;
-	if (boost::starts_with(model, "Raspberry Pi 2 Model B"))
+	if (startsWith(model, "Raspberry Pi 2 Model B"))
 		return kSysTypeFPPRaspberryPi2BNew;
-	if (boost::starts_with(model, "Raspberry Pi 3 Model B Rev"))
+	if (startsWith(model, "Raspberry Pi 3 Model B Rev"))
 		return kSysTypeFPPRaspberryPi3B;
-	if (boost::starts_with(model, "Raspberry Pi 3 Model B Plus"))
+	if (startsWith(model, "Raspberry Pi 3 Model B Plus"))
 		return kSysTypeFPPRaspberryPi3BPlus;
-	if (boost::starts_with(model, "Raspberry Pi Zero Rev"))
+	if (startsWith(model, "Raspberry Pi Zero Rev"))
 		return kSysTypeFPPRaspberryPiZero;
-	if (boost::starts_with(model, "Raspberry Pi Zero W"))
+	if (startsWith(model, "Raspberry Pi Zero W"))
 		return kSysTypeFPPRaspberryPiZeroW;
-    if (boost::starts_with(model, "Raspberry Pi 3 Model A Plus"))
+    if (startsWith(model, "Raspberry Pi 3 Model A Plus"))
         return kSysTypeFPPRaspberryPi3APlus;
-    if (boost::starts_with(model, "Raspberry Pi 4"))
+    if (startsWith(model, "Raspberry Pi 4"))
         return kSysTypeFPPRaspberryPi4;
-    if (boost::starts_with(model, "SanCloud BeagleBone Enhanced"))
+    if (startsWith(model, "SanCloud BeagleBone Enhanced"))
         return kSysTypeFPPSanCloudBeagleBoneEnhanced;
-    if (boost::algorithm::contains(model, "BeagleBone Black")) {
-        if (boost::algorithm::contains(model, "Wireless")) {
+    if (contains(model, "BeagleBone Black")) {
+        if (contains(model, "Wireless")) {
             return kSysTypeFPPBeagleBoneBlackWireless;
         }
         return kSysTypeFPPBeagleBoneBlack;
     }
-    if (boost::algorithm::contains(model, "BeagleBone Green")) {
-        if (boost::algorithm::contains(model, "Wireless")) {
+    if (contains(model, "BeagleBone Green")) {
+        if (contains(model, "Wireless")) {
             return kSysTypeFPPBeagleBoneGreenWireless;
         }
         return kSysTypeFPPBeagleBoneGreen;
     }
-	if (boost::algorithm::contains(model, "PocketBeagle"))
+	if (contains(model, "PocketBeagle"))
 		return kSysTypeFPPPocketBeagle;
 	// FIXME, fill in the rest of the types
 
@@ -423,8 +411,9 @@ std::string MultiSync::GetHardwareModel(void)
 		result = "Unknown Hardware Platform";
 	}
 
-	if (boost::ends_with(result, "\n"))
-		boost::replace_first(result, "\n", "");
+    if (endsWith(result, "\n")) {
+        replaceAll(result, "\n", "");
+    }
 
 	return result;
 }
@@ -437,10 +426,10 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
     if (local && type == kSysTypeFPP) {
         //unknown hardware, but we can figure out the OS version
         if (FileExists("/etc/os-release")) {
+            std::string file = GetFileContents("/etc/os-release");
+            std::vector<std::string> lines = split(file, '\n');
             std::map<std::string, std::string> values;
-            std::ifstream in("/etc/os-release");
-            std::string str;
-            while (std::getline(in, str)) {
+            for (auto &str : lines) {
                 size_t pos = str.find("=");
                 if (pos != std::string::npos) {
                     std::string key = str.substr(0, pos);
@@ -448,6 +437,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
                     if (val[0] == '"') {
                         val = val.substr(1, val.length() - 2);
                     }
+                    TrimWhiteSpace(key);
+                    TrimWhiteSpace(val);
                     values[key] = val;
                 }
             }
@@ -1212,11 +1203,13 @@ int MultiSync::OpenControlSockets()
 	}
 
     std::string remotesString = getSetting("MultiSyncRemotes");
-    boost::char_separator<char> sep(", ");
-    boost::tokenizer< boost::char_separator<char> > tokens(remotesString, sep);
+    std::vector<std::string> tokens = split(remotesString, ',');
     std::set<std::string> remotes;
     for (auto &token : tokens) {
-        remotes.insert(token);
+        TrimWhiteSpace(token);
+        if (token != "") {
+            remotes.insert(token);
+        }
     }
 
     for (auto &s : remotes) {
@@ -1629,6 +1622,23 @@ void MultiSync::setupMulticastReceive() {
 }
 
 
+static bool shouldSkipPacket(int i, int num, std::vector<unsigned char *> &rcvBuffers) {
+    ControlPkt *pkt = (ControlPkt*)(rcvBuffers[i]);
+    for (int x = i + 1; x < num; x++) {
+        ControlPkt *npkt = (ControlPkt*)(rcvBuffers[x]);
+        if (pkt->pktType == npkt->pktType && pkt->pktType == CTRL_PKT_SYNC) {
+            SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
+            SyncPkt *snpkt = (SyncPkt*)(((char*)npkt) + sizeof(ControlPkt));
+            if (spkt->fileType == snpkt->fileType
+                && spkt->pktType == snpkt->pktType) {
+                return true;
+            }
+
+        }
+    }
+    return false;
+}
+
 /*
  *
  */
@@ -1640,7 +1650,7 @@ void MultiSync::ProcessControlPacket(void)
     
     int msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
     while (msgcnt > 0) {
-        LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
+        std::vector<unsigned char *>v;
         for (int msg = 0; msg < msgcnt; msg++) {
             int len = rcvMsgs[msg].msg_len;
             if (len <= 0) {
@@ -1649,6 +1659,16 @@ void MultiSync::ProcessControlPacket(void)
             }
             unsigned char *inBuf = rcvBuffers[msg];
             inBuf[len] = 0;
+            v.push_back(inBuf);
+        }
+        LogExcess(VB_SYNC, "ProcessControlPacket msgcnt: %d\n", msgcnt);
+        for (int msg = 0; msg < msgcnt; msg++) {
+            int len = rcvMsgs[msg].msg_len;
+            if (len <= 0) {
+                LogErr(VB_SYNC, "Error: recvmsg failed: %s\n", strerror(errno));
+                continue;
+            }
+            unsigned char *inBuf = rcvBuffers[msg];
 
             if (inBuf[0] == 0x55 || inBuf[0] == 0xCC) {
                 struct in_addr  recvAddr;
@@ -1671,6 +1691,10 @@ void MultiSync::ProcessControlPacket(void)
             if (len < sizeof(ControlPkt)) {
                 LogErr(VB_SYNC, "Error: Received control packet too short\n");
                 HexDump("Received data:", (void*)inBuf, len);
+                continue;
+            }
+            if (shouldSkipPacket(msg, msgcnt, v)) {
+                LogExcess(VB_SYNC, "Skipping sync packet %d/%d\n", msg, msgcnt);
                 continue;
             }
 

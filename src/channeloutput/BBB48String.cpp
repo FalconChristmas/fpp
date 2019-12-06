@@ -50,6 +50,7 @@
 #include "log.h"
 #include "BBB48String.h"
 #include "settings.h"
+#include "Sequence.h"
 
 #include "util/BBBUtils.h"
 

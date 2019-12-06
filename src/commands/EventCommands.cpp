@@ -57,7 +57,7 @@ std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::stri
         }
     }
     
-    RunScript(script, "", envVars);
+    RunScript(script, scriptArgs, envVars);
     return std::make_unique<Command::Result>("Script Started");
 }
 

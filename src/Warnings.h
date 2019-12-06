@@ -18,7 +18,7 @@
 
 #include <map>
 #include <mutex>
-#include <jsoncpp/json/json.h>
+#include <list>
 
 class WarningHolder {
 public:
@@ -28,7 +28,7 @@ public:
 
     static void AddWarningTimeout(const std::string &w, int seconds);
 
-    static void AddWarningsToStatus(Json::Value &root);
+    static std::list<std::string> GetWarnings();
     
 private:
     static std::mutex warningsLock;

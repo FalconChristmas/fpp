@@ -27,6 +27,7 @@
 #include <string.h>
 #include <thread>
 #include <boost/algorithm/string.hpp>
+#include <sys/wait.h>
 
 #include "log.h"
 #include "mediadetails.h"

@@ -717,13 +717,68 @@ function get_kernel_version(){
 	return $kernel_version;
 }
 
+    
+function get_cpu_stats() {
+    $stats = @file_get_contents("/proc/stat");
+    if ($stats !== false) {
+        // Remove double spaces to make it easier to extract values with explode()
+        $stats = preg_replace("/[[:blank:]]+/", " ", $stats);
+
+        // Separate lines
+        $stats = str_replace(array("\r\n", "\n\r", "\r"), "\n", $stats);
+        $stats = explode("\n", $stats);
+        foreach ($stats as $statLine) {
+            $statLineData = explode(" ", trim($statLine));
+            // Found!
+            if ((count($statLineData) >= 5)
+                && ($statLineData[0] == "cpu")) {
+                return array(
+                    $statLineData[1],
+                    $statLineData[2],
+                    $statLineData[3],
+                    $statLineData[4],
+                    $statLineData[5],
+                    $statLineData[6],
+                    $statLineData[7],
+                );
+            }
+        }
+    }
+    return array(0, 0, 0 ,0);
+}
+    
 /**
  * Returns average CPU usage
  * @return mixed
  */
 function get_server_cpu_usage(){
-	$load = sys_getloadavg();
-	return $load[0];
+    if (!file_exists("/tmp/cpustats.txt")) {
+        $ostats = get_cpu_stats();
+        $vs = sprintf("%d %d %d %d %d %d %d", $ostats[0],$ostats[1], $ostats[2], $ostats[3], $ostats[4], $ostats[5], $ostats[6]);
+        @file_put_contents("/tmp/cpustats.txtt", $vs);
+        usleep(10000);
+    } else {
+        $statLine = @file_get_contents("/tmp/cpustats.txt");
+        $ostats = explode(" ", trim($statLine));
+    }
+    $stats = get_cpu_stats();
+    $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
+    @file_put_contents("/tmp/cpustats.txt", $vs);
+    
+    $user = $stats[0] - $ostats[0];
+    $nice = $stats[1] - $ostats[1];
+    $system = $stats[2] - $ostats[2];
+    $idle = $stats[3] - $ostats[3];
+    $iowait = $stats[4] - $ostats[4];
+    $irq = $stats[5] - $ostats[5];
+    $softirq = $stats[6] - $ostats[6];
+
+    $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq;
+    $val = $idle * 100.0;
+    // 100 - the percent idle
+    $val = 100.0 - ($val / $total);
+    
+	return $val;
 }
 
 /**

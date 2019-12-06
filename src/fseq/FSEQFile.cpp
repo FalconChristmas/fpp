@@ -7,11 +7,24 @@
 #include <cstring>
 #include <memory>
 
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <map>
+#include <list>
+#include <condition_variable>
+
+#include <chrono>
+using namespace std::literals;
+using namespace std::chrono_literals;
+using namespace std::literals::chrono_literals;
+
 #include <stdio.h>
 #include <inttypes.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
 
 #ifdef _MSC_VER
 #include <wx/wx.h>
@@ -37,7 +50,6 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 }
 #define ftello _ftelli64
 #define fseeko _fseeki64
-#define NO_ZLIB
 
 #else
 #include <sys/time.h>
@@ -53,6 +65,10 @@ int gettimeofday(struct timeval * tp, struct timezone * tzp)
 #if defined(PLATFORM_PI) || defined(PLATFORM_BBB) || defined(PLATFORM_ODROID) || defined(PLATFORM_ORANGEPI) || defined(PLATFORM_UNKNOWN) || defined(PLATFORM_DOCKER)
 //for FPP, use FPP logging
 #include "log.h"
+#include "Warnings.h"
+inline void AddSlowStorageWarning() {
+    WarningHolder::AddWarningTimeout("FSEQ Data Block not available - Likely slow storage", 90);
+}
 #else
 //compiling within xLights, use log4cpp
 #define PLATFORM_UNKNOWN
@@ -90,6 +106,9 @@ template<typename... Args> static void LogDebug(int i, const char *fmt, Args... 
     }
     fseq_logger_base.debug(nfmt, args...);
 }
+inline void AddSlowStorageWarning() {
+}
+
 #define VB_SEQUENCE 1
 #define VB_ALL 0
 #endif
@@ -135,6 +154,11 @@ inline uint64_t GetTime(void) {
     return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
 }
 
+inline long long GetTimeMS(void) {
+    struct timeval now_tv;
+    gettimeofday(&now_tv, NULL);
+    return now_tv.tv_sec * 1000LL + now_tv.tv_usec / 1000;
+}
 inline long roundTo4(long i) {
     long remainder = i % 4;
     if (remainder == 0) {
@@ -190,7 +214,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
     unsigned char tmpData[48];
     int bytesRead = fread(tmpData, 1, 48, seqFile);
 #ifndef PLATFORM_UNKNOWN
-    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_RANDOM);
+    posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
     posix_fadvise(fileno(seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 #endif
 
@@ -392,7 +416,9 @@ uint64_t FSEQFile::read(void *ptr, uint64_t size) {
 
 void FSEQFile::preload(uint64_t pos, uint64_t size) {
 #ifndef PLATFORM_UNKNOWN
-    posix_fadvise(fileno(m_seqFile), pos, size, POSIX_FADV_WILLNEED);
+    if (posix_fadvise(fileno(m_seqFile), pos, size, POSIX_FADV_WILLNEED) != 0) {
+        LogErr(VB_SEQUENCE, "Could not advise kernel %d  size: %d\n", (int)pos, (int)size);
+    }
 #endif
 }
 
@@ -546,7 +572,7 @@ public:
     std::vector<std::pair<uint32_t, uint32_t>> m_ranges;
 };
 
-void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges) {
+void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges, uint32_t startFrame) {
     m_rangesToRead = ranges;
     m_dataBlockSize = 0;
     for (auto &rng : m_rangesToRead) {
@@ -558,7 +584,7 @@ void V1FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &r
         }
         m_dataBlockSize += toRead;
     }
-    FrameData *f = getFrame(0);
+    FrameData *f = getFrame(startFrame);
     if (f) {
         delete f;
     }
@@ -568,7 +594,7 @@ FrameData *V1FSEQFile::getFrame(uint32_t frame) {
     if (m_rangesToRead.empty()) {
         std::vector<std::pair<uint32_t, uint32_t>> range;
         range.push_back(std::pair<uint32_t, uint32_t>(0, m_seqChannelCount));
-        prepareRead(range);
+        prepareRead(range, frame);
     }
     uint64_t offset = m_seqChannelCount;
     offset *= frame;
@@ -651,6 +677,8 @@ public:
         m_file->preload(pos, size);
     }
 
+    virtual void prepareRead(uint32_t frame) {}
+    
     V2FSEQFile *m_file;
     uint64_t   m_seqChanDataOffset;
 };
@@ -663,6 +691,12 @@ public:
     virtual uint8_t getCompressionType() override { return 0;}
     virtual uint32_t computeMaxBlocks() override {return 0;}
     virtual std::string GetType() const override { return "No Compression"; }
+    virtual void prepareRead(uint32_t frame) {
+        FrameData *f = getFrame(frame);
+        if (f) {
+            delete f;
+        }
+    }
     virtual FrameData *getFrame(uint32_t frame) override {
         UncompressedFrameData *data = new UncompressedFrameData(frame, m_file->m_dataBlockSize, m_file->m_rangesToRead);
         uint64_t offset = m_file->getChannelCount();
@@ -711,12 +745,24 @@ public:
 };
 class V2CompressedHandler : public V2Handler {
 public:
-    V2CompressedHandler(V2FSEQFile *f) : V2Handler(f), m_maxBlocks(0), m_curBlock(99999), m_framesPerBlock(0), m_curFrameInBlock(0) {
+    V2CompressedHandler(V2FSEQFile *f) : V2Handler(f), m_maxBlocks(0), m_curBlock(99999), m_framesPerBlock(0), m_curFrameInBlock(0), m_readThread(nullptr) {
         if (!m_file->m_frameOffsets.empty()) {
             m_maxBlocks = m_file->m_frameOffsets.size() - 1;
         }
     }
-    virtual ~V2CompressedHandler() {}
+    virtual ~V2CompressedHandler() {
+        if (m_readThread) {
+            m_readThreadRunning = false;
+            m_readSignal.notify_all();
+            m_readThread->join();
+        }
+        for (auto &a : m_blockMap) {
+            if (a.second) {
+                free(a.second);
+            }
+        }
+        m_blockMap.clear();
+    }
 
     virtual uint32_t computeMaxBlocks() override {
         if (m_maxBlocks > 0) {
@@ -791,12 +837,104 @@ public:
         seek(curr, SEEK_SET);
     }
 
+    virtual void prepareRead(uint32_t frame) override {
+        //start reading the first couple blocks immediately
+        int block = 0;
+        while (frame >= m_file->m_frameOffsets[block + 1].first) {
+            block++;
+        }
+        
+        LogDebug(VB_SEQUENCE, "Preparing to read starting frame:  %d    block: %d\n", frame, block);
+        m_blocksToRead.push_back(block);
+        m_blocksToRead.push_back(block + 1);
+        m_blocksToRead.push_back(block + 2);
+        m_blocksToRead.push_back(block + 3);
+        m_firstBlock = block;
+        m_readThreadRunning = true;
+        m_readThread = new std::thread([this]() {
+            while (m_readThreadRunning) {
+                std::unique_lock<std::mutex> readerlock(m_readMutex);
+                if (!m_blocksToRead.empty()) {
+                    int block = m_blocksToRead.front();
+                    m_blocksToRead.pop_front();
+                    uint8_t *data = m_blockMap[block];
+                    if (!data) {
+                        readerlock.unlock();
+                        uint64_t offset = m_file->m_frameOffsets[block].second;
+                        uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
+                        int max = m_file->getNumFrames() * m_file->getChannelCount();
+                        if (size > max) {
+                            size = max;
+                        }
+                        data = (uint8_t*)malloc(size);
+                        seek(offset, SEEK_SET);
+                        read(data, size);
+                        
+                        readerlock.lock();
+                        m_blockMap[block] = data;
+                        m_readSignal.notify_all();
+                    }
+                } else {
+                    m_readSignal.wait_for(readerlock, 25ms);
+                }
+            }
+        });
+    }
+    
+    void preloadBlock(int block) {
+        for (int b = block; b < block + 4; b++) {
+            //let the kernel know that we'll likely need the next few blocks in the near future
+            if (b < m_file->m_frameOffsets.size() - 1) {
+                uint64_t len2 = m_file->m_frameOffsets[b + 1].second;
+                if (b < m_file->m_frameOffsets.size() - 2) {
+                    len2 = m_file->m_frameOffsets[b + 2].second;
+                }
+                len2 -= m_file->m_frameOffsets[b].second;
+                uint64_t pos = m_file->m_frameOffsets[b].second;
+                preload(pos, len2);
+            }
+            std::unique_lock<std::mutex> readerlock(m_readMutex);
+            m_blocksToRead.push_back(b);
+            m_readSignal.notify_all();
+        }
+    }
+    uint8_t *getBlock(int block) {
+        std::unique_lock<std::mutex> readerlock(m_readMutex);
+        uint8_t *data = m_blockMap[block];
+        while (data == nullptr) {
+            if (block > (m_firstBlock + 3)) {
+                //if not one of the first few blocks and it's not already
+                //available, then something is really slow
+                AddSlowStorageWarning();
+                LogWarn(VB_SEQUENCE, "Data block not available when needed %d/%d.  First block requested: %d.   Likely slow storage.\n", block, m_maxBlocks, m_firstBlock);
+                LogWarn(VB_SEQUENCE, "Blocks: %d     First: %d\n", m_blocksToRead.size(), m_blocksToRead.empty() ? -1 : m_blocksToRead.front());
+            }
+            m_blocksToRead.push_front(block);
+            m_readSignal.wait_for(readerlock, 10s);
+            data = m_blockMap[block];
+        }
+        if (block > 2) {
+            //clean up old blocks we don't need anymore
+            uint8_t *old = m_blockMap[block - 2];
+            m_blockMap[block - 2] = nullptr;
+            free(old);
+        }
+        return data;
+    }
 
     // for compressed files, this is the compression data
     uint32_t m_framesPerBlock;
     uint32_t m_curFrameInBlock;
     uint32_t m_curBlock;
     uint32_t m_maxBlocks;
+    
+    std::atomic_bool m_readThreadRunning;
+    std::thread *m_readThread;
+    std::mutex m_readMutex;
+    std::map<int, uint8_t*> m_blockMap;
+    std::list<int> m_blocksToRead;
+    std::condition_variable m_readSignal;
+    int m_firstBlock = 0;
 };
 
 #ifndef NO_ZSTD
@@ -816,9 +954,6 @@ public:
     }
     virtual ~V2ZSTDCompressionHandler() {
         free(m_outBuffer.dst);
-        if (m_inBuffer.src != nullptr) {
-            free((void*)m_inBuffer.src);
-        }
         if (m_cctx) {
             ZSTD_freeCStream(m_cctx);
         }
@@ -840,30 +975,21 @@ public:
                 m_dctx = ZSTD_createDStream();
             }
             ZSTD_initDStream(m_dctx);
-            seek(m_file->m_frameOffsets[m_curBlock].second, SEEK_SET);
-
+            
             uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
             len -= m_file->m_frameOffsets[m_curBlock].second;
             int max = m_file->getNumFrames() * m_file->getChannelCount();
             if (len > max) {
                 len = max;
             }
-            if (m_inBuffer.src) {
-                free((void*)m_inBuffer.src);
-            }
-            m_inBuffer.src = malloc(len);
             m_inBuffer.pos = 0;
             m_inBuffer.size = len;
-            int bread = read((void*)m_inBuffer.src, len);
-            if (bread != len) {
-                LogErr(VB_SEQUENCE, "Failed to read channel data for frame %d!   Needed to read %" PRIu64 " but read %d\n", frame, len, (int)bread);
-            }
+
+            m_inBuffer.src = getBlock(m_curBlock);
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
-                uint64_t len2 = m_file->m_frameOffsets[m_curBlock + 2].second;
-                len2 -= m_file->m_frameOffsets[m_curBlock+1].second;
-                preload(tell(), len2);
+                preloadBlock(m_curBlock + 1);
             }
 
             free(m_outBuffer.dst);
@@ -906,6 +1032,7 @@ public:
                 }
             }
         }
+
         return data;
     }
     void compressData(ZSTD_CStream* m_cctx, ZSTD_inBuffer_s &input, ZSTD_outBuffer_s &output) {
@@ -1027,9 +1154,6 @@ public:
         if (m_outBuffer) {
             free(m_outBuffer);
         }
-        if (m_inBuffer) {
-            free(m_inBuffer);
-        }
     }
     virtual uint8_t getCompressionType() override { return 2; }
     virtual std::string GetType() const override { return "Compressed ZLIB"; }
@@ -1041,24 +1165,14 @@ public:
             while (frame >= m_file->m_frameOffsets[m_curBlock + 1].first) {
                 m_curBlock++;
             }
-            seek(m_file->m_frameOffsets[m_curBlock].second, SEEK_SET);
+            
             uint64_t len = m_file->m_frameOffsets[m_curBlock + 1].second;
             len -= m_file->m_frameOffsets[m_curBlock].second;
-            if (m_inBuffer) {
-                free(m_inBuffer);
-            }
-            m_inBuffer = (uint8_t*)malloc(len);
-
-            int bread = read((void*)m_inBuffer, len);
-            if (bread != len) {
-                LogErr(VB_SEQUENCE, "Failed to read channel data for frame %d!   Needed to read %" PRIu64 " but read %d\n", frame, len, (int)bread);
-            }
+            m_inBuffer = getBlock(m_curBlock);
 
             if (m_curBlock < m_file->m_frameOffsets.size() - 2) {
                 //let the kernel know that we'll likely need the next block in the near future
-                uint64_t len = m_file->m_frameOffsets[m_curBlock + 2].second;
-                len -= m_file->m_frameOffsets[m_curBlock+1].second;
-                preload(tell(), len);
+                preloadBlock(m_curBlock + 1);
             }
 
             if (m_stream == nullptr) {
@@ -1431,7 +1545,7 @@ void V2FSEQFile::dumpInfo(bool indent) {
     //}
 }
 
-void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges) {
+void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &ranges, uint32_t startFrame) {
     if (m_sparseRanges.empty()) {
         m_rangesToRead.clear();
         m_dataBlockSize = 0;
@@ -1466,16 +1580,13 @@ void V2FSEQFile::prepareRead(const std::vector<std::pair<uint32_t, uint32_t>> &r
         m_dataBlockSize = m_seqChannelCount;
         m_rangesToRead = m_sparseRanges;
     }
-    FrameData *f = getFrame(0);
-    if (f) {
-        delete f;
-    }
+    m_handler->prepareRead(startFrame);
 }
 FrameData *V2FSEQFile::getFrame(uint32_t frame) {
     if (m_rangesToRead.empty()) {
         std::vector<std::pair<uint32_t, uint32_t>> range;
         range.push_back(std::pair<uint32_t, uint32_t>(0, getMaxChannel() + 1));
-        prepareRead(range);
+        prepareRead(range, frame);
     }
     if (frame >= m_seqNumFrames) {
         return nullptr;

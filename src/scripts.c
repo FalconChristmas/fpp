@@ -56,6 +56,8 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 	char  userScript[1024];
 	char  eventScript[1024];
 
+    LogDebug(VB_EVENT, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
+    
 	// Setup the script from our user
 	strcpy(userScript, getScriptDirectory());
 	strcat(userScript, "/");
@@ -146,7 +148,9 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
                 getScriptDirectory(), strerror(errno));
             exit(EXIT_FAILURE);
         }
-
+        for (int x = 0; x < i; x++) {
+            LogExcess(VB_EVENT, "Script Arg %d:  %s\n", x, args[x]);
+        }
         execvp(eventScript, args);
 
         LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "

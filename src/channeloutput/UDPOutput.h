@@ -26,6 +26,8 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <atomic>
+#include <condition_variable>
 
 #include <sys/socket.h>
 #include <netinet/in.h>

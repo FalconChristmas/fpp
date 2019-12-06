@@ -2188,8 +2188,7 @@ function ExtGPIOJson()
 /////////////////////////////////////////////////////////////////////////////
 function GetSystemInfoJson() {
     global $args;
-    $simple = $args['simple'];
-    return GetSystemInfoJsonInternal(false, isSet($simple));
+    return GetSystemInfoJsonInternal(false, isset($args['simple']));
 }
 
 function GetSystemInfoJsonInternal($return_array = false, $simple = false)

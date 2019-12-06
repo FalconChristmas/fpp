@@ -273,8 +273,8 @@ a:visited {
             <tr><td>Audio Files:</td><td><a href='uploadfile.php?tab=1' class='nonULLink'><? echo getFileCount($musicDirectory); ?></a></td></tr>
             <tr><td>Videos:</td><td><a href='uploadfile.php?tab=2' class='nonULLink'><? echo getFileCount($videoDirectory); ?></a></td></tr>
             <tr><td>Events:</td><td><a href='events.php' class='nonULLink'><? echo getFileCount($eventDirectory); ?></a></td></tr>
-            <tr><td>Effects:</td><td><a href='uploadfile.php?tab=3' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
-            <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
+            <tr><td>Effects:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
+            <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=5' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
 
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
 

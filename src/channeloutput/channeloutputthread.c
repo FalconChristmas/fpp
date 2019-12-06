@@ -114,6 +114,7 @@ void *RunChannelOutputThread(void *data)
     int onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
 	struct timespec ts;
     struct timeval tv;
+    int slowFrameCount = 0;
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
@@ -150,16 +151,17 @@ void *RunChannelOutputThread(void *data)
                     : 1.0 * channelOutputFrame / RefreshRate );
 		}
 
+        bool doForceOutput = forceOutput();
         if (OutputFrames) {
             if (!sequence->isDataProcessed()) {
                 //first time through or immediately after sequence load, the data might not be
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
             }
-            if (getFPPmode() == REMOTE_MODE && !forceOutput()) {
+            if (getFPPmode() == REMOTE_MODE && !doForceOutput) {
                 // Sleep about 1 seconds waiting for the master
                 int loops = 0;
-                while ((MasterFramesPlayed < 0) && (loops < 1000) && !forceOutput()) {
+                while ((MasterFramesPlayed < 0) && (loops < 1000) && !doForceOutput) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     loops++;
                 }
@@ -185,13 +187,31 @@ void *RunChannelOutputThread(void *data)
         }
 
 		processTime = GetTime();
+        
+        long long totalTime = processTime - startTime;
+        if (totalTime > 150000) {
+            //very slow, log immediately
+            slowFrameCount =  3;
+        } else if (totalTime > 50000) {
+            //could be a very transient blip, we'll log if
+            //it happens 3 frames in a row
+            slowFrameCount++;
+        } else {
+            slowFrameCount = 0;
+        }
+        if (slowFrameCount > 3) {
+            LogWarn(VB_CHANNELOUT,
+                 "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld\n",
+            LightDelay,
+            sendTime - startTime,
+            readTime - sendTime,
+            processTime - readTime,
+            channelOutputFrame);
+        }
 
         statusLock.lock();
-		if ((sequence->IsSequenceRunning()) ||
-			(IsEffectRunning()) ||
-			(PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
-			(ChannelTester::INSTANCE.Testing()) ||
-			(getAlwaysTransmit()) ||
+		if (sequence->IsSequenceRunning() ||
+			doForceOutput ||
 			(getFPPmode() == BRIDGE_MODE))
 		{
             // REMOTE mode keeps looping a few extra times before we blank

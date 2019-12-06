@@ -29,6 +29,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fstream>
+#include <thread>
+#include <chrono>
 
 #define BBB_PRU  0
 //  #define USING_PRU_RAM
