@@ -150,16 +150,17 @@ void *RunChannelOutputThread(void *data)
                     : 1.0 * channelOutputFrame / RefreshRate );
 		}
 
+        bool doForceOutput = forceOutput();
         if (OutputFrames) {
             if (!sequence->isDataProcessed()) {
                 //first time through or immediately after sequence load, the data might not be
                 //processed yet, need to do it
                 sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
             }
-            if (getFPPmode() == REMOTE_MODE && !forceOutput()) {
+            if (getFPPmode() == REMOTE_MODE && !doForceOutput) {
                 // Sleep about 1 seconds waiting for the master
                 int loops = 0;
-                while ((MasterFramesPlayed < 0) && (loops < 1000) && !forceOutput()) {
+                while ((MasterFramesPlayed < 0) && (loops < 1000) && !doForceOutput) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     loops++;
                 }
@@ -198,11 +199,8 @@ void *RunChannelOutputThread(void *data)
         }
 
         statusLock.lock();
-		if ((sequence->IsSequenceRunning()) ||
-			(IsEffectRunning()) ||
-			(PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
-			(ChannelTester::INSTANCE.Testing()) ||
-			(getAlwaysTransmit()) ||
+		if (sequence->IsSequenceRunning() ||
+			doForceOutput ||
 			(getFPPmode() == BRIDGE_MODE))
 		{
             // REMOTE mode keeps looping a few extra times before we blank
