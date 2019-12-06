@@ -114,6 +114,7 @@ void *RunChannelOutputThread(void *data)
     int onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
 	struct timespec ts;
     struct timeval tv;
+    int slowFrameCount = 0;
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 
@@ -188,7 +189,17 @@ void *RunChannelOutputThread(void *data)
 		processTime = GetTime();
         
         long long totalTime = processTime - startTime;
-        if (totalTime > 50000) {
+        if (totalTime > 150000) {
+            //very slow, log immediately
+            slowFrameCount =  3;
+        } else if (totalTime > 50000) {
+            //could be a very transient blip, we'll log if
+            //it happens 3 frames in a row
+            slowFrameCount++;
+        } else {
+            slowFrameCount = 0;
+        }
+        if (slowFrameCount > 3) {
             LogWarn(VB_CHANNELOUT,
                  "SLOW Output Thread: Loop: %dus, Send: %lldus, Read: %lldus, Process: %lldus, FrameNum: %ld\n",
             LightDelay,
