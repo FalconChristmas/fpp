@@ -44,10 +44,10 @@ $(document).ready(function() {
 		scroll: true
 	}).disableSelection();
 
-	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
-		$('#tblUniverses tr').removeClass('selectedEntry');
+	$('#tblUniversesBody').on('mousedown', 'tr', function(event,ui){
+		$('#tblUniversesBody tr').removeClass('selectedEntry');
 		$(this).addClass('selectedEntry');
-		var items = $('#tblUniverses tr');
+		var items = $('#tblUniversesBody tr');
 		UniverseSelected  = items.index(this);
 	});
 
