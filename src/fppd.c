@@ -675,6 +675,7 @@ int main(int argc, char *argv[])
     CleanupGPIOInput();
 
 	CloseChannelOutputs();
+    CommandManager::INSTANCE.Cleanup();
 
 	delete multiSync;
 	delete scheduler;
@@ -682,7 +683,8 @@ int main(int argc, char *argv[])
 	delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
-
+    
+    
 	if (mqtt)
 		delete mqtt;
 
