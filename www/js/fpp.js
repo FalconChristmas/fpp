@@ -1242,7 +1242,7 @@ function updateUniverseEndChannel(row) {
                 }
 
                 bodyHTML += "</select></td>" +
-                            "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='15' maxlength='32'></td>" +
+                            "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32'></td>" +
                             "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>" +
                             "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
