@@ -761,14 +761,26 @@ void PixelOverlayManager::SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock 
     
     int TtoB = (cb->startCorner[0] == 'T') ? 1 : 0;
     int LtoR = (cb->startCorner[1] == 'L') ? 1 : 0;
-    int stringSize = cb->channelCount / 3 / cb->stringCount;
+    
+    int channelsPerNode = 3;
+    if (cb->channelCount == cb->stringCount) {
+        //single channel model.. we really don't support this, but let's not crash
+        channelsPerNode = 1;
+    }
+    int stringSize = cb->channelCount / channelsPerNode / cb->stringCount;
+    if (stringSize < 1) {
+        stringSize = 1;
+    }
     int width = 0;
     int height = 0;
     
     if (cb->orientation == 'H') {
         // Horizontal Orientation
         width = stringSize / cb->strandsPerString;
-        height = cb->channelCount / 3 / width;
+        if (width == 0) {
+            width = 1;
+        }
+        height = cb->channelCount / channelsPerNode / width;
         
         int y = 0;
         for (y = 0; y < height; y++) {
@@ -801,7 +813,10 @@ void PixelOverlayManager::SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock 
     } else {
         // Vertical Orientation
         height = stringSize / cb->strandsPerString;
-        width = cb->channelCount / 3 / height;
+        if (height == 0) {
+            height = 1;
+        }
+        width = cb->channelCount / channelsPerNode / height;
         
         int x = 0;
         for (x = 0; x < width; x++) {

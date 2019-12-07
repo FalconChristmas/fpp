@@ -94,6 +94,7 @@ public:
 class CommandManager : public httpserver::http_resource {
 public:
     void Init();
+    void Cleanup();
     
     void addCommand(Command *cmd);
     void removeCommand(Command *cmd);

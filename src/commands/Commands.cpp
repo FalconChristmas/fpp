@@ -55,10 +55,11 @@ CommandManager::CommandManager() {
 
 class GPIOCommand : public Command {
 public:
-    GPIOCommand(std::vector<std::string> &pins) : Command("GPIO") {
+    GPIOCommand(std::vector<std::string> pins) : Command("GPIO") {
         args.push_back(CommandArg("pin", "string", "Pin").setContentList(pins));
         args.push_back(CommandArg("on", "bool", "On"));
     }
+    virtual ~GPIOCommand() {}
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() != 2) {
             return std::make_unique<Command::ErrorResult>("Invalid number of arguments. GPIO needs two arguments.");
@@ -104,7 +105,6 @@ void CommandManager::Init() {
     addCommand(new StopRemoteEffectCommand());
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
-
     
     std::vector<std::string> pins = PinCapabilities::getPinNames();
     if (!pins.empty()) {
@@ -112,6 +112,12 @@ void CommandManager::Init() {
     }
 }
 CommandManager::~CommandManager() {
+    for (auto &a : commands) {
+        delete a.second;
+    }
+    commands.clear();
+}
+void CommandManager::Cleanup() {
     for (auto &a : commands) {
         delete a.second;
     }
