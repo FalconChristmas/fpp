@@ -24,6 +24,8 @@ if (file_exists("/.dockerenv")) {
 } else {
     exec($SUDO . " systemctl stop fppd");
 }
+
+touch("$mediaDirectory/tmp/fppd_restarted");
 ?>
 ==========================================================================
 Pulling in updates...
