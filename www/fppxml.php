@@ -148,10 +148,11 @@ function RebootPi()
 
 function ManualGitUpdate()
 {
-	global $fppDir, $SUDO;
+	global $fppDir, $SUDO, $mediaDirectory;
 
     if (file_exists("/.dockerenv")) {
         exec($SUDO . " $fppDir/scripts/fppd_stop");
+        touch("$mediaDirectory/tmp/fppd_restarted");
         exec("$fppDir/scripts/git_pull");
         exec($SUDO . " $fppDir/scripts/fppd_start");
     } else {
