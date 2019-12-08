@@ -321,6 +321,10 @@ char *ProcessCommand(char *command, char *response)
         ShutdownFPPD();
 
         sleep(1);
+    } else if (!strcmp(CommandStr, "restart")) {
+        ShutdownFPPD(true);
+
+        sleep(1);
     } else if (!strcmp(CommandStr, "e")) {
         // Start an Effect
         s = strtok(NULL,",");

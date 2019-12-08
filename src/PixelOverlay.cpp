@@ -435,7 +435,7 @@ void PixelOverlayManager::Initialize() {
 
     RegisterCommands();
 
-    if (ctrlHeader->totalBlocks) {
+    if (ctrlHeader->totalBlocks && !getRestarted()) {
         StartChannelOutputThread();
     }
 }

@@ -156,6 +156,7 @@ function ManualGitUpdate()
         exec($SUDO . " $fppDir/scripts/fppd_start");
     } else {
         exec($SUDO . " systemctl stop fppd");
+        touch("$mediaDirectory/tmp/fppd_restarted");
         exec("$fppDir/scripts/git_pull");
         exec($SUDO . " systemctl restart fppd");
     }

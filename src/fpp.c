@@ -106,6 +106,12 @@ int main (int argc, char *argv[])
       sprintf(command,"q");
       SendCommand(command);
     }
+    // Restart fppd daemon
+    else if(strncmp(argv[1],"-r",2) == 0)
+    {
+      sprintf(command,"restart");
+      SendCommand(command);
+    }
     // Reload schedule example "fpp -R"
     else if(strncmp(argv[1],"-R",2) == 0)
     {
@@ -310,6 +316,7 @@ void Usage(char *appname)
 "  -S                           - Stop Playlist gracefully\n"
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"
+"  -r                           - Restart fppd daemon\n"
 "  -R                           - Reload schedule config file\n"
 "  -e EFFECTNAME[,CH[,LOOP]]    - Start Effect EFFECTNAME with optional\n"
 "                                 start channel set to CH and optional\n"

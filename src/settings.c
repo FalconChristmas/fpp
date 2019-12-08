@@ -110,14 +110,8 @@ void initSettings(int argc, char **argv)
         *offset = 0;
     
     settings.fppDirectory = strdup(tmpDir);
-    
 
-	if (DirectoryExists("/home/fpp"))
-		strcpy(mediaDir, "/home/fpp");
-	else
-		strcpy(mediaDir, "/home/pi");
-
-	strcat(mediaDir, "/media");
+	strcpy(mediaDir, "/home/fpp/media");
 	settings.mediaDirectory = strdup(mediaDir);
 
 	strcpy(tmpDir, mediaDir);
@@ -147,6 +141,7 @@ void initSettings(int argc, char **argv)
 	strcpy(tmpDir, mediaDir);
 	settings.settingsFile = strdup(strcat(tmpDir, "/settings"));
 	settings.daemonize = 1;
+	settings.restarted = 0;
 	settings.E131interface = strdup("eth0");
 	settings.controlMajor = 0;
 	settings.controlMinor = 0;
@@ -541,6 +536,11 @@ int getDaemonize(void)
 	return settings.daemonize;
 }
 
+int getRestarted(void)
+{
+	return settings.restarted;
+}
+
 #ifndef __GNUG__
 inline
 #endif
@@ -638,77 +638,6 @@ unsigned int getControlMinor(void)
 {
 	return settings.controlMinor;
 }
-
-
-/*
-int saveSettingsFile(void)
-{
-	char buffer[1024]; //TODO: Fix this!!
-	int bytes;
-
-	FILE *fd = fopen(getSettingsFile(),"w");
-	if ( ! fd )
-	{
-		fprintf(stderr, "Failed to create config file: %s\n", getSettingsFile());
-		exit(EXIT_FAILURE);
-	}
-
-	bytes  = fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "daemonize", fpp_bool_to_string[getDaemonize()]);
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	if ( getFPPmode() == PLAYER_MODE )
-		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "player");
-	else if ( getFPPmode() == BRIDGE_MODE )
-		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "bridge");
-	else if ( getFPPmode() == MASTER_MODE )
-		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "master");
-	else if ( getFPPmode() == REMOTE_MODE )
-		snprintf(buffer, 1024, "%s = %s\n", "fppMode", "remote");
-	else
-		exit(EXIT_FAILURE);
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %d\n", "volume", getVolume());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "mediaDirectory", getMediaDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "musicDirectory", getMusicDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "sequenceDirectory", getSequenceDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "eventDirectory", getEventDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "videoDirectory", getVideoDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "effectDirectory", getEffectDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "scriptDirectory", getScriptDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "pluginDirectory", getPluginDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "playlistDirectory", getPlaylistDirectory());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "pixelnetFile", getPixelnetFile());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "scheduleFile", getScheduleFile());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "logFile", getLogFile());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "silenceMusic", getSilenceMusic());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %s\n", "mpg123Path", getMPG123Path());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %d\n", "controlMajor", getControlMajor());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-	snprintf(buffer, 1024, "%s = %d\n", "controlMinor", getControlMinor());
-	bytes += fwrite(buffer, 1, strlen(buffer), fd);
-
-	fclose(fd);
-
-	LogInfo(VB_SETTING, "Wrote config file of size %d\n", bytes);
-
-	return 0;
-}
-*/
 
 static inline bool createFile(const char *file) {
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;

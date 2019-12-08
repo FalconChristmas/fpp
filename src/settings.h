@@ -46,6 +46,7 @@ public:
     ~SettingsConfig();
     
     int        daemonize;
+    int        restarted;
     FPPMode    fppMode;
     int        alwaysTransmit;
     char    *binDirectory = nullptr;
@@ -92,6 +93,7 @@ const char *getSetting(const char *setting);
 int   getSettingInt(const char *setting, int defaultVal = 0);
 
 int getDaemonize(void);
+int getRestarted(void);
 FPPMode getFPPmode(void);
 int  getAlwaysTransmit(void);
 char *getBinDirectory(void);

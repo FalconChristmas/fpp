@@ -84,6 +84,7 @@
 
 pid_t pid, sid;
 volatile int runMainFPPDLoop = 1;
+volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */
 void MainLoop(void);
@@ -429,6 +430,7 @@ int parseArguments(int argc, char **argv)
 			{"config-file",			required_argument,	0, 'c'},
 			{"foreground",			no_argument,		0, 'f'},
 			{"daemonize",			no_argument,		0, 'd'},
+			{"restarted",			no_argument,		0, 'r'},
 			{"volume",				required_argument,	0, 'v'},
 			{"mode",				required_argument,	0, 'm'},
 			{"media-directory",		required_argument,	0, 'B'},
@@ -450,7 +452,7 @@ int parseArguments(int argc, char **argv)
 			{0,						0,					0,	0}
 		};
 
-		c = getopt_long(argc, argv, "c:fdVv:m:B:M:S:P:u:p:s:l:b:HChV",
+		c = getopt_long(argc, argv, "c:fdrVv:m:B:M:S:P:u:p:s:l:b:HChV",
 		long_options, &option_index);
 		if (c == -1)
 			break;
@@ -504,6 +506,9 @@ int parseArguments(int argc, char **argv)
 				break;
 			case 'd': //daemonize
 				settings.daemonize = 1;
+				break;
+			case 'r': //restarted
+				settings.restarted = 1;
 				break;
 			case 'v': //volume
 				setVolume (atoi(optarg));
@@ -593,10 +598,7 @@ int main(int argc, char *argv[])
     setupExceptionHandlers();
 	initSettings(argc, argv);
 
-	if (DirectoryExists("/home/fpp"))
-		loadSettings("/home/fpp/media/settings");
-	else
-		loadSettings("/home/pi/media/settings");
+	loadSettings("/home/fpp/media/settings");
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
@@ -605,6 +607,11 @@ int main(int argc, char *argv[])
     // Parse our arguments first, override any defaults
     parseArguments(argc, argv);
 
+    // Check to see if we were restarted and should skip sending blanking data at startup
+    if (FileExists("/home/fpp/media/tmp/fppd_restarted")) {
+        unlink("/home/fpp/media/tmp/fppd_restarted");
+        settings.restarted = 1;
+    }
 
 	if (loggingToFile())
 		logVersionInfo();
@@ -655,7 +662,8 @@ int main(int argc, char *argv[])
 
 	InitializeChannelOutputs();
 
-	sequence->SendBlankingData();
+	if (!getRestarted())
+		sequence->SendBlankingData();
 
 	InitEffects();
     PixelOverlayManager::INSTANCE.Initialize();
@@ -691,12 +699,28 @@ int main(int argc, char *argv[])
     MagickLib::DestroyMagick();
 	curl_global_cleanup();
 
+	CloseOpenFiles();
+
+	if (restartFPPD)
+	{
+		char **newArgv = new char * [argc + 2];
+		for (int i = 0; i < argc; ++i)
+		{
+			newArgv[i] = argv[i];
+		}
+		newArgv[argc] = strdup("-r");
+		newArgv[argc + 1] = nullptr;
+		execv("/proc/self/exe", newArgv);
+	}
+
 	return 0;
 }
 
-void ShutdownFPPD(void)
+void ShutdownFPPD(bool restart)
 {
     LogInfo(VB_GENERAL, "Shutting down main loop.\n");
+
+	restartFPPD = restart;
 	runMainFPPDLoop = 0;
 }
 
