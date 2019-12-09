@@ -6,6 +6,9 @@
 #include <inttypes.h>
 #include <libgen.h>
 
+#include <string>
+#include <vector>
+
 #include "fppversion.h"
 #include "log.h"
 
@@ -18,6 +21,7 @@ void usage(char *appname) {
     printf("   -V                - Print version information\n");
     printf("   -v                - verbose\n");
     printf("   -o OUTPUTFILE     - Filename for Output FSEQ\n");
+    printf("   -m FSEQFILE       - FSEQ to merge onto the input\n");
     printf("   -f #              - FSEQ Version\n");
     printf("   -c (none|zstd|zlib) - Compession type\n");
     printf("   -l #              - Compession level (-1 for default)\n");
@@ -28,6 +32,7 @@ void usage(char *appname) {
     printf("   -h                - This help output\n");
 }
 const char *outputFilename = nullptr;
+static std::vector<std::string> mergeFseqs;
 static int fseqVersion = 2;
 static int compressionLevel = -1;
 static bool verbose = false;
@@ -50,7 +55,7 @@ int parseArguments(int argc, char **argv) {
             {0,                0,                    0, 0}
         };
         
-        c = getopt_long(argc, argv, "c:l:o:f:r:hjVvn", long_options, &option_index);
+        c = getopt_long(argc, argv, "c:l:o:f:r:m:hjVvn", long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -92,6 +97,9 @@ int parseArguments(int argc, char **argv) {
                 break;
             case 'o':
                 outputFilename = optarg;
+                break;
+            case 'm':
+                mergeFseqs.push_back(optarg);
                 break;
             case 'n':
                 sparse = false;
@@ -179,6 +187,14 @@ int main(int argc, char *argv[]) {
             }
             printf("}");
         } else {
+            std::vector<FSEQFile *> merges;
+            for (auto &f : mergeFseqs) {
+                FSEQFile *src = FSEQFile::openFSEQFile(f);
+                if (src) {
+                    merges.push_back(src);
+                }
+            }
+            
             FSEQFile *dest = FSEQFile::createFSEQFile(outputFilename,
                                                       fseqVersion,
                                                       compressionType,
@@ -195,13 +211,28 @@ int main(int argc, char *argv[]) {
             dest->writeHeader();
             
             uint8_t *data = (uint8_t *)malloc(8024*1024);
+            uint8_t *mergedata = (uint8_t *)malloc(8024*1024);
+            memset(mergedata, 0, 8024*1024);
             for (int x = 0; x < src->getNumFrames(); x++) {
                 FSEQFile::FrameData *fdata = src->getFrame(x);
                 fdata->readFrame(data, 8024*1024);
                 delete fdata;
+                
+                for (auto m : merges) {
+                    FSEQFile::FrameData *fdata = m->getFrame(x);
+                    fdata->readFrame(mergedata, 8024*1024);
+                    delete fdata;
+                    for (int y = 0; y < 8024*1024; ++y) {
+                        if (mergedata[y]) {
+                            data[y] = mergedata[y];
+                            mergedata[y] = 0;
+                        }
+                    }
+                }
                 dest->addFrame(x, data);
             }
             free(data);
+            free(mergedata);
             dest->finalize();
             
             if (!strcmp(outputFilename, "-memory-")) {
@@ -209,6 +240,9 @@ int main(int argc, char *argv[]) {
             }
             
             delete dest;
+            for (auto a : merges) {
+                delete a;
+            }
         }
         delete src;
     }

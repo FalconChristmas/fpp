@@ -1063,9 +1063,9 @@ public:
             uint64_t offset = tell();
             //LogDebug(VB_SEQUENCE, "  Preparing to create a compressed block of data starting at frame %d, offset  %" PRIu64 ".\n", frame, offset);
             m_file->m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(frame, offset));
-            int clevel = m_file->m_compressionLevel == -99 ? 10 : m_file->m_compressionLevel;
+            int clevel = m_file->m_compressionLevel == -99 ? 1 : m_file->m_compressionLevel;
             if (clevel < -25 || clevel > 25) {
-                clevel = 10;
+                clevel = 1;
             }
             if (frame == 0 && (ZSTD_versionNumber() > 10305)) {
                 // first frame needs to be grabbed as fast as possible
@@ -1227,9 +1227,9 @@ public:
             memset(m_stream, 0, sizeof(z_stream));
         }
         if (m_curFrameInBlock == 0) {
-            int clevel = m_file->m_compressionLevel == -99 ? 3 : m_file->m_compressionLevel;
+            int clevel = m_file->m_compressionLevel == -99 ? 1 : m_file->m_compressionLevel;
             if (clevel < 0 || clevel > 9) {
-                clevel = 3;
+                clevel = 1;
             }
             deflateInit(m_stream, clevel);
             m_stream->next_out = m_outBuffer;
