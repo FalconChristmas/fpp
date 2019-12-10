@@ -82,9 +82,9 @@ Sequence::Sequence()
     m_lastFrameRead(-1),
     m_doneRead(false),
     m_shuttingDown(false),
-    m_dataProcessed(false)
+    m_dataProcessed(false),
+    m_seqFilename("")
 {
-    m_seqFilename[0] = 0;
     memset(m_seqData, 0, sizeof(m_seqData));
     for (int x = 0; x < 4; x++) {
         m_seqData[FPPD_OFF_CHANNEL + x] = 0;
@@ -198,12 +198,26 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
         return 0;
     }
 
-    
     size_t bytesRead = 0;
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
 
+
+    if (m_seqFile) {
+        if (m_seqFilename == filename
+            && m_seqStarting) {
+            //same filename AND we haven't started yet, we can continue
+            return 1;
+        }
+    }
+
+    
     if (IsSequenceRunning())
         CloseSequenceFile();
+    
+    if (m_seqFile) {
+        delete m_seqFile;
+        m_seqFile = nullptr;
+    }
 
     m_seqStarting = 2;
     m_doneRead = false;
@@ -589,7 +603,7 @@ void Sequence::CloseSequenceFile(void) {
     lock.unlock();
     frameLoadedSignal.notify_all();
     
-    m_seqFilename[0] = '\0';
+    m_seqFilename = "";
     m_seqPaused = 0;
 
     if ((!IsEffectRunning()) &&
