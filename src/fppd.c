@@ -143,7 +143,7 @@ static bool dumpstack_gdb(void) {
             _Exit(1);
         }
         if (timeout_pid1 == 0) {
-            int timeout = 1;
+            int timeout = 10;
             sleep(timeout);
             _Exit(1);
         }
@@ -155,7 +155,7 @@ static bool dumpstack_gdb(void) {
             _Exit(1);
         }
         if (timeout_pid2 == 0) {
-            int timeout = 5;
+            int timeout = 20;
             sleep(timeout);
             _Exit(1);
         }
