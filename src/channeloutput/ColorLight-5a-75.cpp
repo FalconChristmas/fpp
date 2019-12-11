@@ -114,7 +114,8 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 	m_longestChain(0),
 	m_invertedData(0),
 	m_matrix(NULL),
-	m_panelMatrix(NULL)
+	m_panelMatrix(NULL),
+    m_slowCount(0)
 {
 	LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::ColorLight5a75Output(%u, %u)\n",
 		startChannel, channelCount);
@@ -453,9 +454,15 @@ int ColorLight5a75Output::SendData(unsigned char *channelData)
 	}
     long long endTime = GetTimeMS();
     long long totalTime = endTime - startTime;
-    if (totalTime > 20) {
-        LogInfo(VB_CHANNELOUT, "Long time to send frame to colorlight: %d ms\n", ((int)totalTime));
-        WarningHolder::AddWarning("Long time to send frame to colorlight: " + std::to_string((int)totalTime) + "ms\n");
+    if (totalTime > 25) {
+        m_slowCount++;
+        LogDebug(VB_CHANNELOUT, "Long time to send frame to colorlight: %d ms\n", ((int)totalTime));
+        if (m_slowCount > 3) {
+            LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 25ms to send to ColorLight");
+            WarningHolder::AddWarningTimeout("Repeated frames taking more than 25ms to send to ColorLight", 30);
+        }
+    } else {
+        m_slowCount = 0;
     }
 	return m_channelCount;
 }
