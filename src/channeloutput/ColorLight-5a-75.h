@@ -74,6 +74,8 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	char *m_data;
 	char *m_rowData;
 	int   m_rowSize;
+    
+    int m_slowCount;
 
 	struct ifreq          m_if_idx;
 	struct ifreq          m_if_mac;
