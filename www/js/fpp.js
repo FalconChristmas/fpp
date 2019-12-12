@@ -1651,7 +1651,7 @@ function SetScheduleRowInputNames(row, id) {
 	var fields = Array('chkEnable', 'txtStartDate', 'txtEndDate',
 						'selPlaylist', 'selDay', 'dayMask', 'maskSunday', 'maskMonday',
 						'maskTuesday', 'maskWednesday', 'maskThursday', 'maskFriday',
-						'maskSaturday', 'txtStartTime', 'txtEndTime', 'chkRepeat');
+						'maskSaturday', 'txtStartTime', 'txtEndTime', 'chkHardStop', 'chkRepeat');
 	row.find('span.rowID').html((id + 1).toString());
 
 	for (var i = 0; i < fields.length; i++)
@@ -1724,6 +1724,7 @@ function SetScheduleInputNames() {
 							"<td>Day(s)</td>" +
 							"<td>Start Time</td>" +
 							"<td>End Time</td>" +
+							"<td>Hard<br>Stop</td>" +
 							"<td>Repeat</td>" +
 							"</tr>";
 
@@ -1741,9 +1742,11 @@ function SetScheduleInputNames() {
 									var repeat = entries.childNodes[i].childNodes[5].textContent;
 									var startDate = entries.childNodes[i].childNodes[6].textContent;
 									var endDate = entries.childNodes[i].childNodes[7].textContent;
+									var hardStop = entries.childNodes[i].childNodes[8].textContent;
 
 									var enableChecked = enable == 1  ? "checked=\"checked\"" : "";
 									var repeatChecked = repeat == 1  ? "checked=\"checked\"" : "";
+									var hardStopChecked = hardStop == 1  ? "checked=\"checked\"" : "";
 									var dayChecked_0 =  day == 0  ? "selected" : "";
 									var dayChecked_1 =  day == 1  ? "selected" : "";
 									var dayChecked_2 =  day == 2  ? "selected" : "";
@@ -1813,6 +1816,7 @@ function SetScheduleInputNames() {
 																  "</span></td>" +
 															"<td><input class='time center txtStartTime' type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
 															"<input class='time center txtEndTime' type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
+															"<td class='center' ><input class='chkHardStop' type=\"checkbox\" " + hardStopChecked +"/></td>" +
 															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
 															

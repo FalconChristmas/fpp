@@ -625,30 +625,41 @@ void Scheduler::PlayListStopCheck(void)
     // are much lower, so this will suffice for v1.0.
 	int stopPlaying = 0;
 
+	// If the current item crosses the Saturday-Sunday midnight boundary and
+	//    it is now at or past the end time on Sunday.
 	if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
-			 (m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)) &&
-			 (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
-			 (nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
+		(m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)))
 	{
-		stopPlaying = 1;
+		// Need to nest this if so the else if below is less complicated
+		if ((nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
+			(nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
+		{
+			stopPlaying = 1;
+		}
 	}
-	else if ((nowWeeklySeconds == m_currentSchedulePlaylist.endWeeklySeconds) ||
-			 (nowWeeklySeconds == (m_currentSchedulePlaylist.endWeeklySeconds + 1)))
+	// Not a Saturday-Sunday rollover so just check if we are now past the
+	//     end time of the current item
+	else if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds)
 	{
 		stopPlaying = 1;
 	}
 
 	if (stopPlaying)
     {
-      LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist Gracefully\n",
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
-        m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond);
-      m_CurrentScheduleHasbeenLoaded = 0;
-      playlist->StopGracefully();
+		LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist %s\n",
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].hardStop ? "Now with Hard Stop" : "Gracefully");
+		m_CurrentScheduleHasbeenLoaded = 0;
+
+		if (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].hardStop)
+			playlist->StopNow(1);
+		else
+			playlist->StopGracefully();
     }
   }
 }
@@ -717,16 +728,17 @@ void Scheduler::SchedulePrint(void)
 {
   int i=0;
 
-  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat)\n");
-  LogInfo(VB_SCHEDULE, "St  Start & End Dates       Days         Start & End Times   Playlist\n");
-  LogInfo(VB_SCHEDULE, "--- ----------------------- ------------ ------------------- ---------------------------------------------\n");
+  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, '@' = Hard Stop @ End Time)\n");
+  LogInfo(VB_SCHEDULE, "Stat  Start & End Dates       Days         Start & End Times   Playlist\n");
+  LogInfo(VB_SCHEDULE, "---- ----------------------- ------------ ------------------- ---------------------------------------------\n");
   for (i = 0; i < m_Schedule.size(); i++) {
     char dayStr[32];
     GetDayTextFromDayIndex(m_Schedule[i].dayIndex, dayStr);
-    LogInfo(VB_SCHEDULE, "%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
+    LogInfo(VB_SCHEDULE, "%c%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-12.12s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
       m_Schedule[i].enabled ? '+': '-',
       CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
       m_Schedule[i].repeat ? '*': ' ',
+      m_Schedule[i].hardStop ? '@': ' ',
       (int)(m_Schedule[i].startDate / 10000),
       (int)(m_Schedule[i].startDate % 10000 / 100),
       (int)(m_Schedule[i].startDate % 100),

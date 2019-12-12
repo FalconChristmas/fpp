@@ -44,7 +44,8 @@ ScheduleEntry::ScheduleEntry()
 	endMinute(0),
 	endSecond(0),
 	startDate(0),
-	endDate(0)
+	endDate(0),
+	hardStop(false)
 {
 	for (int i = 0; i < DAYS_PER_WEEK; i++) {
 		weeklyStartSeconds[i] = 0;
@@ -87,7 +88,10 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 		(elems[11].length() == 10))
 		endDate = DateStrToInt(elems[11].c_str());
 	else
-		startDate = 20991231;
+		endDate = 20991231;
+
+	if (elems.size() > 12)
+		hardStop = atoi(elems[12].c_str());
 
 	return 1;
 }
