@@ -358,14 +358,21 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 
 	ClearPlaylistEntries();
 
-	if (!root.isMember("playlistEntries"))
-	{
+	Json::Value entries;
+	if (root.isMember("mainPlaylist"))
+		entries = root["mainPlaylist"];
+	else if (root.isMember("leadIn"))
+		entries = root["leadIn"];
+	else if (root.isMember("leadOut"))
+		entries = root["leadOut"];
+	else if (root.isMember("playlistEntries"))
+		entries = root["playlistEntries"];
+	else
 		return 0;
-	}
 
-	for (int i = 0; i < root["playlistEntries"].size(); i++)
+	for (int i = 0; i < entries.size(); i++)
 	{
-		Json::Value pe = root["playlistEntries"][i];
+		Json::Value pe = entries[i];
 		playlistEntry = NULL;
 
 		if (pe["type"].asString() == "both")
