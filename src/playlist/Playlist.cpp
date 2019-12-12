@@ -141,7 +141,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 		// Long-term handle sub-playlists on-demand instead of at load time
 		if (entries[c]["type"].asString() == "playlist") {
 			m_subPlaylistDepth++;
-			if (m_subPlaylistDepth < 3) {
+			if (m_subPlaylistDepth < 5) {
 				std::string filename = getPlaylistDirectory();
 				filename += "/";
 				filename += entries[c]["name"].asString();
@@ -158,7 +158,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 				if (subPlaylist.isMember("leadOut"))
 					LoadJSONIntoPlaylist(playlistPart, subPlaylist["leadOut"]);
             } else {
-				LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 3 trying to include '%s'\n", entries[c]["name"].asString().c_str());
+				LogErr(VB_PLAYLIST, "Error, recursive playlist.  Sub-playlist depth exceeded 5 trying to include '%s'\n", entries[c]["name"].asString().c_str());
 			}
 
 			m_subPlaylistDepth--;
@@ -729,7 +729,7 @@ int Playlist::Process(void)
 bool Playlist::SwitchToInsertedPlaylist() {
     if (m_insertedPlaylist != "") {
         Playlist *pl = new Playlist(this);
-        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition);
+        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduled);
         m_insertedPlaylist = "";
         if (pl->IsPlaying()) {
             LogDebug(VB_PLAYLIST, "Switching to inserted playlist %s\n", m_insertedPlaylist.c_str());
@@ -835,7 +835,7 @@ int Playlist::Cleanup(void)
 void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position) {
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position);
+        Play(filename.c_str(), position, 0, m_scheduled);
     } else {
         m_insertedPlaylist = filename;
         m_insertedPlaylistPosition = position;
