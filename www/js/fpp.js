@@ -1876,7 +1876,7 @@ function SetScheduleInputNames() {
 		function DeleteScheduleEntry()
 		{
     	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteScheduleEntry&index=" + (ScheduleEntrySelected-1).toString();
+			var url = "fppxml.php?command=deleteScheduleEntry&index=" + (ScheduleEntrySelected).toString();
 			xmlhttp.open("GET",url,false);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	 

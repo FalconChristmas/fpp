@@ -158,7 +158,7 @@ a:visited {
             <td width = "70 px"><input id="btnSaveSchedule" class="buttons" type="submit" value = "Save" /></td>
             <td width = "70 px"><input id="btnAddScheduleEntry" class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
             <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteScheduleEntry();"/></td>
+            <td width = "70 px"><input id="btnDeleteScheduleEntry" class="buttons" type="button" value = "Delete" onClick="DeleteScheduleEntry();"/></td>
             <td width = "70 px"><input id="btnReload" class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
           </tr>
         </table>
