@@ -125,6 +125,7 @@ if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
 }
 
 $settings['Variant'] = $settings['Platform'];
+$settings['SubPlatform'] = "";
 
 if ($settings['Platform'] == FALSE) {
 	$settings['Platform'] = exec("uname -s");
