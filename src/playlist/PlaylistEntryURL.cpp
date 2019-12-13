@@ -34,8 +34,7 @@
  */
 PlaylistEntryURL::PlaylistEntryURL(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_curl(NULL),
-	m_curlm(NULL)
+	m_curl(NULL)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::PlaylistEntryURL()\n");
 
@@ -47,9 +46,6 @@ PlaylistEntryURL::PlaylistEntryURL(PlaylistEntryBase *parent)
  */
 PlaylistEntryURL::~PlaylistEntryURL()
 {
-	if (m_curlm)
-		curl_multi_cleanup(m_curlm);
-
 	if (m_curl)
 		curl_easy_cleanup(m_curl);
 }
@@ -67,17 +63,26 @@ int PlaylistEntryURL::Init(Json::Value &config)
 	if (config.isMember("data"))
 		m_data = config["data"].asString();
 
-	m_curlm = curl_multi_init();
-	if (!m_curlm)
-	{
-		LogErr(VB_PLAYLIST, "Unable to create curl multi instance\n");
-		return 0;
-	}
-
 	m_curl = curl_easy_init();
 	if (!m_curl)
 	{
 		LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
+		return 0;
+	}
+
+	CURLcode status;
+
+	status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryURL::write_data);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
+		return 0;
+	}
+
+	status = curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
 
@@ -105,26 +110,12 @@ int PlaylistEntryURL::StartPlaying(void)
 	if (m_data.size())
 		repData = ReplaceMatches(m_data);
 
-	CURLcode status;
+	m_response = "";
 
-	status = curl_easy_setopt(m_curl, CURLOPT_URL, repURL.c_str());
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, repURL.c_str());
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
-		return 0;
-	}
-
-	status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryURL::write_data);
-	if (status != CURLE_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
-		return 0;
-	}
-
-	status = curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
-	if (status != CURLE_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
 
@@ -139,51 +130,20 @@ int PlaylistEntryURL::StartPlaying(void)
 		}
 	}
 
-	CURLMcode mstatus = curl_multi_add_handle(m_curlm, m_curl);
-	if (mstatus != CURLM_OK)
+	status = curl_easy_perform(m_curl);
+	if (status != CURLE_OK)
 	{
-		LogErr(VB_PLAYLIST, "curl_multi_add_handle() Error: %s\n", curl_multi_strerror(mstatus));
+		LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
 
-	return PlaylistEntryBase::StartPlaying();;
-}
+	LogDebug(VB_PLAYLIST, "m_resp: %s\n", m_response.c_str());
 
-/*
- *
- */
-int PlaylistEntryURL::Process(void)
-{
-	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::Process()\n");
+	PlaylistEntryBase::StartPlaying();
 
-	CURLMcode mstatus;
-	int handleCount;
+	FinishPlay();
 
-	mstatus = curl_multi_perform(m_curlm, &handleCount);
-	if (mstatus != CURLM_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_multi_perform() Error: %s\n", curl_multi_strerror(mstatus));
-		return 0;
-	}
-
-	if (handleCount == 0)
-	{
-		CURLMsg *msg = NULL;
-		int messagesLeft = 0;
-
-		msg = curl_multi_info_read(m_curlm, &messagesLeft);
-		if (msg->msg == CURLMSG_DONE)
-		{
-			LogDebug(VB_PLAYLIST, "%s complete with status %d\n", m_method.c_str(),
-				msg->data.result);
-
-			if ((msg->data.result == 0) && (m_response.size()))
-				LogExcess(VB_PLAYLIST, "Response: %s\n", m_response.c_str());
-		}
-
-		FinishPlay();
-	}
-    return PlaylistEntryBase::Process();
+	return 1;
 }
 
 /*
