@@ -40,7 +40,6 @@ class PlaylistEntryURL : public PlaylistEntryBase {
 	virtual int  Init(Json::Value &config) override;
 
 	virtual int  StartPlaying(void) override;
-	virtual int  Process(void) override;
 	virtual int  Stop(void) override;
 
 	virtual std::string ReplaceMatches(std::string in) override;
@@ -61,7 +60,6 @@ class PlaylistEntryURL : public PlaylistEntryBase {
 	std::string            m_response;
 
 	CURL                  *m_curl;
-	CURLM                 *m_curlm;
 };
 
 #endif
