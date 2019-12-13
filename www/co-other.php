@@ -1630,7 +1630,7 @@ function AddOtherOutput() {
 	{
 ?>
         newRow += "<option value='Triks-C'>Triks-C</option>";
-        if (Object.keys(SPIDevices).length == 0) {
+        if (Object.keys(SPIDevices).length > 0) {
             newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
                 "<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
         }
