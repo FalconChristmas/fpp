@@ -716,7 +716,7 @@ function GPIO595GPIOSelect(currentValue) {
     if ($settings['Platform'] == "Raspberry Pi") {
     ?>
         options = "17:17,18:18,22:22,23:23,24:24,27:27".split(",");
-        result += "BCM GPIO Outputs&nbsp;nbsp;"
+        result += "BCM GPIO Outputs&nbsp;&nbsp;"
     <?
     } else if ($settings['Platform'] == "BeagleBone Black") {
     ?>
