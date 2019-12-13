@@ -792,8 +792,18 @@ function StartFPPD()
 
 function RestartFPPD()
 {
+    if ((isset($_GET['quick'])) && ($_GET['quick'] == 1))
+    {
+        $status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
+        if ($status == 'true')
+        {
+            SendCommand('restart');
+            return;
+        }
+    }
+
     StopFPPDNoStatus();
-	StartFPPD();
+    StartFPPD();
 }
 
 function GetFPPstatus()

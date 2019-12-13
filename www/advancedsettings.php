@@ -104,7 +104,7 @@ If
                 turned off and FPPD can detect what hardware (cape/hat/etc...) is connected, certain options that are either incompatible with the
                 hardware or are rarely used may not be displayed.</td></tr>
         <tr><td colspan='2'><hr></td></tr>
-		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 1, 0, "50", Array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
+		<tr><td valign='top'><? PrintSettingSelect("E1.31 Bridging Transmit Interval", "E131BridgingInterval", 2, 0, "50", Array('10ms' => '10', '25ms' => '25', '40ms' => '40', '50ms' => '50', '100ms' => '100')); ?></td>
 			<td valign='top'><b>E1.31 Bridge Mode Transmit Interval</b> - The
 				default Transmit Interval in E1.31 Bridge Mode is 50ms.  This
 				setting allows changing this to match the rate the player is
@@ -125,7 +125,7 @@ If
 <?
 	if ($settings['fppMode'] != 'remote') {
 ?>
-		<tr><td valign='top'><? PrintSettingTextSaved("mediaOffset", 1, 0, 5, 5, "", "0"); ?> ms</td>
+		<tr><td valign='top'><? PrintSettingTextSaved("mediaOffset", 2, 0, 5, 5, "", "0"); ?> ms</td>
 			<td valign='top'><b>Media/Sequence Offset</b> - The Media Offset value
 				allows adjusting the synchronization of the media and sequences being
 				played.  The value is specified in milliseconds.  A positive value
@@ -139,7 +139,7 @@ If
 <?
         if ($settings['fppMode'] == 'master') {
 ?>
-        <tr><td valign='top'><? PrintSettingTextSaved("openStartDelay", 1, 0, 5, 5, "", "0"); ?> ms</td>
+        <tr><td valign='top'><? PrintSettingTextSaved("openStartDelay", 2, 0, 5, 5, "", "0"); ?> ms</td>
 			<td valign='top'><b>Open/Start Delay</b> - An extra delay (in ms) between the master sending
             the "Open" command and actually starting the sequence.  This can be used to allow the remotes
             to have extra time to open the sequence, process videos, etc...   This requires master and
@@ -152,7 +152,7 @@ If
 	} else {
 ?>
 		<tr><td colspan='2'><hr></td></tr>
-		<tr><td valign='top'><? PrintSettingTextSaved("remoteOffset", 1, 0, 5, 5, "", "0"); ?> ms</td>
+		<tr><td valign='top'><? PrintSettingTextSaved("remoteOffset", 2, 0, 5, 5, "", "0"); ?> ms</td>
 			<td valign='top'><b>Remote Media/Sequence Offset</b> - The Remote Offset value
 				allows adjusting the synchronization of a FPP Remote.
 				The value is specified in milliseconds.  A positive value
@@ -166,7 +166,7 @@ If
 <?php
         if ($settings['Platform'] == "Raspberry Pi") {
 ?>
-            <tr><td valign='top' align="right"><? PrintSettingCheckbox("Ignore media sync packets", "remoteIgnoreSync", 1, 0, "1", "0") ?></td>
+            <tr><td valign='top' align="right"><? PrintSettingCheckbox("Ignore media sync packets", "remoteIgnoreSync", 2, 0, "1", "0") ?></td>
                 <td valign='top'><b>Ignore Media Sync Packets</b> - When enabled, videos played with omxplayer on the remote will be started and stopped
                 when the master sends the start/stop events, but no attempt will be made to keep the video in sync with the
                 master during playback.  The video will run smoother, but may get out of sync with the master.</td>
@@ -231,31 +231,31 @@ If
             <table  border="0" cellpadding="1" cellspacing="1">
                 <tr>
                     <td >MQTT Broker Host:</td>
-                    <td ><? PrintSettingTextSaved("MQTTHost", 1, 0, 64, 32, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTHost", 2, 0, 64, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >MQTT Broker Port:</td>
-                    <td ><? PrintSettingTextSaved("MQTTPort", 1, 0, 32, 32, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTPort", 2, 0, 32, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >MQTT Prefix:</td>
-                    <td ><? PrintSettingTextSaved("MQTTPrefix", 1, 0, 32, 32, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTPrefix", 2, 0, 32, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >MQTT Username:</td>
-                    <td ><? PrintSettingTextSaved("MQTTUsername", 1, 0, 32, 32, "", ""); ?></td>
+                    <td ><? PrintSettingTextSaved("MQTTUsername", 2, 0, 32, 32, "", ""); ?></td>
 		</tr>
                 <tr>
                     <td >MQTT Password:</td>
-                    <td ><? PrintSettingPasswordSaved("MQTTPassword", 1, 0, 32, 32, "", ""); ?></td>
+                    <td ><? PrintSettingPasswordSaved("MQTTPassword", 2, 0, 32, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >CA File (Optional):</td>
-		    <td ><? PrintSettingTextSaved("MQTTCaFile", 1, 0, 64, 32, "", ""); ?></td>
+		    <td ><? PrintSettingTextSaved("MQTTCaFile", 2, 0, 64, 32, "", ""); ?></td>
                 </tr>
                 <tr>
                     <td >MQTT Publish Frequency (Optional):</td>
-		    <td ><? PrintSettingTextSaved("MQTTFrequency", 1, 0, 8, 8, "", "0"); ?></td>
+		    <td ><? PrintSettingTextSaved("MQTTFrequency", 2, 0, 8, 8, "", "0"); ?></td>
                 </tr>
 	    </table>
 	    MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>

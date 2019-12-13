@@ -206,7 +206,7 @@ function savePixelStringOutputs() {
 
 	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
-		SetRestartFlag();
+		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Pixel String Outputs", "Save Failed");
 	});

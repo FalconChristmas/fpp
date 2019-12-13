@@ -1519,7 +1519,7 @@ function updateUniverseEndChannel(row) {
             
             $.post("fppjson.php", postDataString).done(function(data) {
                                                        $.jGrowl("E1.31 Universes Saved");
-                                                       SetRestartFlag();
+                                                       SetRestartFlag(2);
                                                        CheckRestartRebootFlags();
                                                  }).fail(function() {
                                                         $.jGrowl("Error: Unable to save E1.31 Universes.");
@@ -2486,9 +2486,16 @@ if (1) {
 		SetSetting('restartFlag', 0, 0, 0);
 	}
 
-	function SetRestartFlag() {
-		settings['restartFlag'] = 1;
-		SetSettingRestart('restartFlag', 1);
+	function SetRestartFlag(newValue) {
+		// 0 - no restart needed
+		// 1 - full restart is needed
+		// 2 - quick restart is OK
+		if ((newValue == 2) &&
+			(settings['restartFlag'] == 1))
+			return;
+
+		settings['restartFlag'] = newValue;
+		SetSettingRestart('restartFlag', newValue);
 	}
 
 	function ClearRebootFlag() {
@@ -2509,7 +2516,7 @@ if (1) {
 			return;
 		}
 
-		if (settings['restartFlag'] == 1)
+		if (settings['restartFlag'] >= 1)
 			$('#restartFlag').show();
 		else
 			$('#restartFlag').hide();
@@ -2531,8 +2538,13 @@ function GetFPPDUptime()
 	}
 
 function RestartFPPD() {
+		var args = "";
+
+		if (settings['restartFlag'] == 2)
+			args = "&quick=1";
+
 		$('html,body').css('cursor','wait');
-		$.get("fppxml.php?command=restartFPPD"
+		$.get("fppxml.php?command=restartFPPD" + args
 		).done(function() {
 			$('html,body').css('cursor','auto');
 			$.jGrowl('FPPD Restarted');

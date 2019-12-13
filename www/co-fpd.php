@@ -22,7 +22,7 @@ $(document).ready(function(){
 		}).done(function() {
 			getPixelnetDMXoutputs('TRUE');
 			$.jGrowl("FPD Config Saved");
-			SetRestartFlag();
+			SetRestartFlag(2);
 		}).fail(function() {
 			DialogError("Save FPD Config", "Save Failed");
 		});
@@ -37,8 +37,8 @@ $(document).ready(function(){
 			<legend> Falcon Pixelnet/DMX (FPD) </legend>
 			<div id='divFPDData'>
 				<div style="overflow: hidden; padding: 10px;">
-					<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", 1, 0, "1", "0"); ?><br>
-					<b>FPD Start Channel Offset:</b> <? PrintSettingTextSaved("FPDStartChannelOffset", 1, 0, 6, 6); ?> <font size=-1>(default is 0)</font><br>
+					<b>Enable FPD Output:</b> <? PrintSettingCheckbox("FPD Output", "FPDEnabled", 2, 0, "1", "0"); ?><br>
+					<b>FPD Start Channel Offset:</b> <? PrintSettingTextSaved("FPDStartChannelOffset", 2, 0, 6, 6); ?> <font size=-1>(default is 0)</font><br>
 					<br>
 					<form id="frmPixelnetDMX">
 						<input name="command" id="command"  type="hidden" value="saveHardwareConfig" />

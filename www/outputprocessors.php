@@ -199,7 +199,7 @@ function SetOutputProcessors() {
 	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Output Processors Table saved");
 		PopulateOutputProcessorTable(data);
-		SetRestartFlag();
+		SetRestartFlag(2);
 	}).fail(function() {
 		DialogError("Save Output Processors Table", "Save Failed");
 	});

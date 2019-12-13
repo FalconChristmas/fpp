@@ -159,7 +159,7 @@ function " . $setting . "Changed() {
 ";
 
 if ($restart)
-	echo "SetRestartFlag();\n";
+	echo "SetRestartFlag($restart);\n";
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
@@ -217,7 +217,7 @@ function " . $setting . "Changed() {
 ";
 
 if ($restart)
-	echo "SetRestartFlag();\n";
+	echo "SetRestartFlag($restart);\n";
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
@@ -300,7 +300,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
               ";
               
               if ($restart)
-                echo "SetRestartFlag();\n";
+                echo "SetRestartFlag($restart);\n";
               if ($reboot)
                 echo "SetRebootFlag();\n";
               
@@ -360,7 +360,7 @@ function save" . $setting . "() {
 ";
 
 if ($restart)
-	echo "SetRestartFlag();\n";
+	echo "SetRestartFlag($restart);\n";
 if ($reboot)
 	echo "SetRebootFlag();\n";
 

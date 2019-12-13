@@ -224,11 +224,11 @@ unset($output);
 <h4>Geographic Location</h4>
 <table border=0 cellpadding=2>
 <tr><td>Latitude:</td>
-	<td><? PrintSettingTextSaved("Latitude", 1, 0, 11, 11, "", "38.938524"); ?></td>
+	<td><? PrintSettingTextSaved("Latitude", 2, 0, 11, 11, "", "38.938524"); ?></td>
 	<td rowspan=2 valign='middle'><input type='button' value='View Location' onClick='ViewLatLon();'></td>
 	</tr>
 <tr><td>Longitude:</td>
-	<td><? PrintSettingTextSaved("Longitude", 1, 0, 11, 11, "", "-104.600945"); ?></td>
+	<td><? PrintSettingTextSaved("Longitude", 2, 0, 11, 11, "", "-104.600945"); ?></td>
 	</tr>
 </table>
 <br>

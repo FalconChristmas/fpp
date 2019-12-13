@@ -171,8 +171,10 @@ function PrintStorageDeviceSelect($platform)
         unset($output);
     }
 
+	$storageDevice = "";
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
-	$storageDevice = $output[0];
+	if (isset($output[0]))
+		$storageDevice = $output[0];
 	unset($output);
 
 	$found = 0;
@@ -436,15 +438,15 @@ function ToggleLCDNow()
 ?>
     <tr>
       <td>Always transmit channel data:</td>
-      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 2, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Blank between sequences:</td>
-      <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 1, 0, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 2, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
-      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 2, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Default Video Output Device:</td>
@@ -468,15 +470,15 @@ function ToggleLCDNow()
 ?>
     <tr>
       <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 2, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
     </tr>
     <tr>
       <td>Audio Output Mixer Device:</td>
-      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
+      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 2, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
     </tr>
     <tr>
       <td>Audio Output Format:</td>
-      <td><? PrintSettingSelect("Audio Output Format", "AudioFormat", 1, 0, isset($settings['AudioFormat']) ? $settings['AudioFormat'] : "0", $AudioFormats); ?></td>
+      <td><? PrintSettingSelect("Audio Output Format", "AudioFormat", 2, 0, isset($settings['AudioFormat']) ? $settings['AudioFormat'] : "0", $AudioFormats); ?></td>
     </tr>
     <tr>
       <td>UI Border Color:</td>
