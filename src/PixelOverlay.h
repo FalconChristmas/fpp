@@ -128,6 +128,7 @@ private:
     
     std::thread *updateThread;
     volatile bool threadKeepRunning;
+    uint8_t *overlayBuffer;
     uint8_t *imageData;
     int imageDataRows;
     int imageDataCols;

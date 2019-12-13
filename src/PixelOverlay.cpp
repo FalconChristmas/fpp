@@ -66,7 +66,7 @@ PixelOverlayModel::PixelOverlayModel(FPPChannelMemoryMapControlBlock *b,
                                      char         *cdm,
                                      uint32_t     *pm)
     : block(b), name(n), chanDataMap(cdm), pixelMap(pm),
-    updateThread(nullptr),threadKeepRunning(false),
+    updateThread(nullptr),threadKeepRunning(false), overlayBuffer(nullptr),
     imageData(nullptr), imageDataRows(0), imageDataCols(0)
 {
 }
@@ -78,6 +78,9 @@ PixelOverlayModel::~PixelOverlayModel() {
     }
     if (imageData) {
         free(imageData);
+    }
+    if (overlayBuffer) {
+        free(overlayBuffer);
     }
 }
 
@@ -293,6 +296,10 @@ void PixelOverlayModel::doText(const std::string &msg,
                 np[2] = b;
             }
         }
+
+        if (!overlayBuffer)
+            overlayBuffer = (uint8_t*)malloc(block->channelCount);
+
         copyImageData(x, y);
         lock();
         threadKeepRunning = true;
@@ -336,7 +343,7 @@ void PixelOverlayModel::doImageMovementThread(const std::string &direction, int 
 
 void PixelOverlayModel::copyImageData(int xoff, int yoff) {
     if (imageData) {
-        clear();
+        memset(overlayBuffer, 0, block->channelCount);
         int h, w;
         getSize(w, h);
         for (int y = 0; y < imageDataRows; ++y)  {
@@ -351,9 +358,13 @@ void PixelOverlayModel::copyImageData(int xoff, int yoff) {
                     continue;
                 }
                 uint8_t *p = &imageData[idx + (x*3)];
-                setPixelValue(nx, ny, p[0], p[1], p[2]);
+                int c = (ny*getWidth()*3) + nx*3;
+                overlayBuffer[c++] = p[0];
+                overlayBuffer[c++] = p[1];
+                overlayBuffer[c++] = p[2];
             }
         }
+        setData(overlayBuffer);
     }
 }
 
