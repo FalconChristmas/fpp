@@ -282,6 +282,15 @@ char *ProcessCommand(char *command, char *response)
         } else {
             sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
         }
+    } else if ((!strcmp(CommandStr, "L")) ||
+               (!strcmp(CommandStr, "StopGracefullyAfterLoop"))) {
+        if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+            playlist->StopGracefully(1,1);
+            scheduler->ReLoadCurrentScheduleInfo();
+            sprintf(response,"%d,%d,Playlist Stopping Gracefully After Loop,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+        } else {
+            sprintf(response,"%d,Not playing,,,,,,,,,,,\n",COMMAND_FAILED);
+        }
     } else if ((!strcmp(CommandStr, "d")) ||
                (!strcmp(CommandStr, "StopNow"))) {
         if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING || playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) {

@@ -827,7 +827,8 @@ void MainLoop(void)
 
 		if (getFPPmode() & PLAYER_MODE) {
 			if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
-				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY)) {
+				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
 				if (prevFPPstatus == FPP_STATUS_IDLE) {
 					playlist->Start();
 					sleepms = 10;
@@ -836,7 +837,8 @@ void MainLoop(void)
 				// Check again here in case PlayListPlayingInit
 				// didn't find anything and put us back to IDLE
 				if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY)) {
+					(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+					(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
 					playlist->Process();
 				}
 			}
@@ -844,7 +846,8 @@ void MainLoop(void)
 			int reactivated = 0;
 			if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
-					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY)) {
+					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
+					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
 					playlist->Cleanup();
 
 					scheduler->ReLoadCurrentScheduleInfo();

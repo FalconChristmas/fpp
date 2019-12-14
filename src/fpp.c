@@ -94,6 +94,12 @@ int main (int argc, char *argv[])
       sprintf(command,"StopGracefully");
       SendCommand(command);
     }
+    // Stop gracefully After Loop - example "fpp -L"
+    else if(strncmp(argv[1],"-L",2) == 0)
+    {
+      sprintf(command,"StopGracefullyAfterLoop");
+      SendCommand(command);
+    }
     // Stop now - example "fpp -d"
     else if(strncmp(argv[1],"-d",2) == 0)
     {
@@ -314,6 +320,7 @@ void Usage(char *appname)
 "                                 step     - single-step a paused sequence\n"
 "                                 stepback - step a paused sequence backwards\n"
 "  -S                           - Stop Playlist gracefully\n"
+"  -L                           - Stop Playlist gracefully after current loop\n"
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"
 "  -r                           - Restart fppd daemon\n"

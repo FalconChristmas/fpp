@@ -132,6 +132,15 @@ tr.rowScheduleDetails td {
 	border-color: #333;
 	border-collapse: collapse;
 }
+.dayMaskTable {
+	padding: 2px 0px 0px 0px;
+}
+tr.rowScheduleDetails td.dayMaskTD {
+    padding: 2px 2px;
+}
+tr.rowScheduleDetails input.dayMaskCheckbox {
+    margin: 0px 0px 0px 0px;
+}
 a:active {
 	color: none;
 }

@@ -641,7 +641,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = playlist->getPlaylistStatus();
-    result["status_name"] = ChannelTester::INSTANCE.Testing() ? "testing" : (playlist->getPlaylistStatus() == 0 ? "idle" : (playlist->getPlaylistStatus() == 1 ? "playing" : "stopping gracefully"));
+    result["status_name"] = ChannelTester::INSTANCE.Testing() ? "testing" : (playlist->getPlaylistStatus() == 0 ? "idle" : (playlist->getPlaylistStatus() == 1 ? "playing" : (playlist->getPlaylistStatus() == 2 ? "stopping gracefully" : "stopping gracefully after loop")));
     result["volume"] = getVolume();
 
     auto t = std::time(nullptr);

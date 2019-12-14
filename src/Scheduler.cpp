@@ -653,13 +653,22 @@ void Scheduler::PlayListStopCheck(void)
 			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
 			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
 			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].hardStop ? "Now with Hard Stop" : "Gracefully");
+			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 0 ? "Gracefully" :
+				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 1 ? "Now with Hard Stop" :
+				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 2 ? "Gracefully after this loop" : "");
 		m_CurrentScheduleHasbeenLoaded = 0;
 
-		if (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].hardStop)
-			playlist->StopNow(1);
-		else
-			playlist->StopGracefully();
+		switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType)
+		{
+			case 0: playlist->StopGracefully();
+					break;
+			case 1: playlist->StopNow();
+					break;
+			case 2: playlist->StopGracefully(0,1);
+					break;
+			default: playlist->StopNow();
+					break;
+		}
     }
   }
 }
@@ -727,8 +736,9 @@ void Scheduler::LoadScheduleFromFile(void)
 void Scheduler::SchedulePrint(void)
 {
   int i=0;
+  char stopTypes[4] = "GHL";
 
-  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, '@' = Hard Stop @ End Time)\n");
+  LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, Stop (G)raceful/(L)oop/(H)ard\n");
   LogInfo(VB_SCHEDULE, "Stat  Start & End Dates       Days         Start & End Times   Playlist\n");
   LogInfo(VB_SCHEDULE, "---- ----------------------- ------------ ------------------- ---------------------------------------------\n");
   for (i = 0; i < m_Schedule.size(); i++) {
@@ -738,7 +748,7 @@ void Scheduler::SchedulePrint(void)
       m_Schedule[i].enabled ? '+': '-',
       CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
       m_Schedule[i].repeat ? '*': ' ',
-      m_Schedule[i].hardStop ? '@': ' ',
+      stopTypes[m_Schedule[i].stopType],
       (int)(m_Schedule[i].startDate / 10000),
       (int)(m_Schedule[i].startDate % 10000 / 100),
       (int)(m_Schedule[i].startDate % 100),

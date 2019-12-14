@@ -56,7 +56,7 @@ class ScheduleEntry {
 	int          weeklyEndSeconds[DAYS_PER_WEEK];
 	int          startDate; // YYYYMMDD format as an integer
 	int          endDate;   // YYYYMMDD format as an integer
-	bool         hardStop;
+	int          stopType;
 };
 
 #endif /* _SCHEDULEENTRY_H */

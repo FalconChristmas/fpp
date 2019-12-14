@@ -517,12 +517,16 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
-    m_status = FPP_STATUS_STOPPING_GRACEFULLY;
-
 	if (afterCurrentLoop)
+	{
+		m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
 		m_currentState = "stoppingAfterLoop";
+	}
 	else
+	{
+		m_status = FPP_STATUS_STOPPING_GRACEFULLY;
 		m_currentState = "stoppingGracefully";
+	}
 
 	m_forceStop = forceStop;
 
@@ -859,7 +863,8 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
 	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
-		(m_status == FPP_STATUS_STOPPING_GRACEFULLY)) {
+		(m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
+		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         
         std::string fullfilename = getPlaylistDirectory();
         fullfilename += "/";

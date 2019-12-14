@@ -240,6 +240,7 @@ $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v
       <div id="playerControls" style="margin-top: 10px">
         <input id= "btnPlay" type="button"  class ="buttons"value="Play" onClick="StartPlaylistNow();">
         <input id= "btnStopGracefully" type="button"  class ="buttons"value="Stop Gracefully" onClick="StopGracefully();">
+        <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons"value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
         <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
 		<hr>
        	<input id="btnShowPlaylistDetails" type="button" class='buttons' value="Show Details" onClick="ShowPlaylistDetails();">

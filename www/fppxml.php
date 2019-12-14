@@ -59,6 +59,7 @@ $command_array = Array(
 	"isFPPDrunning" => 'IsFPPDrunning',
 	"getFPPstatus" => 'GetFPPstatus',
 	"stopGracefully" => 'StopGracefully',
+	"stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop',
     "playlistNextEntry" => 'PlaylistNextEntry',
     "playlistPrevEntry" => 'PlaylistPrevEntry',
 	"stopNow" => 'StopNow',
@@ -732,6 +733,11 @@ function StopGracefully()
 	$status=SendCommand('S');
 	EchoStatusXML('true');
 }
+function StopGracefullyAfterLoop()
+{
+	$status=SendCommand('StopGracefullyAfterLoop');
+	EchoStatusXML('true');
+}
 function PlaylistNextEntry()
 {
     $status=SendCommand('NextPlaylistItem');
@@ -1193,11 +1199,6 @@ function SaveSchedule()
 		else
 			$_SESSION['ScheduleEntries'][$i]->repeat = 0;
 
-		if(isset($_POST['chkHardStop'][$i]))
-			$_SESSION['ScheduleEntries'][$i]->hardStop = 1;
-		else
-			$_SESSION['ScheduleEntries'][$i]->hardStop = 0;
-
 		$_SESSION['ScheduleEntries'][$i]->startDate =	$_POST['txtStartDate'][$i];
 		$_SESSION['ScheduleEntries'][$i]->endDate   =	$_POST['txtEndDate'][$i];
 
@@ -1205,6 +1206,8 @@ function SaveSchedule()
 			$_SESSION['ScheduleEntries'][$i]->startDate = "2019-01-01";
 		if (trim($_SESSION['ScheduleEntries'][$i]->endDate) == "")
 			$_SESSION['ScheduleEntries'][$i]->endDate = "2099-12-31";
+
+		$_SESSION['ScheduleEntries'][$i]->stopType = $_POST['selStopType'][$i];
 	}
 
 	SaveScheduleToFile();
@@ -1241,7 +1244,7 @@ function SaveScheduleToFile()
 						$_SESSION['ScheduleEntries'][$i]->repeat,
 						$_SESSION['ScheduleEntries'][$i]->startDate,
 						$_SESSION['ScheduleEntries'][$i]->endDate,
-						$_SESSION['ScheduleEntries'][$i]->hardStop
+						$_SESSION['ScheduleEntries'][$i]->stopType
 						);
 			}
 			else
@@ -1259,7 +1262,7 @@ function SaveScheduleToFile()
 						$_SESSION['ScheduleEntries'][$i]->repeat,
 						$_SESSION['ScheduleEntries'][$i]->startDate,
 						$_SESSION['ScheduleEntries'][$i]->endDate,
-						$_SESSION['ScheduleEntries'][$i]->hardStop
+						$_SESSION['ScheduleEntries'][$i]->stopType
 						);
 			}
 
@@ -1299,7 +1302,7 @@ function LoadScheduleFile()
 			$repeat = $entry[9];
 			$startDate = "2019-01-01";
 			$endDate = "2099-12-31";
-			$hardStop = 0;
+			$stopType = 0;
 
 			if ((count($entry) >= 11) && $entry[10] != "")
 				$startDate = $entry[10];
@@ -1308,10 +1311,10 @@ function LoadScheduleFile()
 				$endDate = $entry[11];
 
 			if ((count($entry) >= 13) && $entry[12] != "")
-				$hardStop = $entry[12];
+				$stopType = $entry[12];
 
 			$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
-				$endHour, $endMinute, $endSecond, $repeat,$startDate,$endDate,$hardStop);
+				$endHour, $endMinute, $endSecond, $repeat,$startDate,$endDate,$stopType);
 		}
 	}
 	fclose($f);
@@ -1397,11 +1400,11 @@ function GetSchedule()
 		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->endDate);
 		$value = $endDate->appendChild($value);
 
-		// hardStop
-		$hardStop = $doc->createElement('hardStop');
-		$hardStop = $ScheduleEntry->appendChild($hardStop);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->hardStop);
-		$value = $hardStop->appendChild($value);
+		// stopType
+		$stopType = $doc->createElement('stopType');
+		$stopType = $ScheduleEntry->appendChild($stopType);
+		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->stopType);
+		$value = $stopType->appendChild($value);
 
 	}
 	echo $doc->saveHTML();

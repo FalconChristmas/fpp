@@ -2,6 +2,7 @@
 STATUS_IDLE = "0";
 STATUS_PLAYING = "1";
 STATUS_STOPPING_GRACEFULLY = "2";
+STATUS_STOPPING_GRACEFULLY_AFTER_LOOP = "3";
 
 
 // Globals
@@ -1651,7 +1652,7 @@ function SetScheduleRowInputNames(row, id) {
 	var fields = Array('chkEnable', 'txtStartDate', 'txtEndDate',
 						'selPlaylist', 'selDay', 'dayMask', 'maskSunday', 'maskMonday',
 						'maskTuesday', 'maskWednesday', 'maskThursday', 'maskFriday',
-						'maskSaturday', 'txtStartTime', 'txtEndTime', 'chkHardStop', 'chkRepeat');
+						'maskSaturday', 'txtStartTime', 'txtEndTime', 'selStopType', 'chkRepeat');
 	row.find('span.rowID').html((id + 1).toString());
 
 	for (var i = 0; i < fields.length; i++)
@@ -1724,7 +1725,7 @@ function SetScheduleInputNames() {
 							"<td>Day(s)</td>" +
 							"<td>Start Time</td>" +
 							"<td>End Time</td>" +
-							"<td>Hard<br>Stop</td>" +
+							"<td>Stop Type</td>" +
 							"<td>Repeat</td>" +
 							"</tr>";
 
@@ -1742,11 +1743,10 @@ function SetScheduleInputNames() {
 									var repeat = entries.childNodes[i].childNodes[5].textContent;
 									var startDate = entries.childNodes[i].childNodes[6].textContent;
 									var endDate = entries.childNodes[i].childNodes[7].textContent;
-									var hardStop = entries.childNodes[i].childNodes[8].textContent;
+									var stopType = entries.childNodes[i].childNodes[8].textContent;
 
 									var enableChecked = enable == 1  ? "checked=\"checked\"" : "";
 									var repeatChecked = repeat == 1  ? "checked=\"checked\"" : "";
-									var hardStopChecked = hardStop == 1  ? "checked=\"checked\"" : "";
 									var dayChecked_0 =  day == 0  ? "selected" : "";
 									var dayChecked_1 =  day == 1  ? "selected" : "";
 									var dayChecked_2 =  day == 2  ? "selected" : "";
@@ -1813,10 +1813,18 @@ function SetScheduleInputNames() {
 																	((day & 0x00200) ? " checked" : "") + "> " +
 																  "S:<input class='maskSaturday' type='checkbox' " +
 																	((day & 0x00100) ? " checked" : "") + "> " +
-																  "</span></td>" +
+																  "</span>" +
+																  "</td>" +
 															"<td><input class='time center txtStartTime' type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
 															"<input class='time center txtEndTime' type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
-															"<td class='center' ><input class='chkHardStop' type=\"checkbox\" " + hardStopChecked +"/></td>" +
+															"<td class='center' ><select class='selStopType'>" +
+																	"<option value='0'" + ((stopType == 0) ? " selected" : "") +
+																		">Graceful</option>" +
+																	"<option value='2'" + ((stopType == 2) ? " selected" : "") +
+																		">Graceful Loop</option>" +
+																	"<option value='1'" + ((stopType == 1) ? " selected" : "") +
+																		">Hard Stop</option>" +
+																	"</select></td>" +
 															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
 															
@@ -2128,7 +2136,8 @@ function SetScheduleInputNames() {
         }
 		if (fppStatus == STATUS_IDLE ||
 			fppStatus == STATUS_PLAYING ||
-			fppStatus == STATUS_STOPPING_GRACEFULLY ) {
+			fppStatus == STATUS_STOPPING_GRACEFULLY ||
+			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
 		
 			$("#btnDaemonControl").attr('value', 'Stop FPPD');
 			$('#daemonStatus').html("FPPD is running.");
@@ -2192,6 +2201,7 @@ function SetScheduleInputNames() {
                 SetButtonState('#btnPrev','disable');
 				SetButtonState('#btnNext','disable');
 				SetButtonState('#btnStopGracefully','disable');
+				SetButtonState('#btnStopGracefullyAfterLoop','disable');
 				$('#selStartPlaylist').removeAttr("disabled");
 				UpdateCurrentEntryPlaying(0);
 			} else if (currentPlaylist.playlist != "") {
@@ -2227,10 +2237,13 @@ function SetScheduleInputNames() {
                 SetButtonState('#btnPrev','enable');
                 SetButtonState('#btnNext','enable');
 				SetButtonState('#btnStopGracefully','enable');
+				SetButtonState('#btnStopGracefullyAfterLoop','enable');
 				$('#selStartPlaylist').attr("disabled");
 
 				if(fppStatus == STATUS_STOPPING_GRACEFULLY) {
 					playerStatusText += " - Stopping Gracefully";
+				} else if(fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) {
+					playerStatusText += " - Stopping Gracefully After Loop";
 				}
 
 				$('#txtPlayerStatus').html(playerStatusText);
@@ -2263,6 +2276,7 @@ if (1) {
                 SetButtonState('#btnNext','enable');
                 SetButtonState('#btnStopNow','enable');
                 SetButtonState('#btnStopGracefully','enable');
+                SetButtonState('#btnStopGracefullyAfterLoop','enable');
                 
                 $('#txtPlayerStatus').html(playerStatusText);
                 $('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );
@@ -2417,6 +2431,15 @@ if (1) {
 			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 			xmlhttp.send();
+	}
+
+	function StopGracefullyAfterLoop()
+	{
+		var xmlhttp=new XMLHttpRequest();
+		var url = "fppxml.php?command=stopGracefullyAfterLoop";
+		xmlhttp.open("GET",url,true);
+		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+		xmlhttp.send();
 	}
 
 	function StopNow()
