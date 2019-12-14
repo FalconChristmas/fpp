@@ -45,6 +45,8 @@
 #include "PlaylistEntryVolume.h"
 #include "PlaylistEntryDynamic.h"
 #include "settings.h"
+#include "Playlist.h"
+
 
 /*
  *
@@ -182,7 +184,12 @@ int PlaylistEntryDynamic::Process(void)
 		m_playlistEntries[m_currentEntry]->Process();
 		if (m_playlistEntries[m_currentEntry]->IsFinished())
 		{
-			if (m_currentEntry < (m_playlistEntries.size() - 1))
+			if ((playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP))
+			{
+				FinishPlay();
+			}
+			else if (m_currentEntry < (m_playlistEntries.size() - 1))
 			{
 				m_currentEntry++;
 				m_playlistEntries[m_currentEntry]->StartPlaying();
