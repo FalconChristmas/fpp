@@ -293,7 +293,9 @@ char *ProcessCommand(char *command, char *response)
         }
     } else if ((!strcmp(CommandStr, "d")) ||
                (!strcmp(CommandStr, "StopNow"))) {
-        if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING || playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) {
+        if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
+			(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+			(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
             playlist->StopNow(1);
             scheduler->ReLoadCurrentScheduleInfo();
             sprintf(response,"%d,%d,Playlist Stopping Now,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
@@ -322,7 +324,8 @@ char *ProcessCommand(char *command, char *response)
     } else if (!strcmp(CommandStr, "q")) {
         // Quit/Shutdown fppd
         if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
-            (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY)) {
+            (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+            (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
             playlist->StopNow(1);
             sleep(2);
         }
@@ -475,6 +478,7 @@ char *ProcessCommand(char *command, char *response)
                 sprintf(response,"%d,%d,No playlist running\n",getFPPmode(),COMMAND_FAILED);
                 break;
             case FPP_STATUS_PLAYLIST_PLAYING:
+            case FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP:
                 sprintf(response,"%d,%d,Skipping to next playlist item\n",getFPPmode(),COMMAND_SUCCESS);
                 playlist->NextItem();
                 break;
@@ -488,6 +492,7 @@ char *ProcessCommand(char *command, char *response)
                 sprintf(response,"%d,%d,No playlist running\n",getFPPmode(),COMMAND_FAILED);
                 break;
             case FPP_STATUS_PLAYLIST_PLAYING:
+            case FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP:
                 sprintf(response,"%d,%d,Skipping to previous playlist item\n",getFPPmode(),COMMAND_SUCCESS);
                 playlist->PrevItem();
                 break;
