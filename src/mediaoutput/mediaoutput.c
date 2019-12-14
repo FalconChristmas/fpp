@@ -110,7 +110,7 @@ void setVolume(int vol)
         fvol += 50;
     }
 #endif
-    snprintf(buffer, 60, "amixer set -c %d %s %.2f%% >/dev/null 2>&1",
+    snprintf(buffer, 60, "amixer set -c %d %s -- %.2f%% >/dev/null 2>&1",
              audioOutput, mixerDevice.c_str(), fvol);
     
     LogDebug(VB_SETTING,"Volume change: %d \n", volume);
