@@ -148,6 +148,8 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
 						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
+
+					return;
 				}				
 			}
 		}
