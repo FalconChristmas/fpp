@@ -3016,7 +3016,7 @@ function ViewFile(dir, file)
 	$.get("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file, function(text) {
 		var ext = file.split('.').pop();
 		if (ext != "html")
-			$('#fileText').html("<pre>" + text + "</pre>");
+			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 	});
 
 	$('#fileViewer').dialog({ height: 600, width: 800, title: "File Viewer: " + file });

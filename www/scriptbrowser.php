@@ -38,7 +38,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 
 		$.get("fppxml.php?command=viewRemoteScript&category=" + category + "&filename=" + filename
 		).done(function(data) {
-			$('#helpText').html("<pre>" + data + "</pre>");
+			$('#helpText').html("<pre>" + data.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 		}).fail(function() {
 			$('#helpText').html("Error loading script contents from repository.");
 		});
