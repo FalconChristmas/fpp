@@ -418,6 +418,9 @@ int CurrentDateInRange(int startDate, int endDate)
 		startDate = startDate % 10000;
 		endDate = endDate % 10000;
 		currentDate = currentDate % 10000;
+
+		if (endDate < startDate)
+			endDate += 10000; // next year
 	}
 
 	if ((startDate < 100) || (endDate < 100))
@@ -425,6 +428,9 @@ int CurrentDateInRange(int startDate, int endDate)
 		startDate = startDate % 100;
 		endDate = endDate % 100;
 		currentDate = currentDate % 100;
+
+		if (endDate < startDate)
+			endDate += 100; // next month
 	}
 
 	if ((startDate == 0) && (endDate == 0))
