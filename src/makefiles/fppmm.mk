@@ -4,6 +4,7 @@ OBJECTS_fppmm = \
 	fppmm.o \
 	fppversion.o
 LIBS_fppmm = \
+	-lcurl \
 	-ljsoncpp
 
 TARGETS += fppmm

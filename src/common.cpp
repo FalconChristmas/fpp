@@ -53,7 +53,10 @@
 #include <fstream>
 #include <algorithm>
 
+#include <curl/curl.h>
+
 #include "common.h"
+#include "fppversion_defines.h"
 #include "log.h"
 
 /*
@@ -594,3 +597,124 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
         start_pos += to.length(); // ...
     }
 }
+
+// URL Helpers
+size_t urlWriteData(void *buffer, size_t size, size_t nmemb, void *userp)
+{
+	std::string *str = (std::string *)userp;
+
+	str->append(static_cast<const char*>(buffer), size * nmemb);
+
+	return size * nmemb;
+}
+
+bool urlHelper(const std::string method, const std::string &url, const std::string &data, std::string &resp)
+{
+	CURL *curl = curl_easy_init();
+	struct curl_slist *headers = NULL;
+	std::string userAgent = "FPP/" FPP_SOURCE_VERSION_STR;
+
+	resp = "";
+
+	if (!curl)
+	{
+		LogDebug(VB_GENERAL, "Unable to create curl instance in urlHelper()\n");
+		return false;
+	}
+
+	CURLcode status;
+	status = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, urlWriteData);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_GENERAL, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
+		return false;
+	}
+
+	status = curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_GENERAL, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
+		return false;
+	}
+
+	status = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_GENERAL, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+		return false;
+	}
+
+	if (startsWith(data,"{") && endsWith(data,"}"))
+	{
+		headers = curl_slist_append(headers, "Accept: application/json");
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	}
+
+	if (data != "")
+	{
+		status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_GENERAL, "curl_easy_setopt() Error setting postfields data: %s\n", curl_easy_strerror(status));
+			return false;
+		}
+	}
+
+	if (method == "POST")
+		curl_easy_setopt(curl, CURLOPT_POST, 1);
+	else if (method == "PUT")
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+	else if (method == "DELETE")
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
+
+	status = curl_easy_perform(curl);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_GENERAL, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+		return false;
+	}
+
+	LogDebug(VB_GENERAL, "resp: %s\n", resp.c_str());
+
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+
+	return true;
+}
+
+bool urlHelper(const std::string method, const std::string &url, std::string &resp)
+{
+	std::string data;
+	return urlHelper(method, url, data, resp);
+}
+
+bool urlGet(const std::string url, std::string &resp)
+{
+	std::string data;
+	return urlHelper("GET", url, resp);
+}
+
+bool urlPost(const std::string url, const std::string data, std::string &resp)
+{
+	return urlHelper("POST", url, data, resp);
+}
+
+bool urlPut(const std::string url, const std::string data, std::string &resp)
+{
+	return urlHelper("PUT", url, data, resp);
+}
+
+bool urlDelete(const std::string url, const std::string data, std::string &resp)
+{
+	return urlHelper("DELETE", url, data, resp);
+}
+
+bool urlDelete(const std::string url, std::string &resp)
+{
+	std::string data;
+	return urlHelper("DELETE", url, data, resp);
+}
+
