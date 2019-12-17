@@ -243,9 +243,10 @@ void PluginManager::init()
             dname += "/";
             dname += ep->d_name;
             lstat(dname.c_str(), &statbuf);
-            if (S_ISLNK(statbuf.st_mode)) {
-                //symlink, skip
-                continue;
+            if (!S_ISDIR(statbuf.st_mode)) {
+                dname += "/.linkOK"; // Allow developers to use symlinks if desired
+                if (!FileExists(dname))
+                    continue;
             }
             
             
