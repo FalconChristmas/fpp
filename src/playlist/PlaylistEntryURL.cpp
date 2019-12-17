@@ -122,7 +122,7 @@ int PlaylistEntryURL::StartPlaying(void)
 	if (m_method == "POST")
 	{
 		curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, 4096);
-		status = curl_easy_setopt(m_curl, CURLOPT_COPYPOSTFIELDS, repData.c_str());
+		status = curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, repData.c_str());
 		if (status != CURLE_OK)
 		{
 			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting post data: %s\n", curl_easy_strerror(status));
