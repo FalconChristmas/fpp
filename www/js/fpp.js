@@ -623,7 +623,7 @@ function AddPlaylistEntry() {
 			else if (entry.type == 'script')
 			{
 				entry.scriptName =  encodeURIComponent($('#selScript').val());
-				entry.scriptArgs =  encodeURIComponent($('#selScript_args').val());
+				entry.scriptArgs =  encodeURIComponent($('#selScript_args').val().replace(new RegExp('"',"g"),'\\"'));
                 entry.blocking = $('#selScript_blocking').prop('checked');;
 			}
 			else if (entry.type == 'mqtt')

@@ -98,18 +98,30 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 				{
 					quote = "\"";
 
-					// Skip the beginning quote
 					tmpPart = parts[p].substr(1);
 				}
 				else if (boost::starts_with(parts[p], "'"))
 				{
 					quote = "'";
-					tmpPart = parts[p];
+					tmpPart = parts[p].substr(1);
 				}
 				else
 				{
 					args[i] = strdup(parts[p].c_str());
 					i++;
+				}
+
+				if ((tmpPart != "") && (quote != "") && (boost::ends_with(tmpPart, quote)))
+				{
+					args[i] = strdup(tmpPart.c_str());
+
+					// Chop off the ending quote
+					args[i][strlen(args[i])-1] = 0;
+
+					i++;
+
+					quote = "";
+					tmpPart = "";
 				}
 			}
 			else
