@@ -741,7 +741,7 @@ void Scheduler::SchedulePrint(void)
   char stopTypes[4] = "GHL";
 
   LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, Stop (G)raceful/(L)oop/(H)ard\n");
-  LogInfo(VB_SCHEDULE, "Stat  Start & End Dates       Days         Start & End Times   Playlist\n");
+  LogInfo(VB_SCHEDULE, "Stat Start & End Dates       Days         Start & End Times   Playlist\n");
   LogInfo(VB_SCHEDULE, "---- ----------------------- ------------ ------------------- ---------------------------------------------\n");
   for (i = 0; i < m_Schedule.size(); i++) {
     char dayStr[32];
