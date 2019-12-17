@@ -95,7 +95,7 @@ int DirectoryExists(const char * Directory)
 int FileExists(const char * File)
 {
 	struct stat sts;
-	if (stat(File, &sts) == -1 && errno == ENOENT) {
+	if (stat(File, &sts) == -1) {
 		return 0;
 	} else {
 		return 1;
