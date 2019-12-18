@@ -109,6 +109,8 @@ void Scheduler::ScheduleProc(void)
 
 void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 {
+  LoadScheduleFromFile(); // Load before we get the time so slow loads don't impact timing
+
   int i,j,dayCount;
   time_t currTime = time(NULL);
   struct tm now;
@@ -116,7 +118,6 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
   localtime_r(&currTime, &now);
 
   int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
-  LoadScheduleFromFile();
   for( i = 0; i < m_Schedule.size(); i++)
   {
 		// only check schedule entries that are enabled and set to repeat.
@@ -139,21 +140,21 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 					m_currentSchedulePlaylist.startWeeklySeconds = m_Schedule[i].weeklyStartSeconds[j];
 					m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[i].weeklyEndSeconds[j];
 
-					// Make end time non-inclusive
-					if (m_currentSchedulePlaylist.startWeeklySeconds != m_currentSchedulePlaylist.endWeeklySeconds)
-						m_currentSchedulePlaylist.endWeeklySeconds--;
-
 					m_CurrentScheduleHasbeenLoaded = 1;
-					m_NextScheduleHasbeenLoaded = 0;
 
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
 						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
+
+					LoadNextScheduleInfo();
 
 					return;
 				}				
 			}
 		}
   }
+
+  LoadCurrentScheduleInfo();
+  LoadNextScheduleInfo();
 }
 
 std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
@@ -196,15 +197,16 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 	return "";
 }
 
-int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
+int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
 {
   int i,j,dayCount;
   int leastWeeklySecondDifferenceFromNow=SECONDS_PER_WEEK;
   int difference;
   int nextEntryIndex = SCHEDULE_INDEX_INVALID;
+  int minDiff = future ? 1 : 0;
   time_t currTime = time(NULL);
   struct tm now;
-  
+
   localtime_r(&currTime, &now);
 
   int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
@@ -216,7 +218,7 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
 			for(j=0;j<m_Schedule[i].weeklySecondCount;j++)
 			{
 				difference = GetWeeklySecondDifference(nowWeeklySeconds,m_Schedule[i].weeklyStartSeconds[j]);
-				if(difference > 0 && difference<leastWeeklySecondDifferenceFromNow)
+				if((difference >= minDiff) && (difference < leastWeeklySecondDifferenceFromNow))
 				{
 					leastWeeklySecondDifferenceFromNow = difference; 
 					nextEntryIndex = i;
@@ -225,7 +227,7 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex)
 			}
 		}
   }
-  LogDebug(VB_SCHEDULE, "nextEntryIndex = %d, least diff = %d, weekly index = %d\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex);
+  LogDebug(VB_SCHEDULE, "nextEntryIndex = %d, least diff = %d, weekly index = %d, (%s)\n",nextEntryIndex,leastWeeklySecondDifferenceFromNow,*weeklySecondIndex, future ? "future" : "current");
   return nextEntryIndex;
 }
 
@@ -243,22 +245,19 @@ void Scheduler::ReLoadNextScheduleInfo(void)
 
 void Scheduler::LoadCurrentScheduleInfo(void)
 {
-    m_currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_currentSchedulePlaylist.weeklySecondIndex);
+    m_currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_currentSchedulePlaylist.weeklySecondIndex, false);
     if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
         m_currentSchedulePlaylist.startWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
         m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
 
     }
-    // Make end time non-inclusive
-    if (m_currentSchedulePlaylist.startWeeklySeconds != m_currentSchedulePlaylist.endWeeklySeconds)
-        m_currentSchedulePlaylist.endWeeklySeconds--;
 
     m_CurrentScheduleHasbeenLoaded = 1;
 }
 
 void Scheduler::LoadNextScheduleInfo(void)
 {
-    m_nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_nextSchedulePlaylist.weeklySecondIndex);
+    m_nextSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_nextSchedulePlaylist.weeklySecondIndex, true);
     m_NextScheduleHasbeenLoaded = 1;
 
     if (m_nextSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
@@ -580,8 +579,8 @@ void Scheduler::PlayListLoadCheck(void)
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
         m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
         m_currentSchedulePlaylist.endWeeklySeconds - m_currentSchedulePlaylist.startWeeklySeconds);
-      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
-        nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d\n",
+        nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds);
 
       if ((playlist->getPlaylistStatus() != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
         playlist->StopNow(1);
@@ -658,15 +657,17 @@ void Scheduler::PlayListStopCheck(void)
 			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 0 ? "Gracefully" :
 				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 1 ? "Now with Hard Stop" :
 				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 2 ? "Gracefully after this loop" : "");
-		m_CurrentScheduleHasbeenLoaded = 0;
+
 
 		switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType)
 		{
 			case 0: playlist->StopGracefully();
+					m_CurrentScheduleHasbeenLoaded = 0;
 					break;
 			case 1: playlist->StopNow();
 					break;
 			case 2: playlist->StopGracefully(0,1);
+					m_CurrentScheduleHasbeenLoaded = 0;
 					break;
 			default: playlist->StopNow();
 					break;

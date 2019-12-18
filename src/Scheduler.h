@@ -91,7 +91,7 @@ class Scheduler {
 	std::string GetPlaylistThatShouldBePlaying(int &repeat);
 
   private:
-	int  GetNextScheduleEntry(int *weeklySecondIndex);
+	int  GetNextScheduleEntry(int *weeklySecondIndex, bool future);
 	void LoadCurrentScheduleInfo(void);
 	void LoadNextScheduleInfo(void);
 	void GetSunInfo(int set, int &hour, int &minute, int &second);
