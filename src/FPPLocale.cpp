@@ -15,10 +15,14 @@ Json::Value LocaleHolder::GetLocale() {
     std::string localeName = getSetting("Locale");
 
     if (localeName == "")
-        localeName = "global";
+        localeName = "Global";
 
     std::string localeFile = "/opt/fpp/etc/locale/";
     localeFile += localeName + ".json";
+
+    if (!file_exists(localFile)) {
+        localeFile = "/opt/fpp/etc/locale/Global.json";
+    }
 
     locale = loadJSON(localeFile);
 
