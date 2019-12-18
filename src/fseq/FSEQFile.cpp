@@ -863,11 +863,13 @@ public:
                         uint64_t offset = m_file->m_frameOffsets[block].second;
                         uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
                         int max = m_file->getNumFrames() * m_file->getChannelCount();
+                        bool problem = false;
                         if (size > max) {
                             size = max;
+                            problem = true;
                         }
                         data = (uint8_t*)malloc(size);
-                        if (!data) {
+                        if (!data || problem) {
                             //this is a serious problem, I need to figure out why this is occuring
                             LogWarn(VB_SEQUENCE, "Serious problem reading sequence data\n");
                             LogWarn(VB_SEQUENCE, "    Block: %d / %d\n", block, m_file->m_frameOffsets.size());
