@@ -38,6 +38,10 @@ class ScheduleEntry {
 	ScheduleEntry();
 	~ScheduleEntry();
 
+	void        CalculateEaster(int year, int &month, int &day);
+	std::string DateFromLocaleHoliday(Json::Value &holiday);
+	std::string CheckHoliday(std::string date);
+
 	int  LoadFromString(std::string entryStr);
 
 	bool         enabled;

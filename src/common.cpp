@@ -560,6 +560,26 @@ Json::Value JSONStringToObject(const std::string &str)
 
 	return result;
 }
+
+Json::Value loadJSON(const std::string &filename)
+{
+    Json::Value empty;
+
+    if (!FileExists(filename)) {
+        LogErr(VB_GENERAL, "JSON File %s does not exist\n", filename);
+        return empty;
+    }
+
+    std::string jsonStr = GetFileContents(filename);
+    return JSONStringToObject(jsonStr);
+}
+
+Json::Value loadJSON(const char *filename)
+{
+    std::string filenameStr = filename;
+    return loadJSON(filenameStr);
+}
+
 #endif
 
 

@@ -1662,6 +1662,17 @@ function SetScheduleRowInputNames(row, id) {
 		row.find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
 		row.find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
 	}
+
+    var startDate = row.find('.txtStartDate').val().replace(/[-0-9]/g,'');
+    if (startDate != '') {
+        row.find('.txtStartDate').hide();
+        row.find('.holStartDate').show();
+    }
+    var endDate = row.find('.txtEndDate').val().replace(/[-0-9]/g,'');
+    if (endDate != '') {
+        row.find('.txtEndDate').hide();
+        row.find('.holEndDate').show();
+    }
 }
 
 function SetScheduleInputNames() {
@@ -1696,8 +1707,58 @@ function SetScheduleInputNames() {
 		'showButtonPanel': true,
 		'selectOtherMonths': true,
 		'showOtherMonths': true,
-		'yearRange': "2019:2099"
+		'yearRange': "2019:2099",
+		'autoclose': true,
+		'beforeShow': function( input ) {
+		setTimeout(function() {
+			var buttonPane = $( input )
+				.datepicker( "widget" )
+				.find( ".ui-datepicker-buttonpane" );
+
+			$( "<button>", {
+				text: "Select from Holidays",
+				click: function() {
+					$('.ui-datepicker').hide();
+					$(input).hide();
+					$(input).val('Christmas');
+					$(input).parent().find('.holidays').val('Christmas');
+					$(input).parent().find('.holidays').show();
+				}
+			}).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
+		}, 1 );
+	}
 		});
+}
+
+function HolidaySelected(item)
+{
+    if ($(item).val() == 'SpecifyDate') {
+        $(item).hide();
+        $(item).parent().find('.date').show();
+    } else {
+        $(item).parent().find('.date').val($(item).val());
+        $(item).parent().find('.date').hide();
+    }
+}
+
+function HolidaySelect(userKey, classToAdd)
+{
+    var result = "<select class='holidays " + classToAdd + "' onChange='HolidaySelected(this);' style='display: none;'>";
+    result += "<option value='SpecifyDate'>Specify Date</option>";
+
+    for (var i in settings['locale']['holidays']) {
+        var holiday = settings['locale']['holidays'][i];
+
+        result += "<option value='" + holiday['shortName'] + "'";
+
+        if (holiday['shortName'] == userKey)
+            result += " selected";
+
+        result += ">" + holiday['name'] + "</option>";
+    }
+
+    result += "</select>";
+    return result;
 }
 
 		function getSchedule(reload)
@@ -1717,23 +1778,23 @@ function SetScheduleInputNames() {
 					{
 						GetPlaylistArray();
 						headerHTML = "<tr class=\"tblheader\">" +  
-							"<td>#</td>" +
-							"<td>Enable</td>" +
-							"<td>Start Date</td>" +
-							"<td>End Date</td>" +
-							"<td>Playlist</td>" +
-							"<td>Day(s)</td>" +
-							"<td>Start Time</td>" +
-							"<td>End Time</td>" +
-							"<td>Stop Type</td>" +
-							"<td>Repeat</td>" +
+							"<th>#</th>" +
+							"<th>Enable</th>" +
+							"<th>Start Date</th>" +
+							"<th>End Date</th>" +
+							"<th>Playlist</th>" +
+							"<th>Day(s)</th>" +
+							"<th>Start Time</th>" +
+							"<th>End Time</th>" +
+							"<th>Repeat</th>" +
+							"<th>Stop Type</th>" +
 							"</tr>";
 
 
 							
 							$('#tblScheduleHead').html(headerHTML);
 							ScheduleCount = entries.childNodes.length;
-							for(i=0;i<ScheduleCount;i++)
+							for(var i=0;i<ScheduleCount;i++)
 							{
 									var enable = entries.childNodes[i].childNodes[0].textContent;
 									var day = entries.childNodes[i].childNodes[1].textContent;
@@ -1775,8 +1836,8 @@ function SetScheduleInputNames() {
 									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
 								              "<td class='center'><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
 															"<td class='center' ><input class='chkEnable' type=\"checkbox\" " + enableChecked +"/></td>" +
-															"<td><input class='date center txtStartDate' type=\"text\" size=\"10\" value=\"" + startDate + "\"/></td><td>" +
-																"<input class='date center txtEndDate' type=\"text\" size=\"10\" value=\"" + endDate + "\"/></td>" +
+															"<td><input class='date center txtStartDate' type=\"text\" size=\"10\" value=\"" + startDate + "\"/>" + HolidaySelect(startDate, "holStartDate") + "</td><td>" +
+																"<input class='date center txtEndDate' type=\"text\" size=\"10\" value=\"" + endDate + "\"/>" + HolidaySelect(endDate, "holEndDate") + "</td>" +
 
 															"<td><select class='selPlaylist'>" +
 															playlistOptionsText + "</select></td>" +
@@ -1817,6 +1878,7 @@ function SetScheduleInputNames() {
 																  "</td>" +
 															"<td><input class='time center txtStartTime' type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
 															"<input class='time center txtEndTime' type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
+															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"<td class='center' ><select class='selStopType'>" +
 																	"<option value='0'" + ((stopType == 0) ? " selected" : "") +
 																		">Graceful</option>" +
@@ -1825,7 +1887,6 @@ function SetScheduleInputNames() {
 																	"<option value='1'" + ((stopType == 1) ? " selected" : "") +
 																		">Hard Stop</option>" +
 																	"</select></td>" +
-															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
 															"</tr>";
 															
 									$('#tblScheduleBody').append(tableRow);

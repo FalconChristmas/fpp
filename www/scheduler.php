@@ -141,6 +141,14 @@ tr.rowScheduleDetails td.dayMaskTD {
 tr.rowScheduleDetails input.dayMaskCheckbox {
     margin: 0px 0px 0px 0px;
 }
+tr.rowScheduleDetails select.selPlaylist {
+    width: 250px;
+}
+tr.rowScheduleDetails select.selPlaylist option {
+    overflow: hidden;
+    white-space: no-wrap;
+    text-overflow: ellipsis;
+}
 a:active {
 	color: none;
 }

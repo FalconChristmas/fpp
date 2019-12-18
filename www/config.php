@@ -32,6 +32,27 @@ function GetSettingValue($setting) {
 	return;  // FIXME, should we do this or return something else
 }
 
+function LoadLocale()
+{
+    global $settings;
+
+    if (!isset($settings['Locale']))
+        $settings['Locale'] = 'global';
+
+    $localeStr = file_get_contents($settings['fppDir'] . '/etc/locale/global.json');
+    $locale = json_decode($localeStr, true);
+
+    if ($settings['Locale'] != 'global')
+    {
+        $localeStr = file_get_contents($settings['fppDir'] . '/etc/locale/' . $settings['Locale'] . '.json');
+        $tmpLocale = json_decode($localeStr, true);
+
+        $locale = array_merge($locale, $tmpLocale);
+    }
+
+    $settings['locale'] = $locale;
+}
+
 function ApprovedCape($v) {
     if (isSet($v["vendor"])) {
         if (isSet($v["vendor"]["name"]) && ($v["vendor"]["name"] == "Upgrade")
@@ -438,6 +459,9 @@ if ($debug)
 	error_log("emailtoemail: $emailtoemail");
 }
 
+LoadLocale();
+
+/////////////////////////////////////////////////////////////////////////////
 function GetDirSetting($dir)
 {
 	if ($dir == "Sequences")        { return GetSettingValue('sequenceDirectory'); }
@@ -453,6 +477,8 @@ function GetDirSetting($dir)
 
 	return "";
 }
+/////////////////////////////////////////////////////////////////////////////
+
 
 // $skipJSsettings is only set in fppjson.php and fppxml.php
 // to prevent this JavaScript from being printed
@@ -464,6 +490,9 @@ if (!isset($skipJSsettings)) {
 	foreach ($settings as $key => $value) {
         if (!is_array($value)) {
             printf("	settings['%s'] = \"%s\";\n", $key, $value);
+        } else {
+            $js_array = json_encode($value);
+            printf("    settings['%s'] = %s;\n", $key, $js_array);
         }
 	}
 ?>

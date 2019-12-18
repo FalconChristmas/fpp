@@ -89,6 +89,8 @@ uint8_t   ReverseBitsInByte(uint8_t n);
 #include <jsoncpp/json/json.h>
 void      MergeJsonValues(Json::Value &a, Json::Value &b);
 Json::Value JSONStringToObject(const std::string &str);
+Json::Value loadJSON(const std::string &filename);
+Json::Value loadJSON(const char *filename);
 #endif
 
 std::string tail(std::string const& source, size_t const length);

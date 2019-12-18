@@ -103,7 +103,19 @@ $backgroundColors['Purple']    = "800080";
 $backgroundColors['Silver']    = "C0C0C0";
 $backgroundColors['Teal']      = "008080";
 $backgroundColors['White']     = "FFFFFF";
-    
+ 
+$locales = Array();
+if ($handle = opendir($fppDir . '/etc/locale'))
+{
+    while (($file = readdir($handle)) !== false)
+    {
+        if (preg_match('/.json$/', $file))
+        {
+            $file = preg_replace('/.json$/', '', $file);
+            $locales[$file] = $file;
+        }
+    }
+}
     
 $ledTypes = Array();
     $ledTypes['Disabled'] = 0;
@@ -497,6 +509,12 @@ function ToggleLCDNow()
         </td>
     </tr>
 <? } ?>
+
+    <tr>
+      <td>Locale:</td>
+      <td><? PrintSettingSelect("Locale", "Locale", 2, 0, isset($settings['Locale']) ? $settings['Locale'] : "global", $locales); ?>
+     </td>
+    </tr>
 
     <tr>
       <td>Log Level:</td>
