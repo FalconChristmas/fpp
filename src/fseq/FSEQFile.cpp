@@ -858,7 +858,7 @@ public:
                     int block = m_blocksToRead.front();
                     m_blocksToRead.pop_front();
                     uint8_t *data = m_blockMap[block];
-                    if (!data) {
+                    if (!data && block < (m_file->m_frameOffsets.size() - 1)) {
                         readerlock.unlock();
                         uint64_t offset = m_file->m_frameOffsets[block].second;
                         uint64_t size = m_file->m_frameOffsets[block + 1].second - offset;
@@ -867,9 +867,23 @@ public:
                             size = max;
                         }
                         data = (uint8_t*)malloc(size);
+                        if (!data) {
+                            //this is a serious problem, I need to figure out why this is occuring
+                            LogWarn(VB_SEQUENCE, "Serious problem reading sequence data\n");
+                            LogWarn(VB_SEQUENCE, "    Block: %d / %d\n", block, m_file->m_frameOffsets.size());
+                            LogWarn(VB_SEQUENCE, "    Offset: %d\n", m_file->m_frameOffsets[block].second);
+                            LogWarn(VB_SEQUENCE, "    Offset+1: %d\n", m_file->m_frameOffsets[block + 1].second);
+                            int sz = m_file->m_frameOffsets[block + 1].second - offset;
+                            LogWarn(VB_SEQUENCE, "    Size: %d\n", (int)sz);
+                            LogWarn(VB_SEQUENCE, "    Max: %d\n", (int)max);
+                            for (int x = 0; x < m_file->m_frameOffsets.size(); x++) {
+                                LogWarn(VB_SEQUENCE, "        Block %d:    Offset: %d    Size: %d\n", x, m_file->m_frameOffsets[block].first,
+                                        m_file->m_frameOffsets[block].second);
+                            }
+                        }
                         seek(offset, SEEK_SET);
                         read(data, size);
-                        
+
                         readerlock.lock();
                         m_blockMap[block] = data;
                         m_readSignal.notify_all();
