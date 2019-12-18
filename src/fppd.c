@@ -703,14 +703,11 @@ int main(int argc, char *argv[])
 
 	if (restartFPPD)
 	{
-		char **newArgv = new char * [argc + 2];
-		for (int i = 0; i < argc; ++i)
-		{
-			newArgv[i] = argv[i];
-		}
-		newArgv[argc] = strdup("-r");
-		newArgv[argc + 1] = nullptr;
-		execv("/proc/self/exe", newArgv);
+		char darg[3] = "-d";
+		if (!getDaemonize())
+			strcpy(darg, "-f");
+
+		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, "--log-level", logLevelStr, "--log-mask", logMaskStr, NULL);
 	}
 
 	return 0;
