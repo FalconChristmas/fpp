@@ -1,5 +1,5 @@
 #include "common.h"
-#include "Locale.h"
+#include "FPPLocale.h"
 #include "settings.h"
 
 Json::Value LocaleHolder::locale;

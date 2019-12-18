@@ -40,7 +40,7 @@ OBJECTS_fpp_so += \
 	gpio.o \
 	httpAPI.o \
 	log.o \
-	Locale.o \
+	FPPLocale.o \
 	MultiSync.o \
 	mediadetails.o \
 	mediaoutput/MediaOutputBase.o \

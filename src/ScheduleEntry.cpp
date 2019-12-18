@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "common.h"
-#include "Locale.h"
+#include "FPPLocale.h"
 #include "log.h"
 #include "ScheduleEntry.h"
 
