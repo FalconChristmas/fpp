@@ -35,19 +35,25 @@ function GetSettingValue($setting) {
 function LoadLocale()
 {
     global $settings;
+    $locale = Array();
 
     if (!isset($settings['Locale']))
-        $settings['Locale'] = 'global';
+        $settings['Locale'] = 'Global';
 
-    $localeStr = file_get_contents($settings['fppDir'] . '/etc/locale/global.json');
-    $locale = json_decode($localeStr, true);
+    $localeFile = $settings['fppDir'] . '/etc/locale/global.json';
+    if (file_exists($localeFile)) {
+        $localeStr = file_get_contents($localeFile);
+        $locale = json_decode($localeStr, true);
+    }
 
-    if ($settings['Locale'] != 'global')
+    if ($settings['Locale'] != 'Global')
     {
-        $localeStr = file_get_contents($settings['fppDir'] . '/etc/locale/' . $settings['Locale'] . '.json');
-        $tmpLocale = json_decode($localeStr, true);
-
-        $locale = array_merge($locale, $tmpLocale);
+        $localeFile = $settings['fppDir'] . '/etc/locale/' . $settings['Locale'] . '.json';
+        if (file_exists($localeFile)) {
+            $localeStr = file_get_contents($localeFile);
+            $tmpLocale = json_decode($localeStr, true);
+            $locale = array_merge($locale, $tmpLocale);
+        }
     }
 
     $settings['locale'] = $locale;
