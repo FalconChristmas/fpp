@@ -566,10 +566,10 @@ function ToggleLCDNow()
         <td valign='top'>BeagleBone LEDs:</td>
         <td>
             <table border=0 cellpadding=0 cellspacing=5 id='BBBLeds'>
-                <tr><td valign=top>USR1:</td><td><? PrintSettingSelect("USR1 LED", "BBBLeds0", 0, 0, isset($settings['BBBLeds0']) ? $settings['BBBLeds0'] : "heartbeat", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>USR2:</td><td><? PrintSettingSelect("USR2 LED", "BBBLeds1", 0, 0, isset($settings['BBBLeds1']) ? $settings['BBBLeds1'] : "mmc0", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>USR3:</td><td><? PrintSettingSelect("USR3 LED", "BBBLeds2", 0, 0, isset($settings['BBBLeds2']) ? $settings['BBBLeds2'] : "cpu", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>USR4:</td><td><? PrintSettingSelect("USR4 LED", "BBBLeds3", 0, 0, isset($settings['BBBLeds3']) ? $settings['BBBLeds3'] : "mmc1", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR0:</td><td><? PrintSettingSelect("USR0 LED", "BBBLeds0", 0, 0, isset($settings['BBBLeds0']) ? $settings['BBBLeds0'] : "heartbeat", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR1:</td><td><? PrintSettingSelect("USR1 LED", "BBBLeds1", 0, 0, isset($settings['BBBLeds1']) ? $settings['BBBLeds1'] : "mmc0", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR2:</td><td><? PrintSettingSelect("USR2 LED", "BBBLeds2", 0, 0, isset($settings['BBBLeds2']) ? $settings['BBBLeds2'] : "cpu", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR3:</td><td><? PrintSettingSelect("USR3 LED", "BBBLeds3", 0, 0, isset($settings['BBBLeds3']) ? $settings['BBBLeds3'] : "mmc1", $BBBLeds); ?></td></tr>
                 <tr><td valign=top>Power:</td><td><? PrintSettingSelect("Power LED", "BBBLedPWR", 0, 0, isset($settings['BBBLedPWR']) ? $settings['BBBLedPWR'] : 1, $BBBPowerLed); ?></td></tr>
             </table>
         </td>
