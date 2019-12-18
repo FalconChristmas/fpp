@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <map>
@@ -159,6 +160,8 @@ int HTTPVirtualDisplayOutput::Init(Json::Value config)
 		return 0;
 	}
 
+	fcntl(m_socket, F_SETFL, O_NONBLOCK);
+
 	struct sockaddr_in addr;
 
 	memset(&addr, 0, sizeof(addr));
@@ -246,6 +249,8 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void)
 
 			m_connListChanged = true;
 		}
+
+		usleep(100000);
 	}
 }
 
