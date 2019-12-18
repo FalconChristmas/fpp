@@ -201,9 +201,6 @@ int HTTPVirtualDisplayOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "HTTPVirtualDisplayOutput::Close()\n");
 
-	if (m_virtualDisplay)
-		free(m_virtualDisplay);
-
 	return VirtualDisplayOutput::Close();
 }
 
