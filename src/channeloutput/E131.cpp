@@ -77,7 +77,7 @@ const std::string &E131OutputData::GetOutputTypeString() const {
 }
 
 E131OutputData::E131OutputData(const Json::Value &config)
-: UDPOutputData(config), E131sequenceNumber(1), universeCount(1) {
+: UDPOutputData(config), universeCount(1) {
     
     sockaddr_in e131Address;
     memset((char *) &e131Address, 0, sizeof(sockaddr_in));
@@ -162,6 +162,9 @@ E131OutputData::E131OutputData(const Json::Value &config)
         count = 638 - 115 - (512 - (channelCount));
         e131Buffer[E131_DMP_COUNT_INDEX] = (count/256)+0x70;
         e131Buffer[E131_DMP_COUNT_INDEX+1] = count%256;
+        
+        e131Buffer[E131_SEQUENCE_INDEX] = 0;
+
 
         // use scatter/gather for the packet.   One IOV will contain
         // the header, the second will point into the raw channel data
@@ -183,32 +186,38 @@ bool E131OutputData::IsPingable() {
     return type == 1;
 }
 
-void E131OutputData::PrepareData(unsigned char *channelData) {
+void E131OutputData::PrepareData(unsigned char *channelData,
+                                 std::vector<struct mmsghdr> &uniMsgs,
+                                 std::vector<struct mmsghdr> &bcstMsgs) {
+    
     if (valid && active) {
         unsigned char *cur = channelData + startChannel - 1;
+        int start = startChannel - 1;
         for (int x = 0; x < universeCount; x++) {
-            e131Headers[x][E131_SEQUENCE_INDEX] = E131sequenceNumber;
-            e131Iovecs[x * 2 + 1].iov_base = (void*)cur;
+            if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
+                struct mmsghdr msg;
+                memset(&msg, 0, sizeof(msg));
+                
+                msg.msg_hdr.msg_name = &e131Addresses[x];
+                msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+                msg.msg_hdr.msg_iov = &e131Iovecs[x * 2];
+                msg.msg_hdr.msg_iovlen = 2;
+                msg.msg_len = channelCount + E131_HEADER_LENGTH;
+                uniMsgs.push_back(msg);
+                
+                
+                ++e131Headers[x][E131_SEQUENCE_INDEX];
+                e131Iovecs[x * 2 + 1].iov_base = (void*)cur;
+            }
             cur += channelCount;
+            start += channelCount;
         }
-    }
-    E131sequenceNumber++;
-}
-void E131OutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
-    if (valid && active) {
-        for (int x = 0; x < universeCount; x++) {
-            struct mmsghdr msg;
-            memset(&msg, 0, sizeof(msg));
-            
-            msg.msg_hdr.msg_name = &e131Addresses[x];
-            msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-            msg.msg_hdr.msg_iov = &e131Iovecs[x * 2];
-            msg.msg_hdr.msg_iovlen = 2;
-            msg.msg_len = channelCount + E131_HEADER_LENGTH;
-            ipMsgs.push_back(msg);
-        }
+        SaveFrame(channelData);
     }
 }
+
+
+
 void E131OutputData::GetRequiredChannelRange(int &min, int & max) {
     min = startChannel - 1;
     max = startChannel + (channelCount * universeCount) - 1;

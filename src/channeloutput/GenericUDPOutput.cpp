@@ -125,52 +125,36 @@ public:
     }
     virtual bool IsPingable() override {
         return !isMulticast && !isBroadcast;
-    };
-    virtual void PrepareData(unsigned char *channelData) override {
-        if (valid && active) {
+    }
+
+    virtual void PrepareData(unsigned char *channelData,
+                             std::vector<struct mmsghdr> &uniMsgs,
+                             std::vector<struct mmsghdr> &bcstMsgs) override {
+        if (valid && active && NeedToOutputFrame(channelData, startChannel - 1, 0 , channelCount)) {
+            struct mmsghdr msg;
+            memset(&msg, 0, sizeof(msg));
+
+            msg.msg_hdr.msg_name = &udpAddress;
+            msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+            msg.msg_hdr.msg_iov = &udpIovecs[0];
+            msg.msg_hdr.msg_iovlen = udpIovecs.size();
+            msg.msg_len = 0;
+            for (int x = 0; x < udpIovecs.size(); x++) {
+                msg.msg_len += udpIovecs[x].iov_len;
+            }
+            
             count++;
             int start = startChannel - 1;
             for (auto idx : channelIovecs) {
                 udpIovecs[idx].iov_base = (void*)(channelData + start);
             }
-        }
-    }
-    
-    // unicast and multicast messages for data
-    virtual void CreateMessages(std::vector<struct mmsghdr> &udpMsgs) override {
-        if (!isBroadcast) {
-            if (valid && active) {
-                struct mmsghdr msg;
-                memset(&msg, 0, sizeof(msg));
-                
-                msg.msg_hdr.msg_name = &udpAddress;
-                msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-                msg.msg_hdr.msg_iov = &udpIovecs[0];
-                msg.msg_hdr.msg_iovlen = udpIovecs.size();
-                msg.msg_len = 0;
-                for (int x = 0; x < udpIovecs.size(); x++) {
-                    msg.msg_len += udpIovecs[x].iov_len;
-                }
-                udpMsgs.push_back(msg);
+
+            if (isBroadcast) {
+                bcstMsgs.push_back(msg);
+            } else {
+                uniMsgs.push_back(msg);
             }
-        }
-    }
-    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) override {
-        if (isBroadcast) {
-            if (valid && active) {
-                struct mmsghdr msg;
-                memset(&msg, 0, sizeof(msg));
-                
-                msg.msg_hdr.msg_name = &udpAddress;
-                msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-                msg.msg_hdr.msg_iov = &udpIovecs[0];
-                msg.msg_hdr.msg_iovlen = udpIovecs.size();
-                msg.msg_len = 0;
-                for (int x = 0; x < udpIovecs.size(); x++) {
-                    msg.msg_len += udpIovecs[x].iov_len;
-                }
-                bMsgs.push_back(msg);
-            }
+            SaveFrame(channelData);
         }
     }
 

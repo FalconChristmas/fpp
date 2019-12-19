@@ -1044,6 +1044,7 @@ function RemovePlaylistEntry()	{
                     universe.address = "";
                     universe.priority = 0;
                     universe.monitor = 1;
+                    universe.deDuplicate = 0;
                     channelData.universes.push(universe);
                     if (input) {
                         data.channelInputs = [];
@@ -1064,7 +1065,8 @@ function RemovePlaylistEntry()	{
                 var active=document.getElementById("chkActive[" + selectIndex + "]").value;
                 var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
                 var monitor=document.getElementById("txtMonitor[" + selectIndex + "]").checked ? 1 : 0;
-                
+                var deDuplicate=document.getElementById("txtDeDuplicate[" + selectIndex + "]").checked ? 1 : 0;
+
                 var tbody=document.getElementById("tblUniversesBody");  //get the table
                 var origRow = tbody.rows[selectIndex];
                 var origUniverseCount = UniverseCount;
@@ -1084,7 +1086,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        row.cells[12].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        row.cells[13].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     
                     UniverseCount++;
@@ -1161,6 +1163,7 @@ function updateUniverseEndChannel(row) {
                 "<th rowspan=2 " + inputStyle + ">Unicast<br>Address</th>" +
                 "<th rowspan=2 " + inputStyle + ">Priority</th>" +
                 "<th rowspan=2 " + inputStyle + ">Monitor</th>" +
+                "<th rowspan=2 " + inputStyle + ">DeDup</th>" +
                 "<th rowspan=2 " + inputStyle + ">Ping</th>" +
                 "</tr><tr class=\"tblheader\">" +
                 "<th>Start</th>" +
@@ -1199,6 +1202,10 @@ function updateUniverseEndChannel(row) {
                 var monitor = 1;
                 if (universe.monitor != null) {
                     monitor = universe.monitor;
+                }
+                var deDuplicate = 0;
+                if (universe.deDuplicate != null) {
+                    deDuplicate = universe.deDuplicate;
                 }
 
                 var universeSize = 512;
@@ -1246,6 +1253,7 @@ function updateUniverseEndChannel(row) {
                             "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32'></td>" +
                             "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>" +
                             "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
+                            "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "" ) + "/></td>" +
                             "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
             }
@@ -1337,7 +1345,7 @@ function updateUniverseEndChannel(row) {
         function SetUniverseRowInputNames(row, id) {
             var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
                                'txtUniverse', 'numUniverseCount', 'txtSize', 'universeType', 'txtIP',
-                               'txtPriority', 'txtMonitor');
+                               'txtPriority', 'txtMonitor', 'txtDeDuplicate');
             row.find('span.rowID').html((id + 1).toString());
             
             for (var i = 0; i < fields.length; i++)
@@ -1382,6 +1390,7 @@ function updateUniverseEndChannel(row) {
                     document.getElementById("txtIP[" + selectedIndex + "]").value = document.getElementById("txtIP[" + i + "]").value;
                     document.getElementById("txtPriority[" + selectedIndex + "]").value = document.getElementById("txtPriority[" + i + "]").value;
                     document.getElementById("txtMonitor[" + selectedIndex + "]").checked = document.getElementById("txtMonitor[" + i + "]").checked;
+                    document.getElementById("txtDeDuplicate[" + selectedIndex + "]").checked = document.getElementById("txtDeDuplicate[" + i + "]").checked;
                     if ((universeType == '1') || (universeType == '3')) {
                         document.getElementById("txtIP[" + selectedIndex + "]").disabled = false;
                     } else {
@@ -1413,6 +1422,7 @@ function updateUniverseEndChannel(row) {
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
 					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
                     var monitor=document.getElementById("txtMonitor[" + selectIndex + "]").checked ? 1 : 0;
+                    var deDuplicate=document.getElementById("txtDeDuplicate[" + selectIndex + "]").checked ? 1 : 0;
 
 					for(i=UniverseSelected;i<UniverseSelected+cloneNumber;i++,universe++)
 					{
@@ -1426,6 +1436,7 @@ function updateUniverseEndChannel(row) {
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
 						document.getElementById("txtPriority[" + i + "]").value = priority;
                         document.getElementById("txtMonitor[" + i + "]").prop('checked', monitor == 1);
+                        document.getElementById("txtDeDuplicate[" + i + "]").prop('checked', deDuplicate == 1);
 						if((universeType == '1') || (universeType == '3'))
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = false;
@@ -1505,6 +1516,7 @@ function updateUniverseEndChannel(row) {
                 universe.priority = parseInt(document.getElementById("txtPriority[" + i + "]").value);
                 if (!input) {
                     universe.monitor = document.getElementById("txtMonitor[" + i + "]").checked ? 1 : 0;
+                    universe.deDuplicate = document.getElementById("txtDeDuplicate[" + i + "]").checked ? 1 : 0;
                 }
                 output.universes.push(universe);
             }

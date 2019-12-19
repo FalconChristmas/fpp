@@ -44,16 +44,12 @@ public:
     
     virtual bool IsPingable() = 0;
     virtual bool Monitor() const { return monitor; }
-    virtual void PrepareData(unsigned char *channelData) = 0;
-
-    // unicast and multicast messages for data
-    virtual void CreateMessages(std::vector<struct mmsghdr> &udpMsgs) {}
-    
-    // purely broadcast data
-    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) {}
-    
-    // purely broadcast messages sent after the data (sync packets for example)
-    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs) {}
+    virtual void PrepareData(unsigned char *channelData,
+                             std::vector<struct mmsghdr> &uniMsgs,
+                             std::vector<struct mmsghdr> &bcstMsgs) = 0;
+    virtual void PostPrepareData(unsigned char *channelData,
+                                 std::vector<struct mmsghdr> &uniMsgs,
+                                 std::vector<struct mmsghdr> &bcstMsgs) {}
 
     virtual void DumpConfig() = 0;
     
@@ -77,9 +73,17 @@ public:
     bool          monitor;
     
     int           failCount;
+
     
     UDPOutputData(UDPOutputData const &) = delete;
     void operator=(UDPOutputData const &x) = delete;
+    
+protected:
+    void SaveFrame(unsigned char *channelData);
+    bool NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count);
+    bool           deDuplicate;
+    unsigned char* lastData;
+
 };
 
 class UDPOutput : public ChannelOutputBase {
@@ -109,7 +113,6 @@ private:
     bool InitNetwork();
     void CloseNetwork();
     bool PingControllers();
-    void RebuildOutputMessageLists();
     
     int sendSocket;
     int broadcastSocket;
@@ -130,8 +133,6 @@ private:
     std::mutex pingThreadMutex;
     std::condition_variable pingThreadCondition;
     CURLM *m_curlm;
-    
-    volatile bool rebuildOutputLists;
 };
 
 #endif

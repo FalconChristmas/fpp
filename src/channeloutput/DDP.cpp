@@ -212,40 +212,40 @@ DDPOutputData::~DDPOutputData() {
     free(ddpIovecs);
 }
 
-void DDPOutputData::PrepareData(unsigned char *channelData) {
+void DDPOutputData::PrepareData(unsigned char *channelData,
+                                std::vector<struct mmsghdr> &uniMsgs,
+                                std::vector<struct mmsghdr> &bcstMsgs) {
     if (valid && active) {
         int start = startChannel - 1;
         if (type == 5) {
             start = 0;
         }
-        for (int p = 0; p < pktCount; p++) {
-            unsigned char *header = ddpBuffers[p];
-            header[1] = sequenceNumber & 0xF;
-            if (sequenceNumber == 15) {
-                sequenceNumber = 1;
-            } else {
-                ++sequenceNumber;
-            }
-            
-            // set the pointer to the channelData for the universe
-            ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
-            start += ddpIovecs[p * 2 + 1].iov_len;
-        }
-    }
-}
-void DDPOutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
-    if (valid && active) {
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
         
         msg.msg_hdr.msg_name = &ddpAddress;
         msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        for (int x = 0; x < pktCount; x++) {
-            msg.msg_hdr.msg_iov = &ddpIovecs[x * 2];
-            msg.msg_hdr.msg_iovlen = 2;
-            msg.msg_len = ddpIovecs[x * 2 + 1].iov_len + DDP_HEADER_LEN;
-            ipMsgs.push_back(msg);
+        for (int p = 0; p < pktCount; p++) {
+            if (NeedToOutputFrame(channelData, startChannel-1, start, ddpIovecs[p * 2 + 1].iov_len)) {
+                msg.msg_hdr.msg_iov = &ddpIovecs[p * 2];
+                msg.msg_hdr.msg_iovlen = 2;
+                msg.msg_len = ddpIovecs[p * 2 + 1].iov_len + DDP_HEADER_LEN;
+                uniMsgs.push_back(msg);
+
+                unsigned char *header = ddpBuffers[p];
+                header[1] = sequenceNumber & 0xF;
+                if (sequenceNumber == 15) {
+                    sequenceNumber = 1;
+                } else {
+                    ++sequenceNumber;
+                }
+                
+                // set the pointer to the channelData for the universe
+                ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
+            }
+            start += ddpIovecs[p * 2 + 1].iov_len;
         }
+        SaveFrame(channelData);
     }
 }
 void DDPOutputData::DumpConfig() {

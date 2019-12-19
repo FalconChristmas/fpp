@@ -39,8 +39,12 @@ public:
     virtual ~E131OutputData();
     
     virtual bool IsPingable() override;
-    virtual void PrepareData(unsigned char *channelData) override;
-    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs) override;
+    
+    virtual void PrepareData(unsigned char *channelData,
+                             std::vector<struct mmsghdr> &uniMsgs,
+                             std::vector<struct mmsghdr> &bcstMsgs) override;
+
+    
     virtual void DumpConfig() override;
     virtual void GetRequiredChannelRange(int &min, int & max) override;
 
@@ -49,7 +53,6 @@ public:
     int           universe;
     int           universeCount;
     int           priority;
-    char          E131sequenceNumber;
 
     std::vector<sockaddr_in>   e131Addresses;
     std::vector<struct iovec>  e131Iovecs;

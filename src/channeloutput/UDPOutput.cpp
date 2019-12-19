@@ -67,7 +67,7 @@ static void DoPingThread(UDPOutput *output) {
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 
 UDPOutputData::UDPOutputData(const Json::Value &config)
-:  valid(true), type(0), monitor(true), failCount(99) {
+:  valid(true), type(0), monitor(true), failCount(99), lastData(nullptr) {
     
     if (config.isMember("description")) {
         description = config["description"].asString();
@@ -88,8 +88,14 @@ UDPOutputData::UDPOutputData(const Json::Value &config)
     if (config.isMember("monitor")) {
         monitor = config["monitor"].asInt() ? true : false;
     }
+    if (config.isMember("deDuplicate")) {
+        deDuplicate = config["deDuplicate"].asInt() ? true : false;
+    }
 }
 UDPOutputData::~UDPOutputData() {
+    if (lastData) {
+        free(lastData);
+    }
 }
 
 static const std::string UNKNOWN_TYPE = "UDP";
@@ -119,10 +125,38 @@ in_addr_t UDPOutputData::toInetAddr(const std::string &ipAddress, bool &valid) {
     }
     return inet_addr(ipAddress.c_str());
 }
+void UDPOutputData::SaveFrame(unsigned char *channelData) {
+    if (deDuplicate) {
+        int min = 999999999;
+        int max = 0;
+        GetRequiredChannelRange(min, max);
+        if (max >= min) {
+            max -= min;
+            if (lastData == nullptr) {
+                lastData = (unsigned char *)malloc(max);
+            }
+            memcpy(lastData, &channelData[min], max);
+        }
+    }
+}
 
+bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count) {
+    if (deDuplicate) {
+        if (lastData == nullptr) {
+            return true;
+        }
+        for (int x = 0; x < count; x++) {
+            if (channelData[x + start + startChannel] != lastData[x + start]) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return true;
+}
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
-    : pingThread(nullptr), runPingThread(true), rebuildOutputLists(false),
+    : pingThread(nullptr), runPingThread(true),
       errCount(0), networkCallbackId(0)
 {
     INSTANCE = this;
@@ -212,7 +246,6 @@ int UDPOutput::Init(Json::Value config) {
             PingControllers();
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
             InitNetwork();
-            rebuildOutputLists = true;
         } else if (s == interface && i == NetworkMonitor::NetEventType::DEL_ADDR) {
             LogInfo(VB_CHANNELOUT, "UDP Interface now down\n");
             CloseNetwork();
@@ -223,7 +256,6 @@ int UDPOutput::Init(Json::Value config) {
     
     InitNetwork();
     PingControllers();
-    rebuildOutputLists = true;
     pingThread = new std::thread(DoPingThread, this);
     return ChannelOutputBase::Init(config);
 }
@@ -240,11 +272,18 @@ int UDPOutput::Close() {
 }
 void UDPOutput::PrepData(unsigned char *channelData) {
     if (enabled) {
-        if (rebuildOutputLists) {
-            RebuildOutputMessageLists();
-        }
+        udpMsgs.clear();
+        broadcastMsgs.clear();
         for (auto a : outputs) {
-            a->PrepareData(channelData);
+            if (a->valid && a->active) {
+                a->PrepareData(channelData, udpMsgs, broadcastMsgs);
+            }
+        }
+        //add any sync packets or whatever that are needed
+        for (auto a : outputs) {
+            if (a->valid && a->active) {
+                a->PostPrepareData(channelData, udpMsgs, broadcastMsgs);
+            }
         }
     }
 }
@@ -262,7 +301,6 @@ void  UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &a
 
 void UDPOutput::addOutput(UDPOutputData* out) {
     outputs.push_back(out);
-    rebuildOutputLists = true;
 }
 
 
@@ -334,12 +372,7 @@ void UDPOutput::BackgroundThreadPing() {
     std::unique_lock<std::mutex> lk(pingThreadMutex);
     pingThreadCondition.wait_for(lk, std::chrono::seconds(10));
     while (runPingThread) {
-        bool newValid = PingControllers();
-        if (newValid) {
-            //at least one output became valid or invalid, let main thread know to rebuild the
-            //output message maps
-            rebuildOutputLists = true;
-        }
+        PingControllers();
         pingThreadCondition.wait_for(lk, std::chrono::seconds(10));
     }
 }
@@ -435,25 +468,6 @@ bool UDPOutput::PingControllers() {
     }
     return newOutputs;
 }
-void UDPOutput::RebuildOutputMessageLists() {
-    LogDebug(VB_CHANNELOUT, "Rebuilding message lists\n");
-
-    rebuildOutputLists = false;
-    udpMsgs.clear();
-    broadcastMsgs.clear();
-    for (auto a : outputs) {
-        if (a->valid && a->active) {
-            a->CreateMessages(udpMsgs);
-            a->CreateBroadcastMessages(broadcastMsgs);
-        }
-    }
-    //add any sync packets or whatever that are needed
-    for (auto a : outputs) {
-        if (a->valid && a->active) {
-            a->AddPostDataMessages(broadcastMsgs);
-        }
-    }
-}
 void UDPOutput::DumpConfig() {
     ChannelOutputBase::DumpConfig();
     for (auto u : outputs) {
@@ -474,7 +488,6 @@ void UDPOutput::CloseNetwork() {
     close(bs);
 
     PingControllers();
-    rebuildOutputLists = true;
 }
 
 bool UDPOutput::InitNetwork() {
