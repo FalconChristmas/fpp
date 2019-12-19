@@ -26,9 +26,12 @@
 #ifndef _SCHEDULER_H
 #define _SCHEDULER_H
 
+#include <mutex>
 #include <vector>
 
 #include <pthread.h>
+
+#include <jsoncpp/json/json.h>
 
 #include "ScheduleEntry.h"
 
@@ -69,11 +72,20 @@ class SchedulePlaylistDetails {
 public:
     SchedulePlaylistDetails() {}
     ~SchedulePlaylistDetails() {}
-    
+
+	void SetTimes(time_t currTime, int nowWeeklySeconds);
+
+	ScheduleEntry entry;
+
 	int ScheduleEntryIndex = 0;
 	int weeklySecondIndex = 0;
 	int startWeeklySeconds = 0;
 	int endWeeklySeconds = 0;
+
+	time_t actualStartTime = 0;
+	time_t actualEndTime = 0;
+	time_t scheduledStartTime = 0;
+	time_t scheduledEndTime = 0;
 };
 
 class Scheduler {
@@ -89,6 +101,9 @@ class Scheduler {
 	void GetNextPlaylistText(char * txt);
 
 	std::string GetPlaylistThatShouldBePlaying(int &repeat);
+	Json::Value GetInfo(void);
+
+	int  ExtendRunningSchedule(int seconds = 300);
 
   private:
 	int  GetNextScheduleEntry(int *weeklySecondIndex, bool future);
@@ -107,6 +122,7 @@ class Scheduler {
 	void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
 	void GetDayTextFromDayIndex(int index,char * txt);
 
+	void RegisterCommands();
 
 	unsigned char m_CurrentScheduleHasbeenLoaded;
 	unsigned char m_NextScheduleHasbeenLoaded;
@@ -121,7 +137,7 @@ class Scheduler {
 	int           m_runThread;
 	int           m_threadIsRunning;
 
-	pthread_mutex_t             m_scheduleLock;
+	std::mutex                  m_scheduleLock;
 	std::vector<ScheduleEntry>  m_Schedule;
 
 	SchedulePlaylistDetails m_currentSchedulePlaylist;

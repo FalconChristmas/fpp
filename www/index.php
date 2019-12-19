@@ -193,6 +193,25 @@ include 'common/menuHead.inc';
 	  					</tr>
 	  		</table>
       </div>
+      <div id='schedulerStatusWrapper'>
+            <table>
+                <tr><td>Scheduler Status:</td>
+                    <td id='schedulerStatus'></td>
+                    <td width='50px'>&nbsp;</td>
+                    <td class='schedulerStartTime'>Started at:</td>
+                    <td class='schedulerStartTime' id='schedulerStartTime'></td>
+                    <td width='50px'>&nbsp;</td>
+                    <td class='schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</td>
+                    <td class='schedulerEndTime' id='schedulerEndTime'></td>
+                    <td width='10px'>&nbsp;</td>
+                    <td class='schedulerEndTime'>
+                        <input type='button' value='Extend' onClick='ExtendSchedulePopup();'>
+                        <input type='button' value='+5m' onClick='ExtendSchedule(5);'>
+                        </td>
+                </tr>
+            </table>
+      </div>
+      <hr>
     	<div id="playerStatusTop">
       <div>
         <div class='playerStatusLeft'>

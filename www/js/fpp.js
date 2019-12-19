@@ -1646,6 +1646,33 @@ function updateUniverseEndChannel(row) {
 			getSchedule("TRUE");	
 		}  
 
+		function ExtendSchedule(minutes)
+		{
+			var seconds = minutes * 60;
+			var url = "api/command/Extend Schedule/" + seconds;
+			$.get(url).done(function(data) {
+					$.jGrowl(data);
+					if (statusTimeout != null)
+						clearTimeout(statusTimeout);
+					GetFPPStatus();
+				}).fail(function() {
+					$.jGrowl("Failed to extend schedule.");
+				});
+		}
+
+		function ExtendSchedulePopup()
+		{
+			var minutes = prompt ("Extend running scheduled playlist by how many minutes?","1");
+			if (minutes === null) {
+				$.jGrowl("Extend cancelled");
+				return;
+			}
+
+			minutes = Number(minutes);
+			ExtendSchedule(minutes);
+		}
+
+
 		function ScheduleDaysSelectChanged(item)
 		{
 			var name = $(item).attr('name');
@@ -2108,6 +2135,8 @@ function HolidaySelect(userKey, classToAdd)
 							SetButtonState('#btnDaemonControl','enable');
 							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
+							$('.schedulerStartTime').hide();
+							$('.schedulerEndTime').hide();
 						} 
 					}
 				}
@@ -2170,6 +2199,14 @@ function HolidaySelect(userKey, classToAdd)
 						SetButtonState('#btnDaemonControl','enable');
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPPD is stopped.");
+						$('#txtPlayerStatus').html(status);
+						$('#txtTimePlayed').html("");
+						$('#txtTimeRemaining').html("");
+						$('#txtSeqFilename').html("");
+						$('#txtMediaFilename').html("");
+						$('#schedulerStatus').html("");
+						$('.schedulerStartTime').hide();
+						$('.schedulerEndTime').hide();
 					
 					} else if(response.status_name == 'updating') {
 
@@ -2177,6 +2214,14 @@ function HolidaySelect(userKey, classToAdd)
 						SetButtonState('#btnDaemonControl','disable');
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPP is currently updating.");
+						$('#txtPlayerStatus').html(status);
+						$('#txtTimePlayed').html("");
+						$('#txtTimeRemaining').html("");
+						$('#txtSeqFilename').html("");
+						$('#txtMediaFilename').html("");
+						$('#schedulerStatus').html("");
+						$('.schedulerStartTime').hide();
+						$('.schedulerEndTime').hide();
 
 					} else {
 
@@ -2267,6 +2312,9 @@ function HolidaySelect(userKey, classToAdd)
 				$('#txtTimeRemaining').html("");	
 				$('#txtSeqFilename').html("");
 				$('#txtMediaFilename').html("");
+				$('#schedulerStatus').html("Idle");
+				$('.schedulerStartTime').hide();
+				$('.schedulerEndTime').hide();
 								
 				// Enable Play
 				SetButtonState('#btnPlay','enable');
@@ -2278,7 +2326,7 @@ function HolidaySelect(userKey, classToAdd)
 				$('#selStartPlaylist').removeAttr("disabled");
 				UpdateCurrentEntryPlaying(0);
 			} else if (currentPlaylist.playlist != "") {
-				var playerStatusText = "Playing <strong>'" + currentPlaylist.playlist + "'</strong>";
+				var playerStatusText = "Playing ";
                 if (jsonStatus.current_song != "") {
                     playerStatusText += " - <strong>'" + jsonStatus.current_song + "'</strong>";
                     if (jsonStatus.current_sequence != "") {
@@ -2340,7 +2388,32 @@ if (1) {
 				} else{
 					$("#chkRepeat").prop( "checked", false );
 				}
-			
+
+				if (jsonStatus.scheduler != "") {
+					if (jsonStatus.scheduler.status == "playing") {
+						var pl = jsonStatus.scheduler.currentPlaylist;
+						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b>");
+
+						$('.schedulerStartTime').show();
+						$('#schedulerStartTime').html(pl.actualStartTimeStr);
+						$('.schedulerEndTime').show();
+						$('#schedulerEndTime').html(pl.actualEndTimeStr);
+						$('#schedulerStopType').html(pl.stopTypeStr);
+					} else if (jsonStatus.scheduler.status == "manual") {
+						var pl = jsonStatus.scheduler.currentPlaylist;
+						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b> (manually started)");
+						$('.schedulerStartTime').hide();
+						$('.schedulerEndTime').hide();
+					} else {
+						$('#schedulerStatus').html("Idle");
+						$('.schedulerStartTime').hide();
+						$('.schedulerEndTime').hide();
+					}
+				} else {
+					$('#schedulerStatus').html("Idle");
+					$('#schedulerStartTime').html("N/A");
+					$('#schedulerEndTime').html("N/A");
+				}
             } else if (jsonStatus.current_sequence != "") {
                 //only playing a sequence
                 var playerStatusText = "Playing <strong>'" + jsonStatus.current_sequence + "'</strong>";

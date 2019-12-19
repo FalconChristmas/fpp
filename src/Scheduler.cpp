@@ -34,6 +34,7 @@
 #include "boost/date_time/gregorian/gregorian.hpp"
 
 #include "command.h"
+#include "commands/Commands.h"
 #include "common.h"
 #include "fpp.h"
 #include "log.h"
@@ -43,6 +44,23 @@
 #include "SunSet.h"
 
 Scheduler *scheduler = NULL;
+
+void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
+{
+    actualStartTime = currTime;
+
+    scheduledStartTime = currTime - (nowWeeklySeconds - startWeeklySeconds);
+
+    if (nowWeeklySeconds < startWeeklySeconds)
+        scheduledStartTime -= 7 * 24 * 60 * 60;
+
+    scheduledEndTime = currTime + (endWeeklySeconds - nowWeeklySeconds);
+
+    if (endWeeklySeconds < startWeeklySeconds)
+        scheduledEndTime += 7 * 24 * 60 * 60;
+
+    actualEndTime = scheduledEndTime;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -57,12 +75,12 @@ Scheduler::Scheduler()
 	m_runThread(0),
 	m_threadIsRunning(0)
 {
-	pthread_mutex_init(&m_scheduleLock, NULL);
+
+	RegisterCommands();
 }
 
 Scheduler::~Scheduler()
 {
-	pthread_mutex_destroy(&m_scheduleLock);
 }
 
 void Scheduler::ScheduleProc(void)
@@ -141,6 +159,9 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 					m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[i].weeklyEndSeconds[j];
 
 					m_CurrentScheduleHasbeenLoaded = 1;
+
+					m_currentSchedulePlaylist.entry = m_Schedule[i];
+					m_currentSchedulePlaylist.SetTimes(currTime, nowWeeklySeconds);
 
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
 						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
@@ -249,7 +270,7 @@ void Scheduler::LoadCurrentScheduleInfo(void)
     if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
         m_currentSchedulePlaylist.startWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
         m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
-
+        m_currentSchedulePlaylist.entry = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex];
     }
 
     m_CurrentScheduleHasbeenLoaded = 1;
@@ -266,6 +287,7 @@ void Scheduler::LoadNextScheduleInfo(void)
         GetNextPlaylistText(p);
         GetNextScheduleStartText(t);
         LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
+        m_nextSchedulePlaylist.entry = m_Schedule[m_nextSchedulePlaylist.ScheduleEntryIndex];
     }
 }
 
@@ -585,6 +607,8 @@ void Scheduler::PlayListLoadCheck(void)
       if ((playlist->getPlaylistStatus() != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
         playlist->StopNow(1);
 
+      m_currentSchedulePlaylist.SetTimes(currTime, nowWeeklySeconds);
+
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
         0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
     }
@@ -686,7 +710,7 @@ void Scheduler::LoadScheduleFromFile(void)
 
   m_lastLoadDate = GetCurrentDateInt();
 
-  pthread_mutex_lock(&m_scheduleLock);
+  std::unique_lock<std::mutex> lock(m_scheduleLock);
   m_Schedule.clear();
 
   LogInfo(VB_SCHEDULE, "Loading Schedule from %s\n",getScheduleFile());
@@ -729,7 +753,7 @@ void Scheduler::LoadScheduleFromFile(void)
   }
   fclose(fp);
 
-  pthread_mutex_unlock(&m_scheduleLock);
+  lock.unlock();
 
   SchedulePrint();
 
@@ -937,3 +961,139 @@ void Scheduler::GetDayTextFromDayIndex(int index,char * txt)
 			break;	
 	}
 }
+
+Json::Value Scheduler::GetInfo(void)
+{
+    Json::Value result;
+
+    if (m_NextScheduleHasbeenLoaded) {
+        Json::Value np;
+        char NextPlaylistStr[128] = "No playlist scheduled.";
+        char NextScheduleStartText[64] = "";
+
+        GetNextScheduleStartText(NextScheduleStartText);
+        GetNextPlaylistText(NextPlaylistStr);
+
+        np["playlistName"] = NextPlaylistStr;
+        np["scheduledStartTime"] = 0;
+        np["scheduledStartTimeStr"] = NextScheduleStartText;
+
+        result["nextPlaylist"] = np;
+    }
+
+    if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+        Json::Value cp;
+
+        if (playlist->WasScheduled()) {
+            int i = m_currentSchedulePlaylist.ScheduleEntryIndex;
+            char timeStr[9];
+
+            struct tm ast;
+            localtime_r(&m_currentSchedulePlaylist.actualStartTime, &ast);
+
+            struct tm aet;
+            localtime_r(&m_currentSchedulePlaylist.actualEndTime, &aet);
+
+            time_t currTime = time(NULL);
+            struct tm now;
+
+            localtime_r(&currTime, &now);
+            int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
+
+            cp["currentTime"] = (Json::UInt64)currTime;
+
+            snprintf(timeStr, 9, "%02d:%02d:%02d",
+                m_currentSchedulePlaylist.entry.startHour, m_currentSchedulePlaylist.entry.startMinute,
+                m_currentSchedulePlaylist.entry.startSecond);
+
+            cp["scheduledStartTime"] = (Json::UInt64)m_currentSchedulePlaylist.scheduledStartTime;
+            cp["scheduledStartTimeStr"] = timeStr;
+
+            snprintf(timeStr, 9, "%02d:%02d:%02d",
+                m_currentSchedulePlaylist.entry.endHour, m_currentSchedulePlaylist.entry.endMinute,
+                m_currentSchedulePlaylist.entry.endSecond);
+
+            cp["scheduledEndTime"] = (Json::UInt64)m_currentSchedulePlaylist.scheduledEndTime;
+            cp["scheduledEndTimeStr"] = timeStr;
+
+            snprintf(timeStr, 9, "%02d:%02d:%02d", ast.tm_hour, ast.tm_min, ast.tm_sec);
+
+            cp["actualStartTime"] = (Json::UInt64)m_currentSchedulePlaylist.actualStartTime;
+            cp["actualStartTimeStr"] = timeStr;
+
+            snprintf(timeStr, 9, "%02d:%02d:%02d", aet.tm_hour, aet.tm_min, aet.tm_sec);
+
+            cp["actualEndTime"] = (Json::UInt64)m_currentSchedulePlaylist.actualEndTime;
+            cp["actualEndTimeStr"] = timeStr;
+
+            int stopType = m_currentSchedulePlaylist.entry.stopType;
+            cp["stopType"] = stopType;
+            cp["stopTypeStr"] = stopType == 2 ? "Graceful Loop" : stopType == 1 ? "Hard" : "Graceful";
+            cp["secondsRemaining"] = m_currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds;
+
+            cp["playlistName"] = m_currentSchedulePlaylist.entry.playlist.c_str();
+
+            result["status"] = "playing";
+        } else {
+            cp["playlistName"] = playlist->GetPlaylistName();
+
+            result["status"] = "manual";
+        }
+
+        result["currentPlaylist"] = cp;
+    } else {
+        result["status"] = "idle";
+    }
+
+
+    return result;
+}
+
+int Scheduler::ExtendRunningSchedule(int seconds)
+{
+    if ((playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING) ||
+        (!playlist->WasScheduled()))
+        return 0;
+
+    LogDebug(VB_SCHEDULE, "Extending schedule by %d seconds\n", seconds);
+    std::unique_lock<std::mutex> lock(m_scheduleLock);
+
+    m_currentSchedulePlaylist.endWeeklySeconds += seconds;
+    if (m_currentSchedulePlaylist.endWeeklySeconds > (7 * 24 * 60 * 60))
+        m_currentSchedulePlaylist.endWeeklySeconds -= 7 * 24 * 60 * 60;
+
+    m_currentSchedulePlaylist.actualEndTime += seconds;
+
+    return 1;
+}
+
+class ScheduleCommand : public Command {
+public:
+    ScheduleCommand(const std::string &str, Scheduler *s) : Command(str), sched(s) {}
+    virtual ~ScheduleCommand() {}
+
+    Scheduler *sched;
+};
+
+class ExtendScheduleCommand : public ScheduleCommand {
+public:
+    ExtendScheduleCommand(Scheduler *s) : ScheduleCommand("Extend Schedule", s) {
+        args.push_back(CommandArg("Seconds", "seconds", "Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300"));
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+        if (args.size() != 1) {
+            return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
+        }
+
+        if (sched->ExtendRunningSchedule(std::stoi(args[0])))
+            return std::make_unique<Command::Result>("Schedule Updated");
+
+        return std::make_unique<Command::Result>("Error extending Schedule");
+    }
+};
+
+void Scheduler::RegisterCommands() {
+    CommandManager::INSTANCE.addCommand(new ExtendScheduleCommand(this));
+}
+

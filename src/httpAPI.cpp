@@ -713,6 +713,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         result["next_playlist"]["playlist"] = NextPlaylist;
         result["next_playlist"]["start_time"] = NextScheduleStartText;
         result["repeat_mode"] = "0";
+        result["scheduler"] = scheduler->GetInfo();
     } else {
         Json::Value pl = playlist->GetInfo();
         if (pl["currentEntry"].isMember("dynamic")) {
@@ -769,6 +770,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         result["seconds_remaining"] = std::to_string(secsRemaining);
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
+        result["scheduler"] = scheduler->GetInfo();
     }
 }
 

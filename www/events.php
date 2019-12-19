@@ -212,7 +212,7 @@ function SetSpeakerIndicator(value) {
 
 <title><? echo $pageTitle; ?></title>
 </head>
-<body onLoad="GetFPPDmode();LoadCommandList('newEventCommand');StatusPopulatePlaylists();setInterval(updateFPPStatus,1000);">
+<body onLoad="GetFPPDmode();LoadCommandList('newEventCommand');StatusPopulatePlaylists();GetFPPStatus();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
