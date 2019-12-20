@@ -275,7 +275,8 @@ char *ProcessCommand(char *command, char *response)
         }
     } else if ((!strcmp(CommandStr, "S")) ||
                (!strcmp(CommandStr, "StopGracefully"))) {
-        if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+        if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
+            (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
             playlist->StopGracefully(1);
             scheduler->ReLoadCurrentScheduleInfo();
             sprintf(response,"%d,%d,Playlist Stopping Gracefully,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
@@ -284,7 +285,8 @@ char *ProcessCommand(char *command, char *response)
         }
     } else if ((!strcmp(CommandStr, "L")) ||
                (!strcmp(CommandStr, "StopGracefullyAfterLoop"))) {
-        if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+        if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
+            (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY)) {
             playlist->StopGracefully(1,1);
             scheduler->ReLoadCurrentScheduleInfo();
             sprintf(response,"%d,%d,Playlist Stopping Gracefully After Loop,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
