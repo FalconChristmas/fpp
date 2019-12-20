@@ -1024,7 +1024,7 @@ function RemovePlaylistEntry()	{
             
             if (count < UniverseCount) {
                 while (count < UniverseCount) {
-                    UniverseSelected = UniverseCount;
+                    UniverseSelected = UniverseCount - 1;
                     DeleteUniverse(input);
                 }
             } else {
@@ -1086,9 +1086,9 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        row.cells[13].innerHTML = "<input id='PingButton' type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[13].innerHTML = "<input type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
-                    
+                    updateUniverseEndChannel( document.getElementById("tblUniversesBody").rows[UniverseCount]);
                     UniverseCount++;
                 }
                 document.getElementById("txtUniverseCount").value = UniverseCount;
@@ -1254,7 +1254,7 @@ function updateUniverseEndChannel(row) {
                             "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>" +
                             "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "" ) + "/></td>" +
-                            "<td " + inputStyle + "><input id='PingButton' type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
+                            "<td " + inputStyle + "><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
             }
 
@@ -1367,15 +1367,15 @@ function updateUniverseEndChannel(row) {
 
 		function InitializeUniverses()
 		{
-			UniverseSelected =0;
-			UniverseCount=0;	
+			UniverseSelected = -1;
+			UniverseCount = 0;
 		}
 		
 		function DeleteUniverse(input)
 		{
-            if (UniverseSelected > 0) {
-                var selectedIndex = (UniverseSelected-1);
-                for(i = UniverseSelected; i < UniverseCount; i++, selectedIndex++) {
+            if (UniverseSelected >= 0) {
+                var selectedIndex = UniverseSelected;
+                for(i = UniverseSelected + 1; i < UniverseCount; i++, selectedIndex++) {
                     
                     document.getElementById("txtUniverse[" + selectedIndex + "]").value = document.getElementById("txtUniverse[" + i + "]").value
                     document.getElementById("txtDesc[" + selectedIndex + "]").value = document.getElementById("txtDesc[" + i + "]").value
@@ -1396,36 +1396,39 @@ function updateUniverseEndChannel(row) {
                     } else {
                         document.getElementById("txtIP[" + selectedIndex + "]").disabled = true;
                     }
+                    updateUniverseEndChannel(document.getElementById("tblUniversesBody").rows[selectedIndex]);
                 }
-                document.getElementById("tblUniversesBody").deleteRow(selectedIndex);
+                document.getElementById("tblUniversesBody").deleteRow(UniverseCount-1);
                 UniverseCount--;
                 document.getElementById("txtUniverseCount").value = UniverseCount;
-                UniverseSelected = 0;
+                UniverseSelected = -1;
             }
         
         }
 		
 		function CloneUniverses(cloneNumber)
 		{
-			var selectIndex = (UniverseSelected-1).toString();
+			var selectIndex = (UniverseSelected).toString();
 			if(!isNaN(cloneNumber))
 			{
 				if((UniverseSelected + cloneNumber -1) < UniverseCount)
 				{
-					var universe=Number(document.getElementById("txtUniverse[" + selectIndex + "]").value)+1;
                     var universeDesc=document.getElementById("txtDesc[" + selectIndex + "]").value;
 					var universeType=document.getElementById("universeType[" + selectIndex + "]").value;
 					var unicastAddress=document.getElementById("txtIP[" + selectIndex + "]").value;
 					var size=Number(document.getElementById("txtSize[" + selectIndex + "]").value);
                     var uCount=Number(document.getElementById("numUniverseCount[" + selectIndex + "]").value);
-					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size;
+                    var universe=Number(document.getElementById("txtUniverse[" + selectIndex + "]").value)+uCount;
+					var startAddress=Number(document.getElementById("txtStartAddress[" + selectIndex + "]").value)+ size * uCount;
 					var active=document.getElementById("chkActive[" + selectIndex + "]").value;
 					var priority=Number(document.getElementById("txtPriority[" + selectIndex + "]").value);
                     var monitor=document.getElementById("txtMonitor[" + selectIndex + "]").checked ? 1 : 0;
                     var deDuplicate=document.getElementById("txtDeDuplicate[" + selectIndex + "]").checked ? 1 : 0;
 
-					for(i=UniverseSelected;i<UniverseSelected+cloneNumber;i++,universe++)
+					for(z=0;z<cloneNumber;z++,universe+=uCount)
 					{
+                        var i = z+UniverseSelected+1;
+                        i = i.toString();
                         document.getElementById("txtDesc[" + i + "]").value = universeDesc;
 						document.getElementById("txtUniverse[" + i + "]").value	= universe.toString();
 						document.getElementById("universeType[" + i + "]").value = universeType;
@@ -1435,8 +1438,8 @@ function updateUniverseEndChannel(row) {
 						document.getElementById("txtSize[" + i + "]").value = size.toString();
 						document.getElementById("txtIP[" + i + "]").value = unicastAddress;
 						document.getElementById("txtPriority[" + i + "]").value = priority;
-                        document.getElementById("txtMonitor[" + i + "]").prop('checked', monitor == 1);
-                        document.getElementById("txtDeDuplicate[" + i + "]").prop('checked', deDuplicate == 1);
+                        document.getElementById("txtMonitor[" + i + "]").checked = (monitor == 1);
+                        document.getElementById("txtDeDuplicate[" + i + "]").checked = (deDuplicate == 1);
 						if((universeType == '1') || (universeType == '3'))
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = false;
@@ -1445,8 +1448,8 @@ function updateUniverseEndChannel(row) {
 						{
 							document.getElementById("txtIP[" + i + "]").disabled = true;
 						}
-						
-						startAddress+=size;
+						updateUniverseEndChannel(document.getElementById("tblUniversesBody").rows[i]);
+						startAddress+=size*uCount;
 					}
 				}
 			} else {
