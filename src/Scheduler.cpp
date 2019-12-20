@@ -981,7 +981,9 @@ Json::Value Scheduler::GetInfo(void)
         result["nextPlaylist"] = np;
     }
 
-    if (playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+    if ((playlist->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PLAYING) ||
+        (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+        (playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         Json::Value cp;
 
         if (playlist->WasScheduled()) {
