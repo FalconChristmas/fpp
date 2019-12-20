@@ -82,6 +82,7 @@ protected:
     void SaveFrame(unsigned char *channelData);
     bool NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count);
     bool           deDuplicate;
+    int            skippedFrames;
     unsigned char* lastData;
 
 };

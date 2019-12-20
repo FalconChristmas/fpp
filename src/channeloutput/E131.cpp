@@ -193,6 +193,8 @@ void E131OutputData::PrepareData(unsigned char *channelData,
     if (valid && active) {
         unsigned char *cur = channelData + startChannel - 1;
         int start = startChannel - 1;
+        bool skipped = false;
+        bool allSkipped = true;
         for (int x = 0; x < universeCount; x++) {
             if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
                 struct mmsghdr msg;
@@ -208,11 +210,19 @@ void E131OutputData::PrepareData(unsigned char *channelData,
                 
                 ++e131Headers[x][E131_SEQUENCE_INDEX];
                 e131Iovecs[x * 2 + 1].iov_base = (void*)cur;
+                allSkipped = false;
+            } else {
+                skipped = true;
             }
             cur += channelCount;
             start += channelCount;
         }
-        SaveFrame(channelData);
+        if (skipped) {
+            skippedFrames++;
+        }
+        if (!allSkipped) {
+            SaveFrame(channelData);
+        }
     }
 }
 

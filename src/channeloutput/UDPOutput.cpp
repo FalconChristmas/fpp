@@ -67,7 +67,7 @@ static void DoPingThread(UDPOutput *output) {
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 
 UDPOutputData::UDPOutputData(const Json::Value &config)
-:  valid(true), type(0), monitor(true), failCount(99), lastData(nullptr) {
+:  valid(true), type(0), monitor(true), failCount(99), lastData(nullptr), skippedFrames(0) {
     
     if (config.isMember("description")) {
         description = config["description"].asString();
@@ -141,7 +141,7 @@ void UDPOutputData::SaveFrame(unsigned char *channelData) {
 }
 
 bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count) {
-    if (deDuplicate) {
+    if (deDuplicate && skippedFrames < 10) {
         if (lastData == nullptr) {
             return true;
         }
@@ -152,6 +152,7 @@ bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChann
         }
         return false;
     }
+    skippedFrames = 0;
     return true;
 }
 

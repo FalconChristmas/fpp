@@ -155,6 +155,8 @@ public:
                 uniMsgs.push_back(msg);
             }
             SaveFrame(channelData);
+        } else {
+            skippedFrames++;
         }
     }
 

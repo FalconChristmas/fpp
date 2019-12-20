@@ -194,6 +194,8 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData,
         
         unsigned char *cur = channelData + startChannel - 1;
         int start = startChannel - 1;
+        bool skipped = false;
+        bool allSkipped = true;
         for (int x = 0; x < universeCount; x++) {
             if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
                 msg.msg_hdr.msg_name = &anAddress;
@@ -209,6 +211,9 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData,
                 
                 anHeaders[x][ARTNET_SEQUENCE_INDEX] = sequenceNumber;
                 anIovecs[x * 2 + 1].iov_base = (void*)cur;
+                allSkipped = false;
+            } else {
+                skipped = true;
             }
             cur += channelCount;
             start += channelCount;
@@ -217,7 +222,12 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData,
         if (sequenceNumber == 0) {
             sequenceNumber++;
         }
-        SaveFrame(channelData);
+        if (skipped) {
+            skippedFrames++;
+        }
+        if (!allSkipped) {
+            SaveFrame(channelData);
+        }
     }
 }
 void ArtNetOutputData::PostPrepareData(unsigned char *channelData,

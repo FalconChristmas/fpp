@@ -225,6 +225,8 @@ void DDPOutputData::PrepareData(unsigned char *channelData,
         
         msg.msg_hdr.msg_name = &ddpAddress;
         msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
+        bool skipped = false;
+        bool allSkipped = true;
         for (int p = 0; p < pktCount; p++) {
             if (NeedToOutputFrame(channelData, startChannel-1, start, ddpIovecs[p * 2 + 1].iov_len)) {
                 msg.msg_hdr.msg_iov = &ddpIovecs[p * 2];
@@ -242,10 +244,18 @@ void DDPOutputData::PrepareData(unsigned char *channelData,
                 
                 // set the pointer to the channelData for the universe
                 ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
+                allSkipped = false;
+            } else {
+                skipped = true;
             }
             start += ddpIovecs[p * 2 + 1].iov_len;
         }
-        SaveFrame(channelData);
+        if (skipped) {
+            skippedFrames++;
+        }
+        if (!allSkipped) {
+            SaveFrame(channelData);
+        }
     }
 }
 void DDPOutputData::DumpConfig() {
