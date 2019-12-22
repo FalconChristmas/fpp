@@ -115,7 +115,8 @@ private:
     void CloseNetwork();
     bool PingControllers();
     
-    int sendSocket;
+    int sendSockets[6];
+    int sendIdx;
     int broadcastSocket;
     bool enabled;
     
