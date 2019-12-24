@@ -1097,7 +1097,7 @@ function RemovePlaylistEntry()	{
 
         function IPOutputTypeChanged(item) {
             var itemVal = $(item).val();
-            if (itemVal == 4 || itemVal == 5) {
+            if (itemVal == 4 || itemVal == 5) { // DDP
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', true);
                 var univc = $(item).parent().parent().find("input.numUniverseCount");
@@ -1107,7 +1107,10 @@ function RemovePlaylistEntry()	{
                 
                 var monitor = $(item).parent().parent().find("input.txtMonitor");
                 monitor.prop('disabled', false);
-            } else {
+
+                var universe = $(item).parent().parent().find("input.txtUniverse");
+                universe.prop('min', 1);
+            } else { // 0,1 = E1.31, 2,3 = Artnet
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', false);
                 if (parseInt(univ.val()) < 1) {
@@ -1130,6 +1133,13 @@ function RemovePlaylistEntry()	{
                     monitor.prop('disabled', true);
                 } else {
                     monitor.prop('disabled', false);
+                }
+
+                var universe = $(item).parent().parent().find("input.txtUniverse");
+                if (itemVal == 2 || itemVal == 3) {
+                    universe.prop('min', 0);
+                } else {
+                    universe.prop('min', 1);
                 }
             }
         }
