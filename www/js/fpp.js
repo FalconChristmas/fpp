@@ -1682,7 +1682,16 @@ function updateUniverseEndChannel(row) {
 			}
 
 			minutes = Number(minutes);
-			ExtendSchedule(minutes);
+
+			var minimum = -3 * 60;
+			var maximum = 12 * 60;
+
+			if ((minutes > maximum) ||
+				(minutes < minimum)) {
+				DialogError("Extend Schedule", "Error: Minutes is not between the minimum " + minimum + " and maximum " + maximum);
+			} else {
+				ExtendSchedule(minutes);
+			}
 		}
 
 

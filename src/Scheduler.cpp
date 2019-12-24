@@ -1053,11 +1053,29 @@ Json::Value Scheduler::GetInfo(void)
 
 int Scheduler::ExtendRunningSchedule(int seconds)
 {
-    if ((playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING) ||
-        (!playlist->WasScheduled()))
+    if ((playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING) &&
+        (playlist->getPlaylistStatus() != FPP_STATUS_STOPPING_GRACEFULLY) &&
+        (playlist->getPlaylistStatus() != FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
+        LogInfo(VB_SCHEDULE, "Tried to extend a running playlist, but there is no playlist running.\n");
         return 0;
+    }
 
-    LogDebug(VB_SCHEDULE, "Extending schedule by %d seconds\n", seconds);
+    if (!playlist->WasScheduled()) {
+        LogInfo(VB_SCHEDULE, "Tried to extend running playlist, but it was manually started.\n");
+        return 0;
+    }
+
+    // UI should catch this, but also check here
+    if ((seconds > (12 * 60 * 60)) ||
+        (seconds < (-3 * 60 * 60))) {
+        return 0;
+    }
+
+    if (seconds >= 0)
+        LogDebug(VB_SCHEDULE, "Extending schedule by %d seconds\n", seconds);
+    else
+        LogDebug(VB_SCHEDULE, "Shortening schedule by %d seconds\n", seconds);
+
     std::unique_lock<std::mutex> lock(m_scheduleLock);
 
     m_currentSchedulePlaylist.endWeeklySeconds += seconds;
