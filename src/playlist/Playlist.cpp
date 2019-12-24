@@ -357,14 +357,20 @@ int Playlist::ReloadPlaylist(void)
 	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 	std::string currentSectionStr = m_currentSectionStr;
 	int repeat = m_repeat;
+	int loopCount = m_loopCount;
+	long long startTime = m_startTime;
 
 	Json::Value root = LoadJSON(m_filename.c_str());
 
 	if (!Load(root))
 		return 0;
 
-	m_currentSectionStr = currentSectionStr;
 	m_repeat = repeat;
+	m_loopCount = loopCount;
+	m_startTime = startTime;
+	m_sectionPosition = 0;
+	m_currentSectionStr = "MainPlaylist";
+	m_currentSection = &m_mainPlaylist;
 
 	GetConfigStr();
 
