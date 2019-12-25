@@ -1578,7 +1578,11 @@ function updateUniverseEndChannel(row) {
 				// universe
                 if (universeType >= 0 && universeType <= 3) {
                     txtUniverse=document.getElementById("txtUniverse[" + i + "]");
-                    if(!validateNumber(txtUniverse,1,63999))
+                    var minNum = 1;
+                    if (universeType >= 2 && universeType <= 3)
+                        minNum = 0;
+
+                    if(!validateNumber(txtUniverse,minNum,63999))
                     {
                         returnValue = false;
                     }
