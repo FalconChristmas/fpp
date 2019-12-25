@@ -1222,6 +1222,10 @@ function updateUniverseEndChannel(row) {
                 if (type == 0 || type == 2) {
                     monitorDisabled = " disabled";
                 }
+                var minNum = 1;
+                if (type == 2 || type == 3) {
+                    minNum = 0;
+                }
 
                 bodyHTML += "<tr class=\"rowUniverseDetails\">" +
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
@@ -1229,7 +1233,7 @@ function updateUniverseEndChannel(row) {
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
                             "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>" +
                             "<td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>" +
-                            "<td><input class='txtUniverse' type='number' min='1' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
+                            "<td><input class='txtUniverse' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
                 bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
 
