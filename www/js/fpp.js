@@ -2429,6 +2429,14 @@ if (1) {
 						$('.schedulerEndTime').show();
 						$('#schedulerEndTime').html(pl.actualEndTimeStr);
 						$('#schedulerStopType').html(pl.stopTypeStr);
+
+						if ((fppStatus == STATUS_STOPPING_GRACEFULLY) ||
+							(fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
+							$('.schedulerExtend').hide();
+						} else {
+							$('.schedulerExtend').show();
+						}
+
 					} else if (jsonStatus.scheduler.status == "manual") {
 						var pl = jsonStatus.scheduler.currentPlaylist;
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b> (manually started)");

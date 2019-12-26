@@ -204,7 +204,7 @@ include 'common/menuHead.inc';
                     <td class='schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</td>
                     <td class='schedulerEndTime' id='schedulerEndTime'></td>
                     <td width='10px'>&nbsp;</td>
-                    <td class='schedulerEndTime'>
+                    <td class='schedulerEndTime schedulerExtend'>
                         <input type='button' value='Extend' onClick='ExtendSchedulePopup();'>
                         <input type='button' value='+5m' onClick='ExtendSchedule(5);'>
                         </td>
