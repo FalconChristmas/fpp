@@ -2315,6 +2315,8 @@ function HolidaySelect(userKey, classToAdd)
 
 			if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
 				GetUniverseBytesReceived();
+
+			$('#schedulerStatusWrapper').hide();
 		} else if (fppMode == 8) {
 			$('#fppTime').html(jsonStatus.time);
 
@@ -2325,12 +2327,15 @@ function HolidaySelect(userKey, classToAdd)
 			$('#txtRemoteStatus').html(status);
 			$('#txtRemoteSeqFilename').html(jsonStatus.sequence_filename);
 			$('#txtRemoteMediaFilename').html(jsonStatus.media_filename);
+			$('#schedulerStatusWrapper').hide();
 		
 		} else {
 
 			var nextPlaylist = jsonStatus.next_playlist;
 			var nextPlaylistStartTime = jsonStatus.next_playlist_start_time;
 			var currentPlaylist = jsonStatus.current_playlist;
+
+			$('#schedulerStatusWrapper').show();
 
 			if (fppStatus == STATUS_IDLE) {
 				gblCurrentPlaylistIndex =0;

@@ -193,7 +193,7 @@ include 'common/menuHead.inc';
 	  					</tr>
 	  		</table>
       </div>
-      <div id='schedulerStatusWrapper'>
+      <div id='schedulerStatusWrapper' style='display: none;'>
             <table>
                 <tr><td>Scheduler Status:</td>
                     <td id='schedulerStatus'></td>
@@ -210,8 +210,8 @@ include 'common/menuHead.inc';
                         </td>
                 </tr>
             </table>
+        <hr>
       </div>
-      <hr>
     	<div id="playerStatusTop">
       <div>
         <div class='playerStatusLeft'>
