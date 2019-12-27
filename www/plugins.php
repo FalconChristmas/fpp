@@ -60,11 +60,13 @@ function GetPluginList() {
 function CheckPluginForUpdates(plugin) {
 	var url = 'api/plugin/' + plugin + '/updates';
 
+	$('html,body').css('cursor','wait');
 	$.ajax({
 		url: url,
 		type: 'POST',
 		dataType: 'json',
 		success: function(data) {
+			$('html,body').css('cursor','auto');
 			if (data.Status == 'OK')
 			{
 				if (data.updatesAvailable)
@@ -76,6 +78,7 @@ function CheckPluginForUpdates(plugin) {
 				alert('ERROR: ' + data.Message);
 		},
 		fail: function() {
+			$('html,body').css('cursor','auto');
 			alert('Error, API call failed when checking plugin for updates');
 		}
 	});
@@ -84,17 +87,20 @@ function CheckPluginForUpdates(plugin) {
 function UpgradePlugin(plugin) {
 	var url = 'api/plugin/' + plugin + '/upgrade';
 
+	$('html,body').css('cursor','wait');
 	$.ajax({
 		url: url,
 		type: 'POST',
 		dataType: 'json',
 		success: function(data) {
+			$('html,body').css('cursor','auto');
 			if (data.Status == 'OK')
 				$('#row-' + plugin).find('.updatesAvailable').hide();
 			else
 				alert('ERROR: ' + data.Message);
 		},
 		fail: function() {
+			$('html,body').css('cursor','auto');
 			alert('Error, API call failed when upgrading plugin');
 		}
 	});
@@ -116,6 +122,7 @@ function InstallPlugin(plugin, branch, sha) {
 	pluginInfo['infoURL'] = pluginInfoURLs[plugin];
 
 	var postData = JSON.stringify(pluginInfo);
+	$('html,body').css('cursor','wait');
 	$.ajax({
 		url: url,
 		type: 'POST',
@@ -123,12 +130,14 @@ function InstallPlugin(plugin, branch, sha) {
 		data: postData,
 		dataType: 'json',
 		success: function(data) {
+			$('html,body').css('cursor','auto');
 			if (data.Status == 'OK')
 				location.reload(true);
 			else
 				alert('ERROR: ' + data.Message);
 		},
 		fail: function() {
+			$('html,body').css('cursor','auto');
 			alert('Error, API call to install plugin failed');
 		}
 	});
@@ -136,17 +145,20 @@ function InstallPlugin(plugin, branch, sha) {
 
 function UninstallPlugin(plugin) {
 	var url = 'api/plugin/' + plugin;
+	$('html,body').css('cursor','wait');
 	$.ajax({
 		url: url,
 		type: 'DELETE',
 		dataType: 'json',
 		success: function(data) {
+			$('html,body').css('cursor','auto');
 			if (data.Status == 'OK')
 				location.reload(true);
 			else
 				alert('ERROR: ' + data.Message);
 		},
 		fail: function() {
+			$('html,body').css('cursor','auto');
 			alert('Error, API call to uninstall plugin failed');
 		}
 	});
@@ -344,13 +356,16 @@ function LoadPlugins(pluginList) {
 
 			pluginInfoURLs[pluginList[i][0]] = url;
 
+			$('html,body').css('cursor','wait');
 			$.ajax({
 				url: url,
 				dataType: 'json',
 				success: function(data) {
+					$('html,body').css('cursor','auto');
 					LoadPlugin(data);
 				},
 				fail: function() {
+					$('html,body').css('cursor','auto');
 					alert('Error, failed to fetch ' + pluginList[i]);
 				}
 			});
@@ -363,13 +378,16 @@ function ManualLoadInfo() {
 
 	if (url.indexOf('://') > -1)
 	{
+		$('html,body').css('cursor','wait');
 		$.ajax({
 			url: url,
 			dataType: 'json',
 			success: function(data) {
+				$('html,body').css('cursor','auto');
 				LoadPlugin(data);
 			},
 			fail: function() {
+				$('html,body').css('cursor','auto');
 				alert('Error, failed to fetch ' + pluginInfos[i]);
 			}
 		});
