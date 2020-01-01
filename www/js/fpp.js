@@ -3420,17 +3420,26 @@ function CommandToJSON(commandSelect, tblCommand, json) {
     return json;
 }
 
+var commandList = "";
 function LoadCommandList(commandSelect) {
-   $.ajax({
-           dataType: "json",
-           url: "api/commands",
-           async: false,
-           success: function(data) {
+    if (commandList == "") {
+        $.ajax({
+            dataType: "json",
+            url: "api/commands",
+            async: false,
+            success: function(data) {
+                commandList = data;
                 $.each( data, function(key, val) {
-                       option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-                       $('#' + commandSelect).append(option);
+                    option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
+                    $('#' + commandSelect).append(option);
                 });
-          }});
+            }});
+    } else {
+        $.each( commandList, function(key, val) {
+            option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
+            $('#' + commandSelect).append(option);
+        });
+    }
 }
 
 function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false)
