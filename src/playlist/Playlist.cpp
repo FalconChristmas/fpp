@@ -544,7 +544,12 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
  */
 int Playlist::IsPlaying(void)
 {
-	return (m_status == FPP_STATUS_PLAYLIST_PLAYING);
+	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
+		(m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
+		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP))
+		return 1;
+
+	return 0;
 }
 
 /*
