@@ -95,6 +95,7 @@ class Scheduler {
 
 	void ScheduleProc(void);
 	void CheckIfShouldBePlayingNow(int ignoreRepeat = 0);
+	void ReloadScheduleFile(void);
 	void ReLoadCurrentScheduleInfo(void);
 	void ReLoadNextScheduleInfo(void);
 	void GetNextScheduleStartText(char * txt);
@@ -107,7 +108,7 @@ class Scheduler {
 
   private:
 	int  GetNextScheduleEntry(int *weeklySecondIndex, bool future);
-	void LoadCurrentScheduleInfo(void);
+	void LoadCurrentScheduleInfo(bool future = false);
 	void LoadNextScheduleInfo(void);
 	void GetSunInfo(int set, int &hour, int &minute, int &second);
 	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry);
@@ -124,6 +125,7 @@ class Scheduler {
 
 	void RegisterCommands();
 
+	bool          m_loadSchedule;
 	unsigned char m_CurrentScheduleHasbeenLoaded;
 	unsigned char m_NextScheduleHasbeenLoaded;
 	int           m_nowWeeklySeconds2;

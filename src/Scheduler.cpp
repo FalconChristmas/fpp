@@ -65,7 +65,8 @@ void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
 /////////////////////////////////////////////////////////////////////////////
 
 Scheduler::Scheduler()
-  : m_CurrentScheduleHasbeenLoaded(0),
+  : m_loadSchedule(true),
+	m_CurrentScheduleHasbeenLoaded(0),
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
 	m_lastLoadDate(0),
@@ -75,8 +76,10 @@ Scheduler::Scheduler()
 	m_runThread(0),
 	m_threadIsRunning(0)
 {
-
 	RegisterCommands();
+
+	m_lastProcTime = time(NULL);
+	LoadScheduleFromFile();
 }
 
 Scheduler::~Scheduler()
@@ -90,6 +93,7 @@ void Scheduler::ScheduleProc(void)
   if ((m_lastLoadDate != GetCurrentDateInt()) ||
       ((procTime - m_lastProcTime) > 5))
   {
+    m_loadSchedule = true;
     if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE)
       m_CurrentScheduleHasbeenLoaded = 0;
 
@@ -98,8 +102,11 @@ void Scheduler::ScheduleProc(void)
 
   m_lastProcTime = procTime;
 
-  if (!m_CurrentScheduleHasbeenLoaded || !m_NextScheduleHasbeenLoaded)
-    LoadScheduleFromFile();
+  if (m_loadSchedule)
+	LoadScheduleFromFile();
+
+  if ((!m_CurrentScheduleHasbeenLoaded) || (!m_NextScheduleHasbeenLoaded))
+	SchedulePrint();
 
   if(!m_CurrentScheduleHasbeenLoaded)
     LoadCurrentScheduleInfo();
@@ -127,8 +134,6 @@ void Scheduler::ScheduleProc(void)
 
 void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 {
-  LoadScheduleFromFile(); // Load before we get the time so slow loads don't impact timing
-
   int i,j,dayCount;
   time_t currTime = time(NULL);
   struct tm now;
@@ -166,6 +171,10 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
 						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
 
+					if (m_loadSchedule)
+						LoadScheduleFromFile();
+
+					SchedulePrint();
 					LoadNextScheduleInfo();
 
 					return;
@@ -174,6 +183,10 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 		}
   }
 
+  if (m_loadSchedule)
+    LoadScheduleFromFile();
+
+  SchedulePrint();
   LoadCurrentScheduleInfo();
   LoadNextScheduleInfo();
 }
@@ -252,21 +265,24 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
   return nextEntryIndex;
 }
 
+void Scheduler::ReloadScheduleFile(void)
+{
+	m_loadSchedule = true;
+}
+
 void Scheduler::ReLoadCurrentScheduleInfo(void)
 {
-  m_lastLoadDate = 0;
   m_CurrentScheduleHasbeenLoaded = 0;
 }
 
 void Scheduler::ReLoadNextScheduleInfo(void)
 {
-  m_lastLoadDate = 0;
   m_NextScheduleHasbeenLoaded = 0;
 }
 
-void Scheduler::LoadCurrentScheduleInfo(void)
+void Scheduler::LoadCurrentScheduleInfo(bool future)
 {
-    m_currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_currentSchedulePlaylist.weeklySecondIndex, false);
+    m_currentSchedulePlaylist.ScheduleEntryIndex = GetNextScheduleEntry(&m_currentSchedulePlaylist.weeklySecondIndex, future);
     if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
         m_currentSchedulePlaylist.startWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyStartSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
         m_currentSchedulePlaylist.endWeeklySeconds = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].weeklyEndSeconds[m_currentSchedulePlaylist.weeklySecondIndex];
@@ -574,7 +590,7 @@ void Scheduler::PlayListLoadCheck(void)
     // for repeat, then reschedule.
     if ((diff < -1) &&
         (!m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat))
-      ReLoadCurrentScheduleInfo();
+        LoadCurrentScheduleInfo();
 
     // Convoluted code to print the countdown more frequently as we get closer
     if (((diff > 300) &&                  ((diff % 300) == 0)) ||
@@ -683,19 +699,26 @@ void Scheduler::PlayListStopCheck(void)
 				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 2 ? "Gracefully after this loop" : "");
 
 
+		// If the end time has been modified to be earlier than the originally
+		// scheduled end time, then use a force stop so the main loop doesn't
+		// restart the playlist when calling CheckIfShouldBePlayingNow()
+		int forceStop = 0;
+		if (m_currentSchedulePlaylist.actualEndTime < m_currentSchedulePlaylist.scheduledEndTime)
+			forceStop = 1;
+
 		switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType)
 		{
-			case 0: playlist->StopGracefully();
-					m_CurrentScheduleHasbeenLoaded = 0;
+			case 0: playlist->StopGracefully(forceStop);
 					break;
-			case 1: playlist->StopNow();
+			case 1: playlist->StopNow(forceStop);
 					break;
-			case 2: playlist->StopGracefully(0,1);
-					m_CurrentScheduleHasbeenLoaded = 0;
+			case 2: playlist->StopGracefully(forceStop,1);
 					break;
-			default: playlist->StopNow();
+			default: playlist->StopNow(forceStop);
 					break;
 		}
+
+		LoadCurrentScheduleInfo(true);
     }
   }
 }
@@ -708,6 +731,7 @@ void Scheduler::LoadScheduleFromFile(void)
   int scheduleEntryCount = 0;
   int day;
 
+  m_loadSchedule = false;
   m_lastLoadDate = GetCurrentDateInt();
 
   std::unique_lock<std::mutex> lock(m_scheduleLock);
@@ -754,8 +778,6 @@ void Scheduler::LoadScheduleFromFile(void)
   fclose(fp);
 
   lock.unlock();
-
-  SchedulePrint();
 
   return;
 }

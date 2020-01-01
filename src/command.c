@@ -309,6 +309,7 @@ char *ProcessCommand(char *command, char *response)
             sprintf(response,"%d,%d,Not playing,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
         }
     } else if (!strcmp(CommandStr, "R")) {
+        scheduler->ReloadScheduleFile();
         scheduler->ReLoadNextScheduleInfo();
         if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
             scheduler->ReLoadCurrentScheduleInfo();
