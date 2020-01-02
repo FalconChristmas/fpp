@@ -335,7 +335,10 @@ void PixelOverlayModel::doImageMovementThread(const std::string &direction, int 
         copyImageData(x, y);
     }
     if (disableWhenDone)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
         setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+    }
 
     unlock();
 }
@@ -351,18 +354,28 @@ void PixelOverlayModel::copyImageData(int xoff, int yoff) {
             if (ny < 0 || ny >= h) {
                 continue;
             }
-            int idx = y * imageDataCols * 3;
-            for (int x = 0; x < imageDataCols; ++x) {
-                int nx = xoff + x;
-                if (nx < 0 || nx >= w) {
-                    continue;
-                }
-                uint8_t *p = &imageData[idx + (x*3)];
-                int c = (ny*getWidth()*3) + nx*3;
-                overlayBuffer[c++] = p[0];
-                overlayBuffer[c++] = p[1];
-                overlayBuffer[c++] = p[2];
+
+            uint8_t *src = imageData + (y * imageDataCols * 3);
+            uint8_t *dst = overlayBuffer + (ny * w * 3);
+            int pixelsToCopy = imageDataCols;
+            int c = w * 3;
+
+            if (xoff < 0) {
+                src -= xoff * 3;
+                pixelsToCopy += xoff;
+                if (pixelsToCopy >= w)
+                    pixelsToCopy = w;
+            } else if (xoff > 0) {
+                dst += xoff * 3;
+                if (pixelsToCopy > (w - xoff))
+                    pixelsToCopy = w - xoff;
+            } else {
+                if (pixelsToCopy >= w)
+                    pixelsToCopy = w;
             }
+
+            if (pixelsToCopy > 0)
+                memcpy(dst, src, pixelsToCopy * 3);
         }
         setData(overlayBuffer);
     }
