@@ -174,7 +174,7 @@ char *ProcessCommand(char *command, char *response)
                         getFPPmode(),
                         1,
                         getVolume(),
-                        sequence->m_seqFilename,
+                        sequence->m_seqFilename.c_str(),
                         sequence->m_seqSecondsElapsed,
                         sequence->m_seqSecondsRemaining,
                         NextPlaylist,
