@@ -125,13 +125,7 @@
 
 #nextPlaylist
 {
-	margin-top:10px;
-	padding:5px;
-	background:#DDD;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	-webkit-border-radius: 5px;
-
+    white-space: nowrap;
 }
 
 #rebootShutdown

@@ -209,6 +209,10 @@ include 'common/menuHead.inc';
                         <input type='button' value='+5m' onClick='ExtendSchedule(5);'>
                         </td>
                 </tr>
+                <tr>
+                    <td> Next Playlist: </td>
+                    <td id='nextPlaylist' colspan=8></td>
+                </tr>
             </table>
         <hr>
       </div>
@@ -302,18 +306,6 @@ include 'common/menuHead.inc';
         <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
         <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
        </div>
-    </div>
-    <div id="nextPlaylist">
-      <table  width="100%">
-        <tr>
-          <td class='controlHeader'> Next Playlist: </td>
-          <td id = "txtNextPlaylist" width = "85%"></td>
-        </tr>
-        <tr>
-          <td class='controlHeader'> Time: </td>
-          <td width="85%" id = "nextPlaylistTime"></td>
-        </tr>
-      </table>
     </div>
 		</div>
   </fieldset>

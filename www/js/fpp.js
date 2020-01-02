@@ -2475,10 +2475,13 @@ if (1) {
 
 			}
 
-			$('#txtNextPlaylist').html(nextPlaylist.playlist);
-			$('#nextPlaylistTime').html(nextPlaylist.start_time);
 			$('#fppTime').html(jsonStatus.time);
-            
+
+			var npl = jsonStatus.scheduler.nextPlaylist;
+			if (npl.scheduledStartTimeStr != "")
+				$('#nextPlaylist').html("'" + npl.playlistName + "' on " + npl.scheduledStartTimeStr);
+			else
+				$('#nextPlaylist').html("No playlist scheduled.");
 		}
 
         if (jsonStatus.hasOwnProperty('sensors')) {
