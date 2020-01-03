@@ -34,6 +34,13 @@
 #include "Sequence.h"
 #include "X11Matrix.h"
 
+
+extern "C" {
+    X11MatrixOutput *createX11MatrixOutput(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new X11MatrixOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -41,7 +48,7 @@
  */
 X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_width(0),
 	m_height(0),
 	m_scale(10),
@@ -52,7 +59,8 @@ X11MatrixOutput::X11MatrixOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "X11MatrixOutput::X11MatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = FPPD_MAX_CHANNELS;
+	XInitThreads();
+
 	m_useDoubleBuffer = 1;
 }
 
@@ -74,6 +82,11 @@ int X11MatrixOutput::Init(Json::Value config)
 	m_width  = config["width"].asInt();
 	m_height = config["height"].asInt();
 	m_scale = config["scale"].asInt();
+
+	if (config.isMember("title"))
+		m_title = config["title"].asString();
+	else
+		m_title = "X11Matrix";
 
 	if (!m_scale)
 		m_scale = 10;
@@ -119,10 +132,13 @@ int X11MatrixOutput::Init(Json::Value config)
 		DefaultVisual(m_display, m_screen), CWBackPixel, &attributes);
 
 	XMapWindow(m_display, m_window);
+
+	XStoreName(m_display, m_window, m_title.c_str());
+	XSetIconName(m_display, m_window, m_title.c_str());
 	
 	XFlush(m_display);
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -134,12 +150,15 @@ int X11MatrixOutput::Close(void)
 
 	// Close X11 Window here
 
-	delete [] m_imageData;
+	XLockDisplay(m_display);
+	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
 	XFreeGC(m_display, m_gc);
 	XCloseDisplay(m_display);
+	XUnlockDisplay(m_display);
+	delete [] m_imageData;
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -184,12 +203,23 @@ int X11MatrixOutput::RawSendData(unsigned char *channelData)
 		}
 	}
 
+	XLockDisplay(m_display);
+
 	XPutImage(m_display, m_window, m_gc, m_image, 0, 0, 0, 0, m_scaleWidth, m_scaleHeight);
 
 	XSync(m_display, True);
 	XFlush(m_display);
 
+	XUnlockDisplay(m_display);
+
 	return m_channelCount;
+}
+
+/*
+ *
+ */
+void X11MatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*
@@ -205,6 +235,6 @@ void X11MatrixOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Scaled Width  : %d\n", m_scaleWidth);
 	LogDebug(VB_CHANNELOUT, "    Scaled Height : %d\n", m_scaleHeight);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

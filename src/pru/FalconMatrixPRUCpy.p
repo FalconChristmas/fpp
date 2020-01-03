@@ -12,24 +12,47 @@
 .entrypoint START
 
 #include "FalconUtils.hp"
-#include "FalconWS281x.hp"
+#include "FalconPRUDefs.hp"
 
 #define data_addr       r1
-#define endVal          r2
+
+#define endVal          r7
+
 
 #define lastData        r17
-#define pixel_data      r18 // the next 12 registers, too;
+#define pixel_data      r18 // the next 8 registers, too;
 
 
 
 START:
-    MOV endVal, 0xFFFFFFF
-    MOV data_addr, 0
-    ZERO &lastData, 32
+    // Enable OCP master port
+    // clear the STANDBY_INIT bit in the SYSCFG register,
+    // otherwise the PRU will not be able to write outside the
+    // PRU memory space and to the BeagleBone's pins.
+    LBCO    r0, C4, 4, 4
+    CLR     r0, r0, 4
+    SBCO    r0, C4, 4, 4
+
+    // Configure the programmable pointer register for PRU0 by setting
+    // c28_pointer[15:0] field to 0x0120.  This will make C28 point to
+    // 0x00012000 (PRU shared RAM).
+    MOV		r0, 0x00000120
+    MOV		r1, CTPPR_0 + PRU_MEMORY_OFFSET
+    ST32	r0, r1
+
+    // Configure the programmable pointer register for PRU0 by setting
+    // c31_pointer[15:0] field to 0x0010.  This will make C31 point to
+    // 0x80001000 (DDR memory).
+    MOV		r0, 0x00100000
+    MOV		r1, CTPPR_1 + PRU_MEMORY_OFFSET
+    ST32	r0, r1
 
     LDI r3, 1
     SBCO r3, C24, 0, 4
-    SBCO lastData, C24, 4, 32
+
+    MOV endVal, 0xFFFFFFF
+    MOV data_addr, 0
+    ZERO &lastData, (32+4)
 
 READ_LOOP:
     XIN 10, data_addr, 4
@@ -37,23 +60,18 @@ READ_LOOP:
     // Wait for a non-zero address
     QBEQ READ_LOOP, data_addr, #0
 
-    // Command of 0xFFFFFF is the signal to exit
+    // Command of 0xFFFFFFF is the signal to exit
     QBEQ EXIT, data_addr, endVal
 
     QBNE DO_DATA, lastData, data_addr
     //nothing changed
     JMP READ_LOOP
 
-    SBCO data_addr, C24, 4, 4
-
-
     DO_DATA:
-        LBBO pixel_data, data_addr, 0, 3*2*OUTPUTS
+        LBBO pixel_data, data_addr, 0, 32
         MOV lastData, data_addr
-        XOUT 11, lastData, (3*2*OUTPUTS + 4)
-        SBCO lastData, C24, 8, (3*2*OUTPUTS + 4)
-
-    JMP READ_LOOP
+        XOUT 11, lastData, (32 + 4)
+        JMP READ_LOOP
 
 EXIT:
     #ifdef AM33XX

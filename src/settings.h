@@ -27,6 +27,8 @@
 #define __SETTINGS_H__
 
 #include <stdbool.h>
+#include <map>
+#include <string>
 
 #define MAXBUF 1024
 
@@ -38,43 +40,42 @@ typedef enum fppMode {
 	REMOTE_MODE = 0x08
 } FPPMode;
 
-struct config
-{
-	int		daemonize;
-	FPPMode	fppMode;
-	int		volume;
-	int		alwaysTransmit;
-	char    *binDirectory;
-	char	*fppDirectory;
-	char	*mediaDirectory;
-	char	*musicDirectory;
-	char	*sequenceDirectory;
-	char	*eventDirectory;
-	char	*videoDirectory;
-	char	*effectDirectory;
-	char	*scriptDirectory;
-	char	*pluginDirectory;
-	char	*playlistDirectory;
-	char	*universeFile;
-	char	*pixelnetFile;
-	char	*scheduleFile;
-	char	*logFile;
-	char	*silenceMusic;
-	char	*settingsFile;
-	char	*bytesFile;
-	char	*E131interface;
-
-	unsigned int controlMajor;
-	unsigned int controlMinor;
-
-	char *keys[1024];
-	char *values[1024];
+class SettingsConfig {
+public:
+    SettingsConfig() {}
+    ~SettingsConfig();
+    
+    int        daemonize;
+    int        restarted;
+    FPPMode    fppMode;
+    int        alwaysTransmit;
+    char    *binDirectory = nullptr;
+    char    *fppDirectory = nullptr;
+    char    *mediaDirectory = nullptr;
+    char    *musicDirectory = nullptr;
+    char    *sequenceDirectory = nullptr;
+    char    *eventDirectory = nullptr;
+    char    *videoDirectory = nullptr;
+    char    *effectDirectory = nullptr;
+    char    *scriptDirectory = nullptr;
+    char    *pluginDirectory = nullptr;
+    char    *playlistDirectory = nullptr;
+    char    *pixelnetFile = nullptr;
+    char    *scheduleFile = nullptr;
+    char    *logFile = nullptr;
+    char    *silenceMusic = nullptr;
+    char    *settingsFile = nullptr;
+    char    *E131interface = nullptr;
+    
+    unsigned int controlMajor;
+    unsigned int controlMinor;
+    
+    std::map<std::string, char *> keyVal;
 };
-
 
 // Helpers
 void initSettings(int argc, char **argv);
-char *trimwhitespace(const char *str);
+char *trimwhitespace(const char *str, int quotesAlso = 1);
 char *modeToString(int mode);
 void usage(char *appname);
 
@@ -88,12 +89,12 @@ int saveSettingsFile(void);
 int parseSetting(char *key, char *value);
 
 // Getters
-char *getSetting(char *setting);
-int   getSettingInt(char *setting);
+const char *getSetting(const char *setting);
+int   getSettingInt(const char *setting, int defaultVal = 0);
 
 int getDaemonize(void);
+int getRestarted(void);
 FPPMode getFPPmode(void);
-int  getVolume(void);
 int  getAlwaysTransmit(void);
 char *getBinDirectory(void);
 char *getFPPDirectory(void);
@@ -111,15 +112,10 @@ char *getPixelnetFile(void);
 char *getScheduleFile(void);
 char *getLogFile(void);
 char *getSilenceMusic(void);
-char *getBytesFile(void);
 char *getSettingsFile(void);
 char *getE131interface(void);
 unsigned int getControlMajor(void);
 unsigned int getControlMinor(void);
-
-
-// Setters
-void setVolume(int volume);
 
 
 #endif //__SETTINGS_H__

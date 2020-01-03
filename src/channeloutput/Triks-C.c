@@ -174,12 +174,13 @@ void *RunTriksCOutputThread(void *data)
 
 	LogDebug(VB_CHANNELOUT, "Triks-C output thread complete\n");
 	privData->threadIsRunning = 0;
+    return nullptr;
 }
 
 /*
  *
  */
-int TriksC_Open(char *configStr, void **privDataPtr) {
+int TriksC_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "TriksC_Open('%s')\n", configStr);
 
 	TriksCPrivData *privData =
@@ -195,7 +196,10 @@ int TriksC_Open(char *configStr, void **privDataPtr) {
 	privData->fd = -1;
 
 	char deviceName[32];
-	char *s = strtok(configStr, ";");
+	char cfg[1025];
+
+	strncpy(cfg, configStr, 1024);
+	char *s = strtok(cfg, ",;");
 
 	strcpy(deviceName, "UNKNOWN");
 
@@ -243,7 +247,7 @@ int TriksC_Open(char *configStr, void **privDataPtr) {
 				privData->panels = privData->width * privData->height;
 			}
 		}
-		s = strtok(NULL, ",");
+        s = strtok(NULL, ",;");
 	}
 
 	if (!strcmp(deviceName, "UNKNOWN"))
@@ -320,6 +324,7 @@ int TriksC_Close(void *data) {
 
 	SerialClose(privData->fd);
 	privData->fd = -1;
+    return 0;
 }
 
 /*
@@ -399,8 +404,8 @@ void DumpEncodedBuffer(TriksCPrivData *privData)
 			printf( "---------------------------------------------------------\n");
 		printf( "Panel #%d\n", p);
 		printf( "   0        1         2         3         4       4\n");
-		printf( "   123456789012345678901234567890123456789012345678\n", p);
-		printf( "   ------------------------------------------------\n", p);
+		printf( "   123456789012345678901234567890123456789012345678\n");
+		printf( "   ------------------------------------------------\n");
 		for (y = 15; y >= 0; y--)
 		{
 			printf( "%2d|", 16 - y);
@@ -410,8 +415,8 @@ void DumpEncodedBuffer(TriksCPrivData *privData)
 			}
 			printf( "|\n");
 		}
-		printf( "   ------------------------------------------------\n", p);
-		printf( "   123456789012345678901234567890123456789012345678\n", p);
+		printf( "   ------------------------------------------------\n");
+		printf( "   123456789012345678901234567890123456789012345678\n");
 	}
 	printf( "=========================================================\n");
 }
@@ -550,7 +555,7 @@ void ProcessInputBuffer(TriksCPrivData *privData)
 /*
  *
  */
-int TriksC_SendData(void *data, char *channelData, int channelCount)
+int TriksC_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "TriksC_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);
@@ -576,6 +581,7 @@ int TriksC_SendData(void *data, char *channelData, int channelCount)
 		pthread_cond_signal(&privData->sendCond);
 	else
 		ProcessInputBuffer(privData);
+    return channelCount;
 }
 
 /*
@@ -584,22 +590,6 @@ int TriksC_SendData(void *data, char *channelData, int channelCount)
 int TriksC_MaxChannels(void *data)
 {
 	return TRIKSC_MAX_CHANNELS;
-}
-
-/*
- *
- */
-int TriksC_StartOutputThread(void *data)
-{
-	LogDebug(VB_CHANNELOUT, "TriksC_StartOutputThread(%p)\n", data);
-}
-
-/*
- *
- */
-int TriksC_StopOutputThread(void *data)
-{
-	LogDebug(VB_CHANNELOUT, "TriksC_StopOutputThread(%p)\n", data);
 }
 
 /*
@@ -612,8 +602,8 @@ FPPChannelOutput TriksCOutput = {
 	TriksC_IsConfigured, //isConfigured
 	TriksC_IsActive, //isActive
 	TriksC_SendData, //send
-	TriksC_StartOutputThread, //startThread
-	TriksC_StopOutputThread, //stopThread
+	nullptr, //startThread
+	nullptr, //stopThread
 };
 
 /*

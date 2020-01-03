@@ -1,0 +1,19 @@
+{
+    "name": "Global",
+    "holidays": [
+        {
+            "name": "Christmas Eve",
+            "shortName": "ChristmasEve",
+            "year": 0,
+            "month": 12,
+            "day": 24
+        },
+        {
+            "name": "Christmas",
+            "shortName": "Christmas",
+            "year": 0,
+            "month": 12,
+            "day": 25
+        }
+    ]
+}

@@ -36,15 +36,15 @@
 class TestPatternSingleChase : public TestPatternBase {
   public:
     TestPatternSingleChase();
-	~TestPatternSingleChase();
+	virtual ~TestPatternSingleChase();
 
-	int  Init(Json::Value config);
+	virtual int Init(Json::Value config) override;
 
-	int  SetupTest(void);
-	void DumpConfig(void);
+	virtual int SetupTest(void) override;
+	virtual void DumpConfig(void) override;
 
   private:
-	void CycleData(void);
+	void CycleData(void) override;
 
 	int  m_chaseSize;
 	char m_chaseValue;

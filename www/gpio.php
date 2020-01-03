@@ -1,12 +1,19 @@
+<!DOCTYPE html>
+<html>
 <?php
+require_once('config.php');
 require_once("common.php");
 
 ?>
-<html>
 <head>
 <?php
 include 'common/menuHead.inc';
+    $pullUpTypes = Array();
+    $pullUpTypes['None/External'] = 0;
+    $pullUpTypes['Pull Up'] = 1;
+    $pullUpTypes['Pull Down'] = 2;
 
+    
 	$eventFiles = scandir($eventDirectory);
 
 	function PrintEventOptions($gpio, $rising = true)
@@ -18,17 +25,15 @@ include 'common/menuHead.inc';
 		$value = "";
 
 		$key = 'GPIOInput' . sprintf('%03d', $gpio) . 'Event' . ( $rising ? "Rising" : "Falling" );
-		if (isset($settings[$key]))
-		{
+		if (isset($settings[$key])) {
 			$value = $settings[$key];
 		}
 
 		$eventOptions .= "<option value=''> -- No Event -- </option>";
-		foreach ($eventFiles as $eventFile)
-		{
-			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile))
-			{
-				$info = parse_ini_file($eventDirectory . "/" . $eventFile);
+		foreach ($eventFiles as $eventFile) {
+			if($eventFile != '.' && $eventFile != '..' && preg_match('/.fevt$/', $eventFile)) {
+                $e = file_get_contents($eventDirectory . "/" . $eventFile);
+                $j = json_decode($e, true);
 
 				$eventFile = preg_replace('/.fevt$/', '', $eventFile);
 
@@ -36,8 +41,8 @@ include 'common/menuHead.inc';
 				if ($value == $eventFile)
 					$eventOptions .= " selected";
 				$eventOptions .= ">" .
-						$info['majorID'] . ' / ' . $info['minorID'] . " - " .
-						$info['name'] .
+						$j['majorId'] . ' / ' . $j['minorId'] . " - " .
+						$j['name'] .
 						"</option>";
 			}
 		}
@@ -59,7 +64,7 @@ include 'common/menuHead.inc';
             );
 
         $piFaceStyle = "style='display: none;'";
-        if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == 1))
+        if (isset($settings['PiFaceDetected']) && ($settings['PiFaceDetected'] == "1"))
             $piFaceStyle = "";
 
         foreach ($piFaceInputs as $input)
@@ -82,15 +87,15 @@ include 'common/menuHead.inc';
                     $piFaceStyle == ""
                     ? "BCM&nbsp;25&nbsp;**:25:6:P1 - Pin 22"
                     : "BCM 25:25:6:P1 - Pin 22",
-                    "BCM 5:5:0:P1 - Pin 29",
-                    "BCM 6:6:0:P1 - Pin 31",
-                    "BCM 12:12:0:P1 - Pin 32",
-                    "BCM 13:13:0:P1 - Pin 33",
-                    "BCM 16:16:0:P1 - Pin 36",
-                    "BCM 19:19:0:P1 - Pin 35",
-                    "BCM 20:20:0:P1 - Pin 38",
-                    "BCM 21:21:0:P1 - Pin 40",
-                    "BCM 26:26:0:P1 - Pin 37",
+                    "BCM 5:5:21:P1 - Pin 29",
+                    "BCM 6:6:22:P1 - Pin 31",
+                    "BCM 12:12:26:P1 - Pin 32",
+                    "BCM 13:13:23:P1 - Pin 33",
+                    "BCM 16:16:27:P1 - Pin 36",
+                    "BCM 19:19:24:P1 - Pin 35",
+                    "BCM 20:20:28:P1 - Pin 38",
+                    "BCM 21:21:29:P1 - Pin 40",
+                    "BCM 26:26:25:P1 - Pin 37",
                     "BCM 28:28:17:P5 - Pin 3",
                     "BCM 29:29:18:P5 - Pin 4",
                     "BCM 30:30:19:P5 - Pin 5",
@@ -230,7 +235,7 @@ function SaveGPIOInputEvent(input)
 
 	$.get("fppjson.php?command=setSetting&key=" + setting + "&value="
 		+ event)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('GPIO Input Event saved');
 		}).fail(function() {
 			DialogError("GPIO Input", "Save GPIO Event failed");
@@ -267,10 +272,11 @@ $(document).ready(function(){
 		</tr>
 		<tr class='fppTableHeader'>
 				<td width='5%'>En.</td>
-				<td width='12%'>GPIO #</td>
+				<td width='10%'>GPIO #</td>
 				<td width='10%'>wiring #</td>
-				<td width='55%' colspan='2'>Events</td>
-				<td width='18%' align='center'>Hdr&nbsp;-&nbsp;Pin</td>
+				<td width='50%' colspan='2'>Events</td>
+                <td width='10%'>Pull Up/Down</td>
+				<td width='15%' align='center'>Hdr&nbsp;-&nbsp;Pin</td>
 		</tr>
 <?
 
@@ -278,18 +284,20 @@ $(document).ready(function(){
 	{
 		$inputData = explode(":", $input);
 		$settingID = sprintf("GPIOInput%03dEnabled", $inputData[1]);
+        $settingPULL = sprintf("GPIOInput%03dPullUpDown", $inputData[1]);
 ?>
 		<tr><td><? PrintSettingCheckbox("GPIO Input", $settingID, 1, 0, "1", "0"); ?></td>
 				<td><?= $inputData[0]; ?></td>
 				<td><?= $inputData[2]; ?></td>
 				<td>Rising: <? PrintEventOptions($inputData[1]); ?></td>
 				<td>Falling: <? PrintEventOptions($inputData[1], false); ?></td>
+                <td><? PrintSettingSelect("Pull Up/Down", $settingPULL, 0, 0,isset($settings[$settingPULL]) ? $settings[$settingPULL] : "0", $pullUpTypes); ?></td>
 				<td align='center'><?= $inputData[3]; ?></td>
 		</tr>
 <?
 	}
-    if ($piFaceStyle != "") {
-?>
+if ($settings['Platform'] == "Raspberry Pi") {
+    ?>
 		<tr <? echo $piFaceStyle; ?>><td colspan=5><br>NOTE: ** - BCM 25 conflicts with PiFace GPIO Inputs, do not enable BCM 25 when using a PiFace.<br></td></tr>
 		<tr class='piFaceGPIO' <? echo $piFaceStyle; ?>>
 				<td colspan=6 align='center'><hr><b>PiFace GPIO Inputs</b></td>
@@ -298,7 +306,7 @@ $(document).ready(function(){
 				<td>En.</td>
 				<td>GPIO #</td>
 				<td>wiring #</td>
-				<td>Events</td>
+				<td colspan="2">Events</td>
 				<td align='center'>Input #</td>
 		</tr>
 <?
@@ -317,7 +325,7 @@ $(document).ready(function(){
 		</tr>
 <?
 	}
-    }
+}
 ?>
 	</table>
 

@@ -41,15 +41,17 @@
 class ColorLight5a75Output : public ChannelOutputBase {
   public:
 	ColorLight5a75Output(unsigned int startChannel, unsigned int channelCount);
-	~ColorLight5a75Output();
+	virtual ~ColorLight5a75Output();
 
-	int  Init(Json::Value config);
-	int  Close(void);
+	virtual int  Init(Json::Value config) override;
+	virtual int  Close(void) override;
 
-	void PrepData(unsigned char *channelData);
-	int  RawSendData(unsigned char *channelData);
+	virtual void PrepData(unsigned char *channelData) override;
+	virtual int  SendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	void SetHostMACs(void *data);
@@ -72,6 +74,8 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	char *m_data;
 	char *m_rowData;
 	int   m_rowSize;
+    
+    int m_slowCount;
 
 	struct ifreq          m_if_idx;
 	struct ifreq          m_if_mac;

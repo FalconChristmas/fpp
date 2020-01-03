@@ -108,6 +108,7 @@
 #include "log.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "Warnings.h"
 
 #include <fstream>
 #include <sstream>
@@ -138,31 +139,22 @@
 
 #define DDP_PACKET_LEN (DDP_HEADER_LEN + DDP_CHANNELS_PER_PACKET)
 
+static const std::string DDPTYPE = "DDP";
+
+const std::string &DDPOutputData::GetOutputTypeString() const {
+    return DDPTYPE;
+}
+
 DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config), sequenceNumber(1) {
     memset((char *) &ddpAddress, 0, sizeof(sockaddr_in));
     ddpAddress.sin_family = AF_INET;
     ddpAddress.sin_port = htons(DDP_PORT);
+    ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
     
-    ipAddress = config["address"].asString();
-    bool isAlpha = false;
-    for (int x = 0; x < ipAddress.length(); x++) {
-        isAlpha |= isalpha(ipAddress[x]);
+    if (!valid) {
+        WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
+        active = false;
     }
-    
-    if (isAlpha) {
-        struct hostent* uhost = gethostbyname(ipAddress.c_str());
-        if (!uhost) {
-            LogErr(VB_CHANNELOUT,
-                   "Error looking up DDP hostname: %s\n",
-                   ipAddress.c_str());
-            valid = false;
-        }
-        
-        ddpAddress.sin_addr.s_addr = *((unsigned long*)uhost->h_addr);
-    } else {
-        ddpAddress.sin_addr.s_addr = inet_addr(ipAddress.c_str());
-    }
-    
     
     pktCount = channelCount / DDP_CHANNELS_PER_PACKET;
     if (channelCount % DDP_CHANNELS_PER_PACKET) {
@@ -216,42 +208,53 @@ DDPOutputData::~DDPOutputData() {
     for (int x = 0; x < pktCount; x++) {
         free(ddpBuffers[x]);
     }
+    free(ddpBuffers);
     free(ddpIovecs);
 }
 
-void DDPOutputData::PrepareData(unsigned char *channelData) {
+void DDPOutputData::PrepareData(unsigned char *channelData,
+                                std::vector<struct mmsghdr> &uniMsgs,
+                                std::vector<struct mmsghdr> &bcstMsgs) {
     if (valid && active) {
         int start = startChannel - 1;
         if (type == 5) {
             start = 0;
         }
-        for (int p = 0; p < pktCount; p++) {
-            unsigned char *header = ddpBuffers[p];
-            header[1] = sequenceNumber & 0xF;
-            if (sequenceNumber == 15) {
-                sequenceNumber = 1;
-            } else {
-                ++sequenceNumber;
-            }
-            
-            // set the pointer to the channelData for the universe
-            ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
-            start += ddpIovecs[p * 2 + 1].iov_len;
-        }
-    }
-}
-void DDPOutputData::CreateMessages(std::vector<struct mmsghdr> &ipMsgs) {
-    if (valid && active) {
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
         
         msg.msg_hdr.msg_name = &ddpAddress;
         msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        for (int x = 0; x < pktCount; x++) {
-            msg.msg_hdr.msg_iov = &ddpIovecs[x * 2];
-            msg.msg_hdr.msg_iovlen = 2;
-            msg.msg_len = ddpIovecs[x * 2 + 1].iov_len + DDP_HEADER_LEN;
-            ipMsgs.push_back(msg);
+        bool skipped = false;
+        bool allSkipped = true;
+        for (int p = 0; p < pktCount; p++) {
+            if (NeedToOutputFrame(channelData, startChannel-1, start, ddpIovecs[p * 2 + 1].iov_len)) {
+                msg.msg_hdr.msg_iov = &ddpIovecs[p * 2];
+                msg.msg_hdr.msg_iovlen = 2;
+                msg.msg_len = ddpIovecs[p * 2 + 1].iov_len + DDP_HEADER_LEN;
+                uniMsgs.push_back(msg);
+
+                unsigned char *header = ddpBuffers[p];
+                header[1] = sequenceNumber & 0xF;
+                if (sequenceNumber == 15) {
+                    sequenceNumber = 1;
+                } else {
+                    ++sequenceNumber;
+                }
+                
+                // set the pointer to the channelData for the universe
+                ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
+                allSkipped = false;
+            } else {
+                skipped = true;
+            }
+            start += ddpIovecs[p * 2 + 1].iov_len;
+        }
+        if (skipped) {
+            skippedFrames++;
+        }
+        if (!allSkipped) {
+            SaveFrame(channelData);
         }
     }
 }

@@ -77,13 +77,20 @@ const unsigned ILI_dataBits = \
 const int ILI_allPins[12] = { ILI_PIN_CSX, ILI_PIN_WRX, ILI_PIN_DCX, ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, ILI_PIN_D5, ILI_PIN_D6, ILI_PIN_D7, ILI_PIN_D8, ILI_PIN_RST };
 const int ILI_dataPins[8] = { ILI_PIN_D1, ILI_PIN_D2, ILI_PIN_D3, ILI_PIN_D4, ILI_PIN_D5, ILI_PIN_D6, ILI_PIN_D7, ILI_PIN_D8 };
 
+
+extern "C" {
+    ILI9488Output *createOutputILI9488(unsigned int startChannel,
+                                       unsigned int channelCount) {
+        return new ILI9488Output(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*
  *
  */
 ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_initialized(0),
 	m_rows(480),
 	m_cols(320),
@@ -99,7 +106,6 @@ ILI9488Output::ILI9488Output(unsigned int startChannel, unsigned int channelCoun
 		startChannel, channelCount);
 
 	m_pixels = m_rows * m_cols;
-	m_maxChannels = m_pixels * 3;
 	m_useDoubleBuffer = 1;
 }
 
@@ -125,7 +131,7 @@ int ILI9488Output::Init(Json::Value config)
 
 	ILI9488_Init();
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -137,7 +143,7 @@ int ILI9488Output::Close(void)
 
 	ILI9488_Cleanup();
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -196,7 +202,7 @@ void ILI9488Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Rows   : %d\n", m_rows);
 	LogDebug(VB_CHANNELOUT, "    Pixels : %d\n", m_pixels);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 
 /*

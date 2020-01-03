@@ -36,7 +36,7 @@
 class ChannelTester {
   public:
     ChannelTester();
-	~ChannelTester();
+	virtual ~ChannelTester();
 
 	int  SetupTest(std::string configStr);
 
@@ -45,8 +45,9 @@ class ChannelTester {
 
 	std::string GetConfig(void);
 
+    
+    static ChannelTester INSTANCE;
   private:
-	unsigned int     m_testing;
 	TestPatternBase *m_testPattern;
 	pthread_mutex_t  m_testLock;
 	std::string      m_configStr;

@@ -30,7 +30,7 @@
 
 PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_branchType(PE_BRANCH_TYPE_UNDEFINED),
+	m_branchType(),
 	m_comparisonMode(PE_BRANCH_COMP_MODE_UNDEFINED),
 	m_sHour(0),
 	m_sMinute(0),
@@ -42,11 +42,14 @@ PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
 	m_eSecond(0),
 	m_eDaySecond(-1),
 	m_eHourSecond(-1),
-	m_trueNextItem(-1),
-	m_falseNextItem(-1)
+	m_trueNextItem(0),
+	m_falseNextItem(0),
+    m_nextBranchType(PlaylistBranchType::None),
+    m_trueNextBranchType(PlaylistBranchType::Index),
+    m_falseNextBranchType(PlaylistBranchType::Index),
+    m_nextSection()
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::PlaylistEntryBranch()\n");
-
 	m_type = "branch";
 }
 
@@ -54,34 +57,71 @@ PlaylistEntryBranch::~PlaylistEntryBranch()
 {
 }
 
+static inline int asInt(Json::Value &v) {
+    if (v.isIntegral()) {
+        return v.asInt();
+    }
+    std::string s = v.asString();
+    return std::atoi(s.c_str());
+}
+
+static inline PlaylistEntryBase::PlaylistBranchType toBranchType(Json::Value &v) {
+    std::string s = v.asString();
+    if (s == "Index") {
+        return PlaylistEntryBase::PlaylistBranchType::Index;
+    }
+    if (s == "Offset") {
+        return PlaylistEntryBase::PlaylistBranchType::Offset;
+    }
+    if (s == "None") {
+        return PlaylistEntryBase::PlaylistBranchType::None;
+    }
+    return PlaylistEntryBase::PlaylistBranchType::Index;
+}
 /*
  *
  */
 int PlaylistEntryBranch::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::Init()\n");
+    
+    
+    if (config.isMember("trueNextBranchType")) {
+        m_trueNextBranchType = toBranchType(config["trueNextBranchType"]);
+    }
+    if (config.isMember("falseNextBranchType")) {
+        m_falseNextBranchType = toBranchType(config["falseNextBranchType"]);
+    }
 
-	if (config.isMember("trueNextSection"))
+    if (config.isMember("trueNextSection")) {
 		m_trueNextSection = config["trueNextSection"].asString();
+    }
 
-	if (config.isMember("trueNextItem"))
-		m_trueNextItem = config["trueNextItem"].asInt();
+    if (config.isMember("trueNextItem")) {
+		m_trueNextItem = asInt(config["trueNextItem"]);
+        if (m_trueNextBranchType == PlaylistBranchType::Index) {
+            m_trueNextItem--;
+        }
+    }
 
-	if (config.isMember("falseNextSection"))
+    if (config.isMember("falseNextSection")) {
 		m_falseNextSection = config["falseNextSection"].asString();
+    }
 
-	if (config.isMember("falseNextItem"))
-		m_falseNextItem = config["falseNextItem"].asInt();
+    if (config.isMember("falseNextItem")) {
+		m_falseNextItem = asInt(config["falseNextItem"]);
+        if (m_falseNextBranchType == PlaylistBranchType::Index) {
+            m_falseNextItem--;
+        }
+    }
 
-	m_branchType = config["branchType"].asInt();
-	m_comparisonMode = config["compMode"].asInt();
+	m_branchType = config["branchType"].asString();
+	m_comparisonMode = asInt(config["compMode"]);
 
-	if (config.isMember("compInfo"))
-	{
+	if (config.isMember("compInfo")) {
 		Json::Value ci = config["compInfo"];
 
-		if (m_branchType == PE_BRANCH_TYPE_CLOCK_TIME)
-		{
+		if (m_branchType == PE_BRANCH_TYPE_CLOCK_TIME) {
 			if (ci.isMember("startHour"))
 				m_sHour = ci["startHour"].asInt();
 
@@ -121,14 +161,12 @@ int PlaylistEntryBranch::StartPlaying(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
+	if (!CanPlay()) {
 		FinishPlay();
 		return 0;
 	}
 
-	if (m_branchType == PE_BRANCH_TYPE_CLOCK_TIME)
-	{
+	if (m_branchType == PE_BRANCH_TYPE_CLOCK_TIME) {
 		time_t currTime = time(NULL);
 		struct tm now;
 
@@ -136,29 +174,22 @@ int PlaylistEntryBranch::StartPlaying(void)
 
 		int daySecond = (now.tm_hour * 3600) + (now.tm_min * 60) + now.tm_sec;
 
-		if ((m_sDaySecond >= 0) && (m_eDaySecond >= 0))
-		{
+		if ((m_sDaySecond >= 0) && (m_eDaySecond >= 0)) {
 			if ((daySecond >= m_sDaySecond) && (daySecond < m_eDaySecond))
 				SetNext(1);
 			else
 				SetNext(0);
-		}
-		else if (m_sDaySecond >= 0)
-		{
+		} else if (m_sDaySecond >= 0) {
 			if (daySecond >= m_sDaySecond)
 				SetNext(1);
 			else
 				SetNext(0);
-		}
-		else if (m_sDaySecond >= 0)
-		{
+		} else if (m_sDaySecond >= 0) {
 			if (daySecond < m_eDaySecond)
 				SetNext(1);
 			else
 				SetNext(0);
-		}
-		else // Just compare minutes & seconds
-		{
+        } else { // Just compare minutes & seconds
 			int hourSecond = (now.tm_min * 60) + now.tm_sec;
 
 			if ((hourSecond >= m_sHourSecond) && (hourSecond < m_eHourSecond))
@@ -167,16 +198,8 @@ int PlaylistEntryBranch::StartPlaying(void)
 				SetNext(0);
 		}
 
-LogDebug(VB_PLAYLIST, "Now: %02d:%02d:%02d, Start: %02d:%02d:%02d, End: %02d:%02d:%02d, NS: %s, NI: %d\n", now.tm_hour, now.tm_min, now.tm_sec, m_sHour, m_sMinute, m_sSecond, m_eHour, m_eMinute, m_eSecond, m_nextSection.c_str(), m_nextItem);
-	}
-	else if (m_branchType == PE_BRANCH_TYPE_PLAYLIST_TIME)
-	{
-		LogErr(VB_PLAYLIST, "ERROR: Playlist time branch is not yet supported!\n");
-		SetNext(0);
-	}
-	else if (m_branchType == PE_BRANCH_TYPE_LOOP_COUNT)
-	{
-		LogErr(VB_PLAYLIST, "ERROR: Playlist loop count branch is not yet supported!\n");
+        LogDebug(VB_PLAYLIST, "Now: %02d:%02d:%02d, Start: %02d:%02d:%02d, End: %02d:%02d:%02d, NS: %s, NI: %d\n", now.tm_hour, now.tm_min, now.tm_sec, m_sHour, m_sMinute, m_sSecond, m_eHour, m_eMinute, m_eSecond, m_nextSection.c_str(), m_nextItem);
+    } else {
 		SetNext(0);
 	}
 
@@ -192,13 +215,12 @@ LogDebug(VB_PLAYLIST, "Now: %02d:%02d:%02d, Start: %02d:%02d:%02d, End: %02d:%02
  */
 void PlaylistEntryBranch::SetNext(int isTrue)
 {
-	if (isTrue)
-	{
+	if (isTrue) {
+        m_nextBranchType = m_trueNextBranchType;
 		m_nextSection = m_trueNextSection;
 		m_nextItem = m_trueNextItem;
-	}
-	else
-	{
+    } else {
+        m_nextBranchType = m_falseNextBranchType;
 		m_nextSection = m_falseNextSection;
 		m_nextItem = m_falseNextItem;
 	}
@@ -211,7 +233,7 @@ void PlaylistEntryBranch::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Branch Type       : %d\n", m_branchType);
+	LogDebug(VB_PLAYLIST, "Branch Type       : %s\n", m_branchType.c_str());
 	LogDebug(VB_PLAYLIST, "Comparison Mode   : %d\n", m_comparisonMode);
 	LogDebug(VB_PLAYLIST, "Start Hour        : %d\n", m_sHour);
 	LogDebug(VB_PLAYLIST, "Start Minute      : %d\n", m_sMinute);
@@ -227,7 +249,6 @@ void PlaylistEntryBranch::Dump(void)
 	LogDebug(VB_PLAYLIST, "True Next Item    : %d\n", m_trueNextItem);
 	LogDebug(VB_PLAYLIST, "False Next Section: %s\n", m_falseNextSection.c_str());
 	LogDebug(VB_PLAYLIST, "False Next Item   : %d\n", m_falseNextItem);
-
 }
 
 /*

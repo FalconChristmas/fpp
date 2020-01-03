@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "channeloutput.h"
+#include "channeloutput/channeloutput.h"
 #include "channeloutput/processors/RemapOutputProcessor.h"
 #include "log.h"
 #include "PlaylistEntryRemap.h"
@@ -40,7 +40,7 @@ PlaylistEntryRemap::PlaylistEntryRemap(PlaylistEntryBase *parent)
 	m_dstChannel(0),
 	m_channelCount(0),
 	m_loops(0),
-    m_processor(nullptr)
+	m_reverse(0)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryRemap::PlaylistEntryRemap()\n");
 
@@ -52,9 +52,6 @@ PlaylistEntryRemap::PlaylistEntryRemap(PlaylistEntryBase *parent)
  */
 PlaylistEntryRemap::~PlaylistEntryRemap()
 {
-    if (m_processor) {
-        delete m_processor;
-    }
 }
 
 /*
@@ -99,8 +96,17 @@ int PlaylistEntryRemap::Init(Json::Value &config)
 	m_dstChannel   = config["destination"].asInt();
 	m_channelCount = config["count"].asInt();
 	m_loops        = config["loops"].asInt();
+	m_reverse      = config["reverse"].asInt();
     
-    m_processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops);
+    
+    // need to be 0 based
+    if (m_srcChannel) {
+        m_srcChannel--;
+    }
+    if (m_dstChannel) {
+        m_dstChannel--;
+    }
+
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -120,15 +126,17 @@ int PlaylistEntryRemap::StartPlaying(void)
 	PlaylistEntryBase::StartPlaying();
 
     if (m_action == "add") {
-        outputProcessors.addProcessor(m_processor);
+        RemapOutputProcessor *processor = new RemapOutputProcessor(m_srcChannel, m_dstChannel, m_channelCount, m_loops, m_reverse);
+        outputProcessors.addProcessor(processor);
     } else if (m_action == "remove") {
         auto f = [this] (OutputProcessor*p2) -> bool {
             if (p2->getType() == OutputProcessor::REMAP) {
                 RemapOutputProcessor *rp = (RemapOutputProcessor*)p2;
                 return rp->getSourceChannel() == this->m_srcChannel
-                && rp->getDestChannel() == this->m_dstChannel
-                && rp->getLoops() == this->m_loops
-                && rp->getCount() == this->m_channelCount;
+                    && rp->getDestChannel() == this->m_dstChannel
+                    && rp->getLoops() == this->m_loops
+                    && rp->getCount() == this->m_channelCount
+                    && rp->getReverse() == this->m_reverse;
             }
             return false;
         };
@@ -161,8 +169,8 @@ Json::Value PlaylistEntryRemap::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["source"]   = m_srcChannel;
-	result["destination"] = m_dstChannel;
+	result["source"]   = m_srcChannel+1;
+	result["destination"] = m_dstChannel+1;
 	result["count"] = m_channelCount;
 	result["loops"] = m_loops;
 

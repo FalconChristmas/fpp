@@ -1,8 +1,9 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once("common.php");
 
 ?>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">
@@ -51,16 +52,16 @@ function GetStartingCornerInput(currentValue) {
 
 function PopulateChannelMemMapTable(data) {
 	$('#channelMemMaps tbody').html("");
-
-	for (var i = 0; i < data.length; i++) {
+    
+	for (var i = 0; i < data["models"].length; i++) {
 		$('#channelMemMaps tbody').append("<tr id='row'" + i + " class='fppTableRow'>" +
-			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].BlockName + "'></td>" +
-			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
-			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
-			"<td>" + GetOrientationInput(data[i].Orientation) + "</td>" +
-			"<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
-			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
-			"<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td>" +
+			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data["models"][i].Name + "'></td>" +
+			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data["models"][i].StartChannel + "'></td>" +
+			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data["models"][i].ChannelCount + "'></td>" +
+			"<td>" + GetOrientationInput(data["models"][i].Orientation) + "</td>" +
+			"<td>" + GetStartingCornerInput(data["models"][i].StartCorner) + "</td>" +
+			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data["models"][i].StringCount + "'></td>" +
+			"<td><input class='strands' type='text' size='2' maxlength='2' value='" + data["models"][i].StrandsPerString + "'></td>" +
 			"</tr>");
 	}
 }
@@ -72,32 +73,33 @@ function GetChannelMemMaps() {
 }
 
 function SetChannelMemMaps() {
-	var postData = "";
+    var postData = "";
 	var dataError = 0;
 
 	$('#channelMemMaps tbody tr').each(function() {
 		$this = $(this);
 
 		var memmap = {
-			BlockName: $this.find("input.blk").val(),
-			StartChannel: $this.find("input.start").val(),
-			ChannelCount: $this.find("input.cnt").val(),
+			Name: $this.find("input.blk").val(),
+			StartChannel: parseInt($this.find("input.start").val()),
+			ChannelCount: parseInt($this.find("input.cnt").val()),
 			Orientation: $this.find("select.orientation").val(),
 			StartCorner: $this.find("select.corner").val(),
-			StringCount: $this.find("input.strcnt").val(),
-			StrandsPerString: $this.find("input.strands").val()
+			StringCount: parseInt($this.find("input.strcnt").val()),
+			StrandsPerString: parseInt($this.find("input.strands").val())
 			};
 
-		if ((memmap.BlockName != "") &&
-			(parseInt(memmap.StartChannel) > 0) &&
-			(parseInt(memmap.ChannelCount) > 0) &&
-			(parseInt(memmap.StringCount) > 0) &&
-			(parseInt(memmap.StrandsPerString) > 0))
+		if ((memmap.Name != "") &&
+			(memmap.StartChannel > 0) &&
+			(memmap.ChannelCount > 0) &&
+			(memmap.StringCount > 0) &&
+			(memmap.StrandsPerString > 0))
 		{
 			if (postData != "") {
 				postData += ", ";
-			}
-
+            } else {
+                postData = "{ \"models\": [";
+            }
 			postData += JSON.stringify(memmap);
 		} else {
 			dataError = 1;
@@ -110,12 +112,13 @@ function SetChannelMemMaps() {
 	if (dataError != 0)
 		return;
 
+    postData += "]}";
 	postData = "command=setChannelMemMaps&data=[ " + postData + " ]";
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel Overlay Models saved.");
 		PopulateChannelMemMapTable(data);
-		SetRestartFlag();
+		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Pixel Overlay Models", "Save Failed!");
 	});

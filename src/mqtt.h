@@ -28,15 +28,19 @@
 
 #include <pthread.h>
 #include <string>
+#include <map>
+#include <functional>
 
 #include "mosquitto.h"
+
+void * RunMqttPublishThread(void *data);
 
 class MosquittoClient {
   public:
   	MosquittoClient(const std::string &host, const int port, const std::string &topicPrefix);
 	~MosquittoClient();
 
-	int  Init(void);
+	int  Init(const std::string &username, const std::string &password, const std::string &ca_file);
 
 	int  PublishRaw(const std::string &topic, const std::string &msg);
 	int  Publish(const std::string &subTopic, const std::string &msg);
@@ -44,8 +48,16 @@ class MosquittoClient {
 
 	void LogCallback(void *userdata, int level, const char *str);
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
+    
+	void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
+	void HandleDisconnect();
+	void HandleConnect();
 
+	void PublishStatus();
+	void SetReady();
   private:
+	bool        m_canProcessMessages;
+	bool        m_isConnected;
 	std::string m_host;
 	int         m_port;
 	int         m_keepalive;
@@ -55,10 +67,9 @@ class MosquittoClient {
 
 	struct mosquitto *m_mosq;
 	pthread_mutex_t   m_mosqLock;
-
-	// Topics we want to take action on
-	std::string m_topicPlaylist;
-
+	pthread_t         m_mqtt_publish_t;
+    
+    std::map<std::string, std::function<void(const std::string &topic, const std::string &payload)>> callbacks;
 };
 
 extern MosquittoClient *mqtt;

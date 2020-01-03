@@ -36,12 +36,12 @@
 class TestPatternRGBFill : public TestPatternBase {
   public:
     TestPatternRGBFill();
-	~TestPatternRGBFill();
+	virtual ~TestPatternRGBFill();
 
-	int  Init(Json::Value config);
+	virtual int  Init(Json::Value config) override;
 
-	int  SetupTest(void);
-	void DumpConfig(void);
+	virtual int  SetupTest(void) override;
+	virtual void DumpConfig(void) override;
 
   private:
 	char              m_color1;

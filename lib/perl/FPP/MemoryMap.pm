@@ -24,14 +24,35 @@
 #   along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 
+
 {
 package FPP::MemoryMap;
-
+$VERSION='2.0';
+    
 use Time::HiRes qw( gettimeofday usleep tv_interval );
 use File::Map qw/map_file unmap/;
 use Convert::Binary::C;
 use Data::Dumper;
-use Image::Magick;
+use Graphics::Magick;
+
+use Inline Config =>
+           DIRECTORY => '/run/fppd';
+use Inline C => << 'END_C';
+
+#include <sys/mman.h>
+    
+uint32_t *pixMap;
+void initPixMap(SV *pmFile) {
+    const char * fn = SvPV(pmFile, PL_na);
+    int dataFD = open(fn, O_RDWR);
+    pixMap = (uint32_t *)mmap(0, 8*1024*1024 * sizeof(uint32_t), PROT_WRITE | PROT_READ, MAP_SHARED, dataFD, 0);
+}
+int getPixMapIndex(int idx) {
+    return pixMap[idx];
+}
+
+END_C
+
 
 #############################################################################
 # Usage:
@@ -53,11 +74,10 @@ sub new {
 		majorVersion  => 1,
 		minorVersion  => 0,
 		debug         => 0,
-		maxChannels   => 524288,
-		memoryMapSize => 524288,
-		ctrlFile      => '/var/tmp/FPPChannelCtrl',
-		dataFile      => '/var/tmp/FPPChannelData',
-		pixelFile     => '/var/tmp/FPPChannelPixelMap',
+		maxChannels   => 8388608,
+		ctrlFile      => '/run/fppd/FPPChannelCtrl',
+		dataFile      => '/run/fppd/FPPChannelData',
+		pixelFile     => '/run/fppd/FPPChannelPixelMap',
 		}, $proto;
 
 	$this->{C} = new Convert::Binary::C;
@@ -86,11 +106,9 @@ sub OpenMaps {
 
 	my $ctrlFileMap;
 	my $dataFileMap;
-	my $pixelFileMap;
 
 	map_file $ctrlFileMap, $this->{ctrlFile}, '+<';
 	map_file $dataFileMap, $this->{dataFile}, '+<';
-	map_file $pixelFileMap, $this->{pixelFile};
 
 	if (!$ctrlFileMap) {
 		printf( STDERR "Unable to map control file: %s\n", $this->{ctrlFile});
@@ -102,17 +120,10 @@ sub OpenMaps {
 		exit(-1);
 	}
 
-	if (!$pixelFileMap) {
-		printf( STDERR "Unable to map pixel file: %s\n", $this->{pixelFile});
-		exit(-1);
-	}
-
 	$this->{ctrlFileMap} = \$ctrlFileMap;
 	$this->{dataFileMap} = \$dataFileMap;
-	$this->{pixelFileMap} = \$pixelFileMap;
 
-	my @pixelMap = unpack('Q' . $this->{maxChannels}, ${$this->{pixelFileMap}});
-	$this->{pixelMap} = \@pixelMap;
+    initPixMap($this->{pixelFile});
 
 	$this->ReadBlockInfo();
 }
@@ -128,10 +139,6 @@ sub CloseMaps {
 
 	if (defined($this->{dataFileMap})) {
 		delete $this->{dataFileMap};
-	}
-
-	if (defined($this->{pixelFileMap})) {
-		delete $this->{pixelFileMap};
 	}
 
 	if (defined($this->{blocks})) {
@@ -301,7 +308,7 @@ sub SetTestModeColor {
 	{
 		$this->SetPixel($i, $r, $g, $b);
 	}
-	$this->SetChar('data', $this->{pixelMap}[65535], $r);
+	$this->SetChar('data', getPixMapIndex(65535), $r);
 }
 #############################################################################
 # Enable/Disable Test Mode
@@ -349,7 +356,7 @@ sub SetChannel {
 	my $a = shift;
 	my $v = shift;
 
-	$this->SetChar('data', $this->{pixelMap}[$a], $v);
+	$this->SetChar('data', getPixMapIndex($a), $v);
 }
 
 #############################################################################
@@ -361,9 +368,9 @@ sub SetPixel {
 	my $g = shift;
 	my $b = shift;
 
-	$this->SetChar('data', $this->{pixelMap}[$a], $r);
-	$this->SetChar('data', $this->{pixelMap}[$a+1], $g);
-	$this->SetChar('data', $this->{pixelMap}[$a+2], $b);
+	$this->SetChar('data', getPixMapIndex($a), $r);
+	$this->SetChar('data', getPixMapIndex($a+1), $g);
+	$this->SetChar('data', getPixMapIndex($a+2), $b);
 }
 
 #############################################################################
@@ -502,7 +509,7 @@ sub GetBlockData {
 
 	for (my $i = $bd->{startChannel} - 1, my $c = 0; $c < $channels; $i++, $c++)
 	{
-		push( @data, $this->GetChar('data', $this->{pixelMap}[$i]));
+		push( @data, $this->GetChar('data', getPixMapIndex($i)));
 	}
 
 	return \@data;
@@ -522,7 +529,7 @@ sub SetBlockData {
 
 	for (my $i = $bd->{startChannel} - 1, my $c = 0; $c < $channels; $i++, $c++)
 	{
-		$this->SetChar('data', $this->{pixelMap}[$i], $data->[$c]);
+		$this->SetChar('data', getPixMapIndex($i), $data->[$c]);
 	}
 }
 
@@ -531,7 +538,7 @@ sub SetBlockData {
 sub GetFontList {
 	my $this = shift;
 
-	my $img = Image::Magick->new();
+	my $img = Graphics::Magick->new();
 	my @fonts = sort $img->QueryFont();
 
 	return \@fonts;
@@ -622,7 +629,7 @@ sub OverlayImage {
 
 							$count *= 3;
 
-							my $dc = $this->{pixelMap}[$d] - $count + 3;
+							my $dc = getPixMapIndex($d) - $count + 3;
 
 							substr(${$this->{"dataFileMap"}}, $dc, $count,
 								substr($rgbDataR, $rs, $count)) if (1);
@@ -631,7 +638,7 @@ sub OverlayImage {
 						{
 							my $s = (($sr * $sw) + $sx ) * 3;
 
-							my $dc = $this->{pixelMap}[$d];
+							my $dc = getPixMapIndex($d);
 
 							$count *= 3;
 							substr(${$this->{"dataFileMap"}}, $dc, $count,
@@ -656,7 +663,7 @@ sub OverlayImage {
 							((($dr * $dw) + $dc) * 3);
 
 						substr(${$this->{"dataFileMap"}},
-							$this->{pixelMap}[$d], 3, substr($rgbData, $s, 3));
+							getPixMapIndex($d), 3, substr($rgbData, $s, 3));
 					}
 					$dc++;
 				}
@@ -675,12 +682,12 @@ sub GetTextMetrics {
 	my $size = shift;
 	my %result;
 
-	my $img2 = new Image::Magick;
+	my $img2 = new Graphics::Magick;
 	$img2->Set( size=>'1x1' );
 	$img2->ReadImage( 'xc:none' );
 
-	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance, $predict) =
-		$img2->QueryMultilineFontMetrics(text => $text, font => $font, fill => "#ff0000", pointsize => $size );
+	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance) =
+		$img2->QueryFontMetrics(text => $text, font => $font, pointsize => $size );
 
 	$result{x_ppem} = $x_ppem;
 	$result{y_ppem} = $y_ppem;
@@ -689,7 +696,6 @@ sub GetTextMetrics {
 	$result{width} = int($width + 1);
 	$result{height} = int($height + 1);
 	$result{max_advance} = $max_advance;
-	$result{predict} = $predict;
 
 	$result{width} += 2;
 	$result{height} += 2;
@@ -704,7 +710,6 @@ sub GetTextMetrics {
 		printf( "width:       %s\n", $result{width});
 		printf( "height:      %s\n", $result{height});
 		printf( "max_advance: %s\n", $result{max_advance});
-		printf( "predict:     %s\n", $result{predict});
 	}
 
 	return \%result;
@@ -723,11 +728,8 @@ sub GetTextImages {
 	my $img;
 	my $imgR;
 
-	$img = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
-	$imgR = Image::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
-
-	$img->Set(magick => "rgb");    # so we can save to blob as RGB
-	$img->Set(depth => 8);         # needed for RGB data
+	$img = Graphics::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
+	$imgR = Graphics::Magick->new(size => sprintf( "%dx%d", $metrics->{width}, $metrics->{height}));
 
 	@$img = (); # clear the image
 	$img->ReadImage('xc:' . $fill); # black/blank background
@@ -735,23 +737,18 @@ sub GetTextImages {
 	my $err = $img->Annotate(
 			pointsize => $size,
 			text => $text,
-			gravity=>'NorthWest',
-			stroke => 'none',
-			weight => 1,
-			antialias => 0,
+			gravity=>'Center',
 			font => $font,
-			fill => $color,
-			x => 1,
-			y => 1,
+			fill => $color
 		);
 	print $err if $err;
 
-	my $rgbData = $img->ImageToBlob();
+	my ($rgbData) = $img->ImageToBlob(magick => "RGB", depth => 8);
 
 	my $imgR = $img->Clone();
 	$imgR->Flop();
 
-	my $rgbDataR = $imgR->ImageToBlob();
+	my ($rgbDataR) = $imgR->ImageToBlob(magick => "RGB", depth => 8);
 
 	return ($img, $imgR, $rgbData, $rgbDataR);
 }
@@ -923,7 +920,9 @@ sub TextMessage {
 
 	$this->SetBlockLock($blk, 0);
 }
-
+    
 #############################################################################
 1;
 }
+
+

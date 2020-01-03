@@ -24,7 +24,7 @@
 #include <functional>
 #include <jsoncpp/json/json.h>
 
-
+#include "../../Sequence.h"
 
 class OutputProcessor {
 public:
@@ -40,6 +40,12 @@ public:
     };
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }
+    
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) = 0;
+    
+    virtual void GetRequiredChannelRange(int &min, int & max) final {
+        min = 0; max = FPPD_MAX_CHANNELS;
+    }
 protected:
     std::string description;
     bool active;
@@ -59,6 +65,8 @@ public:
     OutputProcessor *find(std::function<bool(OutputProcessor*)> f) const;
     
     void loadFromJSON(const Json::Value &config, bool clear = true);
+    
+    void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange);
 protected:
     void removeAll();
     OutputProcessor *create(const Json::Value &config);

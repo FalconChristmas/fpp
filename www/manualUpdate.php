@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -7,7 +9,6 @@ DisableOutputBuffering();
 
 ?>
 
-<html>
 <head>
 <title>
 FPP Manual Update
@@ -18,7 +19,13 @@ FPP Manual Update
 <pre>
 Stopping fppd...
 <?php
-system($SUDO . " $fppDir/scripts/fppd_stop");
+if (file_exists("/.dockerenv")) {
+    system($SUDO . " $fppDir/scripts/fppd_stop");
+} else {
+    exec($SUDO . " systemctl stop fppd");
+}
+
+touch("$mediaDirectory/tmp/fppd_restarted");
 ?>
 ==========================================================================
 Pulling in updates...
@@ -28,12 +35,16 @@ system("$fppDir/scripts/git_pull");
 ==========================================================================
 Restarting fppd...
 <?
-system($SUDO . " $fppDir/scripts/fppd_start");
+if (file_exists("/.dockerenv")) {
+    system($SUDO . " $fppDir/scripts/fppd_start");
+} else {
+    exec($SUDO . " systemctl restart fppd");
+}
 ?>
 ==========================================================================
 Update Complete.
 </pre>
-<a href='/'>Go to FPP Main Status Page</a><br>
+<a href='index.php'>Go to FPP Main Status Page</a><br>
 <a href='about.php'>Go back to FPP About page</a><br>
 
 </body>

@@ -14,6 +14,31 @@
 		Require all granted
 	</Directory>
 
+        <Directory FPPDIR/www/proxy>
+                Options Indexes FollowSymLinks
+                AllowOverride All
+                Require all granted
+		RequestHeader unset Accept-Encoding
+		SetEnv no-gzip 1
+		ProxyHTMLBufSize 32768
+		# ProxyHTMLEnable On
+		ProxyHTMLStripComments Off
+		ProxyHTMLMeta On
+		ProxyHTMLDocType HTML
+		ProxyHTMLExtended On
+		ProxyHTMLCharsetOut UTF-8
+        </Directory>
+
+	SetEnv GIT_PROJECT_ROOT FPPDIR/.git
+	SetEnv GIT_HTTP_EXPORT_ALL 1
+	ScriptAlias /git/ /usr/lib/git-core/git-http-backend/
+
+	<Directory "/usr/lib/git-core">
+		Options +ExecCgi -MultiViews +SymLinksIfOwnerMatch
+		AllowOverride none
+		Require all granted
+	</Directory>
+
 	ErrorLog FPPHOME/media/logs/apache2-error.log
 #	ErrorLog ${APACHE_LOG_DIR}/error.log
 

@@ -5,6 +5,8 @@ require_once('common.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
 require_once('playlistentry.php');
+require_once('fppversion.php');
+
 
 $a = session_id();
 if(empty($a))
@@ -40,18 +42,28 @@ $command_array = Array(
 	"singleStepSequenceBack" => 'SingleStepSequenceBack',
 	"addPlaylistEntry"    => 'AddPlayListEntry',
 	"getPlayListEntries"  => 'GetPlayListEntries',
+	"getPlayListInfo"     => 'GetPlayListInfo',
+	"getSequenceInfo"     => 'GetSequenceInfo',
+	"getMediaDuration"    => 'getMediaDurationInfo',
+	"getFileSize"         => 'getFileSize',
 	"savePlaylist"        => 'SavePlaylist',
+	"copyPlaylist"        => 'CopyPlaylist',
 	"copyFile"            => 'CopyFile',
 	"renameFile"          => 'RenameFile',
 	"convertPlaylists"    => 'ConvertPlaylistsToJSON',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
+    "getPluginJSON"       => 'GetPluginJSON',
+    "setPluginJSON"       => 'SetPluginJSON',
 	"saveScript"          => 'SaveScript',
 	"setTestMode"         => 'SetTestMode',
 	"getTestMode"         => 'GetTestMode',
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
 	"extGPIO"             => 'ExtGPIOJson',
-    "getSysInfo"          => 'GetSystemInfoJson'
+    "getSysInfo"          => 'GetSystemInfoJson',
+    "getHostNameInfo"     => 'GetSystemHostInfo',
+    "clearPersistentNetNames" => 'ClearPersistentNetNames',
+    "createPersistentNetNames" => 'CreatePersistentNetNames'
 );
 
 $command = "";
@@ -79,12 +91,17 @@ return;
 /////////////////////////////////////////////////////////////////////////////
 
 function returnJSON($arr) {
+	returnJSONStr(json_encode($arr));
+}
+
+function returnJSONStr($str) {
 	//preemptively close the session
     session_write_close();
 
     header( "Content-Type: application/json");
+	header( "Access-Control-Allow-Origin: *");
 
-	echo json_encode($arr);
+	echo $str;
 
 	exit(0);
 }
@@ -197,28 +214,22 @@ function SetSetting()
     } else if ($setting == "wifiDrivers") {
         if ($value == "Kernel") {
             exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+            exec(   $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
         } else {
             exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
         }
     } else if ($setting == "EnableTethering") {
-        if ($value == "1") {
-            $ssid = ReadSettingFromFile("TetherSSID");
-            $psk = ReadSettingFromFile("TetherPSK");
-            if ($ssid == "") {
-                $ssid = "FPP";
-                WriteSettingToFile("TetherSSID", $ssid);
-            }
-            if ($psk == "") {
-                $psk = "Christmas";
-                WriteSettingToFile("TetherPSK", $psk);
-            }
-            exec(   $SUDO . " systemctl disable dnsmasq", $output, $return_val );
-            exec(   $SUDO . " connmanctl tether wifi on $ssid $psk", $output, $return_val );
-        } else {
-            exec(   $SUDO . " connmanctl tether wifi off", $output, $return_val );
-            exec(   $SUDO . " systemctl enable dnsmasq", $output, $return_val );
+        $ssid = ReadSettingFromFile("TetherSSID");
+        $psk = ReadSettingFromFile("TetherPSK");
+        if ($ssid == "") {
+            $ssid = "FPP";
+            WriteSettingToFile("TetherSSID", $ssid);
         }
-	} else if ($setting == "ForceHDMI") {
+        if ($psk == "") {
+            $psk = "Christmas";
+            WriteSettingToFile("TetherPSK", $psk);
+        }
+    } else if ($setting == "ForceHDMI") {
 		if ($value)
 		{
 			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
@@ -231,6 +242,8 @@ function SetSetting()
 				$SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
 				$output, $return_val);
 		}
+    } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
+        SetBBBLeds();
 	} else {
 		SendCommand("SetSetting,$setting,$value,");
 	}
@@ -294,157 +307,103 @@ function GetFPPStatusJson()
     //if the ip= argument supplied
     if (isset($args['ip']))
 	{
-		header( "Content-Type: application/json");
+		$result = array();
 
 		//validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
         if (filter_var($args['ip'], FILTER_VALIDATE_IP)) {
-        	//Make the request
-            $request_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus");
+        	$do_expert = (isset($args['advancedView']) && $args['advancedView'] == true) ? "&advancedView=true" : "";
+
+        	//Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
+            $request_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus" . $do_expert);
             //check we have valid data
             if ($request_content === FALSE) {
             	//check the response header
 				//check for a 401 - Unauthorized response
-				if(stristr($http_response_header[0],'401')){
-					//set a reason so we can inform the user
-                    $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
-				}
-				error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " " . json_encode($http_response_header));
-                //error return default response
-				echo json_encode($default_return_json);
+                if (isset($http_response_header)) {
+                    if (stristr($http_response_header[0], '401')){
+                        //set a reason so we can inform the user
+                        $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
+                    }
+                    //error return default response
+                    $result = $default_return_json;
+                    $result["status_name"] = "password";
+                    error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert . " - " . json_encode($http_response_header));
+                } else {
+                    //error return default response
+                    $result = $default_return_json;
+                    $result["status_name"] = "unreachable";
+                    error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert);
+                }
             } else {
-            	//return the actual FPP Status of the device
-                echo $request_content;
+            	//Work around for older versioned devices where the advanced data was pulled in separately rather than being
+				//included (when requested) with the standard data via getFPPStatus
+				//If were in advanced view and the request_content doesn't have the 'advancedView' key (this is included when requested with the standard data) then we're dealing with a older version
+				//that's using the expertView key and was being obtained separately
+				if ((isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) && strpos($request_content, 'advancedView') === FALSE) {
+					$request_content_arr = json_decode($request_content, true);
+					//
+					$request_expert_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
+					//check we have valid data
+					if ($request_expert_content === FALSE) {
+						$request_expert_content = array();
+					}
+					//Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
+					//Add a new key for the advanced data, also decode it as it's an array
+					$request_content_arr['advancedView'] = json_decode($request_expert_content, true);
+					//Re-encode everything back to a string
+					$request_content = json_encode($request_content_arr);
+				}
+
+				$result = json_decode($request_content);
             }
         } else {
             error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " ");
             //IPv6 (in rare case it happens) return default response
-            echo json_encode($default_return_json);
+			$result = $default_return_json;
         }
+
+		returnJSON($result);
 
         exit(0);
 	}
 	else
 	{
-		$status = SendCommand('s');
-  
-		if($status == false || $status == 'false') {
-     	
-			$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
-
+        //go through the new API to get the status
+        // use curl so we can set a low connect timeout so if fppd isn't running we detect that quickly
+        $curl = curl_init('http://localhost:32322/fppd/status');
+        curl_setopt($curl, CURLOPT_FAILONERROR, true);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+        $request_content = curl_exec($curl);
+        curl_close($curl);
+        
+        if ($request_content === FALSE) {
+            $status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
+            
             $default_return_json['fppd'] = "Not Running";
             $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
-
+            
             returnJSON($default_return_json);
-		}
+            exit(0);
+        }
+		$data = json_decode($request_content, TRUE);
 
-		$data = parseStatus($status);
+		//Check to see if we should also get the systemInfo for multiSync Expert view
+		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
+			//Get the advanced info directly as an array
+			$request_expert_content = GetSystemInfoJsonInternal(true, false);
+			//check we have valid data
+			if ($request_expert_content === FALSE) {
+				$request_expert_content = array();
+			}
+			//Add data into the final response, since we have the status as an array already then just add the expert view
+			//Add a new key for the expert data to the original data array
+			$data['advancedView'] = $request_expert_content;
+		}
 
         returnJSON($data);
 	}
-}
-
-function parseStatus($status) 
-{
-	$modes = [
-		0 => 'unknown',
-        1 => 'bridge',
-        2 => 'player',
-        6 => 'master',
-        8 => 'remote'
-        ];
-
-    $statuses = [
-    	0 => 'idle',
-    	1 => 'playing',
-    	2 => 'stopping gracefully'
-    ];
-
-	$status = explode(',', $status, 14);
-	$mode = (int) $status[0]; 
-	$fppStatus = (int) $status[1];
-
-	if($mode == 1) {
-		return [
-			'fppd'   => 'running',
-			'mode'   => $mode,
-			'mode_name' => $modes[$mode],
-			'status' => $fppStatus,
-			'time'   => exec('date'),
-		];
-	}
-
-	$baseData = [
-		'fppd'        => 'running',
-		'mode'        => $mode,
-		'mode_name'   => $modes[$mode],
-		'status'      => $fppStatus,
-		'status_name' => $statuses[$fppStatus],
-		'volume'      => (int) $status[2],
-		'time'        => exec('date'),
-		'current_playlist' => [
-			'playlist' => '',
-			'type'     => '',
-			'index'    => '0',
-			'count'    => '0'
-		],
-		'current_sequence'  => '',
-		'current_song'      => '',
-		'seconds_played'    => '0',
-		'seconds_remaining' => '0',
-		'time_elapsed'      => '00:00',
-		'time_remaining'    => '00:00',
-   ];
-
-	if($mode == 8) {
-		$data = [
-			'playlist'          => $status[3],
-			'sequence_filename' => $status[3],
-			'media_filename'    => $status[4],
-			'seconds_elapsed'   => $status[5],
-			'seconds_remaining' => $status[6],
-			'time_elapsed' 		=> parseTimeFromSeconds((int)$status[5]),
-			'time_remaining'	=> parseTimeFromSeconds((int)$status[6]),
-	    ];
-
-	} else {
-
-		if($fppStatus == 0) {
-			$data = [
-				'next_playlist'     => [
-					'playlist'   => $status[3],
-					'start_time' => $status[4]
-				],
-				'repeat_mode' => 0,
-			];
-		} else {
-
-			if ($status[4] == 's')
-				$status[6] = '';
-
-			$data = [
-				'current_playlist' => [
-					'playlist' => pathinfo($status[3])['filename'],
-					'type'     => $status[4],
-					'index'    => $status[7],
-					'count'    => $status[8]
-					],
-				'current_sequence'  => $status[5],
-				'current_song'      => $status[6],
-				'seconds_played'    => $status[9],
-				'seconds_remaining' => $status[10],
-				'time_elapsed' 		=> parseTimeFromSeconds((int)$status[9]),
-				'time_remaining' 	=> parseTimeFromSeconds((int)$status[10]),
-				'next_playlist'     => [
-					'playlist'   => $status[11],
-					'start_time' => $status[12]
-				],
-				'repeat_mode' => (int)$status[13],
-			];
-		}
-	}
-
-	return array_merge($baseData, $data);
-
 }
 
 function parseTimeFromSeconds($seconds) {
@@ -510,23 +469,21 @@ function GetJSONPlaylistEntry($entry, $index)
 		return new PlaylistEntry($entry->type,'', '',$entry->duration,'','','','', $entry, $index);
 	else if ($entry->type == 'script')
 		return new PlaylistEntry($entry->type,'', '', 0, $entry->scriptName,'','','', $entry, $index);
-	else if ($entry->type == 'event')
-	{
-		$majorID = $entry->majorID;
-		if ($majorID < 10)
+	else if ($entry->type == 'event') {
+        $majorID = intval(ltrim($entry->majorID, 0));
+        if ($majorID < 10)
 			$majorID = '0' . $majorID;
 
-		$minorID = $entry->minorID;
+        $minorID = intval(ltrim($entry->minorID, 0));
 		if ($minorID < 10)
 			$minorID = '0' . $minorID;
 
 		$id = $majorID . '_' . $minorID;
 
-		AddEventDesc($entry);
+		$entry = AddEventDesc($entry);
 
-		return new PlaylistEntry($entry->type,'', '', 0, '', $id, $entry->desc, '', $entry, $index);
-	}
-	else if ($entry->type == 'plugin')
+		return new PlaylistEntry($entry->type,'', '', 0, '', $entry->desc, $id,'', $entry, $index);
+	} else if ($entry->type == 'plugin')
 		return new PlaylistEntry($entry->type, '', '', 0, '', '', '', $entry->data, $entry, $index);
 	else
 		return new PlaylistEntry($entry->type,'', '', 0, '','','','', $entry, $index);
@@ -539,11 +496,11 @@ function AddEventDesc(&$entry)
 	if ($entry->type != 'event')
 		return;
 
-	$majorID = $entry->majorID;
+	$majorID = intval(ltrim($entry->majorID, 0));
 	if ($majorID < 10)
 		$majorID = '0' . $majorID;
 
-	$minorID = $entry->minorID;
+	$minorID = intval(ltrim($entry->minorID, 0));
 	if ($minorID < 10)
 		$minorID = '0' . $minorID;
 
@@ -551,11 +508,13 @@ function AddEventDesc(&$entry)
 
 	$eventFile = $settings['eventDirectory'] . "/" . $id . ".fevt";
 	if ( file_exists($eventFile)) {
-		$eventInfo = parse_ini_file($eventFile);
-		$entry->desc = $eventInfo['name'];
+        $e = file_get_contents($eventFile);
+        $j = json_decode($e, true);
+		$entry->desc = $j['name'];
 	} else {
 		$entry->desc = "ERROR: Undefined Event: " . $id;
 	}
+    return $entry;
 }
 
 function LoadCSVPlayListDetails($file)
@@ -658,16 +617,64 @@ function LoadCSVPlayListDetails($file)
 	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
 }
 
-function LoadPlayListDetails($file)
+function GetPlaylist($playlistName, $fromMemory)
+{
+	global $settings;
+
+	if ($fromMemory)
+		$jsonStr = file_get_contents('http://127.0.0.1:32322/fppd/playlist/config/');
+	else
+		$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
+
+	$data = json_decode($jsonStr);
+
+	return $data;
+}
+
+function LoadSubPlaylist(&$playlist, &$i, $plentry)
+{
+	global $settings;
+
+	$data = GetPlaylist($plentry->name, 0);
+
+	$sections = Array();
+
+	if (isset($data->leadIn))
+		array_push($sections, $data->leadIn);
+	if (isset($data->mainPlaylist))
+		array_push($sections, $data->mainPlaylist);
+	if (isset($data->leadOut))
+		array_push($sections, $data->leadOut);
+
+	foreach ($sections as $section)
+	{
+		foreach ($section as $entry)
+		{
+			if ($entry->type == "playlist")
+			{
+				LoadSubPlaylist($playlist, $i, $entry);
+			}
+			else
+			{
+				$playlist[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
+		}
+	}
+}
+
+function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
 {
 	global $settings;
 
 	$playListEntriesLeadIn = NULL;
 	$playListEntriesMainPlaylist = NULL;
 	$playListEntriesLeadOut = NULL;
+	$playlistInfo = NULL;
 	$_SESSION['playListEntriesLeadIn']=NULL;
 	$_SESSION['playListEntriesMainPlaylist']=NULL;
 	$_SESSION['playListEntriesLeadOut']=NULL;
+	$_SESSION['playlistInfo']=NULL;
 	$_SESSION['currentPlaylist'] = '';
 
 	$jsonStr = "";
@@ -677,20 +684,28 @@ function LoadPlayListDetails($file)
 		if (file_exists($settings['playlistDirectory'] . '/' . $file))
 			LoadCSVPlaylistDetails($file);
 
-		return;
+		return "";
 	}
 
-	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $file . ".json");
+	$data = GetPlaylist($file, $fromMemory);
 
-	$data = json_decode($jsonStr);
+	if ($fromMemory)
+		return $data;
 
 	if (isset($data->leadIn))
 	{
 		$i = 0;
 		foreach ($data->leadIn as $entry)
 		{
-			$playListEntriesLeadIn[$i] = GetJSONPlaylistEntry($entry, $i);
-			$i++;
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($playListEntriesLeadIn, $i, $entry);
+			}
+			else
+			{
+				$playListEntriesLeadIn[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
 		}
 	}
 
@@ -699,8 +714,15 @@ function LoadPlayListDetails($file)
 		$i = 0;
 		foreach ($data->mainPlaylist as $entry)
 		{
-			$playListEntriesMainPlaylist[$i] = GetJSONPlaylistEntry($entry, $i);
-			$i++;
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($playListEntriesMainPlaylist, $i, $entry);
+			}
+			else
+			{
+				$playListEntriesMainPlaylist[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
 		}
 	}
 
@@ -709,14 +731,28 @@ function LoadPlayListDetails($file)
 		$i = 0;
 		foreach ($data->leadOut as $entry)
 		{
-			$playListEntriesLeadOut[$i] = GetJSONPlaylistEntry($entry, $i);
-			$i++;
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($playListEntriesLeadOut, $i, $entry);
+			}
+			else
+			{
+				$playListEntriesLeadOut[$i] = GetJSONPlaylistEntry($entry, $i);
+				$i++;
+			}
 		}
+	}
+
+	if (isset($data->playlistInfo))
+	{
+		$playlistInfo = $data->playlistInfo;
 	}
 
 	$_SESSION['playListEntriesLeadIn'] = $playListEntriesLeadIn;
 	$_SESSION['playListEntriesMainPlaylist'] = $playListEntriesMainPlaylist;
 	$_SESSION['playListEntriesLeadOut'] = $playListEntriesLeadOut;
+	$_SESSION['playlistInfo'] = $playlistInfo;
+
 	$_SESSION['currentPlaylist'] = $file;
 }
 
@@ -822,7 +858,7 @@ function ConvertPlaylistsToJSON()
 				$playlist = preg_replace("/\.json/", "", $playlist);
 
 				$_SESSION['currentPlaylist'] = $playlist;
-				LoadPlayListDetails($playlist);
+				LoadPlayListDetails($playlist, 0, 0);
 
 				SavePlaylistRaw($playlist);
 
@@ -836,6 +872,267 @@ function ConvertPlaylistsToJSON()
 	returnJSON($result);
 }
 
+/**
+ * Returns filesize for the specified file
+ */
+function getFileSize()
+{
+	//Get Info
+	global $args;
+	global $settings;
+
+	$mediaType = $args['type'];
+	$mediaName = $args['filename'];
+	check($mediaType, "mediaType", __FUNCTION__);
+	check($mediaName, "mediaName", __FUNCTION__);
+
+	$returnStr = [];
+	$filesize = 0;
+	if (strtolower($mediaType) == 'sequence') {
+		//Sequences
+		if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize($settings['sequenceDirectory'] . "/" . $mediaName);
+		}
+	} else if (strtolower($mediaType) == 'effect') {
+		if (file_exists($settings['effectDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize($settings['effectDirectory'] . "/" . $mediaName);
+		}
+	} else if (strtolower($mediaType) == 'music') {
+		if (file_exists($settings['musicDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize($settings['musicDirectory'] . "/" . $mediaName);
+		}
+	} else if (strtolower($mediaType) == 'video') {
+		if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
+			$filesize = human_filesize($settings['videoDirectory'] . "/" . $mediaName);
+		}
+	}
+
+	$returnStr[$mediaName]['filesize '] = $filesize;
+
+	returnJSONStr($returnStr);
+}
+
+/**
+ * Returns duration info about the specified media file
+ *
+ * @param string $mediaName
+ * @param bool $returnArray
+ * @return array|string
+ * @throws getid3_exception
+ */
+function getMediaDurationInfo($mediaName = "", $returnArray = false)
+{
+	//Get Info
+	global $args;
+	global $settings;
+
+	$returnStr = array();
+	$total_duration = 0;
+
+	if (empty($mediaName)) {
+		$mediaName = $args['media'];
+	}
+
+	check($mediaName, "mediaName", __FUNCTION__);
+
+	if (file_exists($settings['musicDirectory'] . "/" . $mediaName)) {
+		//Music Directory
+
+		//Check the cache for the media name first
+		$media_filesize = filesize($settings['musicDirectory'] . "/" . $mediaName);
+		$cache_duration = media_duration_cache($mediaName, null, $media_filesize);
+		//cache duration will be null if not in cache, then retrieve it
+		if ($cache_duration == NULL) {
+			//Include our getid3 library for media
+			require_once('./lib/getid3/getid3.php');
+
+			//Instantiate getID3 object
+			$getID3 = new getID3;
+
+			$ThisFileInfo = $getID3->analyze($settings['musicDirectory'] . "/" . $mediaName);
+			//cache it
+			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds'], $media_filesize);
+		} else {
+			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+		}
+
+		$total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
+	} else if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
+		//Check video directory
+
+		//Check the cache for the media name first
+		$media_filesize = filesize($settings['videoDirectory'] . "/" . $mediaName);
+		$cache_duration = media_duration_cache($mediaName, null, $media_filesize);
+		//cache duration will be null if not in cache, then retrieve it
+		if ($cache_duration == NULL) {
+			//Include our getid3 library for media
+			require_once('./lib/getid3/getid3.php');
+
+			//Instantiate getID3 object
+			$getID3 = new getID3;
+
+			$ThisFileInfo = $getID3->analyze($settings['videoDirectory'] . "/" . $mediaName);
+			//cache it
+			media_duration_cache($mediaName, $ThisFileInfo['playtime_seconds'], $media_filesize);
+		} else {
+			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+		}
+
+		$total_duration = $ThisFileInfo['playtime_seconds'] + $total_duration;
+	} else if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
+		//Check Sequence directory
+		$sequence_info = get_sequence_file_info($mediaName);
+//		$media_filesize =$sequence_info['seqFileSize'];
+
+		if (array_key_exists('seqDuration', $sequence_info)) {
+			$total_duration = $sequence_info['seqDuration'];
+
+		} else {
+			$total_duration = 0;
+		}
+
+		//This doesn't take very long so no need to cache
+//		media_duration_cache($mediaName, $total_duration, $media_filesize);
+	} else {
+		error_log("getMediaDurationInfo:: Could not find media file - " . $mediaName);
+	}
+
+	if ($total_duration !== 0) {
+		//If return array is false then return the human readable duration, else raw seconds
+		if ($returnArray == false) {
+			$returnStr[$mediaName]['duration'] = human_playtime($total_duration);
+		} else {
+			$returnStr[$mediaName]['duration'] = $total_duration;
+		}
+	}
+
+	if ($returnArray == true) {
+		return $returnStr;
+	} else {
+		returnJSON($returnStr);
+	}
+}
+
+/**
+ * Returns sequence header info
+ *
+ * @return array
+ */
+function GetSequenceInfo()
+{
+	global $args;
+	global $settings;
+	$return_arr = array();
+
+	$sequence = $args['seq'];
+	//if the file extension is missing, add it on
+	if (strpos($sequence, '.fseq') === FALSE) {
+		$sequence = $sequence . ".fseq";
+	}
+
+	if (file_exists($settings['sequenceDirectory'] . '/' . $sequence)) {
+		$return_arr = get_sequence_file_info($sequence);
+	} else {
+		$return_arr[$sequence]['error'] = "GetSequenceInfo:: Unable find sequence :: " . $sequence;
+		error_log("GetSequenceInfo:: Unable find sequence :: " . $sequence);
+	}
+
+	returnJSON($return_arr);
+}
+
+/*
+ * Returns the total playlist duration & number of items in the body/main playlist
+ */
+function GetPlayListInfoFromPlaylist($playlist, $reload)
+{
+	global $settings;
+
+	$returnStr = array();
+	//load in the playlist
+	if (file_exists($settings['playlistDirectory'] . '/' . $playlist . ".json")) {
+		$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlist . ".json");
+		//decode it
+		$data = json_decode($jsonStr);
+
+		$total_duration = 0;
+		$total_items = 0;
+
+		//Determine if there is a fileInfo node
+		if(array_key_exists('playlistInfo',$data)){
+			//If it exists and we're not reloading then just extract the info
+			$fileInfo_data = $data->playlistInfo;
+			$fileinfo_Duration = $fileInfo_data->total_duration;
+			$fileinfo_Items = $fileInfo_data->total_items;
+
+			//Then use this value, it's stored in raw seconds so make it readable
+			$returnStr['total_duration'] = $fileinfo_Duration;
+			$returnStr['total_items'] = $fileinfo_Items;
+		}
+//		else if (!array_key_exists('playlistInfo',$data) || $reload == true){
+			//generate the total duration, also save the duration into the playlist
+			//find the main playlist / body
+//			if (isset($data->mainPlaylist)) {
+//				//Loop over the contents, checking for media and build up a total duration
+//				foreach ($data->mainPlaylist as $idx => $playlistEntry) {
+//					$mediaName = "";
+//
+//					$type = $playlistEntry->type;
+//					if (isset($playlistEntry->mediaName)) {
+//						$mediaName = $playlistEntry->mediaName;
+//					}
+//					//If entry is either both sequence + audio or just media we can look at the media name and extract info
+//					if (($type == "both" || $type == "media") && !empty($mediaName)) {
+//						//Get media duration
+//						$ThisFileInfo = getMediaDurationInfo($mediaName, true);
+//
+//						$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
+//						$total_items++;
+//					}
+//					//Consider pause duration also
+//					if ($type == "pause") {
+//						$total_duration = $playlistEntry->duration + $total_duration;
+//					}
+//				}
+//
+//				//Build up the formatted string
+//				$returnStr['total_duration'] = $total_duration;
+//				$returnStr['total_items'] = $total_items;
+//				unset($getID3);
+//			}
+//		}
+	} else {
+		error_log("GetPlayListInfo:: Playlist doesn't exist - " . $playlist);
+	}
+
+	return $returnStr;
+}
+
+/**
+ * Returns the total playlist duration & number of items in the body/main playlist
+ * @throws getid3_exception
+ */
+function GetPlayListInfo()
+{
+	global $args;
+	global $settings;
+	$reload = false;
+
+	$playlist = $args['pl'];
+	check($playlist, "playlist", __FUNCTION__);
+
+	if (isset($args['reload'])) {
+		$reload = $args['reload'];
+		check($reload, "reload", __FUNCTION__);
+	}
+
+	$data = GetPlayListInfoFromPlaylist($playlist, $reload);
+
+	// Make the total_duration human-readable
+	$data['total_duration'] = human_playtime($data['total_duration']);
+
+	returnJSON($data);
+}
+
 function GetPlayListEntries()
 {
 	global $args;
@@ -844,17 +1141,30 @@ function GetPlayListEntries()
 	$playlist = $args['pl'];
 	check($playlist, "playlist", __FUNCTION__);
 	$reload = $args['reload'];
-	check($playlist, "reload", __FUNCTION__);
+	check($reload, "reload", __FUNCTION__);
+
+	$mergeSubs = 0;
+	if (isset($args['mergeSubs']) && $args['mergeSubs'] == 1)
+		$mergeSubs = 1;
+
+	$fromMemory = 0;
+	if (isset($args['fromMemory']) && $args['fromMemory'] == 1)
+		$fromMemory = 1;
 
 	if ($reload == 'true')
-		LoadPlayListDetails($playlist);
+		$jsonStr = LoadPlayListDetails($playlist, $mergeSubs, $fromMemory);
 
-	$jsonStr = GenerateJSONPlaylist($playlist);
+	if (!$fromMemory)
+	{
+		$jsonStr = GenerateJSONPlaylist($playlist);
 
-	$jsonStr = json_encode(json_decode($jsonStr), JSON_PRETTY_PRINT);
+		//Quick hack to make the playlist duration human readable (we want to keep the duration in seconds for the actual playlist) so modify here
+		$jsonStr = json_decode($jsonStr);
+	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	$jsonStr->playlistInfo->total_duration = human_playtime($jsonStr->playlistInfo->total_duration);
+
+	returnJSON($jsonStr);
 }
 
 function GenerateJSONPlaylistEntry($entry)
@@ -926,10 +1236,12 @@ function GenerateJSONPlaylistEntry($entry)
 			'			"enabled": 1,' . "\n" .
 			'			"playOnce": %d,' . "\n" .
 			'			"scriptName": "%s",' . "\n" .
+			'			"scriptArgs": "%s",' . "\n" .
 			'			"blocking": %d' . "\n" .
 			'		}',
 			0, // Play Once
 			$entry->scriptName,
+			$entry->scriptArgs,
 			0  // Blocking
 			);
 	}
@@ -1000,7 +1312,7 @@ function GenerateJSONPlaylistEntry($entry)
 
 function GenerateJSONPlaylistSection($section, $list)
 {
-	if (!count($_SESSION[$list]))
+	if (!isset($_SESSION[$list]) || !count($_SESSION[$list]))
 		return "";
 
 	$result = sprintf(',' . "\n" .
@@ -1029,6 +1341,75 @@ function GenerateJSONPlaylistSection($section, $list)
 	return $result;
 }
 
+function GenerateJSONPlaylistInfo($list)
+{
+	global $playlistDirectory, $settings;
+
+	$total_duration = $total_items = 0;
+	$returnStr = array(
+		'playlistInfo' => array(
+			'total_duration' => 0,
+			'total_items' => 0
+		)
+	);
+
+	if (isset($_SESSION['playlistInfo'])) {
+		//pull the data out of the session
+		$session_playlist_info = $_SESSION['playlistInfo'];
+
+		//Build up the formatted string
+		$returnStr['playlistInfo']['total_duration'] = ($session_playlist_info->total_duration);
+		$returnStr['playlistInfo']['total_items'] = $session_playlist_info->total_items;
+	}else if ((is_array($list) && !empty($list)) && !isset($_SESSION['playlistInfo']))  {
+		//Could not find the playlist info in the session so lets generate it
+		//it should be there if it was in the json file.
+
+		//loop over the lists
+		foreach ($list as $listName) {
+			//Loop over the contents, checking for media and build up a total duration
+			if (isset($_SESSION[$listName])) {
+				foreach ($_SESSION[$listName] as $idx => $playlistEntry) {
+					$mediaName = "";
+
+					$type = $playlistEntry->entry->type;
+					if (isset($playlistEntry->entry->mediaName)) {
+						$mediaName = $playlistEntry->entry->mediaName;
+					} else if (isset($playlistEntry->entry->sequenceName)){
+						$mediaName = $playlistEntry->entry->sequenceName;
+					}
+
+					//If entry is either both sequence + audio or just media we can look at the media name and extract info
+					if (($type == "both" || $type == "media" || $type == "sequence" ) && !empty($mediaName)) {
+						//Get media duration
+						$ThisFileInfo = getMediaDurationInfo($mediaName, true);
+						//Add it up
+						$total_duration = $ThisFileInfo[$mediaName]['duration'] + $total_duration;
+						if ($listName == "playListEntriesMainPlaylist") {
+							$total_items++;
+						}
+					}
+					//Consider pause duration also
+					if ($type == "pause") {
+						$total_duration = $playlistEntry->entry->duration + $total_duration;
+					}
+
+					if ($type == 'playlist') {
+						$data = GetPlayListInfoFromPlaylist($playlistEntry->entry->name, true);
+						$total_duration += $data['total_duration'];
+						$total_items += $data['total_items'];
+					}
+				}
+			}
+		}
+
+		//Build up the formatted string
+		$returnStr['playlistInfo']['total_duration'] = ($total_duration);
+		$returnStr['playlistInfo']['total_items'] = $total_items;
+	}
+
+	return ', "playlistInfo":' . json_encode($returnStr['playlistInfo'], JSON_PRETTY_PRINT);
+}
+
 function GenerateJSONPlaylist($name)
 {
 	$result = "";
@@ -1043,9 +1424,13 @@ function GenerateJSONPlaylist($name)
 		0  // Loop Count
 		);
 
+	//Generate json for the primary sections of the playlist
 	$result .= GenerateJSONPlaylistSection('leadIn', 'playListEntriesLeadIn');
 	$result .= GenerateJSONPlaylistSection('mainPlaylist', 'playListEntriesMainPlaylist');
 	$result .= GenerateJSONPlaylistSection('leadOut', 'playListEntriesLeadOut');
+
+	//Generate playlist info for all the areas
+	$result .= GenerateJSONPlaylistInfo(array('playListEntriesLeadIn','playListEntriesMainPlaylist','playListEntriesLeadOut'));
 
 	$result .= sprintf("\n}\n");
 
@@ -1055,6 +1440,13 @@ function GenerateJSONPlaylist($name)
 function SavePlaylistRaw($name)
 {
 	global $playlistDirectory;
+
+	//Hack to get have the playlist duration be recalculated before saving
+	unset($_SESSION['playlistInfo']);
+
+	//TODO Playlists - Reassess whether this is still needed once scheduler is stored in json
+	//Replace Illegal chars in the playlist name
+	$name = ReplaceIllegalCharacters($name);
 
 	$json = GenerateJSONPlaylist($name);
 
@@ -1066,7 +1458,12 @@ function SavePlaylistRaw($name)
 		rename($playlistDirectory . '/' . $name, $playlistDirectory . '/' . $name . '-CSV');
 
 	$f = fopen($playlistDirectory . '/' . $name . ".json","w") or exit("Unable to open file! : " . $playlistDirectory . '/' . $name . ".json");
-	fprintf($f, $json);
+	//Avoid nuking playlist file if we have no JSON string for some reason
+	if(!empty($json)){
+		fwrite($f, $json);
+	}else{
+		error_log("Error saving ".$playlistDirectory . '/' . $name . ".json" . " -- No Playlist (JSON) content to write");
+	}
 	fclose($f);
 
 	if(isset($_SESSION['currentPlaylist']) && $name != $_SESSION['currentPlaylist'])
@@ -1085,6 +1482,30 @@ function SavePlaylist()
 
 	$result = Array();
 	$result['status'] = 'Ok';
+	returnJSON($result);
+}
+
+function CopyPlaylist()
+{
+	global $playlistDirectory;
+
+	$from_playlist_name = $_GET['from'];
+	$to_playlist_name = $_GET['to'];
+
+	check($from_playlist_name, "name", __FUNCTION__);
+	check($to_playlist_name, "name", __FUNCTION__);
+
+	if(empty($to_playlist_name)){
+		$to_playlist_name = $from_playlist_name . " - Copy";
+	}
+
+	if (file_exists($playlistDirectory . '/' . $from_playlist_name . '.json')) {
+		copy($playlistDirectory . '/' . $from_playlist_name . '.json', $playlistDirectory . '/' . $to_playlist_name . '.json');
+	}
+
+	$result = Array();
+	$result['status'] = 'Ok';
+	$result['copyPlaylist'] = $to_playlist_name;
 	returnJSON($result);
 }
 
@@ -1122,15 +1543,76 @@ function SetPluginSetting()
 	GetPluginSetting();
 }
 
+    
+function GetPluginJSON()
+{
+	global $args;
+    global $settings;
+
+	$plugin  = $args['plugin'];
+    
+    $cfgFile = $settings['configDirectory'] . "/plugin." . $plugin . ".json";
+    if (file_exists($cfgFile)) {
+        $js = file_get_contents($cfgFile);
+        returnJSON($js);
+    }
+	$result = Array();
+	returnJSON($result);
+}
+
+function SetPluginJSON()
+{
+	global $args;
+    global $settings;
+	$plugin  = $args['plugin'];
+    
+    $cfgFile = $settings['configDirectory'] . "/plugin." . $plugin . ".json";
+    $js = json_decode(file_get_contents("php://input"), true);
+    file_put_contents($cfgFile, json_encode($js, JSON_PRETTY_PRINT));
+
+    return GetPluginJSON();
+}
 /////////////////////////////////////////////////////////////////////////////
 
 function GetFPPSystems()
 {
-	exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
+    global $settings;
 
-	exec("avahi-browse -artp | grep -v 'IPv6' | sort", $rmtSysOut);
+    $result = Array();
+    exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
 
-	$result = Array();
+    $found = Array();
+    
+    $discovered = json_decode(@file_get_contents("http://localhost:32322/fppd/multiSyncSystems"), true);
+    foreach ($discovered['systems'] as $system) {
+
+        if (preg_match('/^169\.254/', $system['address']))
+            continue;
+
+        $elem = Array();
+        $elem['HostName'] = $system['hostname'];
+        $found[$system['address']] = 1;
+
+        $elem['HostDescription'] = ''; # will be filled in later via AJAX
+        $elem['IP'] = $system['address'];
+        $elem['fppMode'] = $system['fppModeString'];
+        $elem['Local'] = 0;
+        $elem['Platform'] = $system['type'];
+        $elem['majorVersion'] = $system['majorVersion'];
+        $elem['minorVersion'] = $system['minorVersion'];
+        $elem['model'] = $system['model'];
+        $elem['version'] = $system['version'];
+        $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
+        $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
+        if (count($matches))
+            $elem['Local'] = 1;
+        $result[] = $elem;
+    }
+
+	if ((!isset($settings['AvahiDiscovery'])) || ($settings['AvahiDiscovery'] == '0'))
+		returnJSON($result);
+
+	exec("avahi-browse -artp | grep  'IPv4' | grep 'fpp-fppd' | sort", $rmtSysOut);
 
 	foreach ($rmtSysOut as $system)
 	{
@@ -1141,19 +1623,31 @@ function GetFPPSystems()
 
 		$parts = explode(';', $system);
 
+        if (preg_match("/usb.*/", $parts[1]))
+            continue;
+        
+        if (isset($found[$parts[7]]) && ($found[$parts[7]] == 1)) {
+            continue;
+        }
+        
+        if (isset($found[$parts[7]]) && strlen($parts[7]) > 16) {
+            //for some reason, despite the IPv4 grep, it occassionally will return an IPv6 address, filter those out
+            continue;
+        }
+        
 		$elem = Array();
-		$elem['HostName']        = $parts[3];
-		$elem['IP']     = $parts[7];
+		$elem['HostName'] = $parts[3];
+		$elem['HostDescription'] = ''; # will be filled in later via AJAX
+		$elem['IP'] = $parts[7];
 		$elem['fppMode'] = "Unknown";
 		$elem['Local'] = 0;
 		$elem['Platform'] = "Unknown";
 
-		$matches = preg_grep("/" . $elem['IP'] . "/", $localIPs);
+		$matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
 		if (count($matches))
 			$elem['Local'] = 1;
 
-		if (count($parts) > 8)
-		{
+		if (count($parts) > 8) {
 			$elem['txtRecord'] = $parts[9];
 			$txtParts = explode(',', preg_replace("/\"/", "", $parts[9]));
 			foreach ($txtParts as $txtPart)
@@ -1164,12 +1658,8 @@ function GetFPPSystems()
 				else if ($kvPair[0] == "platform")
 					$elem['Platform'] = $kvPair[1];
 			}
-	 }
-
-		if (!((($elem['IP'] == "192.168.7.2") || ($elem['IP'] == "192.168.6.2")) && ($elem['Platform'] == "BeagleBone Black")))
-		{
-			$result[] = $elem;
-		}
+        }
+        $result[] = $elem;
 	}
 
 	returnJSON($result);
@@ -1179,33 +1669,45 @@ function GetFPPSystems()
 
 function SetAudioOutput($card)
 {
-	global $args, $SUDO, $debug;
+	global $args, $SUDO, $debug, $settings;
 
-	if ($card != 0 && file_exists("/proc/asound/card$card"))
-	{
+	if ($card != 0 && file_exists("/proc/asound/card$card")) {
 		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
-		if ($return_val)
-		{
+		if ($return_val) {
 			error_log("Failed to set audio to card $card!");
 			return;
 		}
-		if ( $debug )
+        if ( $debug ) {
 			error_log("Setting to audio output $card");
-	}
-	else if ($card == 0)
-	{
+        }
+	} else if ($card == 0) {
 		exec($SUDO . " sed -i 's/card [0-9]/card ".$card."/' /root/.asoundrc", $output, $return_val);
 		unset($output);
-		if ($return_val)
-		{
+		if ($return_val) {
 			error_log("Failed to set audio back to default!");
 			return;
 		}
 		if ( $debug )
 			error_log("Setting default audio");
 	}
-
+    // need to also reset mixer device
+    $AudioMixerDevice = exec("sudo amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+    unset($output);
+    if ($return_val == 0) {
+        WriteSettingToFile("AudioMixerDevice", $AudioMixerDevice);
+        if ($settings['Platform'] == "Raspberry Pi" && $card == 0) {
+            $type = exec("sudo aplay -l | grep \"card $card\"", $output, $return_val);
+            if (strpos($type, '[bcm') !== false) {
+                WriteSettingToFile("AudioCard0Type", "bcm");
+            } else {
+                WriteSettingToFile("AudioCard0Type", "unknown");
+            }
+            unset($output);
+        } else {
+            WriteSettingToFile("AudioCard0Type", "unknown");
+        }
+    }
 	return $card;
 }
 
@@ -1213,44 +1715,15 @@ function SetAudioOutput($card)
 
 function GetChannelMemMaps()
 {
-	global $settings;
-	$memmapFile = $settings['channelMemoryMapsFile'];
-
-	$result = Array();
-
-	$f = fopen($memmapFile, "r");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
-
-	while (!feof($f))
-	{
-		$line = trim(fgets($f));
-
-		if ($line == "")
-			continue;
-		
-		if (substr($line, 0, 1) == "#")
-			continue;
-
-		$memmap = explode(",",$line,10);
-
-		$elem = Array();
-		$elem['BlockName']        = $memmap[0];
-		$elem['StartChannel']     = $memmap[1];
-		$elem['ChannelCount']     = $memmap[2];
-		$elem['Orientation']      = $memmap[3];
-		$elem['StartCorner']      = $memmap[4];
-		$elem['StringCount']      = $memmap[5];
-		$elem['StrandsPerString'] = $memmap[6];
-
-		$result[] = $elem;
-	}
-	fclose($f);
-
-	returnJSON($result);
+    global $settings;
+    
+    $jsonStr = "";
+    
+    if (file_exists($settings['model-overlays'])) {
+        $jsonStr = file_get_contents($settings['model-overlays']);
+    }
+    
+    returnJSONStr($jsonStr);
 }
 
 function SetChannelMemMaps()
@@ -1258,25 +1731,11 @@ function SetChannelMemMaps()
 	global $args;
 	global $settings;
 
-	$memmapFile = $settings['channelMemoryMapsFile'];
+    $data = stripslashes($args['data']);
+    $data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
+    
+    file_put_contents($settings['model-overlays'], $data);
 
-	$data = json_decode($args['data'], true);
-
-	$f = fopen($memmapFile, "w");
-	if($f == FALSE)
-	{
-		fclose($f);
-		returnJSON($result);
-	}
-
-	foreach ($data as $memmap) {
-		fprintf($f, "%s,%d,%d,%s,%s,%d,%d\n",
-			$memmap['BlockName'], $memmap['StartChannel'],
-			$memmap['ChannelCount'], $memmap['Orientation'],
-			$memmap['StartCorner'], $memmap['StringCount'],
-			$memmap['StrandsPerString']);
-	}
-	fclose($f);
 
 	GetChannelMemMaps();
 }
@@ -1293,8 +1752,7 @@ function GetOutputProcessors()
 		$jsonStr = file_get_contents($settings['outputProcessorsFile']);
 	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSONStr($jsonStr);
 }
 
 function SetOutputProcessors()
@@ -1321,8 +1779,7 @@ function GetChannelOutputsJSON()
 		$jsonStr = file_get_contents($settings['channelOutputsJSON']);
 	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSONStr($jsonStr);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1387,12 +1844,21 @@ function SaveUniversesToFile($enabled, $input)
 
 function SetUniverses()
 {
-	$enabled = $_POST['enabled'];
+	$enabled = $_POST['E131Enabled'];
 	check($enabled);
 	$input = $_POST['input'];
 	check($input);
+    
+    $count = count($_SESSION['UniverseEntries']);
+    if ( isset($_POST['UniverseCount']) ) {
+        $count = intval($_POST['UniverseCount']);
+        $_SESSION['UniverseEntries'] = NULL;
+        for ($i = 0; $i < $count; $i++) {
+            $_SESSION['UniverseEntries'][$i] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
+        }
+    }
 
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
+	for($i=0;$i<$count;$i++)
 	{
 		if( isset($_POST['chkActive'][$i]))
 		{
@@ -1403,7 +1869,12 @@ function SetUniverses()
 			$_SESSION['UniverseEntries'][$i]->active = 0;
 		}
 		$_SESSION['UniverseEntries'][$i]->desc = 	$_POST['txtDesc'][$i];
-		$_SESSION['UniverseEntries'][$i]->universe = 	intval($_POST['txtUniverse'][$i]);
+        
+        if ( isset($_POST['txtUniverse']) && isset($_POST['txtUniverse'][$i])) {
+            $_SESSION['UniverseEntries'][$i]->universe = intval($_POST['txtUniverse'][$i]);
+        } else {
+            $_SESSION['UniverseEntries'][$i]->universe = 1;
+        }
 		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
 		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
 		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
@@ -1427,8 +1898,7 @@ function GetChannelOutputs()
 		$jsonStr = file_get_contents($settings[$file]);
 	}
 
-	header( "Content-Type: application/json");
-	echo $jsonStr;
+	returnJSONStr($jsonStr);
 }
 
 function SetChannelOutputs()
@@ -1536,9 +2006,10 @@ function SetInterfaceInfo()
 	if (substr($data['INTERFACE'], 0, 4) == "wlan")
 	{
 		fprintf($f,
-			"SSID='%s'\n" .
-			"PSK='%s'\n",
-			$data['SSID'], $data['PSK']);
+			"SSID=\"%s\"\n" .
+			"PSK=\"%s\"\n" .
+            "HIDDEN=%s\n",
+			$data['SSID'], $data['PSK'], $data['Hidden']);
 	}
 
 	fclose($f);
@@ -1657,8 +2128,7 @@ function SetTestMode()
 
 function GetTestMode()
 {
-	header( "Content-Type: application/json");
-	echo SendCommand("GetTestMode");
+	returnJSONStr(SendCommand("GetTestMode"));
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1716,8 +2186,12 @@ function ExtGPIOJson()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+function GetSystemInfoJson() {
+    global $args;
+    return GetSystemInfoJsonInternal(false, isset($args['simple']));
+}
 
-function GetSystemInfoJson()
+function GetSystemInfoJsonInternal($return_array = false, $simple = false)
 {
     global $settings;
 
@@ -1727,28 +2201,95 @@ function GetSystemInfoJson()
     //Default json to be returned
     $result = array();
     $result['HostName'] = $settings['HostName'];
-    $result['Platform'] = $settings['Platform'];
-    $result['Variant'] = $settings['Variant'];
-
-    $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-    $kernel_version = exec("uname -r");
-    $fpp_head_version = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-    if ( $return_val != 0 )
-        $fpp_head_version = "Unknown";
-    unset($output);
-    $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-    if ( $return_val != 0 )
-        $git_branch = "Unknown";
-    unset($output);
-
-    $result['Kernel'] = $kernel_version;
-    $result['Version'] = $fpp_head_version;
-    $result['Branch'] = $git_branch;
-    $result['IPs'] = $IPs;
+	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
+	$result['Platform'] = $settings['Platform'];
+    $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
     $result['Mode'] = $settings['fppMode'];
+    $result['Version'] = getFPPVersion();
+    $result['Branch'] = getFPPBranch();
+    
+    if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
+        $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
+        $json = json_decode($content, true);
+        $result['channelRanges'] = $json['channelRanges'];
+        $result['majorVersion'] = $json['majorVersion'];
+        $result['minorVersion'] = $json['minorVersion'];
+    }
+    
+    if (! $simple) {
+        //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
+        $result['Utilization']['CPU'] =  get_server_cpu_usage();
+        $result['Utilization']['Memory'] = get_server_memory_usage();
+        $result['Utilization']['Uptime'] = get_server_uptime(true);
 
-    returnJSON($result);
+        $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+
+        $result['Kernel'] = get_kernel_version();
+        $result['LocalGitVersion'] = get_local_git_version();
+        $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
+        $result['AutoUpdatesDisabled'] = file_exists($settings['mediaDirectory'] . "/.auto_update_disabled") ? true : false;
+        $result['IPs'] = $IPs;
+    }
+
+    //Return just the array if requested
+	if ($return_array == true) {
+		return $result;
+	} else {
+		returnJSON($result);
+	}
+}
+    
+function SetBBBLeds() {
+    file_put_contents("/tmp/setBBBLeds", "#!/bin/bash\n. /opt/fpp/scripts/common\n. /opt/fpp/scripts/functions\n configureBBBLeds");
+    shell_exec("sudo bash /tmp/setBBBLeds");
+    unlink("/tmp/setBBBLeds");
+}
+    
+
+/////////////////////////////////////////////////////////////////////////////
+
+function GetSystemHostInfo()
+{
+	global $settings;
+
+	//close the session before we start, this removes the session lock and lets other scripts run
+	session_write_close();
+
+	//Default json to be returned
+	$result = array();
+	$result['HostName'] = $settings['HostName'];
+	$result['HostDescription'] = !empty($settings['HostDescription']) ? $settings['HostDescription'] : "";
+
+	returnJSON($result);
 }
     
     
+function ClearPersistentNetNames()
+{
+    shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
+}
+function CreatePersistentNetNames()
+{
+	global $settings;
+    shell_exec("sudo rm -f /etc/systemd/network/5?-fpp-*.link");
+    $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    $count = 0;
+    foreach ($interfaces as $iface) {
+        $iface = preg_replace("/:$/", "", $iface);
+        $cmd = "ip link show " . $iface . " | grep ether | awk '{split($0, a,\" \"); print a[2];}'";
+        exec($cmd, $output, $return_val);
+        
+        $cont = "[Match]\nMACAddress=" . $output[0];
+        if (substr($iface, 0, strlen("wlan")) === "wlan") {
+            $cont = $cont . "\nOriginalName=wlan*";
+        }
+        $cont = $cont . "\n[Link]\nName=" . $iface . "\n";
+        file_put_contents("/tmp/5" . strval($count) . "-fpp-" . $iface . ".link", $cont);
+        shell_exec("sudo mv /tmp/5" . strval($count) . "-fpp-" . $iface . ".link /etc/systemd/network/");
+
+        unset($output);
+        $count = $count + 1;
+    }
+    
+}
 ?>

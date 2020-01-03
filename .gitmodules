@@ -10,3 +10,6 @@
 	path = external/rpi_ws281x
 	url = https://github.com/jgarff/rpi_ws281x.git
 	ignore = dirty
+[submodule "external/spixels"]
+	path = external/spixels
+	url = https://github.com/hzeller/spixels.git

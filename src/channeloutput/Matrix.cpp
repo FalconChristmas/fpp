@@ -51,7 +51,7 @@ Matrix::Matrix(int startChannel, int width, int height)
  */
 Matrix::~Matrix()
 {
-	delete m_buffer;
+	delete [] m_buffer;
 }
 
 /*

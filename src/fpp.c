@@ -55,6 +55,7 @@ socklen_t address_length;
 
 int main (int argc, char *argv[])
 {
+  memset(command, 0, sizeof(command));
   SetupDomainSocket();
   if(argc>1)
   {
@@ -90,13 +91,19 @@ int main (int argc, char *argv[])
     // Stop gracefully - example "fpp -S"
     else if(strncmp(argv[1],"-S",2) == 0)
     {
-      sprintf(command,"S");
+      sprintf(command,"StopGracefully");
+      SendCommand(command);
+    }
+    // Stop gracefully After Loop - example "fpp -L"
+    else if(strncmp(argv[1],"-L",2) == 0)
+    {
+      sprintf(command,"StopGracefullyAfterLoop");
       SendCommand(command);
     }
     // Stop now - example "fpp -d"
     else if(strncmp(argv[1],"-d",2) == 0)
     {
-      sprintf(command,"d");
+      sprintf(command,"StopNow");
       SendCommand(command);
     }
     // Shutdown fppd daemon
@@ -105,20 +112,16 @@ int main (int argc, char *argv[])
       sprintf(command,"q");
       SendCommand(command);
     }
+    // Restart fppd daemon
+    else if(strncmp(argv[1],"-r",2) == 0)
+    {
+      sprintf(command,"restart");
+      SendCommand(command);
+    }
     // Reload schedule example "fpp -R"
     else if(strncmp(argv[1],"-R",2) == 0)
     {
       sprintf(command,"R");
-      SendCommand(command);
-    }
-    else if(strncmp(argv[1],"-w",2) == 0)
-    {
-      sprintf(command,"w");
-      SendCommand(command);
-    }
-    else if(strncmp(argv[1],"-r",2) == 0)
-    {
-      sprintf(command,"r");
       SendCommand(command);
     }
     else if((strncmp(argv[1],"-c",2) == 0) && argc > 2)
@@ -134,9 +137,9 @@ int main (int argc, char *argv[])
       else if (!strcmp(argv[2], "stepback"))
         sprintf(command,"SingleStepSequenceBack");
       else if (!strcmp(argv[2], "stop"))
-        sprintf(command,"d");
+        sprintf(command,"StopNow");
       else if (!strcmp(argv[2], "graceful"))
-        sprintf(command,"S");
+        sprintf(command,"StopGracefully");
       SendCommand(command);
     }
     // Start an effect - example "fpp -e effectName"
@@ -195,20 +198,21 @@ int main (int argc, char *argv[])
       SendCommand(command);
     }
     // Configure the given GPIO to the given mode
-    else if((strncmp(argv[1],"-G",2) == 0) &&  argc > 2)
-    {
-      sprintf(command,"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
-      SendCommand(command);
-    }
+    else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 3) {
+        sprintf(command,"SetupExtGPIO,%s,",argv[2]);
+        SendCommand(command);
+    } else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 4) {
+        sprintf(command,"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
+        SendCommand(command);
     // Set the given GPIO to the given value
-    else if((strncmp(argv[1],"-g",2) == 0) &&  argc > 2)
-    {
-      sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
-      SendCommand(command);
-    }
-    else
-    {
-      Usage(argv[0]);
+    } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 3) {
+        sprintf(command,"ExtGPIO,%s",argv[2]);
+        SendCommand(command);
+    } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 5) {
+        sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
+        SendCommand(command);
+    } else {
+        Usage(argv[0]);
     }
   }
   else
@@ -230,6 +234,9 @@ void SetupDomainSocket(void)
   return;
  }
 
+    mkdir(FPP_SOCKET_PATH, 0777);
+    chmod(FPP_SOCKET_PATH, 0777);
+
  memset(&client_address, 0, sizeof(struct sockaddr_un));
  client_address.sun_family = AF_UNIX;
  strcpy(client_address.sun_path, FPP_CLIENT_SOCKET);
@@ -244,6 +251,9 @@ void SetupDomainSocket(void)
  memset(&server_address, 0, sizeof(struct sockaddr_un));
  server_address.sun_family = AF_UNIX;
  strcpy(server_address.sun_path, FPP_SERVER_SOCKET);
+    
+    symlink(FPP_SERVER_SOCKET, FPP_SERVER_SOCKET_OLD);
+    symlink(FPP_CLIENT_SOCKET, FPP_CLIENT_SOCKET_OLD);
 }
 
 /*
@@ -310,21 +320,21 @@ void Usage(char *appname)
 "                                 step     - single-step a paused sequence\n"
 "                                 stepback - step a paused sequence backwards\n"
 "  -S                           - Stop Playlist gracefully\n"
+"  -L                           - Stop Playlist gracefully after current loop\n"
 "  -d                           - Stop Playlist immediately\n"
 "  -q                           - Shutdown fppd daemon\n"
+"  -r                           - Restart fppd daemon\n"
 "  -R                           - Reload schedule config file\n"
-"  -w                           - Send Falcon hardware config out SPI port\n"
-"  -r                           - Write Bridge mode Bytes Received file\n"
 "  -e EFFECTNAME[,CH[,LOOP]]    - Start Effect EFFECTNAME with optional\n"
 "                                 start channel set to CH and optional\n"
 "                                 looping if LOOP is set to 1\n"
 "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
 "  -t EVENTNAME                 - Trigger Event EVENTNAME\n"
-"  -G GPIO,MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
+"  -G GPIO MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
 "                                 Input    - Set to Input. For PiFace inputs this only enables the pull-up\n"
 "                                 Output   - Set to Output. (This is not needed for PiFace outputs)\n"
 "                                 SoftPWM  - Set to Software PWM.\n"
-"  -g GPIO,MODE,VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
+"  -g GPIO MODE VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
 "                                 VALUE is ignored for Input mode\n"
 "\n", appname);
 }

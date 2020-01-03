@@ -34,14 +34,17 @@
 class FBMatrixOutput : public ChannelOutputBase {
   public:
 	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
-	~FBMatrixOutput();
+	virtual ~FBMatrixOutput();
 
-	int Init(char *configStr);
-	int Close(void);
+    virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+    virtual int SendData(unsigned char *channelData) override;
+    virtual void PrepData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
+
+    virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	int     m_fbFd;
@@ -51,9 +54,15 @@ class FBMatrixOutput : public ChannelOutputBase {
 	int          m_width;
 	int          m_height;
 	int          m_useRGB;
+	int          m_inverted;
+	int          m_bpp;
+	std::string  m_device;
 
 	char   *m_fbp;
+    char   *m_frame;
 	int     m_screenSize;
+
+	uint16_t ***m_rgb565map;
 
 	struct fb_var_screeninfo m_vInfo;
 	struct fb_var_screeninfo m_vInfoOrig;

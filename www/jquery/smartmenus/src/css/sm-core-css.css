@@ -1,16 +1,14 @@
-/* SmartMenus Core CSS (it's not recommended editing this)
-===============================================================*/
+/* Mobile first layout SmartMenus Core CSS (it's not recommended editing these rules)
+   You need this once per page no matter how many menu trees or different themes you use.
+-------------------------------------------------------------------------------------------*/
 
-.sm,.sm ul,.sm li{display:block;list-style:none;padding:0;margin:0;line-height:normal;direction:ltr;}
-ul.sm ul{position:absolute;top:-999999px;width:100px;}
-ul.sm li{position:relative;float:left;}
-ul.sm a{position:relative;display:block;white-space:nowrap;}
-ul.sm a.disabled{cursor:default;}
-.sm-rtl,.sm-rtl ul,.sm-rtl li{direction:rtl;}
-ul.sm-rtl li{float:right;}
-ul.sm ul li,ul.sm-vertical li{float:none;}
-ul.sm ul a,ul.sm-vertical a{white-space:normal;}
-ul.sm ul.sm-nowrap>li>a{white-space:nowrap;}
-ul.sm:after{content:"\00a0";display:block;height:0;font:0/0 serif;clear:both;visibility:hidden;overflow:hidden;}
-ul.sm,ul.sm *,ul.sm *:before,ul.sm *:after{-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box;}
-ul.sm{-webkit-tap-highlight-color:rgba(0,0,0,0);}
+.sm{box-sizing:border-box;position:relative;z-index:9999;-webkit-tap-highlight-color:rgba(0,0,0,0);}
+.sm,.sm ul,.sm li{display:block;list-style:none;margin:0;padding:0;line-height:normal;direction:ltr;text-align:left;}
+.sm-rtl,.sm-rtl ul,.sm-rtl li{direction:rtl;text-align:right;}
+.sm>li>h1,.sm>li>h2,.sm>li>h3,.sm>li>h4,.sm>li>h5,.sm>li>h6{margin:0;padding:0;}
+.sm ul{display:none;}
+.sm li,.sm a{position:relative;}
+.sm a{display:block;}
+.sm a.disabled{cursor:default;}
+.sm::after{content:"";display:block;height:0;font:0px/0 serif;clear:both;overflow:hidden;}
+.sm *,.sm *::before,.sm *::after{box-sizing:inherit;}

@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -5,10 +7,25 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
-$dirs = Array(
-	'sequences',
-	'videos'
-	);
+$dirs = Array();
+
+if ((isset($settings['MultiSyncCopySequences']) && ($settings['MultiSyncCopySequences'] == 1)) ||
+	(!isset($settings['MultiSyncCopySequences'])))
+	array_push($dirs, 'sequences');
+if (isset($settings['MultiSyncCopyEffects']) && ($settings['MultiSyncCopyEffects'] == 1))
+	array_push($dirs, 'effects');
+if (isset($settings['MultiSyncCopyVideos']) && ($settings['MultiSyncCopyVideos'] == 1))
+	array_push($dirs, 'videos');
+if (isset($settings['MultiSyncCopyEvents']) && ($settings['MultiSyncCopyEvents'] == 1))
+	array_push($dirs, 'events');
+if (isset($settings['MultiSyncCopyScripts']) && ($settings['MultiSyncCopyScripts'] == 1))
+	array_push($dirs, 'scripts');
+
+if (sizeof($dirs) == 0)
+{
+	echo "You do not have any files set to be copied.  Please return to the <a href='multisync.php'>MultiSync setup page</a> and select which files you wish to copy to the remotes.";
+	exit(0);
+}
 
 $remotes = Array();
 if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {
@@ -17,7 +34,7 @@ if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {
 } else if ( isset($_GET['MultiSyncRemotes']) && !empty($_GET['MultiSyncRemotes'])) {
 	$remotes = preg_split('/,/', $_GET['MultiSyncRemotes']);
 } else if ( isset($settings['MultiSyncRemotes']) && !empty($settings['MultiSyncRemotes'])) {
-	if ( $settings['MultiSyncRemotes'] != "255.255.255.255" ) {
+	if ( $settings['MultiSyncRemotes'] != "255.255.255.255" && $settings['MultiSyncRemotes'] != "239.70.80.80") {
 		$remotes = preg_split('/,/', $settings['MultiSyncRemotes']);
 	} else {
 		exec("ip addr show up | grep 'inet ' | awk '{print $2}' | cut -f1 -d/ | grep -v '^127'", $localIPs);
@@ -67,7 +84,6 @@ if (!isset($settings['fppMode']) || ($settings['fppMode'] != 'master')) {
 
 ?>
 
-<html>
 <head>
 <title>
 Sync Remotes
@@ -89,7 +105,7 @@ foreach ( $remotes as $remote ) {
 			$compress = "-z";
 		}
 
-		$command = "rsync -av --modify-window=1 $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
+		$command = "rsync -rtDlv --modify-window=1 $compress --stats $fppHome/media/$dir/ $remote::media/$dir/ 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
@@ -103,7 +119,7 @@ foreach ( $remotes as $remote ) {
 ==========================================================================
 Sync Complete.
 </pre>
-<a href='/'>Go to FPP Main Status Page</a><br>
+<a href='index.php'>Go to FPP Main Status Page</a><br>
 <a href='multisync.php'>Go to MultiSync config page</a><br>
 
 </body>

@@ -40,11 +40,11 @@
 class mpg123Output : public MediaOutputBase {
   public:
 	mpg123Output(std::string mediaFilename, MediaOutputStatus *status);
-	~mpg123Output();
+	virtual ~mpg123Output();
 
-	int  Start(void);
-	int  Stop(void);
-	int  Process(void);
+	virtual int  Start(void) override;
+	virtual int  Stop(void) override;
+	virtual int  Process(void) override;
 
   private:
 	void PollMusicInfo(void);

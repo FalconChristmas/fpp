@@ -4,7 +4,9 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
 
-teeOutput
+if [ "$1" != "-notee" ]; then
+    teeOutput
+fi
 
 echo "Checking config version"
 

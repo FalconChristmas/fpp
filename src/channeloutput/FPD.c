@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <thread>
 
 #include "common.h"
 #include "E131.h"
@@ -41,14 +42,7 @@
 #include "Sequence.h"
 #include "settings.h"
 
-#ifdef USEWIRINGPI
-#	include "wiringPi.h"
-#	include "wiringPiSPI.h"
-#else
-#	define wiringPiSPISetup(a,b)          1
-#	define wiringPiSPIDataRW(a,b,c)       c
-#	define delayMicroseconds(a)           0
-#endif
+#include "util/SPIUtils.h"
 
 #define MAX_PIXELNET_DMX_PORTS          12 
 #define PIXELNET_DMX_DATA_SIZE          32768
@@ -78,10 +72,11 @@ typedef struct {
 	int startChannel;
 } PixelnetDMXentry;
 
+extern SPIUtils *falconSpi;
 
 pthread_t pixelnetDMXthread;
-char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
-char PixelnetDMXdataHeader[] =    {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
+unsigned char PixelnetDMXcontrolHeader[] = {0x55,0x55,0x55,0x55,0x55,0xCC};
+unsigned char PixelnetDMXdataHeader[] =    {0xCC,0xCC,0xCC,0xCC,0xCC,0x55};
 
 
 PixelnetDMXentry pixelnetDMX[MAX_PIXELNET_DMX_PORTS];
@@ -137,10 +132,13 @@ int SendOutputBuffer(FPDPrivData *privData)
 	if (LogMaskIsSet(VB_CHANNELDATA) && LogLevelIsSet(LOG_EXCESSIVE))
 		HexDump("FPD Channel Header & Data", privData->outBuf, 256);
 
-	i = wiringPiSPIDataRW (0, privData->outBuf, PIXELNET_DMX_BUF_SIZE);
+    i = -1;
+    if (falconSpi) {
+        i = falconSpi->xfer(privData->outBuf, nullptr, PIXELNET_DMX_BUF_SIZE);
+    }
 	if (i != PIXELNET_DMX_BUF_SIZE)
 	{
-		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+		LogErr(VB_CHANNELOUT, "Error: SPI->xfer returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 		return 0;
 	}
 
@@ -216,6 +214,7 @@ void *RunFPDOutputThread(void *data)
 
 	LogDebug(VB_CHANNELOUT, "FPD output thread complete\n");
 	privData->threadIsRunning = 0;
+    return nullptr;
 }
 
 /*
@@ -277,14 +276,14 @@ int InitializePixelnetDMX()
 	int err;
 	LogInfo(VB_CHANNELOUT, "Initializing SPI for FPD output\n");
 
-
-	if (!DetectFalconHardware(1))
-	{
+	if (!DetectFalconHardware(1)) {
 		LogWarn(VB_CHANNELOUT, "Unable to detect attached Falcon "
 			"hardware, setting SPI speed to 8000000.\n");
 
-		if (wiringPiSPISetup (0, 8000000) < 0)
-		{
+        falconSpi = new SPIUtils(0, 8000000);
+		if (!falconSpi->isOk()) {
+            delete falconSpi;
+            falconSpi = nullptr;
 		    LogErr(VB_CHANNELOUT, "Unable to open SPI device\n") ;
 			return 0;
 		}
@@ -315,20 +314,20 @@ void SendFPDConfig()
 		HexDump("FPD Config Header & Data", bufferPixelnetDMX,
 			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3));
 
-	i = wiringPiSPIDataRW (0, (unsigned char *)bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
+    i = -1;
+    if (falconSpi) {
+        i = falconSpi->xfer((uint8_t*)bufferPixelnetDMX, nullptr, PIXELNET_DMX_BUF_SIZE);
+    }
 	if (i != PIXELNET_DMX_BUF_SIZE)
-		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+		LogErr(VB_CHANNELOUT, "Error: SPI->xfer returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
 
-	delayMicroseconds (10000) ;
-//	i = wiringPiSPIDataRW (0, bufferPixelnetDMX, PIXELNET_DMX_BUF_SIZE);
-//	if (i != PIXELNET_DMX_BUF_SIZE)
-//		LogErr(VB_CHANNELOUT, "Error: wiringPiSPIDataRW returned %d, expecting %d\n", i, PIXELNET_DMX_BUF_SIZE);
+    std::this_thread::sleep_for(std::chrono::microseconds(10000));
 }
 
 /*
  *
  */
-int FPD_Open(char *configStr, void **privDataPtr) {
+int FPD_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "FPD_Open()\n");
 
 	if (!FileExists(getPixelnetFile())) {
@@ -375,6 +374,7 @@ int FPD_Close(void *data) {
 	pthread_mutex_destroy(&privData->bufLock);
 	pthread_mutex_destroy(&privData->sendLock);
 	pthread_cond_destroy(&privData->sendCond);
+    return 0;
 }
 
 /*
@@ -402,7 +402,7 @@ int FPD_IsActive(void *data) {
 /*
  *
  */
-int FPD_SendData(void *data, char *channelData, int channelCount)
+int FPD_SendData(void *data, const char *channelData, int channelCount)
 {
 	LogDebug(VB_CHANNELDATA, "FPD_SendData(%p, %p, %d)\n",
 		data, channelData, channelCount);

@@ -11,14 +11,12 @@ then
 	exit 1
 fi
 
-logOutput
+teeOutput
 
 echo "$0 running to switch branches to $1"
 
 echo "Stopping fppd"
 ${SUDO} ${FPPDIR}/scripts/fppd_stop
-
-remountRootReadWrite
 
 echo "Cleaning up any compiled binaries"
 cleanCompiledBinaries
@@ -26,22 +24,15 @@ cleanCompiledBinaries
 echo "Switching git branch to $1"
 if [ "x${FPPDIR}" = "x/opt/fpp" ]
 then
-	cd ${FPPDIR} && $SUDO git clean -df && $SUDO git reset --hard && $SUDO git checkout $1 && $SUDO git pull && $SUDO git submodule sync && $SUDO git submodule update --init
+	cd ${FPPDIR} && $SUDO git clean -df && $SUDO git reset --hard && $SUDO git checkout $1 && $SUDO git pull && git fetch --tags -f && $SUDO git submodule sync && $SUDO git submodule update --init
 else
 	cd ${FPPDIR} && sudo git clean -df && sudo -u ${FPPUSER} git reset --hard && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
 fi
 
 ${SUDO} ${SCRIPTDIR}/upgrade_config
 
-# Compile binaries if not running a release branch
-RELEASEBRANCH=$(echo $1 | egrep "v[0-9]+\.[0-9]+")
-if [ -z "${RELEASEBRANCH}" ] || [ "x${FPPPLATFORM}" == "xLinux" ]
-then
-	echo "Compiling Binaries"
-	compileBinaries
-fi
-
-remountRootReadOnlyIfNeeded
+echo "Compiling Binaries"
+compileBinaries
 
 echo "Restarting fppd"
 ${SUDO} ${FPPDIR}/scripts/fppd_start

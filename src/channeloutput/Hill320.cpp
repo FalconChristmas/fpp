@@ -79,13 +79,6 @@
 
 #define IOCON_INIT          0x20
 
-#ifdef USEWIRINGPI
-#   include "wiringPiI2C.h"
-#else
-#   define wiringPiI2CSetup(x) 1
-#   define wiringPiI2CWriteReg8(x, y, z) 1
-#endif
-
 #define BYTETOBINARYPATTERN "%d%d%d%d%d%d%d%d"
 #define BYTETOBINARY(byte)  \
   (byte & 0x80 ? 1 : 0), \
@@ -97,17 +90,25 @@
   (byte & 0x02 ? 1 : 0), \
   (byte & 0x01 ? 1 : 0) 
 
+
+extern "C" {
+    Hill320Output *createOutputHill320(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new Hill320Output(startChannel, channelCount);
+    }
+}
+
+
 /*
  *
  */
 Hill320Output::Hill320Output(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
-	m_fd(-1)
+  : ThreadedChannelOutputBase(startChannel, channelCount),
+	i2c(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::Hill320Output(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = 320;
 	m_useDoubleBuffer = 1;
 
 	m_boxCount = m_channelCount / 8;
@@ -119,6 +120,9 @@ Hill320Output::Hill320Output(unsigned int startChannel, unsigned int channelCoun
 Hill320Output::~Hill320Output()
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::~Hill320Output()\n");
+    if (i2c) {
+        delete i2c;
+    }
 }
 
 /*
@@ -128,22 +132,19 @@ int Hill320Output::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::Init(JSON)\n");
 
-	m_fd = wiringPiI2CSetup(0x20);
-
-	if (m_fd < 0)
-	{
+    i2c = new I2CUtils(1, 0x20);
+    if (!i2c->isOk()) {
 		LogErr(VB_CHANNELOUT, "Error opening I2C device for Hill320 output\n");
 		return 0;
 	}
+    // Initialize
+    i2c->writeByteData(MCP23x17_IOCON, IOCON_INIT);
+    
+    // Enable all pins for output
+    i2c->writeByteData(MCP23x17_IODIRA, 0b00000000);
+    i2c->writeByteData(MCP23x17_IODIRB, 0b00000000);
 
-	// Initialize
-	wiringPiI2CWriteReg8(m_fd, MCP23x17_IOCON, IOCON_INIT);
-
-	// Enable all pins for output
-	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRA, 0b00000000);
-	wiringPiI2CWriteReg8(m_fd, MCP23x17_IODIRB, 0b00000000);
-
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -153,7 +154,7 @@ int Hill320Output::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::Close()\n");
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -169,39 +170,27 @@ int Hill320Output::RawSendData(unsigned char *channelData)
 	int byte = 0;
 	int ch = 0;
 
-	for (int box = 1; box <= m_boxCount; box++)
-	{
+	for (int box = 1; box <= m_boxCount; box++) {
 		byte = 0;
-		for (int x = 0; x < 8 && ch < m_channelCount; x++, ch++)
-		{
-			if (*(c++))
-			{
+		for (int x = 0; x < 8 && ch < m_channelCount; x++, ch++) {
+			if (*(c++)) {
 				byte |= 0x1 << x;
 			}
 		}
 
-		if (box <= 8)
-		{
+		if (box <= 8) {
 			bank    = 8;
 			bankbox = box - 1;
-		}
-		else if (box <= 16)
-		{
+		} else if (box <= 16) {
 			bank    = 16;
 			bankbox = box - 9;
-		}
-		else if (box <= 24)
-		{
+		} else if (box <= 24) {
 			bank    = 32;
 			bankbox = box - 17;
-		}
-		else if (box <= 32)
-		{
+		} else if (box <= 32) {
 			bank    = 64;
 			bankbox = box - 25;
-		}
-		else if (box <= 40)
-		{
+		} else if (box <= 40) {
 			bank    = 128;
 			bankbox = box - 33;
 		}
@@ -212,22 +201,22 @@ int Hill320Output::RawSendData(unsigned char *channelData)
 			box, bank, bankbox, BYTETOBINARY(byte));
 
 		// Set data byte
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, byte);
+        i2c->writeByteData(MCP23x17_GPIOA, byte);
 
 		// Set C0 & C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000011);
+		i2c->writeByteData(MCP23x17_GPIOB, 0b00000011);
 
 		// Set C0 LOW and C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000010);
+		i2c->writeByteData(MCP23x17_GPIOB, 0b00000010);
 
 		// Set bank information
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOA, bankbox + bank);
+		i2c->writeByteData(MCP23x17_GPIOA, bankbox + bank);
 
 		// Set C0 & C1 LOW
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000000);
+		i2c->writeByteData(MCP23x17_GPIOB, 0b00000000);
 
 		// Set C0 LOW and C1 HIGH
-		wiringPiI2CWriteReg8(m_fd, MCP23x17_GPIOB, 0b00000010);
+		i2c->writeByteData(MCP23x17_GPIOB, 0b00000010);
 	}
 
 	return m_channelCount;
@@ -240,9 +229,8 @@ void Hill320Output::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "Hill320Output::DumpConfig()\n");
 
-	LogDebug(VB_CHANNELOUT, "    fd      : %d\n", m_fd);
 	LogDebug(VB_CHANNELOUT, "    BoxCount: %d\n", m_boxCount);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

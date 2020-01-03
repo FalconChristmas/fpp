@@ -1,0 +1,312 @@
+{
+    "name": "USA",
+    "holidays": [
+        {
+            "name": "New Year's Day",
+            "shortName": "NewYearsDay",
+            "year": 0,
+            "month": 1,
+            "day": 1
+        },
+        {
+            "name": "Epiphany",
+            "shortName": "Epiphany",
+            "year": 0,
+            "month": 1,
+            "day": 6
+        },
+        {
+            "name": "MLK Day",
+            "shortName": "MLKDay",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "head",
+                "month": 1,
+                "week": 3,
+                "dow": 1,
+                "offset": 0
+            }
+        },
+        {
+            "name": "Valentine's Day",
+            "shortName": "ValentinesDay",
+            "year": 0,
+            "month": 2,
+            "day": 14
+        },
+        {
+            "name": "President's Day",
+            "shortName": "PresidentsDay",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "head",
+                "month": 2,
+                "week": 3,
+                "dow": 1,
+                "offset": 0
+            }
+        },
+        {
+            "name": "St. Patrick's Day",
+            "shortName": "StPatricksDay",
+            "year": 0,
+            "month": 3,
+            "day": 17
+        },
+        {
+            "name": "Memorial Day Friday",
+            "shortName": "MemorialDayFri",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "tail",
+                "month": 5,
+                "week": 1,
+                "dow": 1,
+                "offset": -3
+            }
+        },
+        {
+            "name": "Memorial Day",
+            "shortName": "MemorialDay",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "tail",
+                "month": 5,
+                "week": 1,
+                "dow": 1,
+                "offset": 0
+            }
+        },
+        {
+            "name": "Independence Day",
+            "shortName": "IndependenceDay",
+            "year": 0,
+            "month": 7,
+            "day": 4
+        },
+        {
+            "name": "Labor Day Friday",
+            "shortName": "LaborDayFri",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "head",
+                "month": 9,
+                "week": 1,
+                "dow": 1,
+                "offset": -3
+            }
+        },
+        {
+            "name": "Labor Day",
+            "shortName": "LaborDay",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "head",
+                "month": 9,
+                "week": 1,
+                "dow": 1,
+                "offset": 0
+            }
+        },
+        {
+            "name": "Halloween",
+            "shortName": "Halloween",
+            "year": 0,
+            "month": 10,
+            "day": 31
+        },
+        {
+            "name": "Thanksgiving",
+            "shortName": "Thanksgiving",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "head",
+                "month": 11,
+                "week": 4,
+                "dow": 4,
+                "offset": 0
+            }
+        },
+        {
+            "name": "Black Friday",
+            "shortName": "BlackFriday",
+            "year": 0,
+            "month": 0,
+            "day": 0 ,
+            "calc": {
+                "type": "head",
+                "month": 11,
+                "week": 4,
+                "dow": 4,
+                "offset": 1
+            }
+        },
+        {
+            "name": "Christmas Eve",
+            "shortName": "ChristmasEve",
+            "year": 0,
+            "month": 12,
+            "day": 24
+        },
+        {
+            "name": "Christmas",
+            "shortName": "Christmas",
+            "year": 0,
+            "month": 12,
+            "day": 25
+        },
+        {
+            "name": "New Years Eve",
+            "shortName": "NewYearsEve",
+            "year": 0,
+            "month": 12,
+            "day": 31
+        },
+        {
+            "name": "Ash Wednesday",
+            "shortName": "AshWednesday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": -46
+            }
+        },
+        {
+            "name": "Palm Sunday",
+            "shortName": "PalmSunday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": -7
+            }
+        },
+        {
+            "name": "Maundy Thursday",
+            "shortName": "MaundyThursday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": -3
+            }
+        },
+        {
+            "name": "Good Friday",
+            "shortName": "GoodFriday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": -2
+            }
+        },
+        {
+            "name": "Easter Saturday",
+            "shortName": "EasterSaturday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": -1
+            }
+        },
+        {
+            "name": "Easter",
+            "shortName": "Easter",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 0
+            }
+        },
+        {
+            "name": "Easter Monday",
+            "shortName": "EasterMonday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 1
+            }
+        },
+        {
+            "name": "Ascension Day",
+            "shortName": "AscensionDay",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 39
+            }
+        },
+        {
+            "name": "Pentecost",
+            "shortName": "Pentecost",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 49
+            }
+        },
+        {
+            "name": "Whit Monday",
+            "shortName": "WhitMonday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 50
+            }
+        },
+        {
+            "name": "Trinity Sunday",
+            "shortName": "TrinitySunday",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 56
+            }
+        },
+        {
+            "name": "Corpus Christi",
+            "shortName": "CorpusChristi",
+            "year": 0,
+            "month": 0,
+            "day": 0,
+            "calc": {
+                "type": "easter",
+                "offset": 60
+            }
+        }
+    ]
+}

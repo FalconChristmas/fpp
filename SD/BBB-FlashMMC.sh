@@ -1,7 +1,21 @@
 #!/bin/bash -e
 
+export PARTSIZE=""
+export DOREBOOT="y"
+if [ "$1" == "-s" ]; then
+    PARTSIZE=$2
+    shift; shift;
+fi
+if [ "$1" == "-noreboot" ]; then
+  DOREBOOT="n"
+  shift;
+fi
 
-DEVICE="/dev/mmcblk1"
+
+DEVICE=$2
+if [ "x${DEVICE}" == "x" ]; then
+    DEVICE="/dev/mmcblk1"
+fi
 
 
 cylon_leds () {
@@ -58,7 +72,7 @@ prepareBTRFSPartitions() {
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
 4M,96M,,*
-100M,,,-
+100M,${PARTSIZE},,-
 __EOF__
 
     blockdev --rereadpt ${DEVICE}  || true
@@ -77,9 +91,9 @@ __EOF__
     echo ""
 
     #mount
-    mkdir /tmp/rootfs
+    mkdir -p /tmp/rootfs
     mount -t btrfs -o noatime,nodiratime,compress-force=zstd ${DEVICE}p2 /tmp/rootfs
-    mkdir /tmp/rootfs/boot
+    mkdir -p /tmp/rootfs/boot
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs/boot
 }
 prepareEXT4Partitions() {
@@ -89,7 +103,7 @@ prepareEXT4Partitions() {
 
     # create partitions
     sfdisk --force ${DEVICE} <<-__EOF__
-4M,,,-
+4M,${PARTSIZE},,-
 __EOF__
 
     blockdev --rereadpt ${DEVICE}  || true
@@ -107,7 +121,7 @@ __EOF__
     echo ""
 
     #mount
-    mkdir /tmp/rootfs
+    mkdir -p /tmp/rootfs
     mount -t ext4 -o noatime,nodiratime ${DEVICE}p1 /tmp/rootfs
 
 }
@@ -117,8 +131,8 @@ adjustEnvBTRFS() {
     make clean
     make
 
-    mkdir /tmp/rootfs/boot/lib
-    mkdir /tmp/rootfs/boot/lib/firmware
+    mkdir -p /tmp/rootfs/boot/lib
+    mkdir -p /tmp/rootfs/boot/lib/firmware
     cp /opt/source/bb.org-overlays/src/arm/* /tmp/rootfs/boot/lib/firmware
 
     echo ""  >> /tmp/rootfs/boot/uEnv.txt
@@ -135,7 +149,9 @@ adjustEnvEXT4() {
 
 }
 
-cylon_leds & CYLON_PID=$!
+if [ "$DOREBOOT" == "y" ]; then
+    cylon_leds & CYLON_PID=$!
+fi
 
 set -o pipefail
 
@@ -147,10 +163,10 @@ echo ""
 dd if=/opt/backup/uboot/MLO of=${DEVICE} count=1 seek=1 conv=notrunc bs=128k
 dd if=/opt/backup/uboot/u-boot.img of=${DEVICE} count=2 seek=1 conv=notrunc bs=384k
 
-if [ "$1" = "ext4" ]; then
-    prepareEXT4Partitions
-else
+if [ "$1" = "btrfs" ]; then
     prepareBTRFSPartitions
+else
+    prepareEXT4Partitions
 fi
 
 
@@ -159,7 +175,7 @@ echo "Copy files rootfs"
 echo ""
 
 #copy files
-time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt
+time rsync -aAxv /ID.txt /bin /boot /dev /etc /home /lib /lost+found /media /mnt /opt /proc /root /run /sbin /srv /sys /tmp /usr /var /tmp/rootfs --exclude=/dev/* --exclude=/proc/* --exclude=/sys/* --exclude=/tmp/* --exclude=/run/* --exclude=/mnt/* --exclude=/media/* --exclude=/lost+found --exclude=/uEnv.txt || true
 
 echo "---------------------------------------"
 echo "Configure /boot"
@@ -167,13 +183,20 @@ echo ""
 
 #configure /boot
 cd /tmp/rootfs/boot
-ln -s . boot
+
+#remove btrfs stuff from uEnv.txt (may be re-added later)
+sed -i '/mmcpart=2/d' uEnv.txt
+sed -i '/rootfstype=btrfs/d' uEnv.txt
+sed -i '/mmcrootfstype=btrfs/d' uEnv.txt
+
+rm -f boot
+ln -sf . boot
 cd /
 
-if [ "$1" = "ext4" ]; then
-    adjustEnvEXT4
-else
+if [ "$1" = "btrfs" ]; then
     adjustEnvBTRFS
+else
+    adjustEnvEXT4
 fi
 
 echo "---------------------------------------"
@@ -182,7 +205,7 @@ echo ""
 
 #configure fstab
 echo "debugfs  /sys/kernel/debug  debugfs  defaults  0  0" >> /tmp/rootfs/etc/fstab
-echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=10M 0 0" >> /tmp/rootfs/etc/fstab
+echo "tmpfs         /tmp        tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
 echo "tmpfs         /var/tmp    tmpfs   nodev,nosuid,size=50M 0 0" >> /tmp/rootfs/etc/fstab
 echo "#####################################" >> /tmp/rootfs/etc/fstab
 echo "#/dev/sda1     /home/fpp/media  auto    defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500  0  0" >> /tmp/rootfs/etc/fstab
@@ -204,5 +227,7 @@ umount -R /tmp/rootfs
 echo "---------------------------------------"
 echo "Done flashing eMMC, powering down"
 echo ""
-systemctl poweroff || halt
+if [ "$DOREBOOT" == "y" ]; then
+    systemctl poweroff || halt
+fi
 

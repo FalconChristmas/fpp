@@ -26,14 +26,15 @@
 #ifndef _E131_BRIDGE_H
 #define _E131_BRIDGE_H
 
-#include "e131defs.h"
+#include <map>
+#include <functional>
 
-void Bridge_Initialize(int &e131Socket, int &ddpSocket);
-bool Bridge_ReceiveE131Data(void);
-bool Bridge_ReceiveDDPData(void);
+
+void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
+
+void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
 void Bridge_Shutdown(void);
-
-void  ResetBytesReceived();
+void ResetBytesReceived();
 Json::Value GetE131UniverseBytesReceived();
 
 #endif

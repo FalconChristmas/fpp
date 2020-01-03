@@ -43,7 +43,6 @@ $command_array = Array(
 	"deletePlaylist" => 'DeletePlaylist',
 	"deleteEntry" => 'DeleteEntry',
 	"deleteFile" => 'DeleteFile',
-	"convertFile" => 'ConvertFile',
 	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -60,6 +59,9 @@ $command_array = Array(
 	"isFPPDrunning" => 'IsFPPDrunning',
 	"getFPPstatus" => 'GetFPPstatus',
 	"stopGracefully" => 'StopGracefully',
+	"stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop',
+    "playlistNextEntry" => 'PlaylistNextEntry',
+    "playlistPrevEntry" => 'PlaylistPrevEntry',
 	"stopNow" => 'StopNow',
 	"stopFPPD" => 'StopFPPD',
 	"startFPPD" => 'StartFPPD',
@@ -93,10 +95,6 @@ $command_array = Array(
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setPiLCDenabled" => 'SetPiLCDenabled',
-    "setBBBTether" => 'SetBBBTether',
-	"updatePlugin" => 'UpdatePlugin',
-	"uninstallPlugin" => 'UninstallPlugin',
-	"installPlugin" => 'InstallPlugin',
 	"setupExtGPIO" => 'SetupExtGPIO',
 	"extGPIO" => 'ExtGPIO'
 );
@@ -151,11 +149,19 @@ function RebootPi()
 
 function ManualGitUpdate()
 {
-	global $fppDir, $SUDO;
+	global $fppDir, $SUDO, $mediaDirectory;
 
-	exec($SUDO . " $fppDir/scripts/fppd_stop");
-	exec("$fppDir/scripts/git_pull");
-	exec($SUDO . " $fppDir/scripts/fppd_start");
+    if (file_exists("/.dockerenv")) {
+        exec($SUDO . " $fppDir/scripts/fppd_stop");
+        touch("$mediaDirectory/tmp/fppd_restarted");
+        exec("$fppDir/scripts/git_pull");
+        exec($SUDO . " $fppDir/scripts/fppd_start");
+    } else {
+        exec($SUDO . " systemctl stop fppd");
+        touch("$mediaDirectory/tmp/fppd_restarted");
+        exec("$fppDir/scripts/git_pull");
+        exec($SUDO . " systemctl restart fppd");
+    }
 
 	EchoStatusXML("OK");
 }
@@ -243,6 +249,7 @@ function SetDeveloperMode()
 function SetVolume()
 {
 	global $SUDO;
+	global $settings;
 
 	$volume = $_GET['volume'];
 	check($volume, "volume", __FUNCTION__);
@@ -265,7 +272,7 @@ function SetVolume()
 	}
 	else
 	{
-		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | cut -d' ' -f 2", $output, $return_val);
+		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
 		if ( $return_val )
 		{
 			// Should we error here, or just move on?
@@ -279,8 +286,6 @@ function SetVolume()
 		WriteSettingToFile("AudioOutput", $card);
 	}
 
-	if ( $card == 0 )
-		$vol = 50 + ($vol/2.0);
 
 	$mixerDevice = "PCM";
 	if (isset($settings['AudioMixerDevice']))
@@ -295,29 +300,14 @@ function SetVolume()
 		WriteSettingToFile("AudioMixerDevice", $mixerDevice);
 	}
 
+    if ( $card == 0 && $settings['Platform'] == "Raspberry Pi" && $settings['AudioCard0Type'] == "bcm2") {
+        $vol = 50 + ($vol/2.0);
+    }
+
 	// Why do we do this here and in fppd's settings.c
 	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
 
 	EchoStatusXML($status);
-}
-
-function SetBBBTether()
-{
-    global $SUDO;
-    
-    $enabled = $_GET['enabled'];
-    check($enabled, "enabled", __FUNCTION__);
-    
-    if ($enabled == "true")
-    {
-        $status = exec($SUDO . " sed -i -e \"s/TETHER_ENABLED=.*/TETHER_ENABLED=yes/\" /etc/default/bb-wl18xx");
-    }
-    else
-    {
-        $status = exec($SUDO . " sed -i -e \"s/TETHER_ENABLED=.*/TETHER_ENABLED=no/\" /etc/default/bb-wl18xx");
-    }
-    
-    EchoStatusXML($status);
 }
 
 function SetPiLCDenabled()
@@ -449,70 +439,69 @@ function InstallRemoteScript()
 
 function MoveFile()
 {
-	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory;
+	global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
 	$file = $_GET['file'];
 	check($file, "file", __FUNCTION__);
 
 	// Fix double quote uploading by simply moving the file first, if we find it with URL encoding
-	if ( strstr($file, '"') )
-	{
-		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file))
-		{
-			error_log("Couldn't remove double quote from filename");
-			exit(1);
-		}	
+	if ( strstr($file, '"') ) {
+		if (!rename($uploadDirectory."/" . preg_replace('/"/', '%22', $file), $uploadDirectory."/" . $file)) {
+            //Firefox and xLights will upload with " intact so if the rename doesn't work, it's OK
+		}
 	}
-	if(file_exists($uploadDirectory."/" . $file))
-	{
-		if (preg_match("/\.(fseq)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) )
-			{
+    
+	if (file_exists($uploadDirectory."/" . $file)) {
+		if (preg_match("/\.(fseq)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) ) {
 				error_log("Couldn't move sequence file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(eseq)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) )
-			{
+		} else if (preg_match("/\.(fseq.gz)$/i", $file)) {
+            if ( !rename($uploadDirectory."/" . $file, $sequenceDirectory . '/' . $file) ) {
+                error_log("Couldn't move sequence file");
+                exit(1);
+            }
+            $nfile = $file;
+            $nfile = str_replace('"', '\\"', $nfile);
+            exec("$SUDO gunzip -f \"$sequenceDirectory/$nfile\"");
+        } else if (preg_match("/\.(eseq)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $effectDirectory . '/' . $file) ) {
 				error_log("Couldn't move effect file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(mp4|mkv)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) )
-			{
+		} else if (preg_match("/\.(mp4|mkv|avi|mov|mpg|mpeg)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $videoDirectory . '/' . $file) ) {
 				error_log("Couldn't move video file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file))
-		{
+		} else if (preg_match("/\.(gif|jpg|jpeg|png)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $imageDirectory . '/' . $file) ) {
+				error_log("Couldn't move image file");
+				exit(1);
+			}
+		} else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
 			// Get rid of any DOS newlines
 			$contents = file_get_contents($uploadDirectory."/".$file);
 			$contents = str_replace("\r", "", $contents);
 			file_put_contents($uploadDirectory."/".$file, $contents);
 
-			if ( !rename($uploadDirectory."/" . $file, $scriptDirectory . '/' . $file) )
-			{
+			if ( !rename($uploadDirectory."/" . $file, $scriptDirectory . '/' . $file) ) {
 				error_log("Couldn't move script file");
 				exit(1);
 			}
-		}
-		else if (preg_match("/\.(mp3|ogg|m4a)$/i", $file))
-		{
-			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) )
-			{
+        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma)$/i", $file)) {
+			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) ) {
 				error_log("Couldn't move music file");
 				exit(1);
 			}
+        } else if (preg_match("/eeprom\.bin$/i", $file)) {
+            if ( !rename($uploadDirectory."/" . $file, $configDirectory . '/cape-eeprom.bin') ) {
+                error_log("Couldn't move eeprom file");
+                exit(1);
+            }
 		}
-	}
-	else
-	{
+	} else {
 		error_log("Couldn't find file '" . $file . "' in upload directory");
 		exit(1);
 	}
@@ -623,9 +612,8 @@ function GetRunningEffects()
 	echo $doc->saveHTML();
 }
 
-function GetExpandedEventID()
+function GetExpandedEventID($id)
 {
-	$id = $_GET['id'];
 	check($id, "id", __FUNCTION__);
 
 	$majorID = preg_replace('/_.*/', '', $id);
@@ -638,7 +626,7 @@ function GetExpandedEventID()
 
 function TriggerEvent()
 {
-	$id = GetExpandedEventID();
+	$id = GetExpandedEventID($_GET['id']);
 
 	$status = SendCommand("t," . $id . ",");
 
@@ -648,8 +636,10 @@ function TriggerEvent()
 function SaveEvent()
 {
 	global $eventDirectory;
+    $event = json_decode(file_get_contents("php://input"), true);
+    print_r($event);
 
-	$id = $_GET['id'];
+	$id = $event['id'];
 	check($id, "id", __FUNCTION__);
 
 	$ids = preg_split('/_/', $id);
@@ -657,29 +647,18 @@ function SaveEvent()
 	if (count($ids) < 2)
 		return;
 
-	$id = GetExpandedEventID();
+    
+    $majorID = preg_replace('/_.*/', '', $id);
+    $minorID = preg_replace('/.*_/', '', $id);
+    $event['majorId'] = (int)$majorID;
+    $event['minorId'] = (int)$minorID;
+    unset($event['id']);
+    
+        
+	$id = GetExpandedEventID($id);
 	$filename = $id . ".fevt";
 
-	$name = $_GET['event'];
-	check($name, "name", __FUNCTION__);
-
-	if (isset($_GET['effect']) && $_GET['effect'] != "")
-		$eseq = $_GET['effect'] . ".eseq";
-	else
-		$eseq = "";
-
-	$f=fopen($eventDirectory . '/' . $filename,"w") or exit("Unable to open file! : " . $event);
-	$eventDefinition = sprintf(
-		"majorID=%d\n" .
-		"minorID=%d\n" .
-		"name='%s'\n" .
-		"effect='%s'\n" .
-		"startChannel=%s\n" .
-		"script='%s'\n",
-		$ids[0], $ids[1], $name,
-		$eseq, $_GET['startChannel'], $_GET['script']);
-	fwrite($f, $eventDefinition);
-	fclose($f);
+    file_put_contents($eventDirectory . '/' . $filename, json_encode($event, JSON_PRETTY_PRINT));
 
 	EchoStatusXML('Success');
 }
@@ -688,7 +667,7 @@ function DeleteEvent()
 {
 	global $eventDirectory;
 
-	$filename = GetExpandedEventID() . ".fevt";
+	$filename = GetExpandedEventID($_GET['id']) . ".fevt";
 
 	unlink($eventDirectory . '/' . $filename);
 
@@ -754,6 +733,21 @@ function StopGracefully()
 	$status=SendCommand('S');
 	EchoStatusXML('true');
 }
+function StopGracefullyAfterLoop()
+{
+	$status=SendCommand('StopGracefullyAfterLoop');
+	EchoStatusXML('true');
+}
+function PlaylistNextEntry()
+{
+    $status=SendCommand('NextPlaylistItem');
+    EchoStatusXML('true');
+}
+function PlaylistPrevEntry()
+{
+    $status=SendCommand('PrevPlaylistItem');
+    EchoStatusXML('true');
+}
 
 function StopNow()
 {
@@ -771,9 +765,14 @@ function StopFPPDNoStatus()
     // Shutdown
     SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
     // wait half a second for shutdown and outputs to close
-    usleep(500000);
-    // kill it if it's still running
-    exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+    
+    if (file_exists("/.dockerenv")) {
+        usleep(500000);
+        // kill it if it's still running
+        exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
+    } else {
+        exec($SUDO . " systemctl stop fppd");
+    }
 }
 function StopFPPD()
 {
@@ -788,15 +787,29 @@ function StartFPPD()
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
 	{
-		$status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
+        if (file_exists("/.dockerenv")) {
+            $status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
+        } else {
+            exec($SUDO . " systemctl restart fppd");
+        }
 	}
 	EchoStatusXML($status);
 }
 
 function RestartFPPD()
 {
+    if ((isset($_GET['quick'])) && ($_GET['quick'] == 1))
+    {
+        $status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
+        if ($status == 'true')
+        {
+            SendCommand('restart');
+            return;
+        }
+    }
+
     StopFPPDNoStatus();
-	StartFPPD();
+    StartFPPD();
 }
 
 function GetFPPstatus()
@@ -1102,7 +1115,7 @@ function DeleteScheduleEntry()
 
 function AddScheduleEntry()
 {
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2014-01-01","2099-12-31");
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2019-01-01","2099-12-31",0);
 	EchoStatusXML('Success');
 }
 
@@ -1121,50 +1134,80 @@ function SaveSchedule()
 		$_SESSION['ScheduleEntries'][$i]->playlist = 	$_POST['selPlaylist'][$i];
 		$_SESSION['ScheduleEntries'][$i]->startDay = intval($_POST['selDay'][$i]);
 
-		$dayMask = 0;
-		if (isset($_POST['maskSunday'][$i]))
-			$dayMask |= 0x4000;
-		if (isset($_POST['maskMonday'][$i]))
-			$dayMask |= 0x2000;
-		if (isset($_POST['maskTuesday'][$i]))
-			$dayMask |= 0x1000;
-		if (isset($_POST['maskWednesday'][$i]))
-			$dayMask |= 0x0800;
-		if (isset($_POST['maskThursday'][$i]))
-			$dayMask |= 0x0400;
-		if (isset($_POST['maskFriday'][$i]))
-			$dayMask |= 0x0200;
-		if (isset($_POST['maskSaturday'][$i]))
-			$dayMask |= 0x0100;
+		if ($_SESSION['ScheduleEntries'][$i]->startDay & 0x10000) {
+			$dayMask = 0x10000;
+			if (isset($_POST['maskSunday'][$i]))
+				$dayMask |= 0x4000;
+			if (isset($_POST['maskMonday'][$i]))
+				$dayMask |= 0x2000;
+			if (isset($_POST['maskTuesday'][$i]))
+				$dayMask |= 0x1000;
+			if (isset($_POST['maskWednesday'][$i]))
+				$dayMask |= 0x0800;
+			if (isset($_POST['maskThursday'][$i]))
+				$dayMask |= 0x0400;
+			if (isset($_POST['maskFriday'][$i]))
+				$dayMask |= 0x0200;
+			if (isset($_POST['maskSaturday'][$i]))
+				$dayMask |= 0x0100;
 
-		$_SESSION['ScheduleEntries'][$i]->startDay |= $dayMask;
+			$_SESSION['ScheduleEntries'][$i]->startDay |= $dayMask;
+		}
 
-		$startTime = 		$entry = explode(":",$_POST['txtStartTime'][$i],3);
-		$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
-		$_SESSION['ScheduleEntries'][$i]->startMinute = $startTime[1];
-		$_SESSION['ScheduleEntries'][$i]->startSecond = $startTime[2];
-
-		$endTime = 		$entry = explode(":",$_POST['txtEndTime'][$i],3);
-		$_SESSION['ScheduleEntries'][$i]->endHour = $endTime[0];
-		$_SESSION['ScheduleEntries'][$i]->endMinute = $endTime[1];
-		$_SESSION['ScheduleEntries'][$i]->endSecond = $endTime[2];
-
-		if(isset($_POST['chkRepeat'][$i]))
+		if ($_POST['txtStartTime'][$i] == 'SunRise')
 		{
-			$_SESSION['ScheduleEntries'][$i]->repeat = 1;
+			$_SESSION['ScheduleEntries'][$i]->startHour = '25';
+			$_SESSION['ScheduleEntries'][$i]->startMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->startSecond = '00';
+		}
+		else if ($_POST['txtStartTime'][$i] == 'SunSet')
+		{
+			$_SESSION['ScheduleEntries'][$i]->startHour = '26';
+			$_SESSION['ScheduleEntries'][$i]->startMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->startSecond = '00';
 		}
 		else
 		{
-			$_SESSION['ScheduleEntries'][$i]->repeat = 0;
+			$startTime = explode(":",$_POST['txtStartTime'][$i],3);
+			$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
+			$_SESSION['ScheduleEntries'][$i]->startMinute = $startTime[1];
+			$_SESSION['ScheduleEntries'][$i]->startSecond = $startTime[2];
 		}
+
+		if ($_POST['txtEndTime'][$i] == 'SunRise')
+		{
+			$_SESSION['ScheduleEntries'][$i]->endHour = '25';
+			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
+		}
+		else if ($_POST['txtEndTime'][$i] == 'SunSet')
+		{
+			$_SESSION['ScheduleEntries'][$i]->endHour = '26';
+			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
+			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
+		}
+		else
+		{
+			$endTime = explode(":",$_POST['txtEndTime'][$i],3);
+			$_SESSION['ScheduleEntries'][$i]->endHour = $endTime[0];
+			$_SESSION['ScheduleEntries'][$i]->endMinute = $endTime[1];
+			$_SESSION['ScheduleEntries'][$i]->endSecond = $endTime[2];
+		}
+
+		if(isset($_POST['chkRepeat'][$i]))
+			$_SESSION['ScheduleEntries'][$i]->repeat = 1;
+		else
+			$_SESSION['ScheduleEntries'][$i]->repeat = 0;
 
 		$_SESSION['ScheduleEntries'][$i]->startDate =	$_POST['txtStartDate'][$i];
 		$_SESSION['ScheduleEntries'][$i]->endDate   =	$_POST['txtEndDate'][$i];
 
 		if (trim($_SESSION['ScheduleEntries'][$i]->startDate) == "")
-			$_SESSION['ScheduleEntries'][$i]->startDate = "2014-01-01";
+			$_SESSION['ScheduleEntries'][$i]->startDate = "2019-01-01";
 		if (trim($_SESSION['ScheduleEntries'][$i]->endDate) == "")
 			$_SESSION['ScheduleEntries'][$i]->endDate = "2099-12-31";
+
+		$_SESSION['ScheduleEntries'][$i]->stopType = $_POST['selStopType'][$i];
 	}
 
 	SaveScheduleToFile();
@@ -1188,7 +1231,7 @@ function SaveScheduleToFile()
 	{
 			if($i==0)
 			{
-			$entries .= sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
+			$entries .= sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
 						$_SESSION['ScheduleEntries'][$i]->enable,
 						$_SESSION['ScheduleEntries'][$i]->playlist,
 						$_SESSION['ScheduleEntries'][$i]->startDay,
@@ -1200,12 +1243,13 @@ function SaveScheduleToFile()
 						$_SESSION['ScheduleEntries'][$i]->endSecond,
 						$_SESSION['ScheduleEntries'][$i]->repeat,
 						$_SESSION['ScheduleEntries'][$i]->startDate,
-						$_SESSION['ScheduleEntries'][$i]->endDate
+						$_SESSION['ScheduleEntries'][$i]->endDate,
+						$_SESSION['ScheduleEntries'][$i]->stopType
 						);
 			}
 			else
 			{
-			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
+			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
 						$_SESSION['ScheduleEntries'][$i]->enable,
 						$_SESSION['ScheduleEntries'][$i]->playlist,
 						$_SESSION['ScheduleEntries'][$i]->startDay,
@@ -1217,7 +1261,8 @@ function SaveScheduleToFile()
 						$_SESSION['ScheduleEntries'][$i]->endSecond,
 						$_SESSION['ScheduleEntries'][$i]->repeat,
 						$_SESSION['ScheduleEntries'][$i]->startDate,
-						$_SESSION['ScheduleEntries'][$i]->endDate
+						$_SESSION['ScheduleEntries'][$i]->endDate,
+						$_SESSION['ScheduleEntries'][$i]->stopType
 						);
 			}
 
@@ -1255,8 +1300,9 @@ function LoadScheduleFile()
 			$endMinute = $entry[7];
 			$endSecond = $entry[8];
 			$repeat = $entry[9];
-			$startDate = "2014-01-01";
+			$startDate = "2019-01-01";
 			$endDate = "2099-12-31";
+			$stopType = 0;
 
 			if ((count($entry) >= 11) && $entry[10] != "")
 				$startDate = $entry[10];
@@ -1264,8 +1310,11 @@ function LoadScheduleFile()
 			if ((count($entry) >= 12) && $entry[11] != "")
 				$endDate = $entry[11];
 
+			if ((count($entry) >= 13) && $entry[12] != "")
+				$stopType = $entry[12];
+
 			$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
-				$endHour, $endMinute, $endSecond, $repeat,$startDate,$endDate);
+				$endHour, $endMinute, $endSecond, $repeat,$startDate,$endDate,$stopType);
 		}
 	}
 	fclose($f);
@@ -1307,17 +1356,30 @@ function GetSchedule()
 		// startTime
 		$startTime = $doc->createElement('startTime');
 		$startTime = $ScheduleEntry->appendChild($startTime);
-		$sStartTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->startHour,
-												$_SESSION['ScheduleEntries'][$i]->startMinute,
-												$_SESSION['ScheduleEntries'][$i]->startSecond);
+
+		if ($_SESSION['ScheduleEntries'][$i]->startHour == 25)
+			$sStartTime = 'SunRise';
+		else if ($_SESSION['ScheduleEntries'][$i]->startHour == 26)
+			$sStartTime = 'SunSet';
+		else
+			$sStartTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->startHour,
+													$_SESSION['ScheduleEntries'][$i]->startMinute,
+													$_SESSION['ScheduleEntries'][$i]->startSecond);
 		$value = $doc->createTextNode($sStartTime);
 		$value = $startTime->appendChild($value);
 		// endTime
 		$endTime = $doc->createElement('endTime');
 		$endTime = $ScheduleEntry->appendChild($endTime);
-		$sEndTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->endHour,
-											$_SESSION['ScheduleEntries'][$i]->endMinute,
-											$_SESSION['ScheduleEntries'][$i]->endSecond);
+
+		if ($_SESSION['ScheduleEntries'][$i]->endHour == 25)
+			$sEndTime = 'SunRise';
+		else if ($_SESSION['ScheduleEntries'][$i]->endHour == 26)
+			$sEndTime = 'SunSet';
+		else
+			$sEndTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->endHour,
+												  $_SESSION['ScheduleEntries'][$i]->endMinute,
+												  $_SESSION['ScheduleEntries'][$i]->endSecond);
+
 		$value = $doc->createTextNode($sEndTime);
 		$value = $endTime->appendChild($value);
 		// repeat
@@ -1337,6 +1399,12 @@ function GetSchedule()
 		$endDate = $ScheduleEntry->appendChild($endDate);
 		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->endDate);
 		$value = $endDate->appendChild($value);
+
+		// stopType
+		$stopType = $doc->createElement('stopType');
+		$stopType = $ScheduleEntry->appendChild($stopType);
+		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->stopType);
+		$value = $stopType->appendChild($value);
 
 	}
 	echo $doc->saveHTML();
@@ -1527,7 +1595,7 @@ function LoadUniverseFile($input)
 
 	if(!file_exists($filename))
 	{
-		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0);
+		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
 		return;
 	}
 
@@ -1814,6 +1882,9 @@ function AddPlayListEntry()
 function GetPlaylists()
 {
 	global $playlistDirectory;
+	$filter = "";
+	if (isset($_GET['filter']))
+		$filter = $_GET['filter'];
 
 	$FirstList=TRUE;
 	$doc = new DomDocument('1.0');
@@ -1828,7 +1899,9 @@ function GetPlaylists()
 
 	foreach(scandir($playlistDirectory) as $pFile)
 	{
-		if ($pFile != "." && $pFile != "..")
+		if (($pFile != "." && $pFile != "..") &&
+			(is_file($playlistDirectory . '/' . $pFile)) &&
+			($filter == "" || preg_match('/' . $filter . '/', $pFile)))
 		{
 			$pFile = preg_replace("/\.json/", "", $pFile);
 			$playList = $doc->createElement('Playlist');
@@ -1892,6 +1965,39 @@ function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 	$time = $file->appendChild($time);
 	$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
 	$value = $time->appendChild($value);
+
+	$fileInfo = $doc->createElement('FileInfo');
+	$fileInfo = $file->appendChild($fileInfo);
+	//quick and dirty check for music and video dir
+	if(strpos(strtolower($dirName),"music") !== FALSE || strpos(strtolower($dirName),"video") !== FALSE ){
+
+		//Check the cache first
+		$filesize = filesize($fileFullName);
+		$cache_duration = media_duration_cache($fileName, null, $filesize);
+		//cache duration will be null if not in cache, then retrieve it
+		if ($cache_duration == NULL) {
+			//Include our getid3 library for media
+			require_once('./lib/getid3/getid3.php');
+			//Instantiate getID3 object
+			$getID3 = new getID3;
+			//Get the media duration from file
+			$ThisFileInfo = $getID3->analyze($fileFullName);
+			//cache it
+			if (isset($ThisFileInfo['playtime_seconds']))
+				media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
+		} else {
+			$ThisFileInfo['playtime_seconds'] = $cache_duration;
+		}
+
+		if (isset($ThisFileInfo['playtime_seconds']))
+			$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
+		else
+			$value = $doc->createTextNode("Unknown");
+	}else{
+		//just return the filesize
+		$value = $doc->createTextNode(human_filesize($fileFullName));
+	}
+	$value = $fileInfo->appendChild($value);
 }
 
 function GetFiles()
@@ -1904,6 +2010,7 @@ function GetFiles()
 	global $scriptDirectory;
 	global $logDirectory;
 	global $uploadDirectory;
+	global $imageDirectory;
 	global $docsDirectory;
 
 	$dirName = $_GET['dir'];
@@ -1915,6 +2022,7 @@ function GetFiles()
 	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
 	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
 	else if ($dirName == "Uploads")     { $dirName = $uploadDirectory; }
+	else if ($dirName == "Images")      { $dirName = $imageDirectory; }
 	else if ($dirName == "Docs")        { $dirName = $docsDirectory; }
 	else
 		return;
@@ -1987,6 +2095,11 @@ function AddPlaylist()
 
 	$doc = new DomDocument('1.0');
 	$name =str_replace(' ', '_', $name);
+
+	//TODO Playlists - Reassess whether this is still needed once scheduler is stored in json
+	//Replace Illegal chars in the playlist name
+	$name = ReplaceIllegalCharacters($name);
+
 	$response = $doc->createElement('Response');
 	$response = $doc->appendChild($response);
 	$successAttribute = $doc->createAttribute('Success');
@@ -2206,135 +2319,6 @@ function universe_cmp($a, $b)
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
 }
 
-function ConvertFile()
-{
-	global $uploadDirectory, $sequenceDirectory, $effectDirectory, $SUDO, $debug;
-
-	$file = $_GET['filename'];
-	$convertTo = $_GET['convertTo'];
-
-	check($file, "file", __FUNCTION__);
-	check($convertTo, "convertTo", __FUNCTION__);
-
-	$doc = new DomDocument('1.0');
-	$response= $doc->createElement('Response');
-	$doc->appendChild($response);
-	$status = $doc->createElement('Status');
-	$response->appendChild($status);
-
-	if (preg_match("/\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i", $file))
-	{
-        LoadUniverseFile(0);
-        
-        usort($_SESSION['UniverseEntries'], "universe_cmp");
-        $universeString = "-";
-        $last = 1;
-        for($i=1;$i<count($_SESSION['UniverseEntries']);$i++)
-        {
-            if (strlen($universeString) > 1) {
-                $universeString .= ",";
-            }
-            $universeString .= ($_SESSION['UniverseEntries'][$i]->startAddress - $last);
-            $last = $_SESSION['UniverseEntries'][$i]->startAddress;
-        }
-        if (strlen($universeString) > 1) {
-            $universeString .= ",";
-        }
-        $universeString .= $_SESSION['UniverseEntries'][count($_SESSION['UniverseEntries']) - 1]->size;
-        
-        
-		// The file gets placed where we run fppconvert from, which is
-		// typically the www-root.  Instead, let's go where we want it
-		// and know we have the space.
-		chdir($uploadDirectory);
-
-		exec($SUDO . " " . dirname(dirname(__FILE__)) . '/bin/fppconvert ' . $universeString . ' "' . $uploadDirectory."/".$file.'" 2>&1 | grep -i -e error -e alloc', $output, $return_val);
-
-		$output_string = "";
-		foreach ($output as $line)
-		{
-			$output_string .= $line . '<br />';
-			if ($debug)
-				error_log("*** FPPCONVERT OUTPUT: $line ***");
-		}
-
-		if (strpos($output_string, "rror") || strpos($output_string, "alloc"))
-		{
-			$fail = $doc->createTextNode('Failure');
-			$status->appendChild($fail);
-
-			$error = $doc->createElement('Error');
-			$response->appendChild($error);
-
-			if ( strpos($output_string, "alloc") )
-				$value = $doc->createTextNode("Out of memory!<br />This file is be too big to convert on the Pi.");
-			else
-				$value = $doc->createTextNode($output_string);
-			$error->appendChild($value);
-
-			echo $doc->saveHTML();
-			exit(1);
-		}
-
-		$file_strip = substr($file, 0, strrpos($file, "."));
-		if ($convertTo == "sequence")
-		{
-			if (!rename($file_strip.".fseq", $sequenceDirectory . '/' . $file_strip.".fseq"))
-			{
-				error_log("Couldn't copy sequence file");
-				$fail = $doc->createTextNode('Failure');
-				$status->appendChild($fail);
-
-				$error = $doc->createElement('Error');
-				$response->appendChild($error);
-
-				$value = $doc->createTextNode("Couldn't move sequence file");
-				$error->appendChild($value);
-
-				echo $doc->saveHTML();
-				exit(1);
-			}
-		}
-		elseif ($convertTo == "effect")
-		{
-			if (!rename($file_strip.".fseq", $effectDirectory . '/' . $file_strip.".eseq"))
-			{
-				error_log("Couldn't move effect file");
-				$fail = $doc->createTextNode('Failure');
-				$status->appendChild($fail);
-
-				$error = $doc->createElement('Error');
-				$response->appendChild($error);
-
-				$value = $doc->createTextNode("Couldn't move effect file");
-				$error->appendChild($value);
-
-				echo $doc->saveHTML();
-				exit(1);
-			}
-		}
-		else
-		{
-			unlink($file_strip.".fseq");
-			$fail = $doc->createTextNode('Failure');
-			$status->appendChild($fail);
-
-			$error = $doc->createElement('Error');
-			$response->appendChild($error);
-
-			$value = $doc->createTextNode("Invalid conversion type");
-			$error->appendChild($value);
-
-			echo $doc->saveHTML();
-			exit(1);
-		}
-	}
-
-	$success = $doc->createTextNode('Success');
-	$status->appendChild($success);
-	echo $doc->saveHTML();
-}
-
 function GetVideoInfo()
 {
 	$filename = $_GET['filename'];
@@ -2358,6 +2342,10 @@ function GetFile()
 	$dir = $_GET['dir'];
 	check($dir, "dir", __FUNCTION__);
 
+	$isImage = 0;
+	if ($dir == 'Images')
+		$isImage = 1;
+
 	$dir = GetDirSetting($dir);
 
 	if ($dir == "")
@@ -2371,8 +2359,27 @@ function GetFile()
 			header('Content-type: audio/ogg');
         else if (preg_match('/m4a$/i', $filename))
             header('Content-type: audio/m4a');
+        else if (preg_match('/mov$/i', $filename))
+            header('Content-type: video/mov');
 		else if (preg_match('/mp4$/i', $filename))
 			header('Content-type: video/mp4');
+		else if (preg_match('/wav$/i', $filename))
+			header('Content-type: audio/wav');
+		else if (preg_match('/mpg$/i', $filename))
+			header('Content-type: video/mpg');
+        else if (preg_match('/mpg$/i', $filename))
+            header('Content-type: video/mpeg');
+        else if (preg_match('/mkv$/i', $filename))
+            header('Content-type: video/mkv');
+        else if (preg_match('/avi$/i', $filename))
+            header('Content-type: video/avi');
+	}
+	else if ($isImage)
+	{
+		header('Content-type: ' . mime_content_type($dir . '/' . $filename));
+
+		if (!isset($_GET['attach']) || ($_GET['attach'] == '1'))
+			header('Content-disposition: attachment;filename="' . $filename . '"');
 	}
 	else
 	{
@@ -2435,6 +2442,7 @@ function GetZip()
         "config/co-bbbStrings.json",
         "config/co-universes.json",
         "config/ci-universes.json",
+        "config/model-overlays.json",
         //
         "pixelnetDMX",
         "schedule",
@@ -2607,71 +2615,6 @@ function GetInterfaceInfo()
 
    
 	echo $doc->saveHTML();
-}
-
-function UpdatePlugin()
-{
-	EchoStatusXML('Failure');
-}
-
-function UninstallPlugin()
-{
-	$plugin = $_GET['plugin'];
-	check($plugin, "plugin", __FUNCTION__);
-
-	global $fppDir, $pluginDirectory, $SUDO;
-
-	if ( !file_exists("$pluginDirectory/$plugin") )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure, no plugin to uninstall");
-		return;
-	}
-
-	exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/uninstall_plugin $plugin", $output, $return_val);
-	unset($output);
-	if ( $return_val != 0 )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure with FPP uninstall script");
-		return;
-	}
-
-	EchoStatusXML('Success');
-}
-
-function InstallPlugin()
-{
-	$plugin = $_GET['plugin'];
-	check($plugin, "plugin", __FUNCTION__);
-
-	global $fppDir, $pluginDirectory, $SUDO;
-
-	if ( file_exists("$pluginDirectory/$plugin") )
-	{
-		EchoStatusXML('Failure');
-		error_log("Failure, plugin you're trying to install already exists");
-		return;
-	}
-
-	require_once("pluginData.inc.php");
-
-	foreach ($plugins as $available_plugin)
-	{
-		if ( $available_plugin['shortName'] == $plugin )
-		{
-			exec("export SUDO=\"".$SUDO."\"; export PLUGINDIR=\"".$pluginDirectory."\"; $fppDir/scripts/install_plugin $plugin \"" . $available_plugin['sourceUrl'] .
-				"\" \"" . $available_plugin['sha'] ."\"", $output, $return_val);
-			unset($output);
-			if ( $return_val != 0 )
-			{
-				EchoStatusXML('Failure');
-				error_log("Failure with FPP install script");
-				return;
-			}
-		}
-	}
-	EchoStatusXML('Success');
 }
 
 function SetupExtGPIO()

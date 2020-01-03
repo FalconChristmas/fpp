@@ -12,15 +12,17 @@ logOutput
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 
-updateAvahiConfig
-
+echo "Setup channel outputs"
 setupChannelOutputs
 
-WaitForInterfacesUp
-
-
+echo "Running pre-start scripts"
 runPreStartScripts
 
+if [ ! -x ${FPPBINDIR}/fppd ]; then
+   echo "${FPPBINDIR}/fppd doesn't exist, try building it"
+   cleanCompiledBinaries
+   compileBinaries
+fi
 
 echo "Starting ${FPPBINDIR}/fppd"
 nice -n -20 ${FPPBINDIR}/fppd --config-file ${FPPHOME}/media/settings --daemonize

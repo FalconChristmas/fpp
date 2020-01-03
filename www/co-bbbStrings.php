@@ -1,3 +1,61 @@
+
+<script type="text/javascript">
+
+
+var KNOWN_CAPES = {
+<?
+    function sortByLongName($a, $b) {
+        return strcmp($a['longName'], $b['longName']);
+    }
+    
+    function readCapes($cd, $capes) {
+        global $settings;
+        if (is_dir($cd)){
+            if ($dh = opendir($cd)){
+                while (($file = readdir($dh)) !== false){
+                    $string = "";
+                    if (substr($file, 0, 1) == '.') {
+                        $string = "";
+                    } else {
+                        $string = file_get_contents($cd . $file);
+                    }
+                    
+                    if ($string != "") {
+                        $json = json_decode($string, true);
+                        if ($json['numSerial'] != 0 && isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported") {
+                            // unsupported
+                            continue;
+                        } else if (empty($currentCape) || (isset($json['capes']) && in_array($currentCape, $json['capes']))) {
+                            echo "'" . $file . "': " . $string . ",\n";
+                            $file = str_replace('-v2.j', '.j', $file);
+                            $file = str_replace('-v3.j', '.j', $file);
+                            if (!isset($capes[$file])) {
+                                $capes[$file] = $json;
+                            }
+                        }
+                    }
+                }
+                closedir($dh);
+            }
+        }
+        return $capes;
+    }
+    
+    $capes = array();
+    $capes = readCapes("/home/fpp/media/tmp/strings/", $capes);
+    if (count($capes) == 0 || $settings["showAllOptions"] == 1) {
+        $capedir = "/opt/fpp/capes/bbb/strings/";
+        if (strpos($settings['SubPlatform'], 'PocketBeagle') !== false) {
+            $capedir = "/opt/fpp/capes/pb/strings/";
+        }
+        $capes = readCapes($capedir, $capes);
+    }
+
+    usort($capes, 'sortByLongName');
+?>
+};
+</script>
+
 <style>
 .serialOutputTable {
     background: #F0F0F0;
@@ -32,107 +90,119 @@ include_once('co-pixelStrings.php');
 
 var PixelStringLoaded = false;
 
+function GetBBB48StringCapeFileNameForSubType(mainType) {
+    var subType = "";
+    var ver = $('#BBB48StringSubTypeVersion').val();
+    if (ver == "2.x") {
+        subType += "-v2";
+    }
+    if (ver == "3.x") {
+        subType += "-v3";
+    }
+    subType += ".json";
+    var type = mainType + subType;
+    while (!KNOWN_CAPES[type]) {
+        if (subType == "-v3.json") {
+            subType = "-v2.json";
+            ver = "2.x";
+            $('#BBB48StringSubTypeVersion').val("2.x")
+        } else if (subType == "-v2.json") {
+            subType = ".json";
+            $('#BBB48StringSubTypeVersion').val("1.x")
+            ver = "1.x";
+        } else {
+            return type;
+        }
+        type = mainType + subType;
+    }
+    return type;
+}
+function GetBBB48StringCapeFileName() {
+    var mainType = $('#BBB48StringSubType').val();
+    if (!mainType || mainType == "") {
+        var first = Object.keys(KNOWN_CAPES)[0];
+        $('#BBB48StringSubType').val(KNOWN_CAPES[first].name);
+        mainType = KNOWN_CAPES[first].name;
+    }
+    return GetBBB48StringCapeFileNameForSubType(mainType);
+}
+
 
 function GetBBB48StringRequiresVersion() {
-    <?
-    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
-    {
-    ?>
-
-    var subType = $('#BBB48StringSubType').val();
-    if (subType == 'F8-B'
-        || subType == 'F8-B-16'
-        || subType == 'F8-B-20'
-        || subType == 'F8-B-EXP'
-        || subType == 'F8-B-EXP-32'
-        || subType == 'F8-B-EXP-36') {
-        return true;
+    var mainType = $('#BBB48StringSubType').val();
+    var v2SubType = mainType + "-v2.json";
+    var v3SubType = mainType + "-v3.json";
+    mainType += ".json";
+    var count = 0;
+    if (KNOWN_CAPES[mainType] != null)  {
+        count++;
     }
-    <?
+    if (KNOWN_CAPES[v2SubType] != null)  {
+        count++;
     }
-    ?>
-    return false;
+    if (KNOWN_CAPES[v3SubType] != null)  {
+        count++;
+    }
+    if (count <= 1) {
+        return false;
+    }
+    return true;
 }
 
 function GetBBB48StringRows()
 {
-	var subType = $('#BBB48StringSubType').val();
-	var rows = 48;
-
-	if (subType == 'F16-B')
-		rows = 16;
-	else if (subType == 'F16-B-32')
-		rows = 32;
-    else if (subType == 'F16-B-40')
-        rows = 40;
-	else if (subType == 'F16-B-48')
-		rows = 48;
-	else if (subType == 'F4-B')
-		rows = 4;
-    else if (subType == 'F8-B')
-        rows = 12;
-    else if (subType == 'F8-B-16')
-        rows = 16;
-    else if (subType == 'F8-B-20')
-        rows = 20;
-    else if (subType == 'F8-B-EXP')
-        rows = 28;
-    else if (subType == 'F8-B-EXP-32')
-        rows = 32;
-    else if (subType == 'F8-B-EXP-36')
-        rows = 36;
-    else if (subType == 'F32-B')
-        rows = 40;
-    else if (subType == 'F32-B-48')
-        rows = 48;
-    else if (subType == 'RGBCape24')
-        rows = 24;
-	else if (subType == 'RGBCape48C')
-		rows = 48;
-    else if (subType == 'RGBCape48F')
-        rows = 48;
-
-	return rows;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    return val["outputs"].length;
 }
 
 function ShouldAddBreak(subType, s) {
-    if (subType == 'F8-B-EXP') {
-       if (s == 12 || s == 8) {
-           return true;
-       }
-    } else if (subType == 'F8-B-EXP-32' && (s == 16 || s == 12 || s == 8)) {
-        return true;
-    } else if (subType == 'F8-B-EXP-36') {
-        if (s == 20 || s == 16 || s == 12 || s == 8) {
+    if (s == 0) {
+        return false;
+    }
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if (s == instance["start"]) {
             return true;
         }
-    } else if (subType == 'F8-B-20' && (s == 16 || s == 12 || s == 8)) {
-        return true;
-    } else if (subType == 'F8-B-16' && (s == 12 || s == 8)) {
-        return true;
-    } else if (subType == 'F8-B' && s == 8) {
-        return true;
-    } else if (subType == 'F32-B' && s == 36) {
-        return true;
-    } else if (subType == 'F32-B-48' && (s == 36 || s == 40 || s == 44) ) {
-        return true;
-    } else if (s && ((s % 16) == 0)) {
-        return true;
     }
+    return false;
+}
+function IsDifferential(subType, s) {
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if (s == instance["start"]) {
+            return instance["type"] == "differential";
+        }
+    }
+    return false;
+}
+function IsExpansion(subType, s) {
+    s = s + 1;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if (s == instance["start"]) {
+            return instance["type"] == "expansion";
+        }
+    }
+    return false;
+}
+function IsDifferentialExpansion(isExpansion, expansionType, s) {
+    if (isExpansion && expansionType == 1) {
+        return (s % 4) == 0;
+    }
+    return false;
 }
 
 function HasSerial(subType) {
-    if ((subType == 'F16-B-48')
-        || (subType == 'F8-B-20')
-        || (subType == 'F8-B-EXP-36')
-        || (subType == 'F32-B-48')
-        || (subType == 'RGBCape24')
-        || (subType == 'RGBCape48C')
-        || (subType == 'RGBCape48F'))
-    {
-        return false;
-    }
-    return true;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    return val["numSerial"] > 0;
 }
 
 
@@ -160,12 +230,9 @@ function SetupBBBSerialPorts()
         $('#BBBSerialOutputs').hide();
     }
     
-	if (subType == 'F4-B')
-		maxPorts = 1;
-    else if ((subType == 'F8-B-16') || (subType == 'F8-B-EXP-32'))
-        maxPorts = 4;
-	else
-		maxPorts = 8;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    maxPorts = val["serial"].length;
 
 	for (var i = 1; i <= 8; i++)
 	{
@@ -183,6 +250,7 @@ function addSerialOutputJSON(postData) {
 
 	config.type = "BBBSerial";
 	config.enabled = 0;
+    config.pinoutVersion = MapPixelStringSubTypeVersion($this.attr('type'));
 	config.subType = $('#BBBSerialMode').val();
 	config.startChannel = 0;
 	config.channelCount = 0;
@@ -199,7 +267,7 @@ function addSerialOutputJSON(postData) {
         config.enabled = 0;
 
 
-
+    var count = 0;
 	var i = 1;
 	for (i = 1; i <= 8; i++)
 	{
@@ -208,6 +276,9 @@ function addSerialOutputJSON(postData) {
 
 		output.outputNumber = i - 1;
 		output.startChannel = parseInt($('#BBBSerialStartChannel' + i).val());
+        if (output.startChannel > 0) {
+            count = count + 1;
+        }
 
 		if (output.startChannel < startChannel)
 			startChannel = output.startChannel;
@@ -229,104 +300,368 @@ function addSerialOutputJSON(postData) {
 	config.startChannel = startChannel;
 	config.channelCount = endChannel - startChannel + 1;
 
+    if (config.enabled == 0 || count == 0) {
+        //add a hint to BBB48String that the serial isn't being used so it can
+        //use the PRU if it wants to
+        postData.channelOutputs[0].serialInUse = false;
+    }
     postData.channelOutputs.push(config);
 	return postData;
 }
+function BBB48StringExpansionTypeChanged(port) {
+    var num = 16;
+    var subType = GetBBB48StringCapeFileName();
+    var val = KNOWN_CAPES[subType];
+    for (instance of val["groups"]) {
+        if ((port+1) == instance["start"]) {
+            if (instance["type"] == "expansion") {
+                num = instance["count"];
+            }
+        }
+    }
+    var dt = $('#ExpansionType' + port);
+    var val = parseInt(dt.val());
+
+    if (val == 0) {
+        //droping to standard... need to set everything to non-smart first
+        for (var x = 0; x < num; x++) {
+            BBB48StringDifferentialTypeChangedTo((port+x), 0);
+        }
+        for (var x = 0; x < num; x++) {
+            if ($('#ROW_RULER_DIFFERENTIAL_' + (port+x)).length) {
+                var tr = $('#ROW_RULER_DIFFERENTIAL_' + (port+x));
+                tr.remove();
+            }
+        }
+    } else {
+        //going to differential, need to add receiver type selections
+        for (var x = 0; x < num; x += 4) {
+            var o = port + x;
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" +o + "'><td colSpan='2'><hr></td>";
+            str += "<td></td>";
+            str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
+            
+            
+            str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
+            str += "<option value='0' selected> Standard</option>";
+            str += "<option value='1'>1 Smart Receiver</option>";
+            str += "<option value='2'>2 Smart Receivers</option>";
+            str += "<option value='3'>3 Smart Receivers</option>";
+            str += "</select></td><td colSpan='10'><hr></td>";
+            str += "</tr>";
+            $("#BBB48String_Output_0_" + o + "_0").before(str);
+        }
+    }
+}
+function BBB48StringDifferentialTypeChanged(port) {
+    var dt = $('#DifferentialType' + port);
+    var val = dt.val();
+    BBB48StringDifferentialTypeChangedTo(port, val);
+}
+function BBB48StringDifferentialTypeChangedTo(port, val) {
+    if (val <= 2) {
+        if ($('#ROW_RULER_DIFFERENTIAL_' + port + '_1').length) {
+            var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_1');
+            tr.remove();
+        }
+        for (var i = 0; i < 4; i++) {
+            for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
+                var id = "BBB48String_Output_" + 2 + "_" + (port + i) + "_" + j;
+                if ($('#' + id).length) {
+                    var row = $('#' + id);
+                    row.remove();
+                }
+            }
+        }
+    }
+    if (val <= 1) {
+        if ($('#ROW_RULER_DIFFERENTIAL_' + port + '_0').length) {
+            var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_0');
+            tr.remove();
+        }
+        for (var i = 0; i < 4; i++) {
+            for (var j = 0; j < maxVirtualStringsPerOutput; j++) {
+                var id = "BBB48String_Output_" + 1 + "_" + (port + i) + "_" + j;
+                if ($('#' + id).length) {
+                    var row = $('#' + id);
+                    row.remove();
+                }
+            }
+            var id = "BBB48String_Output_0_" + (port + i) + "_0";
+            if ($('#' + id).length) {
+                var row = $('#' + id);
+                var td = row.find('.vsPortLabel');
+                td.html((port + 1 + i) + ')');
+            }
+        }
+    }
+    if (val > 1) {
+        for (var i = 0; i < 4; i++) {
+            var id = "BBB48String_Output_0_" + (port + i) + "_0";
+            if ($('#' + id).length) {
+                var row = $('#' + id);
+                var td = row.find('.vsPortLabel');
+                td.html((port + 1 + i) + 'A)');
+            }
+        }
+        var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_0');
+        if (!tr.length) {
+            var j = 0;
+            for (var j = maxVirtualStringsPerOutput-1; j > 0; j--) {
+                var id = "BBB48String_Output_0_" + (port + 3) + "_" + j;
+                if ($('#' + id).length) {
+                    break;
+                }
+            }
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='13'><hr></td></tr>";
+            for (var x = 0; x < 4; x++) {
+                str += pixelOutputTableRow("BBB48String", 'ws2811', 'ws2811', 1, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "B");
+            }
+            $("#BBB48String_Output_0_" + (port + 3) + "_" + j).after(str);
+        }
+    }
+    if (val > 2) {
+        var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_1');
+        if (!tr.length) {
+            var j = 0;
+            for (var j = maxVirtualStringsPerOutput-1; j > 0; j--) {
+                var id = "BBB48String_Output_1_" + (port + 3) + "_" + j;
+                if ($('#' + id).length) {
+                    break;
+                }
+            }
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='13'><hr></td></tr>";
+            for (var x = 0; x < 4; x++) {
+                str += pixelOutputTableRow("BBB48String", 'ws2811', 'ws2811', 2, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "C");
+            }
+            $("#BBB48String_Output_1_" + (port + 3) + "_" + j).after(str);
+        }
+    }
+}
+
 
 function populatePixelStringOutputs(data) {
-    for (var i = 0; i < data.channelOutputs.length; i++)
-    {
-        var output = data.channelOutputs[i];
-        var type = output.type;
-        if (type == 'BBB48String') {
-            $('#BBB48String_enable').prop('checked', output.enabled);
-            var subType = output.subType;
-            var version = output.pinoutVersion;
-            $('#BBB48StringSubType').val(subType);
-            $('#BBB48StringSubTypeVersion').val(version);
-            SetupBBBSerialPorts();
-            
-            if (GetBBB48StringRequiresVersion()) {
-                $('#BBB48StringSubTypeVersion').show();
-                $('#versionTag').show();
-            } else {
-                $('#BBB48StringSubTypeVersion').hide();
-                $('#versionTag').hide();
-            }
-
-            $('#pixelOutputs').html("");
-            
-            var outputCount = GetBBB48StringRows();
-            
-            var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
-            str += pixelOutputTableHeader();
-            str += "<tbody>";
-            var id = 0; // FIXME if we need to handle multiple outputs of the same type
-            for (var o = 0; o < outputCount; o++)
-            {
-                if (ShouldAddBreak(subType, o)) {
-                    str += "<tr><td colSpan='13'><hr></td></tr>";
-                }
-                if (o < output.outputCount) {
-                    var port = output.outputs[o];
-                    for (var v = 0; v < port.virtualStrings.length; v++)
-                    {
-                        var vs = port.virtualStrings[v];
-                    
-                        str += pixelOutputTableRow(type, id, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
-                    }
+    if (data) {
+        for (var i = 0; i < data.channelOutputs.length; i++) {
+            var output = data.channelOutputs[i];
+            var type = output.type;
+            if (type == 'BBB48String') {
+                $('#BBB48String_enable').prop('checked', output.enabled);
+                var subType = output.subType;
+                $('#BBB48StringSubType').val(subType);
+                var version = output.pinoutVersion;
+                if (version == '3.x') {
+                    $('#BBB48StringSubTypeVersion').val("3.x");
+                } else if (version == '2.x') {
+                    $('#BBB48StringSubTypeVersion').val("2.x");
                 } else {
-                    str += pixelOutputTableRow(type, id, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                    $('#BBB48StringSubTypeVersion').val("1.x");
                 }
-            }
+                SetupBBBSerialPorts();
+                
+                if (GetBBB48StringRequiresVersion()) {
+                    $('#BBB48StringSubTypeVersion').show();
+                    $('#versionTag').show();
+                } else {
+                    $('#BBB48StringSubTypeVersion').hide();
+                    $('#versionTag').hide();
+                }
 
-            str += "</tbody>";
-            str += "</table>";
-            
-            $('#pixelOutputs').append(str);
-            
-            $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
-                $('#pixelOutputs table tr').removeClass('selectedEntry');
-		        $(this).addClass('selectedEntry');
-		        selectedPixelStringRowId = $(this).attr('id');
-	        });
-        }
-        if (type == 'BBBSerial') {
-            var subType = output.subType;
+                $('#pixelOutputs').html("");
+                
+                var outputCount = GetBBB48StringRows();
+                
+                var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
+                str += pixelOutputTableHeader();
+                str += "<tbody>";
 
-            if (!HasSerial(output.device)) {
-                subType = "off";
-                $('#BBBSerialOutputs').hide();
+                var expansionType = 0;
+                var inExpansion = false;
+                for (var o = 0; o < outputCount; o++)
+                {
+                    var port = {"differentialType" : 0, "expansionType" : 0};
+                    var loops = 1;
+                    if (o < output.outputCount) {
+                        port = output.outputs[o];
+                    }
+                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
+                        if (IsExpansion(subType, o)) {
+                            expansionType = port["expansionType"];
+                            if (expansionType == null) {
+                                expansionType = 0;
+                            }
+                            str += "<tr><td colSpan='2'><hr></td>";
+                            str += "<td></td>";
+                            str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Expansion Type: ";
+                            
+                            
+                            str += "<select id='ExpansionType" + o + "' onChange='BBB48StringExpansionTypeChanged(" + o + ");'>";
+                            str += "<option value='0'" + (expansionType == 0 ? " selected" : "") + ">Standard</option>";
+                            str += "<option value='1'" + (expansionType == 1 ? " selected" : "") + ">Differential</option>";
+                            str += "</select></td><td colSpan='10'><hr></td>";
+                            str += "</tr>";
+                            inExpansion = true;
+                        }
+                        if (IsDifferential(subType, o) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
+                            var diffType = port["differentialType"];
+                            
+                            str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "'><td colSpan='2'><hr></td>";
+                            str += "<td></td>";
+                            str += "<td style='font-size:0.7em; text-align:left; white-space: nowrap;'>Differential Receiver: ";
+                            
+                            
+                            str += "<select id='DifferentialType" + o + "' onChange='BBB48StringDifferentialTypeChanged(" + o + ");'>";
+                            str += "<option value='0'" + (diffType == 0 ? " selected" : "") + ">Standard</option>";
+                            str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">1 Smart Receiver</option>";
+                            str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">2 Smart Receivers</option>";
+                            str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">3 Smart Receivers</option>";
+                            str += "</select></td><td colSpan='10'><hr></td>";
+                            str += "</tr>";
+                            
+                            if (diffType >= 2) {
+                                loops = diffType;
+                            }
+                        } else if (!inExpansion) {
+                            str += "<tr><td colSpan='13'><hr></td></tr>";
+                        }
+                    }
+                    if (loops > 1) {
+                        for (var l = 0; l < loops; l++) {
+                            var pfx = "A";
+                            if (l == 1) {
+                                pfx = "B";
+                            }
+                            if (l == 2) {
+                                pfx = "C";
+                            }
+                            for (var sr = 0; sr < 4; sr++) {
+                                var o2 = o + sr;
+                                if (o2 < output.outputCount) {
+                                    var port = output.outputs[o2];
+                                    var strings = port.virtualStrings;
+                                    if (l == 1) {
+                                        strings = port.virtualStringsB;
+                                    }
+                                    if (l == 2) {
+                                        strings = port.virtualStringsC;
+                                    }
+                                    
+                                    if (strings != null && strings.length > 0) {
+                                        for (var v = 0; v < strings.length; v++) {
+                                            var vs = strings[v];
+                                            
+                                            str += pixelOutputTableRow(type, 'ws2811', 'ws2811', l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma, pfx);
+                                        }
+                                    } else {
+                                        str += pixelOutputTableRow(type, 'ws2811', 'ws2811', l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", pfx);
+                                    }
+                                } else {
+                                    str += pixelOutputTableRow(type, 'ws2811', 'ws2811', l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", pfx);
+                                }
+                            }
+                            if (l != (loops-1)) {
+                                str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "_" + l + "'><td colSpan='13'><hr></td></tr>";
+                            }
+                        }
+                        o+= 3;
+                    } else {
+                        if (o < output.outputCount) {
+                            var port = output.outputs[o];
+                            for (var v = 0; v < port.virtualStrings.length; v++) {
+                                var vs = port.virtualStrings[v];
+                            
+                                str += pixelOutputTableRow(type, 'ws2811', 'ws2811', 0, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                            }
+                        } else {
+                            str += pixelOutputTableRow(type, 'ws2811', 'ws2811', 0, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                        }
+                    }
+                }
+
+                str += "</tbody>";
+                str += "</table>";
+                
+                $('#pixelOutputs').append(str);
+                
+                $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
+                    $('#pixelOutputs table tr').removeClass('selectedEntry');
+                    $(this).addClass('selectedEntry');
+                    selectedPixelStringRowId = $(this).attr('id');
+                });
             }
-            $('#BBBSerialMode').val(subType);
-            var outputs = output.outputs;
-            if (subType == "DMX") {
-                if (outputs[0].channelCount > 0 && outputs[0].channelCount < 513) {
-                    $('#BBBSerialNumDMXChannels').val(outputs[0].channelCount);
+            if (type == 'BBBSerial') {
+                var subType = output.subType;
+
+                if (!HasSerial(output.device)) {
+                    subType = "off";
+                    $('#BBBSerialOutputs').hide();
+                }
+                $('#BBBSerialMode').val(subType);
+                var outputs = output.outputs;
+                if (subType == "DMX") {
+                    if (outputs[0].channelCount > 0 && outputs[0].channelCount < 513) {
+                        $('#BBBSerialNumDMXChannels').val(outputs[0].channelCount);
+                    } else {
+                        $('#BBBSerialNumDMXChannels').val("512");
+                    }
+                    $('#DMXNumChannelOutput').show();
                 } else {
                     $('#BBBSerialNumDMXChannels').val("512");
+                    $('#DMXNumChannelOutput').hide();
                 }
-                $('#DMXNumChannelOutput').show();
-            } else {
-                $('#BBBSerialNumDMXChannels').val("512");
-                $('#DMXNumChannelOutput').hide();
-            }
-            if (subType == "off")  {
-                $('#BBBSerial_Output').hide();
-            } else {
-                $('#BBBSerial_Output').show();
-            }
-            if (outputs) {
-                for (var i = 0; i < outputs.length; i++)
-                {
-                    var outputNumber = outputs[i].outputNumber + 1;
-                    $('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
+                if (subType == "off")  {
+                    $('#BBBSerial_Output').hide();
+                } else {
+                    $('#BBBSerial_Output').show();
+                }
+                if (outputs) {
+                    for (var i = 0; i < outputs.length; i++)
+                    {
+                        var outputNumber = outputs[i].outputNumber + 1;
+                        $('#BBBSerialStartChannel' + outputNumber).val(outputs[i].startChannel);
+                    }
                 }
             }
         }
     }
 }
-
+function ValidateBBBStrings(data) {
+    if (data) {
+        for (var i = 0; i < data.channelOutputs.length; i++) {
+            var output = data.channelOutputs[i];
+            var type = output.type;
+            if (type == 'BBB48String') {
+                var fn = GetBBB48StringCapeFileNameForSubType(output.subType);
+                if (KNOWN_CAPES[fn] == null) {
+                    fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
+                    output.subType = fn.name;
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
+                } else {
+                    fn = KNOWN_CAPES[fn];
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
+                }
+            } else if (type == 'BBBSerial') {
+                var fn = GetBBB48StringCapeFileNameForSubType(output.device);
+                if (KNOWN_CAPES[fn] == null) {
+                    fn = KNOWN_CAPES[Object.keys(KNOWN_CAPES)[0]];
+                    output.device = fn.name;
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
+                } else {
+                    fn = KNOWN_CAPES[fn];
+                    if (typeof fn.pinoutVersion !== 'undefined') {
+                        output.pinoutVersion = fn.pinoutVersion;
+                    }
+                }
+            }
+        }
+    }
+}
 function BBB48StringSubTypeChanged()
 {
     if (PixelStringLoaded) {
@@ -342,6 +677,7 @@ function BBB48StringSubTypeChanged()
                       data.channelOutputs[i].device = $('#BBB48StringSubType').val();
                     }
                   }
+                  ValidateBBBStrings(data);
                   populatePixelStringOutputs(data)
             });
     } else {
@@ -350,6 +686,15 @@ function BBB48StringSubTypeChanged()
         var output = {};
         output.type = 'BBB48String';
         output.subType = $('#BBB48StringSubType').val();
+        <?
+        if (isset($capes[0]['pinoutVersion'])) {
+            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        } else {
+            ?>
+            output.pinoutVersion = "1.x";
+            <?
+        }
+        ?>
         defaultData.channelOutputs.push(output);
         populatePixelStringOutputs(defaultData);
     }
@@ -360,18 +705,39 @@ function loadBBBOutputs() {
     defaultData.channelOutputs = [];
     var output = {};
     output.type = 'BBB48String';
-    output.subType = 'F8-B';
+    <?
+    if (isset($capes["F8-B"])) {
+        echo 'output.subType = "F8-B";';
+    } else {
+        echo 'output.subType = "' . $capes[0]['name'] . '";';
+        if (isset($capes[0]['pinoutVersion'])) {
+            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        } else {
+            echo 'output.pinoutVersion = "1.x";';
+        }
+    }
+    ?>
     defaultData.channelOutputs.push(output);
 
     var output = {};
     output.type = 'BBBSerial';
-    output.device = 'F8-B';
+    <?
+    if (isset($capes["F8-B"])) {
+        echo 'output.subType = "F8-B";';
+    } else {
+        echo 'output.subType = "' . $capes[0]['name'] . '";';
+        if (isset($capes[0]['pinoutVersion'])) {
+            echo 'output.pinoutVersion = "' . $capes[0]['pinoutVersion'] . '";';
+        }
+    }
+    ?>
     output.subType = 'off';
     defaultData.channelOutputs.push(output);
     
     populatePixelStringOutputs(defaultData);
     $.getJSON("fppjson.php?command=getChannelOutputs&file=co-bbbStrings", function(data) {
                 PixelStringLoaded = true;
+                ValidateBBBStrings(data);
                 populatePixelStringOutputs(data)
               });
 }
@@ -382,16 +748,32 @@ function saveBBBOutputs() {
 	// Double stringify so JSON in .json file is surrounded by { }
 	postData = "command=setChannelOutputs&file=co-bbbStrings&data=" + JSON.stringify(JSON.stringify(postData));
 
-	$.post("fppjson.php", postData).success(function(data) {
+	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
-		SetRestartFlag();
+		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Pixel String Outputs", "Save Failed");
 	});
 }
 
 
+function populateCapeList() {
+    var select = document.getElementById("BBB48StringSubType");
+    var option;
+    <?
+    foreach ($capes as $x => $x_value) {
+    ?>        
+        option = document.createElement("option");
+        option.text = '<? print_r($x_value["longName"]) ?>';
+        option.value = '<? print_r($x_value["name"]) ?>';
+        select.appendChild(option);
+    <?
+    }
+    ?>
+}
+
 $(document).ready(function(){
+    populateCapeList();
     loadBBBOutputs();
 });
 </script>
@@ -413,35 +795,15 @@ $(document).ready(function(){
 						<tr>
 							<td><b>Cape Type:</b></td>
 							<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
-								<option value='F8-B'>F8-B (8 serial)</option>
-								<option value='F8-B-16'>F8-B (4 serial)</option>
-								<option value='F8-B-20'>F8-B (No serial)</option>
-								<option value='F8-B-EXP'>F8-B w/ Expansion (8 serial)</option>
-								<option value='F8-B-EXP-32'>F8-B w/ Expansion (4 serial)</option>
-								<option value='F8-B-EXP-36'>F8-B w/ Expansion (No serial)</option>
-<?
-    if (strpos($settings['SubPlatform'], 'PocketBeagle') == FALSE)
-    {
-?>
-                                <option value='F16-B'>F16-B</option>
-                                <option value='F16-B-32'>F16-B w/ 32 outputs</option>
-                                <option value='F16-B-48'>F16-B w/ 48 outputs (No Serial)</option>
-                                <option value='F4-B'>F4-B</option>
-								<option value='F32-B'>F32-B</option>
-								<option value='F32-B-48'>F32-B (No Serial)</option>
-								<option value='RGBCape24'>RGBCape24</option>
-								<option value='RGBCape48C'>RGBCape48C</option>
-								<option value='RGBCape48F'>RGBCape48F</option>
-<?
-    }
-?>
+
 								</select>
 
 							</td>
                             <td><b id='versionTag'>Version: </b></td>
                             <td><select id='BBB48StringSubTypeVersion'>
-                                    <option value='1.x'>1.x</version>
-                                    <option value='2.x'>2.x</version>
+                                    <option value='1.x'>1.x</option>
+                                    <option value='2.x'>2.x</option>
+                                    <option value='3.x'>3.x</option>
                                 </select>
                             </td>
 						</tr>
@@ -459,6 +821,10 @@ $(document).ready(function(){
                                 Press F2 to auto set the start channel on the next row.
                             </td>
                         </tr>
+<?if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {  ?>
+    <tr><td colspan='2' style='color: red;'>Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.</td></tr>
+    
+    <? } ?>
                     </table>
                     <div id='pixelOutputs'>
 

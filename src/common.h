@@ -31,28 +31,85 @@
 #include <vector>
 #include <string>
 
-#include <jsoncpp/json/json.h>
+
+/////////////////////////////////////////////////////////////////////////////
+// printf macros for printing bitmaps
+//
+// Macros from https://stackoverflow.com/a/25108449
+
+#define PRINTF_BINARY_PATTERN_INT8 "%c%c%c%c%c%c%c%c"
+#define PRINTF_BYTE_TO_BINARY_INT8(i)    \
+    (((i) & 0x80ll) ? '1' : '0'), \
+    (((i) & 0x40ll) ? '1' : '0'), \
+    (((i) & 0x20ll) ? '1' : '0'), \
+    (((i) & 0x10ll) ? '1' : '0'), \
+    (((i) & 0x08ll) ? '1' : '0'), \
+    (((i) & 0x04ll) ? '1' : '0'), \
+    (((i) & 0x02ll) ? '1' : '0'), \
+    (((i) & 0x01ll) ? '1' : '0')
+
+#define PRINTF_BINARY_PATTERN_INT16 \
+    PRINTF_BINARY_PATTERN_INT8              PRINTF_BINARY_PATTERN_INT8
+#define PRINTF_BYTE_TO_BINARY_INT16(i) \
+    PRINTF_BYTE_TO_BINARY_INT8((i) >> 8),   PRINTF_BYTE_TO_BINARY_INT8(i)
+#define PRINTF_BINARY_PATTERN_INT32 \
+    PRINTF_BINARY_PATTERN_INT16             PRINTF_BINARY_PATTERN_INT16
+#define PRINTF_BYTE_TO_BINARY_INT32(i) \
+    PRINTF_BYTE_TO_BINARY_INT16((i) >> 16), PRINTF_BYTE_TO_BINARY_INT16(i)
+#define PRINTF_BINARY_PATTERN_INT64    \
+    PRINTF_BINARY_PATTERN_INT32             PRINTF_BINARY_PATTERN_INT32
+#define PRINTF_BYTE_TO_BINARY_INT64(i) \
+    PRINTF_BYTE_TO_BINARY_INT32((i) >> 32), PRINTF_BYTE_TO_BINARY_INT32(i)
+
+/////////////////////////////////////////////////////////////////////////////
+
 
 long long GetTime(void);
+long long GetTimeMS(void);
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
-void      HexDump(char *title, void *data, int len);
+int       FileExists(const std::string &File);
+void      HexDump(const char *title, const void *data, int len);
 int       GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
 int       CheckForHostSpecificFile(const char *hostname, char *filename);
+int       CheckForHostSpecificFile(const std::string &hostname, std::string &filename);
 int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
 void      CloseOpenFiles(void);
 
+std::string GetFileContents(const std::string &filename);
+void TrimWhiteSpace(std::string &s);
+
 uint8_t   ReverseBitsInByte(uint8_t n);
 
-void      MergeJsonValues(Json::Value &a, Json::Value &b);
 
+#ifndef PLATFORM_OSX
+#include <jsoncpp/json/json.h>
+void      MergeJsonValues(Json::Value &a, Json::Value &b);
 Json::Value JSONStringToObject(const std::string &str);
+Json::Value loadJSON(const std::string &filename);
+Json::Value loadJSON(const char *filename);
+#endif
 
 std::string tail(std::string const& source, size_t const length);
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
 std::vector<std::string> split(const std::string &s, char delim);
+
+// splits the string on , but also honors any double/single quotes so commas within strings are preserved
+std::vector<std::string> splitWithQuotes(const std::string &s, char delim = ',');
+
+bool startsWith(const std::string &str, const std::string &prefix);
+bool endsWith(const std::string& str, const std::string& suffix);
+bool contains(const std::string &str, const std::string &v);
+void replaceAll(std::string& str, const std::string& from, const std::string& to);
+
+// URL Helpers
+bool urlGet(const std::string url, std::string &resp);
+bool urlPost(const std::string url, const std::string data, std::string &resp);
+bool urlPut(const std::string url, const std::string data, std::string &resp);
+bool urlDelete(const std::string url, const std::string data, std::string &resp);
+bool urlDelete(const std::string url, std::string &resp);
 
 #endif

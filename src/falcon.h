@@ -35,4 +35,5 @@ int FalconPassThroughData(int offset,char *inBuf, int size);
 void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 	struct in_addr recvAddr, unsigned char *inBuf);
 
+
 #endif /* _CONTROLRECV_H */

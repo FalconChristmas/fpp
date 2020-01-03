@@ -1,12 +1,7 @@
 /*
  *   Light-O-Rama (LOR) channel output driver for Falcon Player (FPP)
  *
- *   Copyright (C) 2013-2018 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
+ *   Copyright (C) 2013-2019 the Falcon Player Developers
  *      For additional credits and developers, see credits.php.
  *
  *   The Falcon Player (FPP) is free software; you can redistribute it
@@ -26,8 +21,29 @@
 #ifndef _LOR_H
 #define _LOR_H
 
-#include "channeloutput.h"
+#include "ChannelOutputBase.h"
 
-extern FPPChannelOutput LOROutput;
+class LOROutputData;
+
+class LOROutput : public ChannelOutputBase {
+    public:
+    LOROutput(unsigned int startChannel, unsigned int channelCount);
+    virtual ~LOROutput();
+    
+    virtual int Init(Json::Value config) override;
+    virtual int Init(char *configStr) override;
+    
+    virtual int Close(void) override;
+    
+    virtual int SendData(unsigned char *channelData) override;
+    
+    virtual void DumpConfig(void) override;
+    
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
+
+    private:
+    LOROutputData *data;
+};
+
 
 #endif /* _LOR_H */

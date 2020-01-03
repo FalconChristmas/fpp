@@ -32,6 +32,15 @@
 #include "serialutil.h"
 #include "USBRelay.h"
 
+
+
+
+extern "C" {
+    USBRelayOutput *createOutputUSBRelay(unsigned int startChannel,
+                                         unsigned int channelCount) {
+        return new USBRelayOutput(startChannel, channelCount);
+    }
+}
 /////////////////////////////////////////////////////////////////////////////
 
 /*
@@ -47,8 +56,6 @@ USBRelayOutput::USBRelayOutput(unsigned int startChannel,
 {
 	LogDebug(VB_CHANNELOUT, "USBRelayOutput::USBRelayOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 32;
 }
 
 /*
@@ -57,6 +64,10 @@ USBRelayOutput::USBRelayOutput(unsigned int startChannel,
 USBRelayOutput::~USBRelayOutput()
 {
 	LogDebug(VB_CHANNELOUT, "USBRelayOutput::~USBRelayOutput()\n");
+}
+
+void USBRelayOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_relayCount - 1);
 }
 
 /*
@@ -142,7 +153,7 @@ int USBRelayOutput::Close(void)
 /*
  *
  */
-int USBRelayOutput::RawSendData(unsigned char *channelData)
+int USBRelayOutput::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "USBRelayOutput::RawSendData(%p)\n", channelData);
 

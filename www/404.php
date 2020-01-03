@@ -13,5 +13,6 @@
   <div id='rebootFlag' style='display:block;'>404 - PAGE NOT FOUND</div>
 
 <?php	include 'common/footer.inc'; ?>
+</div>
 </body>
 </html>

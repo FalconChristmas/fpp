@@ -33,15 +33,15 @@
 class PlaylistEntryMQTT : public PlaylistEntryBase {
   public:
 	PlaylistEntryMQTT(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryMQTT();
+	virtual ~PlaylistEntryMQTT();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
+	virtual int  StartPlaying(void) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
 
   private:
 	std::string m_topic;

@@ -101,23 +101,29 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 	file_put_contents($filename, $settingsStr);
 }
 
-function IfSettingEqualPrint($setting, $value, $print, $pluginName = "")
+function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
 {
 	global $settings;
 	global $pluginSettings;
 
 	if ($pluginName != "") {
+		if (($defaultValue != "") && !isset($pluginSettings[$setting]))
+			$pluginSettings[$setting] = $defaultValue;
+
 		if ((isset($pluginSettings[$setting])) &&
 			($pluginSettings[$setting] == $value ))
 			echo $print;
 	} else {
+		if (($defaultValue != "") && !isset($settings[$setting]))
+			$settings[$setting] = $defaultValue;
+
 		if ((isset($settings[$setting])) &&
 			($settings[$setting] == $value ))
 			echo $print;
 	}
 }
 
-function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "")
+function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0)
 {
 	global $settings;
 	global $pluginSettings;
@@ -144,7 +150,7 @@ function " . $setting . "Changed() {
 	}
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.success(function() {
+		.done(function() {
 			if (checked)
 				$.jGrowl('$title Enabled');
 			else
@@ -153,7 +159,7 @@ function " . $setting . "Changed() {
 ";
 
 if ($restart)
-	echo "SetRestartFlag();\n";
+	echo "SetRestartFlag($restart);\n";
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
@@ -174,7 +180,7 @@ echo "
 
 <input type='checkbox' id='$setting' ";
 
-	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName);
+	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName, $defaultValue);
 
 	echo " onChange='" . $setting . "Changed();'>\n";
 }
@@ -204,14 +210,14 @@ function " . $setting . "Changed() {
 	var value = $('#$setting').val();
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('$title saved');
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
 
 if ($restart)
-	echo "SetRestartFlag();\n";
+	echo "SetRestartFlag($restart);\n";
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
@@ -228,11 +234,11 @@ echo "
 	{
 		echo "<option value='$value'";
 
-		if ($value == $defaultValue)
-			echo " selected";
-		else if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
+		
+		if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
 			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
-
+        else if ($value == $defaultValue)
+            echo " selected";
 		echo ">$key</option>\n";
 	}
 
@@ -264,6 +270,66 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 
 	echo "\">\n";
 }
+function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text")
+{ 
+	global $settings;
+	global $pluginSettings;
+
+	$plugin = "";
+	$settingsName = "settings";
+
+	if ($pluginName != "") {
+		$plugin = "Plugin";
+		$settingsName = "pluginSettings";
+	}
+
+    
+    if ($callbackName != "")
+        $callbackName = $callbackName . "();";
+    if ($changedFunction == "")
+        $changedFunction = $setting . "Changed";
+
+    echo "
+    <script>
+    function " . $setting . "Changed() {
+        var value = $('#$setting').val();
+        $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
+        .done(function() {
+              $.jGrowl('$setting Saved');
+              $settingsName" . "['$setting'] = value;
+              ";
+              
+              if ($restart)
+                echo "SetRestartFlag($restart);\n";
+              if ($reboot)
+                echo "SetRebootFlag();\n";
+              
+              echo "
+              $callbackName
+              CheckRestartRebootFlags();
+              }).fail(function() {
+                      DialogError('$setting', 'Failed to save $setting');
+              });
+    }
+    </script>
+
+    
+    <input type='$inputType' id='$setting' maxlength='$maxlength' size='$size' onChange='" . $changedFunction . "();' value=\"";
+
+	if (isset($settings[$setting]))
+		echo $settings[$setting];
+	elseif (isset($pluginSettings[$setting]))
+		echo $pluginSettings[$setting];
+	else
+		echo $defaultValue;
+
+	echo "\">\n";
+}
+function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "")
+{
+	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password");
+}
+
 
 function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginName = "", $callbackName = "")
 {
@@ -287,14 +353,14 @@ function save" . $setting . "() {
 	var value = $('#$setting').val();
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
-		.success(function() {
+		.done(function() {
 			$.jGrowl('$title saved');
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
 
 if ($restart)
-	echo "SetRestartFlag();\n";
+	echo "SetRestartFlag($restart);\n";
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
@@ -307,6 +373,593 @@ echo "
 </script>
 
 <input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
+}
+
+/**
+ * Returns sequence header info for the specified sequence
+ *
+ * @param $mediaName
+ * @return array
+ */
+function get_sequence_file_info($mediaName){
+	global $settings;
+
+	$total_duration=0;
+	$media_filesize = 0;
+	$filename = $settings['sequenceDirectory'] . "/" . $mediaName;
+
+	$all_data = array(
+		'seqFormatID' => null,
+		'seqChanDataOffset' => null,
+		'seqMinorVersion' => null,
+		'seqMajorVersion' => null,
+		'seqVersion' => null,
+		'seqFixedHeaderSize' => null,
+		'seqStepSize' => null,
+		'seqNumPeriods' => null,
+		'seqStepTime' => null,
+		'seqNumUniverses' => null,
+		'seqUniverseSize' => null,
+		'seqGamma' => null,
+		'seqColorEncoding' => null,
+		'seqDuration' => null,
+		'seqMSRemaining' => null,
+		'seqMediaName' => null
+	);
+	//Make sure it exists first
+	if (!empty($mediaName) & file_exists($filename)) {
+		//Get the filesize
+		$media_filesize = filesize($filename);
+		//Read the sequence
+		$file_handle = fopen($filename, "r");
+		//Read the first 28 bytes for the header
+		while (($data = fread($file_handle, 28)) !== FALSE && strlen($data) == 28) {
+
+			//Break data down and split out the bits, ignore my horrible decoding method lol
+			$all_data['seqFormatID'] = unpack("A*", substr($data, 0, 4))[1]; //uint32 - magic cookie -- Results in FSEQ
+			$all_data['seqChanDataOffset'] = unpack("S*", substr($data, 4, 2))[1]; //uint32 - DataOffset -- only 2 bytes so really uint16 -- checks out on test sequence (1040) & FPPD log output
+			$all_data['seqMinorVersion'] = unpack("C*", substr($data, 6, 1))[1]; //uint8 - Minor Version -- May not be correct decoding - results in 0
+			$all_data['seqMajorVersion'] = unpack("C*", substr($data, 7, 1))[1]; //uint8 - Major version -- -- May not be correct decoding - results in 1... Version 1.0? seems correct
+			//build version
+			$all_data['seqVersion'] = $all_data['seqMajorVersion'] . "." . $all_data['seqMinorVersion'];
+
+			$all_data['seqFixedHeaderSize'] = unpack("S*", substr($data, 8, 2))[1];  //uint16 - FixedHeader: 28 - checks out with FPPD log output
+			$all_data['seqStepSize'] = unpack("L*", substr($data, 10, 4))[1]; //uint32 - StepSize
+			$all_data['seqNumPeriods'] = unpack("L*", substr($data, 14, 4))[1]; //uint32 - NumSteps
+			$all_data['seqStepTime'] = unpack("S*", substr($data, 18, 2))[1]; //uint16 - StepTime (eg 50ms)
+			$all_data['seqNumUniverses'] = unpack("S*", substr($data, 20, 2))[1]; //uint16 - Number of Universes -- Def: 0 //Ignored by Pi Player
+			$all_data['seqUniverseSize'] = unpack("S*", substr($data, 22, 2))[1]; //uint16 - Size of Universes -- Def: 0 //Ignored by Pi Player
+			$all_data['seqGamma'] = unpack("C*", substr($data, 24, 1))[1]; //uint8 - Gamma -- Def: 1?
+			$all_data['seqColorEncoding'] = unpack("C*", substr($data, 25, 1))[1]; //uint8 - Type  -- Def: 2? -- RGB Channels //0=encoded, 1=linear, 2=RGB
+//			$all_data['seqUnusedField'] = unpack("S*", substr($data, 26, 2))[1]; //uint16 - unused
+
+			//VARIABLE HEADER
+			//to read the variable header, seek to offset 28, then read data between 28 and seqChanDataOffset..
+			fseek($file_handle, 28);
+			//only read first 128 bytes just to catch everything, shouldn't need more than this for our purpose
+			$seek_data = fread($file_handle, 128); //$all_data['seqChanDataOffset'] - 28
+			//make sure we have data
+			if ($seek_data !== FALSE && strlen($seek_data) == 128) {
+				//Variable header structures start with:
+				//uint16_t: length of structure (including self)
+				//uint16_t: type code for structure
+				//(Other data in structure)
+
+				//Get the length and type of code
+				$variable_header_len = unpack("S*", substr($seek_data, 0, 2))[1]; //uint16 - header len decodes correct
+				//Vixen 3 and xLights have the next 16 bits identified as 'mf' presumably for 'media  filename'
+				$variable_header_type_of_code = unpack("A*", substr($seek_data, 2, 2))[1]; //uint16 - unsure if decodes correct - treat as string
+
+				//Filename offset starts at 5(Vixen) and 4(xLights) after the header stuff,
+				//this is set correctly with a dirty fix around Vixen
+				$media_filename_data_offset = 5;
+				//is mf or media file then continue else fail so we don't read a non media file variable header
+				if (!empty($variable_header_type_of_code) && ($variable_header_type_of_code == "mf" || strtolower($variable_header_type_of_code) == "mf")) {
+					//In Vixen FSEQ files there is there length value preceding the actual media filename
+					//it's easy to forward the offset by one and this works except there's no wait to tell if we're reading a
+					$fn_length_ident = unpack("C*", substr($seek_data, 4, 1))[1];
+
+					//Get the filename
+					//media filename should start at offset 4, in vixen it's offset 5 due to the length value in offset 4 being the filename length
+					//Length of the substring is the header len - the offset... just so we don't read into the next bit or outside the header
+					$remaining_header_len = ($variable_header_len - $media_filename_data_offset);
+					//For Vixen this is just the media filename
+					//For xLights this is the full path to the media at the time of export
+					$sequenceMediaName = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len))[1]; //decode as string
+
+					//dirty fix for Vixen FSEQ files
+					//In vixen the length of filename string is at offset 4 (then the filename follows)
+					//because we can't tell if the sequence is from Vixen, check the value in offset 4
+					//if we're processing a Vixen sequence then it will match the length of the filename (starting at offset 5)
+					if (strlen($sequenceMediaName) == $fn_length_ident) {
+						//Vixen - do nothing, if we end up here it's likely that we're reading a FSEQ from Vixen
+					} else {
+						//xLights, then move the offset back to 4 (since there is no filename length and we just read the whole lot)
+						//for xLights file names it's the entire path to the media file, so it's going to be unlikely that the integer value of the first character "C" (C:\ - Windows) or "/" (Linux or Mac)
+						//will match the length of the filename so we're safe in stepping back the offset
+						$media_filename_data_offset = 4;
+						$remaining_header_len = ($variable_header_len - $media_filename_data_offset);
+						$sequenceMediaName = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len))[1]; //decode as string
+					}
+
+//					$all_data['variable_header_len'] = $variable_header_len;
+//					$all_data['variable_header_type_of_code'] = $variable_header_type_of_code;
+//					$all_data['variable_header_media_filename'] = unpack("A*", substr($seek_data, $media_filename_data_offset, $remaining_header_len));
+//					$all_data['variable_header_media_offset'] = $media_filename_data_offset;
+//					$all_data['variable_header_filename_len'] = $gs_ident;
+//					$all_data['variable_header_filename_actual_len'] = strlen($sequenceMediaName);
+
+					//Fix up the string by replacing escaped backward slash
+					//then check to see if we can breakdown the string for path info
+					$sequenceMediaName_pathinfo = pathinfo(str_replace("\\", "/", $sequenceMediaName));
+
+					//Get Basename (final filename)
+					if (array_key_exists('basename', $sequenceMediaName_pathinfo) && !empty($sequenceMediaName_pathinfo['basename'])) {
+						//For some reason some xLights sequences
+						$all_data['seqMediaName'] = $sequenceMediaName_pathinfo['basename'];
+					} else {
+						$all_data['seqMediaName'] = "";
+					}
+				} else {
+					error_log("get_sequence_file_info:: Unable to read sequence variable header :: " . $mediaName);
+				}
+			} else {
+				error_log("get_sequence_file_info:: Unable to seek to offset 28 for variable header :: " . $mediaName);
+			}
+
+			//Workout the duration
+			//Time duration: ((NumSteps) * (StepTime) / 1000) seconds
+			$all_data['seqDuration'] = (($all_data['seqNumPeriods']) * ($all_data['seqStepTime']) / 1000);
+			$all_data['seqMSRemaining'] = (($all_data['seqNumPeriods']) * ($all_data['seqStepTime']));
+			$all_data['seqFileSize'] = $media_filesize; //filesize
+
+			//Break the loop, because we don't want to process any further
+			break;
+		}
+		if ($file_handle === FALSE) {
+			error_log("get_sequence_file_info:: Unable to read sequence info for :: " . $mediaName);
+		}
+		fclose($file_handle);
+		unset($data);
+		unset($seek_data);
+	} else {
+		error_log("get_sequence_file_info:: Cannot find sequence :: " . $mediaName);
+	}
+
+	return $all_data;
+}
+
+/**
+ * Retrieving the duration of media files takes roughly 100+ms on a Pi2, over large playlists the delays can add up
+ * to speed things up we'll try cache the durations so we don't unnecessarily keep hitting the media files
+ *
+ * If the the media duration exists in the cache then it's returned, else the returned value is null
+ *
+ * @param $media
+ * @param null $duration_seconds
+ * @return null
+ */
+function media_duration_cache($media, $duration_seconds = null, $filesize = null)
+{
+	global $settings;
+	$config_dir = $settings['configDirectory'];
+	$cache_file = "media_durations.cache";
+	$file_path = $config_dir . "/" .$cache_file ;
+	$time = 86400 * 30; //seconds - cache for 24hrs * 30days
+	$duration_cache = array();
+	$return_duration = null;
+
+	if (!file_exists($file_path) ||  ( time() - filemtime( $file_path ) > $time)) {
+		// cache doesn't exist or expired so lets create it and insert our media entry
+		if ($duration_seconds !== null) {
+			//put the media duration into the cache, but only if it isn't null
+			$duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);
+
+			$return_duration = $duration_seconds;
+			file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT));
+		}
+	} else {
+		//else cache exists and is valid, replaces/append duration to it
+		$duration_cache = file_get_contents($file_path);
+		if ($duration_cache !== FALSE && !empty($duration_cache)) {
+			$duration_cache = json_decode($duration_cache, true);
+			//if file hashes are the same - then it's the same file
+			if (array_key_exists($media, $duration_cache) && $duration_cache[$media]['filesize'] == $filesize) {
+				//Key exists, then return the cached duration
+				$return_duration = $duration_cache[$media]['duration'];
+			} else if ($duration_seconds !== null) {
+				//put the media duration into the cache, but only if it isn't null
+				$duration_cache[$media] = array('filesize' => $filesize, 'duration' => $duration_seconds);;
+				$return_duration = $duration_seconds;
+
+				file_put_contents($file_path, json_encode($duration_cache, JSON_PRETTY_PRINT));
+			}
+		}
+	}
+
+	return $return_duration;
+}
+
+/**
+ * Returns the supplied filesize in bytes in a human readable format
+ * @param $bytes
+ * @param int $decimals
+ * @return string
+ */
+function human_filesize($path) {
+    // cannot use filesize($path) as that returns a signed 32bit number so maxes out at 2GB
+    $kbytes = trim(shell_exec("du -k \"" . $path . "\" | cut -f1 "));
+    if (strlen($kbytes) < 3) {
+        $bytes = filesize($path);
+        $sz = 'BKMGTP';
+        $factor = floor((strlen($bytes) - 1) / 3);
+		if ($factor)
+	        return sprintf("%.2f", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+        return sprintf("%d", $bytes / pow(1024, $factor)) . @$sz[$factor] . ($factor > 0 ?  "B" : "");
+    }
+	$sz = 'KMGTP';
+	$factor = floor((strlen($kbytes) - 1) / 3);
+	return sprintf("%.2f", $kbytes / pow(1024, $factor)) . @$sz[$factor] . "B";
+}
+
+/**
+ * Returns the supplied duration in a human readable format (eg. 03m:55s)
+ * @param $total_duration
+ * @return string
+ */
+function human_playtime($total_duration){
+	$hour_return = "";
+	//So we can leave the hours out if it duration isn't long enough
+	if (floor($total_duration / 3600) > 0) {
+		$hour_return = sprintf("%'02d", floor($total_duration / 3600)) . "h:";
+	}
+
+	return $hour_return . sprintf("%'02d", floor($total_duration / 60) % 60) . "m:" . sprintf("%'02d", $total_duration % 60) . "s";
+}
+
+/**
+ * Returns current memory usage
+ * @return float|int
+ */
+function get_server_memory_usage(){
+	$fh = fopen('/proc/meminfo','r');
+	$total = 0;
+	$free = 0;
+	$buffers = 0;
+	$cached = 0;
+	while ($line = fgets($fh)) {
+		$pieces = array();
+		if (preg_match('/^MemTotal:\s+(\d+)\skB$/', $line, $pieces)) {
+			$total = $pieces[1];
+		} else if (preg_match('/^MemFree:\s+(\d+)\skB$/', $line, $pieces)) {
+			$free = $pieces[1];
+		} else if (preg_match('/^Buffers:\s+(\d+)\skB$/', $line, $pieces)) {
+			$buffers = $pieces[1];
+		} else if (preg_match('/^Cached:\s+(\d+)\skB$/', $line, $pieces)) {
+			$cached = $pieces[1];
+		}
+	}
+	fclose($fh);
+
+	$used = $total - $free - $buffers - $cached;
+	$memory_usage = 1.0 * $used / $total * 100;
+
+	return $memory_usage;
+}
+
+/**
+ * Simple cache for storing data for a specified time interval
+ *
+ * @param $cache_name
+ * @param $data_to_cache
+ * @param int $cache_age
+ * @return mixed|string
+ */
+function file_cache($cache_name, $data_to_cache, $cache_age = 90)
+{
+	$file_path = "/tmp/cache_" . $cache_name . ".cache";
+	$cache_time = $cache_age; //seconds
+
+	$cache_data_return = null;
+	$cache_data = array();
+
+	if (!file_exists($file_path) || (time() - filemtime($file_path) > $cache_time)) {
+		// cache doesn't exist or expired so lets create it and insert our data
+		if ($data_to_cache !== null || $data_to_cache !== "") {
+			//put the supplied data into the cache, but only if it isn't null
+//			$cache_data[$cache_name] = array('data' => $data_to_cache);
+			$cache_data_return = $data_to_cache;
+
+//			exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
+			file_put_contents($file_path, $data_to_cache);
+		}
+	} else {
+		//else cache exists and is valid, replaces/append duration to it
+		$cache_data_contents = file_get_contents($file_path);
+
+//		$handle = fopen($file_path, 'r');
+//		$cache_data_contents = trim(fread($handle,filesize($file_path)));
+//		fclose($handle);
+
+		if ($cache_data_contents !== FALSE && !empty($cache_data_contents)) {
+//			$cache_data = json_decode($cache_data, true);
+			//if file hashes are the same - then it's the same file
+			//if (array_key_exists($cache_name, $cache_data)) {
+			//Key exists, then return the cached duration
+//			$cache_data_return = $cache_data[$cache_name]['data'];
+			$cache_data_return = $cache_data_contents;
+		} else if ($data_to_cache !== null || $data_to_cache !== "") {
+			//put the supplied data into the cache
+//			$cache_data[$cache_name] = array('data' => $data_to_cache);
+			$cache_data_return = $data_to_cache;
+
+//			exec("echo \"$data_to_cache\" | sudo tee $file_path", $output, $return_val);
+			file_put_contents($file_path, $data_to_cache);
+		}
+	}
+	return $cache_data_return;
+}
+
+function get_kernel_version(){
+	$kernel_version = "";
+	$cachefile_name = "kernel_version";
+	$cache_age = 86400;
+
+	$cached_data = file_cache($cachefile_name, NULL, $cache_age);
+	if ($cached_data == NULL) {
+		$kernel_version = exec("uname -r");
+		//cache result
+		file_cache($cachefile_name, $kernel_version, $cache_age);
+	} else {
+		$kernel_version = $cached_data;
+	}
+
+	return $kernel_version;
+}
+
+    
+function get_cpu_stats() {
+    $stats = @file_get_contents("/proc/stat");
+    if ($stats !== false) {
+        // Remove double spaces to make it easier to extract values with explode()
+        $stats = preg_replace("/[[:blank:]]+/", " ", $stats);
+
+        // Separate lines
+        $stats = str_replace(array("\r\n", "\n\r", "\r"), "\n", $stats);
+        $stats = explode("\n", $stats);
+        foreach ($stats as $statLine) {
+            $statLineData = explode(" ", trim($statLine));
+            // Found!
+            if ((count($statLineData) >= 5)
+                && ($statLineData[0] == "cpu")) {
+                return array(
+                    $statLineData[1],
+                    $statLineData[2],
+                    $statLineData[3],
+                    $statLineData[4],
+                    $statLineData[5],
+                    $statLineData[6],
+                    $statLineData[7],
+                );
+            }
+        }
+    }
+    return array(0, 0, 0 ,0);
+}
+    
+/**
+ * Returns average CPU usage
+ * @return mixed
+ */
+function get_server_cpu_usage(){
+    if (!file_exists("/tmp/cpustats.txt")) {
+        $ostats = get_cpu_stats();
+        $vs = sprintf("%d %d %d %d %d %d %d", $ostats[0],$ostats[1], $ostats[2], $ostats[3], $ostats[4], $ostats[5], $ostats[6]);
+        @file_put_contents("/tmp/cpustats.txtt", $vs);
+        usleep(10000);
+    } else {
+        $statLine = @file_get_contents("/tmp/cpustats.txt");
+        $ostats = explode(" ", trim($statLine));
+    }
+    $stats = get_cpu_stats();
+    $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
+    @file_put_contents("/tmp/cpustats.txt", $vs);
+    
+    $user = $stats[0] - $ostats[0];
+    $nice = $stats[1] - $ostats[1];
+    $system = $stats[2] - $ostats[2];
+    $idle = $stats[3] - $ostats[3];
+    $iowait = $stats[4] - $ostats[4];
+    $irq = $stats[5] - $ostats[5];
+    $softirq = $stats[6] - $ostats[6];
+
+    $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq;
+    $val = $idle * 100.0;
+    // 100 - the percent idle
+    $val = 100.0 - ($val / $total);
+    
+	return $val;
+}
+
+/**
+ * Returns server uptime
+ * @param bool $uptime_value_only
+ * @return null|string|string[]
+ */
+function get_server_uptime($uptime_value_only=false){
+	$uptime = exec("uptime", $output, $return_val);
+	if ($return_val != 0)
+		$uptime = "";
+	unset($output);
+	$uptime = preg_replace('/[0-9]+ users?, /', '', $uptime);
+	if ($uptime_value_only) {
+		$uptime_portion = explode(",", $uptime,2)[0];
+		if (!empty($uptime_portion) && stripos($uptime_portion, "up") !== false) {
+			$uptime = trim(explode("up", $uptime_portion, 2)[1]);
+		}
+	}
+	return $uptime;
+}
+
+/**
+ * Returns the FPP head version
+ *
+ * @return mixed|string
+ */
+function get_fpp_head_version(){
+	$fpp_head_version = "Unknown";
+	$cachefile_name = "git_fpp_head_version";
+	$cache_age = 90;
+
+	$cached_data = file_cache($cachefile_name, NULL, $cache_age);
+	if ($cached_data == NULL) {
+		$fpp_head_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ describe --tags", $output, $return_val);
+		if ($return_val != 0)
+			$fpp_head_version = "Unknown";
+		unset($output);
+		//cache result
+		file_cache($cachefile_name, $fpp_head_version, $cache_age);
+	} else {
+		$fpp_head_version = $cached_data;
+	}
+
+	return $fpp_head_version;
+}
+
+/**
+ * Returns the current system Git branch
+ * @return string
+ */
+function get_git_branch(){
+	$git_branch = "";
+	$cachefile_name = "git_branch";
+	$cache_age = 90;
+
+	$cached_data = file_cache($cachefile_name,NULL,$cache_age);
+	if ($cached_data == NULL) {
+		$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
+		if ( $return_val != 0 )
+			$git_branch = "Unknown";
+		unset($output);
+		//cache result
+		file_cache($cachefile_name, $git_branch, $cache_age);
+	}else{
+		$git_branch = $cached_data;
+	}
+
+	return $git_branch;
+}
+
+/**
+ * Returns the version of the local Git branch
+ * @return string
+ */
+function get_local_git_version(){
+	$git_version = "Unknown";
+	$cachefile_name = "local_git_version";
+	$cache_age = 90;
+
+	$cached_data = file_cache($cachefile_name,NULL,$cache_age);
+	if ($cached_data == NULL) {
+		$git_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ rev-parse --short=7 HEAD", $output, $return_val);
+		if ( $return_val != 0 )
+			$git_version = "Unknown";
+		unset($output);
+		//cache result
+		file_cache($cachefile_name, $git_version, $cache_age);
+	}else{
+		$git_version = $cached_data;
+	}
+
+	return $git_version;
+}
+
+/**
+ * Returns version of the remote Git branch for the supplied branch
+ * @return string
+ */
+function get_remote_git_version($git_branch){
+	$git_remote_version = "Unknown";
+
+
+	if (!empty($git_branch) || strtolower($git_branch) != "unknown") {
+		$cachefile_name = "git_" . $git_branch;
+		$cache_age = 90;
+		$git_remote_version = "Unknown";
+
+		//Check the cache for git_<branch>, if null is returned no cache file exists or it's expired, so then off to github
+		$cached_data = file_cache($cachefile_name, NULL, $cache_age);
+		if ($cached_data == NULL) {
+			//if for some reason name resolution fails ping will take roughly 10 seconds to return (Default DNS Timeout 5 seconds x 2 retries)
+			//to try work around this ping the google public DNS @ 8.8.8.8 (to skip DNS) waiting for a reply for max 1 second, if that's ok we have a route to the internet, then it's highly likely DNS will also work
+			$google_dns_ping = exec("ping -q -c 1 -W 1 8.8.8.8 > /dev/null", $output, $return_val);
+			unset($output);
+			if ($return_val == 0){
+				//Google DNS Ping success
+				// this can take a couple seconds to complete so we'll cache it
+				$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+				if ($return_val != 0)
+					$git_remote_version = "Unknown";
+				unset($output);
+			}else{
+				//Google DNS Ping fail - return unknown
+				$git_remote_version = "Unknown";
+			}
+
+			//cache result
+			file_cache($cachefile_name, $git_remote_version, $cache_age);
+		} else {
+			//return the cached version
+			$git_remote_version = $cached_data;
+		}
+
+//        if( ! file_exists( $file )  ||  ( time() - filemtime( $file ) > $time)) {
+//            // this can take a couple seconds to complete so we'll cache it
+//            $ver = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+//            if ( $return_val != 0 )
+//                $ver = "Unknown";
+//            unset($output);
+//
+//            exec("echo \"$ver\" | sudo tee $file", $output, $return_val);
+//            unset($output);
+//        } else {
+//            $handle = fopen($file, 'r');
+//            $ver = trim(fread($handle,filesize($file)));
+//            fclose($handle);
+//        }
+	}
+
+	return $git_remote_version;
+}
+
+function ReplaceIllegalCharacters($input_string)
+{
+	// Removes any of the following characters from the supplied name, can be used to cleanse playlist names, event names etc
+	// Current needed for example it the case of the scheduler since it is still CSV and commas in a playlist name cause issues
+	// Everything is currently replaced with a hyphen ( - )
+
+	// , (comma)
+	// < (less than)
+	// > (greater than)
+	// : (colon)
+	// " (double quote)
+	// / (forward slash)
+	// \ (backslash)
+	// | (vertical bar or pipe)
+	// ? (question mark)
+	// * (asterisk)
+
+	$illegalChars = [',', '<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+	if (!empty($input_string)) {
+
+		for ($ill_index = 0; $ill_index < count($illegalChars); $ill_index++) {
+			$input_string = str_replace($illegalChars[$ill_index], '-', $input_string);
+		}
+
+	}
+
+	return $input_string;
 }
 
 /**
@@ -393,7 +1046,7 @@ function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail
     fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
     fwrite($fp, "pi: " . $emailtoemail . "\n");
     fclose($fp);
-    exec("sudo cp " . $exim4Directory . "./aliases /etc/");
+    exec("sudo cp " . $exim4Directory . "/aliases /etc/");
 }
 
 
@@ -457,6 +1110,9 @@ function prettyPrintJSON( $json )
 }
 
 function DisableOutputBuffering() {
+	// for NGINX, set the X-Accel-Buffering header
+	header('X-Accel-Buffering: no');
+
 	// Turn off output buffering
 	ini_set('output_buffering', 'off');
 
@@ -485,9 +1141,6 @@ function DisableOutputBuffering() {
 
 	ob_implicit_flush(true);
 	flush();
-
-        // for NGINX, set the X-Accel-Buffering header
-        header('X-Accel-Buffering: no');
 }
 
 ?>

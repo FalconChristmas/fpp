@@ -45,7 +45,33 @@
 <table border='1' cellpadding='4' cellspacing='1'>
 <tr><th>WS281x Function</th><th>Raspberry Pi</th></tr>
 <tr><td>Data String #1</td><td>Pin 12 - GPIO18</td></tr>
-<tr><td>Data String #2</td><td>Pin 35 - GPIO19 (Only on A+/B+/B v2)</td></tr>
+<tr><td>Data String #2</td><td>Pin 35 - GPIO19 (Only on 40-pin Pi's)</td></tr>
+<tr><td>Ground</td><td>Pin 25 - GND</td></tr>
+<tr><td>Pixel Power</td><td>Not Connected to Pi</td></tr>
+</table>
+</center>
+<p><b>spixels</b> - The spixels output can drive 16 independent strings of WS2801, APA102, LPD6803, or LPD8806 pixels directly off the Raspberry Pi's GPIO ports by emulating SPI outputs in software.  The data and ground lines attach directly to the Pi while power for the pixels is injected from another source.</b></p>
+<center>
+<b>spixels Output Connections</b><br>
+<table border='1' cellpadding='4' cellspacing='1'>
+<tr><th>WS2801/APA102/LPD Function</th><th>Raspberry Pi</th></tr>
+<tr><td>Data String #1</td><td>Pin 12 - GPIO18</td></tr>
+<tr><td>Data String #2</td><td>Pin 16 - GPIO23</td></tr>
+<tr><td>Data String #3</td><td>Pin 15 - GPIO22</td></tr>
+<tr><td>Data String #4</td><td>Pin 29 - GPIO5</td></tr>
+<tr><td>Data String #5</td><td>Pin 32 - GPIO12</td></tr>
+<tr><td>Data String #6</td><td>Pin 36 - GPIO16</td></tr>
+<tr><td>Data String #7</td><td>Pin 35 - GPIO19</td></tr>
+<tr><td>Data String #8</td><td>Pin 40 - GPIO21</td></tr>
+<tr><td>Data String #9</td><td>Pin 7 - GPIO4</td></tr>
+<tr><td>Data String #10</td><td>Pin 11 - GPIO17</td></tr>
+<tr><td>Data String #11</td><td>Pin 18 - GPIO24</td></tr>
+<tr><td>Data String #12</td><td>Pin 22 - GPIO25</td></tr>
+<tr><td>Data String #13</td><td>Pin 31 - GPIO6</td></tr>
+<tr><td>Data String #14</td><td>Pin 33 - GPIO13</td></tr>
+<tr><td>Data String #15</td><td>Pin 37 - GPIO26</td></tr>
+<tr><td>Data String #16</td><td>Pin 38 - GPIO20</td></tr>
+<tr><td>Clock</td><td>Pin 13 - GPIO27</td></tr>
 <tr><td>Ground</td><td>Pin 25 - GND</td></tr>
 <tr><td>Pixel Power</td><td>Not Connected to Pi</td></tr>
 </table>

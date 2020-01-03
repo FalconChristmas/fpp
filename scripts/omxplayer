@@ -5,5 +5,27 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-exec /usr/bin/omxplayer -o alsa -I -s "$1" 2>&1
+audioOutput=$(getSetting OMXPlayerAudioOutput)
+
+VOLUME=$(getSetting volume)
+if [ "x${VOLUME}" = "x" ]; then
+    VOLUME=75
+fi
+# 75% FPP volume is 87.5% amixer which is around 0dB in omxplayer
+DB=$(echo "((50 + (${VOLUME}/2)) - 87.5) / 2.5 * 3" | bc)
+
+FLAGS=
+if [ "${audioOutput}" == "disabled" ]; then
+    FLAGS="-n -1"
+elif [ "x${audioOutput}" == "x" ]; then
+    FLAGS="-o alsa"
+elif [ "${audioOutput}" == "local" ]; then
+    FLAGS="-o local --vol ${DB}00"
+elif [ "${audioOutput}" == "both" ]; then
+    FLAGS="-o both --vol ${DB}00"
+else
+    FLAGS="-o ${audioOutput}"
+fi
+
+exec /usr/bin/omxplayer $FLAGS -b -I -s "$1" 2>&1
 

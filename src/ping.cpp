@@ -28,6 +28,9 @@ uint16_t in_cksum(uint16_t *addr, unsigned len);
 #define    MAXICMPLEN    76
 #define    MAXPACKET    (65536 - 60 - ICMP_MINLEN)/* max packet size */
 
+static int pingSocket = -1;
+
+
 inline uint16_t in_cksum(uint16_t *addr, unsigned len)
 {
     uint16_t answer = 0;
@@ -56,10 +59,10 @@ inline uint16_t in_cksum(uint16_t *addr, unsigned len)
 }
 
 
-int ping(string target)
+int ping(string target, int timeoutMs)
 {
     
-    int s, i, cc, packlen, datalen = DEFDATALEN;
+    int i, cc, packlen, datalen = DEFDATALEN;
     struct hostent *hp;
     struct sockaddr_in to, from;
     //struct protoent    *proto;
@@ -67,6 +70,7 @@ int ping(string target)
     u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
     u_char outpack[MAXPACKET];
     char hnamebuf[MAXHOSTNAMELEN];
+    
     string hostname;
     struct icmp *icp;
     int ret, fromlen, hlen;
@@ -77,6 +81,12 @@ int ping(string target)
     int /*start_t, */end_t;
     bool cont = true;
     
+    memset(outpack, 0, sizeof(outpack));
+    memset(packet, 0, sizeof(packet));
+    memset(hnamebuf, 0, sizeof(hnamebuf));
+    memset(&to, 0, sizeof(to));
+    memset(&from, 0, sizeof(to));
+
     to.sin_family = AF_INET;
     
     // try to convert as dotted decimal address, else if that fails assume it's a hostname
@@ -105,17 +115,22 @@ int ping(string target)
      return -1;
      }
      */
-    if ( (s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
-    {
-        perror("socket");    /* probably not running as superuser */
-        return -1;
+    if (pingSocket == -1) {
+        if ( (pingSocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
+            perror("socket");    /* probably not running as superuser */
+            return -1;
+        }
     }
     
     icp = (struct icmp *)outpack;
     icp->icmp_type = ICMP_ECHO;
     icp->icmp_code = 0;
     icp->icmp_cksum = 0;
-    icp->icmp_seq = 12345;    /* seq and id must be reflected */
+    
+    int ipad = to.sin_addr.s_addr;
+    ipad >>= 16;
+    ipad &= 0xFFFF;
+    icp->icmp_seq = ipad;    /* seq and id must be reflected */
     icp->icmp_id = getpid();
     
     
@@ -124,7 +139,7 @@ int ping(string target)
     
     gettimeofday(&start, NULL);
     
-    i = sendto(s, (char *)outpack, cc, 0, (struct sockaddr*)&to, (socklen_t)sizeof(struct sockaddr_in));
+    i = sendto(pingSocket, (char *)outpack, cc, 0, (struct sockaddr*)&to, (socklen_t)sizeof(struct sockaddr_in));
     if (i < 0 || i != cc)
     {
         if (i < 0)
@@ -134,14 +149,13 @@ int ping(string target)
     
     // Watch stdin (fd 0) to see when it has input.
     FD_ZERO(&rfds);
-    FD_SET(s, &rfds);
-    // Wait up to one seconds.
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
+    FD_SET(pingSocket, &rfds);
+    tv.tv_sec = 0;
+    tv.tv_usec = timeoutMs * 1000;
     
     while(cont)
     {
-        retval = select(s+1, &rfds, NULL, NULL, &tv);
+        retval = select(pingSocket+1, &rfds, NULL, NULL, &tv);
         if (retval == -1)
         {
             perror("select()");
@@ -150,7 +164,7 @@ int ping(string target)
         else if (retval)
         {
             fromlen = sizeof(sockaddr_in);
-            if ( (ret = recvfrom(s, (char *)packet, packlen, 0,(struct sockaddr *)&from, (socklen_t*)&fromlen)) < 0)
+            if ( (ret = recvfrom(pingSocket, (char *)packet, packlen, 0,(struct sockaddr *)&from, (socklen_t*)&fromlen)) < 0)
             {
                 perror("recvfrom error");
                 return -1;
@@ -170,7 +184,7 @@ int ping(string target)
             if (icp->icmp_type == ICMP_ECHOREPLY)
             {
                 //cout << "Recv: echo reply"<< endl;
-                if (icp->icmp_seq != 12345)
+                if (icp->icmp_seq != ipad)
                 {
                     //cout << "received sequence # " << icp->icmp_seq << endl;
                     continue;
@@ -199,7 +213,7 @@ int ping(string target)
         }
         else
         {
-            //cout << "No data within one seconds.\n";
+            //cout << "No data within 1/4 second.\n";
             return 0;
         }
     }

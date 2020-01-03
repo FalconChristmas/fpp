@@ -27,21 +27,28 @@
 #define _MCP23017_H
 
 #include "ChannelOutputBase.h"
+#include "util/I2CUtils.h"
 
 class MCP23017Output : public ChannelOutputBase {
   public:
 	MCP23017Output(unsigned int startChannel, unsigned int channelCount);
-	~MCP23017Output();
+	virtual ~MCP23017Output();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+	virtual int SendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
+    
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+        addRange(m_startChannel, m_startChannel + m_channelCount - 1);
+    }
+
 
   private:
-	int m_fd;
+	I2CUtils *i2c;
 	int m_deviceID;
 };
 

@@ -1,12 +1,22 @@
+<?php require_once('common.php'); ?>
+<?php include 'common/menuHead.inc'; ?>
 <!DOCTYPE html>
 <html>
 <head>
-<?php require_once('common.php'); ?>
-<?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
 </head>
 <body>
 <?php
+    
+$wifiDrivers = Array();
+$wifiDrivers['External'] = "External";
+$wifiDrivers['Linux Kernel'] = "Kernel";
+    
+$defaultWifiDrivers = "External";
+if (isset($settings['wifiDrivers']) && $settings['wifiDrivers'] == "Realtek") {
+    $settings['wifiDrivers'] == "External";
+}
+    
 
 function PopulateInterfaces()
 {
@@ -22,7 +32,33 @@ function PopulateInterfaces()
   }
 }
 
-
+function printTetheringSelect() {
+    $tetherValues = array();
+    $tetherValues["If no connection"] = 0;
+    $tetherValues["Enabled"] = 1;
+    $tetherValues["Disabled"] = 2;
+    PrintSettingSelect("Enable Tethering", "EnableTethering", 0, 1, "0", $tetherValues);
+}
+function printTetheringTechnology() {
+    $tetherValues = array();
+    $tetherValues["Hostapd"] = 0;
+    $tetherValues["ConnMan"] = 1;
+    PrintSettingSelect("Tether Technology", "TetherTechnology", 0, 1, "0", $tetherValues);
+}
+function printTetheringInterfaces() {
+    $tinterfacesRaw = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep wlan | colrm 6")));
+    $tingerfaces = Array();
+    foreach ($tinterfacesRaw as $iface) {
+        $tinterfaces[$iface] = $iface;
+        echo "<!-- $iface -->\n";
+    }
+    $tiface = ReadSettingFromFile("TetherInterface");
+    if (!isset($tiface) || $tiface == "") {
+        $tiface = "wlan0";
+    }
+    PrintSettingSelect("Tether Interface", "TetherInterface", 0, 1, $tiface, $tinterfaces);
+}
+    
 ?>
 <script>
 
@@ -123,7 +159,7 @@ function SaveDNSConfig()
 	var postData = "command=setDNSInfo&data=" + JSON.stringify(data);
 
 	$.post("fppjson.php", postData
-	).success(function(data) {
+	).done(function(data) {
 		LoadDNSConfig();
 		$.jGrowl(" DNS configuration saved");
 		$('#btnConfigDNS').show();
@@ -204,20 +240,58 @@ function SaveNetworkConfig()
 
 	if (iface.substr(0,4) == "wlan")
 	{
-		data.SSID = $('#eth_ssid').val();
-		data.PSK = $('#eth_psk').val();
+		data.SSID = encodeURIComponent($('#eth_ssid').val());
+		data.PSK = encodeURIComponent($('#eth_psk').val());
+        data.Hidden = $('#eth_hidden').is(':checked');
 	}
 
 	var postData = "command=setInterfaceInfo&data=" + JSON.stringify(data);
 
 	$.post("fppjson.php", postData
-	).success(function(data) {
+	).done(function(data) {
 		LoadNetworkConfig();
 		$.jGrowl(iface + " network interface configuration saved");
 		$('#btnConfigNetwork').show();
 	}).fail(function() {
 		DialogError("Save Network Config", "Save Failed");
 	});
+}
+
+function CreatePersistentNames() {
+    $('#dialog-create-persistent').dialog({
+        resizeable: false,
+        height: 300,
+        width: 500,
+        modal: true,
+        buttons: {
+            "Yes" : function() {
+                $(this).dialog("close");
+                SetRebootFlag();
+                $.get("fppjson.php?command=createPersistentNetNames", "", function() {location.reload(true);});
+            },
+            "No" : function() {
+            $(this).dialog("close");
+            }
+        }
+    });
+}
+function ClearPersistentNames() {
+    $('#dialog-clear-persistent').dialog({
+        resizeable: false,
+        height: 300,
+        width: 500,
+        modal: true,
+        buttons: {
+            "Yes" : function() {
+                $(this).dialog("close");
+                SetRebootFlag();
+                $.get("fppjson.php?command=clearPersistentNetNames", "", function() {location.reload(true);});
+            },
+            "No" : function() {
+            $(this).dialog("close");
+            }
+        }
+    });
 }
 
 function LoadNetworkConfig() {
@@ -230,12 +304,19 @@ function LoadNetworkConfig() {
 }
 
 function CheckDNSCallback(data) {
-	if ((data.PROTO == "static") &&
-		($('#eth_static').is(':checked')) &&
-		($('#dns_dhcp').is(':checked')))
-	{
+	if (data.PROTO == "static") {
+	   if (($('#eth_static').is(':checked')) &&
+		($('#dns_dhcp').is(':checked'))) {
 		$('#dnsWarning').html("Warning: You must manually configure your DNS Server(s) if all network interfaces use static IPs.");
+	   } else {
+                $('#dnsWarning').html("");
+	   }
+	} else if ($('#eth_static').is(':checked') && ($('#eth_gateway').val() == '')) {
+	   $('#dnsWarning').html("Warning: if any interface is using DHCP while another interface is using a static IP address, you WILL need to enter a valid Gateway address.");
+	} else {
+	$('#dnsWarning').html("");
 	}
+
 }
 
 function CheckDNS() {
@@ -247,7 +328,7 @@ function CheckDNS() {
 		iface = 'wlan0';
 	}
 	else if (iface == 'wlan0')
-	{
+   	{
 		iface = 'eth0';
 	}
 
@@ -312,10 +393,15 @@ function GetInterfaceInfo(data,status)
 	$('#eth_netmask').val(data.NETMASK);
 	$('#eth_gateway').val(data.GATEWAY);
 
-	if (data.INTERFACE.substr(0,4) == "wlan")
+	if (data.INTERFACE && data.INTERFACE.substr(0,4) == "wlan")
 	{
 		$('#eth_ssid').val(data.SSID);
 		$('#eth_psk').val(data.PSK);
+        if (data.HIDDEN == "1") {
+            $('#eth_hidden').prop('checked', true);
+        } else {
+            $('#eth_hidden').prop('checked', false);
+        }
 	}
 
 	CheckDNS();
@@ -348,12 +434,22 @@ function setHostName() {
 
 	$.get("fppjson.php?command=setSetting&key=HostName&value="
 		+ $('#hostName').val()
-	).success(function() {
+	).done(function() {
 		$.jGrowl("HostName Saved");
 		refreshFPPSystems();
 	}).fail(function() {
 		DialogError("Save HostName", "Save Failed");
 	});
+}
+
+function setHostDescription() {
+    $.get("fppjson.php?command=setSetting&key=HostDescription&value="
+        + $('#hostDescription').val()
+    ).done(function() {
+        $.jGrowl("HostDescription Saved");
+    }).fail(function() {
+        DialogError("Save HostDescription", "Save Failed");
+    });
 }
 
 </script>
@@ -366,11 +462,27 @@ function setHostName() {
       <div id="InterfaceSettings">
       <fieldset class="fs">
           <legend> Interface Settings</legend>
+<?php
+if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
+?>
+<table>
+<tr>
+<td width = "45%">WIFI Drivers:</td>
+<td width = "55%">
+<?php PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage"); ?>
+</td>
+</tr>
+</table>
+<br>
+<?
+}
+?>
+
           Select an interface name to configure the network information for that interface.<br><br>
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%" valign='top'>Interface Name:</td>
-              <td width = "25%" valign='top'><select id ="selInterfaces" size='2' onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
+              <td width = "25%" valign='top'><select id ="selInterfaces" size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
               <td width = "50%">&nbsp;</td>
             </tr>
             <tr>
@@ -406,11 +518,11 @@ function setHostName() {
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">WPA SSID:</td>
-              <td width = "75%"><input type="text" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"></td>
+              <td width = "75%"><input type="text" name="eth_ssid" id="eth_ssid" size="32" maxlength="32">&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
             </tr>
             <tr>
               <td>WPA Pre Shared key (PSK):</td>
-              <td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
+<td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
             </tr>
             </tr>
           </table>
@@ -418,17 +530,24 @@ function setHostName() {
           <br>
           <input name="btnSetInterface" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update Interface" onClick="SaveNetworkConfig();">        
           <input id="btnConfigNetwork" type="" style="width:135px; display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
+
+        &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type="" style="width:145px;" class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
+        &nbsp;<input id="btnConfigNetworkPersistClear" type="" style="width:145px; " class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
         </fieldset>
         </div>
         <div id="DNS_Servers">
         <br>
         <fieldset class="fs2">
-          <legend>DNS Settings</legend>
+          <legend>Host & DNS Settings</legend>
           <table width="100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">HostName:</td>
               <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
             </tr>
+              <tr>
+                  <td width = "25%">Description:</td>
+                  <td colspan='2'><input id='hostDescription' value='<? if (isset($settings['HostDescription'])) echo $settings['HostDescription']; else echo ('Falcon Player - ' .  $settings['Variant']); ?>' size='30' maxlength='48'> <input type='button' class='buttons' value='Save' onClick='setHostDescription();'></td>
+              </tr>
             <tr>
               <td>&nbsp;</td>
             </tr>
@@ -459,36 +578,68 @@ function setHostName() {
           <input id="btnConfigDNS" type="" style="width:135px; display: none;" class = "buttons" value="Restart DNS" onClick="ApplyDNSConfig();">
 
         </fieldset>
-<br>
+        <br>
         <fieldset class="fs2">
         <legend>Tethering</legend>
-            <? PrintSettingCheckbox("Enable Tethering", "EnableTethering", 0, 1, "1", "0"); ?> Enable Tethering
             <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
+                <td width = "25%">Tethering Mode:</td>
+                <td width = "75%"><? printTetheringSelect(); ?></td>
+            </tr>
+            <tr>
+                <td width = "25%">Tethering Interface:</td>
+                <td width = "75%"><? printTetheringInterfaces(); ?></td>
+            </tr>
+            <tr>
+                <td width = "25%">Tethering Technology:</td>
+                <td width = "75%"><? printTetheringTechnology(); ?></td>
+            </tr>
+            <tr>
                 <td width = "25%">Tethering SSID:</td>
-                <td width = "75%"><? PrintSettingText("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
+                <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
             </tr>
             <tr>
                 <td>Tethering Pre Shared key (PSK):</td>
-                <td><? PrintSettingText("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
+                <td><? PrintSettingTextSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
             </tr>
             </tr>
             </table>
-            <br>
-            <b>Warning:</b> Turning on tethering may make FPP unavailable.  Many WIFI adapters do not support simultaneous tethering and client modes. Having multiple WIFI adapters will work, but it's relatively unpredictable as to which WIFI adapter CONNMAN will bring tethering up on.    Also, enabling tethering disables the automatic IP assignment on the USB0/1 interfaces on the BeagleBones and thus connecting to the BeagleBone via a USB cable will require you to manually set the IP address to 192.168.6.1 (OSX/Linux) or 192.168.7.1 (Windows).
-        </fieldset>
+                <br>
+                <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
+        tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
+192.168.8.1 for Hostapd tethering, but unprecitable for ConnMan (although likely 192.168.0.1).
+<p>
+<? if ($settings['Platform'] == "BeagleBone Black") { ?>
+    On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
+        (OSX/Linux) or 192.168.7.2 (Windows).
+<? } ?>
+<? if ($settings['Platform'] == "Raspberry Pi") { ?>
+    On the Pi Zero, Pi Zero W, and the Pi 3A devices, USB tethering is available if using an appropriate USB cable plugged 
+into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
+<? } ?>
 
-				<br>
-				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between network interfaces
-        <br>
+            </fieldset>
+            <br>
+
+            <fieldset class="fs2">
+                <legend>Interface Routing</legend>
+				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between
+                network interfaces
+                <br>
         </div>
-        </fieldset>
   </fieldset>
-</div>
+
 <div id="dialog-confirm" style="display: none">
 	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
 </div>
+<div id="dialog-clear-persistent" style="display: none">
+<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Clearing out persistent device names can cause interfaces to use different configuration and become unavailable.  Do you wish to proceed?</p>
+</div>
+<div id="dialog-create-persistent" style="display: none">
+    <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persisten device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
+</div>
 <?php include 'common/footer.inc'; ?>
+</div>
 </div>
 </body>
 </html>

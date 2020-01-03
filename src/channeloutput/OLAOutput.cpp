@@ -31,17 +31,22 @@
 
 #include <ola/Logging.h>
 
+extern "C" {
+    OLAOutput *createOLAOutput(unsigned int startChannel,
+                               unsigned int channelCount) {
+        return new OLAOutput(startChannel, channelCount);
+    }
+}
+
 /*
  *
  */
 OLAOutput::OLAOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_client(NULL)
 {
 	LogDebug(VB_CHANNELOUT, "OLAOutput::OLAOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = 1;
 }
 
 /*
@@ -81,7 +86,7 @@ int OLAOutput::Init(Json::Value config)
 
 	ola::InitLogging(ola::OLA_LOG_WARN, ola::OLA_LOG_STDERR);
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -94,9 +99,14 @@ int OLAOutput::Close(void)
 	delete m_client;
 	m_client = NULL;
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
-
+void OLAOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    for (int universe = 0 ; universe < m_universes.size(); universe++) {
+        Universe u = m_universes[universe];
+        addRange(u.startChannel, u.startChannel + u.channelCount);
+    }
+}
 /*
  *
  */
@@ -140,6 +150,6 @@ void OLAOutput::DumpConfig(void)
 		LogDebug(VB_CHANNELOUT, "        Channel Count: %d\n", u.channelCount);
 	}
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

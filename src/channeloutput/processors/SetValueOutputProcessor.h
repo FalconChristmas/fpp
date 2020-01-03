@@ -25,9 +25,13 @@ public:
     SetValueOutputProcessor(const Json::Value &config);
     virtual ~SetValueOutputProcessor();
     
-    virtual void ProcessData(unsigned char *channelData) const;
+    virtual void ProcessData(unsigned char *channelData) const override;
     
-    virtual OutputProcessorType getType() const { return SETVALUE; }
+    virtual OutputProcessorType getType() const override { return SETVALUE; }
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+        addRange(start, start + count - 1);
+    }
 
 protected:
     int start;

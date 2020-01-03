@@ -35,24 +35,26 @@ class PlaylistEntryScript : public PlaylistEntryBase {
 	PlaylistEntryScript(PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryScript();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
-	int  Stop(void);
+	virtual int  StartPlaying(void) override;
+    virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	int  HandleSigChild(pid_t pid);
+    
+    bool isChildRunning();
+	virtual void Dump(void) override;
 
-	void Dump(void);
-
-	Json::Value GetConfig(void);
-
+	virtual Json::Value GetConfig(void) override;
+    virtual Json::Value GetMqttStatus(void) override;
 	std::string GetScriptName(void) { return m_scriptFilename; }
 
   private:
-	void RunScript(void);
-
 	std::string        m_scriptFilename;
-	int                m_blocking;
+	std::string        m_scriptArgs;
+	bool                m_blocking;
+    int                 m_scriptProcess;
+    long long           m_startTime;
 };
 
 #endif

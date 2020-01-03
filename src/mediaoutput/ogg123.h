@@ -36,11 +36,11 @@
 class ogg123Output : public MediaOutputBase {
   public:
 	ogg123Output(std::string mediaFilename, MediaOutputStatus *status);
-	~ogg123Output();
+	virtual ~ogg123Output();
 
-	int  Start(void);
-	int  Stop(void);
-	int  Process(void);
+	virtual int  Start(void) override;
+	virtual int  Stop(void) override;
+	virtual int  Process(void) override;
 
   private:
 	void PollMusicInfo(void);

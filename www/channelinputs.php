@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <?php
@@ -64,37 +65,14 @@ $(document).ready(function() {
 	});
 
 	$('#frmUniverses').submit(function(event) {
-			 event.preventDefault();
-			 var success = validateUniverseData();
-			 if(success == true)
-			 {
-				 dataString = $("#frmUniverses").serializeArray();
-
-				 enabled = {};
-				 enabled.name = "enabled";
-				 enabled.value = 1;
-
-				 dataString.push(enabled);
-
-				 $.ajax({
-						type: "post",
-						url: "fppjson.php",
-						dataType:"text",
-						data: dataString,
-						success: function (response) {
-								getUniverses('FALSE', 1);
-								$.jGrowl("E1.31 Universes Saved");
-								SetRestartFlag();
-						}
-				}).fail( function() {
-					DialogError("Save E1.31 Universes", "Save Failed");
-				});
-				return false;
-			 }
-			 else
-			 {
-			   DialogError("Save E1.31 Universes", "Validation Failed");
-			 }
+         event.preventDefault();
+         var success = validateUniverseData();
+         if(success == true) {
+             postUniverseJSON(true);
+             return false;
+         } else {
+             DialogError("Save E1.31 Universes", "Validation Failed");
+         }
 	});
 });
 
@@ -216,6 +194,10 @@ tr.rowUniverseDetails td
 	text-align: center;
 	width: 100%;
 }
+#tblUniverses input[type=number] {
+    text-align: center;
+    width: 100%;
+}
 
 </style>
 
@@ -230,7 +212,7 @@ tr.rowUniverseDetails td
 		<div class='title'>Channel Inputs</div>
 		<div id="tabs">
 			<ul>
-				<li><a href="#tab-e131">E1.31 Bridge</a></li>
+				<li><a href="#tab-e131">E1.31/ArtNet Bridge</a></li>
 			</ul>
 
 <!-- --------------------------------------------------------------------- -->
@@ -238,16 +220,15 @@ tr.rowUniverseDetails td
 			<div id='tab-e131'>
 				<div id='divE131'>
 					<fieldset class="fs">
-						<legend> E1.31 Bridge Mode Universes </legend>
+						<legend> E1.31/ArtNet Bridge Mode Universes </legend>
 						<div id='divE131Data'>
 
   <div style="overflow: hidden; padding: 10px;">
-	E1.31 Bridge Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
-	<br><br>
+	<br>
 
     <div>
       <form>
-        Universe Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
+        Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
       </form>
     </div>
     <form id="frmUniverses">

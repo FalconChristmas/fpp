@@ -33,18 +33,19 @@
 class PlaylistEntryVolume : public PlaylistEntryBase {
   public:
 	PlaylistEntryVolume(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryVolume();
+	virtual ~PlaylistEntryVolume();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
+	virtual int  StartPlaying(void) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	Json::Value GetConfig(void) override;
 
   private:
 	int                  m_volume;
+    bool                 m_volAdjust;
 };
 
 #endif

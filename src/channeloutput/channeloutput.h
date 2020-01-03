@@ -26,7 +26,9 @@
 #ifndef _CHANNELOUTPUT_H
 #define _CHANNELOUTPUT_H
 
+#include <vector>
 #include <pthread.h>
+#include <stdint.h>
 
 #define FPPD_MAX_CHANNEL_OUTPUTS   64
 
@@ -35,22 +37,27 @@ class OutputProcessors;
 
 typedef struct fppChannelOutput {
 	int              (*maxChannels)(void *data);
-	int              (*open)(char *device, void **privDataPtr);
+	int              (*open)(const char *device, void **privDataPtr);
 	int              (*close)(void *data);
 	int              (*isConfigured)(void);
 	int              (*isActive)(void *data);
-	int              (*send)(void *data, char *channelData, int channelCount);
+	int              (*send)(void *data, const char *channelData, int channelCount);
 	int              (*startThread)(void *data);
 	int              (*stopThread)(void *data);
 } FPPChannelOutput;
 
-typedef struct fppChannelOutputInstance {
-	unsigned int      startChannel;
-	unsigned int      channelCount;
-	FPPChannelOutput *outputOld;
-	ChannelOutputBase *output;
-	void             *privData;
-} FPPChannelOutputInstance;
+class FPPChannelOutputInstance {
+public:
+    FPPChannelOutputInstance() {}
+    ~FPPChannelOutputInstance() {}
+    
+	unsigned int      startChannel = 0;
+	unsigned int      channelCount = 0;
+	FPPChannelOutput  *outputOld = nullptr;
+	ChannelOutputBase *output = nullptr;
+	void              *privData = nullptr;
+    void              *libHandle = nullptr;
+};
 
 extern char            channelData[];
 extern pthread_mutex_t channelDataLock;
@@ -59,11 +66,14 @@ extern float           mediaElapsedSeconds;
 extern OutputProcessors outputProcessors;
 
 int  InitializeChannelOutputs(void);
-int  SendChannelData(char *channelData);
-int  CloseChannelOutputs(void);
+int  PrepareChannelData(char *channelData);
+int  SendChannelData(const char *channelData);
+void CloseChannelOutputs(void);
 void SetChannelOutputFrameNumber(int frameNumber);
 void ResetChannelOutputFrameNumber(void);
 void StartOutputThreads(void);
 void StopOutputThreads(void);
+
+const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges();
 
 #endif /* _CHANNELOUTPUT_H */

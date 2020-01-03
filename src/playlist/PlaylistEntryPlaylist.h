@@ -32,16 +32,16 @@
 class PlaylistEntryPlaylist : public PlaylistEntryBase {
   public:
 	PlaylistEntryPlaylist(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryPlaylist();
+	virtual ~PlaylistEntryPlaylist();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
+	virtual int  StartPlaying(void) override;
+	virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	void Dump(void);
-	Json::Value GetConfig(void);
+	virtual void Dump(void) override;
+	virtual Json::Value GetConfig(void) override;
 
   private:
 	std::string    m_playlistName;

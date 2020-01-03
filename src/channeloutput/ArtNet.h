@@ -28,6 +28,7 @@
 
 #include <sys/uio.h>
 #include <netinet/in.h>
+#include <vector>
 
 #include "UDPOutput.h"
 
@@ -35,23 +36,33 @@
 
 class ArtNetOutputData : public UDPOutputData {
 public:
-    ArtNetOutputData(const Json::Value &config);
+    explicit ArtNetOutputData(const Json::Value &config);
     virtual ~ArtNetOutputData();
     
-    virtual bool IsPingable();
-    virtual void PrepareData(unsigned char *channelData);
-    virtual void CreateMessages(std::vector<struct mmsghdr> &ipMsgs);
-    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs);
-    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs);
-    virtual void DumpConfig();
+    virtual bool IsPingable() override;
     
+    virtual void PrepareData(unsigned char *channelData,
+                             std::vector<struct mmsghdr> &uniMsgs,
+                             std::vector<struct mmsghdr> &bcstMsgs) override;
+    virtual void PostPrepareData(unsigned char *channelData,
+                                 std::vector<struct mmsghdr> &uniMsgs,
+                                 std::vector<struct mmsghdr> &bcstMsgs) override;
+
+    
+    virtual void DumpConfig() override;
+    virtual void GetRequiredChannelRange(int &min, int & max) override;
+    
+    virtual const std::string &GetOutputTypeString() const override;
+
     int           universe;
+    int           universeCount;
     int           priority;
     char          sequenceNumber;
     
     sockaddr_in   anAddress;
-    struct iovec  anIovecs[2];
-    unsigned char anBuffer[ARTNET_HEADER_LENGTH];
+    
+    std::vector<struct iovec>  anIovecs;
+    std::vector<unsigned char *> anHeaders;
 };
 
 #endif /* _ARTNET_H */

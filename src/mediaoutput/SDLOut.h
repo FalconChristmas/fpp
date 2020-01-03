@@ -35,11 +35,11 @@ class SDLOutput : public MediaOutputBase {
     SDLOutput(const std::string &mediaFilename, MediaOutputStatus *status, const std::string &videoOut);
 	virtual ~SDLOutput();
 
-	virtual int  Start(void);
-	virtual int  Stop(void);
-	virtual int  Process(void);
-    virtual int  Close(void);
-    virtual int  IsPlaying(void);
+	virtual int  Start(void) override;
+	virtual int  Stop(void) override;
+	virtual int  Process(void) override;
+    virtual int  Close(void) override;
+    virtual int  IsPlaying(void) override;
 
     
     static bool IsOverlayingVideo();

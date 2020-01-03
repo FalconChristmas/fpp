@@ -28,7 +28,9 @@
 #include <strings.h>
 #include <unistd.h>
 #include <sys/wait.h>
-
+#include <fstream>
+#include <thread>
+#include <chrono>
 
 #define BBB_PRU  0
 //  #define USING_PRU_RAM
@@ -40,11 +42,21 @@
 #include "common.h"
 #include "log.h"
 #include "BBBSerial.h"
-#include "BBBUtils.h"
 #include "settings.h"
+
+#include "util/BBBUtils.h"
+
 
 //reserve the TOP 84K for DMX/PixelNet data
 #define DDR_RESERVED 84*1024
+
+
+extern "C" {
+    BBBSerialOutput *createOutputBBBSerial(unsigned int startChannel,
+                                  unsigned int channelCount) {
+        return new BBBSerialOutput(startChannel, channelCount);
+    }
+}
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -54,7 +66,7 @@
  */
 BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 	unsigned int channelCount)
-    : ChannelOutputBase(startChannel, channelCount),
+    : ThreadedChannelOutputBase(startChannel, channelCount),
     m_pixelnet(0),
     m_lastData(NULL),
     m_curData(NULL),
@@ -64,7 +76,6 @@ BBBSerialOutput::BBBSerialOutput(unsigned int startChannel,
 {
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::BBBSerialOutput(%u, %u)\n",
             startChannel, channelCount);
-    m_useOutputThread = 1;
 }
 
 /*
@@ -79,61 +90,25 @@ BBBSerialOutput::~BBBSerialOutput()
     if (m_pru) delete m_pru;
 }
 
-static int pinGPIOs[] = {
-    21,
-    19,
-    17,
-    15,
-    16,
-    14,
-    20,
-    18
-};
-static const char * bbPinNames[] = {
-    "P9_25",
-    "P9_27",
-    "P9_28",
-    "P9_29",
-    "P9_30",
-    "P9_31",
-    "P9_91",
-    "P9_92",
-};
-
-static const char * pbPinNames[] = {
-    "P1_29",
-    "P2_34",
-    "P2_30",
-    "P1_33",
-    "P2_32",
-    "P1_36",
-    "P2_28",
-    "P1_31",
-};
-
-
-static void configurePRUPins(int start, int end, const char *mode) {
-    const char ** pinNames = bbPinNames;
-    if (getBeagleBoneType() == PocketBeagle) {
-        pinNames = pbPinNames;
-    }
-    for (int x = start; x < end; x++) {
-        configBBBPin(pinNames[x], 3, pinGPIOs[x], mode);
-    }
-}
 
 static void compileSerialPRUCode(std::vector<std::string> &sargs) {
+
     pid_t compilePid = fork();
     if (compilePid == 0) {
+        std::string log;
         char * args[sargs.size() + 3];
-        args[0] = "/bin/bash";
-        args[1] = "/opt/fpp/src/pru/compileSerial.sh";
+        args[0] = (char *)"/bin/bash";
+        args[1] = (char *)"/opt/fpp/src/pru/compileSerial.sh";
+
+        log = args[1];
         
         for (int x = 0; x < sargs.size(); x++) {
             args[x + 2] = (char*)sargs[x].c_str();
+            log += " " + sargs[x];
         }
         args[sargs.size() + 2] = NULL;
-        
+        LogDebug(VB_CHANNELOUT, "BBBSerial::compilePRUCode() args: %s\n", log.c_str());
+
         execvp("/bin/bash", args);
     } else {
         wait(NULL);
@@ -162,24 +137,18 @@ int BBBSerialOutput::Init(Json::Value config)
 #ifdef USING_PRU_RAM
     args.push_back("-DUSING_PRU_RAM");
 #endif
-    if (m_pixelnet) {
-        //pixelnet takes 45ms to send so we need to
-        //use a background thread just in case we have a 25ms
-        //sequence.   The main thread would get blocked.
-        m_useOutputThread = 1;
-    }
 
-    m_startChannels.resize(config["outputs"].size());
+    m_startChannels.resize(m_outputs);
 
     // Initialize the ouputs
     for (int i = 0; i < m_outputs; i++) {
-        m_startChannels[i] = 0;
+        m_startChannels[i] = -1;
     }
 
     int maxChannel = 0;
     int maxLen = 0;
     for (int i = 0; i < config["outputs"].size(); i++) {
-	Json::Value s = config["outputs"][i];
+        Json::Value s = config["outputs"][i];
 
         m_startChannels[s["outputNumber"].asInt()] = s["startChannel"].asInt() - 1;
         int l = s["channelCount"].asInt();
@@ -190,7 +159,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
     m_channelCount = 0;
     for (int i = 0; i < m_outputs; i++) {
-        if (m_channelCount < m_startChannels[i]) {
+        if (m_startChannels[i] >= 0 && m_channelCount < m_startChannels[i]) {
             m_channelCount = m_startChannels[i];
         }
     }
@@ -210,29 +179,74 @@ int BBBSerialOutput::Init(Json::Value config)
         args.push_back("-DRUNNING_ON_PRU0");
     }
     
-    if (config["device"] == "F4-B") {
-        args.push_back("-DONLYA");
-        configurePRUPins(0, 4, mode);
-    } else if (config["device"] == "F8-B-16" || config["device"] == "F8-B-EXP-32") {
-        args.push_back("-DONLYB");
-        configurePRUPins(4, 8, mode);
-    } else if (config["device"] == "F32-B") {
-        args.push_back("-DF32B");
-        configurePRUPins(0, 8, mode);
+    std::string dirname = "bbb";
+    std::string verPostf = "";
+    if (getBeagleBoneType() == PocketBeagle) {
+        dirname = "pb";
+    }
+    if (config["pinoutVersion"].asString() == "2.x") {
+        verPostf = "-v2";
+    }
+    if (config["pinoutVersion"].asString() == "3.x") {
+        verPostf = "-v3";
+    }
+    Json::Reader reader;
+    Json::Value root;
+    char filename[256];
+    std::string device = config["device"].asString();
+    sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", device.c_str(), verPostf.c_str());
+    if (!FileExists(filename)) {
+        sprintf(filename, "/opt/fpp/capes/%s/strings/%s%s.json", dirname.c_str(), device.c_str(), verPostf.c_str());
+    }
+    int maxOut = 8;
+    int countOut = 0;
+    if (FileExists(filename)) {
+        std::ifstream t(filename);
+        if (!reader.parse(t, root)) {
+            LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", device.c_str(), verPostf.c_str());
+            return 0;
+        }
+        std::ofstream outputFile;
+        outputFile.open("/tmp/SerialPinConfiguration.hp", std::ofstream::out | std::ofstream::trunc);
+
+        
+        maxOut = root["serial"].size();
+        for (int x = 0; x < root["serial"].size(); x++)  {
+            const PinCapabilities &pin = PinCapabilities::getPinByName(root["serial"][x]["pin"].asString());
+            if (m_startChannels[x] >= 0) {
+                pin.configPin(mode);
+                countOut++;
+            }
+            outputFile << "#define ser" << std::to_string(x + 1) << "_gpio  " << std::to_string(pin.gpioIdx) << "\n";
+            outputFile << "#define ser" << std::to_string(x + 1) << "_pin  " << std::to_string(pin.gpio) << "\n\n";
+            outputFile << "#define ser" << std::to_string(x + 1) << "_pru30  " << std::to_string(pin.pruPin) << "\n\n";
+        }
+        
+        outputFile.close();
     } else {
-        configurePRUPins(0, 8, mode);
+        LogErr(VB_CHANNELOUT, "No output pin configuration for %s%s\n", device.c_str(), verPostf.c_str());
+        return 0;
     }
     
+    for (int xx = maxOut; xx < m_outputs; xx++) {
+        m_startChannels[xx] = -1;
+    }
+    
+    if (!countOut) {
+        LogInfo(VB_CHANNELOUT, "No Serial Ouput Data needed\n");
+        return 1;
+    }
+    char buf[256];
     if (!m_pixelnet) {
-        char buf[256];
         if (maxLen < 1 || maxLen > 512) {
             maxLen = 512;
         }
         sprintf(buf,"-DDATALEN=%d", (maxLen + 1));
         args.push_back(buf);
     }
+    sprintf(buf,"-DNUMOUT=%d", maxOut);
+    args.push_back(buf);
 
-    
     compileSerialPRUCode(args);
     if (!FileExists(pru_program.c_str())) {
         LogErr(VB_CHANNELOUT, "%s does not exist!\n", pru_program.c_str());
@@ -266,7 +280,15 @@ int BBBSerialOutput::Init(Json::Value config)
         }
     }
     memcpy(m_lastData, m_curData, m_outputs * sz);
-    return ChannelOutputBase::Init(config);
+    return ThreadedChannelOutputBase::Init(config);
+}
+
+void BBBSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    for (int i = 0; i < m_outputs; i++) {
+        if (m_startChannels[i] >= 0) {
+            addRange(m_startChannels[i] + 1, m_pixelnet ? m_startChannels[i] + 4095 : m_startChannels[i] + 511);
+        }
+    }
 }
 
 /*
@@ -276,18 +298,25 @@ int BBBSerialOutput::Close(void)
 {
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close()\n");
 
-    // Send the stop command
-    m_serialData->command = 0xFF;
+    if (m_serialData && m_pru) {
+        // Send the stop command
+        m_serialData->response = 0;
+        m_serialData->command = 0xFF;
+        
+        __asm__ __volatile__("":::"memory");
+        int cnt = 0;
+        while (wait && cnt < 25 && m_serialData->response != 0xFFFF) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            cnt++;
+        }
+        m_pru->stop(m_serialData->response != 0xFFFF ? 0 : 1);
+        
+        delete m_pru;
+        m_pru = NULL;
+    }
     
-    m_pru->stop();
-    
-    delete m_pru;
-    m_pru = NULL;
-    
-    configurePRUPins(0, 8, "gpio");
-
     LogDebug(VB_CHANNELOUT, "BBBSerialOutput::Close() done\n");
-    return ChannelOutputBase::Close();
+    return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -297,6 +326,10 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBBSerialOutput::RawSendData(%p)\n",
             channelData);
+    
+    if (!m_serialData) {
+        return m_channelCount;
+    }
 
      m_curFrame++;
     
@@ -308,6 +341,9 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
     int chCount = m_pixelnet ? 4096 : 512;
 
     for (int i = 0; i < m_outputs; i++) {
+        if (m_startChannels[i] < 0) {
+            continue;
+        }
         // Skip the headers (6 bytes per output for Pixelnet and 1 byte per output
         // for DMX) and index into the proper position in the m_outputs number of
         // bytes in each slice
@@ -355,6 +391,9 @@ int BBBSerialOutput::RawSendData(unsigned char *channelData)
         m_curData = tmp;
     }
 
+    //make sure memory is flushed before command is set to 1
+    __asm__ __volatile__("":::"memory");
+
     // Send the start command
     m_serialData->command = 1;
 
@@ -379,6 +418,7 @@ void BBBSerialOutput::DumpConfig(void)
                  m_pixelnet ? 4096 : 512);
     }
 
-    ChannelOutputBase::DumpConfig();
+    ThreadedChannelOutputBase::DumpConfig();
 }
+
 

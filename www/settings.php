@@ -56,17 +56,19 @@ if (isset($settings['AudioMixerDevice']))
 }
 else if ($settings['Platform'] == "BeagleBone Black")
 {
-	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"");
+	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
+    if ( $return_val )
+    {
+        $AudioMixerDevice = "PCM";
+    }
 }
 
 $MixerDevices = Array();
 exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
-if ( $return_val )
-{
+if ( $return_val || strpos($output[0], "Usage:") === 0) {
 	error_log("Error getting mixer devices!");
-}
-else
-{
+    $AudioMixerDevice = "PCM";
+} else {
 	foreach($output as $device)
 	{
 		$MixerDevices[$device] = $device;
@@ -79,21 +81,12 @@ if ($settings['Platform'] != "BeagleBone Black") {
     $VideoOutputModels['HDMI'] = "--HDMI--";
 }
 $VideoOutputModels['Disabled'] = "--Disabled--";
-$f = fopen($settings['channelMemoryMapsFile'], "r");
-    if ($f == FALSE) {
-        fclose($f);
-    } else {
-        while (!feof($f)) {
-            $line = fgets($f);
-            if ($line == "")
-                continue;
-            $entry = explode(",", $line, 7);
-            $VideoOutputModels[$entry[0]] = $entry[0];
-        }
-        fclose($f);
+if (file_exists($settings['model-overlays'])) {
+    $json = json_decode(file_get_contents($settings['model-overlays']));
+    foreach ($json->models as $value) {
+        $VideoOutputModels[$value->Name] = $value->Name;
     }
-
-    
+}
 
 $backgroundColors = Array();
 $backgroundColors['No Border']   = '';
@@ -110,11 +103,56 @@ $backgroundColors['Purple']    = "800080";
 $backgroundColors['Silver']    = "C0C0C0";
 $backgroundColors['Teal']      = "008080";
 $backgroundColors['White']     = "FFFFFF";
+ 
+$locales = Array();
+if ($handle = opendir($fppDir . '/etc/locale'))
+{
+    while (($file = readdir($handle)) !== false)
+    {
+        if (preg_match('/.json$/', $file))
+        {
+            $file = preg_replace('/.json$/', '', $file);
+            $locales[$file] = $file;
+        }
+    }
+}
     
-$wifiDrivers = Array();
-$wifiDrivers['Realtek'] = "Realtek";
-$wifiDrivers['Linux Kernel'] = "Kernel";
-
+$ledTypes = Array();
+    $ledTypes['Disabled'] = 0;
+    $ledTypes['128x64 I2C (SSD1306)'] = 1;
+    $ledTypes['128x64 Flipped I2C (SSD1306)'] = 2;
+    $ledTypes['128x64 2 Color I2C (SSD1306)'] = 7;
+    $ledTypes['128x64 2 Color Flipped I2C (SSD1306)'] = 8;
+    $ledTypes['128x32 I2C (SSD1306)'] = 3;
+    $ledTypes['128x32 Flipped I2C (SSD1306)'] = 4;
+    $ledTypes['128x64 I2C (SH1106)'] = 5;
+    $ledTypes['128x64 Flipped I2C (SH1106)'] = 6;
+    $ledTypes['128x128 I2C (SSD1327)'] = 9;
+    $ledTypes['128x128 Flipped I2C (SSD1327)'] = 10;
+    
+$AudioFormats = Array();
+    $AudioFormats['Default'] = 0;
+    $AudioFormats['44100/S16'] = 1;
+    $AudioFormats['44100/S32'] = 2;
+    $AudioFormats['44100/FLT'] = 3;
+    $AudioFormats['48000/S16'] = 4;
+    $AudioFormats['48000/S32'] = 5;
+    $AudioFormats['48000/FLT'] = 6;
+    $AudioFormats['96000/S16'] = 7;
+    $AudioFormats['96000/S32'] = 8;
+    $AudioFormats['96000/FLT'] = 9;
+    
+    
+$BBBLeds = Array();
+    $BBBLeds['Disabled'] = "none";
+    $BBBLeds['Heartbeat'] = "heartbeat";
+    $BBBLeds['SD Card Activity'] = "mmc0";
+    $BBBLeds['eMMC Activity'] = "mmc1";
+    $BBBLeds['CPU Activity'] = "cpu";
+    
+$BBBPowerLed = Array();
+    $BBBPowerLed['Disabled'] = 0;
+    $BBBPowerLed['Enabled'] = 1;
 
 function PrintStorageDeviceSelect($platform)
 {
@@ -145,8 +183,10 @@ function PrintStorageDeviceSelect($platform)
         unset($output);
     }
 
+	$storageDevice = "";
 	exec('grep "fpp/media" /etc/fstab | cut -f1 -d" " | sed -e "s/\/dev\///"', $output, $return_val);
-	$storageDevice = $output[0];
+	if (isset($output[0]))
+		$storageDevice = $output[0];
 	unset($output);
 
 	$found = 0;
@@ -225,6 +265,21 @@ function PrintStorageDeviceSelect($platform)
 <link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
 <script>
 
+function checkForStorageCopy() {
+    $.msgBox({
+             title: "Copy settings?",
+             content: "Would you like to copy all files to the new storage location?\nAll settings on the new storage will be overwritten.",
+             type: "info",
+             buttons: [{ value: "Yes" }, { value: "No" }],
+             success: function (result) {
+                 storageDeviceChanged();
+                 if (result == "Yes") {
+                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val();
+                 }
+            }
+        });
+}
+
 function checkFormatStorage()
 {
     var value = $('#storageDevice').val();
@@ -248,14 +303,14 @@ function checkFormatStorage()
                     $.ajax({ url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
                         async: false,
                         success: function(data) {
-                           storageDeviceChanged();
+                           checkForStorageCopy();
                         },
                         failure: function(data) {
                         DialogError("Formate Storage", "Error formatting storage.");
                         }
                         });
                     } else {
-                        storageDeviceChanged();
+                        checkForStorageCopy();
                     }
                  }
                  });
@@ -343,6 +398,7 @@ function SetAudio()
 {
 	$.get("fppjson.php?command=setSetting&key=AudioOutput&value="
 		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
+    location.reload();
 }
 
 function SetMixerDevice()
@@ -358,13 +414,6 @@ function ToggleLCDNow()
 		+ enabled).fail(function() { alert("Failed to enable LCD!") });
 }
 
-function ToggleTetherMode()
-{
-    var enabled = $('#BBB_Tethering').is(":checked");
-    $.get("fppxml.php?command=setBBBTether&enabled="
-          + enabled).fail(function() { alert("Failed to disable Tethering!") });
-}
-
 </script>
 <title><? echo $pageTitle; ?></title>
 </head>
@@ -378,28 +427,7 @@ function ToggleTetherMode()
 <legend>FPP Global Settings</legend>
   <table table width = "100%">
 <?php
-    if ($settings['Platform'] == "BeagleBone Black")
-    {
-        exec('cat /proc/device-tree/model', $output, $return_val);
-        if (in_array('Wireless', $output) || strpos($output[0], 'Wireless') !== false ) {
-?>
-    <tr>
-        <td width = "45%">BBB Tethering:</td>
-        <td width = "55%"><? PrintSettingCheckbox("BBB Tethering", "BBB_Tethering", 0, 1, "1", "0", "", "ToggleTetherMode"); ?></td>
-    </tr>
-<?php
-        }
-?>
-    
-    <tr>
-        <td width = "45%">WIFI Drivers:</td>
-        <td width = "55%">
-        <? PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : "Realtek", $wifiDrivers, "", "reloadPage"); ?>
-        </td>
-    </tr>
-
-<?php
-    } else {
+    if ($settings['Platform'] == "Raspberry Pi") {
 ?>
     <tr>
       <td width = "45%">Blank screen on startup:</td>
@@ -422,40 +450,72 @@ function ToggleTetherMode()
 ?>
     <tr>
       <td>Always transmit channel data:</td>
-      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 1, 0, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 2, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Blank between sequences:</td>
-      <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 1, 0, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 2, 0, "1", "0"); ?></td>
     </tr>
     <tr>
       <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
-      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 1, 0, "1", "0"); ?></td>
+      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 2, 0, "1", "0"); ?></td>
     </tr>
     <tr>
-        <td>Default Video Output Device:</td>
-        <td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, $settings['videoOutput'], $VideoOutputModels); ?></td>
+      <td>Default Video Output Device:</td>
+<td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, isset($settings['videoOutput']) ? $settings['videoOutput'] : array_values($VideoOutputModels)[0], $VideoOutputModels); ?></td>
     </tr>
+<?php
+ if ($settings['Platform'] == "Raspberry Pi") {
+?>
     <tr>
-      <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 1, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
-    </tr>
-    <tr>
-      <td>Audio Output Mixer Device:</td>
-      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 1, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
+      <td>OMXPlayer (mp4 playback) Audio Output:</td>
+      <td><? PrintSettingSelect("OMXPlayer Audio Device", "OMXPlayerAudioOutput", 0, 0, isset($settings['OMXPlayerAudioOutput']) ? $settings['OMXPlayerAudioOutput'] : "0",
+                                Array("ALSA" => "alsa", "HDMI" => "hdmi", "Local" => "local", "Both" => "both", "Disabled" => "disabled")); ?>
+     </td>
     </tr>
     <tr>
       <td>Disable IP announcement during boot:</td>
       <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
     </tr>
+<?php
+ }
+?>
+    <tr>
+      <td>Audio Output Device:</td>
+      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 2, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
+    </tr>
+    <tr>
+      <td>Audio Output Mixer Device:</td>
+      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 2, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
+    </tr>
+    <tr>
+      <td>Audio Output Format:</td>
+      <td><? PrintSettingSelect("Audio Output Format", "AudioFormat", 2, 0, isset($settings['AudioFormat']) ? $settings['AudioFormat'] : "0", $AudioFormats); ?></td>
+    </tr>
     <tr>
       <td>UI Border Color:</td>
       <td><? PrintSettingSelect("UI Background Color", "backgroundColor", 0, 0, isset($settings['backgroundColor']) ? $settings['backgroundColor'] : "", $backgroundColors, "", "reloadPage"); ?></td>
     </tr>
+<? if ($settings['SubPlatform'] != "Docker" ) { ?>
     <tr>
-      <td>External Storage Device:</td>
+      <td>Storage Device:</td>
       <td><? PrintStorageDeviceSelect($settings['Platform']); ?></td>
     </tr>
+<? }
+   if ( file_exists("/dev/i2c-1") || file_exists("/dev/i2c-2") ) { ?>
+    <tr>
+        <td>OLED Status Display:</td>
+        <td><? PrintSettingSelect("OLED Status Display", "LEDDisplayType", 0, 1, isset($settings['LEDDisplayType']) ? $settings['LEDDisplayType'] : "", $ledTypes); ?>
+        </td>
+    </tr>
+<? } ?>
+
+    <tr>
+      <td>Locale:</td>
+      <td><? PrintSettingSelect("Locale", "Locale", 2, 0, isset($settings['Locale']) ? $settings['Locale'] : "global", $locales); ?>
+     </td>
+    </tr>
+
     <tr>
       <td>Log Level:</td>
       <td><select id='LogLevel' onChange='LogLevelChanged();'>
@@ -499,6 +559,23 @@ function ToggleTetherMode()
         </table>
       </td>
     </tr>
+<?php
+    if ($settings['Platform'] == "BeagleBone Black") {
+?>
+    <tr>
+        <td valign='top'>BeagleBone LEDs:</td>
+        <td>
+            <table border=0 cellpadding=0 cellspacing=5 id='BBBLeds'>
+                <tr><td valign=top>USR0:</td><td><? PrintSettingSelect("USR0 LED", "BBBLeds0", 0, 0, isset($settings['BBBLeds0']) ? $settings['BBBLeds0'] : "heartbeat", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR1:</td><td><? PrintSettingSelect("USR1 LED", "BBBLeds1", 0, 0, isset($settings['BBBLeds1']) ? $settings['BBBLeds1'] : "mmc0", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR2:</td><td><? PrintSettingSelect("USR2 LED", "BBBLeds2", 0, 0, isset($settings['BBBLeds2']) ? $settings['BBBLeds2'] : "cpu", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>USR3:</td><td><? PrintSettingSelect("USR3 LED", "BBBLeds3", 0, 0, isset($settings['BBBLeds3']) ? $settings['BBBLeds3'] : "mmc1", $BBBLeds); ?></td></tr>
+                <tr><td valign=top>Power:</td><td><? PrintSettingSelect("Power LED", "BBBLedPWR", 0, 0, isset($settings['BBBLedPWR']) ? $settings['BBBLedPWR'] : 1, $BBBPowerLed); ?></td></tr>
+            </table>
+        </td>
+    </tr>
+<? } ?>
+
 <tr><td><a href="advancedsettings.php">Advanced Settings</a></td></tr>
   </table>
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=FPP Cape Detection
+Documentation=https://falconchristmas.com/forum/
+Before=fpprtc.service fppinit.service network.target multi-user.target apache2.service fppoled.service
+After=home-fpp-media.mount
+
+[Service]
+ExecStart=/opt/fpp/scripts/detect_cape
+Type=oneshot
+
+[Install]
+WantedBy=default.target

@@ -31,10 +31,8 @@
 #include "Playlist.h"
 #include "PlaylistEntryBase.h"
 
-#define PE_BRANCH_TYPE_UNDEFINED      0
-#define PE_BRANCH_TYPE_CLOCK_TIME     1
-#define PE_BRANCH_TYPE_PLAYLIST_TIME  2
-#define PE_BRANCH_TYPE_LOOP_COUNT     3
+#define PE_BRANCH_TYPE_UNDEFINED      ""
+#define PE_BRANCH_TYPE_CLOCK_TIME     "Time"
 
 #define PE_BRANCH_COMP_MODE_UNDEFINED 0
 #define PE_BRANCH_COMP_MODE_LTEQ      1
@@ -44,20 +42,24 @@
 class PlaylistEntryBranch : public PlaylistEntryBase {
   public:
 	PlaylistEntryBranch(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryBranch();
+	virtual ~PlaylistEntryBranch();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
+	virtual int  StartPlaying(void) override;
 
 	void SetNext(int isTrue);
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
+
+    virtual PlaylistBranchType GetNextBranchType() override { return m_nextBranchType; }
+    virtual std::string  GetNextSection(void) override { return m_nextSection; }
+    virtual int          GetNextItem(void) override { return m_nextItem; }
 
   private:
-	int  m_branchType;
+	std::string  m_branchType;
 	int  m_comparisonMode;
 
 	// Time comparison
@@ -72,10 +74,16 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 	int  m_eDaySecond;
 	int  m_eHourSecond;
 
+    PlaylistBranchType m_trueNextBranchType;
 	std::string m_trueNextSection;
 	int         m_trueNextItem;
+    PlaylistBranchType m_falseNextBranchType;
 	std::string m_falseNextSection;
 	int         m_falseNextItem;
+    
+    PlaylistBranchType m_nextBranchType;
+    std::string  m_nextSection;
+    int          m_nextItem;
 };
 
 #endif

@@ -40,19 +40,28 @@
 #include "settings.h"
 
 
+extern "C" {
+    RPIWS281xOutput *createOutputRPIWS281X(unsigned int startChannel,
+                                           unsigned int channelCount) {
+        return new RPIWS281xOutput(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 // Declare ledstring here since it's needed by the CTRL-C handler.
 // This could be done other/better ways, but this is simplest for now.
 
-ws2811_t ledstring;
+int ledstringCount = 0;
+ws2811_t ledstring[3];
 
 /*
  * CTRL-C handler to stop DMA output
  */
 static void rpi_ws281x_ctrl_c_handler(int signum)
 {
-    ws2811_fini(&ledstring);
+	for (int i = 0; i < ledstringCount; i++)
+		ws2811_fini(&ledstring[i]);
 }
 
 
@@ -60,15 +69,14 @@ static void rpi_ws281x_ctrl_c_handler(int signum)
  *
  */
 RPIWS281xOutput::RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
+	m_ledstringNumber(0),
 	m_string1GPIO(18),
 	m_string2GPIO(19),
 	m_pixels(0)
 {
 	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RPIWS281xOutput(%u, %u)\n",
 		startChannel, channelCount);
-
-	m_maxChannels = FPPD_MAX_CHANNELS;
 }
 
 /*
@@ -95,6 +103,14 @@ int RPIWS281xOutput::Init(Json::Value config)
 		Json::Value s = config["outputs"][i];
 		PixelString *newString = new PixelString();
 
+		if (s.isMember("gpio"))
+		{
+			if (i == 0)
+				m_string1GPIO = s["gpio"].asInt();
+			else if (i == 1)
+				m_string2GPIO = s["gpio"].asInt();
+		}
+
 		if (!newString->Init(s))
 			return 0;
 
@@ -103,31 +119,39 @@ int RPIWS281xOutput::Init(Json::Value config)
 		m_strings.push_back(newString);
 	}
 
-	ledstring.freq   = 800000; // Hard code this for now
-	ledstring.dmanum = 5;
+	m_ledstringNumber = ledstringCount++;
 
-	ledstring.channel[0].gpionum = m_string1GPIO;
-	ledstring.channel[0].count   = m_strings[0]->m_outputChannels / 3;
-	ledstring.channel[0].strip_type = WS2811_STRIP_RGB;
-	ledstring.channel[0].invert  = 0;
-	ledstring.channel[0].brightness  = 255;
+	LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
+	ledstring[m_ledstringNumber].freq   = 800000; // Hard code this for now
+	ledstring[m_ledstringNumber].dmanum = 10;
 
-	ledstring.channel[1].gpionum = m_string2GPIO;
-	ledstring.channel[1].count   = m_strings[1]->m_outputChannels / 3;
-	ledstring.channel[1].strip_type = WS2811_STRIP_RGB;
-	ledstring.channel[1].invert  = 0;
-	ledstring.channel[1].brightness  = 255;
+	ledstring[m_ledstringNumber].channel[0].gpionum = m_string1GPIO;
+	ledstring[m_ledstringNumber].channel[0].count   = m_strings[0]->m_outputChannels / 3;
+	ledstring[m_ledstringNumber].channel[0].strip_type = WS2811_STRIP_RGB;
+	ledstring[m_ledstringNumber].channel[0].invert  = 0;
+	ledstring[m_ledstringNumber].channel[0].brightness  = 255;
 
-	SetupCtrlCHandler();
+	ledstring[m_ledstringNumber].channel[1].gpionum = m_string2GPIO;
+        if (m_strings.size() > 1) {
+	    ledstring[m_ledstringNumber].channel[1].count   = m_strings[1]->m_outputChannels / 3;
+	} else {
+	    ledstring[m_ledstringNumber].channel[1].count   = 0;
+	}
+	ledstring[m_ledstringNumber].channel[1].strip_type = WS2811_STRIP_RGB;
+	ledstring[m_ledstringNumber].channel[1].invert  = 0;
+	ledstring[m_ledstringNumber].channel[1].brightness  = 255;
 
-	int res = ws2811_init(&ledstring);
+	if (m_ledstringNumber)
+		SetupCtrlCHandler();
+
+	int res = ws2811_init(&ledstring[m_ledstringNumber]);
 	if (res)
 	{
 		LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
 		return 0;
 	}
 
-	return ChannelOutputBase::Init(config);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*
@@ -137,11 +161,30 @@ int RPIWS281xOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::Close()\n");
 
-	ws2811_fini(&ledstring);
+	ws2811_fini(&ledstring[m_ledstringNumber]);
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
+void RPIWS281xOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    PixelString *ps = NULL;
+    for (int s = 0; s < m_strings.size(); s++) {
+        ps = m_strings[s];
+        int inCh = 0;
+        int min = FPPD_MAX_CHANNELS;
+        int max = 0;
+        for (int p = 0; p < ps->m_outputChannels; p++) {
+            int ch = ps->m_outputMap[inCh++];
+            if (ch < FPPD_MAX_CHANNELS) {
+                min = std::min(min, ch);
+                max = std::max(max, ch);
+            }
+        }
+        if (min < max) {
+            addRange(min, max);
+        }
+    }
+}
 void RPIWS281xOutput::PrepData(unsigned char *channelData)
 {
 	unsigned char *c = channelData;
@@ -163,7 +206,7 @@ void RPIWS281xOutput::PrepData(unsigned char *channelData)
 			g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 			b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 
-			ledstring.channel[s].leds[pix] =
+			ledstring[m_ledstringNumber].channel[s].leds[pix] =
 				(r << 16) | (g <<  8) | (b);
 		}
 	}
@@ -174,9 +217,9 @@ void RPIWS281xOutput::PrepData(unsigned char *channelData)
  */
 int RPIWS281xOutput::RawSendData(unsigned char *channelData)
 {
-	LogDebug(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
+	LogExcess(VB_CHANNELOUT, "RPIWS281xOutput::RawSendData(%p)\n", channelData);
 
-	if (ws2811_render(&ledstring))
+	if (ws2811_render(&ledstring[m_ledstringNumber]))
 	{
 		LogErr(VB_CHANNELOUT, "ws2811_render() failed\n");
 	}
@@ -195,11 +238,11 @@ void RPIWS281xOutput::DumpConfig(void)
 	{
 		LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
 		LogDebug(VB_CHANNELOUT, "      GPIO       : %d\n",
-			ledstring.channel[i].gpionum);
+			ledstring[m_ledstringNumber].channel[i].gpionum);
 		m_strings[i]->DumpConfig();
 	}
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 
 void RPIWS281xOutput::SetupCtrlCHandler(void)

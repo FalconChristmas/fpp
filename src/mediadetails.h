@@ -1,14 +1,20 @@
 #ifndef __MEDIADETAILS_H__
 #define __MEDIADETAILS_H__
 
-typedef struct mediaDetails {
-	char *title;
-	char *artist;
-	char *album;
+#include <string>
+
+class MediaDetails {
+public:
+    MediaDetails();
+    ~MediaDetails();
+    
+    std::string title;
+    std::string artist;
+    std::string album;
 	int   year;
-	char *comment;
+    std::string comment;
 	int   track;
-	char *genre;
+    std::string genre;
 
 	int length;
 	int seconds;
@@ -17,9 +23,14 @@ typedef struct mediaDetails {
 	int bitrate;
 	int sampleRate;
 	int channels;
-} MediaDetails;
 
-void initMediaDetails(void);
-void ParseMedia(const char *mediaFilename);
+    void ParseMedia(const char *mediaFilename);
+    
+    static MediaDetails INSTANCE;
+    
+private:
+    void clearPreviousMedia();
+
+};
 
 #endif //__MEDIADETAILS_H__

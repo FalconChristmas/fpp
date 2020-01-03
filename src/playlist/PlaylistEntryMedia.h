@@ -29,24 +29,26 @@
 #include <string>
 
 #include "PlaylistEntryBase.h"
-#include "mediaoutput.h"
+#include "mediaoutput/mediaoutput.h"
 
 class PlaylistEntryMedia : public PlaylistEntryBase {
   public:
 	PlaylistEntryMedia(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryMedia();
+	virtual ~PlaylistEntryMedia();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
+    virtual int  PreparePlay();
+	virtual int  StartPlaying(void) override;
+	virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	int  HandleSigChild(pid_t pid);
+	virtual int  HandleSigChild(pid_t pid) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
+	virtual Json::Value GetMqttStatus(void) override;
 
 	std::string GetMediaName(void) { return m_mediaFilename; }
 
@@ -60,6 +62,8 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	float m_mediaSeconds;
 	int   m_speedDelta;
 
+    long long m_openTime;
+    static int m_openStartDelay;
   private:
 	int OpenMediaOutput(void);
 	int CloseMediaOutput(void);

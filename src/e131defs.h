@@ -26,7 +26,7 @@
 #ifndef _E131_DEFS_H
 #define _E131_DEFS_H
 
-#define MAX_UNIVERSE_COUNT    512
+
 #define E131_HEADER_LENGTH    126
 #define MAX_STEPS_OUT_OF_SYNC 2
 
@@ -36,6 +36,7 @@
 #define E131_UNIVERSE_INDEX   113
 #define E131_SEQUENCE_INDEX   111
 #define E131_COUNT_INDEX      123
+#define E131_START_CODE       125
 #define E131_PRIORITY_INDEX   108
 
 #define E131_RLP_COUNT_INDEX       16

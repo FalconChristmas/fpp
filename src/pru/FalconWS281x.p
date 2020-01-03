@@ -50,27 +50,13 @@
 #define T1_TIME_GPIO0     T1_TIME
 #define LOW_TIME_GPIO0    LOW_TIME
 
-
+#ifndef RUNNING_ON_PRU0
 #define RUNNING_ON_PRU1
-
-#if defined F4B
-#include "F4B.hp"
-#elif defined F8B
-#include "F8B.hp"
-#elif defined F8Bv2
-#include "F8Bv2.hp"
-#elif defined F8PB
-#include "F8PB.hp"
-#elif defined RGBCape48C
-#include "RGBCape48C.hp"
-#elif defined RGBCape48F
-#include "RGBCape48F.hp"
-#elif defined RGBCape24
-#include "RGBCape24.hp"
-#else
-#include "F16B.hp"
 #endif
 
+#if __has_include("/tmp/PinConfiguration.hp")
+# include "/tmp/PinConfiguration.hp"
+#endif
 #include "FalconUtils.hp"
 
 //register allocations for data
@@ -127,20 +113,7 @@
 .origin 0
 .entrypoint START
 
-#include "FalconWS281x.hp"
-
-/** Mappings of the GPIO devices */
-#define GPIO0 (0x44E07000 + 0x100)
-#define GPIO1 (0x4804c000 + 0x100)
-#define GPIO2 (0x481AC000 + 0x100)
-#define GPIO3 (0x481AE000 + 0x100)
-
-/** Offsets for the clear and set registers in the devices.
-* Since the offsets can only be 0xFF, we deliberately add offsets
-*/
-#define GPIO_CLRDATAOUT (0x190 - 0x100)
-#define GPIO_SETDATAOUT (0x194 - 0x100)
-
+#include "FalconPRUDefs.hp"
 
 
 /** Register map */
@@ -173,6 +146,124 @@
 
 #include "FalconWS281xOutputs.hp"
 
+#ifdef RUNNING_ON_PRU1
+#define SCRATCH_PAD 11
+#else
+#define SCRATCH_PAD 10
+#endif
+
+#if defined(USES_GPIO0) && !defined(SPLIT_GPIO0)
+#define T0_TIME_PASS1    T0_TIME_GPIO0
+#define T1_TIME_PASS1    T1_TIME_GPIO0
+#define LOW_TIME_PASS1   LOW_TIME_GPIO0
+#else
+#define T0_TIME_PASS1    T0_TIME
+#define T1_TIME_PASS1    T1_TIME
+#define LOW_TIME_PASS1   LOW_TIME
+#endif
+
+
+.macro SETUP_GPIO0_REGS
+#ifdef USES_GPIO0
+    // also need to turn off the GPIO0 idle and wakeup domain stuff
+    MOV r12, GPIO0
+    MOV r13, 0x100
+    SUB r12, r12, r13
+    LBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
+    CLR r10, 0     //AUTOIDLE
+    CLR r10, 2     //ENAWAKEUP
+    SET r10, 3     //No-Idle
+    CLR r10, 4     //
+    SBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
+
+
+    MOV r9, 0x44E00500
+    LDI r10, 2
+    SBBO r10, r9, 0x3c, 4     //use the accurate clock
+
+    MOV r9, 0x44E00400        //CM_WKUP registers
+    LBBO r10, r13, 0x08, 4    //0x08 is the CM_WKUP_GPIO0_CLKCTRL register
+    SET r10, 1     //ENABLE
+    CLR r10, 0     //ENABLE
+    CLR r10, 16     //IDLEST
+    CLR r10, 17     //IDLEST
+    SET r10, 18
+    SBBO r10, r13, 0x08, 4
+    
+    LBBO r10, r13, 0x00, 4    //0x00 is the CM_WKUP_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    SET r10, 2
+    SET r10, 8
+    SBBO r10, r13, 0x00, 4
+    
+    LBBO r10, r13, 0x04, 4    //0x04 is the CM_WKUP_CONTROL_CLKCTRL register
+    CLR r10, 17
+    CLR r10, 16
+    SET r10, 1
+    CLR r10, 0
+    SBBO r10, r13, 0x04, 4
+
+    LBBO r10, r13, 0x0C, 4    //0x04 is the CM_WKUP_L4WKUP_CLKCTRL register
+    CLR r10, 17
+    CLR r10, 16
+    SET r10, 1
+    CLR r10, 0
+    SBBO r10, r13, 0x0C, 4    //0x10 is the SYSCONFIG register
+    
+    MOV r9, 0x44E00400        //CM_MPU registers
+    LBBO r10, r13, 0x00, 8    //0x00 is the CM_MPU_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    CLR r11, 0
+    SET r11, 1
+    SBBO r10, r13, 0x00, 8
+
+    MOV r9, 0x44E00000        //CM_PER registers
+    LBBO r10, r13, 0x00, 8    //0x00 is the CM_PER_L4LS_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    CLR r11, 0
+    CLR r11, 1
+    SBBO r10, r13, 0x00, 8
+    LBBO r10, r13, 0x0C, 4    //0x0C is the CM_PER_L3_CLKSTCTRL register
+    CLR r10, 0
+    CLR r10, 1
+    CLR r11, 0
+    CLR r11, 1
+    SBBO r10, r13, 0x00, 4
+
+    
+
+    MOV r13, 0x50000000       //GPMC registers
+    LBBO r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
+    CLR r10, 0     //AUTOIDLE
+    CLR r10, 2     //ENAWAKEUP
+    SET r10, 3     //No-Idle
+    CLR r10, 4     //
+    SBBO r10, r13, 0x10, 4
+    
+    MOV r13, 0x44E10608       //CONTROL_MODULE registers
+    //            0x608       //0x608 is the INITPRIORITY register
+    //LBBO r10, r13, r12, 8
+    LDI r10, 0
+    LDI r11, 0
+    SET r10, 0
+    SET r10, 4
+    SET r10, 5
+    SET r10, 6
+    SBBO r10, r13, r12, 8
+    
+    MOV r13, 0x44E10670       //CONTROL_MODULE registers
+    //            0x670       //0x670 is the mreqprio register
+    LBBO r10, r13, 0, 4
+    CLR r10, 8
+    CLR r10, 9
+    CLR r10, 10
+    SBBO r10, r13, 0, 4
+#endif
+.endm
+
 
 .macro DISABLE_GPIO_PIN_INTERRUPTS
 .mparam ledMask, gpio
@@ -193,24 +284,7 @@
     DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
     DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
-
-#ifdef USES_GPIO0
-    // also need to turn off the GPIO0 idle and wakeup domain stuff
-    MOV r12, GPIO0
-    MOV r13, 0x100
-    SUB r12, r12, r13
-    LBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
-    CLR r10, 0     //AUTOIDLE
-    CLR r10, 2     //ENAWAKEUP
-    SET r10, 3     //No-Idle
-    CLR r10, 4     //
-    SBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
-
-
-    MOV r9, 0x44E00500
-    LDI r10, 2
-    SBBO r10, r9, 0x3c, 4     //use the accurate clock
-#endif
+    SETUP_GPIO0_REGS
 .endm
 
 .macro CLEAR_IF_NOT_EQUAL
@@ -235,7 +309,11 @@ skip:
     QBBS USESHAREDRAM,  bit_flags.t2
 
     QBBS USERAM2, bit_flags.t1
+#ifdef RUNNING_ON_PRU1
         LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+#else
+        LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+#endif
         ADD     sram_offset, sram_offset, OUTPUTS
         MOV     r8, 8142 //8k - 50
         QBLT DATALOADED, r8, sram_offset
@@ -245,7 +323,12 @@ skip:
             SET bit_flags.t1
             QBA DATALOADED
     USERAM2:
+#ifdef RUNNING_ON_PRU1
         LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+#else
+        LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+#endif
+
         ADD     sram_offset, sram_offset, OUTPUTS
         MOV     r8, 8142 //8k - 50
         QBLT    DATALOADED, r8, sram_offset
@@ -269,11 +352,17 @@ skip:
     ADD data_addr, data_addr, OUTPUTS
 .endm
 
+.macro WAIT_AND_CHECK_TIMEOUT
+.mparam TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
+    // need to subtract 2 clock cycles (10ns) for the MOVE/QBGT atfer the WAITNS
+    WAITNS    (TIMEOUT - 10), reg1, reg2
+    MOV reg1, ((TIMEOUT+ALLOW)/5)
+    QBGT timeoutLabel, reg1, reg2
+.endm
 
 
-
-#if __has_include("/tmp/OutputLengths.hp")
-# include "/tmp/OutputLengths.hp"
+#if !defined(FIRST_CHECK)
+#define FIRST_CHECK NO_PIXELS_CHECK
 #endif
 
 START:
@@ -363,7 +452,7 @@ START:
     SETOUTPUT48MASK
 
     // save the led masks to the scratch pad as we'll modify these during output
-    XOUT 12, gpio0_led_mask, 16
+    XOUT SCRATCH_PAD, gpio0_led_mask, 16
 
     DISABLE_PIN_INTERRUPTS
 
@@ -386,7 +475,7 @@ _LOOP:
 	QBEQ	EXIT, r1, #0xFF
 
     // store the address and such
-    XOUT    10, data_addr, 12
+    XOUT    SCRATCH_PAD, data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
 
@@ -395,10 +484,22 @@ _LOOP:
     MOV sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    SET_FIRST_CHECK
+    LDI next_check, #FIRST_CHECK
 
     //restore the led masks
-    XIN 12, gpio0_led_mask, 16
+    XIN SCRATCH_PAD, gpio0_led_mask, 16
+
+    // reset command to 0 so ARM side will send more data
+    LDI     r2, 0
+    MOV     r3, 1
+    SBCO    r2, CONST_PRUDRAM, 4, 8
+
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+    SETUP_GPIO0_REGS
+#endif
+    
+    //start the clock
+    RESET_PRU_CLOCK r8, r9
 
 	WORD_LOOP:
     LOOP WORD_LOOP_DONE, data_len
@@ -444,15 +545,12 @@ _LOOP:
 #endif
 
             //wait for the full cycle to complete
-            WAITNS    LOW_TIME, r8, r9
+            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, 500, r8, r9, WORD_LOOP_DONE
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
 
 			// Send all the start bits
-#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
-            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
-#endif
 #ifdef USES_GPIO1
             SET_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, 0
 #endif
@@ -461,6 +559,9 @@ _LOOP:
 #endif
 #ifdef USES_GPIO3
             SET_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, 0
+#endif
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+            SET_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
 #endif
 
 #ifdef USES_GPIO1
@@ -477,7 +578,7 @@ _LOOP:
 #endif
 
 			// wait for the length of the zero bits
-            WAITNS    T0_TIME, r8, r9
+            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, 50, r8, r9, WORD_LOOP_DONE
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
@@ -495,14 +596,11 @@ _LOOP:
 #endif
 
 			// Wait until the length of the one bits
-			WAITNS	T1_TIME, r8, r9
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, 50, r8, r9, WORD_LOOP_DONE
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
-#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
-            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
-#endif
 #ifdef USES_GPIO1
             CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, gpio1_zeros
 #endif
@@ -512,6 +610,9 @@ _LOOP:
 #ifdef USES_GPIO3
             CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, gpio3_zeros
 #endif
+#if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+            CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
+#endif
             //start the clock for the LOW time
             RESET_PRU_CLOCK r8, r9
 
@@ -520,18 +621,35 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        CheckOutputLengths
+        CALL    next_check
 #ifdef RECORD_STATS
         SUB        data_len, data_len, 1
 #endif
 		//  QBNE	WORD_LOOP, data_len, #0
     WORD_LOOP_DONE:
+    
+    
+    // Turn all the bits off
+    #ifdef USES_GPIO1
+                CLEAR_IF_NOT_EQUAL gpio1_led_mask, gpio1_address, 0
+    #endif
+    #ifdef USES_GPIO2
+                CLEAR_IF_NOT_EQUAL gpio2_led_mask, gpio2_address, 0
+    #endif
+    #ifdef USES_GPIO3
+                CLEAR_IF_NOT_EQUAL gpio3_led_mask, gpio3_address, 0
+    #endif
+    #if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+                CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+    #endif
+    
 
 #if defined(SPLIT_GPIO0) && defined(USES_GPIO0)
     // do a second pass for GPIO0 only
+    SETUP_GPIO0_REGS
 
     // restore the address and such
-    XIN    10, data_addr, 12
+    XIN    SCRATCH_PAD, data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
 	MOV	data_len, DATA_LEN
@@ -539,10 +657,10 @@ _LOOP:
     MOV sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    SET_FIRST_CHECK
+    LDI next_check, #FIRST_CHECK
 
     //restore the led masks
-    XIN 12, gpio0_led_mask, 16
+    XIN SCRATCH_PAD, gpio0_led_mask, 16
 
 	WORD_LOOP_PASS2:
     LOOP WORD_LOOP_DONE_PASS2, data_len
@@ -562,7 +680,7 @@ _LOOP:
             DO_OUTPUT_GPIO0
 
             //wait for the full cycle to complete
-            WAITNS    LOW_TIME_GPIO0, r8, r9
+            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, 500, r8, r9, WORD_LOOP_DONE_PASS2
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -571,14 +689,14 @@ _LOOP:
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 
 			// wait for the length of the zero bits
-            WAITNS    T0_TIME_GPIO0, r8, r9
+            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, 50, r8, r9, WORD_LOOP_DONE_PASS2
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
-			WAITNS	T1_TIME_GPIO0, r8, r9
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, 50, r8, r9, WORD_LOOP_DONE_PASS2
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
@@ -593,9 +711,11 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        CheckOutputLengths
+        CALL    next_check
 		//  QBNE	WORD_LOOP_PASS2, data_len, #0
     WORD_LOOP_DONE_PASS2:
+    CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
+
 #endif   // GPIO0 second pass
 
 	// Delay at least 300 usec; this is the required reset
@@ -604,17 +724,17 @@ _LOOP:
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-    // and zero out the command
-	LDI	    r2, 0
-    MOV     r3, 1
-	SBCO	r2, CONST_PRUDRAM, 4, 8
+        // and zero out the command
+	// LDI	    r2, 0
+        // MOV     r3, 1
+        // SBCO	r2, CONST_PRUDRAM, 4, 8
 
 	// Go back to waiting for the next frame buffer
 	QBA	_LOOP
 
 EXIT:
-	// Write a 0xFF into the response field so that they know we're done
-	MOV r2, #0xFF
+	// Write a 0xFFFF into the response field so that they know we're done
+	MOV r2, #0xFFFF
 	SBCO r2, CONST_PRUDRAM, 8, 4
 
 #ifdef AM33XX
@@ -626,3 +746,11 @@ EXIT:
 
 	HALT
 
+
+
+NO_PIXELS_CHECK:
+    RET
+
+#if __has_include("/tmp/OutputLengths.hp")
+#include "/tmp/OutputLengths.hp"
+#endif

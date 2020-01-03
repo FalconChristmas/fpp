@@ -7,10 +7,10 @@ $plugins = Array(
 		'name'        => 'Vast V-FMT212R',
 		'author'      => 'Mat Mrosko (Materdaddy)',
 		'description' => 'Basic RDS/Audio support for the Vast Electronics V-FMT212R USB FM Transmitter',
-		'homeUrl'     => 'https://github.com/Materdaddy/fpp-vastfmt',
-		'sourceUrl'   => 'https://github.com/Materdaddy/fpp-vastfmt.git',
-		'bugUrl'      => 'https://github.com/Materdaddy/fpp-vastfmt/issues',
-		'sha'         => 'fd01a57464e9001441c11ae54dced2e1019c18bf',
+		'homeUrl'     => 'https://github.com/FalconChristmas/fpp-vastfmt',
+		'sourceUrl'   => 'https://github.com/FalconChristmas/fpp-vastfmt.git',
+		'bugUrl'      => 'https://github.com/FalconChristmas/fpp-vastfmt/issues',
+		'sha'         => '749dc6bce52276a44e1223647809083947aa037d',
 	),
 
 	Array(
@@ -40,10 +40,10 @@ $plugins = Array(
 		'name'        => 'Big Buttons',
 		'author'      => 'Chris Pinkham (CaptainMurdoch)',
 		'description' => 'A new UI page with big buttons which trigger scripts',
-		'homeUrl'     => 'https://github.com/cpinkham/fpp-BigButtons',
-		'sourceUrl'   => 'https://github.com/cpinkham/fpp-BigButtons.git',
-		'bugUrl'      => 'https://github.com/cpinkham/fpp-BigButtons/issues',
-		'sha'         => '0e2eb62bd96de6a8a84679b2d245ebfa28c01c60',
+		'homeUrl'     => 'https://github.com/FalconChristmas/fpp-BigButtons',
+		'sourceUrl'   => 'https://github.com/FalconChristmas/fpp-BigButtons.git',
+		'bugUrl'      => 'https://github.com/FalconChristmas/fpp-BigButtons/issues',
+		'sha'         => '7ca74cdabcd4fd3a0b647a36ad53f89e96e35e64',
 	),
 
 	Array(
@@ -286,6 +286,17 @@ $plugins = Array(
 		'sourceUrl'   => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher.git',
 		'bugUrl'      => 'https://github.com/LightsOnHudson/FPP-Plugin-Switcher/issues',
 		'sha'         => '1819feea757afa369ae8c35a411847a50cb8c458',
+	),
+
+	Array(
+		'shortName'   => 'fpp-after-hours',
+		'name'        => 'FPP After Hours',
+		'author'      => 'Jason Cross (jcross)',
+		'description' => 'After hours music player plugin',
+		'homeUrl'     => 'https://github.com/jcrossbdn/fpp-after-hours',
+		'sourceUrl'   => 'https://github.com/jcrossbdn/fpp-after-hours.git',
+		'bugUrl'      => 'https://github.com/jcrossbdn/fpp-after-hours/issues',
+		'sha'         => '1d0dec3fede85b5ad905fcb0560d646c60434cb3',
 	)
 
 );

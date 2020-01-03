@@ -3,9 +3,9 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Stretch Lite image to the SD card.  The last
-version tested is 2017-11-29-raspbian-stretch-lite.zip
+version tested is 2019-06-20-raspbian-buster-lite.img
 
-Resize the root partition to 2.4GiB using fdisk (substitute the proper device
+Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
 
     fdisk /dev/sdg
@@ -16,10 +16,10 @@ for your SD card).
     n
     p
     2
-	(Replace 94208 with the original start block of partition 2 noted earlier)
-    94208
+	(Replace 540672 with the original start block of partition 2 noted earlier)
+    540672
 	(FIXME, downsize this value once install is tested)
-    +3000M
+    +3500M
     p
     w
 
@@ -48,11 +48,23 @@ we have the partition mounted:
 
 Remove the SD card and boot it up in a Pi.
 
+
+Do a system upgrade to make sure everything is at the latest versions
+    sudo apt-get update
+    sudo apt-get dist-upgrade
+    sudo apt-get clean
+
+Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
+
+cd /etc
+rm resolv.conf
+ln -s /var/run/connman/resolv.conf .
+
 On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh \
 		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
-	sudo ./FPP_Install.sh
+	sudo ./FPP_Install.sh --build-omxplayer
 
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
@@ -63,13 +75,18 @@ up.
 	su - fpp
 	sudo shutdown -r now
 
-If you are installing to create a SD image zip, run the following commands:
+If you are installing to create a SD image zip, do the following:
+    If you did the above on a armv7 Pi, you will need to boot the new image up
+    on a armv6 device (or vice versa) to compile the Wifi drivers for the other
+    architecture/kernel.  Boot up and then run:
+    cd /opt/fpp/SD
+    sudo ./FPP-Wifi-Drivers.sh
 
-	su - fpp
+
 	# Reboot to make sure things take
 	sudo shutdown -r now
 
-	Once the Pi reboots, login as the fpp user again and run the following:
+	Once the Pi reboots, login as the new fpp user and run the following:
 
 	# Reset the SSH keys
 	sudo rm -rf /etc/ssh/ssh_host*key*
@@ -87,12 +104,12 @@ If you are installing to create a SD image zip, run the following commands:
 Put the SD card back in a Linux system and run the following (substitute
 the proper device name for your SD card in place of '/dev/sdg'):
 
-	NOTE: The 3000 on the "BLOCK=" line below must match the new size of the
+	NOTE: The 3800 on the "BLOCK=" line below must be at least the new size of the
 	      second partition created at the top of this document using fdisk.
 
-	VERSION=v1.x-Pi
-	BLOCKS=$(echo "(50 + 3000) / 4" | bc)
-	sudo time dd if=/dev/sdg bs=4M count=${BLOCKS} > FPP-${VERSION}.img
+	VERSION=v3.1-Pi
+	BLOCKS=3800
+	sudo time dd if=/dev/sdg bs=1M count=${BLOCKS} > FPP-${VERSION}.img
 	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
 	unzip -v FPP-$VERSION.zip
 
@@ -114,8 +131,11 @@ sudo apt-get update
 sudo apt-get -y install btrfs-tools btrfs-progs
 
 # append "btrfs" to /etc/initramfs-tools/modules
+echo "btrfs" | sudo tee -a /etc/initramfs-tools/modules
 
-sudo rpi-update
+#make sure we have the latest supported bootloader and kernel
+sudo apt-get dist-upgrade -y
+sudo apt-get install --reinstall raspberrypi-bootloader raspberrypi-kernel
 
 sudo update-initramfs -c -k `uname -r`
 

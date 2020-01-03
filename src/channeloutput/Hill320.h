@@ -26,22 +26,27 @@
 #ifndef _HILL320_H
 #define _HILL320_H
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
+#include "util/I2CUtils.h"
 
-class Hill320Output : public ChannelOutputBase {
+class Hill320Output : public ThreadedChannelOutputBase {
   public:
 	Hill320Output(unsigned int startChannel, unsigned int channelCount);
-	~Hill320Output();
+	virtual ~Hill320Output();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+	virtual int RawSendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override {
+        addRange(m_startChannel, m_startChannel + m_channelCount - 1);
+    }
 
   private:
-	int m_fd;
+    I2CUtils *i2c;
 	int m_boxCount;
 };
 

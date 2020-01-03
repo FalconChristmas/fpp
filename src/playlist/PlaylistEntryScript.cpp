@@ -27,13 +27,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "common.h"
 #include "log.h"
-#include "mpg123.h"
-#include "ogg123.h"
-#include "omxplayer.h"
+#include "mediaoutput/mpg123.h"
+#include "mediaoutput/ogg123.h"
+#include "mediaoutput/omxplayer.h"
 #include "PlaylistEntryScript.h"
+#include "scripts.h"
 #include "settings.h"
 
 /*
@@ -41,7 +45,7 @@
  */
 PlaylistEntryScript::PlaylistEntryScript(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_blocking(0)
+	m_blocking(0), m_scriptProcess(0)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::PlaylistEntryScript()\n");
 
@@ -69,14 +73,8 @@ int PlaylistEntryScript::Init(Json::Value &config)
 	}
 
 	m_scriptFilename = config["scriptName"].asString();
-	m_blocking = config["blocking"].asInt();
-
-	// FIXME, blocking not supported yet
-	if (m_blocking)
-	{
-		LogErr(VB_PLAYLIST, "ERROR: Blocking scripts are not yet supported\n");
-		m_blocking = 0;
-	}
+	m_scriptArgs = config["scriptArgs"].asString();
+	m_blocking = config["blocking"].asBool();
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -94,15 +92,25 @@ int PlaylistEntryScript::StartPlaying(void)
 		return 0;
 	}
 
+    m_startTime = GetTime();
 	PlaylistEntryBase::StartPlaying();
+	m_scriptProcess = RunScript(m_scriptFilename, m_scriptArgs);
+    if (!m_blocking) {
+        m_scriptProcess = 0;
+        FinishPlay();
+        return 0;
+    }
 
-	RunScript();
-
-	FinishPlay();
-
-	return 1;
+	return PlaylistEntryBase::StartPlaying();
 }
-
+int PlaylistEntryScript::Process(void)
+{
+    if (m_scriptProcess && !isChildRunning()) {
+        m_scriptProcess = 0;
+        FinishPlay();
+    }
+    return PlaylistEntryBase::Process();
+}
 /*
  *
  */
@@ -110,101 +118,24 @@ int PlaylistEntryScript::Stop(void)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryScript::Stop()\n");
 
-	if (!m_blocking)
-	{
-		// FIXME PLAYLIST, kill the child if we are in non-blocking mode
+	if (m_scriptProcess) {
+        kill(m_scriptProcess, SIGTERM);
+        FinishPlay();
 	}
 
 	return PlaylistEntryBase::Stop();
 }
 
-/*
- *
- */
-void PlaylistEntryScript::RunScript(void)
-{
-	pid_t pid = 0;
-	char  userScript[1024];
-	char  eventScript[1024];
-
-	// Setup the script from our user
-	strcpy(userScript, getScriptDirectory());
-	strcat(userScript, "/");
-	strncat(userScript, m_scriptFilename.c_str(), 1024 - strlen(userScript));
-	userScript[1023] = '\0';
-
-	// Setup the wrapper
-	memcpy(eventScript, getFPPDirectory(), sizeof(eventScript));
-	strncat(eventScript, "/scripts/eventScript", sizeof(eventScript)-strlen(eventScript)-1);
-
-	if (!m_blocking)
-		pid = fork();
-
-	if (pid == 0) // Event Script process
-	{
-		if (!m_blocking)
-		{
-#ifndef NOROOT
-			struct sched_param param;
-			param.sched_priority = 0;
-			if (sched_setscheduler(0, SCHED_OTHER, &param) != 0)
-			{
-				perror("sched_setscheduler");
-				exit(EXIT_FAILURE);
-			}
-#endif
-
-			CloseOpenFiles();
-		}
-
-		char *args[128];
-		char *token = strtok(userScript, " ");
-		int   i = 1;
-
-		args[0] = strdup(userScript);
-		while (token && i < 126)
-		{
-			args[i] = strdup(token);
-			i++;
-
-			token = strtok(NULL, " ");
-		}
-		args[i] = NULL;
-
-		if (chdir(getScriptDirectory()))
-		{
-			LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
-				getScriptDirectory(), strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-
-		setenv("FPP_EVENT_SCRIPT", m_scriptFilename.c_str(), 0);
-
-		if (m_blocking)
-		{
-		}
-		else
-		{
-			execvp(eventScript, args);
-
-			LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "
-				"this means that execvp() failed trying to run '%s %s': %s\n",
-				eventScript, args[0], strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-}
-
-/*
- *
- */
-int PlaylistEntryScript::HandleSigChild(pid_t pid)
-{
-    LogDebug(VB_PLAYLIST, "PlaylistEntryScript::HandleSigChild(%d)\n", pid);
-
-	FinishPlay();
-
-	return 1;
+bool PlaylistEntryScript::isChildRunning() {
+    if (m_scriptProcess > 0) {
+        int status = 0;
+        if (waitpid(m_scriptProcess, &status, WNOHANG)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    return false;
 }
 
 /*
@@ -225,8 +156,28 @@ Json::Value PlaylistEntryScript::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
-	result["scriptFilename"]      = m_scriptFilename;
-	result["blocking"]            = m_blocking;
+    long long t = GetTime();
+    t -= m_startTime;
+    t /= 1000;
+    t /= 1000;
+	result["scriptFilename"]   = m_scriptFilename;
+	result["blocking"]         = m_blocking;
+    result["secondsElapsed"]   = t;
 
 	return result;
+}
+
+Json::Value PlaylistEntryScript::GetMqttStatus(void)
+{
+    Json::Value result = PlaylistEntryBase::GetMqttStatus();
+    
+    long long t = GetTime();
+    t -= m_startTime;
+    t /= 1000;
+    t /= 1000;
+    result["scriptFilename"]   = m_scriptFilename;
+    result["blocking"]         = m_blocking;
+    result["secondsElapsed"]   = t;
+    
+    return result;
 }

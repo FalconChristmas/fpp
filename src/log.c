@@ -35,6 +35,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 int logLevel = LOG_INFO;
@@ -44,7 +45,7 @@ char logFileName[1024] = "";
 char logLevelStr[16];
 char logMaskStr[1024];
 
-void _LogWrite(char *file, int line, int level, int facility, const char *format, ...)
+void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...)
 {
 	// Don't log if we're not logging this facility
 	if (!(logMask & facility))
@@ -55,18 +56,24 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 		return;
 
 	va_list arg;
-	time_t t = time(NULL);
+    
+    struct timeval tv;
+    gettimeofday(&tv, nullptr);
+    
 	struct tm tm;
 	char timeStr[32];
 
-	localtime_r(&t, &tm);
-	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+	localtime_r(&tv.tv_sec, &tm);
+    int ms = tv.tv_usec / 1000;
+    
+	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d",
 					1900+tm.tm_year,
 					tm.tm_mon+1,
 					tm.tm_mday,
 					tm.tm_hour,
 					tm.tm_min,
-					tm.tm_sec);
+					tm.tm_sec,
+                    ms);
 
 	if (logFileName[0])
 	{
@@ -86,7 +93,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 			if ( ! logFile )
 			{
 				fprintf(stderr, "Error: Unable to open log file for writing!\n");
-				fprintf(stderr, "%s (%d) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
+				fprintf(stderr, "%s (%ld) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 				va_start(arg, format);
 				vfprintf(stderr, format, arg);
 				va_end(arg);
@@ -94,7 +101,7 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 			}
 		}
 
-		fprintf(logFile, "%s (%d) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
+		fprintf(logFile, "%s (%ld) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
 		vfprintf(logFile, format, arg);
 		va_end(arg);
@@ -102,14 +109,14 @@ void _LogWrite(char *file, int line, int level, int facility, const char *format
 		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
 			fclose(logFile);
 	} else {
-		fprintf(stdout, "%s (%d) %s:%d:", timeStr, syscall(SYS_gettid), file, line);
+		fprintf(stdout, "%s (%ld) %s:%d:", timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
 		vfprintf(stdout, format, arg);
 		va_end(arg);
 	}
 }
 
-void SetLogFile(char *filename)
+void SetLogFile(const char *filename)
 {
 	strcpy(logFileName, filename);
 }

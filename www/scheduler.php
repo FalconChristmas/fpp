@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 $a = session_id();
 
@@ -10,8 +12,6 @@ $_SESSION['session_id'] = session_id();
 error_reporting(E_ALL);
 ?>
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <?php
 require_once('config.php');
@@ -40,18 +40,41 @@ this.value = default_value;
 });
 </script>
 <script>
-    $(function() {
-		$('#tblSchedule').on('mousedown', 'tr', function(event,ui){
-					$('#tblSchedule tr').removeClass('selectedEntry');
-          $(this).addClass('selectedEntry');
-					var items = $('#tblSchedule tr');
-					ScheduleEntrySelected  = items.index(this);
-					
+	$(function() {
+		$('#tblScheduleBody').on('mousedown', 'tr', function(event,ui){
+			$('#tblScheduleBody tr').removeClass('selectedEntry');
+			$(this).addClass('selectedEntry');
+			var items = $('#tblScheduleBody tr');
+			ScheduleEntrySelected  = items.index(this);
 		});
 	});
 </script>
 <script>
 $(document).ready(function(){
+	$('#tblScheduleBody').sortable({
+		start: function (event, ui) {
+			start_pos = ui.item.index();
+		},
+		update: function(event, ui) {
+			SetScheduleInputNames();
+		},
+		beforeStop: function (event, ui) {
+			//undo the firefox fix.
+			// Not sure what this is, but copied from playlists.php to here
+			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+				$(window).unbind('scroll.sortableplaylist');
+				ui.helper.css('margin-top', 0);
+			}
+		},
+		helper: function (e, ui) {
+			ui.children().each(function () {
+				$(this).width($(this).width());
+			});
+			return ui;
+		},
+		scroll: true
+	}).disableSelection();
+
 	$('#frmSchedule').submit(function(event) {
 			 event.preventDefault();
 			 var success =true;
@@ -109,6 +132,23 @@ tr.rowScheduleDetails td {
 	border-color: #333;
 	border-collapse: collapse;
 }
+.dayMaskTable {
+	padding: 2px 0px 0px 0px;
+}
+tr.rowScheduleDetails td.dayMaskTD {
+    padding: 2px 2px;
+}
+tr.rowScheduleDetails input.dayMaskCheckbox {
+    margin: 0px 0px 0px 0px;
+}
+tr.rowScheduleDetails select.selPlaylist {
+    width: 250px;
+}
+tr.rowScheduleDetails select.selPlaylist option {
+    overflow: hidden;
+    white-space: no-wrap;
+    text-overflow: ellipsis;
+}
 a:active {
 	color: none;
 }
@@ -135,11 +175,15 @@ a:visited {
             <td width = "70 px"><input id="btnSaveSchedule" class="buttons" type="submit" value = "Save" /></td>
             <td width = "70 px"><input id="btnAddScheduleEntry" class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
             <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteScheduleEntry();"/></td>
+            <td width = "70 px"><input id="btnDeleteScheduleEntry" class="buttons" type="button" value = "Delete" onClick="DeleteScheduleEntry();"/></td>
             <td width = "70 px"><input id="btnReload" class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
           </tr>
         </table>
         <table id="tblSchedule">
+            <thead id='tblScheduleHead'>
+            </thead>
+            <tbody id='tblScheduleBody'>
+            </tbody>
         </table>
       </form>
     </fieldset>

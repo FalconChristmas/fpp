@@ -27,10 +27,39 @@ function list_plugin_entries($menu)
 	{
 		$handle = opendir($pluginDirectory);
 		if ( $handle )
-			while (($file = readdir($handle)) !== false)
-				if (!in_array($file, array('.', '..')))
-					if ( file_exists($pluginDirectory."/".$file."/".$menu."_menu.inc") )
-						-include_once($pluginDirectory."/".$file."/".$menu."_menu.inc");
+		{
+			$first = 1;
+			while (($plugin = readdir($handle)) !== false)
+			{
+				if (!in_array($plugin, array('.', '..')))
+				{
+					// Old naming convention ${MENU}_menu.inc
+					if ( file_exists($pluginDirectory."/".$plugin."/".$menu."_menu.inc") )
+					{
+						if ($first)
+						{
+							$first = 0;
+							echo "<li><b><font color='white' size=-1>-=- Plugins -=-</font></b></li>\n";
+						}
+
+						-include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
+					}
+
+					// New single menu.inc file which has some logic in it to display relevant menus.
+					// See the example in the fpp-plugin-Template plugin
+					if ( file_exists($pluginDirectory."/".$plugin."/menu.inc") )
+					{
+						if ($first)
+						{
+							$first = 0;
+							echo "<li><b><font color='white' size=-1>-=- Plugins -=-</font></b></li>\n";
+						}
+
+						-include($pluginDirectory."/".$plugin."/menu.inc");
+					}
+				}
+			}
+		}
 	}
 }
 ?>
@@ -77,9 +106,25 @@ function list_plugin_entries($menu)
 ?>
     </div>
     <div class="headerRight">
-		  <? if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>"; ?>
-		  <? if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; ?>
-		  <? if ($settings['LogoLink'] != "") echo "</a>"; ?>
+		  <?
+            if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>";
+		    if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>";
+		    if ($settings['LogoLink'] != "") echo "</a>";
+            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
+                $landing = $settings['cape-info']['vendor']['url'];
+                if (isSet($settings['cape-info']['vendor']['landingPage'])) {
+                    $landing = $settings['cape-info']['vendor']['landingPage'];
+                }
+                $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "") {
+                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
+                    $landing = $landing . "&cs=" . $settings['cape-info']['cs'];
+                }
+                echo "<a href=\"" . $landing . "\"><img style='max-width:125px; max-height:60px;' src=\"" . $iurl . "\"></a>";
+            }
+          ?>
+
 		</div>
     <div class="clear"></div>
   </div>
@@ -87,18 +132,31 @@ function list_plugin_entries($menu)
     <ul id="fppMenu" class="sm sm-clean">
       <li><a>Status/Control</a>
         <ul>
-          <li><a href="/">Status Page</a></li>
+          <li><a href="index.php">Status Page</a></li>
           <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="timeconfig.php">Config/Set Time</a></li>
           <li><a href="networkconfig.php">Network</a></li>
           <li><a href="multisync.php">MultiSync</a></li>
-          <?php list_plugin_entries("status"); ?>
           <li><a href="settings.php">FPP Settings</a></li>
           <li><a href="backup.php">FPP Backup</a></li>
           <li><a href="email.php">Email Settings</a></li>
+          <li><a href="proxies.php">Proxy Settings</a></li>
           <li><a href="events.php">Events</a></li>
           <li><a href="effects.php">Effects</a></li>
           <li><a href="testing.php">Display Testing</a></li>
+          <?
+          if (file_exists($settings['co-other'])) {
+            $js = json_decode(file_get_contents($settings['co-other']), true);
+            foreach($js["channelOutputs"] as $key => $val) {
+                if (($val["enabled"] == 1) && ($val["type"] == "HTTPVirtualDisplay")) {
+                echo "<li><a href='virtualdisplaywrapper.php'>Virtual Display</a></li>";
+                }
+            }
+          
+          }
+          ?>
+          
+          <?php list_plugin_entries("status"); ?>
         </ul>
       </li>
       <li><a>Content Setup</a>
@@ -106,8 +164,8 @@ function list_plugin_entries($menu)
           <li><a href="uploadfile.php">File Manager</a></li>
           <li><a href="playlists.php">Playlists</a></li>
           <li><a href="scheduler.php">Scheduler</a></li>
-		  <li><a href="plugins.php">Plugins</a></li>
           <li><a href="scriptbrowser.php">Script Repository Browser</a></li>
+          <li><a href="plugins.php">Plugin Manager</a></li>
           <?php list_plugin_entries("content"); ?>
         </ul>
       </li>
@@ -123,6 +181,7 @@ function list_plugin_entries($menu)
       </li>
       <li><a>Help</a>
         <ul>
+          <li><a href="https://docs.google.com/viewer?url=https://falconchristmas.github.io/FPP_Manual.pdf" target="_blank">FPP Manual</a></li>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="help.php">Help Index</a></li>
           <li><a href="cliHelp.php">fpp &amp; fppmm Usage</a></li>

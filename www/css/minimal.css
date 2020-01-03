@@ -1,0 +1,398 @@
+.buttons
+{
+	background-color: #eeeeee;
+	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #eeeeee), color-stop(100%, #cccccc));
+	background-image: -webkit-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -moz-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -ms-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -o-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: linear-gradient(top, #eeeeee, #cccccc);
+	border: 1px solid #ccc;
+	border-bottom: 1px solid #bbb;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+	color: #333;
+	font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+	line-height: 1;
+	padding: 1px 0;
+	text-align: center;
+	text-shadow: 0 1px 0 #eee;
+	width: 90px;
+	height: 20px;
+}
+
+.buttons:hover
+{
+	background-color: #dddddd;
+	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #dddddd), color-stop(100%, #bbbbbb));
+	background-image: -webkit-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: -moz-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: -ms-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: -o-linear-gradient(top, #dddddd, #bbbbbb);
+	background-image: linear-gradient(top, #dddddd, #bbbbbb);
+	border: 1px solid #bbb;
+	border-bottom: 1px solid #999;
+	cursor: pointer;
+	text-shadow: 0 1px 0 #ddd;
+}
+
+.buttons:active
+{
+	border: 1px solid #aaa;
+	border-bottom: 1px solid #888;
+	-webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	-moz-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+}
+
+.disableButtons
+{
+    cursor: not-allowed;
+    pointer-events: none;
+	background-color: #eeeeee;
+	background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #eeeeee), color-stop(100%, #cccccc));
+	background-image: -webkit-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -moz-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -ms-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: -o-linear-gradient(top, #eeeeee, #cccccc);
+	background-image: linear-gradient(top, #eeeeee, #cccccc);
+	border: 1px solid #ccc;
+	border-bottom: 1px solid #bbb;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+	color: #AAA;
+	font: bold 11px "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+	line-height: 1;
+	padding: 1px 0;
+	text-align: center;
+	text-shadow: 0 1px 0 #eee;
+	width: 90px;
+	height: 20px;
+}
+
+.disableButtons:active
+{
+	border: 1px solid #aaa;
+	border-bottom: 1px solid #888;
+	-webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	-moz-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+	box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+}
+
+#playerControls input
+{
+	margin: 0 10px 0 0;
+	width: 100px;
+}
+
+body {
+	width: 400px;
+	margin-left: 0px;
+	margin-right: 0px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
+#bodyWrapper
+{
+	width: 400px;
+	margin-left: auto;
+	margin-right: auto;
+	background: rgb(240, 240,240);
+}
+
+#daemoncontrol, #playerstats
+{
+	background: rgb(240, 240, 240);
+	margin: 5px;
+	padding: 5px;
+}
+
+#nextPlaylist
+{
+	margin-top:10px;
+	padding:5px;
+	background:#DDD;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+
+}
+
+.center
+{
+	text-align: center;
+}
+
+.settings
+{
+	width: 400px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.clear
+{
+	clear:both;	
+}
+
+#playerControls, #eventControls {
+	text-align:center;
+}
+
+.header{padding: 5px; }
+.headerLeft , .headerRight
+{
+	width:200px;
+	text-align:center;
+	float:left;
+}
+
+.headerCenter
+{
+	width:100%;
+	text-align:center;
+}
+
+.siteName{
+	font-size: 150%;
+	font-weight: bold;
+}
+
+.colPlaylistNumber {
+	text-align:right;
+	padding-right:0px;
+	vertical-align: top;
+}
+.colPlaylistData1 {
+	text-align:left;
+	padding-left:5px;
+}
+
+.volumeText {
+	vertical-align: middle;
+}
+
+#speaker {
+	content: "";
+	display: inline-block;
+	width: 25px;
+	height: 25px;
+	background: url('../images/volume.png') no-repeat 0 -50px;
+	position: relative;
+}
+.ui-slider-handle {
+	position: absolute;
+	z-index: 2;
+	width: 25px;
+	height: 25px;
+	cursor: pointer;
+	background: url('images/handle.png') no-repeat 50% 50%;
+	font-weight: bold;
+	color: #1C94C4;
+	outline: none;
+	top: -7px;
+	margin-left: -12px;
+}
+.ui-slider-range {
+	background: #ffffff; /* Old browsers */
+	background: -moz-linear-gradient(top,  #ffffff 0%, #eaeaea 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ffffff), color-stop(100%,#eaeaea)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* IE10+ */
+	background: linear-gradient(top,  #ffffff 0%,#eaeaea 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#eaeaea',GradientType=0 ); /* IE6-9 */
+	position: absolute;
+	border: 0;
+	top: 0;
+	height: 100%;
+	border-radius: 25px;
+}
+
+#statusPlaylistContents{
+	height:200px;
+	min-height:200px;
+	max-height:220px;
+	overflow:auto
+}
+
+#statusPlaylistContents table {
+	border-collapse:collapse;
+} 
+
+#statusPlaylist {
+	border:thin solid;	
+	margin-top: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+	min-height: 65px;
+}
+
+#playerStatus{
+}
+
+.playerStatusHeader{
+	width: 40%;
+}
+#txtPlayerStatus {
+	text-align: left;
+}
+.playerStatusLeft{
+	width: 50%;
+	float: left;
+}
+.playerStatusRight{
+	width: 50%;
+	float: left;
+}
+
+#tblStatusPlaylist {
+	 width:100%;
+}
+
+#tblStatusPlaylist tbody tr th{
+	background: #aaaaaa;
+}
+
+#tblStatusPlaylistEntries{
+	 width:100%;
+	 border-collapse:collapse;
+}
+
+#tblCreatePlaylist {
+	 width:100%;
+	 border-collapse:collapse;
+}
+
+#tblCreatePlaylist tbody tr th{
+	background: #aaaaaa;
+}
+
+
+.playlistHeader {
+	background:#DDD;
+	text-align:center;
+}
+
+.textRight{
+	text-align:right;
+	padding-right:5px;
+	}
+	
+.textLeft{
+	text-align:left;
+	padding-left:5px;
+	}	
+	
+.textCenter{
+	text-align:center;
+	}	
+
+.playlistSelectedEntry {
+	background:#CCC;
+}
+
+.unselectable {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+  -ms-user-select: none;
+   user-select: none;
+}
+
+
+.PlaylistPlayingIcon{
+	background-image: url(../images/playlistplay.png);
+	background-size:10px 10px;
+	background-repeat:no-repeat;
+	background-position: 4px 4px;
+}
+
+.PlaylistRowPlaying{
+	background:#D1E0FF;
+}	
+
+#playlistEntryProperties ul li{
+	float:left;
+	list-style:none;
+	padding-right:8px;
+}
+
+#playlistEntryProperties ul li select option{
+	font-size:12px;
+}
+
+
+#btnAddPlaylistEntry{
+	margin-top:18px;
+}
+
+.selectedEntry {
+	background: #CCC;
+}
+
+.pl_title {
+	font-size: larger;
+}
+
+.title {
+	font-size: larger;
+	text-align: center;
+	font-weight: bold;
+}
+
+#playlistEntryProperties ul{
+	padding: 0;
+	margin: 10px;
+}
+
+.fppTableWrapper {
+	border:thin solid;
+	font-size:12px;
+	margin-top: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	-webkit-border-radius: 5px;
+	min-height: 65px;
+
+	-moz-user-select: -moz-none;
+	-khtml-user-select: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+.fppTableHeader {
+	background:#DDD;
+	text-align:center;
+	font-weight: bold;
+}
+
+.fppTableSelectedEntry {
+	background:#CCC;
+}
+
+.button
+{
+	border: 1px solid #a0a0a0;
+	padding: 2px;
+	margin: 2px;
+	background: #ccc;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+}
+
+.button:hover
+{
+	cursor:pointer;
+}
+
+.playlistInfoText{
+	font-size: 0.8em;
+}
+

@@ -33,13 +33,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
 #include "MultiSync.h"
 #include "ogg123.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "channeloutput/channeloutputthread.h"
 
 
 /*
@@ -76,8 +76,7 @@ int ogg123Output::Start(void)
 	fullAudioPath += "/";
 	fullAudioPath += m_mediaFilename;
 
-	if (!FileExists(fullAudioPath.c_str()))
-	{
+	if (!FileExists(fullAudioPath))	{
 		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
 		return 0;
 	}
@@ -87,7 +86,7 @@ int ogg123Output::Start(void)
 	{
 		oggPlayer = OGG123_BINARY;
 	}
-	else if (!FileExists(oggPlayer.c_str()))
+	else if (!FileExists(oggPlayer))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured oggPlayer %s does not exist, "
 			"falling back to %s\n", oggPlayer.c_str(), OGG123_BINARY);
@@ -102,11 +101,12 @@ int ogg123Output::Start(void)
 	pid_t ogg123Pid = fork();
 	if (ogg123Pid == 0)			// ogg123 process
 	{
-		CloseOpenFiles();
-
 		//ogg123 uses stderr for output
 	    dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+
+		CloseOpenFiles();
+
 		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 
 		execl(oggPlayer.c_str(), oggPlayer.c_str(), fullAudioPath.c_str(), NULL);
@@ -157,10 +157,17 @@ int ogg123Output::Stop(void)
 
 	if(m_childPID > 0)
 	{
-		pid_t childPID = m_childPID;
-
+        int count = 0;
+        //try to let it exit cleanly first
+        kill(m_childPID, SIGTERM);
+        while (isChildRunning() && count < 25) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            count++;
+        }
+        if (isChildRunning()) {
+            kill(m_childPID, SIGKILL);
+        }
 		m_childPID = 0;
-		kill(childPID, SIGKILL);
 	}
 
 	pthread_mutex_unlock(&m_outputLock);
@@ -172,7 +179,6 @@ int ogg123Output::Stop(void)
 
 void ogg123Output::ParseTimes()
 {
-	static int lastRemoteSync = 0;
 	int result;
 	int secs;
 	int mins;
@@ -226,13 +232,8 @@ void ogg123Output::ParseTimes()
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-		{
-			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
-				m_mediaOutputStatus->mediaSeconds);
-			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
-		}
+        multiSync->SendMediaSyncPacket(m_mediaFilename,
+                                       m_mediaOutputStatus->mediaSeconds);
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
@@ -257,11 +258,27 @@ void ogg123Output::ProcessOGGData(int bytesRead)
 	int  i = 0;
 	bool commandNext=false;
 
+    m_oggBuffer[bytesRead] = 0;
+    LogExcess(VB_MEDIAOUT, "ogg123 output: %s\n", m_oggBuffer);
+    
+    // finished will look like "Done."
+    if (strstr(m_oggBuffer, "Done.\n") != NULL) {
+        Stop();
+        return;
+    }
+
+    
+    if (!strncmp("Done.", m_oggBuffer, 5)) {
+        Stop();
+        return;
+    }
+    
+    
 	for(i=0;i<bytesRead;i++)
 	{
 		switch(m_oggBuffer[i])
 		{
-			case 'T':
+            case 'T':
 				state = 1;
 				break;
 			case 'i':
@@ -323,24 +340,27 @@ void ogg123Output::PollMusicInfo()
 	int bytesRead;
 	int result;
 	struct timeval ogg123_timeout;
+    
+    if (!isChildRunning()) {
+        Stop();
+        return;
+    }
 
 	m_readFDSet = m_activeFDSet;
 
 	ogg123_timeout.tv_sec = 0;
 	ogg123_timeout.tv_usec = 5;
 
-	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &ogg123_timeout) < 0)
-	{
+	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &ogg123_timeout) < 0) {
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 
 		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
-	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))
-	{
-		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_oggBuffer, MAX_BYTES_OGG);
-		if (bytesRead > 0) 
-		{
+	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet)) {
+		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_oggBuffer, MAX_BYTES_OGG - 1);
+		if (bytesRead > 0) {
+            m_oggBuffer[bytesRead] = 0;
 		    ProcessOGGData(bytesRead);
 		} 
 	}

@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -17,7 +19,6 @@ if (isset($_GET['count']))
 $ip = preg_replace('/[^-a-z0-9\.]/', '', $ip);
 ?>
 
-<html>
 <head>
 <title>
 Ping

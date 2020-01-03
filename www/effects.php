@@ -23,11 +23,14 @@ include 'common/menuHead.inc';
           SetButtonState('#btnStopEffect','enable');
     });
   });
+
+function SetSpeakerIndicator(value) {
+}
 </script>
 
 <title><? echo $pageTitle; ?></title>
 </head>
-<body onLoad="GetFPPDmode();setInterval(updateFPPStatus,1000);GetRunningEffects();">
+<body onLoad="GetFPPDmode();GetFPPStatus();GetRunningEffects();">
 <div id="bodyWrapper">
 <?php
   include 'menu.inc';

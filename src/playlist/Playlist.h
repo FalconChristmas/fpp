@@ -26,76 +26,33 @@
 #ifndef _PLAYLIST_H
 #define _PLAYLIST_H
 
+#include <mutex>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include <jsoncpp/json/json.h>
 
 #include "PlaylistEntryBase.h"
 
-// Use these to make code more readable
-#define PLAYLIST_STARTING				true
-#define PLAYLIST_STOPPING				false
 
-// FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
-// temporarily copied from old Playlist.h during transition to new playlist
-#define PL_TYPE_BOTH            0
-#define PL_TYPE_MEDIA           1
-#define PL_TYPE_SEQUENCE        2
-#define PL_TYPE_PAUSE           3
-#define PL_TYPE_VIDEO           4 // deprecated, legacy v0.2.0 implementation
-#define PL_TYPE_EVENT           5
-#define PL_TYPE_PLUGIN_NEXT     6
-#define PL_MAX_ENTRIES        128
-
-// FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
-// temporarily copied from old Playlist.h during transition to new playlist
-typedef struct {
-	unsigned char type;
-	char cType;
-	char seqName[256];
-	char songName[256];
-	char eventID[6];
-	unsigned int pauselength;
-	char data[256];
-} PlaylistEntry;
-
-// FIXME PLAYLIST, get rid of this and use playlist/PlaylistEntryBase.h
-// temporarily copied from old Playlist.h during transition to new playlist
-typedef struct {
-	PlaylistEntry playList[PL_MAX_ENTRIES];
-	char currentPlaylist[128];
-	char currentPlaylistFile[128];
-	int  playListCount;
-	int  currentPlaylistEntry;
-	int  StopPlaylist;
-	int  ForceStop;
-	int  playlistStarting;
-	int  first;
-	int  last;
-	int  repeat;
-} PlaylistDetails;
-
+enum PlaylistStatus {
+    FPP_STATUS_IDLE = 0,
+    FPP_STATUS_PLAYLIST_PLAYING,
+    FPP_STATUS_STOPPING_GRACEFULLY,
+    FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP,
+    FPP_STATUS_STOPPING_NOW
+};
 
 class Playlist {
   public:
-	Playlist(void *parent = NULL, int subPlaylist = 0);
+	Playlist(Playlist *parent = NULL);
 	~Playlist();
 
-	////////////////////////////////////////
-	// Stub out old Playlist class methods
-	void StopPlaylistGracefully(void);
-	void StopPlaylistNow(void);
-	void PlayListPlayingInit(void);
-	void PlayListPlayingProcess(void);
-	void PlayListPlayingCleanup(void);
-	void PlaylistProcessMediaData(void);
-
-	int m_playlistAction;
-	PlaylistDetails m_playlistDetails;
-	int m_numberOfSecondsPaused;
-	////////////////////////////////////////
-
+    PlaylistStatus getPlaylistStatus() {
+        return m_status;
+    }
+    
 	// New methods
 	Json::Value        LoadJSON(const char *filename);
 	int                Load(Json::Value &config);
@@ -106,6 +63,7 @@ class Playlist {
 	int                Start(void);
 	int                StopNow(int forceStop = 0);
 	int                StopGracefully(int forceStop = 0, int afterCurrentLoop = 0);
+    void               SetIdle(bool exit = true);
 
 	int                IsPlaying(void);
 
@@ -113,9 +71,9 @@ class Playlist {
 	void               ProcessMedia(void);
 	int                Cleanup(void);
 
-	void               SetIdle(void);
-
-	int                Play(const char *filename, const int position = -1, const int repeat = -1);
+	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduled = 0);
+    
+    void               InsertPlaylistAsNext(const std::string &filename, const int position = -1);
 
 	void               SetPosition(int position);
 	void               SetRepeat(int repeat);
@@ -123,6 +81,7 @@ class Playlist {
 	void               Dump(void);
 
 	void               NextItem(void);
+    void               RestartItem(void);
 	void               PrevItem(void);
 
 	Json::Value        GetCurrentEntry(void);
@@ -133,15 +92,29 @@ class Playlist {
 	int                GetSize(void);
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
+	uint64_t           GetFileTime(void) { return (Json::UInt64)m_fileTime; }
 	int                GetForceStop(void) { return m_forceStop; }
 	int                WasScheduled(void) { return m_scheduled; }
 
 	int                MQTTHandler(std::string topic, std::string msg);
 
+	int                FileHasBeenModified(void);
 	std::string        ReplaceMatches(std::string in);
+	Json::Value        GetMqttStatusJSON(); // Returns Status as JSON
 
   private:
-	void                *m_parent;
+    
+	int                ReloadPlaylist(void);
+	void               ReloadIfNeeded(void);
+	void               SwitchToMainPlaylist(void);
+	void               SwitchToLeadOut(void);
+    
+    bool               SwitchToInsertedPlaylist();
+
+    PlaylistStatus       m_status;
+    
+	Playlist            *m_parent;
+	std::string          m_filename;
   	std::string          m_name;
 	std::string          m_desc;
 	int                  m_repeat;
@@ -153,14 +126,24 @@ class Playlist {
 	int                  m_blankAtEnd;
 	long long            m_startTime;
 	int                  m_subPlaylistDepth;
-	int                  m_subPlaylist;
 	int                  m_scheduled;
 	int                  m_forceStop;
+
+	time_t               m_fileTime;
+	Json::Value          m_config;
+	time_t               m_configTime;
+	Json::Value          m_playlistInfo;
 
 	std::string          m_currentState;
 	std::string          m_currentSectionStr;
 	int                  m_sectionPosition;
-	int                  m_absolutePosition;
+	int                  m_startPosition;
+
+    
+    std::string          m_insertedPlaylist;
+    int                  m_insertedPlaylistPosition;
+    
+	std::recursive_mutex m_playlistMutex;
 
 	std::vector<PlaylistEntryBase*>  m_leadIn;
 	std::vector<PlaylistEntryBase*>  m_mainPlaylist;
@@ -169,6 +152,6 @@ class Playlist {
 };
 
 // Temporary singleton during conversion
-extern Playlist *playlist;
+extern Playlist * playlist;
 
 #endif

@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 require_once('common.php');
@@ -81,8 +83,16 @@ if ( isset($_POST['timezone']) && !empty($_POST['timezone']) && urldecode($_POST
     //TODO: Check timezone for validity
     $timezone = urldecode($_POST['timezone']);
     error_log("Changing timezone to '".$timezone."'.");
-    if (file_exists('/usr/bin/timedatectl'))
-    {
+    if (file_exists("/.dockerenv")) {
+        exec($SUDO . " ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime", $output, $return_val);
+        unset($output);
+
+        exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
+        unset($output);
+        //TODO: check return
+        exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
+        unset($output);
+    } else if (file_exists('/usr/bin/timedatectl')) {
         exec($SUDO . " timedatectl set-timezone $timezone", $output, $return_val);
         unset($output);
     } else {
@@ -113,11 +123,20 @@ function print_if_match($one, $two, $print)
 }
 
 ?>
-<!DOCTYPE html>
-<html>
 <head>
 <?php include 'common/menuHead.inc'; ?>
 <title><? echo $pageTitle; ?></title>
+<script>
+function ViewLatLon()
+{
+	var lat = $('#Latitude').val();
+	var lon = $('#Longitude').val();
+
+	var url = 'https://www.google.com/maps/@' + lat + ',' + lon + ',15z';
+	window.open(url, '_blank');
+}
+
+</script>
 </head>
 <body>
 <div id="bodyWrapper">
@@ -147,15 +166,10 @@ function print_if_match($one, $two, $print)
 <select name="piRTC">
   <option value = "N" <?php echo print_if_match("N",ReadSettingFromFile("piRTC"),"selected") ?> >None</option>
   <option value = "2" <?php echo print_if_match("2",ReadSettingFromFile("piRTC"),"selected") ?> >DS1305/DS1307</option>
-<?
-	  if ($settings['Platform'] != "BeagleBone Black")
-		{
-?>
-  <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock</option>
-  <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRTC"),"selected") ?> >PiFace</option>
-<?
-		}
-?>
+  <option value = "1" <?php echo print_if_match("1",ReadSettingFromFile("piRTC"),"selected") ?> >RasClock (pcf2127)</option>
+  <option value = "3" <?php echo print_if_match("3",ReadSettingFromFile("piRTC"),"selected") ?> >PiFace (mcp7941x)</option>
+  <option value = "4" <?php echo print_if_match("4",ReadSettingFromFile("piRTC"),"selected") ?> >Adafruit PiRTC (pcf8523)</option>
+
 </select> <b>NOTE:</b> You must reboot to activate the RTC, then return to this page to set the time on the RTC.
 
 
@@ -205,6 +219,20 @@ unset($output);
 <input id="submit_button" name="submit_button" type="submit" class="buttons" value="Submit">
 </div>
       </form>
+
+<hr>
+<h4>Geographic Location</h4>
+<table border=0 cellpadding=2>
+<tr><td>Latitude:</td>
+	<td><? PrintSettingTextSaved("Latitude", 2, 0, 11, 11, "", "38.938524"); ?></td>
+	<td rowspan=2 valign='middle'><input type='button' value='View Location' onClick='ViewLatLon();'></td>
+	</tr>
+<tr><td>Longitude:</td>
+	<td><? PrintSettingTextSaved("Longitude", 2, 0, 11, 11, "", "-104.600945"); ?></td>
+	</tr>
+</table>
+<br>
+NOTE: Latitude/Longitude are optional but are used to determine sunrise/sunset times in the FPP Scheduler.  There are various ways to locate your Latitude and Longitude values including <a href='https://www.google.com/maps/'>Google Maps</a> and <a href='https://www.latlong.net/'>LatLong.net</a>.  The default values provided are for Falcon, Colorado.
 
 </fieldset>
 </div>

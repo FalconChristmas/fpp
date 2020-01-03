@@ -36,25 +36,28 @@ extern "C" {
 
 #include <vector>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 #include "PixelString.h"
 
-class RPIWS281xOutput : public ChannelOutputBase {
+class RPIWS281xOutput : public ThreadedChannelOutputBase {
   public:
 	RPIWS281xOutput(unsigned int startChannel, unsigned int channelCount);
-	~RPIWS281xOutput();
+	virtual ~RPIWS281xOutput();
 
-	int Init(Json::Value config);
-	int Close(void);
+	virtual int Init(Json::Value config) override;
+	virtual int Close(void) override;
 
-	void PrepData(unsigned char *channelData);
-	int  RawSendData(unsigned char *channelData);
+	virtual void PrepData(unsigned char *channelData) override;
+	virtual int  RawSendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	void SetupCtrlCHandler(void);
 
+	int          m_ledstringNumber;
 	int          m_string1GPIO;
 	int          m_string2GPIO;
 	int          m_pixels;

@@ -28,22 +28,24 @@
 
 #include <string>
 
-#include "ChannelOutputBase.h"
+#include "ThreadedChannelOutputBase.h"
 
 #define GENERICSERIAL_MAX_CHANNELS 2048
 
-class GenericSerialOutput : public ChannelOutputBase {
+class GenericSerialOutput : public ThreadedChannelOutputBase {
   public:
 	GenericSerialOutput(unsigned int startChannel, unsigned int channelCount);
-	~GenericSerialOutput();
+	virtual ~GenericSerialOutput();
 
-	int Init(char *configStr);
+    virtual int Init(Json::Value config) override;
+	virtual int Init(char *configStr) override;
 
-	int Close(void);
+	virtual int Close(void) override;
 
-	int RawSendData(unsigned char *channelData);
+	virtual int RawSendData(unsigned char *channelData) override;
 
-	void DumpConfig(void);
+	virtual void DumpConfig(void) override;
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
 	std::string m_deviceName;

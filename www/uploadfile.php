@@ -1,10 +1,17 @@
+<!DOCTYPE html>
+<html>
 <?php
 require_once('config.php');
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <?php	include 'common/menuHead.inc'; ?>
+
+
+<?php
+    exec($SUDO . " df -k /home/fpp/media/upload |awk '/\/dev\//{printf(\"%d\\n\", $5);}'", $output, $return_val);
+    $freespace = $output[0];
+    unset($output);
+?>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 
@@ -41,7 +48,6 @@ require_once('config.php');
           $('#tblVideos tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           VideoNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  //SetButtonState('#btnPlayVideoInBrowser','enable');
 		  SetButtonState('#btnVideoInfo','enable');
 		  SetButtonState('#btnDownloadVideo','enable');
@@ -49,11 +55,19 @@ require_once('config.php');
 		  SetButtonState('#btnDeleteVideo','enable');
     });
 
+    $('#tblImages').on('mousedown', 'tr', function(event,ui){
+          $('#tblImages tr').removeClass('selectedentry');
+          $(this).addClass('selectedentry');
+          ImageNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnViewImage','enable');
+		  SetButtonState('#btnDownloadImage','enable');
+		  SetButtonState('#btnDeleteImage','enable');
+    });
+
     $('#tblEffects').on('mousedown', 'tr', function(event,ui){
           $('#tblEffects tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           EffectNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadEffect','enable');
 		  SetButtonState('#btnRenameEffect','enable');
 		  SetButtonState('#btnDeleteEffect','enable');
@@ -63,7 +77,6 @@ require_once('config.php');
           $('#tblScripts tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           ScriptNameSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewScript','enable');
 		  SetButtonState('#btnEditScript','enable');
 		  SetButtonState('#btnRunScript','enable');
@@ -77,7 +90,6 @@ require_once('config.php');
           $('#tblLogs tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           LogFileSelected  = $(this).find('td:first').text();
-		  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnViewLog','enable');
 		  SetButtonState('#btnDownloadLog','enable');
 		  SetButtonState('#btnDeleteLog','enable');
@@ -87,13 +99,6 @@ require_once('config.php');
           $('#tblUploads tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           UploadFileSelected  = $(this).find('td:first').text();
-		  var extension = /\.(vix|xseq|lms|las|gled|seq|hlsidata)$/i;
-		  // Disable LOR/LMS/HLS for now until fppconvert is enhanced
-		  //extension = /\.(vix|xseq|gled|seq)$/i;
-		  if ( UploadFileSelected.match(extension) )
-			  SetButtonState('#btnSequenceConvertUpload','enable');
-		  else
-			  SetButtonState('#btnSequenceConvertUpload','disable');
 		  SetButtonState('#btnDownloadUpload','enable');
 		  SetButtonState('#btnDeleteUpload','enable');
     });
@@ -104,6 +109,7 @@ require_once('config.php');
 	GetFiles('Sequences');
 	GetFiles('Music');
 	GetFiles('Videos');
+	GetFiles('Images');
 	GetFiles('Effects');
 	GetFiles('Scripts');
 	GetFiles('Logs');
@@ -143,7 +149,7 @@ require_once('config.php');
 
 		postData = "command=saveScript&data=" + encodeURIComponent(JSON.stringify(info));
 
-		$.post("fppjson.php", postData).success(function(data) {
+		$.post("fppjson.php", postData).done(function(data) {
 			if (data.saveStatus == "OK")
 			{
 				$('#fileViewer').dialog('close');
@@ -201,12 +207,17 @@ h2 {
 <?php	include 'menu.inc'; ?>
 <div id="fileManager">
   <br />
-  <div class='title'>File Manager</div>
+<div class='title'>File Manager
+<? if ($freespace > 95) { ?>
+&nbsp;&nbsp;-&nbsp;&nbsp;<b><font color='red'>WARNING: storage device is almost full!</font></b>
+<? } ?>
+</div>
   <div id="tabs">
     <ul>
       <li><a href="#tab-sequence">Sequences</a></li>
       <li><a href="#tab-audio">Audio</a></li>
       <li><a href="#tab-video">Video</a></li>
+      <li><a href="#tab-images">Images</a></li>
       <li><a href="#tab-effects">Effects</a></li>
       <li><a href="#tab-scripts">Scripts</a></li>
       <li><a href="#tab-logs">Logs</a></li>
@@ -223,7 +234,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "DownloadFile('Sequences', SequenceNameSelected);" id="btnDownloadSequence" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Sequences', ScriptNameSelected);" id="btnRenameSequence" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Sequences', SequenceNameSelected);" id="btnRenameSequence" class="disableButtons" type="button"  value="Rename" />
             <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -244,7 +255,7 @@ h2 {
           <div class='right'>
             <input onclick= "PlayFileInBrowser('Music', SongNameSelected);" id="btnPlayMusicInBrowser" class="disableButtons" type="button"  value="Listen" />
             <input onclick= "DownloadFile('Music', SongNameSelected);" id="btnDownloadMusic" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Music', ScriptNameSelected);" id="btnRenameMusic" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Music', SongNameSelected);" id="btnRenameMusic" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -268,11 +279,29 @@ h2 {
             -->
             <input onclick= "GetVideoInfo(VideoNameSelected);" id="btnVideoInfo" class="disableButtons" type="button"  value="Video Info" />
             <input onclick= "DownloadFile('Videos', VideoNameSelected);" id="btnDownloadVideo" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Videos', ScriptNameSelected);" id="btnRenameVideo" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Videos', VideoNameSelected);" id="btnRenameVideo" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
           <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video is required for hardware acceleration on the Pi and AAC or MP3 audio are preferred.  Video playback is not currently supported on the BBB.</font>
+        </fieldset>
+      </div>
+    </div>
+
+    <div id="tab-images">
+      <div id= "divImage">
+        <fieldset  class="fs">
+          <legend> Images </legend>
+          <div id="divImageData">
+            <table id="tblImages">
+            </table>
+          </div>
+          <hr />
+          <div class='right'>
+            <input onclick= "ViewImage(ImageNameSelected);" id="btnViewImage" class="disableButtons" type="button"  value="View" />
+            <input onclick= "DownloadFile('Images', ImageNameSelected);" id="btnDownloadImage" class="disableButtons" type="button"  value="Download" />
+            <input onclick= "DeleteFile('Images', ImageNameSelected);" id="btnDeleteImage" class="disableButtons" type="button"  value="Delete" />
+          </div>
         </fieldset>
       </div>
     </div>
@@ -288,7 +317,7 @@ h2 {
           <hr />
           <div class='right'>
             <input onclick= "DownloadFile('Effects', EffectNameSelected);" id="btnDownloadEffect" class="disableButtons" type="button"  value="Download" />
-            <input onclick= "RenameFile('Effects', ScriptNameSelected);" id="btnRenameEffect" class="disableButtons" type="button"  value="Rename" />
+            <input onclick= "RenameFile('Effects', EffectNameSelected);" id="btnRenameEffect" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Effects', EffectNameSelected);" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
           </div>
           <br />
@@ -352,7 +381,6 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick= "ConvertFileDialog(UploadFileSelected);" id="btnSequenceConvertUpload" class="disableButtons" type="button"  value="Convert" style="float: left;"/>
             <input onclick= "DownloadFile('Uploads', UploadFileSelected);" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Uploads', UploadFileSelected);" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
           </div>

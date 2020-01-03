@@ -32,12 +32,12 @@
 #include "common.h"
 #include "log.h"
 #include "PlaylistEntryBoth.h"
+#include "PlaylistEntryCommand.h"
 #include "PlaylistEntryEffect.h"
 #include "PlaylistEntryEvent.h"
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryPause.h"
-#include "PlaylistEntryPixelOverlay.h"
 #include "PlaylistEntryRemap.h"
 #include "PlaylistEntryScript.h"
 #include "PlaylistEntrySequence.h"
@@ -45,13 +45,17 @@
 #include "PlaylistEntryVolume.h"
 #include "PlaylistEntryDynamic.h"
 #include "settings.h"
+#include "Playlist.h"
+
 
 /*
  *
  */
 PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_playlistEntry(NULL)
+	m_curl(NULL),
+	m_drainQueue(0),
+	m_currentEntry(-1)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::PlaylistEntryDynamic()\n");
 
@@ -63,12 +67,10 @@ PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
  */
 PlaylistEntryDynamic::~PlaylistEntryDynamic()
 {
-	if (m_playlistEntry)
-	{
-		delete m_playlistEntry;
-		m_playlistEntry = NULL;
-	}
+	ClearPlaylistEntries();
 
+	if (m_curl)
+		curl_easy_cleanup(m_curl);
 }
 
 /*
@@ -81,6 +83,43 @@ int PlaylistEntryDynamic::Init(Json::Value &config)
 	m_subType = config["subType"].asString();
 	m_data = config["data"].asString();
 
+	m_drainQueue = config["drainQueue"].asInt();
+
+	if (config.isMember("pluginHost"))
+		m_pluginHost = config["pluginHost"].asString();
+
+	if ((m_subType == "plugin") || (m_subType == "url"))
+	{
+		CURLcode status;
+		m_curl = curl_easy_init();
+		if (!m_curl)
+		{
+			LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
+			return 0;
+		}
+
+		status = curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryDynamic::write_data);
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+
+		status = curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, this);
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+
+		curl_easy_setopt(m_curl, CURLOPT_COOKIEFILE, "");
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error initializing cookie jar: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+	}
+
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -92,6 +131,12 @@ int PlaylistEntryDynamic::StartPlaying(void)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::StartPlaying()\n");
 
 	if (!CanPlay())
+	{
+		FinishPlay();
+		return 0;
+	}
+
+	if (!IsPrepped() && !Prep())
 	{
 		FinishPlay();
 		return 0;
@@ -113,7 +158,18 @@ int PlaylistEntryDynamic::StartPlaying(void)
 		return 0;
 	}
 
-	m_playlistEntry->StartPlaying();
+	m_isPrepped = 0;
+
+	if (m_currentEntry >= 0)
+	{
+		m_playlistEntries[m_currentEntry]->StartPlaying();
+		Started();
+	}
+	else
+	{
+		FinishPlay();
+		return 0;
+	}
 
 	return PlaylistEntryBase::StartPlaying();;
 }
@@ -123,13 +179,32 @@ int PlaylistEntryDynamic::StartPlaying(void)
  */
 int PlaylistEntryDynamic::Process(void)
 {
-	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Process()\n");
-
-	if (m_playlistEntry)
+	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 	{
-		m_playlistEntry->Process();
-		if (m_playlistEntry->IsFinished())
-			FinishPlay();
+		m_playlistEntries[m_currentEntry]->Process();
+		if (m_playlistEntries[m_currentEntry]->IsFinished())
+		{
+			if ((playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP))
+			{
+				FinishPlay();
+			}
+			else if (m_currentEntry < (m_playlistEntries.size() - 1))
+			{
+				m_currentEntry++;
+				m_playlistEntries[m_currentEntry]->StartPlaying();
+			}
+			else if (m_drainQueue)
+			{
+				// Check for more entries to play, if there are none,
+				// then StartPlaying() will call FinishPlay().
+				StartPlaying();
+			}
+			else
+			{
+				FinishPlay();
+			}
+		}
 
 		return 1;
 	}
@@ -144,13 +219,13 @@ int PlaylistEntryDynamic::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Stop()\n");
 
-	if (m_playlistEntry)
+	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 	{
-		m_playlistEntry->Stop();
+		m_playlistEntries[m_currentEntry]->Stop();
 		return 1;
 	}
 
-	return 0;
+	return PlaylistEntryBase::Stop();
 }
 
 /*
@@ -158,8 +233,10 @@ int PlaylistEntryDynamic::Stop(void)
  */
 void PlaylistEntryDynamic::Dump(void)
 {
-	LogDebug(VB_PLAYLIST, "SubType : %s\n", m_subType.c_str());
-	LogDebug(VB_PLAYLIST, "Data    : %s\n", m_data.c_str());
+	LogDebug(VB_PLAYLIST, "SubType    : %s\n", m_subType.c_str());
+	LogDebug(VB_PLAYLIST, "Data       : %s\n", m_data.c_str());
+	LogDebug(VB_PLAYLIST, "Drain Queue: %d\n", m_drainQueue);
+	LogDebug(VB_PLAYLIST, "Plugin Host: %s\n", m_pluginHost.c_str());
 }
 
 /*
@@ -171,6 +248,10 @@ Json::Value PlaylistEntryDynamic::GetConfig(void)
 
 	result["subType"] = m_subType;
 	result["data"] = m_data;
+	result["pluginHost"] = m_pluginHost;
+	result["drainQueue"] = m_drainQueue;
+	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
+		result["dynamic"] = m_playlistEntries[m_currentEntry]->GetConfig();
 
 	return result;
 }
@@ -216,10 +297,12 @@ int PlaylistEntryDynamic::ReadFromPlugin(void)
 
 	std::string url;
 
-	// FIXME Playlist: what should this URL be?
-	url = "http://127.0.0.1/plugin.php?plugin=";
-	url += m_data;
-	url += "&page=dynamicPlaylistEntryJSON.php&nopage=1";
+	url = "http://";
+	if (m_pluginHost != "")
+		url += m_pluginHost;
+	else
+		url += "127.0.0.1";
+	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=loadNextItem";
 
 	return ReadFromURL(url);
 }
@@ -229,48 +312,29 @@ int PlaylistEntryDynamic::ReadFromPlugin(void)
  */
 int PlaylistEntryDynamic::ReadFromURL(std::string url)
 {
-	CURLcode status;
-
 	LogDebug(VB_PLAYLIST, "ReadFromURL: %s\n", url.c_str());
 
-	CURL *curl = curl_easy_init();
-	if (!curl)
+	m_response = "";
+
+	if (!m_curl)
 	{
-		LogErr(VB_PLAYLIST, "Unable to create curl instance\n");
+		LogErr(VB_PLAYLIST, "m_curl is null\n");
 		return 0;
 	}
 
-	status = curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
 
-	status = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &PlaylistEntryDynamic::write_data);
-	if (status != CURLE_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting write callback function: %s\n", curl_easy_strerror(status));
-		return 0;
-	}
-
-	status = curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
-	if (status != CURLE_OK)
-	{
-		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting class pointer: %s\n", curl_easy_strerror(status));
-		return 0;
-	}
-
-	m_response = "";
-
-	status = curl_easy_perform(curl);
+	status = curl_easy_perform(m_curl);
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
 		return 0;
 	}
-
-	curl_easy_cleanup(curl);
 
 	return ReadFromString(m_response);
 }
@@ -282,6 +346,9 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 {
 	Json::Value root;
 	Json::Reader reader;
+	PlaylistEntryBase *playlistEntry = NULL;
+
+	LogDebug(VB_PLAYLIST, "ReadFromString(): String:\n%s\n", jsonStr.c_str());
 
 	if (jsonStr.empty())
 	{
@@ -296,49 +363,177 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 		return 0;
 	}
 
-	if (m_playlistEntry)
+	ClearPlaylistEntries();
+
+	Json::Value entries;
+	if (root.isMember("mainPlaylist"))
+		entries = root["mainPlaylist"];
+	else if (root.isMember("leadIn"))
+		entries = root["leadIn"];
+	else if (root.isMember("leadOut"))
+		entries = root["leadOut"];
+	else if (root.isMember("playlistEntries"))
+		entries = root["playlistEntries"];
+	else
+		return 0;
+
+	for (int i = 0; i < entries.size(); i++)
 	{
-		delete m_playlistEntry;
-		m_playlistEntry = NULL;
+		Json::Value pe = entries[i];
+		playlistEntry = NULL;
+
+		if (pe["type"].asString() == "both")
+			playlistEntry = new PlaylistEntryBoth();
+		else if (pe["type"].asString() == "command")
+			playlistEntry = new PlaylistEntryCommand();
+		else if (pe["type"].asString() == "effect")
+			playlistEntry = new PlaylistEntryEffect();
+		else if (pe["type"].asString() == "event")
+			playlistEntry = new PlaylistEntryEvent();
+		else if (pe["type"].asString() == "media")
+			playlistEntry = new PlaylistEntryMedia();
+		else if (pe["type"].asString() == "mqtt")
+			playlistEntry = new PlaylistEntryMQTT();
+		else if (pe["type"].asString() == "pause")
+			playlistEntry = new PlaylistEntryPause();
+		else if (pe["type"].asString() == "remap")
+			playlistEntry = new PlaylistEntryRemap();
+		else if (pe["type"].asString() == "script")
+			playlistEntry = new PlaylistEntryScript();
+		else if (pe["type"].asString() == "sequence")
+			playlistEntry = new PlaylistEntrySequence();
+		else if (pe["type"].asString() == "url")
+			playlistEntry = new PlaylistEntryURL();
+		else if (pe["type"].asString() == "volume")
+			playlistEntry = new PlaylistEntryVolume();
+		else
+		{
+			LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());
+			ClearPlaylistEntries();
+			return 0;
+		}
+
+		if (!playlistEntry->Init(pe))
+		{
+			LogErr(VB_PLAYLIST, "Error initializing %s Playlist Entry\n", pe["type"].asString().c_str());
+			ClearPlaylistEntries();
+			return 0;
+		}
+
+		m_playlistEntries.push_back(playlistEntry);
 	}
 
-	if (root["type"].asString() == "both")
-		m_playlistEntry = new PlaylistEntryBoth();
-	else if (root["type"].asString() == "effect")
-		m_playlistEntry = new PlaylistEntryEffect();
-	else if (root["type"].asString() == "event")
-		m_playlistEntry = new PlaylistEntryEvent();
-	else if (root["type"].asString() == "media")
-		m_playlistEntry = new PlaylistEntryMedia();
-	else if (root["type"].asString() == "mqtt")
-		m_playlistEntry = new PlaylistEntryMQTT();
-	else if (root["type"].asString() == "pause")
-		m_playlistEntry = new PlaylistEntryPause();
-	else if (root["type"].asString() == "pixelOverlay")
-		m_playlistEntry = new PlaylistEntryPixelOverlay();
-	else if (root["type"].asString() == "remap")
-		m_playlistEntry = new PlaylistEntryRemap();
-	else if (root["type"].asString() == "script")
-		m_playlistEntry = new PlaylistEntryScript();
-	else if (root["type"].asString() == "sequence")
-		m_playlistEntry = new PlaylistEntrySequence();
-	else if (root["type"].asString() == "url")
-		m_playlistEntry = new PlaylistEntryURL();
-	else if (root["type"].asString() == "volume")
-		m_playlistEntry = new PlaylistEntryVolume();
-	else
+	if (!m_playlistEntries.size())
 	{
-		LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", root["type"].asString().c_str());
-		m_playlistEntry = NULL;
+		LogErr(VB_PLAYLIST, "Error, no valid playlistEntries in dynamic data!\n");
 		return 0;
 	}
 
-	if (m_playlistEntry->Init(root))
-		return 1;
+	m_currentEntry = 0;
 
-	m_playlistEntry = NULL;
+	return 1;
+}
 
-	return 0;
+/*
+ *
+ */
+int PlaylistEntryDynamic::Started(void)
+{
+	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Started()\n");
+
+	int res = 1;
+	if (m_subType == "plugin")
+		res = StartedPlugin();
+
+	if (!res)
+	{
+		return 0;
+	}
+
+	return res;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::StartedPlugin(void)
+{
+	std::string url;
+
+	url = "http://";
+	if (m_pluginHost != "")
+		url += m_pluginHost;
+	else
+		url += "127.0.0.1";
+	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=startedNextItem";
+
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+		return 0;
+	}
+
+	status = curl_easy_perform(m_curl);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", status);
+		return 0;
+	}
+
+	return 1;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::Prep(void)
+{
+	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Prep()\n");
+
+	int res = 1;
+	if (m_subType == "plugin")
+		res = PrepPlugin();
+
+	if (!res)
+	{
+		return 0;
+	}
+
+	return PlaylistEntryBase::Prep();;
+}
+
+/*
+ *
+ */
+int PlaylistEntryDynamic::PrepPlugin(void)
+{
+	std::string url;
+
+	url = "http://";
+	if (m_pluginHost != "")
+		url += m_pluginHost;
+	else
+		url += "127.0.0.1";
+	url += "/plugin.php?plugin=" + m_data + "&page=playlistCallback.php&nopage=1&command=prepNextItem";
+
+	LogDebug(VB_PLAYLIST, "URL: %s\n", url.c_str());
+
+	CURLcode status = curl_easy_setopt(m_curl, CURLOPT_URL, url.c_str());
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+		return 0;
+	}
+
+	status = curl_easy_perform(m_curl);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_perform returned an error: %d\n", status);
+		return 0;
+	}
+
+	return 1;
 }
 
 /*
@@ -353,6 +548,20 @@ int PlaylistEntryDynamic::ProcessData(void *buffer, size_t size, size_t nmemb)
 	LogDebug(VB_PLAYLIST, "m_response length: %d\n", m_response.size());
 
 	return size * nmemb;
+}
+
+/*
+ *
+ */
+void PlaylistEntryDynamic::ClearPlaylistEntries(void)
+{
+	while (!m_playlistEntries.empty())
+	{
+		delete m_playlistEntries.back();
+		m_playlistEntries.pop_back();
+	}
+
+	m_currentEntry = -1;
 }
 
 /*

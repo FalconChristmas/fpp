@@ -27,6 +27,7 @@
 #define _PLAYLISTENTRYDYNAMIC_H
 
 #include <string>
+#include <vector>
 
 #include <curl/curl.h>
 #include <jsoncpp/json/json.h>
@@ -36,17 +37,18 @@
 class PlaylistEntryDynamic : public PlaylistEntryBase {
   public:
 	PlaylistEntryDynamic(PlaylistEntryBase *parent = NULL);
-	~PlaylistEntryDynamic();
+	virtual ~PlaylistEntryDynamic();
 
-	int  Init(Json::Value &config);
+	virtual int  Init(Json::Value &config) override;
 
-	int  StartPlaying(void);
-	int  Process(void);
-	int  Stop(void);
+	virtual int  StartPlaying(void) override;
+	virtual int  Prep(void) override;
+	virtual int  Process(void) override;
+	virtual int  Stop(void) override;
 
-	void Dump(void);
+	virtual void Dump(void) override;
 
-	Json::Value GetConfig(void);
+	virtual Json::Value GetConfig(void) override;
 
   private:
 	int ReadFromCommand(void);
@@ -55,15 +57,27 @@ class PlaylistEntryDynamic : public PlaylistEntryBase {
 	int ReadFromURL(std::string url);
 	int ReadFromString(std::string jsonStr);
 
+	int PrepPlugin(void);
+
+	int Started(void);
+	int StartedPlugin(void);
+
 	int ProcessData(void *buffer, size_t size, size_t nmemb);
+	void ClearPlaylistEntries(void);
 
 	static size_t write_data(void *ptr, size_t size, size_t nmemb,
 	                             void *ourpointer);
 
 	std::string            m_subType;
 	std::string            m_data;
-	PlaylistEntryBase     *m_playlistEntry;
 
+	CURL                  *m_curl;
+
+	int                    m_drainQueue;
+	int                    m_currentEntry;
+	std::vector<PlaylistEntryBase *> m_playlistEntries;
+
+	std::string            m_pluginHost;
 	std::string            m_url;
 	std::string            m_method;
 	std::string            m_response;

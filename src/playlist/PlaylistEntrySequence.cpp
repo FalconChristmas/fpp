@@ -34,7 +34,9 @@ PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)
 	m_duration(0),
 	m_sequenceID(0),
 	m_priority(0),
-	m_startSeconds(0)
+	m_startSeconds(0),
+    m_prepared(false)
+
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::PlaylistEntrySequence()\n");
 
@@ -63,6 +65,16 @@ int PlaylistEntrySequence::Init(Json::Value &config)
 	return PlaylistEntryBase::Init(config);
 }
 
+
+int PlaylistEntrySequence::PreparePlay() {
+    if (sequence->OpenSequenceFile(m_sequenceName.c_str(), 0) <= 0) {
+        LogErr(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
+        return 0;
+    }
+    m_prepared = true;
+    return 1;
+}
+
 /*
  *
  */
@@ -70,23 +82,23 @@ int PlaylistEntrySequence::StartPlaying(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
+	if (!CanPlay()) {
+        m_prepared = false;
 		FinishPlay();
 		return 0;
 	}
-
+    
+    if (!m_prepared) {
+        PreparePlay();
+    }
+    
 // FIXME
 //	m_sequenceID = player->StartSequence(m_sequenceName, m_priority, m_startSeconds);
 
 //	if (!m_sequenceID)
 //		return 0;
 
-	if (sequence->OpenSequenceFile(m_sequenceName.c_str(), 0) <= 0)
-	{
-		LogErr(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
-		return 0;
-	}
+    sequence->StartSequence();
 
 	LogDebug(VB_PLAYLIST, "Started Sequence, ID: %d\n", m_sequenceID);
 
@@ -108,6 +120,7 @@ int PlaylistEntrySequence::Process(void)
 	if (!sequence->IsSequenceRunning())
 	{
 		FinishPlay();
+        m_prepared = false;
 
 		if (mqtt)
 			mqtt->Publish("playlist/sequence/status", "");
@@ -128,7 +141,7 @@ int PlaylistEntrySequence::Stop(void)
 //		return 0;
 
 	sequence->CloseSequenceFile();
-
+    m_prepared = false;
 	if (mqtt)
 		mqtt->Publish("playlist/sequence/status", "");
 
@@ -155,6 +168,15 @@ Json::Value PlaylistEntrySequence::GetConfig(void)
 	result["sequenceName"]     = m_sequenceName;
 	result["secondsElapsed"]   = sequence->m_seqSecondsElapsed;
 	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
+
+	return result;
+}
+Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
+	Json::Value result = PlaylistEntryBase::GetMqttStatus();
+	result["sequenceName"]     = m_sequenceName;
+	result["secondsElapsed"]   = sequence->m_seqSecondsElapsed;
+	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
+	result["secondsTotal"] = sequence->m_seqDuration;
 
 	return result;
 }

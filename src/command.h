@@ -29,5 +29,4 @@
 int Command_Initialize();
 void CloseCommand();
 void CommandProc();
-void ProcessCommand(char *command);
-void exit_handler(int signum);
+char *ProcessCommand(char *command, char *response);

@@ -1,32 +1,5 @@
+<?php include 'co-other-modules.php';?>
 <script>
-/////////////////////////////////////////////////////////////////////////////
-// Misc. Support functions
-function DeviceSelect(deviceArray, currentValue) {
-	var result = "Port: <select class='device'>";
-
-	if (currentValue == "")
-		result += "<option value=''>-- Port --</option>";
-
-	var found = 0;
-	for (var key in deviceArray) {
-		result += "<option value='" + key + "'";
-	
-		if (currentValue == key) {
-			result += " selected";
-			found = 1;
-		}
-
-		result += ">" + deviceArray[key] + "</option>";
-	}
-
-	if ((currentValue != '') &&
-		(found == 0)) {
-		result += "<option value='" + currentValue + "'>" + currentValue + "</option>";
-	}
-	result += "</select>";
-
-	return result;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // nRF Support functions
@@ -56,23 +29,6 @@ function nRFSpeedSelect(speedArray, currentValue) {
 
 	return result;
 }
-
-/////////////////////////////////////////////////////////////////////////////
-// Serial Devices
-var SerialDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if ((preg_match("/^ttyS[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyACM[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyO[0-9]/", $fileName)) ||
-			(preg_match("/^ttyS[0-9]/", $fileName)) ||
-			(preg_match("/^ttyAMA[0-9]+/", $fileName)) ||
-			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
-			echo "SerialDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
 
 /////////////////////////////////////////////////////////////////////////////
 function USBDeviceConfig(config) {
@@ -105,6 +61,18 @@ function NewUSBConfig() {
 
 /////////////////////////////////////////////////////////////////////////////
 // Virtual Matrix Output
+//
+// Framebuffer Devices
+var FBDevices = new Array();
+<?
+	foreach(scandir("/dev/") as $fileName)
+	{
+		if (preg_match("/^fb[0-9]+/", $fileName)) {
+			echo "FBDevices['$fileName'] = '$fileName';\n";
+		}
+	}
+?>
+
 function VirtualMatrixLayoutChanged(item) {
 	var val = parseInt($(item).val());
 
@@ -146,6 +114,11 @@ function VirtualMatrixConfig(config) {
 				" Height: <input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
 
 	result += VirtualMatrixColorOrderSelect(config.colorOrder);
+	result += " Invert: <input type=checkbox class='invert'";
+	if (config.invert)
+		result += " checked='checked'";
+	result += ">";
+	result += DeviceSelect(FBDevices, config.device);
 
 	return result;
 }
@@ -157,6 +130,8 @@ function NewVirtualMatrixConfig() {
 	config.height = 16;
 	config.layout = "32x16";
 	config.colorOrder = "RGB";
+	config.invert = 0;
+	config.device = "fb0";
 
 	return VirtualMatrixConfig(config);
 }
@@ -178,10 +153,21 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 	if (colorOrder == "")
 		return "";
 
+	var device = $cell.find("select.device").val();
+
+	if (device == "")
+		return "fb0";
+
+	var invert = 0;
+	if ($cell.find("input.invert").is(":checked"))
+		invert = 1;
+
 	result.width = parseInt(width);
 	result.height = parseInt(height);
 	result.layout = width + "x" + height;
 	result.colorOrder = colorOrder;
+	result.invert = invert;
+	result.device = device;
 
 	return result;
 }
@@ -237,7 +223,7 @@ function GenericSerialConfig(config) {
 function NewGenericSerialConfig() {
 	var config = {};
 
-	config.device = "ttyUSB0";
+	config.device = "";
 	config.speed = 9600;
 	config.header = "";
 	config.footer = "";
@@ -730,7 +716,7 @@ function GPIO595GPIOSelect(currentValue) {
     if ($settings['Platform'] == "Raspberry Pi") {
     ?>
         options = "17:17,18:18,22:22,23:23,24:24,27:27".split(",");
-        result += "BCM GPIO Outputs&nbsp;nbsp;"
+        result += "BCM GPIO Outputs&nbsp;&nbsp;"
     <?
     } else if ($settings['Platform'] == "BeagleBone Black") {
     ?>
@@ -792,6 +778,7 @@ function NewVirtualDisplayConfig() {
 	config.height = 1024;
 	config.colorOrder = "BGR";
 	config.pixelSize = 2;
+	config.device = "fb0";
 
 	return VirtualDisplayConfig(config);
 }
@@ -825,11 +812,12 @@ function VirtualDisplayConfig(config) {
 	for (i = 1; i <= 3; i++)
 	{
 		result += "<option value='" + i + "'";
-		if (config.channelsPerPixel == i)
+        if (config.pixelSize == i)
 			result += " selected";
 		result += ">" + i + "</option>";
 	}
 	result += "</select>";
+	result += DeviceSelect(FBDevices, config.device);
 
 	return result;
 }
@@ -862,7 +850,60 @@ function GetVirtualDisplayConfig(result, cell) {
 
 	result.pixelSize = parseInt(pixelSize);
 
+	var device = $cell.find("select.device").val();
+	if (device == "")
+		return "";
+
+	result.device = device;
+
 	return result;
+}
+
+function NewHTTPVirtualDisplayConfig() {
+    var config = {};
+
+    config.width = 1280;
+    config.height = 1024;
+    config.pixelSize = 2;
+    return HTTPVirtualDisplayConfig(config);
+}
+function HTTPVirtualDisplayConfig(config) {
+    var result = "";
+
+    result += "Width: <input type=text class='width' size=4 maxlength=4 value='" + config.width + "'> ";
+    result += "Height: <input type=text class='height' size=4 maxlength=4 value='" + config.height + "'> ";
+    result += "Pixel Size: <select class='pixelSize'>";
+    for (i = 1; i <= 3; i++)
+    {
+        result += "<option value='" + i + "'";
+        if (config.pixelSize == i)
+            result += " selected";
+        result += ">" + i + "</option>";
+    }
+    result += "</select>";
+    return result;
+}
+
+function GetHTTPVirtualDisplayConfig(result, cell) {
+    $cell = $(cell);
+
+    var width = $cell.find("input.width").val();
+    if (width == "")
+        return "";
+
+    result.width = parseInt(width);
+
+    var height = $cell.find("input.height").val();
+    if (height == "")
+        return "";
+
+    result.height = parseInt(height);
+    
+    var pixelSize = $cell.find("select.pixelSize").val();
+    if (pixelSize == "")
+        pixelSize = "1";
+    result.pixelSize = parseInt(pixelSize);
+    return result;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1065,7 +1106,12 @@ function LOROutputConfig(config) {
 
 	result += DeviceSelect(SerialDevices, config.device) + "&nbsp;&nbsp;";
 	result += LORSpeedSelect(config.speed);
-
+    
+    var val = config.firstControllerId;
+    if (!val) {
+        val = 1;
+    }
+    result += "&nbsp;&nbsp;First Controller ID: <input class='firstControllerId' style='opacity: 1' id='firstControllerId' type='number' value='" + val + "' min='1' max='240' />";
 	return result;
 }
 
@@ -1078,10 +1124,17 @@ function GetLOROutputConfig(result, cell) {
 
 	result.device = value;
 
+    value = $cell.find("select.speed").val();
+
 	if (value == "")
 		return "";
 
 	result.speed = parseInt(value);
+    
+    value = $cell.find("input.firstControllerId");
+    var v2 = parseInt(value.val());
+    
+    result.firstControllerId = v2;
 
 	return result;
 }
@@ -1095,57 +1148,6 @@ function NewLORConfig() {
 	return LOROutputConfig(config);
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// SPI Devices (/dev/spidev*
-var SPIDevices = new Array();
-<?
-	foreach(scandir("/dev/") as $fileName)
-	{
-		if (preg_match("/^spidev[0-9]/", $fileName)) {
-			echo "SPIDevices['$fileName'] = '$fileName';\n";
-		}
-	}
-?>
-
-function SPIDeviceConfig(config) {
-	var result = "";
-
-	result += DeviceSelect(SPIDevices, config.device);
-	result += " PI36: <input type=checkbox class='pi36'";
-	if (config.pi36)
-		result += " checked='checked'";
-
-	result += ">";
-
-	return result;
-}
-
-function NewSPIConfig() {
-	var config = {};
-
-	config.device = "";
-	config.pi36 = 0;
-
-	return SPIDeviceConfig(config);
-}
-
-function GetSPIOutputConfig(result, cell) {
-	$cell = $(cell);
-	var value = $cell.find("select.device").val();
-
-	if (value == "")
-		return "";
-
-	var pi36 = 0;
-
-	if ($cell.find("input.pi36").is(":checked"))
-		pi36 = 1;
-
-	result.device = value;
-	result.pi36 = parseInt(pi36);
-
-	return result;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // nRF/Komby
@@ -1191,71 +1193,93 @@ function NewnRFSPIConfig() {
 // 'Other' Channel Outputs misc. functions
 function PopulateChannelOutputTable(data) {
 	$('#tblOtherOutputs tbody').html("");
+    
+    if (data) {
+        for (var i = 0; i < data.channelOutputs.length; i++) {
+            var output = data.channelOutputs[i];
+            var type = output.type;
 
-	for (var i = 0; i < data.channelOutputs.length; i++) {
-		var output = data.channelOutputs[i];
-		var type = output.type;
+            var newRow = "<tr class='rowUniverseDetails'><td>" + (i + 1) + "</td>" +
+                    "<td><input class='act' type=checkbox";
 
-		var newRow = "<tr class='rowUniverseDetails'><td>" + (i + 1) + "</td>" +
-				"<td><input class='act' type=checkbox";
+            if (output.enabled)
+                newRow += " checked";
 
-		if (output.enabled)
-			newRow += " checked";
+            var countDisabled = "";
 
-		var countDisabled = "";
+            ///////used for new way
+			let output_module = output_modules.find(obj => obj.typeName == type);
+			///////
 
-		if ((type == "Triks-C") ||
-			(type == 'GPIO') ||
-			(type == 'USBRelay') ||
-			(type == 'Pixelnet-Lynx') ||
-			(type == 'Pixelnet-Open') ||
-			(type == 'MAX7219Matrix') ||
-			(type == 'VirtualDisplay') ||
-			(type == 'VirtualMatrix'))
-			countDisabled = " disabled=''";
+			if ((type == "Triks-C") ||
+                (type == 'GPIO') ||
+                (type == 'USBRelay') ||
+                (type == 'Pixelnet-Lynx') ||
+                (type == 'Pixelnet-Open') ||
+                (type == 'MAX7219Matrix') ||
+                (type == 'VirtualDisplay') ||
+                (type == 'VirtualMatrix') ||
+				(() => {
+					///////used for new way
+					if (output_module != undefined)
+						return output_module.fixedChan;
+					return false;
+					})()
+					///////
+				)
+                countDisabled = " disabled='disabled'";
 
-		newRow += "></td>" +
-				"<td>" + type + "</td>" +
-				"<td><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
-				"<td><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
-				"<td>";
+			var typeFriendlyName = type;
+			if (output_module != undefined)
+					typeFriendlyName = output_module.typeFriendlyName;
 
-		if ((type == "DMX-Pro") ||
-			(type == "DMX-Open") ||
-			(type == "Pixelnet-Lynx") ||
-			(type == "Pixelnet-Open")) {
-			newRow += USBDeviceConfig(output);
-		} else if (type == "GenericSerial") {
-			newRow += GenericSerialConfig(output);
-		} else if (type == "Renard") {
-			newRow += RenardOutputConfig(output);
-		} else if (type == "LOR") {
-			newRow += LOROutputConfig(output);
-		} else if (type == "SPI-WS2801") {
-			newRow += SPIDeviceConfig(output);
-		} else if (type == "SPI-nRF24L01") {
-			newRow += SPInRFDeviceConfig(output);
-		} else if (type == "Triks-C") {
-			newRow += TriksDeviceConfig(output);
-		} else if (type == "GPIO") {
-			newRow += GPIODeviceConfig(output);
-		} else if (type == "GPIO-595") {
-			newRow += GPIO595DeviceConfig(output);
-		} else if (type == "VirtualDisplay") {
-			newRow += VirtualDisplayConfig(output);
-		} else if (type == "MAX7219Matrix") {
-			newRow += MAX7219MatrixConfig(output);
-		} else if (type == "USBRelay") {
-			newRow += USBRelayConfig(output);
-		} else if (type == "VirtualMatrix") {
-			newRow += VirtualMatrixConfig(output);
-		}
+			newRow += "></td>" +	
+					"<td class='type'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
+                    "<td><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
+                    "<td><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
+                    "<td class='config'>";
 
-		newRow += "</td>" +
-				"</tr>";
+            if ((type == "DMX-Pro") ||
+                (type == "DMX-Open") ||
+                (type == "Pixelnet-Lynx") ||
+                (type == "Pixelnet-Open")) {
+                newRow += USBDeviceConfig(output);
+            } else if (type == "GenericSerial") {
+                newRow += GenericSerialConfig(output);
+            } else if (type == "Renard") {
+                newRow += RenardOutputConfig(output);
+            } else if (type == "LOR") {
+                newRow += LOROutputConfig(output);
+            } else if (type == "SPI-nRF24L01") {
+                newRow += SPInRFDeviceConfig(output);
+            } else if (type == "Triks-C") {
+                newRow += TriksDeviceConfig(output);
+            } else if (type == "GPIO") {
+                newRow += GPIODeviceConfig(output);
+            } else if (type == "GPIO-595") {
+                newRow += GPIO595DeviceConfig(output);
+            } else if (type == "VirtualDisplay") {
+                newRow += VirtualDisplayConfig(output);
+            } else if (type == "HTTPVirtualDisplay") {
+                newRow += HTTPVirtualDisplayConfig(output);
+            } else if (type == "MAX7219Matrix") {
+                newRow += MAX7219MatrixConfig(output);
+            } else if (type == "USBRelay") {
+                newRow += USBRelayConfig(output);
+            } else if (type == "VirtualMatrix") {
+                newRow += VirtualMatrixConfig(output);
+            } else if (output_module != undefined){
+				///////new way
+				newRow += output_module.PopulateHTMLRow(output);
+			}
 
-		$('#tblOtherOutputs tbody').append(newRow);
-	}
+            newRow += "</td>" +
+                    "</tr>";
+
+            $('#tblOtherOutputs tbody').append(newRow);
+
+        }
+    }
 }
 
 function GetChannelOutputs() {
@@ -1281,10 +1305,10 @@ function SaveOtherChannelOutputs() {
 		}
 
 		// Type
-		var type = $this.find("td:nth-child(3)").html();
+		var type = $this.find("input.type").val();
 
 		// User has not selected a type yet
-		if (type.indexOf("<select") >= 0) {
+		if (type.indexOf("None Selected") >= 0) {
 			DialogError("Save Channel Outputs",
 				"Output type must be selected on row " + rowNumber);
 			dataError = 1;
@@ -1308,9 +1332,9 @@ function SaveOtherChannelOutputs() {
 		}
 
 		var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
-		if (endChannel > 524288) {
+		if (endChannel > 1048576) {
 			DialogError("Save Channel Outputs",
-				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 524288 on row " + rowNumber);
+				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 1048576 on row " + rowNumber);
 			dataError = 1;
 			return;
 		}
@@ -1353,14 +1377,6 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 3840;
-		} else if (type == "SPI-WS2801") {
-			config = GetSPIOutputConfig(config, $this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid SPI-WS2801 Config");
-				return;
-			}
-			maxChannels = 1530;
 		} else if (type == "SPI-nRF24L01") {
 			config = GetnRFSpeedConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1400,7 +1416,15 @@ function SaveOtherChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid Virtual Display Config");
 				return;
 			}
-			maxChannels = 524288;
+			maxChannels = 1048576;
+		} else if (type == "HTTPVirtualDisplay") {
+			config = GetHTTPVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid HTTPVirtual Display Config");
+				return;
+			}
+			maxChannels = 1048576;
 		} else if (type == "MAX7219Matrix") {
 			config = GetMAX7219MatrixConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1433,7 +1457,18 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 500000;
+		} else if (output_modules.find(obj => obj.typeName == type) != undefined){
+			///////new method
+			let output_module = output_modules.find(obj => obj.typeName == type);
+			config = output_module.GetOutputConfig(config, $this.find("td:nth-child(6)"));
+			if (config == "") {
+				dataError = 1;
+				DialogError("Save Channel Outputs", "Invalid" + output_module.typeFriendlyName + "Config");
+				return;
+			}
+			maxChannels = output_module.maxChannels;
 		}
+
 
 		outputs.push(config);
 
@@ -1448,10 +1483,10 @@ function SaveOtherChannelOutputs() {
 	// Double stringify so JSON in .json file is surrounded by { }
 	var postDataStr = "command=setChannelOutputs&file=co-other&data=" + JSON.stringify(JSON.stringify(postData));
 
-	$.post("fppjson.php", postDataStr).success(function(data) {
+	$.post("fppjson.php", postDataStr).done(function(data) {
 		PopulateChannelOutputTable(data);
 		$.jGrowl("Channel Output Configuration Saved");
-		SetRestartFlag();
+		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Channel Outputs", "Save Failed");
 	});
@@ -1480,9 +1515,6 @@ function AddOtherTypeOptions(row, type) {
 		config += NewLORConfig();
 		row.find("td input.count").val("16");
 		row.find("td input.speed").val("19200");
-	} else if (type == "SPI-WS2801") {
-		config += NewSPIConfig();
-		row.find("td input.count").val("1530");
 	} else if (type == "SPI-nRF24L01") {
 		config += NewnRFSPIConfig();
 		row.find("td input.count").val("512");
@@ -1499,8 +1531,12 @@ function AddOtherTypeOptions(row, type) {
 		row.find("td input.count").val("8");
 	} else if (type == "VirtualDisplay") {
 		config += NewVirtualDisplayConfig();
-		row.find("td input.count").val("524288");
+		row.find("td input.count").val("1048576");
 		row.find("td input.count").prop('disabled', true);
+    } else if (type == "HTTPVirtualDisplay") {
+        config += NewHTTPVirtualDisplayConfig();
+        row.find("td input.count").val("1048576");
+        row.find("td input.count").prop('disabled', true);
 	} else if (type == "MAX7219Matrix") {
 		config += NewMAX7219MatrixConfig();
 		row.find("td input.count").val("64");
@@ -1516,6 +1552,11 @@ function AddOtherTypeOptions(row, type) {
 		config += NewVirtualMatrixConfig();
 		row.find("td input.count").val("1536");
 		row.find("td input.count").prop('disabled', true);
+	} else if (output_modules.find(obj => obj.typeName == type) != undefined) {
+		///////new method
+		let output_module = output_modules.find(obj => obj.typeName == type);
+		config += output_module.AddNewRow();
+		output_module.SetDefaults(row);
 	}
 
 	row.find("td:nth-child(6)").html(config);
@@ -1535,80 +1576,85 @@ function OtherTypeSelected(selectbox) {
 			 (type == 'Renard') ||
 			 (type == 'Triks-C')))
 	{
-		DialogError("Add Output", "No available serial devices detected.  Do you have a USB Serial Dongle attached?");
 		$row.remove();
-		return;
 	}
 
-	if ((Object.keys(SPIDevices).length == 0) &&
-			(type == 'SPI-WS2801'))
-	{
-		DialogError("Add Output", "No available SPI devices detected.");
-		$row.remove();
-		return;
+
+	///////new way
+	let output_module = output_modules.find(obj => obj.typeName == type);
+	if (output_module != undefined) {
+		if(!output_module.CanAddNewOutput()) {
+			$row.remove();
+		}
 	}
 
-	if ((type == 'Triks-C') || (type == 'GPIO'))
-	{
-		$row.find('input.count').prop('disabled', true);
-	}
-
-	$row.find("td:nth-child(3)").html(type);
+	//add frindly type name if available
+	var typeFriendlyName = type;
+	if (output_module != undefined)
+			typeFriendlyName = output_module.typeFriendlyName;
+	$row.find("td.type").html(typeFriendlyName);
+	$row.find("td.type").append("<input class='type' type='hidden' name='type' value='" +type+ "'>");
 
 	AddOtherTypeOptions($row, type);
 }
 
 function AddOtherOutput() {
-	if ((Object.keys(SerialDevices).length == 0) &&
-		(Object.keys(SPIDevices).length == 0)) {
-		DialogError("Add Output", "No available devices found for new outputs");
-		return;
-	}
-
 	var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
 	var newRow = 
 		"<tr class='rowUniverseDetails'><td>" + (currentRows + 1) + "</td>" +
 			"<td><input class='act' type=checkbox></td>" +
-			"<td><select class='type' onChange='OtherTypeSelected(this);'>" +
-				"<option value=''>Select a type</option>" +
-				"<option value='DMX-Pro'>DMX-Pro</option>" +
+			"<td class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
+            "<option value=''>Select a type</option>";
+ 
+ 
+	if (Object.keys(SerialDevices).length > 0) {
+        newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
 				"<option value='GenericSerial'>Generic Serial</option>" +
+                "<option value='LOR'>LOR</option>" +
+                "<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
+                "<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
+                "<option value='USBRelay'>USBRelay</option>" +
+                "<option value='Renard'>Renard</option>";
+    }
 <?
 	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 	{
 ?>
-				"<option value='GPIO'>GPIO</option>" +
-				"<option value='GPIO-595'>GPIO-595</option>" +
+        newRow += "<option value='GPIO'>GPIO</option>" +
+                "<option value='GPIO-595'>GPIO-595</option>";
 <?
 	}
-?>
-				"<option value='LOR'>LOR</option>" +
-				"<option value='Pixelnet-Lynx'>Pixelnet-Lynx</option>" +
-				"<option value='Pixelnet-Open'>Pixelnet-Open</option>" +
-				"<option value='Renard'>Renard</option>" +
-<?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-				"<option value='SPI-WS2801'>SPI-WS2801</option>" +
-				"<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
-				"<option value='MAX7219Matrix'>MAX7219 Matrix</option>" +
+        newRow += "<option value='Triks-C'>Triks-C</option>";
+        if (Object.keys(SPIDevices).length > 0) {
+            newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
+                "<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
+        }
 <?
 	}
 ?>
-				"<option value='VirtualMatrix'>Virtual Matrix</option>" +
-				"<option value='VirtualDisplay'>Virtual Display</option>" +
-				"<option value='Triks-C'>Triks-C</option>" +
-				"<option value='USBRelay'>USBRelay</option>" +
-			"</select></td>" +
+        if (Object.keys(FBDevices).length > 0) {
+            newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>" +
+                "<option value='VirtualDisplay'>Virtual Display</option>";
+        }
+        newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
+        newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
 			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td> </td>" +
 			"</tr>";
 
 	$('#tblOtherOutputs tbody').append(newRow);
+
+	///////new method
+	output_modules.forEach(function addOption(output_module) {
+		$('#outputType').append(new Option(output_module.typeFriendlyName, output_module.typeName));
+	})
+
 }
 
 var otherTableInfo = {

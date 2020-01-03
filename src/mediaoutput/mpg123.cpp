@@ -33,13 +33,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "channeloutputthread.h"
 #include "common.h"
 #include "log.h"
 #include "mpg123.h"
 #include "MultiSync.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "../channeloutput/channeloutputthread.h"
 
 /*
  *
@@ -75,7 +75,7 @@ int mpg123Output::Start(void)
 	fullAudioPath += "/";
 	fullAudioPath += m_mediaFilename;
 
-	if (!FileExists(fullAudioPath.c_str()))
+	if (!FileExists(fullAudioPath))
 	{
 		LogErr(VB_MEDIAOUT, "%s does not exist!\n", fullAudioPath.c_str());
 		return 0;
@@ -87,7 +87,7 @@ int mpg123Output::Start(void)
 	{
 		mp3Player = MPG123_BINARY;
 	}
-	else if (!FileExists(mp3Player.c_str()))
+	else if (!FileExists(mp3Player))
 	{
 		LogDebug(VB_MEDIAOUT, "Configured mp3Player %s does not exist, "
 			"falling back to %s\n", mp3Player.c_str(), MPG123_BINARY);
@@ -102,12 +102,12 @@ int mpg123Output::Start(void)
 	pid_t mpg123Pid = fork();
 	if (mpg123Pid == 0)			// mpg123 process
 	{
-		CloseOpenFiles();
-
 		//mpg123 uses stderr for output
 		dup2(m_childPipe[MEDIAOUTPUTPIPE_WRITE], STDERR_FILENO);
 
 		close(m_childPipe[MEDIAOUTPUTPIPE_WRITE]);
+		CloseOpenFiles();
+
 		m_childPipe[MEDIAOUTPUTPIPE_WRITE] = 0;
 
 		if (mp3Player == MPG123_BINARY)
@@ -148,7 +148,7 @@ int mpg123Output::Process(void)
 		PollMusicInfo();
 	}
 
-	return 1;
+    return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
 
 /*
@@ -160,12 +160,18 @@ int mpg123Output::Stop(void)
 
 	pthread_mutex_lock(&m_outputLock);
 
-	if(m_childPID > 0)
-	{
-		pid_t childPID = m_childPID;
-
+	if (m_childPID > 0) {
+        int count = 0;
+        //try to let it exit cleanly first
+        kill(m_childPID, SIGTERM);
+        while (isChildRunning() && count < 25) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            count++;
+        }
+        if (isChildRunning()) {
+            kill(m_childPID, SIGKILL);
+        }
 		m_childPID = 0;
-		kill(childPID, SIGKILL);
 	}
 
 	pthread_mutex_unlock(&m_outputLock);
@@ -180,7 +186,6 @@ int mpg123Output::Stop(void)
  */
 void mpg123Output::ParseTimes(void)
 {
-	static int lastRemoteSync = 0;
 	int result;
 	int secs;
 	int mins;
@@ -233,13 +238,8 @@ void mpg123Output::ParseTimes(void)
 
 	if (getFPPmode() == MASTER_MODE)
 	{
-		if ((m_mediaOutputStatus->secondsElapsed > 0) &&
-			(lastRemoteSync != m_mediaOutputStatus->secondsElapsed))
-		{
-			multiSync->SendMediaSyncPacket(m_mediaFilename.c_str(), 0,
+        multiSync->SendMediaSyncPacket(m_mediaFilename,
 				m_mediaOutputStatus->mediaSeconds);
-			lastRemoteSync = m_mediaOutputStatus->secondsElapsed;
-		}
 	}
 
 	if ((sequence->IsSequenceRunning()) &&
@@ -266,10 +266,20 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 
 #define NEW_MPG123
 #if defined(NEW_MPG123) && !defined(USE_MPG321)
+    m_mp3Buffer[bytesRead] = 0;
+    LogExcess(VB_MEDIAOUT, "mpg123 output: %s\n", m_mp3Buffer);
 	// New verbose output format in v1.??, we key off the > at the beginning
 	// > 0008+3784  00:00.18+01:38.84 --- 100=100 160 kb/s  522 B acc    0 clip p+0.000
 	// States:
 	// 123333455556677777777899999999
+    
+    // finished will look like [3:05] Decoding of XYZ.mp3 finished.
+    if (strstr(m_mp3Buffer, "] Decoding of") != NULL
+        && strstr(m_mp3Buffer, " finished.") != NULL) {
+        Stop();
+        return;
+    }
+    
 	m_mpg123_strTime[bufferPtr++] = ' ';
 	m_mpg123_strTime[bufferPtr] = 0;
 	for(i=0;i<bytesRead;i++)
@@ -439,6 +449,11 @@ void mpg123Output::ProcessMP3Data(int bytesRead)
 
 void mpg123Output::PollMusicInfo(void)
 {
+    if (!isChildRunning()) {
+        Stop();
+        return;
+    }
+    
 	int bytesRead;
 	int result;
 	struct timeval mpg123_timeout;
@@ -448,20 +463,18 @@ void mpg123Output::PollMusicInfo(void)
 	mpg123_timeout.tv_sec = 0;
 	mpg123_timeout.tv_usec = 5;
 
-	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0)
-	{
+	if(select(FD_SETSIZE, &m_readFDSet, NULL, NULL, &mpg123_timeout) < 0) {
 	 	LogErr(VB_MEDIAOUT, "Error Select:%d\n",errno);
 
 		Stop(); // Kill the child if we can't read from the pipe
 	 	return; 
 	}
-	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet))
-	{
-		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_mp3Buffer, MAX_BYTES_MP3);
-		if (bytesRead > 0) 
-		{
+	if(FD_ISSET(m_childPipe[MEDIAOUTPUTPIPE_READ], &m_readFDSet)) {
+		bytesRead = read(m_childPipe[MEDIAOUTPUTPIPE_READ], m_mp3Buffer, MAX_BYTES_MP3 - 1);
+		if (bytesRead > 0)  {
+            m_mp3Buffer[bytesRead] = 0;
 		    ProcessMP3Data(bytesRead);
-		} 
+		}
 	}
 }
 

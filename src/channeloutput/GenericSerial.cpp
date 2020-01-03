@@ -37,12 +37,17 @@
 #include "GenericSerial.h"
 
 /////////////////////////////////////////////////////////////////////////////
-
+extern "C" {
+    GenericSerialOutput *createGenericSerialOutput(unsigned int startChannel,
+                                               unsigned int channelCount) {
+        return new GenericSerialOutput(startChannel, channelCount);
+    }
+}
 /*
  *
  */
 GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int channelCount)
-  : ChannelOutputBase(startChannel, channelCount),
+  : ThreadedChannelOutputBase(startChannel, channelCount),
 	m_deviceName("UNKNOWN"),
 	m_fd(-1),
 	m_speed(9600),
@@ -54,7 +59,6 @@ GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int
 	LogDebug(VB_CHANNELOUT, "GenericSerialOutput::GenericSerialOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = GENERICSERIAL_MAX_CHANNELS;
 	m_useDoubleBuffer = 1;
 }
 
@@ -64,6 +68,12 @@ GenericSerialOutput::GenericSerialOutput(unsigned int startChannel, unsigned int
 GenericSerialOutput::~GenericSerialOutput()
 {
 	LogDebug(VB_CHANNELOUT, "GenericSerialOutput::~GenericSerialOutput()\n");
+}
+
+int GenericSerialOutput::Init(Json::Value config) {
+    char configStr[2048];
+    ConvertToCSV(config, configStr);
+    return Init(configStr);
 }
 
 /*
@@ -131,7 +141,11 @@ int GenericSerialOutput::Init(char *configStr)
 		return 0;
 	}
 
-	return ChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(configStr);
+}
+
+void GenericSerialOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+    addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
 /*
@@ -145,7 +159,7 @@ int GenericSerialOutput::Close(void)
 
 	delete [] m_data;
 
-	return ChannelOutputBase::Close();
+	return ThreadedChannelOutputBase::Close();
 }
 
 /*
@@ -181,6 +195,6 @@ void GenericSerialOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    Footer     : '%s'\n", m_footer.c_str());
 	LogDebug(VB_CHANNELOUT, "    Packet Size: %d\n", m_packetSize);
 
-	ChannelOutputBase::DumpConfig();
+	ThreadedChannelOutputBase::DumpConfig();
 }
 

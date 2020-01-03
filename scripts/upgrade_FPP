@@ -11,7 +11,7 @@ then
 	exit 1
 fi
 
-logOutput
+teeOutput
 
 echo "$0 Upgrading FPP version to $1"
 
@@ -29,14 +29,9 @@ else
 	cd ${FPPDIR} && sudo -u ${FPPUSER} git checkout $1 && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git submodule sync && sudo git submodule update --init
 fi
 
-# Compile binaries if not running a release branch
-RELEASEBRANCH=$(echo $1 | egrep "v[0-9]+\.[0-9]+")
-if [ -z "${RELEASEBRANCH}" ] || [ "x${FPPPLATFORM}" == "xLinux" ]
-then
-	echo "Compiling Binaries"
-	compileBinaries
-fi
+sudo ${SCRIPTDIR}/upgrade_config
 
-echo "Rebooting to fully switch to new version"
-${SUDO} shutdown -r now
+echo "Compiling Binaries"
+compileBinaries
+
 

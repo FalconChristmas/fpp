@@ -24,13 +24,18 @@
 #include <list>
 #include <vector>
 #include <string>
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <condition_variable>
 
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <jsoncpp/json/json.h>
 
 #include "ChannelOutputBase.h"
 
-
+typedef void CURLM;
 
 class UDPOutputData {
 public:
@@ -38,18 +43,25 @@ public:
     virtual ~UDPOutputData();
     
     virtual bool IsPingable() = 0;
-    virtual void PrepareData(unsigned char *channelData) = 0;
-
-    // unicast and multicast messages for data
-    virtual void CreateMessages(std::vector<struct mmsghdr> &udpMsgs) {}
-    
-    // purely broadcast data
-    virtual void CreateBroadcastMessages(std::vector<struct mmsghdr> &bMsgs) {}
-    
-    // purely broadcast messages sent after the data (sync packets for example)
-    virtual void AddPostDataMessages(std::vector<struct mmsghdr> &bMsgs) {}
+    virtual bool Monitor() const { return monitor; }
+    virtual void PrepareData(unsigned char *channelData,
+                             std::vector<struct mmsghdr> &uniMsgs,
+                             std::vector<struct mmsghdr> &bcstMsgs) = 0;
+    virtual void PostPrepareData(unsigned char *channelData,
+                                 std::vector<struct mmsghdr> &uniMsgs,
+                                 std::vector<struct mmsghdr> &bcstMsgs) {}
 
     virtual void DumpConfig() = 0;
+    
+    virtual void GetRequiredChannelRange(int &min, int & max) {
+        min = startChannel - 1;
+        max = startChannel + channelCount - 1;
+    }
+    
+    virtual const std::string &GetOutputTypeString() const;
+    
+    static in_addr_t toInetAddr(const std::string &ip, bool &valid);
+    
     
     std::string   description;
     bool          active;
@@ -58,35 +70,71 @@ public:
     int           type;
     std::string   ipAddress;
     bool          valid;
-};
+    bool          monitor;
+    
+    int           failCount;
 
+    
+    UDPOutputData(UDPOutputData const &) = delete;
+    void operator=(UDPOutputData const &x) = delete;
+    
+protected:
+    void SaveFrame(unsigned char *channelData);
+    bool NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count);
+    bool           deDuplicate;
+    int            skippedFrames;
+    unsigned char* lastData;
+
+};
 
 class UDPOutput : public ChannelOutputBase {
 public:
     UDPOutput(unsigned int startChannel, unsigned int channelCount);
-    ~UDPOutput();
+    virtual ~UDPOutput();
     
     
-    int  Init(Json::Value config);
-    int  Close(void);
+    virtual int  Init(Json::Value config) override;
+    virtual int  Close(void) override;
     
-    void PrepData(unsigned char *channelData);
-    int  RawSendData(unsigned char *channelData);
+    virtual void PrepData(unsigned char *channelData) override;
+    virtual int  SendData(unsigned char *channelData) override;
     
-    void DumpConfig(void);
+    virtual void DumpConfig(void) override;
+
+    void BackgroundThreadPing();
+
+    virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
     
+    void addOutput(UDPOutputData*);
+    
+    
+    static UDPOutput *INSTANCE;
 private:
     int SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs);
     bool InitNetwork();
-    void PingControllers();
+    void CloseNetwork();
+    bool PingControllers();
     
-    int sendSocket;
+    int sendSockets[6];
+    int sendIdx;
     int broadcastSocket;
     bool enabled;
+    
+    int errCount;
+
+    std::atomic_bool isSending;
     
     std::list<UDPOutputData*> outputs;
     std::vector<struct mmsghdr> udpMsgs;
     std::vector<struct mmsghdr> broadcastMsgs;
+    
+    int  networkCallbackId;
+
+    volatile bool runPingThread;
+    std::thread *pingThread;
+    std::mutex pingThreadMutex;
+    std::condition_variable pingThreadCondition;
+    CURLM *m_curlm;
 };
 
 #endif

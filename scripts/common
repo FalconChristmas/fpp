@@ -3,14 +3,8 @@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin:${PATH}
 
 FPPDIR=${FPPDIR:-/opt/fpp}
-FPPHOME="/home/pi"
-FPPUSER="pi"
-
-if [ -d "/home/fpp" ]
-then
-	FPPHOME="/home/fpp"
-	FPPUSER="fpp"
-fi
+FPPHOME="/home/fpp"
+FPPUSER="fpp"
 
 if [ -f "${FPPHOME}/fpp/scripts/common" ]
 then
@@ -19,16 +13,10 @@ fi
 
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 FPPBINDIR="${FPPDIR}/src"
-if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]
+if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
 then
-	FPPBINDIR="${FPPDIR}/bin.pi"
-else
-	if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
-	then
-		FPPBINDIR="${FPPDIR}/bin.bbb"
-		BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
-		export BBBMODEL
-	fi
+    BBBMODEL=$(cut -d' ' -f3- /proc/device-tree/model | tr '\0' '\n')
+    export BBBMODEL
 fi
 
 PATHDIRS="${FPPDIR}/scripts/:${FPPBINDIR}/"
@@ -45,7 +33,7 @@ export FPPBINDIR
 export FPPHOME
 export FPPUSER
 export PATH=${PATHDIRS}:${PATH}
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${FPPDIR}/external/RF24:${FPPDIR}/lib:${FPPDIR}/src
 
 SUDO=${SUDO:-sudo}
 SCRIPTDIR="${FPPDIR}/scripts"
@@ -118,3 +106,17 @@ getSetting() {
 	fi
 }
 
+setSetting() {
+    SETTING=$1
+    VALUE=$2
+    if [ -f "${CFGFILE}" ]; then
+        OLD=$(getSetting $SETTING)
+        if [ "x${OLD}" = "x" ]; then
+            echo "${SETTING} = \"${VALUE}\"" >> ${CFGFILE}
+        else
+            sed -i \
+                -e '/^#\?\(\s*'"${SETTING}"'\s*=\s*\).*/{s//\1'"\"${VALUE}\""'/;:a;n;ba;q}' \
+                -e '$a'"${SETTING}"'='"\"${VALUE}\"" ${CFGFILE}
+        fi
+    fi
+}

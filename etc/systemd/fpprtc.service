@@ -1,0 +1,13 @@
+[Unit]
+Description=FPP RTC Setup
+Documentation=https://falconchristmas.com/forum/
+Before=network.target multi-user.target apache2.service
+After=fppcapedetect.service
+Wants=home-fpp-media.mount
+
+[Service]
+ExecStart=/opt/fpp/scripts/piRTC
+Type=oneshot
+
+[Install]
+WantedBy=default.target

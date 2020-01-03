@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html>
 <?php
 
 $skipJSsettings = 1;
@@ -8,7 +10,6 @@ DisableOutputBuffering();
 
 ?>
 
-<html>
 <head>
 <title>
 Flash BBB eMMC
@@ -39,6 +40,6 @@ Flash BBB eMMC
 
 ==========================================================================
 </pre>
-<a href='/'>Go to FPP Main Status Page</a><br>
+<a href='index.php'>Go to FPP Main Status Page</a><br>
 </body>
 </html>

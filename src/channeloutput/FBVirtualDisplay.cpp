@@ -38,6 +38,13 @@
 #include "Sequence.h"
 #include "settings.h"
 
+extern "C" {
+    FBVirtualDisplayOutput *createOutputFBVirtualDisplay(unsigned int startChannel,
+                                                         unsigned int channelCount) {
+        return new FBVirtualDisplayOutput(startChannel, channelCount);
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:
 // scaling_kernel=8
@@ -55,8 +62,8 @@ FBVirtualDisplayOutput::FBVirtualDisplayOutput(unsigned int startChannel,
 	LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::FBVirtualDisplayOutput(%u, %u)\n",
 		startChannel, channelCount);
 
-	m_maxChannels = FPPD_MAX_CHANNELS;
 	m_bytesPerPixel = 3;
+	m_bpp = 24;
 }
 
 /*
@@ -78,8 +85,18 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 
 	if (!VirtualDisplayOutput::Init(config))
 		return 0;
+    if (m_virtualDisplay) {
+        free(m_virtualDisplay);
+        m_virtualDisplay = nullptr;
+    }
 
-	m_fbFd = open("/dev/fb0", O_RDWR);
+	m_device = "/dev/";
+	if (config.isMember("device"))
+		m_device += config["device"].asString();
+	else
+		m_device += "fb0";
+
+	m_fbFd = open(m_device.c_str(), O_RDWR);
 	if (!m_fbFd)
 	{
 		LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device\n");
@@ -95,7 +112,42 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 
 	memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
 
-	m_vInfo.bits_per_pixel = 24;
+	if (m_vInfo.bits_per_pixel == 32)
+		m_vInfo.bits_per_pixel = 24;
+
+	m_bpp = m_vInfo.bits_per_pixel;
+	m_bytesPerPixel = m_bpp / 8;
+	LogDebug(VB_CHANNELOUT, "FrameBuffer is using %d BPP\n", m_bpp);
+
+	if ((m_bpp != 24) && (m_bpp != 16))
+	{
+		LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
+		close(m_fbFd);
+	}
+
+	if (m_bpp == 16)
+	{
+		LogExcess(VB_CHANNELOUT, "Current Bitfield offset info:\n");
+		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+
+		// RGB565
+		m_vInfo.red.offset    = 11;
+		m_vInfo.red.length    = 5;
+		m_vInfo.green.offset  = 5;
+		m_vInfo.green.length  = 6;
+		m_vInfo.blue.offset   = 0;
+		m_vInfo.blue.length   = 5;
+		m_vInfo.transp.offset = 0;
+		m_vInfo.transp.length = 0;
+
+		LogExcess(VB_CHANNELOUT, "New Bitfield offset info should be:\n");
+		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+	}
+
 	m_vInfo.xres = m_vInfo.xres_virtual = m_width;
 	m_vInfo.yres = m_vInfo.yres_virtual = m_height;
 
@@ -121,7 +173,7 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 
 	m_screenSize = m_vInfo.xres * m_vInfo.yres * m_vInfo.bits_per_pixel / 8;
 
-	if (m_screenSize != (m_width * m_height * 3))
+	if (m_screenSize != (m_width * m_height * m_vInfo.bits_per_pixel / 8))
 	{
 		LogErr(VB_CHANNELOUT, "Error, screensize incorrect\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
@@ -129,19 +181,22 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 		return 0;
 	}
 
-	m_ttyFd = open("/dev/console", O_RDWR);
-	if (!m_ttyFd)
+	if (m_device == "/dev/fb0")
 	{
-		LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
+		m_ttyFd = open("/dev/console", O_RDWR);
+		if (!m_ttyFd)
+		{
+			LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
+			ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+			close(m_fbFd);
+			return 0;
+		}
+
+		// Hide the text console
+		ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
 	}
 
-	// Hide the text console
-	ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
-
-	m_virtualDisplay = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+	m_virtualDisplay = (unsigned char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
 
 	if ((char *)m_virtualDisplay == (char *)-1)
 	{
@@ -150,10 +205,59 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 		close(m_fbFd);
 		return 0;
 	}
+    memset(m_virtualDisplay, 0, m_screenSize);
 
-	bzero(m_virtualDisplay, m_screenSize);
+	if (m_bpp == 16)
+	{
+		LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
+		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 
-	return 1;
+		unsigned char rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
+		unsigned char gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
+		unsigned char bMask = (0xFF ^ (0xFF >> m_vInfo.blue.length));
+		int rShift = m_vInfo.red.offset - (8 + (8-m_vInfo.red.length));
+		int gShift = m_vInfo.green.offset - (8 + (8 - m_vInfo.green.length));
+		int bShift = m_vInfo.blue.offset - (8 + (8 - m_vInfo.blue.length));;
+
+		//LogDebug(VB_CHANNELOUT, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
+
+		uint16_t o;
+		m_rgb565map = new uint16_t**[32];
+
+		for (uint16_t b = 0; b < 32; b++)
+		{
+			m_rgb565map[b] = new uint16_t*[64];
+			for (uint16_t g = 0; g < 64; g++)
+			{
+				m_rgb565map[b][g] = new uint16_t[32];
+				for (uint16_t r = 0; r < 32; r++)
+				{
+					o = 0;
+
+					if (rShift >= 0)
+						o |= r >> rShift;
+					else
+						o |= r << abs(rShift);
+
+					if (gShift >= 0)
+						o |= g >> gShift;
+					else
+						o |= g << abs(gShift);
+
+					if (bShift >= 0)
+						o |= b >> bShift;
+					else
+						o |= b << abs(bShift);
+
+					m_rgb565map[b][g][r] = o;
+				}
+			}
+		}
+	}
+
+	return InitializePixelMap();
 }
 
 /*
@@ -163,18 +267,25 @@ int FBVirtualDisplayOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "FBVirtualDisplayOutput::Close()\n");
 
-	munmap(m_virtualDisplay, m_screenSize);
+    if (m_virtualDisplay) {
+        munmap(m_virtualDisplay, m_screenSize);
+        m_virtualDisplay = nullptr;
+    }
 
-	if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
-		LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
+	if (m_device == "/dev/fb0")
+	{
+		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
+			LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
+	}
 
 	close(m_fbFd);
 
-	delete [] m_virtualDisplay;
-
-	// Re-enable the text console
-	ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
-	close(m_ttyFd);
+	if (m_device == "/dev/fb0")
+	{
+		// Re-enable the text console
+		ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
+		close(m_ttyFd);
+	}
 
 	return VirtualDisplayOutput::Close();
 }
@@ -182,11 +293,10 @@ int FBVirtualDisplayOutput::Close(void)
 /*
  *
  */
-int FBVirtualDisplayOutput::RawSendData(unsigned char *channelData)
+int FBVirtualDisplayOutput::SendData(unsigned char *channelData)
 {
-	LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::RawSendData(%p)\n",
+	LogExcess(VB_CHANNELOUT, "FBVirtualDisplayOutput::SendData(%p)\n",
 		channelData);
-
 	DrawPixels(channelData);
 
 	return m_channelCount;

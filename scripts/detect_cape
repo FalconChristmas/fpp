@@ -1,0 +1,41 @@
+#!/bin/bash
+echo "Running detect_cape"
+BINDIR=$(cd $(dirname $0) && pwd)
+
+# Do not source in common/functions as this
+# script is CRITICAL to run fast as it prevents
+# a bunch of things from starting up until this
+# is done.  Sourcing them in can add 4-5 seconds
+# to the boot time on BBB and single core Pi
+
+
+if [ -f "/home/fpp/fpp/scripts/common" ]
+then
+	FPPDIR="/home/fpp/fpp"
+fi
+FPPDIR=${FPPDIR:-/opt/fpp}
+FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
+FPPBINDIR="${FPPDIR}/src"
+
+# On the Pi, we have to load the modules, built in on BBB
+if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+   modprobe i2c-dev 2>&1
+   modprobe spidev 2>&1
+fi
+
+mkdir -p /home/fpp/media/tmp
+rm -rf /home/fpp/media/tmp/*
+
+echo "Running fppcapedetect"
+${FPPBINDIR}/fppcapedetect
+echo "Done fppcapedetect"
+
+chown -R fpp:fpp  /home/fpp/media/tmp
+chmod -R u+rw /home/fpp/media/tmp
+chmod -R g+rw /home/fpp/media/tmp
+chmod -R o+r /home/fpp/media/tmp
+chmod -R u-s /home/fpp/media/tmp
+chmod -R g-s /home/fpp/media/tmp
+chmod -R o-s /home/fpp/media/tmp
+find /home/fpp/media/tmp -type d -exec chmod +x {} \;
+echo "Done"

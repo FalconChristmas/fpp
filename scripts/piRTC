@@ -7,29 +7,93 @@
 #
 
 BINDIR=$(cd $(dirname $0) && pwd)
-RTCDEVICE="/dev/rtc0"
 
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
-then
-	setupPiRTC
-else
-	if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-	then
-		setupBBBRTC
-		RTCDEVICE="/dev/rtc1"
-	fi
+
+RTCDEVICE="/dev/rtc0"
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+    RTCDEVICE="/dev/rtc1"
 fi
 
-if [[ $1 == "set" ]]
-then
-  hwclock -w -f ${RTCDEVICE} &>/dev/null
-else
-  hwclock -s -f ${RTCDEVICE} &>/dev/null
-  cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
+#############################################################################
+# Setup RTC on the Pi.
+setupRTC () {
+
+    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        # RTC Setup
+        # to get the RPi board version:
+        REV=$(cat /proc/cpuinfo|grep Revision)
+        # Extract revision
+        REV=${REV##*: }
+        # Make it readable as hex
+        REV=0x$REV
+        # Convert hex to dec
+        REV=$((REV))
+
+        if [ $REV -lt 4 ]; then
+            I2CBUS="i2c-0"
+        else
+            I2CBUS="i2c-1"
+        fi
+    elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+        I2CBUS="i2c-2"
+    else
+        return
+    fi
+
+    # Read Clock Setting From Settings File
+    piRTC=$(awk -f ${FPPDIR}/scripts/readSetting.awk ${SETTINGSFILE} setting=piRTC)
+
+    case "$piRTC" in
+    1)
+      # rasClock chip
+      echo "FPP - Configuring RTC, Setting to rasClock/${I2CBUS}"
+      echo "pcf2127 0x51" > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
+      ;;
+    2)
+      # DS1307 chip
+      echo "FPP - Configuring RTC, Setting to DS1307/${I2CBUS}"
+      echo "ds1307 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
+      ;;
+    3)
+      # PiFace Chip
+      echo "FPP - Configuring RTC, Settting to mcp7941x/${I2CBUS}"
+      echo "mcp7941x 0x6f" > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
+      ;;
+    4)
+      # AdaFruit
+      echo "FPP - Configuring RTC, Settting to pcf8523/${I2CBUS}"
+      echo "pcf8523 0x68" > /sys/bus/i2c/devices/${I2CBUS}/new_device
+      sleep 1
+      ;;
+    *)
+      # None
+      echo "FPP - Configuring RTC, None Selected"
+      ;;
+    esac
+}
+
+setupRTC
+
+
+if [ -e ${RTCDEVICE} ]; then
+    if [[ $1 == "set" ]]
+    then
+      hwclock -w -f ${RTCDEVICE}
+    else
+      hwclock -s -f ${RTCDEVICE}
+
+      if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+          # set the built in rtc to the same time as read from the RTC
+          hwclock -w -f /dev/rtc0
+      fi
+      cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
+    fi
+
+    date
 fi
-
-sleep 2
-

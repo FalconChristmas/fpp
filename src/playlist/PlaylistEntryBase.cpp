@@ -28,8 +28,6 @@
 #include "log.h"
 #include "PlaylistEntryBase.h"
 
-int PlaylistEntryBase::m_playlistEntryCount = 0;
-
 /*
  *
  */
@@ -40,11 +38,11 @@ PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
 	m_isFinished(0),
 	m_playOnce(0),
 	m_playCount(0),
-	m_nextItem(-1),
+	m_isPrepped(0),
 	m_parent(parent)
 {
+    LogDebug(VB_PLAYLIST, "PlaylistEntryBase::PlaylistEntryBase()\n");
 	m_type = "base";
-	m_playlistEntryID = m_playlistEntryCount++;
 }
 
 /*
@@ -71,6 +69,7 @@ int PlaylistEntryBase::Init(Json::Value &config)
 	m_isStarted = 0;
 	m_isPlaying = 0;
 	m_isFinished = 0;
+	m_config = config;
 
 	return 1;
 }
@@ -80,14 +79,12 @@ int PlaylistEntryBase::Init(Json::Value &config)
  */
 int PlaylistEntryBase::CanPlay(void)
 {
-	if (m_playOnce && (m_playCount > 0))
-	{
+	if (m_playOnce && (m_playCount > 0)) {
 		LogDebug(VB_PLAYLIST, "%s item exceeds play count\n", m_type.c_str());
 		return 0;
 	}
 
-	if (!m_enabled)
-	{
+	if (!m_enabled) {
 		LogDebug(VB_PLAYLIST, "%s item disabled\n", m_type.c_str());
 		return 0;
 	}
@@ -158,6 +155,16 @@ int PlaylistEntryBase::IsFinished(void)
 /*
  *
  */
+int PlaylistEntryBase::Prep(void)
+{
+	m_isPrepped = 1;
+
+	return 1;
+}
+
+/*
+ *
+ */
 int PlaylistEntryBase::Process(void)
 {
 	return 1;
@@ -192,16 +199,24 @@ void PlaylistEntryBase::Dump(void)
 {
 	LogDebug(VB_PLAYLIST, "---- Playlist Entry ----\n");
 	LogDebug(VB_PLAYLIST, "Entry Type: %s\n", m_type.c_str());
-	LogDebug(VB_PLAYLIST, "Entry ID  : %d\n", m_playlistEntryID);
 	LogDebug(VB_PLAYLIST, "Entry Note: %s\n", m_note.c_str());
 }
 
 /*
  *
  */
-Json::Value PlaylistEntryBase::GetConfig(void)
+Json::Value PlaylistEntryBase::GetMqttStatus(void)
 {
 	Json::Value result;
+	result["type"]       = m_type;
+	result["playOnce"]   = m_playOnce;
+
+	return result;
+}
+
+Json::Value PlaylistEntryBase::GetConfig(void)
+{
+	Json::Value result = m_config;
 
 	result["type"]       = m_type;
 	result["enabled"]    = m_enabled;
@@ -210,7 +225,6 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["isFinished"] = m_isFinished;
 	result["playOnce"]   = m_playOnce;
 	result["playCount"]  = m_playCount;
-	result["entryID"]    = m_playlistEntryID;
 
 	return result;
 }

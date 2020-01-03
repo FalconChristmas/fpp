@@ -32,7 +32,7 @@
  */
 PlaylistEntryPause::PlaylistEntryPause(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
-	m_duration(0),
+	m_duration(0.0f),
 	m_startTime(0),
 	m_endTime(0)
 {
@@ -55,7 +55,7 @@ int PlaylistEntryPause::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Init()\n");
 
-	m_duration = config["duration"].asInt();
+	m_duration = config["duration"].asFloat();
 	m_endTime = 0;
 	m_finishTime = 0;
 
@@ -69,15 +69,17 @@ int PlaylistEntryPause::StartPlaying(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::StartPlaying()\n");
 
-	if (!CanPlay())
-	{
+	if (!CanPlay())	{
 		FinishPlay();
 		return 0;
 	}
 
 	// Calculate end time as m_duation number of seconds from now
 	m_startTime = GetTime();
-	m_endTime = m_startTime + (m_duration * 1000000);
+    
+    double tmp = m_duration;
+    tmp *= 1000000.0;
+	m_endTime = m_startTime + tmp;
 
 	return PlaylistEntryBase::StartPlaying();
 }
@@ -87,11 +89,12 @@ int PlaylistEntryPause::StartPlaying(void)
  */
 int PlaylistEntryPause::Process(void)
 {
-	if (!m_isStarted || !m_isPlaying || m_isFinished)
+    if (!m_isStarted || !m_isPlaying || m_isFinished) {
 		return 0;
+    }
 
-	if (m_isStarted && m_isPlaying && (GetTime() >= m_endTime))
-	{
+    long long now = GetTime();
+	if (m_isStarted && m_isPlaying && (now >= m_endTime)) {
 		m_finishTime = GetTime();
 		FinishPlay();
 	}
@@ -107,6 +110,7 @@ int PlaylistEntryPause::Stop(void)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
 
 	m_finishTime = GetTime();
+	FinishPlay();
 
 	return PlaylistEntryBase::Stop();
 }
@@ -118,10 +122,10 @@ void PlaylistEntryPause::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Duration: %d\n", m_duration);
-	LogDebug(VB_PLAYLIST, "Cur Time: %lld\n", GetTime());
-	LogDebug(VB_PLAYLIST, "Start Time: %lld\n", m_startTime);
-	LogDebug(VB_PLAYLIST, "End Time: %lld\n", m_endTime);
+	LogDebug(VB_PLAYLIST, "Duration:    %f\n", m_duration);
+	LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTime());
+	LogDebug(VB_PLAYLIST, "Start Time:  %lld\n", m_startTime);
+	LogDebug(VB_PLAYLIST, "End Time:    %lld\n", m_endTime);
 	LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
 }
 

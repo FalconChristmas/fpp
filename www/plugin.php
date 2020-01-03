@@ -41,7 +41,7 @@ if ( file_exists($jsDir))
 		{
 			if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file))
 			{
-				printf( "<script type='text/javascript' src='/plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
+				printf( "<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
 					$_GET['plugin'], $file);
 			}
 		}
@@ -111,6 +111,7 @@ elseif ( isset($_GET['file']) && !empty($_GET['file']) )
 			case "jpeg":
 			case "jpg": $ctype="image/jpg;"; break;
 			case "js":  $ctype="text/javascript;"; break;
+			case "json":$ctype="application/json;"; break;
 			case "css": $ctype="text/css;"; break;
 			default:    $ctype="text/plain;"; break;
 		}
@@ -142,7 +143,6 @@ else
 
 if ( !isset($_GET['nopage']) ): ?>
 
-</div>
 <?php	include 'common/footer.inc'; ?>
 </div>
 </body>

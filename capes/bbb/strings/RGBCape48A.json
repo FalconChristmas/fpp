@@ -1,0 +1,95 @@
+{
+    "name": "RGBCape48A",
+    "longName": "RGBCape48A",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "P8-08" },
+        {  "pin": "P8-10" },
+        {  "pin": "P8-12" },
+        {  "pin": "P8-14" },
+        {  "pin": "P8-16" },
+        {  "pin": "P8-18" },
+        {  "pin": "P8-30" },
+        {  "pin": "P8-32" },
+        
+        {  "pin": "P8-34" },
+        {  "pin": "P8-36" },
+        {  "pin": "P8-38" },
+        {  "pin": "P8-40" },
+        {  "pin": "P8-42" },
+        {  "pin": "P8-44" },
+        {  "pin": "P8-46" },
+        {  "pin": "P8-45" },
+        
+        {  "pin": "P8-43" },
+        {  "pin": "P8-41" },
+        {  "pin": "P8-39" },
+        {  "pin": "P8-37" },
+        {  "pin": "P8-35" },
+        {  "pin": "P8-33" },
+        {  "pin": "P8-31" },
+        {  "pin": "P8-29" },
+        
+        {  "pin": "P8-27" },
+        {  "pin": "P8-19" },
+        {  "pin": "P8-17" },
+        {  "pin": "P8-15" },
+        {  "pin": "P8-13" },
+        {  "pin": "P8-11" },
+        {  "pin": "P8-09" },
+        {  "pin": "P8-07" },
+        
+        {  "pin": "P9-12" },
+        {  "pin": "P9-14" },
+        {  "pin": "P9-16" },
+        {  "pin": "P9-22" },
+        {  "pin": "P9-26" },
+        {  "pin": "P9-28" },
+        {  "pin": "P9-30" },
+        {  "pin": "P9-92" },
+        
+        {  "pin": "P9-91" },
+        {  "pin": "P9-31" },
+        {  "pin": "P9-29" },
+        {  "pin": "P9-23" },
+        {  "pin": "P9-21" },
+        {  "pin": "P9-15" },
+        {  "pin": "P9-13" },
+        {  "pin": "P9-11" }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 8,
+            "type": "expansion"
+        },
+        {
+            "start": 9,
+            "count": 8,
+            "type": "expansion"
+        },
+        {
+            "start": 17,
+            "count": 8,
+            "type": "expansion"
+        },
+        {
+            "start": 25,
+            "count": 8,
+            "type": "expansion"
+        },
+        {
+            "start": 33,
+            "count": 8,
+            "type": "expansion"
+        },
+        {
+            "start": 41,
+            "count": 8,
+            "type": "expansion"
+        }
+
+    ],
+    "serial": [
+    ]
+}
