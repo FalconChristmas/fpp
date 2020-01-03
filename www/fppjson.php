@@ -217,6 +217,7 @@ function SetSetting()
             exec(   $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
         } else {
             exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+			exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
         }
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");
