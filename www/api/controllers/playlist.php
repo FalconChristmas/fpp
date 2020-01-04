@@ -19,6 +19,8 @@ function playlist_list()
 		closedir($d);
 	}
 
+	sort($playlists);
+
 	return json($playlists);
 }
 
