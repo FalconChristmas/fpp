@@ -691,6 +691,8 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 		}
 	}
 
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+
 	if (method == "POST")
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
 	else if (method == "PUT")

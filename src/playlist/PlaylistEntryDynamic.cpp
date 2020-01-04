@@ -112,10 +112,17 @@ int PlaylistEntryDynamic::Init(Json::Value &config)
 			return 0;
 		}
 
-		curl_easy_setopt(m_curl, CURLOPT_COOKIEFILE, "");
+		status = curl_easy_setopt(m_curl, CURLOPT_COOKIEFILE, "");
 		if (status != CURLE_OK)
 		{
 			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error initializing cookie jar: %s\n", curl_easy_strerror(status));
+			return 0;
+		}
+
+		status = curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, 5L);
+		if (status != CURLE_OK)
+		{
+			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting timeout: %s\n", curl_easy_strerror(status));
 			return 0;
 		}
 	}
