@@ -86,6 +86,8 @@ var canvasWidth = <? echo $canvasWidth; ?>;
 var canvasHeight = <? echo $canvasHeight; ?>;
 var evtSource;
 var ctx;
+var buffer;
+var bctx;
 
 $.jCanvas.defaults.fromCenter = false;
 
@@ -114,11 +116,16 @@ function initCanvas()
 	var c = document.getElementById('vCanvas');
 	ctx = c.getContext('2d');
 
+	buffer = document.createElement('canvas');
+	buffer.width = c.width;
+	buffer.height = c.height;
+	bctx = buffer.getContext('2d');
+
 	// Draw the black pixels
-	ctx.fillStyle = '#000000';
+	bctx.fillStyle = '#000000';
 	for (var key in cellColors)
 	{
-		ctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
+		bctx.fillRect(cellColors[key].x, cellColors[key].y, 1, 1);
 	}
 }
 
@@ -137,19 +144,20 @@ function processEvent(e)
 		var g = base64[rgb.substring(1,2)];
 		var b = base64[rgb.substring(2,3)];
 
-		ctx.fillStyle = '#' + r + g + b;
+		bctx.fillStyle = '#' + r + g + b;
 
 		// Uncomment to see the incoming color and location data in real time
-		// $('#data').html(ctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
+		// $('#data').html(bctx.fillStyle + ' => ' + data[1] + '<br>' + $('#data').html().substring(0,500));
 
 		var locs = data[1].split(';');
 		for (j = 0; j < locs.length; j++)
 		{
 			var s = scaleMap[locs[j]];
 
-			ctx.fillRect(s.x, s.y, 1, 1);
+			bctx.fillRect(s.x, s.y, 1, 1);
 		}
 	}
+	ctx.drawImage(buffer, 0, 0);
 }
 
 function startSSE()
