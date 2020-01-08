@@ -792,6 +792,9 @@ function panelMovingHandler(evt) {
 function panelSelectedHandler(evt) {
     var o = ledPanelCanvas.getActiveObject();
 
+    if (selectedPanel != -1)
+        panelGroups['panel-' + selectedPanel].panel.set({'stroke':'black'});
+
     if (!o) {
         $('#cpOutputNumber').val(0);
         $('#cpPanelNumber').val(0);
@@ -806,7 +809,10 @@ function panelSelectedHandler(evt) {
         $('#cpXOffset').html(Math.round(o.left / uiScale));
         $('#cpYOffset').html(Math.round(o.top / uiScale));
         selectedPanel = panelGroups[o.name].panelNumber;
+        panelGroups[o.name].panel.set({'stroke':'rgb(255,255,0)'});
     }
+
+    ledPanelCanvas.renderAll();
 }
 
 function RotateCanvasPanel() {
@@ -835,6 +841,25 @@ function RotateCanvasPanel() {
     }
 
     UpdateMatrixSize();
+}
+
+function GetOutputNumberColor(output) {
+    switch (output) {
+        case  0: return 'rgb(231, 76, 60)';
+        case  1: return 'rgb( 88,214,141)';
+        case  2: return 'rgb( 93,173,226)';
+        case  3: return 'rgb(244,208, 63)';
+        case  4: return 'rgb(229,152,102)';
+        case  5: return 'rgb(195,155,211)';
+        case  6: return 'rgb(162,217,206)';
+        case  7: return 'rgb(174,182,191)';
+        case  8: return 'rgb(212,239,223)';
+        case  9: return 'rgb(246,221,204)';
+        case 10: return 'rgb(245,183,177)';
+        case 11: return 'rgb(183,149, 11)';
+    }
+
+    return 'rgb(255,  0,  0)';
 }
 
 function SetupCanvasPanel(panelNumber) {
@@ -874,11 +899,13 @@ function SetupCanvasPanel(panelNumber) {
     }
 
     var panel = new fabric.Rect({
-        fill: 'red',
+        fill: GetOutputNumberColor(p.outputNumber),
         originX: 'center',
         originY: 'center',
-        width: w,
-        height: h
+        width: w - 1,
+        height: h - 1,
+        stroke: 'black',
+        strokeWidth: 1
     });
 
     var desc = 'O-' + (p.outputNumber+1) + ' P-' + (p.panelNumber+1) + '\n@ ' + p.xOffset + ',' + p.yOffset;
@@ -964,6 +991,18 @@ function UpdateMatrixSize() {
 	$('#matrixSize').html('' + matrixWidth + 'x' + matrixHeight);
 	$('#LEDPanelsChannelCount').html(matrixChannels);
 	$('#LEDPanelsPixelCount').html(matrixPixels);
+
+    var resized = 0;
+    if (matrixWidth > parseInt($('#LEDPanelUIPixelsWide').val())) {
+        resized = 1;
+        $('#LEDPanelUIPixelsWide').val(matrixWidth);
+    }
+    if (matrixHeight > parseInt($('#LEDPanelUIPixelsHigh').val())) {
+        resized = 1;
+        $('#LEDPanelUIPixelsHigh').val(matrixHeight);
+    }
+    if (resized)
+        SetCanvasSize();
 }
 
 function SetCanvasSize() {
@@ -987,9 +1026,7 @@ function InitializeCanvas() {
     }
     UpdateMatrixSize();
 
-    ledPanelCanvas.selectionColor = 'black';
-    ledPanelCanvas.selectionBorderColor = 'green';
-    ledPanelCanvas.selectionLineWidth = 5;
+    ledPanelCanvas.selection = false;
     ledPanelCanvas.on('object:moving', panelMovingHandler);
     ledPanelCanvas.on('selection:created', panelSelectedHandler);
     ledPanelCanvas.on('selection:updated', panelSelectedHandler);
