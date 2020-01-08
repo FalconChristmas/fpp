@@ -1246,11 +1246,14 @@ if ($settings['Platform'] == "Raspberry Pi") {
 					</table>
 					<br>
 					<b>LED Panel Layout:</b><br>
+					<span class='ledPanelSimpleUI'>
 					View Config from front?
 					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "DrawLEDPanelTable", 1); ?>
+					</span>
 					Advanced Layout?
 					<? PrintSettingCheckbox("Advanced Layout", "LEDPanelUIAdvancedLayout", 0, 0, "1", "0", "", "ToggleAdvancedLayout", 0); ?>
                         (save any changes before changing view)<br>
+                    <span class='ledPanelCanvasUI'>Front View<br></span>
                     <table class='ledPanelCanvasUI' style='display:none;'><tr><td>
                         <canvas id='ledPanelCanvas' width='900' height='400' style='border: 2px solid rgb(0,0,0);'></canvas>
                         </td><td width='10px'></td><td valign='top'>
