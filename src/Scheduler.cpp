@@ -816,6 +816,10 @@ void Scheduler::SchedulePrint(void)
 int Scheduler::GetWeeklySeconds(int day, int hour, int minute, int second)
 {
   int weeklySeconds = (day*SECONDS_PER_DAY) + (hour*SECONDS_PER_HOUR) + (minute*SECONDS_PER_MINUTE) + second;
+
+  if (weeklySeconds >= SECONDS_PER_WEEK)
+    weeklySeconds = 0;
+
   return weeklySeconds;
 }
 
