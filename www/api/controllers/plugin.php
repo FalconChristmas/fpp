@@ -229,7 +229,7 @@ function PluginHasUpdates($plugin)
 	global $settings;
 	$output = '';
 
-	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && git log ..origin)';
+	$cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && git log $(git rev-parse --abbrev-ref HEAD)..origin/$(git rev-parse --abbrev-ref HEAD))';
 	exec($cmd, $output, $return_val);
 
 	if (($return_val == 0) && !empty($output))
