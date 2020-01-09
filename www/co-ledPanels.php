@@ -266,6 +266,11 @@ function LEDPanelLayoutChanged()
 	DrawLEDPanelTable();
 }
 
+function FrontBackViewToggled() {
+    GetChannelOutputConfig(); // Refresh the in-memory config before redrawing
+    DrawLEDPanelTable();
+}
+
 function DrawLEDPanelTable()
 {
 	var r;
@@ -1017,7 +1022,11 @@ function SetCanvasSize() {
 
 function InitializeCanvas() {
     canvasInitialized = 1;
-    ledPanelCanvas = new fabric.Canvas('ledPanelCanvas');
+    ledPanelCanvas = new fabric.Canvas('ledPanelCanvas',
+        {
+            backgroundColor: '#a0a0a0',
+            selection: false
+        });
 
     SetCanvasSize();
 
@@ -1026,7 +1035,6 @@ function InitializeCanvas() {
     }
     UpdateMatrixSize();
 
-    ledPanelCanvas.selection = false;
     ledPanelCanvas.on('object:moving', panelMovingHandler);
     ledPanelCanvas.on('selection:created', panelSelectedHandler);
     ledPanelCanvas.on('selection:updated', panelSelectedHandler);
@@ -1078,9 +1086,21 @@ function cpColorOrderChanged() {
     SetupCanvasPanel(selectedPanel);
 }
 
+function SetupAdvancedUISelects() {
+    for (var i = 0; i < LEDPanelOutputs; i++) {
+        $('#cpOutputNumber').append("<option value='" + i + "'>" + (i+1) + "</option>");
+    }
+
+    for (var i = 0; i < LEDPanelPanelsPerOutput; i++) {
+        $('#cpPanelNumber').append("<option value='" + i + "'>" + (i+1) + "</option>");
+    }
+}
+
 $(document).ready(function(){
 	InitializeLEDPanels();
 	LEDPanelsConnectionChanged();
+
+    SetupAdvancedUISelects();
 
     if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
         InitializeCanvas();
@@ -1104,7 +1124,7 @@ $(document).ready(function(){
 							<td>&nbsp;</td>
 						</tr>
 						<tr><td><span class='ledPanelSimpleUI'><b>Panel Layout (WxH):</b></span>
-								<span class='ledPanelCanvasUI'><b>Matrix Layout (WxH):</b></span>
+								<span class='ledPanelCanvasUI'><b>Matrix Size (WxH):</b></span>
                                 </td>
 							<td><span class='ledPanelSimpleUI'><? printLEDPanelLayoutSelect(); ?></span>
 								<span class='ledPanelCanvasUI'><span id='matrixSize'></span></span>
@@ -1283,14 +1303,15 @@ if ($settings['Platform'] == "Raspberry Pi") {
 					</table>
 					<br>
 					<b>LED Panel Layout:</b><br>
-					<span class='ledPanelSimpleUI'>
-					View Config from front?
-					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "DrawLEDPanelTable", 1); ?>
-					</span>
 					Advanced Layout?
 					<? PrintSettingCheckbox("Advanced Layout", "LEDPanelUIAdvancedLayout", 0, 0, "1", "0", "", "ToggleAdvancedLayout", 0); ?>
-                        (save any changes before changing view)<br>
-                    <span class='ledPanelCanvasUI'>Front View<br></span>
+                    <br>
+					<span class='ledPanelSimpleUI'>
+					View Config from front?
+					<? PrintSettingCheckbox("Front View", "LEDPanelUIFrontView", 0, 0, "1", "0", "", "FrontBackViewToggled", 1); ?>
+					</span>
+                    <span class='ledPanelCanvasUI'>Front View</span>
+                    <br>
                     <table class='ledPanelCanvasUI' style='display:none;'><tr><td>
                         <canvas id='ledPanelCanvas' width='900' height='400' style='border: 2px solid rgb(0,0,0);'></canvas>
                         </td><td width='10px'></td><td valign='top'>
@@ -1298,37 +1319,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
                             <table>
                                 <tr><td>Output:</td><td>
                                     <select id='cpOutputNumber' onChange='cpOutputNumberChanged();'>
-                                        <option value='0'>1</option>
-                                        <option value='1'>2</option>
-                                        <option value='2'>3</option>
-                                        <option value='3'>4</option>
-                                        <option value='4'>5</option>
-                                        <option value='5'>6</option>
-                                        <option value='6'>7</option>
-                                        <option value='7'>8</option>
-                                        <option value='8'>9</option>
-                                        <option value='9'>10</option>
-                                        <option value='10'>11</option>
-                                        <option value='11'>12</option>
                                     </select></td></tr>
                                 <tr><td>Panel:</td><td>
                                     <select id='cpPanelNumber' onChange='cpPanelNumberChanged();'>
-                                        <option value='0'>1</option>
-                                        <option value='1'>2</option>
-                                        <option value='2'>3</option>
-                                        <option value='3'>4</option>
-                                        <option value='4'>5</option>
-                                        <option value='5'>6</option>
-                                        <option value='6'>7</option>
-                                        <option value='7'>8</option>
-                                        <option value='8'>9</option>
-                                        <option value='9'>10</option>
-                                        <option value='10'>11</option>
-                                        <option value='11'>12</option>
-                                        <option value='12'>13</option>
-                                        <option value='13'>14</option>
-                                        <option value='14'>15</option>
-                                        <option value='15'>16</option>
                                     </select></td></tr>
                                 <tr><td>Color:</td><td>
                                     <select id='cpColorOrder' onChange='cpColorOrderChanged();'>
@@ -1350,12 +1343,10 @@ if ($settings['Platform'] == "Raspberry Pi") {
                         </td></tr>
                         <tr><td colspan=3>
                             <table>
-                                <tr><td><b>Layout Size:</b></td>
+                                <tr><td><b>UI Layout Size:</b></td>
                                     <td>Pixels Wide:</td><td><? PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize"); ?></td>
                                     <td width='10px'></td>
                                     <td>Pixels High:</td><td><? PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize"); ?></td>
-                                    <td width='10px'></td>
-                                    <td>(used for UI editor only, actual size based on bottom right LED Panel)</td>
                                     </tr>
                             </table>
                             </td></tr>
