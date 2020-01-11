@@ -2028,60 +2028,6 @@ function HolidaySelect(userKey, classToAdd)
 			xmlhttp.send();
 		}
 
-	function GetSequenceFiles()
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getSequences";
-			var seqArr = new Array();
-			$(tblSequences).empty();
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-
-			var xmlDoc=xmlhttp.responseXML; 
-			var sequences = xmlDoc.getElementsByTagName('Sequences')[0];
-			SequenceCount =sequences.childNodes.length;
-			if(sequences.childNodes.length> 0)
-			{
-				var innerhtml = '';
-  			for(i=0;i<sequences.childNodes.length;i++)
-				{
-					var name = sequences.childNodes[i].childNodes[0].textContent;
-					var time = sequences.childNodes[i].childNodes[1].textContent;
-					var tableRow = "<tr class ='seqDetails'><td class ='seqName'>" + name + "</td><td class ='seqTime'>" + time + "</td></tr>";
-					$('#tblSequences').append(tableRow);
-				}
-			}
-			sequenceArray = seqArr;
-		}
-
-	function GetMusicFiles()
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getMusicFiles";
-			var seqArr = new Array();
-			$(tblMusic).empty();
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-
-			var xmlDoc=xmlhttp.responseXML; 
-			var sequences = xmlDoc.getElementsByTagName('Songs')[0];
-			SequenceCount =sequences.childNodes.length;
-			if(sequences.childNodes.length> 0)
-			{
-				var innerhtml = '';
-  			for(i=0;i<sequences.childNodes.length;i++)
-				{
-					var name = sequences.childNodes[i].childNodes[0].textContent;
-					var time = sequences.childNodes[i].childNodes[1].textContent;
-					var tableRow = "<tr class ='songDetails'><td class ='songName'>" + name + "</td><td class ='songTime'>" + time + "</td></tr>";
-					$('#tblMusic').append(tableRow);
-				}
-			}
-			sequenceArray = seqArr;
-		}
-
   function GetFiles(dir)
   {
     var xmlhttp=new XMLHttpRequest();

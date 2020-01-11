@@ -31,11 +31,9 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"getMusicFiles" => 'GetMusicFiles',
 	"getPlayLists" => 'GetPlaylists',
 	"getFiles" => 'GetFiles',
 	"getZip" => 'GetZip',
-	"getSequences" => 'GetSequenceFiles',
 	"setPlayListFirstLast" => 'SetPlayListFirstLast',
 	"addPlayList" => 'AddPlaylist',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
@@ -1913,42 +1911,6 @@ function GetPlaylists()
 	echo $doc->saveHTML();
 }
 
-function GetMusicFiles()
-{
-	global $musicDirectory;
-
-	$musicDirectory = $musicDirectory;
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Songs');
-	$root = $doc->appendChild($root);
-
-	foreach(scandir($musicDirectory) as $songFile)
-	{
-		if($songFile != '.' && $songFile != '..')
-		{
-			$songFileFullName = $musicDirectory . '/' . $songFile;
-
-			$song = $doc->createElement('song');
-			$song = $root->appendChild($song);
-
-			$name = $doc->createElement('name');
-			$name = $song->appendChild($name);
-
-			$value = $doc->createTextNode(utf8_encode($songFile));
-			$value = $name->appendChild($value);
-
-			$time = $doc->createElement('time');
-			$time = $song->appendChild($time);
-
-
-			$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($songFileFullName)));
-			$value = $time->appendChild($value);
-		}
-	}
-	echo $doc->saveHTML();
-
-}
-
 function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 {
 	$fileFullName = $dirName . '/' . $fileName;
@@ -2050,40 +2012,6 @@ function GetFiles()
 	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
 	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
 	echo strtr($doc->saveHTML(), $trans);
-}
-
-function GetSequenceFiles()
-{
-	global $sequenceDirectory;
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Sequences');
-	$root = $doc->appendChild($root);
-
-	foreach(scandir($sequenceDirectory) as $seqFile)
-	{
-		if($seqFile != '.' && $seqFile != '..')
-		{
-			$seqFileFullName = $sequenceDirectory . '/' . $seqFile;
-
-			$sequence = $doc->createElement('Sequence');
-			$sequence = $root->appendChild($sequence);
-
-			$name = $doc->createElement('name');
-			$name = $sequence->appendChild($name);
-
-			$value = $doc->createTextNode(utf8_encode($seqFile));
-			$value = $name->appendChild($value);
-
-			$time = $doc->createElement('Time');
-			$time = $sequence->appendChild($time);
-
-
-			$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($seqFileFullName)));
-			$value = $time->appendChild($value);
-		}
-	}
-	echo $doc->saveHTML();
 }
 
 function AddPlaylist()
