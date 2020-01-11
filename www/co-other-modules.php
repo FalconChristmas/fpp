@@ -64,7 +64,6 @@ class OtherBase {
 //Base Class for outputs with a "Port" device such as serial and SPI
 class OtherBaseDevice extends OtherBase {
     constructor (name="Base-Type-Device", friendlyName="Base Device Name", maxChannels=512, fixedChans=false, devices=["No Devices"], config = {}) {
-        config.device = "";
         super(name, friendlyName, maxChannels, fixedChans, config)
         this._devices = devices;
     }
@@ -210,8 +209,8 @@ class SPIws2801Device extends OtherBaseDevice {
 // I2C Output
 class I2COutput extends OtherBaseDevice {
 
-    constructor(name="I2C-Output", friendlyName="I2C Output", maxChannels=512, fixedChans=false, minAddr, maxAddr) {
-        super(name, friendlyName, maxChannels, fixedChans, I2CDevices, {deviceID: minAddr});
+    constructor(name="I2C-Output", friendlyName="I2C Output", maxChannels=512, fixedChans=false, config = {deviceID: 0x40}, minAddr = 0x00, maxAddr = 0x7f) {
+        super(name, friendlyName, maxChannels, fixedChans, I2CDevices, config);
         this._minAddr = minAddr;
         this._maxAddr = maxAddr;
     }
@@ -233,13 +232,36 @@ class I2COutput extends OtherBaseDevice {
     GetOutputConfig(result, cell) {
         result = super.GetOutputConfig(result, cell);
         var addr = cell.find("select.addr").val();
-        
-        if (result == "" || addr == "")
-            return "";
-        
         result.deviceID = parseInt(addr);
         return result;
     }        
+}
+
+class PCA9685Output extends I2COutput {
+    constructor(name="PCA9685", friendlyName="PCA9685", maxChannels=32, fixedChans=false, config = {device:"i2c-1", deviceID: 0x40, frequency: 50, min:0, max:4095, dataType:1}) {
+        super(name, friendlyName, maxChannels, fixedChans, config);
+    }
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/>";
+        result += "<br>Min Value: <input class='min' type='number' min='0' max='4095' value='" + config.min + "'/>";
+        result += " Max Value: <input class='max' type='number' min='0' max='4095' value='" + config.max + "'/> ";
+        
+        var datatypes = ["8 Bit Scaled", "16 Bit Scaled", "8 Bit Absolute", "16 Bit Absolute"];
+
+        result += CreateSelect(datatypes, config.dataType, "Data Type", "Select Data Type", "dataType");
+        return result;
+    }
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        var dt = cell.find("select.dataType").val();
+        result.dataType = parseInt(dt);
+        result.min = parseInt(cell.find("input.min").val());
+        result.max = parseInt(cell.find("input.max").val());
+        result.frequency = parseInt(cell.find("input.frequency").val());
+        return result;
+    }
+
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -267,7 +289,6 @@ class GenericSPIDevice extends OtherBaseDevice {
 
         return result;
     }
-
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -311,8 +332,9 @@ var output_modules = [];
 if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
 {
 ?>
-    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, 0x20, 0x27));
+    output_modules.push(new I2COutput("MCP23017", "MCP23017", 16, false, {deviceID: 0x20} , 0x20, 0x27));
     output_modules.push(new GenericSPIDevice());
+    output_modules.push(new PCA9685Output());
 <?
 }
 ?>

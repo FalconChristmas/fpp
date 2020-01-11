@@ -15,6 +15,15 @@ I2CUtils::I2CUtils(int bus, int address) {
     file = -1;
     char dev[64];
     sprintf(dev, "/dev/i2c-%d", bus);
+    Init(dev, address);
+}
+I2CUtils::I2CUtils(const char * bus, int address) {
+    file = -1;
+    char dev[64];
+    sprintf(dev, "/dev/%s", bus);
+    Init(dev, address);
+}
+void I2CUtils::Init(const char *dev, int address) {
     if ((file = open(dev, O_RDWR)) < 0) {
         if (system("/sbin/modprobe i2c_dev") == -1) { /* ignore errors */}
         

@@ -6,6 +6,7 @@
 class I2CUtils {
 public:
     I2CUtils(int bus, int address);
+    I2CUtils(const char *i2cdev, int address);
     ~I2CUtils();
 
     int readDevice(uint8_t *buf, int count);
@@ -25,6 +26,7 @@ public:
 
     bool isOk() { return file != -1;}
 private:
+    void Init(const char *, int address);
     int file;
     unsigned long funcs;
 };
