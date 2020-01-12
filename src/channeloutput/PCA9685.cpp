@@ -75,6 +75,7 @@ int PCA9685Output::Init(Json::Value config)
 
 
     int oldmode = i2c->readByteData(0x00);
+    
     int m0 = (oldmode & 0x7f) | 0x10;
     i2c->writeByteData(0x00, m0);
     
@@ -87,9 +88,14 @@ int PCA9685Output::Init(Json::Value config)
     i2c->writeByteData(0x00, oldmode);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     m0 = oldmode | 0xa1; // Mode 1, autoincrement on
+    m0 &= 0xEF;
     i2c->writeByteData(0x00, m0);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    
+    oldmode = i2c->readByteData(0x00);
 
+    oldmode = i2c->readByteData(0xfe);
+    
 	return ChannelOutputBase::Init(config);
 }
 
@@ -113,9 +119,11 @@ int PCA9685Output::SendData(unsigned char *channelData)
     int scl = m_max - m_min + 1;
     
 	unsigned char *c = channelData;
+    c += m_startChannel;
+    
 	int ch = 0;
-	for (int x = 0; ch < m_channelCount; x++, ch++) {
-        unsigned short val = 0;
+	for (int x = 0; ch < m_channelCount && x < 16; x++, ch++) {
+        unsigned short val;
         int tmp;
         switch (m_dataType) {
             case 0:
@@ -149,11 +157,12 @@ int PCA9685Output::SendData(unsigned char *channelData)
         }
         if (m_lastChannelData[x] != val) {
             m_lastChannelData[x] = val;
-            i2c->writeWordData(0x08 + (x * 4), val);
+            uint8_t a = val & 0xFF;
+            uint8_t b = ((val & 0xFF00) >> 8);
+            uint8_t bytes[4] = {a, b, 0, 0};
+            i2c->writeI2CBlockData(0x06 + (x * 4), bytes, 4);
         }
 	}
-
-	
 	return m_channelCount;
 }
 

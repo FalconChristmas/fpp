@@ -25,8 +25,8 @@
 
 class Command {
 public:
-    Command(const std::string &n) : name(n) {}
-    virtual ~Command() {}
+    Command(const std::string &n);
+    virtual ~Command();
     
     virtual Json::Value getDescription();
     
@@ -69,6 +69,8 @@ public:
         CommandArg &setDefaultValue(const std::string &d) { defaultValue = d; return *this;}
         CommandArg &setGetAdjustableValueURL(const std::string &g) { adjustableGetValueURL = g; adjustable = true; return *this;}
         CommandArg &setAdjustable() { adjustable = true; return *this;}
+        
+        virtual ~CommandArg() {}
 
 
         const std::string name;

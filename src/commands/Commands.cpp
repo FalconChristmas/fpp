@@ -10,7 +10,11 @@
 #include "util/GPIOUtils.h"
 
 CommandManager CommandManager::INSTANCE;
+Command::Command(const std::string &n) : name(n) {
+}
 
+Command::~Command() {
+}
 
 Json::Value Command::getDescription() {
     Json::Value cmd;
@@ -59,7 +63,8 @@ public:
         args.push_back(CommandArg("pin", "string", "Pin").setContentList(pins));
         args.push_back(CommandArg("on", "bool", "On"));
     }
-    virtual ~GPIOCommand() {}
+    virtual ~GPIOCommand() {
+    }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() != 2) {
             return std::make_unique<Command::ErrorResult>("Invalid number of arguments. GPIO needs two arguments.");
@@ -112,14 +117,13 @@ void CommandManager::Init() {
     }
 }
 CommandManager::~CommandManager() {
-    for (auto &a : commands) {
-        delete a.second;
-    }
-    commands.clear();
+    Cleanup();
 }
 void CommandManager::Cleanup() {
     for (auto &a : commands) {
-        delete a.second;
+        if (a.second->name != "GPIO") {
+            delete a.second;
+        }
     }
     commands.clear();
 }
