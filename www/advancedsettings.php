@@ -208,7 +208,7 @@ function checkForStorageCopy() {
              success: function (result) {
                  storageDeviceChanged();
                  if (result == "Yes") {
-                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val();
+                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TO&path=/&flags=All";
                  }
             }
         });

@@ -1359,6 +1359,30 @@ function is_array_empty($InputVariable)
 
 //Move backup files
 moveBackupFiles_ToBackupDirectory();
+    
+    
+    
+function PrintUSBDeviceSelect() {
+    global $SUDO;
+
+    echo "<select name='USBDevice' id='USBDevice'>\n";
+    foreach(scandir("/dev/") as $fileName) {
+        if (preg_match("/^sd[a-z][0-9]/", $fileName)) {
+            exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+            $GB = intval($output[0]) / 1024.0 / 1024.0;
+            unset($output);
+
+            if ($GB <= 0.1)
+                continue;
+
+            $key = sprintf( "%s - %.1fGB", $fileName, $GB);
+
+            echo "<option value='" . $fileName . "'>" . $key . "</option>\n";
+        }
+    }
+    echo "</select>";
+
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -1389,6 +1413,55 @@ moveBackupFiles_ToBackupDirectory();
         else {
             helpPage = "help/" + helpPage;
         }
+
+function GetUSBFlags() {
+    var flags = "";
+    
+    var cfTable = $('#CopyFlagsTable');
+    if (document.getElementById("backup.Configuration").checked) {
+        flags += " Configuration";
+    }
+    if (document.getElementById("backup.Playlists").checked) {
+        flags += " Playlists";
+    }
+    if (document.getElementById("backup.Events").checked) {
+        flags += " Events";
+    }
+    if (document.getElementById("backup.Plugins").checked) {
+        flags += " Plugins";
+    }
+    if (document.getElementById("backup.Sequences").checked) {
+        flags += " Sequences";
+    }
+    if (document.getElementById("backup.Effects").checked) {
+        flags += " Effects";
+    }
+    if (document.getElementById("backup.Images").checked) {
+        flags += " Images";
+    }
+    if (document.getElementById("backup.Scripts").checked) {
+        flags += " Scripts";
+    }
+    if (document.getElementById("backup.Music").checked) {
+        flags += " Music";
+    }
+    if (document.getElementById("backup.Videos").checked) {
+        flags += " Videos";
+    }
+    return flags;
+}
+function CopyToUSB() {
+    var flags = GetUSBFlags();
+    var dev = document.getElementById("USBDevice").value;
+    var path = document.getElementById("backup.Path").value;
+    window.location.href="copystorage.php?storageLocation=" + dev + "&direction=TO&path=" + path + "&flags=" + flags;
+}
+function CopyFromUSB() {
+    var flags = GetUSBFlags();
+    var dev = document.getElementById("USBDevice").value;
+    var path = document.getElementById("backup.Path").value;
+    window.location.href="copystorage.php?storageLocation=" + dev + "&direction=FROM&path=" + path + "&flags=" + flags;
+}
     </script>
 </head>
 <body>
@@ -1557,6 +1630,35 @@ moveBackupFiles_ToBackupDirectory();
                             </td>
                         </tr>
                     </table>
+                </fieldset><br>
+                <fieldset><legend>USB Copy</legend>
+                        Copy connfiguration, sequences, etc... to/from a USB device.
+                        <table>
+<tr><td>USB Device:</td><td><? PrintUSBDeviceSelect(); ?></td></tr>
+<tr><td>Path on Device:</td><td><input type='text' name='backup.Path' id='backup.Path' <? echo "value='/" . gethostname() . "'"; ?> ></input></td></tr>
+<tr><td>What to copy:</td><td>
+<table id="CopyFlagsTable">
+<tr><td>
+    <input type='checkbox' checked="true" id="backup.Configuration">Configuration</input><br>
+    <input type='checkbox' checked="true" id="backup.Playlists">Playlists</input><br>
+    </td><td>
+    <input type='checkbox' checked="true" id="backup.Events">Events</input><br>
+    <input type='checkbox' checked="true" id="backup.Plugins">Plugins</input><br>
+    </td><td>
+    <input type='checkbox' checked="true" id="backup.Sequences">Sequences</input><br>
+    <input type='checkbox' checked="true" id="backup.Images">Images</input><br>
+    </td><td>
+    <input type='checkbox' checked="true" id="backup.Scripts">Effects</input><br>
+    <input type='checkbox' checked="true" id="backup.Effects">Effects</input><br>
+    </td><td>
+    <input type='checkbox' checked="true" id="backup.Music">Music</input><br>
+    <input type='checkbox' checked="true" id="backup.Videos">Videos</input><br>
+</td></tr></table>
+</td></tr>
+                        <tr><td></td><td>
+                                <input type='button' class="buttons" value="Copy To USB" onClick="CopyToUSB();"></input>
+                                <input type='button' class="buttons" value="Copy From USB" onClick="CopyFromUSB();"></input></td></tr>
+                        </table>
                 </fieldset>
             </fieldset>
         </div>
