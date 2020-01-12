@@ -80,12 +80,17 @@ int PCA9685Output::Init(Json::Value config)
     int m0 = (oldmode & 0x7f) | 0x10;
     i2c->writeByteData(0x00, m0);
     
-    int fs = 25000000;
-    fs /= 4096;
+    float fs = 25000000.0f;
+    fs /= 4096.f;
     fs /= m_frequency;
-    fs -= 1;
+    fs += 0.5;
     
-    i2c->writeByteData(0xFE, fs);
+    int fsi = (int)fs;
+    if (fsi < 3) {
+        fsi = 3;
+    }
+
+    i2c->writeByteData(0xFE, fsi);
     i2c->writeByteData(0x00, oldmode);
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     m0 = oldmode | 0xa1; // Mode 1, autoincrement on
