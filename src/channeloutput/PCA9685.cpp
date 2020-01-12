@@ -63,11 +63,12 @@ int PCA9685Output::Init(Json::Value config)
 	}
     
     m_frequency = config["deviceID"].asInt();
-    m_min = config["min"].asInt();
-    m_max = config["max"].asInt();
-    m_dataType = config["dataType"].asInt();
     
     for (int x = 0; x < 16; x++) {
+        m_min[x] = config["ports"][x]["min"].asInt();
+        m_max[x] = config["ports"][x]["max"].asInt();
+        m_dataType[x] = config["ports"][x]["dataType"].asInt();
+
         m_lastChannelData[x] = 0xFFFF;
     }
 
@@ -116,19 +117,19 @@ int PCA9685Output::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "PCA9685Output::SendData(%p)\n", channelData);
 
-    int scl = m_max - m_min + 1;
     
 	unsigned char *c = channelData;
     c += m_startChannel;
     
 	int ch = 0;
 	for (int x = 0; ch < m_channelCount && x < 16; x++, ch++) {
+        int scl = m_max[x] - m_min[x] + 1;
         unsigned short val;
         int tmp;
-        switch (m_dataType) {
+        switch (m_dataType[x]) {
             case 0:
                 tmp = scl * c[ch] / 256;
-                val = tmp + m_min;
+                val = tmp + m_min[x];
                 break;
             case 1:
                 tmp = c[ch + 1];
@@ -137,7 +138,7 @@ int PCA9685Output::SendData(unsigned char *channelData)
                 ch++;
                 tmp *= scl;
                 tmp /= 0xffff;
-                val = tmp + m_min;
+                val = tmp + m_min[x];
                 break;
             case 2:
                 val = c[ch];
@@ -149,17 +150,17 @@ int PCA9685Output::SendData(unsigned char *channelData)
                 ch++;
                 break;
         }
-        if (val > m_max) {
-            val = m_max;
+        if (val > m_max[x]) {
+            val = m_max[x];
         }
-        if (val  < m_min) {
-            val = m_min;
+        if (val  < m_min[x]) {
+            val = m_min[x];
         }
         if (m_lastChannelData[x] != val) {
             m_lastChannelData[x] = val;
             uint8_t a = val & 0xFF;
             uint8_t b = ((val & 0xFF00) >> 8);
-            uint8_t bytes[4] = {a, b, 0, 0};
+            uint8_t bytes[4] = {0, 0, a, b};
             i2c->writeI2CBlockData(0x06 + (x * 4), bytes, 4);
         }
 	}

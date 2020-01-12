@@ -45,9 +45,11 @@ class PCA9685Output : public ChannelOutputBase {
 	int m_deviceID;
     std::string m_i2cDevice;
     int m_frequency;
-    int m_min;
-    int m_max;
-    int m_dataType;
+    
+    
+    int m_min[16];
+    int m_max[16];
+    int m_dataType[16];
     unsigned short m_lastChannelData[16];
 };
 

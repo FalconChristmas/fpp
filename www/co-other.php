@@ -1199,8 +1199,8 @@ function PopulateChannelOutputTable(data) {
             var output = data.channelOutputs[i];
             var type = output.type;
 
-            var newRow = "<tr class='rowUniverseDetails'><td>" + (i + 1) + "</td>" +
-                    "<td><input class='act' type=checkbox";
+            var newRow = "<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (i + 1) + "</td>" +
+                    "<td style='vertical-align:top'><input class='act' type=checkbox";
 
             if (output.enabled)
                 newRow += " checked";
@@ -1234,10 +1234,10 @@ function PopulateChannelOutputTable(data) {
 					typeFriendlyName = output_module.typeFriendlyName;
 
 			newRow += "></td>" +	
-					"<td class='type'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
-                    "<td><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
-                    "<td><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
-                    "<td class='config'>";
+					"<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
+                    "<td style='vertical-align:top'><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
+                    "<td style='vertical-align:top'><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
+                    "<td style='vertical-align:top' class='config'>";
 
             if ((type == "DMX-Pro") ||
                 (type == "DMX-Open") ||
@@ -1602,9 +1602,9 @@ function AddOtherOutput() {
 	var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
 	var newRow = 
-		"<tr class='rowUniverseDetails'><td>" + (currentRows + 1) + "</td>" +
-			"<td><input class='act' type=checkbox></td>" +
-			"<td class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
+		"<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (currentRows + 1) + "</td>" +
+			"<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
+			"<td style='vertical-align:top' class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
             "<option value=''>Select a type</option>";
  
  
@@ -1643,8 +1643,8 @@ function AddOtherOutput() {
         }
         newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
         newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
-			"<td><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
-			"<td><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
+			"<td style='vertical-align:top'><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
+			"<td style='vertical-align:top'><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
 			"<td> </td>" +
 			"</tr>";
 

@@ -238,27 +238,47 @@ class I2COutput extends OtherBaseDevice {
 }
 
 class PCA9685Output extends I2COutput {
-    constructor(name="PCA9685", friendlyName="PCA9685", maxChannels=32, fixedChans=false, config = {device:"i2c-1", deviceID: 0x40, frequency: 50, min:0, max:4095, dataType:1}) {
+    constructor(name="PCA9685", friendlyName="PCA9685", maxChannels=32, fixedChans=false, config = {device:"i2c-1", deviceID: 0x40, frequency: 50}) {
         super(name, friendlyName, maxChannels, fixedChans, config);
     }
     PopulateHTMLRow(config) {
         var result = super.PopulateHTMLRow(config);
-        result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/>";
-        result += "<br>Min Value: <input class='min' type='number' min='0' max='4095' value='" + config.min + "'/>";
-        result += " Max Value: <input class='max' type='number' min='0' max='4095' value='" + config.max + "'/> ";
-        
         var datatypes = ["8 Bit Scaled", "16 Bit Scaled", "8 Bit Absolute", "16 Bit Absolute"];
+        
+        result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/><br>";
+        
+        for (var x = 0; x < 16; x++) {
+            var min = 0;
+            var max = 4095;
+            var dataType = 0;
+            
+            if (config.ports != undefined && config.ports[x] != undefined) {
+                min = config.ports[x].min;
+                max = config.ports[x].max;
+                dataType = config.ports[x].dataType;
+            }
+            
+            result += "<br>Port: " + x + " - ";
+            result += "Min Value: <input class='min" + x + "' type='number' min='0' max='4095' value='" + min + "'/>";
+            result += " Max Value: <input class='max" + x + "' type='number' min='0' max='4095' value='" + max + "'/> ";
+            result += CreateSelect(datatypes, dataType, "Data Type", "Select Data Type", "dataType" + x);
+        }
 
-        result += CreateSelect(datatypes, config.dataType, "Data Type", "Select Data Type", "dataType");
         return result;
     }
     GetOutputConfig(result, cell) {
         result = super.GetOutputConfig(result, cell);
-        var dt = cell.find("select.dataType").val();
-        result.dataType = parseInt(dt);
-        result.min = parseInt(cell.find("input.min").val());
-        result.max = parseInt(cell.find("input.max").val());
         result.frequency = parseInt(cell.find("input.frequency").val());
+        result.ports = [];
+        for (var x = 0; x < 16; x++) {
+            var dt = cell.find("select.dataType" + x).val();
+            result.ports[x] = {};
+            result.ports[x].dataType = parseInt(dt);
+            result.ports[x].min = parseInt(cell.find("input.min" + x).val());
+            result.ports[x].max = parseInt(cell.find("input.max" + x).val());
+        }
+
+        
         return result;
     }
 
