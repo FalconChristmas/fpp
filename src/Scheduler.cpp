@@ -1105,6 +1105,10 @@ int Scheduler::ExtendRunningSchedule(int seconds)
     std::unique_lock<std::mutex> lock(m_scheduleLock);
 
     m_currentSchedulePlaylist.endWeeklySeconds += seconds;
+
+    if (m_currentSchedulePlaylist.endWeeklySeconds < 0)
+        m_currentSchedulePlaylist.endWeeklySeconds += 7 * 24 * 60 * 60;
+
     if (m_currentSchedulePlaylist.endWeeklySeconds > (7 * 24 * 60 * 60))
         m_currentSchedulePlaylist.endWeeklySeconds -= 7 * 24 * 60 * 60;
 
