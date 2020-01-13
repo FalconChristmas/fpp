@@ -269,7 +269,9 @@ function checkFormatStorage()
         <tr>
           <td><b>Storage Device:</b></td>
           <td><? PrintStorageDeviceSelect($settings['Platform']); ?><br>
-            Changing the storage device to anything other than the SD card is NOT supported and untested.  If it fails to work, your system may not boot properly.  Using a partition type other than ext4 is also not supported and may cause playback issues.  If you are not extremely comfortable with Linux and diagnosing issues, do not change this.  This option will likely be removed in a future version of FPP. 
+            Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
+            
+            In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
             </td>
         </tr>
         <tr><td colspan='2'><hr></td></tr>

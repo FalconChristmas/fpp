@@ -1648,7 +1648,7 @@ function CopyFromUSB() {
     <input type='checkbox' checked="true" id="backup.Sequences">Sequences</input><br>
     <input type='checkbox' checked="true" id="backup.Images">Images</input><br>
     </td><td>
-    <input type='checkbox' checked="true" id="backup.Scripts">Effects</input><br>
+    <input type='checkbox' checked="true" id="backup.Scripts">Scripts</input><br>
     <input type='checkbox' checked="true" id="backup.Effects">Effects</input><br>
     </td><td>
     <input type='checkbox' checked="true" id="backup.Music">Music</input><br>
