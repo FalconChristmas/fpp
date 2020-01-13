@@ -62,13 +62,31 @@ int PCA9685Output::Init(Json::Value config)
 		return 0;
 	}
     
-    m_frequency = config["deviceID"].asInt();
-    
+    m_frequency = config["frequency"].asInt();
+    bool asUsec = false;
+    if (config.isMember("asUsec")) {
+        asUsec = config["asUsec"].asInt();
+    }
+
     for (int x = 0; x < 16; x++) {
         m_min[x] = config["ports"][x]["min"].asInt();
         m_max[x] = config["ports"][x]["max"].asInt();
+        
+        if (asUsec) {
+            int z = m_min[x];
+            z *= m_frequency;
+            z *= 4095;
+            z /= 1000000;
+            m_min[x] = z;
+            
+            z = m_max[x];
+            z *= m_frequency;
+            z *= 4095;
+            z /= 1000000;
+            m_max[x] = z;
+        }
+        
         m_dataType[x] = config["ports"][x]["dataType"].asInt();
-
         m_lastChannelData[x] = 0xFFFF;
     }
 
@@ -180,6 +198,12 @@ void PCA9685Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "PCA9685Outputs::DumpConfig()\n");
 
 	LogDebug(VB_CHANNELOUT, "    deviceID: %X\n", m_deviceID);
+    LogDebug(VB_CHANNELOUT, "    Frequency: %d\n", m_frequency);
+    for (int x = 0; x < 16; x++) {
+        LogDebug(VB_CHANNELOUT, "    Port %d:    Min: %d\n", x, m_min[x]);
+        LogDebug(VB_CHANNELOUT, "                Max: %d\n", m_max[x]);
+        LogDebug(VB_CHANNELOUT, "                DataType: %d\n", m_dataType[x]);
+    }
 
 	ChannelOutputBase::DumpConfig();
 }

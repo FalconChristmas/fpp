@@ -245,7 +245,11 @@ class PCA9685Output extends I2COutput {
         var result = super.PopulateHTMLRow(config);
         var datatypes = ["8 Bit Scaled", "16 Bit Scaled", "8 Bit Absolute", "16 Bit Absolute"];
         
-        result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/><br>";
+        var inMicrosecs = config.asUsec;
+        if (inMicrosecs == undefined) {
+            inMicrosecs = false;
+        }
+        result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/><br><input class='asUsec' type='checkbox' " + (inMicrosecs ? "checked" : "") + ">Min/Max in micro-seconds</input><br>";
         
         for (var x = 0; x < 16; x++) {
             var min = 0;
@@ -269,6 +273,7 @@ class PCA9685Output extends I2COutput {
     GetOutputConfig(result, cell) {
         result = super.GetOutputConfig(result, cell);
         result.frequency = parseInt(cell.find("input.frequency").val());
+        result.asUsec = cell.find("input.asUsec").is(":checked") ? 1 : 0;
         result.ports = [];
         for (var x = 0; x < 16; x++) {
             var dt = cell.find("select.dataType" + x).val();
