@@ -23,57 +23,55 @@ else
   mount -t ext4 -o noatime,nodiratime,nofail /dev/$DEVICE /tmp/smnt
 fi
 
-if [ "$DIRECTION" = "TO" ]; then
+if [ "$DIRECTION" = "TOUSB" ]; then
 SOURCE=/home/fpp/media
 DEST=/tmp/smnt/$DPATH
 mkdir -p $DEST
-else
+elif [ "$DIRECTION" = "FROMUSB" ]; then
 DEST=/home/fpp/media
 SOURCE=/tmp/smnt/$DPATH
 fi
 
 EXTRA_ARGS="$EXTRA_ARGS --delete -av --modify-window=1"
-echo "Args: $EXTRA_ARGS"
-
 
 
 for action in $@; do
     case $action in
     "All")
-        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/* $SOURCE/* $DEST
-        rsync $EXTRA_ARGS $SOURCE/music $DEST
-        rsync $EXTRA_ARGS $SOURCE/sequences $DEST
-        rsync $EXTRA_ARGS $SOURCE/videos $DEST
+        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/* $SOURCE/* $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Music")
-        rsync $EXTRA_ARGS $SOURCE/music $DEST
+        rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Sequences")
-        rsync $EXTRA_ARGS $SOURCE/sequences $DEST
+        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Scripts")
-        rsync $EXTRA_ARGS $SOURCE/scripts $DEST
+        rsync $EXTRA_ARGS $SOURCE/scripts $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Plugins")
-        rsync $EXTRA_ARGS $SOURCE/plugin* $DEST
+        rsync $EXTRA_ARGS $SOURCE/plugin* $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Images")
-        rsync $EXTRA_ARGS $SOURCE/images $DEST
+        rsync $EXTRA_ARGS $SOURCE/images $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Events")
-        rsync $EXTRA_ARGS $SOURCE/events $DEST
+        rsync $EXTRA_ARGS $SOURCE/events $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Effects")
-        rsync $EXTRA_ARGS $SOURCE/effects $DEST
+        rsync $EXTRA_ARGS $SOURCE/effects $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Videos")
-        rsync $EXTRA_ARGS $SOURCE/videos $DEST
+        rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Playlists")
-        rsync $EXTRA_ARGS $SOURCE/playlists $DEST
+        rsync $EXTRA_ARGS $SOURCE/playlists $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     "Configuration")
-            rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* $SOURCE/* $DEST
+        rsync $EXTRA_ARGS -q --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* $SOURCE/* $DEST  2>&1 | grep -v chown | grep -v "attrs were not"
         ;;
     *)
         echo -n "Uknown action $action"

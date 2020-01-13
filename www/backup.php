@@ -1450,17 +1450,12 @@ function GetUSBFlags() {
     }
     return flags;
 }
-function CopyToUSB() {
+function PerformCopy() {
     var flags = GetUSBFlags();
     var dev = document.getElementById("USBDevice").value;
     var path = document.getElementById("backup.Path").value;
-    window.location.href="copystorage.php?storageLocation=" + dev + "&direction=TO&path=" + path + "&flags=" + flags;
-}
-function CopyFromUSB() {
-    var flags = GetUSBFlags();
-    var dev = document.getElementById("USBDevice").value;
-    var path = document.getElementById("backup.Path").value;
-    window.location.href="copystorage.php?storageLocation=" + dev + "&direction=FROM&path=" + path + "&flags=" + flags;
+    var direction = document.getElementById("backup.Direction").value;
+    window.location.href="copystorage.php?storageLocation=" + dev + "&direction=" + direction + "&path=" + path + "&flags=" + flags;
 }
     </script>
 </head>
@@ -1634,6 +1629,10 @@ function CopyFromUSB() {
                 <fieldset><legend>USB Copy</legend>
                         Copy connfiguration, sequences, etc... to/from a USB device.
                         <table>
+<tr><td>Copy Type:</td><td><select id="backup.Direction">
+<option value="TOUSB" selected>Copy To USB</option>
+<option value="FROMUSB">Copy From USB</option>
+</select></td></tr>
 <tr><td>USB Device:</td><td><? PrintUSBDeviceSelect(); ?></td></tr>
 <tr><td>Path on Device:</td><td><input type='text' name='backup.Path' id='backup.Path' <? echo "value='/" . gethostname() . "'"; ?> ></input></td></tr>
 <tr><td>What to copy:</td><td>
@@ -1656,8 +1655,7 @@ function CopyFromUSB() {
 </td></tr></table>
 </td></tr>
                         <tr><td></td><td>
-                                <input type='button' class="buttons" value="Copy To USB" onClick="CopyToUSB();"></input>
-                                <input type='button' class="buttons" value="Copy From USB" onClick="CopyFromUSB();"></input></td></tr>
+                                <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
                         </table>
                 </fieldset>
             </fieldset>
