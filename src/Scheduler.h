@@ -82,6 +82,7 @@ public:
 	int startWeeklySeconds = 0;
 	int endWeeklySeconds = 0;
 
+	int    actualStartWeeklySeconds = 0;
 	time_t actualStartTime = 0;
 	time_t actualEndTime = 0;
 	time_t scheduledStartTime = 0;
@@ -116,6 +117,7 @@ class Scheduler {
 	void PlayListStopCheck(void);
 	void LoadScheduleFromFile(void);
 	void SchedulePrint(void);
+	std::string GetWeekDayStrFromSeconds(int weeklySeconds);
 	int  GetWeeklySeconds(int day, int hour, int minute, int second);
 	int  GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2);
 	int  GetDayFromWeeklySeconds(int weeklySeconds);

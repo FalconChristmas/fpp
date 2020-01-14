@@ -416,6 +416,8 @@ int CurrentDateInRange(int startDate, int endDate)
 {
 	int currentDate = GetCurrentDateInt();
 
+	LogExcess(VB_GENERAL, "CurrentDateInRange, checking if %d (s) <= %d (c) <= %d (e)\n", startDate, currentDate, endDate);
+
 	if ((startDate < 10000) || (endDate < 10000))
 	{
 		startDate = startDate % 10000;
@@ -445,6 +447,8 @@ int CurrentDateInRange(int startDate, int endDate)
 			endDate += 100; // next month
 		}
 	}
+
+	LogExcess(VB_GENERAL, "Actual compare is: %d (s) <= %d (c) <= %d (e)\n", startDate, currentDate, endDate);
 
 	if ((startDate == 0) && (endDate == 0))
 		return 1;

@@ -48,6 +48,7 @@ Scheduler *scheduler = NULL;
 void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
 {
     actualStartTime = currTime;
+    actualStartWeeklySeconds = nowWeeklySeconds;
 
     scheduledStartTime = currTime - (nowWeeklySeconds - startWeeklySeconds);
 
@@ -134,6 +135,9 @@ void Scheduler::ScheduleProc(void)
 
 void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 {
+  if (m_loadSchedule)
+    LoadScheduleFromFile();
+
   int i,j,dayCount;
   time_t currTime = time(NULL);
   struct tm now;
@@ -813,6 +817,28 @@ void Scheduler::SchedulePrint(void)
   LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
 }
 
+std::string Scheduler::GetWeekDayStrFromSeconds(int weeklySeconds)
+{
+    std::string result;
+
+    if (weeklySeconds >= (6 * 24 * 60 * 60))
+        result = "Sat";
+    else if (weeklySeconds >= (5 * 24 * 60 * 60))
+        result = "Fri";
+    else if (weeklySeconds >= (4 * 24 * 60 * 60))
+        result = "Thu";
+    else if (weeklySeconds >= (3 * 24 * 60 * 60))
+        result = "Wed";
+    else if (weeklySeconds >= (2 * 24 * 60 * 60))
+        result = "Tue";
+    else if (weeklySeconds >= (1 * 24 * 60 * 60))
+        result = "Mon";
+    else
+        result = "Sun";
+
+    return result;
+}
+
 int Scheduler::GetWeeklySeconds(int day, int hour, int minute, int second)
 {
   int weeklySeconds = (day*SECONDS_PER_DAY) + (hour*SECONDS_PER_HOUR) + (minute*SECONDS_PER_MINUTE) + second;
@@ -1013,8 +1039,7 @@ Json::Value Scheduler::GetInfo(void)
         Json::Value cp;
 
         if (playlist->WasScheduled()) {
-            int i = m_currentSchedulePlaylist.ScheduleEntryIndex;
-            char timeStr[9];
+            char timeStr[13];
 
             struct tm ast;
             localtime_r(&m_currentSchedulePlaylist.actualStartTime, &ast);
@@ -1028,28 +1053,51 @@ Json::Value Scheduler::GetInfo(void)
             localtime_r(&currTime, &now);
             int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
 
+            std::string todayStr = GetWeekDayStrFromSeconds(nowWeeklySeconds);
+            std::string tmpDayStr;
+
             cp["currentTime"] = (Json::UInt64)currTime;
 
-            snprintf(timeStr, 9, "%02d:%02d:%02d",
+            tmpDayStr = GetWeekDayStrFromSeconds(m_currentSchedulePlaylist.startWeeklySeconds);
+            if (tmpDayStr == todayStr)
+                tmpDayStr = "";
+            else
+                tmpDayStr += " ";
+
+            snprintf(timeStr, 13, "%s%02d:%02d:%02d", tmpDayStr.c_str(),
                 m_currentSchedulePlaylist.entry.startHour, m_currentSchedulePlaylist.entry.startMinute,
                 m_currentSchedulePlaylist.entry.startSecond);
 
             cp["scheduledStartTime"] = (Json::UInt64)m_currentSchedulePlaylist.scheduledStartTime;
             cp["scheduledStartTimeStr"] = timeStr;
 
-            snprintf(timeStr, 9, "%02d:%02d:%02d",
+            tmpDayStr = GetWeekDayStrFromSeconds(m_currentSchedulePlaylist.actualStartWeeklySeconds);
+            if (tmpDayStr == todayStr)
+                tmpDayStr = "";
+            else
+                tmpDayStr += " ";
+
+            snprintf(timeStr, 13, "%s%02d:%02d:%02d", tmpDayStr.c_str(),
+                ast.tm_hour, ast.tm_min, ast.tm_sec);
+
+            cp["actualStartTime"] = (Json::UInt64)m_currentSchedulePlaylist.actualStartTime;
+            cp["actualStartTimeStr"] = timeStr;
+
+            tmpDayStr = GetWeekDayStrFromSeconds(m_currentSchedulePlaylist.endWeeklySeconds);
+            if (tmpDayStr == todayStr)
+                tmpDayStr = "";
+            else
+                tmpDayStr += " ";
+
+            snprintf(timeStr, 13, "%s%02d:%02d:%02d", tmpDayStr.c_str(),
                 m_currentSchedulePlaylist.entry.endHour, m_currentSchedulePlaylist.entry.endMinute,
                 m_currentSchedulePlaylist.entry.endSecond);
 
             cp["scheduledEndTime"] = (Json::UInt64)m_currentSchedulePlaylist.scheduledEndTime;
             cp["scheduledEndTimeStr"] = timeStr;
 
-            snprintf(timeStr, 9, "%02d:%02d:%02d", ast.tm_hour, ast.tm_min, ast.tm_sec);
-
-            cp["actualStartTime"] = (Json::UInt64)m_currentSchedulePlaylist.actualStartTime;
-            cp["actualStartTimeStr"] = timeStr;
-
-            snprintf(timeStr, 9, "%02d:%02d:%02d", aet.tm_hour, aet.tm_min, aet.tm_sec);
+            snprintf(timeStr, 13, "%s%02d:%02d:%02d", tmpDayStr.c_str(),
+                aet.tm_hour, aet.tm_min, aet.tm_sec);
 
             cp["actualEndTime"] = (Json::UInt64)m_currentSchedulePlaylist.actualEndTime;
             cp["actualEndTimeStr"] = timeStr;
