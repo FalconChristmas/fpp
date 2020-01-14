@@ -99,3 +99,6 @@ echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf
+
+rm -f /etc/modprobe.d/blacklist-8192cu.conf
+
