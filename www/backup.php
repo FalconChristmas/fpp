@@ -1,3 +1,10 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <?php require_once 'common/menuHead.inc'; ?>
+    <title><? echo $pageTitle; ?></title>
+    <!--    <script>var helpPage = "help/backup.php";</script>-->
+<script>
 <?php
 $skipJSsettings = 1;
 //error_reporting(E_ALL);
@@ -1383,13 +1390,10 @@ function PrintUSBDeviceSelect() {
     echo "</select>";
 
 }
+
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <?php require_once 'common/menuHead.inc'; ?>
-    <title><? echo $pageTitle; ?></title>
-    <!--    <script>var helpPage = "help/backup.php";</script>-->
+</script>
+
     <script type="text/javascript">
         var settings = new Array();
         <?
@@ -1448,30 +1452,136 @@ function GetUSBFlags() {
     if (document.getElementById("backup.Videos").checked) {
         flags += " Videos";
     }
+    if ((document.getElementById("backup.Backups").checked) &&
+        (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
+        flags += " Backups";
+    }
     return flags;
 }
 function PerformCopy() {
-    var flags = GetUSBFlags();
     var dev = document.getElementById("USBDevice").value;
     var path = document.getElementById("backup.Path").value;
+    var host = document.getElementById("backup.Host").value;
     var direction = document.getElementById("backup.Direction").value;
-    window.location.href="copystorage.php?storageLocation=" + dev + "&direction=" + direction + "&path=" + path + "&flags=" + flags;
+
+    var url = "copystorage.php?direction=" + direction;
+
+    if ((direction == 'TOUSB') ||
+        (direction == 'FROMUSB')) {
+        url += '&storageLocation=' + document.getElementById("USBDevice").value;
+    } else if ((direction == 'TOREMOTE') ||
+               (direction == 'FROMREMOTE')) {
+        url += '&storageLocation=' + document.getElementById("backup.Host").value;
+    } else {
+        url += '&storageLocation=/home/fpp/media/backups';
+    }
+
+    if (direction == 'FROMLOCAL') {
+        url += '&path=' + document.getElementById("backup.PathSelect").value;
+    } else {
+        url += '&path=' + document.getElementById("backup.Path").value;
+    }
+
+    url += '&flags=' + GetUSBFlags();
+
+    window.location.href = url;
 }
+
+function PopulateBackupDirs(data) {
+    var options = "";
+    for (var i = 0; i < data.length; i++) {
+        options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+    }
+    $('#backup\\.PathSelect').html(options);
+}
+
+function GetBackupDirsViaAPI(host) {
+    $.get("http://" + host + "/api/backups/list"
+        ).done(function(data) {
+            PopulateBackupDirs(data);
+        }).fail(function() {
+            $('#backup.copyPathSelect').html('');
+        });
+}
+
+function GetBackupHostBackupDirs() {
+    GetBackupDirsViaAPI($('#backup\\.Host').val());
+}
+
+function BackupDirectionChanged() {
+    var direction = document.getElementById("backup.Direction").value;
+
+    switch (direction) {
+        case 'TOUSB':
+            $('.copyUSB').show();
+            $('.copyPath').show();
+            $('.copyPathSelect').hide();
+            $('.copyHost').hide();
+            $('.copyBackups').show();
+            break;
+        case 'FROMUSB':
+            $('.copyUSB').show();
+            $('.copyPath').show();
+            $('.copyPathSelect').hide();
+            $('.copyHost').hide();
+            $('.copyBackups').hide();
+            break;
+        case 'TOLOCAL':
+            $('.copyUSB').hide();
+            $('.copyPath').show();
+            $('.copyPathSelect').hide();
+            $('.copyHost').hide();
+            $('.copyBackups').hide();
+            break;
+        case 'FROMLOCAL':
+            $('.copyUSB').hide();
+            $('.copyPath').hide();
+            $('.copyPathSelect').show();
+            $('.copyHost').hide();
+            $('.copyBackups').hide();
+            GetBackupDirsViaAPI('<?php echo $_SERVER['SERVER_ADDR'] ?>');
+            break;
+        case 'TOREMOTE':
+            $('.copyUSB').hide();
+            $('.copyPath').show();
+            $('.copyPathSelect').hide();
+            $('.copyHost').show();
+            $('.copyBackups').hide();
+            break;
+        case 'FROMREMOTE':
+            $('.copyUSB').hide();
+            $('.copyPath').hide();
+            $('.copyPathSelect').show();
+            $('.copyHost').show();
+            $('.copyBackups').hide();
+            GetBackupHostBackupDirs();
+            break;
+    }
+}
+
     </script>
 </head>
 <body>
+<style>
+.copyHost {
+    display: none;
+}
+.copyPathSelect {
+    display: none;
+}
+</style>
 <div id="bodyWrapper">
     <?php include 'menu.inc'; ?>
     <br/>
-    <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
         <div id="global" class="settings">
-            <fieldset>
-                <legend>FPP Settings Backup</legend>
+            <div class='title'>FPP Backups</div>
+            <div id='tabs'>
                 <ul>
-                    <li>
-                        <span style="color: #AA0000"><b>Backups made from FPP v1.x are incompatible with the FPP 3.x system.</b></span>
-                    </li>
+                    <li><a href='#tab-jsonBackup'>JSON Configuration Backup</a></li>
+                    <li><a href='#tab-fileCopy'>File Copy Backup</a></li>
                 </ul>
+            <div id='tab-jsonBackup'>
+                <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
                 <?php if ($restore_done == true) {
                     ?>
                     <div id="rebootFlag" style="display: block;">Backup Restored, FPPD Restart or Reboot may be required.
@@ -1586,6 +1696,9 @@ function PerformCopy() {
                 <br/>
                 <fieldset>
                     <legend>Restore Configuration</legend>
+                    <center>
+                        <span style="color: #AA0000"><b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x system.</b><br><br></span>
+                    </center>
                     Select settings to restore and then choose backup file containing backup data.
                     <br/>
                     <table width="100%">
@@ -1621,46 +1734,60 @@ function PerformCopy() {
                             <td width="25%"></td>
                             <td width="75%">
                                 <input name="btnRestoreConfig" type="Submit" style="width:30%" class="buttons"
-                                       value="Restore  Configuration">
+                                       value="Restore Configuration">
                             </td>
                         </tr>
                     </table>
-                </fieldset><br>
-                <fieldset><legend>USB Copy</legend>
-                        Copy connfiguration, sequences, etc... to/from a USB device.
+                </fieldset>
+                </form>
+                </div>
+                <div id='tab-fileCopy'>
+                <fieldset><legend>File Copy Backup/Restore</legend>
+                        Copy configuration, sequences, etc... to/from a backup device.
                         <table>
-<tr><td>Copy Type:</td><td><select id="backup.Direction">
+<tr><td>Copy Type:</td><td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
 <option value="TOUSB" selected>Copy To USB</option>
 <option value="FROMUSB">Copy From USB</option>
+<option value="TOLOCAL">Copy To Local FPP Backups Directory</option>
+<option value="FROMLOCAL">Copy From Local FPP Backups Directory</option>
+<option value="TOREMOTE">Copy To Remote FPP Backups Directory</option>
+<option value="FROMREMOTE">Copy From Remote FPP Backups Directory</option>
 </select></td></tr>
-<tr><td>USB Device:</td><td><? PrintUSBDeviceSelect(); ?></td></tr>
-<tr><td>Path on Device:</td><td><input type='text' name='backup.Path' id='backup.Path' <? echo "value='/" . gethostname() . "'"; ?> ></input></td></tr>
+<tr class='copyUSB'><td>USB Device:</td><td><? PrintUSBDeviceSelect(); ?></td></tr>
+<tr class='copyHost'><td>Hostname/IP:</td><td><? PrintSettingTextSaved('backup.Host', 0, 0, 32, 32, '', '127.0.0.1', 'GetBackupHostBackupDirs'); ?></td></tr>
+<tr class='copyPath'><td>Backup Path:</td><td><? PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
+<tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
 <tr><td>What to copy:</td><td>
 <table id="CopyFlagsTable">
 <tr><td>
-    <input type='checkbox' checked="true" id="backup.Configuration">Configuration</input><br>
-    <input type='checkbox' checked="true" id="backup.Playlists">Playlists</input><br>
-    </td><td>
-    <input type='checkbox' checked="true" id="backup.Events">Events</input><br>
-    <input type='checkbox' checked="true" id="backup.Plugins">Plugins</input><br>
-    </td><td>
-    <input type='checkbox' checked="true" id="backup.Sequences">Sequences</input><br>
-    <input type='checkbox' checked="true" id="backup.Images">Images</input><br>
-    </td><td>
-    <input type='checkbox' checked="true" id="backup.Scripts">Scripts</input><br>
-    <input type='checkbox' checked="true" id="backup.Effects">Effects</input><br>
-    </td><td>
-    <input type='checkbox' checked="true" id="backup.Music">Music</input><br>
-    <input type='checkbox' checked="true" id="backup.Videos">Videos</input><br>
+    <? PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration'); ?><br>
+    <? PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists'); ?><br>
+    </td><td width='10px'></td><td>
+    <? PrintSettingCheckbox('Backup Events', 'backup.Events', 0, 0, 1, 0, "", "", 1, 'Events'); ?><br>
+    <? PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins'); ?><br>
+    </td><td width='10px'></td><td>
+    <? PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences'); ?><span style="color: #AA0000">*</span><br>
+    <? PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images'); ?><br>
+    </td><td width='10px'></td><td>
+    <? PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts'); ?><br>
+    <? PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects'); ?><br>
+    </td><td width='10px'></td><td>
+    <? PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
+    <? PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
+    </td><td width='10px'></td><td valign='top' class='copyBackups'>
+    <input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span><br>
 </td></tr></table>
 </td></tr>
                         <tr><td></td><td>
                                 <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
                         </table>
+                        <br>
+                        <span style="color: #AA0000"><b>* Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</b></span><br>
+                        <span style="color: #AA0000" class='copyBackups'><b>* Backing up Backups will copy all local backups to the USB device.</b></span><br>
                 </fieldset>
-            </fieldset>
+                </div>
+            </div>
         </div>
-    </form>
     <div id="dialog" title="Warning!" style="display:none">
         <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
             <br/> <br/>
@@ -1680,6 +1807,17 @@ function PerformCopy() {
                 });
             }
         });
+
+            var activeTabNumber =
+<?php
+    if (isset($_GET['tab']))
+        print $_GET['tab'];
+    else
+        print "0";
+?>;
+
+        $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+
     </script>
     <?php include 'common/footer.inc'; ?>
 </div>

@@ -19,9 +19,12 @@ Copy Settings
 <h2>Copy Settings</h2>
 <pre>
 <?php
+    $date = date("Ymd-Hi");
+    $path = preg_replace('/{DATE}/', $date, $_GET['path']);
+
 		echo "==================================================================================\n";
 
-    $command = "sudo /opt/fpp/scripts/copy_settings_to_storage.sh " . $_GET['storageLocation'] . " " . $_GET['path']  . " " . $_GET['direction']  . " " . $_GET['flags'] . " 2>&1";
+    $command = "sudo /home/fpp/fpp/scripts/copy_settings_to_storage.sh " . $_GET['storageLocation'] . " " . $path . " " . $_GET['direction']  . " " . $_GET['flags'] . " 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";

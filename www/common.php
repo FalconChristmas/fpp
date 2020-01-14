@@ -123,13 +123,15 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
 	}
 }
 
-function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0)
+function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "")
 {
 	global $settings;
 	global $pluginSettings;
 
 	$plugin = "";
 	$settingsName = "settings";
+
+    $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
 
 	if ($pluginName != "") {
 		$plugin = "Plugin";
@@ -139,12 +141,14 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
 	if ($callbackName != "")
 		$callbackName = $callbackName . "();";
 
+    $changedFunction = preg_replace('/\./', '', $setting . "Changed");
+
 	echo "
 <script>
-function " . $setting . "Changed() {
+function " . $changedFunction . "() {
 	var value = '$uncheckedValue';
 	var checked = 0;
-	if ($('#$setting').is(':checked')) {
+	if ($('#$escSetting').is(':checked')) {
 		checked = 1;
 		value = '$checkedValue';
 	}
@@ -169,10 +173,10 @@ echo "
 		}).fail(function() {
 			if (checked) {
 				DialogError('$title', 'Failed to Enable $title');
-				$('#$setting').prop('checked', false);
+				$('#$escSetting').prop('checked', false);
 			} else {
 				DialogError('$title', 'Failed to Disable $title');
-				$('#$setting').prop('checked', true);
+				$('#$escSetting').prop('checked', true);
 			}
 		});
 }
@@ -182,7 +186,12 @@ echo "
 
 	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName, $defaultValue);
 
-	echo " onChange='" . $setting . "Changed();'>\n";
+	echo " onChange='" . $changedFunction . "();'";
+
+    if ($desc != "")
+        echo '>' . $desc . "</input>\n";
+    else
+        echo " />\n";
 }
 
 function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "")
@@ -193,6 +202,8 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
 	$plugin = "";
 	$settingsName = "settings";
 
+    $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
+
 	if ($pluginName != "") {
 		$plugin = "Plugin";
 		$settingsName = "pluginSettings";
@@ -202,12 +213,12 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
 		$callbackName = $callbackName . "();";
 
     if ($changedFunction == "")
-        $changedFunction = $setting . "Changed";
+        $changedFunction = preg_replace('/\./', '', $setting . "Changed");
 
 	echo "
 <script>
-function " . $setting . "Changed() {
-	var value = $('#$setting').val();
+function " . $changedFunction . "() {
+	var value = $('#$escSetting').val();
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
@@ -270,6 +281,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 
 	echo "\">\n";
 }
+
 function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text")
 { 
 	global $settings;
@@ -277,6 +289,8 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 
 	$plugin = "";
 	$settingsName = "settings";
+
+    $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
 
 	if ($pluginName != "") {
 		$plugin = "Plugin";
@@ -287,12 +301,12 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if ($callbackName != "")
         $callbackName = $callbackName . "();";
     if ($changedFunction == "")
-        $changedFunction = $setting . "Changed";
+        $changedFunction = preg_replace('/\./', '', $setting . "Changed");
 
     echo "
     <script>
-    function " . $setting . "Changed() {
-        var value = $('#$setting').val();
+    function " . $changedFunction . "() {
+        var value = $('#$escSetting').val();
         $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
         .done(function() {
               $.jGrowl('$setting Saved');
@@ -339,6 +353,8 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
 	$plugin = "";
 	$settingsName = "settings";
 
+    $escSetting = preg_replace('/\./', '\\\\\\\\.', $setting);
+
 	if ($pluginName != "") {
 		$plugin = "Plugin";
 		$settingsName = "pluginSettings";
@@ -347,10 +363,12 @@ function PrintSettingSave($title, $setting, $restart = 1, $reboot = 0, $pluginNa
 	if ($callbackName != "")
 		$callbackName = $callbackName . "();";
 
+    $saveFunction = preg_replace('/\./', '', $setting . "Changed");
+
 	echo "
 <script>
-function save" . $setting . "() {
-	var value = $('#$setting').val();
+function " . $saveFunction . "() {
+	var value = $('#$escSetting').val();
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
@@ -367,12 +385,12 @@ if ($reboot)
 echo "
 		}).fail(function() {
 			DialogError('$title', 'Failed to save $title');
-			$('#$setting').prop('checked', false);
+			$('#$escSetting').prop('checked', false);
 		});
 }
 </script>
 
-<input type='button' class='buttons' id='save$setting' onClick='save" . $setting . "();' value='Save'>\n";
+<input type='button' class='buttons' id='save$setting' onClick='" . $saveFunction . "();' value='Save'>\n";
 }
 
 /**

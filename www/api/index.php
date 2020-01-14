@@ -56,6 +56,7 @@ dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
 
 dispatch_get   ('/remotes', 'GetRemotes');
 
+dispatch_get   ('/backups/list', 'GetAvailableBackups');
 
 run();
 ?>
