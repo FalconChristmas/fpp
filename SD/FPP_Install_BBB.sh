@@ -400,6 +400,7 @@ chmod 644 ${FPPHOME}/media/.auto_update_disabled
 cat > ${FPPHOME}/.vimrc <<-EOF
 set tabstop=4
 set shiftwidth=4
+set expandtab
 set autoindent
 set ignorecase
 set mouse=r
