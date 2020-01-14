@@ -32,7 +32,7 @@ EOF
 fi
 
 
-DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4 images cache tmp"
+DIRS="config effects events logs music playlists scripts sequences upload videos plugins plugindata exim4 images cache backups tmp"
 echo "FPP - Checking for required directories"
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
 for DIR in ${DIRS}
