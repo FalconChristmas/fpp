@@ -51,6 +51,7 @@
 #include <magick/type.h>
 
 #include "common.h"
+#include "effects.h"
 #include "log.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayControl.h"
@@ -890,10 +891,18 @@ void PixelOverlayManager::OverlayMemoryMap(char *chanData) {
         memcpy(chanData, chanDataMap, FPPD_MAX_CHANNELS);
     } else {
         for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-            if (cb->isActive == 1) { // Active - Opaque
+            int active = cb->isActive;
+
+            if (((active == 2) || (active == 3)) &&
+                (!IsEffectRunning()) &&
+                (!sequence->IsSequenceRunning())) {
+                active = 1;
+            }
+
+            if (active == 1) { // Active - Opaque
                 memcpy(chanData + cb->startChannel - 1,
                        chanDataMap + cb->startChannel - 1, cb->channelCount);
-            } else if (cb->isActive == 2) { // Active - Transparent
+            } else if (active == 2) { // Active - Transparent
                 char *src = chanDataMap + cb->startChannel - 1;
                 char *dst = chanData + cb->startChannel - 1;
                 
@@ -904,7 +913,7 @@ void PixelOverlayManager::OverlayMemoryMap(char *chanData) {
                     src++;
                     dst++;
                 }
-            } else if (cb->isActive == 3) { // Active - Transparent RGB
+            } else if (active == 3) { // Active - Transparent RGB
                 char *src = chanDataMap + cb->startChannel - 1;
                 char *dst = chanData + cb->startChannel - 1;
                 
