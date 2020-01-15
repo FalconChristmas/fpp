@@ -6,6 +6,10 @@ shift 3
 
 BASEDIRECTION=$(echo $DIRECTION | cut -c1-4)
 
+IgnoreWarnings() {
+    egrep -v "(failed to set|chown|attrs were not)"
+}
+
 if [ "$DIRECTION" == "TOUSB" -o "$DIRECTION" == "FROMUSB" ]; then
     FSTYPE=$(file -sL /dev/$DEVICE)
     EXTRA_ARGS=""
@@ -46,7 +50,7 @@ elif [ "$DIRECTION" == "TOREMOTE" ]; then
     # rsync won't create destination subdirectories for us, so create
     # a temp local subdir tree and sync it over to the remote
     mkdir -p /home/fpp/media/tmp/backups/$DPATH
-    rsync -a /home/fpp/media/tmp/backups/* ${DEVICE}::media/backups/ 2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+    rsync -a /home/fpp/media/tmp/backups/* ${DEVICE}::media/backups/ 2>&1 | IgnoreWarnings
     rm -rf /home/fpp/media/tmp/backups
 elif [ "$DIRECTION" == "FROMREMOTE" ]; then
     SOURCE=${DEVICE}::media/backups/$DPATH
@@ -59,43 +63,43 @@ EXTRA_ARGS="$EXTRA_ARGS --delete -av --modify-window=1"
 for action in $@; do
     case $action in
     "All")
-        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/* $SOURCE/* $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
-        rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
-        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
-        rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS --exclude=music/* --exclude=sequences/* --exclude=videos/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
+        rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | IgnoreWarnings
         ;;
     "Music")
-        rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/music $DEST  2>&1 | IgnoreWarnings
         ;;
     "Sequences")
-        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/sequences $DEST  2>&1 | IgnoreWarnings
         ;;
     "Scripts")
-        rsync $EXTRA_ARGS $SOURCE/scripts $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/scripts $DEST  2>&1 | IgnoreWarnings
         ;;
     "Plugins")
-        rsync $EXTRA_ARGS $SOURCE/plugin* $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/plugin* $DEST  2>&1 | IgnoreWarnings
         ;;
     "Images")
-        rsync $EXTRA_ARGS $SOURCE/images $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/images $DEST  2>&1 | IgnoreWarnings
         ;;
     "Events")
-        rsync $EXTRA_ARGS $SOURCE/events $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/events $DEST  2>&1 | IgnoreWarnings
         ;;
     "Effects")
-        rsync $EXTRA_ARGS $SOURCE/effects $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/effects $DEST  2>&1 | IgnoreWarnings
         ;;
     "Videos")
-        rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/videos $DEST  2>&1 | IgnoreWarnings
         ;;
     "Playlists")
-        rsync $EXTRA_ARGS $SOURCE/playlists $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/playlists $DEST  2>&1 | IgnoreWarnings
         ;;
     "Backups")
-        rsync $EXTRA_ARGS $SOURCE/backups $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS $SOURCE/backups $DEST  2>&1 | IgnoreWarnings
         ;;
     "Configuration")
-        rsync $EXTRA_ARGS -q --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | grep -v "failed to set" | grep -v chown | grep -v "attrs were not"
+        rsync $EXTRA_ARGS -q --exclude=music/* --exclude=sequences/* --exclude=videos/*  --exclude=effects/*  --exclude=events/*  --exclude=logs/*  --exclude=scripts/*  --exclude=plugin*  --exclude=playlists/*   --exclude=images/* --exclude=cache/* --exclude=backups/* $SOURCE/* $DEST  2>&1 | IgnoreWarnings
         ;;
     *)
         echo -n "Uknown action $action"
