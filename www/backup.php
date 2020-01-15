@@ -1367,30 +1367,6 @@ function is_array_empty($InputVariable)
 //Move backup files
 moveBackupFiles_ToBackupDirectory();
     
-    
-    
-function PrintUSBDeviceSelect() {
-    global $SUDO;
-
-    echo "<select name='USBDevice' id='USBDevice'>\n";
-    foreach(scandir("/dev/") as $fileName) {
-        if (preg_match("/^sd[a-z][0-9]/", $fileName)) {
-            exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
-            $GB = intval($output[0]) / 1024.0 / 1024.0;
-            unset($output);
-
-            if ($GB <= 0.1)
-                continue;
-
-            $key = sprintf( "%s - %.1fGB", $fileName, $GB);
-
-            echo "<option value='" . $fileName . "'>" . $key . "</option>\n";
-        }
-    }
-    echo "</select>";
-
-}
-
 ?>
 </script>
 
@@ -1458,9 +1434,11 @@ function GetUSBFlags() {
     }
     return flags;
 }
+
 function PerformCopy() {
-    var dev = document.getElementById("USBDevice").value;
+    var dev = document.getElementById("backup.USBDevice").value;
     var path = document.getElementById("backup.Path").value;
+    var pathSelect = document.getElementById("backup.PathSelect").value;
     var host = document.getElementById("backup.Host").value;
     var direction = document.getElementById("backup.Direction").value;
 
@@ -1468,18 +1446,33 @@ function PerformCopy() {
 
     if ((direction == 'TOUSB') ||
         (direction == 'FROMUSB')) {
-        url += '&storageLocation=' + document.getElementById("USBDevice").value;
+        url += '&storageLocation=' + document.getElementById("backup.USBDevice").value;
     } else if ((direction == 'TOREMOTE') ||
                (direction == 'FROMREMOTE')) {
-        url += '&storageLocation=' + document.getElementById("backup.Host").value;
+        if (host == '') {
+            DialogError('Copy Failed', 'No host specified');
+            return;
+        }
+
+        url += '&storageLocation=' + host;
     } else {
         url += '&storageLocation=/home/fpp/media/backups';
     }
 
     if (direction == 'FROMLOCAL') {
-        url += '&path=' + document.getElementById("backup.PathSelect").value;
+        if (pathSelect == '') {
+            DialogError('Copy Failed', 'No path specified');
+            return;
+        }
+
+        url += '&path=' + pathSelect;
     } else {
-        url += '&path=' + document.getElementById("backup.Path").value;
+        if (path == '') {
+            DialogError('Copy Failed', 'No path specified');
+            return;
+        }
+
+        url += '&path=' + path;
     }
 
     url += '&flags=' + GetUSBFlags();
@@ -1487,20 +1480,65 @@ function PerformCopy() {
     window.location.href = url;
 }
 
+function GetBackupDevices() {
+    $('#backup\\.USBDevice').html('<option>Loading...</option>');
+    $.get("/api/backups/devices"
+        ).done(function(data) {
+            var options = "";
+            for (var i = 0; i < data.length; i++) {
+                options += "<option value='" + data[i].name + "'>" + data[i].name + ' - ' + data[i].size + "GB</option>";
+            }
+            $('#backup\\.USBDevice').html(options);
+
+            if ((options != "") &&
+                (document.getElementById("backup.Direction").value == 'FROMUSB'))
+                GetBackupDeviceDirectories();
+        }).fail(function() {
+            $('#backup\\.USBDevice').html('');
+        });
+}
+
+function GetBackupDeviceDirectories() {
+    var dev = document.getElementById("backup.USBDevice").value;
+
+    if (dev == '') {
+        $('#backup\\.PathSelect').html("<option value=''>No USB Device Selected</option>");
+        return;
+    }
+
+    $('#backup\\.PathSelect').html('<option>Loading...</option>');
+    $.get("/api/backups/list/" + dev
+        ).done(function(data) {
+            PopulateBackupDirs(data);
+        }).fail(function() {
+            $('#backup\\.PathSelect').html('');
+        });
+}
+
+function USBDeviceChanged() {
+    var direction = document.getElementById("backup.Direction").value;
+    if (direction == 'FROMUSB')
+        GetBackupDeviceDirectories();
+}
+
 function PopulateBackupDirs(data) {
     var options = "";
     for (var i = 0; i < data.length; i++) {
-        options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+        if (data[i].substring(0,5) != 'ERROR')
+            options += "<option value='" + data[i] + "'>" + data[i] + "</option>";
+        else
+            options += "<option value=''>" + data[i] + "</option>";
     }
     $('#backup\\.PathSelect').html(options);
 }
 
 function GetBackupDirsViaAPI(host) {
+    $('#backup\\.PathSelect').html('<option>Loading...</option>');
     $.get("http://" + host + "/api/backups/list"
         ).done(function(data) {
             PopulateBackupDirs(data);
         }).fail(function() {
-            $('#backup.copyPathSelect').html('');
+            $('#backup\\.PathSelect').html('');
         });
 }
 
@@ -1521,10 +1559,11 @@ function BackupDirectionChanged() {
             break;
         case 'FROMUSB':
             $('.copyUSB').show();
-            $('.copyPath').show();
-            $('.copyPathSelect').hide();
+            $('.copyPath').hide();
+            $('.copyPathSelect').show();
             $('.copyHost').hide();
             $('.copyBackups').hide();
+            GetBackupDeviceDirectories();
             break;
         case 'TOLOCAL':
             $('.copyUSB').hide();
@@ -1559,6 +1598,7 @@ function BackupDirectionChanged() {
     }
 }
 
+GetBackupDevices();
     </script>
 </head>
 <body>
@@ -1753,7 +1793,7 @@ function BackupDirectionChanged() {
 <option value="TOREMOTE">Copy To Remote FPP Backups Directory</option>
 <option value="FROMREMOTE">Copy From Remote FPP Backups Directory</option>
 </select></td></tr>
-<tr class='copyUSB'><td>USB Device:</td><td><? PrintUSBDeviceSelect(); ?></td></tr>
+<tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
 <tr class='copyHost'><td>Hostname/IP:</td><td><? PrintSettingTextSaved('backup.Host', 0, 0, 32, 32, '', '127.0.0.1', 'GetBackupHostBackupDirs'); ?></td></tr>
 <tr class='copyPath'><td>Backup Path:</td><td><? PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
 <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>

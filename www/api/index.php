@@ -57,6 +57,8 @@ dispatch_delete('/proxies/:ProxyIp', 'DeleteProxy');
 dispatch_get   ('/remotes', 'GetRemotes');
 
 dispatch_get   ('/backups/list', 'GetAvailableBackups');
+dispatch_get   ('/backups/list/:DeviceName', 'GetAvailableBackupsOnDevice');
+dispatch_get   ('/backups/devices', 'GetAvailableBackupsDevices');
 
 run();
 ?>
