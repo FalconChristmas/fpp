@@ -1392,21 +1392,24 @@ void V2FSEQFile::writeHeader() {
 
     uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
 
-    // Compute headerSize to include all data except channel data
-    // This allows the use of a single buffer, and single write to disk
+    // Compute headerSize to include the header, compression blocks and sparse ranges
     int headerSize = V2FSEQ_HEADER_SIZE;
     headerSize += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
     headerSize += m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_SIZE;
-    headerSize += m_variableHeaders.size() * V2FSEQ_VARIABLE_HEADER_SIZE;
+
+    // Channel data offset is the headerSize plus size of variable headers
+    // Round to a product of 4 for better memory alignment
+    m_seqChanDataOffset = headerSize;
+    m_seqChanDataOffset += m_variableHeaders.size() * V2FSEQ_VARIABLE_HEADER_SIZE;
     for (auto &a : m_variableHeaders) {
-        headerSize += a.data.size();
+        m_seqChanDataOffset += a.data.size();
     }
+    m_seqChanDataOffset = roundTo4(m_seqChanDataOffset);
 
-    // Round to value of 4 for better memory alignment
-    headerSize = roundTo4(headerSize);
-
-    uint8_t header[headerSize];
-    memset(header, 0, headerSize);
+    // Use m_seqChanDataOffset for buffer size to avoid additional writes or buffer allocations
+    // It also comes pre-memory aligned to avoid adding padding
+    uint8_t header[m_seqChanDataOffset];
+    memset(header, 0, m_seqChanDataOffset);
 
     // File identifier (PSEQ) - 4bytes
     header[0] = 'P';
@@ -1415,7 +1418,6 @@ void V2FSEQFile::writeHeader() {
     header[3] = 'Q';
 
     // Channel data start offset - 2 bytes
-    m_seqChanDataOffset = headerSize;
     write2ByteUInt(&header[4], m_seqChanDataOffset);
 
     // File format version - 2 bytes
@@ -1468,19 +1470,19 @@ void V2FSEQFile::writeHeader() {
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + 4], &a.data[0], a.data.size());
+        memcpy(&header[writePos + 4], &a.data, a.data.size());
         writePos += len;
     }
 
-    // Validate final write position matches expected headerSize
+    // Validate final write position matches expected channel data offset
     if (m_seqChanDataOffset != writePos) {
         LogErr(VB_SEQUENCE, "Channel data offset (%d) does not match final write position (%d)!", m_seqChanDataOffset, writePos);
     }
 
-    // Write full header
-    // This includes padding bytes to ensure m_seqChanDataOffset aligns with headerSize
-    // If writePos extends past headerSize (in error), writing headerSize prevents data overflow
-    write(header, headerSize);
+    // Write full header at once
+    // header buffer is sized to the value of m_seqChanDataOffset, which comes padded for memory alignment
+    // If writePos extends past m_seqChanDataOffset (in error), writing m_seqChanDataOffset prevents data overflow
+    write(header, m_seqChanDataOffset);
 
     LogDebug(VB_SEQUENCE, "Setup for writing v2 FSEQ\n");
     dumpInfo(true);
