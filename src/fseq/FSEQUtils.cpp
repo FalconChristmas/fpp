@@ -199,6 +199,12 @@ int main(int argc, char *argv[]) {
                                                       fseqVersion,
                                                       compressionType,
                                                       compressionLevel);
+            if (dest == nullptr) {
+                printf("Failed to create FSEQ file (returned nullptr)!");
+                delete src;
+                return 1;
+            }
+            
             if (ranges.empty()) {
                 ranges.push_back(std::pair<uint32_t, uint32_t>(0, 999999999));
             } else if (fseqVersion == 2 && sparse) {
