@@ -1471,7 +1471,7 @@ void V2FSEQFile::writeHeader() {
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
-        memcpy(&header[writePos + 4], &a.data, a.data.size());
+        memcpy(&header[writePos + 4], &a.data[0], a.data.size());
         writePos += len;
     }
 
