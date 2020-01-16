@@ -1457,6 +1457,7 @@ void V2FSEQFile::writeHeader() {
     writePos += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
 
     // Sparse ranges
+    // 6 byte size (3 byte value + 3 byte value)
     for (auto &a : m_sparseRanges) {
         write3ByteUInt(&header[writePos], a.first);
         write3ByteUInt(&header[writePos + 3], a.second);
@@ -1475,8 +1476,8 @@ void V2FSEQFile::writeHeader() {
     }
 
     // Validate final write position matches expected channel data offset
-    if (m_seqChanDataOffset != writePos) {
-        LogErr(VB_SEQUENCE, "Channel data offset (%d) does not match final write position (%d)!", m_seqChanDataOffset, writePos);
+    if (writePos != m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Final write position does not match channel data offset (%d)!", writePos, m_seqChanDataOffset);
     }
 
     // Write full header at once
