@@ -1468,6 +1468,10 @@ void V2FSEQFile::writeHeader() {
 		writePos += len;
     }
 
+	// Write full header
+	// This includes padding bytes to ensure m_seqChanDataOffset aligns with headerSize
+	write(header, headerSize);
+
     LogDebug(VB_SEQUENCE, "Setup for writing v2 FSEQ\n");
     dumpInfo(true);
 }
