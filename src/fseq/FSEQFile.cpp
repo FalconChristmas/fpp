@@ -1397,8 +1397,8 @@ void V2FSEQFile::writeHeader() {
     int headerSize = V2FSEQ_HEADER_SIZE;
     headerSize += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
     headerSize += m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_SIZE;
+    headerSize += m_variableHeaders.size() * V2FSEQ_VARIABLE_HEADER_SIZE;
     for (auto &a : m_variableHeaders) {
-        headerSize += V2FSEQ_VARIABLE_HEADER_SIZE;
         headerSize += a.data.size();
     }
 
