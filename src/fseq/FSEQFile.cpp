@@ -201,6 +201,12 @@ inline void write4ByteUInt(uint8_t* data, uint32_t v) {
     data[3] = (uint8_t)((v >> 24) & 0xFF);
 }
 
+static const int V1FSEQ_MINOR_VERSION = 0;
+static const int V1FSEQ_MAJOR_VERSION = 1;
+
+static const int V2FSEQ_MINOR_VERSION = 0;
+static const int V2FSEQ_MAJOR_VERSION = 2;
+
 FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
 
     FILE *seqFile = fopen((const char *)fn.c_str(), "rb");
@@ -446,8 +452,6 @@ void FSEQFile::finalize() {
 }
 
 static const int V1FSEQ_HEADER_SIZE = 28;
-static const int V1FSEQ_MINOR_VERSION = 0;
-static const int V1FSEQ_MAJOR_VERSION = 1;
 
 V1FSEQFile::V1FSEQFile(const std::string &fn)
   : FSEQFile(fn), m_dataBlockSize(0)
@@ -465,7 +469,7 @@ void V1FSEQFile::writeHeader() {
     header[3] = 'Q';
 
     // data offset
-    uint32_t dataOffset = fixedHeaderLength;
+    uint32_t dataOffset = V1FSEQ_HEADER_SIZE;
     for (auto &a : m_variableHeaders) {
         dataOffset += a.data.size() + 4;
     }
@@ -475,7 +479,7 @@ void V1FSEQFile::writeHeader() {
     header[6] = m_seqVersionMinor; //minor
     header[7] = m_seqVersionMajor; //major
     // Fixed header length
-    write2ByteUInt(&header[8], fixedHeaderLength);
+    write2ByteUInt(&header[8], V1FSEQ_HEADER_SIZE);
     // Step Size
     write4ByteUInt(&header[10], m_seqChannelCount);
     // Number of Steps
@@ -643,8 +647,6 @@ uint32_t V1FSEQFile::getMaxChannel() const {
 }
 
 static const int V2FSEQ_HEADER_SIZE = 32;
-static const int V2FSEQ_MINOR_VERSION = 0;
-static const int V2FSEQ_MAJOR_VERSION = 2;
 static const int V2FSEQ_VARIABLE_HEADER_SIZE = 4;
 static const int V2FSEQ_SPARSE_RANGE_SIZE = 6;
 static const int V2FSEQ_COMPRESSION_BLOCK_SIZE = 8;
