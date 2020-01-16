@@ -2813,29 +2813,20 @@ function StartPlaylistNow()
 		xmlhttp.send();
 	}
 
-function PlayEffect(startChannel)
-{
-	// Start Channel 0 is a special case meaning use the channel # in the .eseq
-	if ((startChannel == undefined) ||
-		(startChannel == ""))
-		startChannel = "0";
-
-	var url = "fppxml.php?command=playEffect&effect=" + EffectNameSelected + "&startChannel=" + startChannel;
-	var xmlhttp=new XMLHttpRequest();
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	xmlhttp.send();
-
-	GetRunningEffects();
-}
-
 function StopEffect()
 {
-	var url = "fppxml.php?command=stopEffect&id=" + RunningEffectSelected;
+	if (RunningEffectSelectedId < 0)
+		return;
+
+	var url = "fppxml.php?command=stopEffect&id=" + RunningEffectSelectedId;
 	var xmlhttp=new XMLHttpRequest();
 	xmlhttp.open("GET",url,false);
 	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 	xmlhttp.send();
+
+	RunningEffectSelectedId = -1;
+	RunningEffectSelectedName = "";
+	SetButtonState('#btnStopEffect','disable');
 
 	GetRunningEffects();
 }
@@ -2855,7 +2846,7 @@ function GetRunningEffects()
 			var xmlDoc=xmlhttp.responseXML;
 			var xmlText = new XMLSerializer().serializeToString(xmlDoc);
 
-			$('#tblRunningEffects').html('');
+			$('#tblRunningEffectsBody').html('');
 			if (xmlText != gblLastRunningEffectsXML)
 			{
 				xmlText = gblLastRunningEffectsXML;
@@ -2869,7 +2860,10 @@ function GetRunningEffects()
 						id = entries.childNodes[i].childNodes[0].textContent;
 						name = entries.childNodes[i].childNodes[1].textContent;
 
-						$('#tblRunningEffects').append('<tr><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
+						if (name == RunningEffectSelectedName)
+						    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
+                        else
+							$('#tblRunningEffectsBody').append('<tr><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
 					}
 
 					setTimeout(GetRunningEffects, 1000);
