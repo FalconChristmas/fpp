@@ -28,7 +28,7 @@ void usage(char *appname) {
     printf("   -r (#-# | #+#)    - Channel Range.  Use - to separate start/end channel\n");
     printf("                            Use + to separate start channel + num channels\n");
     printf("   -n                - No Sparse. -r will only read the range, but the resulting fseq is not sparse.\n");
-    printf("   -j                - Output the fseq file metadata to json");
+    printf("   -j                - Output the fseq file metadata to json\n");
     printf("   -h                - This help output\n");
 }
 const char *outputFilename = nullptr;
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
                     printf("]");
                 }
             }
-            printf("}");
+            printf("}\n");
         } else {
             std::vector<FSEQFile *> merges;
             for (auto &f : mergeFseqs) {
@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
                                                       compressionType,
                                                       compressionLevel);
             if (dest == nullptr) {
-                printf("Failed to create FSEQ file (returned nullptr)!");
+                printf("Failed to create FSEQ file (returned nullptr)!\n");
                 delete src;
                 return 1;
             }
