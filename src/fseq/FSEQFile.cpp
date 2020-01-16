@@ -640,9 +640,9 @@ uint32_t V1FSEQFile::getMaxChannel() const {
 static const int V2FSEQ_HEADER_SIZE = 32;
 static const int V2FSEQ_MINOR_VERSION = 0;
 static const int V2FSEQ_MAJOR_VERSION = 2;
-static const int V2FSEQ_VARIABLE_HEADER_LENGTH = 4;
-static const int V2FSEQ_SPARSE_RANGE_LENGTH = 6;
-static const int V2FSEQ_COMPRESSION_BLOCK_LENGTH = 8;
+static const int V2FSEQ_VARIABLE_HEADER_SIZE = 4;
+static const int V2FSEQ_SPARSE_RANGE_SIZE = 6;
+static const int V2FSEQ_COMPRESSION_BLOCK_SIZE = 8;
 #if !defined(NO_ZLIB) || !defined(NO_ZSTD)
 static const int V2FSEQ_OUT_BUFFER_SIZE = 1024*1024; //1M output buffer
 static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 900 * 1024; //90% full, flush it
@@ -1387,8 +1387,23 @@ void V2FSEQFile::writeHeader() {
         }
     }
 
-    uint8_t header[V2FSEQ_HEADER_SIZE];
-    memset(header, 0, V2FSEQ_HEADER_SIZE);
+	uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
+
+	// Compute headerSize to include all data except channel data
+	// This allows the use of a single buffer, and single write to disk
+	int headerSize = V2FSEQ_HEADER_SIZE;
+	headerSize += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
+	headerSize += m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_SIZE;
+	for (auto &a : m_variableHeaders) {
+		headerSize += V2FSEQ_VARIABLE_HEADER_SIZE;
+		headerSize += a.data.size();
+	}
+
+	// Round to value of 4 for better memory alignment
+	headerSize = roundTo4(headerSize);
+
+    uint8_t header[headerSize];
+    memset(header, 0, headerSize);
 
 	// File identifier (PSEQ) - 4bytes
     header[0] = 'P';
@@ -1397,15 +1412,7 @@ void V2FSEQFile::writeHeader() {
     header[3] = 'Q';
 
 	// Channel data start offset - 2 bytes
-	uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
-	int headerSize = V2FSEQ_HEADER_SIZE + maxBlocks * V2FSEQ_COMPRESSION_BLOCK_LENGTH + m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_LENGTH;
-	
-	m_seqChanDataOffset += headerSize;
-    for (auto &a : m_variableHeaders) {
-        m_seqChanDataOffset += a.data.size() + V2FSEQ_VARIABLE_HEADER_LENGTH;
-    }
-	m_seqChanDataOffset = roundTo4(m_seqChanDataOffset);
-
+	m_seqChanDataOffset = headerSize;
     write2ByteUInt(&header[4], m_seqChanDataOffset);
 
 	// File format version - 2 bytes
@@ -1414,11 +1421,11 @@ void V2FSEQFile::writeHeader() {
 
 	// Computed header length - 2 bytes
 	write2ByteUInt(&header[8], headerSize);
-
     // Channel count - 4 bytes
     write4ByteUInt(&header[10], m_seqChannelCount);
     // Number of frames - 4 bytes
     write4ByteUInt(&header[14], m_seqNumFrames);
+
     // Step time in milliseconds - 1 byte
     header[18] = m_seqStepTime;
     // Flags (unused & reserved, should be 0) - 1 byte
@@ -1438,32 +1445,29 @@ void V2FSEQFile::writeHeader() {
     }
     memcpy(&header[24], &m_uniqueId, sizeof(m_uniqueId));
 
-    write(header, V2FSEQ_HEADER_SIZE);
-    for (int x = 0; x < maxBlocks; x++) {
-        uint8_t buf[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-        //frame number and len
-        write(buf, 8);
-    }
-    for (auto &a : m_sparseRanges) {
-        uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
-        write3ByteUInt(buf, a.first);
-        write3ByteUInt(&buf[3], a.second);
-        write(buf, 6);
-    }
+	int writePos = V2FSEQ_HEADER_SIZE;
+
+	// Empty compression blocks are automatically added when calculating headerSize (see maxBlocks)
+	// Their data is initialized to 0 by memset and computed later
+	writePos += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
+
+	// Sparse ranges
+	for (auto &a : m_sparseRanges) {
+		write3ByteUInt(&header[writePos], a.first);
+		write3ByteUInt(&header[writePos + 3], a.second);
+		writePos += V2FSEQ_SPARSE_RANGE_SIZE;
+	}
+
+	// Variable headers
     for (auto &a : m_variableHeaders) {
-        uint8_t buf[4];
-        uint32_t len = a.data.size() + 4;
-        write2ByteUInt(buf, len);
-        buf[2] = a.code[0];
-        buf[3] = a.code[1];
-        write(buf, 4);
-        write(&a.data[0], a.data.size());
+		uint32_t len = a.data.size() + V2FSEQ_VARIABLE_HEADER_SIZE;
+		write2ByteUInt(&header[writePos], len);
+		header[writePos + 2] = a.code[0];
+		header[writePos + 3] = a.code[1];
+		memcpy(&header[writePos + 4], &a.data[0], a.data.size());
+		writePos += len;
     }
-    uint64_t pos = tell();
-    if (pos != dataOffset) {
-        char buf[4] = {0,0,0,0};
-        write(buf, dataOffset - pos);
-    }
+
     LogDebug(VB_SEQUENCE, "Setup for writing v2 FSEQ\n");
     dumpInfo(true);
 }
