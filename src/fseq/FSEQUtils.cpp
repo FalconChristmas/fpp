@@ -85,9 +85,12 @@ int parseArguments(int argc, char **argv) {
                     compressionType = V2FSEQFile::CompressionType::none;
                 } else if (strcmp(optarg, "zlib") == 0) {
                     compressionType = V2FSEQFile::CompressionType::zlib;
-                } else {
+                } else if (strcmp(optarg, "zstd") == 0) {
                     compressionType = V2FSEQFile::CompressionType::zstd;
-                }
+                } else {
+					printf("Unknown compression type: %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
                 break;
             case 'l':
                 compressionLevel = strtol(optarg, NULL, 10);
