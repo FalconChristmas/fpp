@@ -1387,6 +1387,9 @@ void V2FSEQFile::writeHeader() {
         }
     }
 
+	// Additional file format documentation available at:
+	// https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L17
+
 	uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
 
 	// Compute headerSize to include all data except channel data
@@ -1459,14 +1462,20 @@ void V2FSEQFile::writeHeader() {
 	}
 
 	// Variable headers
+	// 4 byte size minimum (2 byte length + 2 byte code)
     for (auto &a : m_variableHeaders) {
-		uint32_t len = a.data.size() + V2FSEQ_VARIABLE_HEADER_SIZE;
+		uint32_t len = V2FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
 		write2ByteUInt(&header[writePos], len);
 		header[writePos + 2] = a.code[0];
 		header[writePos + 3] = a.code[1];
 		memcpy(&header[writePos + 4], &a.data[0], a.data.size());
 		writePos += len;
     }
+
+	// Validate final write position matches expected headerSize
+	if (m_seqChanDataOffset != writePos) {
+		LogErr(VB_SEQUENCE, "Channel data offset (%d) does not match final write position (%d)!", m_seqChanDataOffset, writePos);
+	}
 
 	// Write full header
 	// This includes padding bytes to ensure m_seqChanDataOffset aligns with headerSize
