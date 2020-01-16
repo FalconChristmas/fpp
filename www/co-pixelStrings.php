@@ -395,6 +395,9 @@ function cloneSelectedString()
     var sStartChannel = parseInt(row.find('.vsStartChannel').val());
     var sPixelCount = parseInt(row.find('.vsPixelCount').val());
     var nextRow = row.closest('tr').next('tr');
+
+    if (nextRow.find('td.vsPortLabel').length == 0)
+        nextRow = nextRow.closest('tr').next('tr');
     
     row.find('.vsDescription').val(sDescription + '0');
     
@@ -414,6 +417,9 @@ function cloneSelectedString()
                    row.find('.vsGamma').val());
         
         nextRow = nextRow.closest('tr').next('tr');
+
+        if (nextRow.find('td.vsPortLabel').length == 0)
+            nextRow = nextRow.closest('tr').next('tr');
     }
 }
 
