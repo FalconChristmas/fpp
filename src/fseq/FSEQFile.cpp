@@ -1387,43 +1387,43 @@ void V2FSEQFile::writeHeader() {
         }
     }
 
-	// Additional file format documentation available at:
-	// https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L17
+    // Additional file format documentation available at:
+    // https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L17
 
-	uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
+    uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
 
-	// Compute headerSize to include all data except channel data
-	// This allows the use of a single buffer, and single write to disk
-	int headerSize = V2FSEQ_HEADER_SIZE;
-	headerSize += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
-	headerSize += m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_SIZE;
-	for (auto &a : m_variableHeaders) {
-		headerSize += V2FSEQ_VARIABLE_HEADER_SIZE;
-		headerSize += a.data.size();
-	}
+    // Compute headerSize to include all data except channel data
+    // This allows the use of a single buffer, and single write to disk
+    int headerSize = V2FSEQ_HEADER_SIZE;
+    headerSize += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
+    headerSize += m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_SIZE;
+    for (auto &a : m_variableHeaders) {
+        headerSize += V2FSEQ_VARIABLE_HEADER_SIZE;
+        headerSize += a.data.size();
+    }
 
-	// Round to value of 4 for better memory alignment
-	headerSize = roundTo4(headerSize);
+    // Round to value of 4 for better memory alignment
+    headerSize = roundTo4(headerSize);
 
     uint8_t header[headerSize];
     memset(header, 0, headerSize);
 
-	// File identifier (PSEQ) - 4bytes
+    // File identifier (PSEQ) - 4bytes
     header[0] = 'P';
     header[1] = 'S';
     header[2] = 'E';
     header[3] = 'Q';
 
-	// Channel data start offset - 2 bytes
-	m_seqChanDataOffset = headerSize;
+    // Channel data start offset - 2 bytes
+    m_seqChanDataOffset = headerSize;
     write2ByteUInt(&header[4], m_seqChanDataOffset);
 
-	// File format version - 2 bytes
-	header[6] = m_seqVersionMinor;
-	header[7] = m_seqVersionMajor;
+    // File format version - 2 bytes
+    header[6] = m_seqVersionMinor;
+    header[7] = m_seqVersionMajor;
 
-	// Computed header length - 2 bytes
-	write2ByteUInt(&header[8], headerSize);
+    // Computed header length - 2 bytes
+    write2ByteUInt(&header[8], headerSize);
     // Channel count - 4 bytes
     write4ByteUInt(&header[10], m_seqChannelCount);
     // Number of frames - 4 bytes
@@ -1439,7 +1439,7 @@ void V2FSEQFile::writeHeader() {
     header[21] = maxBlocks;
     // Number of ranges in sparse range index - 1 byte
     header[22] = m_sparseRanges.size();
-	// Flags (unused & reserved, should be 0) - 1 byte
+    // Flags (unused & reserved, should be 0) - 1 byte
     header[23] = 0;
 
     // Timestamp based UUID - 8 bytes
@@ -1448,39 +1448,39 @@ void V2FSEQFile::writeHeader() {
     }
     memcpy(&header[24], &m_uniqueId, sizeof(m_uniqueId));
 
-	int writePos = V2FSEQ_HEADER_SIZE;
+    int writePos = V2FSEQ_HEADER_SIZE;
 
-	// Empty compression blocks are automatically added when calculating headerSize (see maxBlocks)
-	// Their data is initialized to 0 by memset and computed later
-	writePos += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
+    // Empty compression blocks are automatically added when calculating headerSize (see maxBlocks)
+    // Their data is initialized to 0 by memset and computed later
+    writePos += maxBlocks * V2FSEQ_COMPRESSION_BLOCK_SIZE;
 
-	// Sparse ranges
-	for (auto &a : m_sparseRanges) {
-		write3ByteUInt(&header[writePos], a.first);
-		write3ByteUInt(&header[writePos + 3], a.second);
-		writePos += V2FSEQ_SPARSE_RANGE_SIZE;
-	}
-
-	// Variable headers
-	// 4 byte size minimum (2 byte length + 2 byte code)
-    for (auto &a : m_variableHeaders) {
-		uint32_t len = V2FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
-		write2ByteUInt(&header[writePos], len);
-		header[writePos + 2] = a.code[0];
-		header[writePos + 3] = a.code[1];
-		memcpy(&header[writePos + 4], &a.data[0], a.data.size());
-		writePos += len;
+    // Sparse ranges
+    for (auto &a : m_sparseRanges) {
+        write3ByteUInt(&header[writePos], a.first);
+        write3ByteUInt(&header[writePos + 3], a.second);
+        writePos += V2FSEQ_SPARSE_RANGE_SIZE;
     }
 
-	// Validate final write position matches expected headerSize
-	if (m_seqChanDataOffset != writePos) {
-		LogErr(VB_SEQUENCE, "Channel data offset (%d) does not match final write position (%d)!", m_seqChanDataOffset, writePos);
-	}
+    // Variable headers
+    // 4 byte size minimum (2 byte length + 2 byte code)
+    for (auto &a : m_variableHeaders) {
+        uint32_t len = V2FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        write2ByteUInt(&header[writePos], len);
+        header[writePos + 2] = a.code[0];
+        header[writePos + 3] = a.code[1];
+        memcpy(&header[writePos + 4], &a.data[0], a.data.size());
+        writePos += len;
+    }
 
-	// Write full header
-	// This includes padding bytes to ensure m_seqChanDataOffset aligns with headerSize
-	// If writePos extends past headerSize (in error), writing only headerSize prevents data overflow
-	write(header, headerSize);
+    // Validate final write position matches expected headerSize
+    if (m_seqChanDataOffset != writePos) {
+        LogErr(VB_SEQUENCE, "Channel data offset (%d) does not match final write position (%d)!", m_seqChanDataOffset, writePos);
+    }
+
+    // Write full header
+    // This includes padding bytes to ensure m_seqChanDataOffset aligns with headerSize
+    // If writePos extends past headerSize (in error), writing headerSize prevents data overflow
+    write(header, headerSize);
 
     LogDebug(VB_SEQUENCE, "Setup for writing v2 FSEQ\n");
     dumpInfo(true);
