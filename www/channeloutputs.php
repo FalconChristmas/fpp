@@ -143,8 +143,10 @@ function handleCOKeypress(e)
 	if (e.keyCode == 113) {
 		if (currentTabTitle == "Pi Pixel Strings")
 			setPixelStringsStartChannelOnNextRow();
-        if (currentTabTitle == "BBB Strings")
-            setPixelStringsStartChannelOnNextRow();
+		else if (currentTabTitle == "BBB Strings")
+			setPixelStringsStartChannelOnNextRow();
+		else if (currentTabTitle == "X11 Pixel Strings")
+			setPixelStringsStartChannelOnNextRow();
 	}
 }
 
@@ -263,6 +265,10 @@ tr.rowUniverseDetails td
             echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
         }
 	}
+    if ((file_exists('/usr/include/X11/Xlib.h')) &&
+        ($settings['Platform'] == "Linux")) {
+        echo "<li><a href='#tab-PixelStrings'>X11 Pixel Strings</a></li>\n";
+    }
     if (in_array('all', $currentCapeInfo["provides"]) || !in_array('strings', $currentCapeInfo["provides"])) {
         echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
     }
@@ -295,6 +301,11 @@ if ($settings['Platform'] == "BeagleBone Black")
     if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
         include_once('co-bbbStrings.php');
     }
+}
+
+if ((file_exists('/usr/include/X11/Xlib.h')) &&
+    ($settings['Platform'] == "Linux")) {
+    include_once('co-piPixelString.php');
 }
 
 include_once("co-other.php");

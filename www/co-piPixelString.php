@@ -76,6 +76,12 @@ function addPixelOutput()
 		protocol = 'apa102';
 		protocols = 'apa102,lpd6803,lpd8806';
 	}
+	else if (type == 'X11PixelStrings')
+	{
+		portCount = 32;
+		protocol = 'X11';
+		protocols = 'X11';
+	}
 
 	str += '<b>' + type + ' Output</b><br>';
 	str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable' checked><br>";
@@ -138,6 +144,11 @@ function populatePixelStringOutputs(data)
 
                 if (protocol == '')
                     protocol = 'ws2801';
+            }
+            else if (type == 'X11PixelStrings')
+            {
+                protocol = 'X11';
+                protocols = 'X11';
             }
 
             str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable'";
@@ -222,11 +233,19 @@ $(document).ready(function() {
 	<div id='divPixelStrings'>
 		<b>New Type:</b>
 		<select id='pixelOutputType'>
+<?
+if ($settings['Platform'] == "Raspberry Pi") {
+?>
 			<option value='RPIWS281X'>RPIWS281X</option>
 			<option value='spixels'>spixels</option>
 <!--
 			<option value='SPI-WS2801'>SPI-WS2801</option>
 -->
+<? } else { ?>
+			<option value='X11PixelStrings'>X11 Pixel Strings</option>
+<?
+}
+?>
 		</select>
 
 		<input type='button' onClick='addPixelOutput();' value='Add Output'>
