@@ -445,18 +445,20 @@ void FSEQFile::finalize() {
     fflush(m_seqFile);
 }
 
+static const int V1FSEQ_HEADER_SIZE = 28;
 static const int V1FSEQ_MINOR_VERSION = 0;
 static const int V1FSEQ_MAJOR_VERSION = 1;
 
 V1FSEQFile::V1FSEQFile(const std::string &fn)
   : FSEQFile(fn), m_dataBlockSize(0)
 {
+	m_seqVersionMinor = V1FSEQ_MINOR_VERSION;
+	m_seqVersionMajor = V1FSEQ_MAJOR_VERSION;
 }
 
 void V1FSEQFile::writeHeader() {
-    static int fixedHeaderLength = 28;
-    uint8_t header[28];
-    memset(header, 0, 28);
+    uint8_t header[V1FSEQ_HEADER_SIZE];
+    memset(header, 0, V1FSEQ_HEADER_SIZE);
     header[0] = 'P';
     header[1] = 'S';
     header[2] = 'E';
@@ -470,10 +472,8 @@ void V1FSEQFile::writeHeader() {
     dataOffset = roundTo4(dataOffset);
     write2ByteUInt(&header[4], dataOffset);
 
-    header[6] = V1FSEQ_MINOR_VERSION; //minor
-    header[7] = V1FSEQ_MAJOR_VERSION; //major
-    m_seqVersionMinor = header[6];
-    m_seqVersionMajor = header[7];
+    header[6] = m_seqVersionMinor; //minor
+    header[7] = m_seqVersionMajor; //major
     // Fixed header length
     write2ByteUInt(&header[8], fixedHeaderLength);
     // Step Size
@@ -494,7 +494,7 @@ void V1FSEQFile::writeHeader() {
     header[25] = 2;
     header[26] = 0;
     header[27] = 0;
-    write(header, 28);
+    write(header, V1FSEQ_HEADER_SIZE);
     for (auto &a : m_variableHeaders) {
         uint8_t buf[4];
         uint32_t len = a.data.size() + 4;
@@ -529,7 +529,7 @@ V1FSEQFile::V1FSEQFile(const std::string &fn, FILE *file, const std::vector<uint
 
     // 0 = header[26]
     // 0 = header[27]
-    parseVariableHeaders(header, 28);
+    parseVariableHeaders(header, V1FSEQ_HEADER_SIZE);
 
     //use the last modified time for the uniqueId
     struct stat stats;
