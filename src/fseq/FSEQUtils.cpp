@@ -199,6 +199,11 @@ int main(int argc, char *argv[]) {
             }
 
             if (outputFilename == nullptr) {
+                if (!verbose) {
+                    printf("No output file defined!\n");
+                    printf("Use -v to enable verbose output printing for file information.\n");
+                }
+                delete src;
                 return 0;
             }
             
