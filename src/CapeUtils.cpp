@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/reboot.h>
 #include <fcntl.h>
 
 #include <libgen.h>
@@ -39,7 +40,6 @@
 #include <dirent.h>
 
 #include <jsoncpp/json/json.h>
-
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
@@ -95,6 +95,17 @@ static void put_file_contents(const std::string &path, const uint8_t *data, int 
     FILE *f = fopen(path.c_str(), "wb");
     fwrite(data, 1, len, f);
     fclose(f);
+}
+static uint8_t *get_file_contents(const std::string &path, int &len) {
+    FILE *fp = fopen(path.c_str(), "wb");
+    fseek(fp, 0L, SEEK_END);
+    len = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+
+    uint8_t *data = (uint8_t*)malloc(len);
+    fread(data, 1, len, fp);
+    fclose(fp);
+    return data;
 }
 
 static bool waitForI2CBus(int i2cBus) {
@@ -191,6 +202,58 @@ static void getFileList(const std::string &basepath, const std::string &path, st
         closedir(dir);
     } else if (file_exists(basepath)) {
         files.push_back(path);
+    }
+}
+static void processBootConfig(Json::Value &bootConfig) {
+#if defined(PLATFORM_PI)
+    const std::string fileName = "/boot/config.txt";
+#elif defined(PLATFORM_BBB)
+    const std::string fileName = "/boot/uEnv.txt";
+#else
+    //unknown platform
+#endif
+    int len = 0;
+    uint8_t *data = get_file_contents(fileName, len);
+    if (len == 0) {
+        remove("/.fppcapereboot");
+        return;
+    }
+    std::string current = (char *)data;
+    std::string orig = current;
+    if (bootConfig.isMember("remove")) {
+        for (int x = 0; x < bootConfig["remove"].size(); x++) {
+            std::string v = bootConfig["remove"][x].asString();
+            size_t pos = std::string::npos;
+            while ((pos  = current.find(v) )!= std::string::npos) {
+                // If found then erase it from string
+                current.erase(pos, v.length());
+            }
+        }
+    }
+    if (bootConfig.isMember("append")) {
+        for (int x = 0; x < bootConfig["append"].size(); x++) {
+            std::string v = bootConfig["append"][x].asString();
+            size_t pos = current.find(v);
+            while (pos == std::string::npos) {
+                // If not  found then append it
+                current += "\n";
+                current += v;
+            }
+        }
+    }
+    if (current != orig) {
+        put_file_contents(fileName, (const uint8_t*)current.c_str(), current.size());
+        sync();
+        if (!file_exists("/.fppcapereboot")) {
+            const uint8_t data[2] = {32, 0};
+            put_file_contents("/.fppcapereboot", data, 1);
+            sync();
+            setuid(0);
+            reboot(RB_AUTOBOOT);
+            exit(0);
+        }
+    } else {
+        remove("/.fppcapereboot");
     }
 }
 
@@ -447,6 +510,25 @@ bool fpp_detectCape() {
                     }
                 }
             }
+            if (result.isMember("i2cModules")) {
+                //if the cape has i2c devices on it that need a module loaded, load them at this
+                //time so they will be available later
+                for (auto &key : result["i2cModules"].getMemberNames()) {
+                    std::string v = result["i2cModules"][key].asString();
+                    
+                    std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
+                    int f = open(newDevFile.c_str(), O_WRONLY);
+                    std::string newv = string_sprintf("%s %s", v.c_str(), v.c_str());
+                    write(f, newv.c_str(), newv.size());
+                    close(f);
+                }
+            }
+            if (result.isMember("bootConfig")) {
+                //if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
+                //we need to process them and see if we have to apply the changes and reboot or not
+                processBootConfig(result["bootConfig"]);
+            }
+
             if (settingsChanged) {
                 writeSettingsFile(lines);
             }

@@ -1,0 +1,44 @@
+Capes and Hats on a Beaglebone or Raspberry Pi can have an onboard 24c256
+eeprom on their primary i2c bus to provide additional configuration about
+the cape/hat to the FPP system utilities.   On the Pi, the default is on
+the i2c-1 bus.   On the Beagle, the default is i2c-2, but it will fall back
+to looksin at the i2c-1 bus if no eeprom is found on i2c-1.
+
+The format of the contents of the eeprom are divided into two parts.  The
+first part is a header which contains static informmation about the board.
+
+Bytes
+0-5      EEPROM format identifier string, null terminated.  Currently "FPP02"
+6-31     Cape name as null terminated string (26 bytes)
+32-41    Cape version as null terminated string (10 bytes)
+42-56    Cape serial number as null terminated string (15 bytes)
+
+
+The second part of the content is a bunch of variable length records repeating:
+0-5      LENGTH (as a string).  If the string "0", end of eeprom data
+7-8      Code representing the type of record.  Number between 0-99 as a string
+         The 2 bytes for the code is NOT included in LENGTH
+
+If code is less than 50, the code is immediately followed by:
+9-72     Filename as null terminated string.  ex:  "tmp/cape-info.json" (64 char)
+         The 64bytes for the filename is NOT included in the LENGTH
+
+If code is 0, the filename is followed by LENGTH bytes of data to be written
+into the file.
+
+If code is 1, the filename is followed by LENGTH bytes of data to be written
+into the file, and then unzip is called on the file.
+
+If code is 2, the filename is followed by LENGTH bytes of data to be written
+into the file, and then "tar -xzf" is called on the file.
+
+Codes above 90 are current reserved for digital signature verification codes
+and information required to process and verify digital signatures.  For
+basic use of eeprom, these are not required.
+
+
+Since the 24c256 is limitted to 32K and reading/writing is relatively slow,
+people are encouraged to package multiple files into either zip or tar.gz
+files and use the 1 or 2 codes to add them to the eeprom.
+
+
