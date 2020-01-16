@@ -638,6 +638,11 @@ uint32_t V1FSEQFile::getMaxChannel() const {
 }
 
 static const int V2FSEQ_HEADER_SIZE = 32;
+static const int V2FSEQ_MINOR_VERSION = 0;
+static const int V2FSEQ_MAJOR_VERSION = 2;
+static const int V2FSEQ_VARIABLE_HEADER_LENGTH = 4;
+static const int V2FSEQ_SPARSE_RANGE_LENGTH = 6;
+static const int V2FSEQ_COMPRESSION_BLOCK_LENGTH = 8;
 #if !defined(NO_ZLIB) || !defined(NO_ZSTD)
 static const int V2FSEQ_OUT_BUFFER_SIZE = 1024*1024; //1M output buffer
 static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 900 * 1024; //90% full, flush it
@@ -1356,8 +1361,8 @@ V2FSEQFile::V2FSEQFile(const std::string &fn, CompressionType ct, int cl)
     m_compressionLevel(cl),
     m_handler(nullptr)
 {
-    m_seqVersionMajor = 2;
-    m_seqVersionMinor = 0;
+    m_seqVersionMajor = V2FSEQ_MAJOR_VERSION;
+    m_seqVersionMinor = V2FSEQ_MINOR_VERSION;
     createHandler();
 }
 void V2FSEQFile::writeHeader() {
@@ -1384,55 +1389,54 @@ void V2FSEQFile::writeHeader() {
 
     uint8_t header[V2FSEQ_HEADER_SIZE];
     memset(header, 0, V2FSEQ_HEADER_SIZE);
+
+	// File identifier (PSEQ) - 4bytes
     header[0] = 'P';
     header[1] = 'S';
     header[2] = 'E';
     header[3] = 'Q';
 
-    header[6] = 0; //minor
-    header[7] = 2; //major
+	// Channel data start offset - 2 bytes
+	uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
+	int headerSize = V2FSEQ_HEADER_SIZE + maxBlocks * V2FSEQ_COMPRESSION_BLOCK_LENGTH + m_sparseRanges.size() * V2FSEQ_SPARSE_RANGE_LENGTH;
+	
+	m_seqChanDataOffset += headerSize;
+    for (auto &a : m_variableHeaders) {
+        m_seqChanDataOffset += a.data.size() + V2FSEQ_VARIABLE_HEADER_LENGTH;
+    }
+	m_seqChanDataOffset = roundTo4(m_seqChanDataOffset);
 
-    // Step Size
+    write2ByteUInt(&header[4], m_seqChanDataOffset);
+
+	// File format version - 2 bytes
+	header[6] = m_seqVersionMinor;
+	header[7] = m_seqVersionMajor;
+
+	// Computed header length - 2 bytes
+	write2ByteUInt(&header[8], headerSize);
+
+    // Channel count - 4 bytes
     write4ByteUInt(&header[10], m_seqChannelCount);
-    // Number of Steps
+    // Number of frames - 4 bytes
     write4ByteUInt(&header[14], m_seqNumFrames);
-    // Step time in ms
+    // Step time in milliseconds - 1 byte
     header[18] = m_seqStepTime;
-    //flags
+    // Flags (unused & reserved, should be 0) - 1 byte
     header[19] = 0;
-
-    // compression type
+    // Compression type - 1 byte
     header[20] = m_handler->getCompressionType();
-    //num blocks in compression index, (ignored if not compressed)
-    header[21] = 0;
-    //num ranges in sparse range index
+    // Number of blocks in compressed channel data (should be 0 if not compressed) - 1 byte
+    header[21] = maxBlocks;
+    // Number of ranges in sparse range index - 1 byte
     header[22] = m_sparseRanges.size();
-    //reserved for future use
+	// Flags (unused & reserved, should be 0) - 1 byte
     header[23] = 0;
 
-
-    //24-31 - timestamp/uuid/identifier
+    // Timestamp based UUID - 8 bytes
     if (m_uniqueId == 0) {
         m_uniqueId = GetTime();
     }
     memcpy(&header[24], &m_uniqueId, sizeof(m_uniqueId));
-
-    // index size
-    uint32_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
-    header[21] = maxBlocks;
-
-    int headerSize = V2FSEQ_HEADER_SIZE + maxBlocks * 8 + m_sparseRanges.size() * 6;
-
-    // Fixed header length
-    write2ByteUInt(&header[8], headerSize);
-
-    int dataOffset = headerSize;
-    for (auto &a : m_variableHeaders) {
-        dataOffset += a.data.size() + 4;
-    }
-    dataOffset = roundTo4(dataOffset);
-    write2ByteUInt(&header[4], dataOffset);
-    m_seqChanDataOffset = dataOffset;
 
     write(header, V2FSEQ_HEADER_SIZE);
     for (int x = 0; x < maxBlocks; x++) {
