@@ -456,8 +456,8 @@ static const int V1FSEQ_HEADER_SIZE = 28;
 V1FSEQFile::V1FSEQFile(const std::string &fn)
   : FSEQFile(fn), m_dataBlockSize(0)
 {
-	m_seqVersionMinor = V1FSEQ_MINOR_VERSION;
-	m_seqVersionMajor = V1FSEQ_MAJOR_VERSION;
+    m_seqVersionMinor = V1FSEQ_MINOR_VERSION;
+    m_seqVersionMajor = V1FSEQ_MAJOR_VERSION;
 }
 
 void V1FSEQFile::writeHeader() {
@@ -1547,9 +1547,12 @@ m_handler(nullptr)
             }
         }
         if (m_frameOffsets.size() == 0) {
-            //this is bad... not sure what we can do.  We'll force a "0" block to
-            //avoid a crash, but the data might not load correctly
-            LogErr(VB_SEQUENCE, "FSEQ file corrupt: did not load any block references from header.");
+            // FSEQ files with CompressionType::none will have a (safely) empty m_frameOffsets due to maxBlocks == 0
+            if (m_compressionType != CompressionType::none) {
+                //this is bad... not sure what we can do.  We'll force a "0" block to
+                //avoid a crash, but the data might not load correctly
+                LogErr(VB_SEQUENCE, "FSEQ file corrupt: did not load any block references from header.");
+            }
 
             m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(0, offset));
             offset += this->m_seqFileSize - offset;
