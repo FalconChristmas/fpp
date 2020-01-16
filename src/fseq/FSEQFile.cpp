@@ -649,8 +649,9 @@ static const int V2FSEQ_VARIABLE_HEADER_SIZE = 4;
 static const int V2FSEQ_SPARSE_RANGE_SIZE = 6;
 static const int V2FSEQ_COMPRESSION_BLOCK_SIZE = 8;
 #if !defined(NO_ZLIB) || !defined(NO_ZSTD)
-static const int V2FSEQ_OUT_BUFFER_SIZE = 1024*1024; //1M output buffer
-static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 900 * 1024; //90% full, flush it
+static const int V2FSEQ_OUT_BUFFER_SIZE = 1024 * 1024; // 1MB output buffer
+static const int V2FSEQ_OUT_BUFFER_FLUSH_SIZE = 900 * 1024; // 90% full, flush it
+static const int V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE = 64 * 1024; // 64KB blocks
 #endif
 
 class V2Handler {
@@ -780,8 +781,7 @@ public:
         }
         //determine a good number of compression blocks
         uint64_t datasize = m_file->getChannelCount() * m_file->getNumFrames();
-        uint64_t numBlocks = datasize;
-        numBlocks /= (64*1024); //at least 64K per block
+        uint64_t numBlocks = datasize / V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE;
         if (numBlocks > 255) {
             //need a lot of blocks, use as many as we can
             numBlocks = 255;
