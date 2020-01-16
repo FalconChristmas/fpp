@@ -197,6 +197,10 @@ int main(int argc, char *argv[]) {
                     merges.push_back(src);
                 }
             }
+
+            if (outputFilename == nullptr) {
+                return 0;
+            }
             
             FSEQFile *dest = FSEQFile::createFSEQFile(outputFilename,
                                                       fseqVersion,
