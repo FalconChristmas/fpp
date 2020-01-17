@@ -2,7 +2,7 @@
 <html>
 <head>
     <?php require_once 'common/menuHead.inc'; ?>
-    <title><? echo $pageTitle; ?></title>
+    <title>FPP - <? echo gethostname(); ?></title>
     <!--    <script>var helpPage = "help/backup.php";</script>-->
 <script>
 <?php
@@ -1378,7 +1378,12 @@ moveBackupFiles_ToBackupDirectory();
 		$settings['rebootFlag'] = ReadSettingFromFile('rebootFlag');
 
         foreach ($settings as $key => $value) {
-            printf("	settings['%s'] = \"%s\";\n", $key, $value);
+            if (!is_array($value)) {
+                printf("	settings['%s'] = \"%s\";\n", $key, $value);
+            } else {
+                $js_array = json_encode($value);
+                printf("    settings['%s'] = %s;\n", $key, $js_array);
+            }
         }
 
         ?>
@@ -1394,10 +1399,9 @@ moveBackupFiles_ToBackupDirectory();
             helpPage = "help/" + helpPage;
         }
 
-function GetUSBFlags() {
+function GetCopyFlags() {
     var flags = "";
     
-    var cfTable = $('#CopyFlagsTable');
     if (document.getElementById("backup.Configuration").checked) {
         flags += " Configuration";
     }
@@ -1432,6 +1436,10 @@ function GetUSBFlags() {
         (direction = document.getElementById("backup.Direction").value == 'TOUSB')) {
         flags += " Backups";
     }
+
+    if (flags.length)
+        flags = flags.substring(1);
+
     return flags;
 }
 
@@ -1441,12 +1449,13 @@ function PerformCopy() {
     var pathSelect = document.getElementById("backup.PathSelect").value;
     var host = document.getElementById("backup.Host").value;
     var direction = document.getElementById("backup.Direction").value;
+    var flags = GetCopyFlags();
 
     var url = "copystorage.php?direction=" + direction;
 
     if ((direction == 'TOUSB') ||
         (direction == 'FROMUSB')) {
-        url += '&storageLocation=' + document.getElementById("backup.USBDevice").value;
+        storageLocation = document.getElementById("backup.USBDevice").value;
     } else if ((direction == 'TOREMOTE') ||
                (direction == 'FROMREMOTE')) {
         if (host == '') {
@@ -1454,9 +1463,9 @@ function PerformCopy() {
             return;
         }
 
-        url += '&storageLocation=' + host;
+        storageLocation = host;
     } else {
-        url += '&storageLocation=/home/fpp/media/backups';
+        storageLocation = "/home/fpp/media/backups";
     }
 
     if (direction == 'FROMLOCAL') {
@@ -1475,7 +1484,26 @@ function PerformCopy() {
         url += '&path=' + path;
     }
 
-    url += '&flags=' + GetUSBFlags();
+    url += '&storageLocation=' + storageLocation;
+    url += '&flags=' + flags;
+
+    var warningMsg = "Confirm File restore of '" + flags + "' from " + storageLocation + "?\n\nWARNING: This will overwrite any current files with the copies being restored";
+
+    if (document.getElementById("backup.DeleteExtra").checked) {
+        url += '&delete=yes';
+        warningMsg += " and delete any local files which do not exist in the backup.";
+    } else {
+        url += '&delete=no';
+    }
+
+    if (direction.substring(0,4) == 'FROM')
+    {
+        if (!confirm(warningMsg)) {
+            $.jGrowl("Restore canceled.");
+            return;
+        }
+    }
+
 
     window.location.href = url;
 }
@@ -1786,12 +1814,12 @@ GetBackupDevices();
                         Copy configuration, sequences, etc... to/from a backup device.
                         <table>
 <tr><td>Copy Type:</td><td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
-<option value="TOUSB" selected>Copy To USB</option>
-<option value="FROMUSB">Copy From USB</option>
-<option value="TOLOCAL">Copy To Local FPP Backups Directory</option>
-<option value="FROMLOCAL">Copy From Local FPP Backups Directory</option>
-<option value="TOREMOTE">Copy To Remote FPP Backups Directory</option>
-<option value="FROMREMOTE">Copy From Remote FPP Backups Directory</option>
+<option value="TOUSB" selected>Backup To USB</option>
+<option value="FROMUSB">Restore From USB</option>
+<option value="TOLOCAL">Backup To Local FPP Backups Directory</option>
+<option value="FROMLOCAL">Restore From Local FPP Backups Directory</option>
+<option value="TOREMOTE">Backup To Remote FPP Backups Directory</option>
+<option value="FROMREMOTE">Restore From Remote FPP Backups Directory</option>
 </select></td></tr>
 <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
 <tr class='copyHost'><td>Hostname/IP:</td><td><? PrintSettingTextSaved('backup.Host', 0, 0, 32, 32, '', '127.0.0.1', 'GetBackupHostBackupDirs'); ?></td></tr>
@@ -1818,6 +1846,7 @@ GetBackupDevices();
     <input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span><br>
 </td></tr></table>
 </td></tr>
+<tr><td>Delete extras:</td><td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on destination that do not exist on the source)</td></tr>
                         <tr><td></td><td>
                                 <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
                         </table>

@@ -2,7 +2,8 @@
 DEVICE=$1
 DPATH=$2
 DIRECTION=$3
-shift 3
+DELETE=$4
+shift 4
 
 BASEDIRECTION=$(echo $DIRECTION | cut -c1-4)
 
@@ -57,8 +58,11 @@ elif [ "$DIRECTION" == "FROMREMOTE" ]; then
     DEST=/home/fpp/media
 fi
 
-EXTRA_ARGS="$EXTRA_ARGS --delete -av --modify-window=1"
+EXTRA_ARGS="$EXTRA_ARGS -av --modify-window=1"
 
+if [ "$DELETE" == "yes" ]; then
+    EXTRA_ARGS="$EXTRA_ARGS --delete"
+fi
 
 for action in $@; do
     case $action in
