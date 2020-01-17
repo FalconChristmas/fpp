@@ -230,20 +230,6 @@ function SetAutoUpdate()
 		exec("touch $mediaDirectory/.auto_update_disabled");
 }
 
-
-
-function SetDeveloperMode()
-{
-	$enabled = $_GET['enabled'];
-	check($enabled, "enabled", __FUNCTION__);
-
-	global $mediaDirectory;
-	if ($enabled)
-		exec("touch $mediaDirectory/.developer_mode");
-	else
-		unlink("$mediaDirectory/.developer_mode");
-}
-
 function SetVolume()
 {
 	global $SUDO;

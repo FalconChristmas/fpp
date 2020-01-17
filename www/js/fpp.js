@@ -990,19 +990,6 @@ function RemovePlaylistEntry()	{
 			xmlhttp.send();
 		}
 	
-		function SetDeveloperMode(enabled)
-		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setDeveloperMode&enabled=" + enabled;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4)
-					location.reload(true);
-			}
-			xmlhttp.send();
-		}
-	
 		function SelectEntry(index)
 		{
 			$('#sortable li:nth-child(1n)').removeClass('selectedEntry');

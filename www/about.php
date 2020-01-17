@@ -131,14 +131,6 @@ function ToggleAutoUpdate() {
 	}
 }
 
-function ToggleDeveloperMode() {
-	if ($('#developerMode').is(':checked')) {
-		SetDeveloperMode(1);
-	} else {
-		SetDeveloperMode(0);
-	}
-}
-
 </script>
 <title><? echo $pageTitle; ?></title>
 <style>
@@ -210,17 +202,6 @@ a:visited {
         <tr><td>Hardware Serial Number:</td><td><? echo $serialNumber; ?></td></tr>
 <? } ?>
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
-<? if (file_exists($mediaDirectory."/.developer_mode")) { ?>
-            <tr><td>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());">
-<? PrintGitBranchOptions(); ?>
-                </select></td></tr>
-<?
-   } else {
-?>
-            <tr><td>Git Branch:</td><td><? echo $git_branch; ?></td></tr>
-<?
-   }
-?>
             <tr><td>Local Git Version:</td><td>
 <?
   echo $git_version;
@@ -245,13 +226,6 @@ a:visited {
             checked
 <? } ?>
               >  <input type='button' value='Manual Update' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
-<!--
-            <tr><td>Developer Mode:</td><td><input type='checkbox' id='developerMode' onChange='ToggleDeveloperMode();'
-<? if (file_exists($mediaDirectory."/.developer_mode")) { ?>
-            checked
-<? } ?>
-              ></td></tr>
--->
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
             <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
             <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
