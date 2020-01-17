@@ -3445,7 +3445,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
                              line += " value='" + val['min'] + "'";
                          }
                          line += "></input>";
-                         if (configAdjustable && val['adjustableGetValueURL'] != "" && val['adjustableGetValueURL'] != null) {
+                         if (configAdjustable && val['adjustable']) {
                             line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
                          }
                      }

@@ -1176,7 +1176,7 @@ public:
 class ExtendScheduleCommand : public ScheduleCommand {
 public:
     ExtendScheduleCommand(Scheduler *s) : ScheduleCommand("Extend Schedule", s) {
-        args.push_back(CommandArg("Seconds", "seconds", "Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300"));
+        args.push_back(CommandArg("Seconds", "int", "Seconds").setRange(-12 * 60 * 60, 12 * 60 * 60).setDefaultValue("300").setAdjustable());
     }
 
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
