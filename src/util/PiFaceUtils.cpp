@@ -78,6 +78,6 @@ const PinCapabilities &PiFacePinCapabilities::getPinByGPIO(int i) {
     }
     return MCP23x17PinCapabilities::getPinByGPIO(i);
 }
-static const PinCapabilities &PiFacePinCapabilities::getPinByUART(const std::string &n) {
+const PinCapabilities &PiFacePinCapabilities::getPinByUART(const std::string &n) {
     return MCP23x17PinCapabilities::getPinByUART(n);
 }
