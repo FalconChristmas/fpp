@@ -1161,4 +1161,8 @@ function DisableOutputBuffering() {
 	flush();
 }
 
+function ToolTip($tooltip) {
+    echo "<span title=\"$tooltip\"><img src='images/questionmark.png'></span>\n";
+}
+
 ?>

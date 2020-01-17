@@ -23,13 +23,13 @@ $pluginSettings = array();
 $settings['fppMode'] = "player";
 
 // Helper function for accessing the global settings array
-function GetSettingValue($setting) {
+function GetSettingValue($setting, $default = '') {
 	global $settings;
 
 	if (isset($settings[$setting]))
 		return $settings[$setting];
 
-	return;  // FIXME, should we do this or return something else
+	return $default;
 }
 
 function LoadLocale()
@@ -464,6 +464,8 @@ if ($debug)
 	error_log("emailfromtext: $emailfromtext");
 	error_log("emailtoemail: $emailtoemail");
 }
+
+$uiLevel = GetSettingValue('uiLevel', 0);
 
 LoadLocale();
 
