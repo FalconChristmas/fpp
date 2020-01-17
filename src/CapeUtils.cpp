@@ -211,7 +211,12 @@ static void processBootConfig(Json::Value &bootConfig) {
     const std::string fileName = "/boot/uEnv.txt";
 #else
     //unknown platform
+    const std::string fileName;
 #endif
+
+    if (fileName.empty())
+        return;
+
     int len = 0;
     uint8_t *data = get_file_contents(fileName, len);
     if (len == 0) {
