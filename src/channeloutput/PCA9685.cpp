@@ -151,10 +151,18 @@ int PCA9685Output::SendData(unsigned char *channelData)
         int tmp;
         switch (m_dataType[x]) {
             case 0:
-                tmp = scl * c[ch] / 256;
+                tmp = scl;
+                tmp *= c[ch];
+                tmp /= 255;
                 val = tmp + m_min[x];
                 break;
             case 1:
+                tmp = scl;
+                tmp *= (255 - c[ch]);
+                tmp /= 255;
+                val = tmp + m_min[x];
+                break;
+            case 2:
                 tmp = c[ch + 1];
                 tmp = tmp << 8;
                 tmp = c[ch];
@@ -163,10 +171,20 @@ int PCA9685Output::SendData(unsigned char *channelData)
                 tmp /= 0xffff;
                 val = tmp + m_min[x];
                 break;
-            case 2:
+            case 3:
+                tmp = c[ch + 1];
+                tmp = tmp << 8;
+                tmp = c[ch];
+                ch++;
+                tmp = 65535 - tmp;
+                tmp *= scl;
+                tmp /= 0xffff;
+                val = tmp + m_min[x];
+                break;
+            case 4:
                 val = c[ch];
                 break;
-            case 3:
+            case 5:
                 val = c[ch + 1];
                 val = val << 8;
                 val = c[ch];

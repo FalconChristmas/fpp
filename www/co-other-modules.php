@@ -243,17 +243,17 @@ class PCA9685Output extends I2COutput {
     }
     PopulateHTMLRow(config) {
         var result = super.PopulateHTMLRow(config);
-        var datatypes = ["8 Bit Scaled", "16 Bit Scaled", "8 Bit Absolute", "16 Bit Absolute"];
+        var datatypes = ["8 Bit Scaled", "8 Bit Scaled Reversed", "16 Bit Scaled", "16 Bit Scaled Reversed", "8 Bit Absolute", "16 Bit Absolute"];
         
         var inMicrosecs = config.asUsec;
         if (inMicrosecs == undefined) {
-            inMicrosecs = false;
+            inMicrosecs = true;
         }
         result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/><br><input class='asUsec' type='checkbox' " + (inMicrosecs ? "checked" : "") + ">Min/Max in micro-seconds</input><br>";
         
         for (var x = 0; x < 16; x++) {
-            var min = 0;
-            var max = 4095;
+            var min = 500;
+            var max = 2500;
             var dataType = 0;
             
             if (config.ports != undefined && config.ports[x] != undefined) {
