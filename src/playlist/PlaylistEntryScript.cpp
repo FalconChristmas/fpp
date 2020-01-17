@@ -162,7 +162,7 @@ Json::Value PlaylistEntryScript::GetConfig(void)
     t /= 1000;
 	result["scriptFilename"]   = m_scriptFilename;
 	result["blocking"]         = m_blocking;
-    result["secondsElapsed"]   = t;
+	result["secondsElapsed"]   = (Json::UInt64)t;
 
 	return result;
 }
@@ -177,7 +177,7 @@ Json::Value PlaylistEntryScript::GetMqttStatus(void)
     t /= 1000;
     result["scriptFilename"]   = m_scriptFilename;
     result["blocking"]         = m_blocking;
-    result["secondsElapsed"]   = t;
+    result["secondsElapsed"]   = (Json::UInt64)t;
     
     return result;
 }

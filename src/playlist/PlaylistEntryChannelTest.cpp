@@ -148,15 +148,15 @@ Json::Value PlaylistEntryChannelTest::GetConfig(void)
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
 	result["duration"] = m_duration;
-	result["startTime"] = m_startTime;
-	result["endTime"] = m_endTime;
-	result["finishTime"] = m_finishTime;
+	result["startTime"] = (Json::UInt64)m_startTime;
+	result["endTime"] = (Json::UInt64)m_endTime;
+	result["finishTime"] = (Json::UInt64)m_finishTime;
 	result["testConfig"] = m_testConfig;
 
 	if (m_isPlaying)
-		result["remaining"] = (m_endTime - GetTime()) / 1000000;
+		result["remaining"] = (Json::UInt64)((m_endTime - GetTime()) / 1000000);
 	else
-		result["remaining"] = 0;
+		result["remaining"] = (Json::UInt64)0;
 
 	return result;
 }
