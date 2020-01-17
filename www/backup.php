@@ -1370,6 +1370,17 @@ moveBackupFiles_ToBackupDirectory();
 ?>
 </script>
 
+<?
+$backupHosts = Array();
+$data = file_get_contents('http://localhost/api/remotes');
+$arr = json_decode($data, true);
+
+foreach ($arr as $host => $desc) {
+    $backupHosts[$desc] = $host;
+}
+ksort($backupHosts);
+
+?>
     <script type="text/javascript">
         var settings = new Array();
         <?
@@ -1822,7 +1833,7 @@ GetBackupDevices();
 <option value="FROMREMOTE">Restore From Remote FPP Backups Directory</option>
 </select></td></tr>
 <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
-<tr class='copyHost'><td>Hostname/IP:</td><td><? PrintSettingTextSaved('backup.Host', 0, 0, 32, 32, '', '127.0.0.1', 'GetBackupHostBackupDirs'); ?></td></tr>
+<tr class='copyHost'><td>Remote Host:</td><td><? PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?></td></tr>
 <tr class='copyPath'><td>Backup Path:</td><td><? PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
 <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
 <tr><td>What to copy:</td><td>
