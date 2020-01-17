@@ -8,18 +8,6 @@
 
 BINDIR=$(cd $(dirname $0) && pwd)
 
-# See if we should be running from /home/pi/fpp
-if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/pi/fpp/scripts/startup" ]
-then
-	exec /home/pi/fpp/scripts/startup
-fi
-
-# See if we should be running from /home/fpp/fpp
-if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/startup" ]
-then
-	exec /home/fpp/fpp/scripts/startup
-fi
-
 . ${BINDIR}/common
 . ${BINDIR}/functions
 

@@ -17,12 +17,6 @@ PATH="/sbin:/bin:/usr/sbin:/usr/bin"
 
 BINDIR=$(cd $(dirname $0) && pwd)
 
-# See if we should be running from /home/fpp/fpp
-if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/fpp_init" ]
-then
-    exec /home/fpp/fpp/scripts/fpp_init $1
-fi
-
 . ${BINDIR}/common
 . ${BINDIR}/functions
 

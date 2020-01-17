@@ -9,11 +9,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 # to the boot time on BBB and single core Pi
 
 
-if [ -f "/home/fpp/fpp/scripts/common" ]
-then
-	FPPDIR="/home/fpp/fpp"
-fi
-FPPDIR=${FPPDIR:-/opt/fpp}
+FPPDIR=/opt/fpp
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 FPPBINDIR="${FPPDIR}/src"
 

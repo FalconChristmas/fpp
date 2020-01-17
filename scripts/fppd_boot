@@ -2,12 +2,6 @@
 
 BINDIR=$(cd $(dirname $0) && pwd)
 
-# See if we should be running from /home/fpp/fpp
-if [ "x${BINDIR}" == "x/opt/fpp/scripts" -a -f "/home/fpp/fpp/scripts/fppd_boot" ]
-then
-    exec /home/fpp/fpp/scripts/fppd_boot
-fi
-
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
