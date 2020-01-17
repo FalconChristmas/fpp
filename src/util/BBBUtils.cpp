@@ -43,16 +43,16 @@ static const std::vector<BBBPinCapabilities> PB_PINS = {
     BBBPinCapabilities("P1-02", 87).setPRU(1, 9),
     BBBPinCapabilities("P1-04", 89).setPRU(1, 11),
     BBBPinCapabilities("P1-06", 5),
-    BBBPinCapabilities("P1-08", 2).setPwm(0, 0),
-    BBBPinCapabilities("P1-10", 3).setPwm(0, 1),
+    BBBPinCapabilities("P1-08", 2).setPwm(0, 0).setUART("ttyS2-rx"),
+    BBBPinCapabilities("P1-10", 3).setPwm(0, 1).setUART("ttyS2-tx"),
     BBBPinCapabilities("P1-12", 4),
     BBBPinCapabilities("P1-20", 20),
     BBBPinCapabilities("P1-26", 12).setI2C(2),
     BBBPinCapabilities("P1-28", 13).setI2C(2),
     BBBPinCapabilities("P1-29", 117).setPRU(0, 7),
-    BBBPinCapabilities("P1-30", 43).setPRU(1, 15),
+    BBBPinCapabilities("P1-30", 43).setPRU(1, 15).setUART("ttyS0-tx"),
     BBBPinCapabilities("P1-31", 114).setPRU(0, 4),
-    BBBPinCapabilities("P1-32", 42).setPRU(1, 14),
+    BBBPinCapabilities("P1-32", 42).setPRU(1, 14).setUART("ttyS0-rx"),
     BBBPinCapabilities("P1-33", 111).setPRU(0, 1).setPwm(0, 1),
     BBBPinCapabilities("P1-34", 26),
     BBBPinCapabilities("P1-35", 88).setPRU(1, 10),
@@ -61,9 +61,9 @@ static const std::vector<BBBPinCapabilities> PB_PINS = {
     BBBPinCapabilities("P2-02", 59),
     BBBPinCapabilities("P2-03", 23).setPwm(2, 1),
     BBBPinCapabilities("P2-04", 58),
-    BBBPinCapabilities("P2-05", 30),
+    BBBPinCapabilities("P2-05", 30).setUART("ttyS4-rx"),
     BBBPinCapabilities("P2-06", 57),
-    BBBPinCapabilities("P2-07", 31),
+    BBBPinCapabilities("P2-07", 31).setUART("ttyS4-tx"),
     BBBPinCapabilities("P2-08", 60),
     BBBPinCapabilities("P2-09", 15).setI2C(1),
     BBBPinCapabilities("P2-10", 52),
@@ -120,8 +120,8 @@ static const std::vector<BBBPinCapabilities> BBB_PINS = {
     BBBPinCapabilities("P8-34", 81).setPwm(1, 1),
     BBBPinCapabilities("P8-35", 8),
     BBBPinCapabilities("P8-36", 80).setPwm(1, 0),
-    BBBPinCapabilities("P8-37", 78),
-    BBBPinCapabilities("P8-38", 79),
+    BBBPinCapabilities("P8-37", 78).setUART("ttyS5-tx"),
+    BBBPinCapabilities("P8-38", 79).setUART("ttyS5-rx"),
     BBBPinCapabilities("P8-39", 76).setPRU(1, 6),
     BBBPinCapabilities("P8-40", 77).setPRU(1, 7),
     BBBPinCapabilities("P8-41", 74).setPRU(1, 4),
@@ -130,9 +130,9 @@ static const std::vector<BBBPinCapabilities> BBB_PINS = {
     BBBPinCapabilities("P8-44", 73).setPRU(1, 3),
     BBBPinCapabilities("P8-45", 70).setPRU(1, 0).setPwm(2, 0),
     BBBPinCapabilities("P8-46", 71).setPRU(1, 1).setPwm(2, 1),
-    BBBPinCapabilities("P9-11", 30),
+    BBBPinCapabilities("P9-11", 30).setUART("ttyS4-rx"),
     BBBPinCapabilities("P9-12", 60),
-    BBBPinCapabilities("P9-13", 31),
+    BBBPinCapabilities("P9-13", 31).setUART("ttyS4-tx"),
     BBBPinCapabilities("P9-14", 50).setPwm(1, 0),
     BBBPinCapabilities("P9-15", 48),
     BBBPinCapabilities("P9-16", 51).setPwm(1, 1),
@@ -140,12 +140,12 @@ static const std::vector<BBBPinCapabilities> BBB_PINS = {
     BBBPinCapabilities("P9-18", 4).setI2C(1),
     BBBPinCapabilities("P9-19", 13).setI2C(2),
     BBBPinCapabilities("P9-20", 12).setI2C(2),
-    BBBPinCapabilities("P9-21", 3).setPwm(0, 1),
-    BBBPinCapabilities("P9-22", 2).setPwm(0, 0),
+    BBBPinCapabilities("P9-21", 3).setPwm(0, 1).setUART("ttyS2-tx"),
+    BBBPinCapabilities("P9-22", 2).setPwm(0, 0).setUART("ttyS2-rx"),
     BBBPinCapabilities("P9-23", 49),
-    BBBPinCapabilities("P9-24", 15),
+    BBBPinCapabilities("P9-24", 15).setUART("ttyS1-tx"),
     BBBPinCapabilities("P9-25", 117).setPRU(0, 7),
-    BBBPinCapabilities("P9-26", 14),
+    BBBPinCapabilities("P9-26", 14).setUART("ttyS1-rx"),
     BBBPinCapabilities("P9-27", 115).setPRU(0, 5),
     BBBPinCapabilities("P9-28", 113).setPRU(0, 3),
     BBBPinCapabilities("P9-29", 111).setPRU(0, 1).setPwm(0, 1),
@@ -153,7 +153,7 @@ static const std::vector<BBBPinCapabilities> BBB_PINS = {
     BBBPinCapabilities("P9-31", 110).setPRU(0, 0).setPwm(0, 0),
     BBBPinCapabilities("P9-41", 20),
     BBBPinCapabilities("P9-91", 116).setPRU(0, 6),
-    BBBPinCapabilities("P9-42", 7),
+    BBBPinCapabilities("P9-42", 7).setUART("ttyS3-tx"),
     BBBPinCapabilities("P9-92", 114).setPRU(0, 4),
 };
 
@@ -262,7 +262,7 @@ int BBBPinCapabilities::configPin(const std::string& mode,
     fprintf(dir, "%s\n", mode.c_str());
     fclose(dir);
     
-    if (mode != "pwm" && mode != "i2c") {
+    if (mode != "pwm" && mode != "i2c" && mode != "uart") {
         snprintf(dir_name, sizeof(dir_name),
                  "/sys/class/gpio/gpio%u/direction",
                  kernelGpio
@@ -425,4 +425,20 @@ std::vector<std::string> BBBPinCapabilities::getPinNames() {
         }
     }
     return ret;
+}
+const BBBPinCapabilities &BBBPinCapabilities::getPinByUART(const std::string &n) {
+    if (getBeagleBoneType() == PocketBeagle) {
+        for (auto &a : PB_PINS) {
+            if (a.uart == n) {
+                return a;
+            }
+        }
+    } else {
+        for (auto &a : BBB_PINS) {
+            if (a.uart == n) {
+                return a;
+            }
+        }
+    }
+    return NULL_BBB_INSTANCE;
 }

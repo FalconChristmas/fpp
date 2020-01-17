@@ -29,6 +29,8 @@ public:
     
     int8_t i2cBus;
     
+    std::string uart;
+    
 
     
     virtual int configPin(const std::string& mode = "gpio",
@@ -48,6 +50,7 @@ public:
     
     static const PinCapabilities &getPinByName(const std::string &n);
     static const PinCapabilities &getPinByGPIO(int i);
+    static const PinCapabilities &getPinByUART(const std::string &n);
     static std::vector<std::string> getPinNames();
 protected:
     static void enableOledScreen(int i2cBus, bool enable);
@@ -76,7 +79,10 @@ public:
         pruPin = pin;
         return * (static_cast<T*>(this));
     }
-    
+    T& setUART(const std::string &u) {
+        uart = u;
+        return * (static_cast<T*>(this));
+    }
 };
 
 #endif

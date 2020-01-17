@@ -15,6 +15,10 @@ PiGPIOPinCapabilities::PiGPIOPinCapabilities(const std::string &n, uint32_t kg)
 
 int PiGPIOPinCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
+    if (mode == "pwm" || mode == "uart") {
+        return 0;
+    }
+    
     gpioSetMode(kernelGpio, directionOut ? PI_OUTPUT : PI_INPUT);
     
     if (mode == "gpio_pu") {
@@ -109,4 +113,6 @@ std::vector<std::string> PiGPIOPinCapabilities::getPinNames() {
     }
     return ret;
 }
-
+const PinCapabilities &PiGPIOPinCapabilities::getPinByUART(const std::string &n) {
+    return PiFacePinCapabilities::getPinByUART(n);
+}

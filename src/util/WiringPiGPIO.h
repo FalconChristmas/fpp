@@ -25,7 +25,8 @@ public:
     static void Init();
     static const WPPinCapabilities &getPinByName(const std::string &name);
     static const WPPinCapabilities &getPinByGPIO(int i);
-    
+    static const WPPinCapabilities &getPinByUART(const std::string &n);
+
     static std::vector<std::string> getPinNames() { return std::vector<std::string>(); }
 };
 

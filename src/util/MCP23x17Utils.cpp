@@ -91,6 +91,9 @@ MCP23x17PinCapabilities::MCP23x17PinCapabilities(const std::string &n, uint32_t 
 
 int MCP23x17PinCapabilities::configPin(const std::string& mode,
                                      bool directionOut) const {
+    if (mode == "pwm" || mode == "uart") {
+        return 0;
+    }
     int pin = this->kernelGpio - gpioBase;
     int reg = (pin < 8) ? MCP23x17_IODIRA : MCP23x17_IODIRB;
     int pureg = (pin < 8) ? MCP23x17_GPPUA : MCP23x17_GPPUB;
@@ -216,3 +219,6 @@ const PinCapabilities &MCP23x17PinCapabilities::getPinByGPIO(int i) {
     return NULL_WP_INSTANCE;
 }
 
+const PinCapabilities &MCP23x17PinCapabilities::getPinByUART(const std::string &n) {
+    return NULL_WP_INSTANCE;
+}

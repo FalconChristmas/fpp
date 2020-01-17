@@ -40,6 +40,7 @@ public:
     static void Init() {}
     static const NoPinCapabilities &getPinByName(const std::string &name);
     static const NoPinCapabilities &getPinByGPIO(int i);
+    static const NoPinCapabilities &getPinByUART(const std::string &n);
     static std::vector<std::string> getPinNames();
 
 };
@@ -56,6 +57,10 @@ const NoPinCapabilities &NoPinCapabilities::getPinByName(const std::string &name
 const NoPinCapabilities &NoPinCapabilities::getPinByGPIO(int i) {
     return NULL_PIN_INSTANCE;
 }
+const NoPinCapabilities &NoPinCapabilities::getPinByUART(const std::string &n) {
+    return NULL_PIN_INSTANCE;
+}
+
 std::vector<std::string> NoPinCapabilities::getPinNames() {
     return std::vector<std::string>();
 }
@@ -105,4 +110,7 @@ const PinCapabilities &PinCapabilities::getPinByName(const std::string &n) {
 }
 const PinCapabilities &PinCapabilities::getPinByGPIO(int i) {
     return PLAT_GPIO_CLASS::getPinByGPIO(i);
+}
+const PinCapabilities &PinCapabilities::getPinByUART(const std::string &n) {
+    return PLAT_GPIO_CLASS::getPinByUART(n);
 }

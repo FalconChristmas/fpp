@@ -26,7 +26,8 @@ public:
     static void Init();
     static const PinCapabilities &getPinByName(const std::string &name);
     static const PinCapabilities &getPinByGPIO(int i);
-    
+    static const PinCapabilities &getPinByUART(const std::string &n);
+
     static std::vector<std::string> getPinNames();
 
 };

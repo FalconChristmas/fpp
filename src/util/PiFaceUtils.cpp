@@ -22,6 +22,9 @@ PiFacePinCapabilities::PiFacePinCapabilities(const std::string &n, uint32_t kg,
 
 int PiFacePinCapabilities::configPin(const std::string& mode,
                                      bool directionOut) const {
+    if (mode == "pwm" || mode == "uart") {
+        return 0;
+    }
     if (!directionOut) {
         readPin.configPin(mode, false);
     }
@@ -74,4 +77,7 @@ const PinCapabilities &PiFacePinCapabilities::getPinByGPIO(int i) {
         }
     }
     return MCP23x17PinCapabilities::getPinByGPIO(i);
+}
+static const PinCapabilities &PiFacePinCapabilities::getPinByUART(const std::string &n) {
+    return MCP23x17PinCapabilities::getPinByUART(n);
 }

@@ -32,6 +32,7 @@
 #include <linux/serial.h>
 
 #include "log.h"
+#include "../util/GPIOUtils.h"
 
 // The following is in asm-generic/termios.h, but including that in a C++
 // program causes errors.  The Qt developers worked around this by including
@@ -88,6 +89,12 @@ speed_t SerialGetBaudRate(int baud)
  */
 int SerialOpen(const char *device, int baud, const char *mode, bool output)
 {
+    // some devices may multiplex pins and need to
+    // specifically configure the output pin as a uart instead of gpio
+    char buf[256];
+    sprintf(buf, "%s-tx", &device[5]); // "ttyS1-tx" or "ttyUSB0-tx"
+    PinCapabilities::getPinByUART(buf).configPin("uart");
+    
 	int fd = 0;
 	struct termios tty;
 	speed_t adjustedBaud = SerialGetBaudRate(baud);

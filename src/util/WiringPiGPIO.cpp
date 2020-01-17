@@ -17,6 +17,10 @@ WPPinCapabilities::WPPinCapabilities(const std::string &n, uint32_t kg)
 
 int WPPinCapabilities::configPin(const std::string& mode,
                                  bool directionOut) const {
+    if (mode == "pwm" || mode == "uart") {
+        return 0;
+    }
+
     pinMode(kernelGpio, directionOut ? OUTPUT : INPUT);
     if (mode == "gpio_pu") {
         pullUpDnControl(kernelGpio, PUD_UP);
@@ -97,3 +101,7 @@ const WPPinCapabilities &WPPinCapabilities::getPinByGPIO(int i) {
     }
     return NULL_WP_INSTANCE;
 }
+static const WPPinCapabilities &WPPinCapabilities::getPinByUART(const std::string &n) {
+    return NULL_WP_INSTANCE;
+}
+

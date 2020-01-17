@@ -42,7 +42,8 @@ public:
     static void Init();
     static const BBBPinCapabilities &getPinByName(const std::string &name);
     static const BBBPinCapabilities &getPinByGPIO(int i);
-    
+    static const BBBPinCapabilities &getPinByUART(const std::string &n);
+
     static std::vector<std::string> getPinNames();
 };
 
