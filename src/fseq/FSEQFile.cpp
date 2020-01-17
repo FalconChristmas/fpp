@@ -704,7 +704,7 @@ public:
     virtual uint8_t getCompressionType() override { return 0;}
     virtual uint32_t computeMaxBlocks() override {return 0;}
     virtual std::string GetType() const override { return "No Compression"; }
-    virtual void prepareRead(uint32_t frame) {
+    virtual void prepareRead(uint32_t frame) override {
         FrameData *f = getFrame(frame);
         if (f) {
             delete f;
