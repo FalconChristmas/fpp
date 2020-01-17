@@ -50,12 +50,10 @@ make install
 make clean
 
 cd /opt/wifi
-git clone https://github.com/abperiasamy/rtl8812AU_8821AU_linux
-cd rtl8812AU_8821AU_linux
-patch -p1 < /opt/wifi/patches/rtl8812AU_8821AU
-#git clone https://github.com/zebulon2/rtl8812au-driver-5.2.9
-#cd rtl8812au-driver-5.2.9
-#patch -p1 < /opt/wifi/patches/rtl8812au
+git clone https://github.com/zebulon2/rtl8812au-5.6.4.2
+cd rtl8812au-5.6.4.2
+sed -i 's/I386_PC = y/I386_PC = n/' Makefile
+sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 make
 make install
 make clean
@@ -70,14 +68,13 @@ make install
 make clean
 
 cd /opt/wifi
-git clone https://github.com/therealmbp/rtl8822bu
-cd rtl8822bu
-patch -p1 < /opt/wifi/patches/rtl8822bu
+git clone https://github.com/cilynx/rtl88x2bu
+cd rtl88x2bu
+sed -i 's/I386_PC = y/I386_PC = n/' Makefile
+sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 make
 make install
 make clean
-
-
 
 
 rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
@@ -92,7 +89,7 @@ echo "options 8723bu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-dis
 echo "options 8812au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8821au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8814au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
-echo "options 8822bu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 88x2bu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options rtl8812au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 
 echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
