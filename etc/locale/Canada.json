@@ -1,5 +1,5 @@
 {
-    "name": "USA",
+    "name": "Canada",
     "holidays": [
         {
             "name": "New Year's Day",
@@ -16,39 +16,11 @@
             "day": 6
         },
         {
-            "name": "MLK Day",
-            "shortName": "MLKDay",
-            "year": 0,
-            "month": 0,
-            "day": 0 ,
-            "calc": {
-                "type": "head",
-                "month": 1,
-                "week": 3,
-                "dow": 1,
-                "offset": 0
-            }
-        },
-        {
             "name": "Valentine's Day",
             "shortName": "ValentinesDay",
             "year": 0,
             "month": 2,
             "day": 14
-        },
-        {
-            "name": "President's Day",
-            "shortName": "PresidentsDay",
-            "year": 0,
-            "month": 0,
-            "day": 0 ,
-            "calc": {
-                "type": "head",
-                "month": 2,
-                "week": 3,
-                "dow": 1,
-                "offset": 0
-            }
         },
         {
             "name": "St. Patrick's Day",
@@ -58,64 +30,50 @@
             "day": 17
         },
         {
-            "name": "Memorial Day Friday",
-            "shortName": "MemorialDayFri",
+            "name": "Canada Day",
+            "shortName": "CanadaDay",
+            "year": 0,
+            "month": 7,
+            "day": 1
+        },
+        {
+            "name": "Labour Day Friday",
+            "shortName": "LabourDayFri",
             "year": 0,
             "month": 0,
             "day": 0 ,
             "calc": {
-                "type": "tail",
-                "month": 5,
+                "type": "head",
+                "month": 9,
                 "week": 1,
                 "dow": 1,
                 "offset": -3
             }
         },
         {
-            "name": "Memorial Day",
-            "shortName": "MemorialDay",
+            "name": "Labour Day",
+            "shortName": "LabourDay",
             "year": 0,
             "month": 0,
             "day": 0 ,
             "calc": {
-                "type": "tail",
-                "month": 5,
+                "type": "head",
+                "month": 9,
                 "week": 1,
                 "dow": 1,
                 "offset": 0
             }
         },
         {
-            "name": "Independence Day",
-            "shortName": "IndependenceDay",
-            "year": 0,
-            "month": 7,
-            "day": 4
-        },
-        {
-            "name": "Labor Day Friday",
-            "shortName": "LaborDayFri",
+            "name": "Thanksgiving",
+            "shortName": "Thanksgiving",
             "year": 0,
             "month": 0,
             "day": 0 ,
             "calc": {
                 "type": "head",
-                "month": 9,
-                "week": 1,
-                "dow": 1,
-                "offset": -3
-            }
-        },
-        {
-            "name": "Labor Day",
-            "shortName": "LaborDay",
-            "year": 0,
-            "month": 0,
-            "day": 0 ,
-            "calc": {
-                "type": "head",
-                "month": 9,
-                "week": 1,
+                "month": 10,
+                "week": 2,
                 "dow": 1,
                 "offset": 0
             }
@@ -128,39 +86,11 @@
             "day": 31
         },
         {
-            "name": "Veteran's Day",
-            "shortName": "VeteransDay",
+            "name": "Remembrance Day",
+            "shortName": "RemembranceDay",
             "year": 0,
             "month": 11,
             "day": 11
-        },
-        {
-            "name": "Thanksgiving",
-            "shortName": "Thanksgiving",
-            "year": 0,
-            "month": 0,
-            "day": 0 ,
-            "calc": {
-                "type": "head",
-                "month": 11,
-                "week": 4,
-                "dow": 4,
-                "offset": 0
-            }
-        },
-        {
-            "name": "Black Friday",
-            "shortName": "BlackFriday",
-            "year": 0,
-            "month": 0,
-            "day": 0 ,
-            "calc": {
-                "type": "head",
-                "month": 11,
-                "week": 4,
-                "dow": 4,
-                "offset": 1
-            }
         },
         {
             "name": "Christmas Eve",
@@ -175,6 +105,13 @@
             "year": 0,
             "month": 12,
             "day": 25
+        },
+        {
+            "name": "Boxing Day",
+            "shortName": "BoxingDay",
+            "year": 0,
+            "month": 12,
+            "day": 26
         },
         {
             "name": "New Years Eve",
