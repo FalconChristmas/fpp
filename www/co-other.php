@@ -1235,8 +1235,8 @@ function PopulateChannelOutputTable(data) {
 
 			newRow += "></td>" +	
 					"<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
-                    "<td style='vertical-align:top'><input class='start' type=text size=6 maxlength=6 value='" + output.startChannel + "'></td>" +
-                    "<td style='vertical-align:top'><input class='count' type=text size=6 maxlength=6 value='" + output.channelCount + "'" + countDisabled + "></td>" +
+                    "<td style='vertical-align:top'><input class='start' type=text size=7 maxlength=7 value='" + output.startChannel + "'></td>" +
+                    "<td style='vertical-align:top'><input class='count' type=text size=7 maxlength=7 value='" + output.channelCount + "'" + countDisabled + "></td>" +
                     "<td style='vertical-align:top' class='config'>";
 
             if ((type == "DMX-Pro") ||
@@ -1643,8 +1643,8 @@ function AddOtherOutput() {
         }
         newRow += "<option value='HTTPVirtualDisplay'>HTTP Virtual Display</option>";
         newRow += "</select><input class='type' type='hidden' name='type' value='None Selected'></td>" +
-			"<td style='vertical-align:top'><input class='start' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
-			"<td style='vertical-align:top'><input class='count' type='text' size=6 maxlength=6 value='' style='display: none;'></td>" +
+			"<td style='vertical-align:top'><input class='start' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
+			"<td style='vertical-align:top'><input class='count' type='text' size=7 maxlength=7 value='' style='display: none;'></td>" +
 			"<td> </td>" +
 			"</tr>";
 
@@ -1693,7 +1693,7 @@ $(document).ready(function(){
 		<fieldset class="fs">
 			<legend> Other Outputs </legend>
 			<div id='divOtherData'>
-				<div style="overflow: hidden; padding: 10px;">
+				<div style="overflow: hidden; padding: 5px;">
 					<form id="frmOtherOutputs">
 						<input name="command" type="hidden" value="saveOtherOutputs" />
 						<table>
@@ -1709,7 +1709,7 @@ $(document).ready(function(){
 									<td>#</td>
 									<td>Active</td>
 									<td>Output Type</td>
-									<td>Start Ch.</td>
+									<td>Start<br>Ch.</td>
 									<td>Channel<br>Count</td>
 									<td>Output Config</td>
 								</tr>

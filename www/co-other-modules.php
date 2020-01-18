@@ -262,9 +262,9 @@ class PCA9685Output extends I2COutput {
                 dataType = config.ports[x].dataType;
             }
             
-            result += "<br>Port: " + x + " - ";
-            result += "Min Value: <input class='min" + x + "' type='number' min='0' max='4095' value='" + min + "'/>";
-            result += " Max Value: <input class='max" + x + "' type='number' min='0' max='4095' value='" + max + "'/> ";
+            result += "<br>Port " + x + ": ";
+            result += "Min Value:<input class='min" + x + "' type='number' min='0' max='4095' value='" + min + "'/>";
+            result += " Max Value:<input class='max" + x + "' type='number' min='0' max='4095' value='" + max + "'/> ";
             result += CreateSelect(datatypes, dataType, "Data Type", "Select Data Type", "dataType" + x);
         }
 
