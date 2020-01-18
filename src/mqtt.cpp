@@ -123,24 +123,36 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	pthread_mutex_init(&m_mosqLock, NULL);
 
     std::function<void(const std::string &, const std::string &)> f = [] (const std::string &topic, const std::string &payload) {
-        std::string ntopic = topic.substr(13); //wrip off /set/command/
-        printf("topic: %s\n",  ntopic.c_str());
-        
-        std::vector<std::string> args = splitWithQuotes(ntopic, '/');
-        std::string command = args[0];
-        args.erase(args.begin());
-        bool foundp = false;
-        for (int x = 0; x < args.size(); x++) {
-            if (args[x] == "{Payload}") {
-                args[x] = payload;
-                foundp = true;
+        if (topic.size() <= 13) {
+            Json::Value val = JSONStringToObject(payload);
+            CommandManager::INSTANCE.run(val);
+        } else {
+            std::vector<std::string> args;
+            std::string command;
+            
+            std::string ntopic = topic.substr(13); //wrip off /set/command/
+            args = splitWithQuotes(ntopic, '/');
+            command = args[0];
+            args.erase(args.begin());
+            bool foundp = false;
+            for (int x = 0; x < args.size(); x++) {
+                if (args[x] == "{Payload}") {
+                    args[x] = payload;
+                    foundp = true;
+                }
+            }
+            if (payload != "" && !foundp)  {
+                args.push_back(payload);
+            }
+            if (args.size() == 0 && payload != "") {
+                Json::Value val = JSONStringToObject(payload);
+                CommandManager::INSTANCE.run(command, val);
+            } else {
+                CommandManager::INSTANCE.run(command, args);
             }
         }
-        if (payload != "" && !foundp)  {
-            args.push_back(payload);
-        }
-        CommandManager::INSTANCE.run(command, args);
     };
+    AddCallback("/set/command", f);
     AddCallback("/set/command/#", f);
 }
 /*

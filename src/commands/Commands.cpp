@@ -177,6 +177,24 @@ std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::str
     return run("URL", uargs);
 }
 
+std::unique_ptr<Command::Result> CommandManager::run(const std::string &command, Json::Value &argsArray) {
+    auto f = commands.find(command);
+    if (f != commands.end()) {
+        LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+        std::vector<std::string> args;
+        for (int x = 0; x < argsArray.size(); x++) {
+            args.push_back(argsArray[x].asString());
+        }
+        return f->second->run(args);
+    }
+    LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
+    return std::make_unique<Command::ErrorResult>("No Command: " + command);
+}
+std::unique_ptr<Command::Result> CommandManager::run(Json::Value &cmd) {
+    std::string command = cmd["command"].asString();
+    return run(command, cmd["args"]);
+}
+
 
 const httpserver::http_response CommandManager::render_GET(const httpserver::http_request &req) {
     int plen = req.get_path_pieces().size();
