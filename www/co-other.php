@@ -1706,12 +1706,12 @@ $(document).ready(function(){
 						<table id="tblOtherOutputs" class='channelOutputTable'>
 							<thead>
 								<tr class='tblheader'>
-									<td>#</td>
-									<td>Active</td>
-									<td>Output Type</td>
-									<td>Start<br>Ch.</td>
-									<td>Channel<br>Count</td>
-									<td>Output Config</td>
+									<th>#</th>
+									<th>Active</th>
+									<th>Output Type</th>
+									<th>Start<br>Ch.</th>
+									<th>Channel<br>Count</th>
+									<th>Output Config</th>
 								</tr>
 							</thead>
 							<tbody>

@@ -129,7 +129,7 @@ function PopulateInterfaces()
 							</tr>
 						</table>
 
-						<table id="tblUniverses" class='channelOutputTable'>
+						<table id="tblUniverses" class='channelOutputTable universeOutputTable'>
 							<thead id='tblUniversesHead'>
 							</thead>
 							<tbody id='tblUniversesBody'>

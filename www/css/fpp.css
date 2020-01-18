@@ -637,7 +637,45 @@ fieldset
 }
 
 .channelOutputTable {
+    background: #F0F0F0;
 	width: 100%;
+    border:thin;
+    border-color:#333;
+    border-spacing: 0px;
+    border-collapse: collapse;
+}
+
+.channelOutputTable tr {
+    border: thin solid;
+    border-color: #CCC;
+}
+
+.channelOutputTable th {
+    vertical-align: bottom;
+    text-align: center;
+    border: solid 2px #888888;
+    font-size: 0.8em;
+    background-color:#CCC;
+}
+
+.universeOutputTable td {
+    text-align: center;
+}
+
+.universeOutputTable input[type=text] {
+    text-align: center;
+    width: 100%;
+}
+.universeOutputTable input[type=number] {
+    text-align: center;
+    width: 100%;
+}
+
+.serialOutputTable {
+    width: 120px;
+}
+.serialOutputTable td {
+    text-align: center;
 }
 
 #fileManager, #channelOutputManager, #channelTester, .fppTabs {

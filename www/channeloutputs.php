@@ -190,14 +190,6 @@ $(document).ready(function(){
 </script>
 <!-- FIXME, move this to CSS to standardize the UI -->
 <style>
-.tblheader{
-    background-color:#CCC;
-    text-align:center;
-}
-.tblheader td {
-    border: solid 2px #888888;
-    text-align:center;
-}
 tr.rowUniverseDetails
 {
     border:thin solid;
@@ -207,33 +199,6 @@ tr.rowUniverseDetails
 tr.rowUniverseDetails td
 {
     padding:1px 5px;
-}
-
-.channelOutputTable
-{
-    border:thin;
-    border-color:#333;
-    border-collapse: collapse;
-}
-
-#tblUniverses th {
-	vertical-align: bottom;
-	text-align: center;
-	border: solid 2px #888888;
-    font-size: 0.8em;
-}
-
-#tblUniverses td {
-	text-align: center;
-}
-
-#tblUniverses input[type=text] {
-	text-align: center;
-	width: 100%;
-}
-#tblUniverses input[type=number] {
-    text-align: center;
-    width: 100%;
 }
 
 </style>

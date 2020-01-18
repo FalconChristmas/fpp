@@ -7,8 +7,10 @@
 }
 
 .outputTable th {
-	vertical-align: bottom;
-    font-size: 0.9em;
+    vertical-align: bottom;
+    text-align: center;
+    border: solid 2px #888888;
+    font-size: 0.8em;
 }
 
 .outputTable td {

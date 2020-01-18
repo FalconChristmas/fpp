@@ -175,8 +175,10 @@ tr.rowUniverseDetails td
 
 .channelInputTable
 {
+    background: #F0F0F0;
     border:thin;
     border-color:#333;
+    border-spacing: 0px;
     border-collapse: collapse;
 }
 

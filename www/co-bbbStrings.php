@@ -56,20 +56,6 @@ var KNOWN_CAPES = {
 };
 </script>
 
-<style>
-.serialOutputTable {
-    background: #F0F0F0;
-    border-spacing: 0px;
-    border-collapse: collapse;
-}
-.serialOutputTable th {
-    vertical-align: bottom;
-}
-.serialOutputTable td {
-    text-align: center;
-}
-</style>
-
 <script>
 function MapPixelStringType(type) {
     return "BBB48String";
@@ -471,7 +457,7 @@ function populatePixelStringOutputs(data) {
                 
                 var outputCount = GetBBB48StringRows();
                 
-                var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='outputTable'>";
+                var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='channelOutputTable'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
 
@@ -846,7 +832,7 @@ $(document).ready(function(){
 							<td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
 						</tr>
                     </table>
-						<table ports='8' id='BBBSerial_Output' class='serialOutputTable'>
+						<table ports='8' id='BBBSerial_Output' class='channelOutputTable serialOutputTable'>
 							<thead>
 								<tr>
 									<th width='30px'>#</th>
