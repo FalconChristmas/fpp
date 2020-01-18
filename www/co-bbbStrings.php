@@ -308,8 +308,8 @@ function BBB48StringExpansionTypeChanged(port) {
     var dt = $('#ExpansionType' + port);
     var val = parseInt(dt.val());
 
-    if (val == 0) {
-        //droping to standard... need to set everything to non-smart first
+    if (val == 0 || val == -1) {
+        //droping to standard/none... need to set everything to non-smart first
         for (var x = 0; x < num; x++) {
             BBB48StringDifferentialTypeChangedTo((port+x), 0);
         }
@@ -318,10 +318,20 @@ function BBB48StringExpansionTypeChanged(port) {
                 var tr = $('#ROW_RULER_DIFFERENTIAL_' + (port+x));
                 tr.remove();
             }
+            if (val == -1) {
+                $('#BBB48String_Output_0_' + (port+x) + '_0').hide();
+            } else {
+                $('#BBB48String_Output_0_' + (port+x) + '_0').show();
+            }
         }
+        
     } else {
         //going to differential, need to add receiver type selections
         for (var x = 0; x < num; x += 4) {
+            $('#BBB48String_Output_0_' + (port+x) + '_0').show();
+            $('#BBB48String_Output_0_' + (port+x+1) + '_0').show();
+            $('#BBB48String_Output_0_' + (port+x+2) + '_0').show();
+            $('#BBB48String_Output_0_' + (port+x+3) + '_0').show();
             var o = port + x;
             var str = "<tr id='ROW_RULER_DIFFERENTIAL_" +o + "'><td colSpan='2'><hr></td>";
             str += "<td></td>";
@@ -461,6 +471,7 @@ function populatePixelStringOutputs(data) {
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
 
+                var expansions = [];
                 var expansionType = 0;
                 var inExpansion = false;
                 for (var o = 0; o < outputCount; o++)
@@ -474,7 +485,10 @@ function populatePixelStringOutputs(data) {
                         if (IsExpansion(subType, o)) {
                             expansionType = port["expansionType"];
                             if (expansionType == null) {
-                                expansionType = 0;
+                                expansionType = data["defaultExpansionType"];
+                                if (expansionType == null) {
+                                    expansionType = 0;
+                                }
                             }
                             str += "<tr><td colSpan='2'><hr></td>";
                             str += "<td></td>";
@@ -482,10 +496,14 @@ function populatePixelStringOutputs(data) {
                             
                             
                             str += "<select id='ExpansionType" + o + "' onChange='BBB48StringExpansionTypeChanged(" + o + ");'>";
+                            str += "<option value='-1'" + (expansionType == -1 ? " selected" : "") + ">None</option>";
                             str += "<option value='0'" + (expansionType == 0 ? " selected" : "") + ">Standard</option>";
                             str += "<option value='1'" + (expansionType == 1 ? " selected" : "") + ">Differential</option>";
                             str += "</select></td><td colSpan='10'><hr></td>";
                             str += "</tr>";
+                            if (expansionType == -1) {
+                                expansions.push(o);
+                            }
                             inExpansion = true;
                         }
                         if (IsDifferential(subType, o) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
@@ -568,6 +586,10 @@ function populatePixelStringOutputs(data) {
                 str += "</table>";
                 
                 $('#pixelOutputs').append(str);
+                
+                expansions.forEach(function(r) {
+                                   BBB48StringExpansionTypeChanged(r);
+                                   });
                 
                 $('#BBB48String').on('mousedown', 'tr', function(event, ui) {
                     $('#pixelOutputs table tr').removeClass('selectedEntry');

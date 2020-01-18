@@ -321,6 +321,11 @@ function setPixelStringsStartChannelOnNextRow()
 
         if (nextRow.html().indexOf('<hr>') != -1)
             nextRow = nextRow.next('tr');
+        if (!nextRow.is(":visible")) {
+            nextRow = nextRow.next('tr');
+        }
+            
+        
 
         nextRow.find('.vsStartChannel').val(nextStart);
         nextRow.addClass('selectedEntry');
@@ -484,17 +489,30 @@ function getPixelStringOutputJSON()
                         var vs = {};
 
                         var row = $('#' + id);
-
-                        vs.description = row.find('.vsDescription').val();
-                        vs.startChannel = parseInt(row.find('.vsStartChannel').val()) - 1;
-                        vs.pixelCount = parseInt(row.find('.vsPixelCount').val());
-                        vs.groupCount = parseInt(row.find('.vsGroupCount').val());
-                        vs.reverse = parseInt(row.find('.vsReverse').val());
-                        vs.colorOrder = row.find('.vsColorOrder').val();
-                        vs.nullNodes = parseInt(row.find('.vsNullNodes').val());
-                        vs.zigZag = parseInt(row.find('.vsZigZag').val());
-                        vs.brightness = parseInt(row.find('.vsBrightness').val());
-                        vs.gamma = row.find('.vsGamma').val();
+                                  
+                        if (!row.is(":visible")) {
+                            vs.pixelCount = 0;
+                            vs.description = "";
+                            vs.startChannel = 0;
+                            vs.groupCount = 0;
+                            vs.reverse = 0;
+                            vs.colorOrder = "RGB";
+                            vs.nullNodes = 0;
+                            vs.zigZag = 0;
+                            vs.brightness = 100;
+                            vs.gamma = "1.0";
+                        } else {
+                            vs.description = row.find('.vsDescription').val();
+                            vs.startChannel = parseInt(row.find('.vsStartChannel').val()) - 1;
+                            vs.pixelCount = parseInt(row.find('.vsPixelCount').val());
+                            vs.groupCount = parseInt(row.find('.vsGroupCount').val());
+                            vs.reverse = parseInt(row.find('.vsReverse').val());
+                            vs.colorOrder = row.find('.vsColorOrder').val();
+                            vs.nullNodes = parseInt(row.find('.vsNullNodes').val());
+                            vs.zigZag = parseInt(row.find('.vsZigZag').val());
+                            vs.brightness = parseInt(row.find('.vsBrightness').val());
+                            vs.gamma = row.find('.vsGamma').val();
+                        }
 
                         virtualStrings.push(vs);
                     }
