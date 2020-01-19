@@ -88,6 +88,12 @@ if [ ${HASSOUND} -eq 1 ]; then
         CARDID=0
         setSetting "AudioOutput" "0"
     fi
+    if [ "$CARDID" == "0" -a -f "/home/fpp/media/tmp/asoundrc" ]; then
+        # if the selected card is the built in card and the cape provides the required asoundrc
+        # then we will use that.   Various capes may need special also configuration in order
+        # to properly be able to have volume control work
+        cp -f "/home/fpp/media/tmp/asoundrc" /root/.asoundrc
+    fi
     VOLUME=$(getSetting volume)
     if [ "x${VOLUME}" = "x" ]; then
         setSetting volume 70
@@ -122,8 +128,7 @@ if [ ${HASSOUND} -eq 1 ]; then
 
     MIXERDEVICES=$(amixer -c $CARDID scontrols | cut -f2 -d"'")
     MIXERDEVICE=$(getSetting AudioMixerDevice)
-    if [ -z ${MIXERDEVICE} ]
-    then
+    if [ -z "${MIXERDEVICE}" ]; then
         MIXERDEVICE=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
         setSetting AudioMixerDevice $MIXERDEVICE
     else
