@@ -474,7 +474,7 @@ int FPD_StartOutputThread(void *data)
 			case EPERM : strcpy(msg, "Invalid Permissions");
 				break;
 		}
-		LogErr(VB_CHANNELOUT, "ERROR creating Triks-C output thread: %s\n", msg );
+		LogErr(VB_CHANNELOUT, "ERROR creating FPD output thread: %s\n", msg );
 	}
 
 	while (!privData->threadIsRunning)
