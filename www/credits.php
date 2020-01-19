@@ -78,11 +78,10 @@ a:visited {
 		<a href='https://github.com/jgarff/rpi_ws281x'>rpi_ws281x</a> by Jeremy Garff.  Used for driving WS281x pixels directly off the Pi's GPIO header.<br />
 		<a href='https://github.com/hzeller/rpi-rgb-led-matrix'>rpi-rgb-led-matrix</a> by Henner Zeller.  Used for driving HUB75 panels directly off the Pi's GPIO header.<br />
 		<a href='https://github.com/TMRh20/RF24'>RF24</a>. Used for driving nRF24L01 output for Komby.<br />
-		<a href='https://www.openlighting.org/'>OLA</a> by the Open Lighting Project (not currently in FPP UI).<br />
 		<br />
         <hr width=180 />
 		<br />
-        Copyright &copy; 2013-2018
+        Copyright &copy; 2013-2020
       </div>
     </div>
     </fieldset>
