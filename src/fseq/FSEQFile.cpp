@@ -1413,7 +1413,7 @@ void V2FSEQFile::writeHeader() {
     uint8_t header[m_seqChanDataOffset];
     memset(header, 0, m_seqChanDataOffset);
 
-    // File identifier (PSEQ) - 4bytes
+    // File identifier (PSEQ) - 4 bytes
     header[0] = 'P';
     header[1] = 'S';
     header[2] = 'E';
