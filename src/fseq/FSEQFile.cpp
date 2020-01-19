@@ -154,11 +154,6 @@ inline uint64_t GetTime(void) {
     return now_tv.tv_sec * 1000000LL + now_tv.tv_usec;
 }
 
-inline long long GetTimeMS(void) {
-    struct timeval now_tv;
-    gettimeofday(&now_tv, NULL);
-    return now_tv.tv_sec * 1000LL + now_tv.tv_usec / 1000;
-}
 inline long roundTo4(long i) {
     long remainder = i % 4;
     if (remainder == 0) {
