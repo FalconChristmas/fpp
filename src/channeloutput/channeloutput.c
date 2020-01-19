@@ -45,7 +45,6 @@
 
 //old style that still need porting
 #include "FPD.h"
-#include "Triks-C.h"
 
 #include "processors/OutputProcessor.h"
 
@@ -310,10 +309,6 @@ int InitializeChannelOutputs(void) {
                     //for LED matrices, the driver is determined by the subType
                     libnamePfx = "matrix-";
                     type = outputs[c]["subType"].asString();
-                // NOW some platform or config specific Channel Outputs
-				} else if (type == "Triks-C") {
-					channelOutputs[i].outputOld = &TriksCOutput;
-					ChannelOutputJSON2CSV(outputs[c], csvConfig);
                 } else if (OUTPUT_REMAPS.find(type) != OUTPUT_REMAPS.end()) {
                     type = OUTPUT_REMAPS[type];
                 }

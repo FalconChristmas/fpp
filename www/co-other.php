@@ -256,76 +256,6 @@ function GetGenericSerialConfig(result, cell) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// LEDTriks/Triks-C Output
-function TriksLayoutSelect(currentValue) {
-	var result = "";
-	var options = "1x1,2x1,3x1,4x1,1x2,2x2,1x3,1x4".split(",");
-
-	result += " Layout (WxH):<select class='layout' onChange='TriksLayoutChanged(this);'>";
-
-	var i = 0;
-	for (i = 0; i < options.length; i++) {
-		var opt = options[i];
-
-		result += "<option value='" + opt + "'";
-		if (currentValue == opt)
-			result += " selected";
-		result += ">" + opt + "</option>";
-	}
-
-	result += "</select>";
-
-	return result;
-}
-
-function TriksLayoutChanged(item) {
-	var value = $(item).val();
-
-	var size = value.split("x");
-
-	var panels = parseInt(size[0]) * parseInt(size[1]);
-	var channels = panels * 768 * 3;
-
-	$(item).parent().parent().find("input.count").val(channels);
-}
-
-function NewTriksConfig() {
-	var config = {};
-
-	config.device = "";
-	config.layout = "";
-
-	return TriksDeviceConfig(config);
-}
-
-function TriksDeviceConfig(config) {
-	var result = "";
-
-	result += DeviceSelect(SerialDevices, config.device);
-	result += TriksLayoutSelect(config.layout);
-
-	return result;
-}
-
-function GetTriksOutputConfig(result, cell) {
-	$cell = $(cell);
-	var device = $cell.find("select.device").val();
-
-	if (device == "")
-		return "";
-
-	var layout = $cell.find("select.layout").val();
-
-	if (layout == "")
-		return "";
-
-	result.device = device;
-	result.layout = layout;
-
-	return result;
-}
-
-/////////////////////////////////////////////////////////////////////////////
 // USB Relay output
 function USBRelayLayoutChanged(item) {
 	var channels = parseInt($(item).val());
@@ -1211,8 +1141,7 @@ function PopulateChannelOutputTable(data) {
 			let output_module = output_modules.find(obj => obj.typeName == type);
 			///////
 
-			if ((type == "Triks-C") ||
-                (type == 'GPIO') ||
+			if ((type == "GPIO") ||
                 (type == 'USBRelay') ||
                 (type == 'Pixelnet-Lynx') ||
                 (type == 'Pixelnet-Open') ||
@@ -1252,8 +1181,6 @@ function PopulateChannelOutputTable(data) {
                 newRow += LOROutputConfig(output);
             } else if (type == "SPI-nRF24L01") {
                 newRow += SPInRFDeviceConfig(output);
-            } else if (type == "Triks-C") {
-                newRow += TriksDeviceConfig(output);
             } else if (type == "GPIO") {
                 newRow += GPIODeviceConfig(output);
             } else if (type == "GPIO-595") {
@@ -1385,14 +1312,6 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 512;
-		} else if (type == "Triks-C") {
-			config = GetTriksOutputConfig(config, $this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid Triks-C Config");
-				return;
-			}
-			maxChannels = 9216;
 		} else if (type == "GPIO") {
 			config = GetGPIOOutputConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1518,10 +1437,6 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "SPI-nRF24L01") {
 		config += NewnRFSPIConfig();
 		row.find("td input.count").val("512");
-	} else if (type == "Triks-C") {
-		config += NewTriksConfig();
-		row.find("td input.count").val("2304");
-		row.find("td input.count").prop('disabled', true);
 	} else if (type == "GPIO") {
 		config += NewGPIOConfig();
 		row.find("td input.count").val("1");
@@ -1573,8 +1488,7 @@ function OtherTypeSelected(selectbox) {
 			 (type == 'LOR') ||
 			 (type == 'Pixelnet-Lynx') ||
 			 (type == 'Pixelnet-Open') ||
-			 (type == 'Renard') ||
-			 (type == 'Triks-C')))
+			 (type == 'Renard')))
 	{
 		$row.remove();
 	}
@@ -1629,7 +1543,6 @@ function AddOtherOutput() {
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>
-        newRow += "<option value='Triks-C'>Triks-C</option>";
         if (Object.keys(SPIDevices).length > 0) {
             newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
                 "<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
