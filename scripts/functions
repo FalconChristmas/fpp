@@ -541,17 +541,6 @@ setupChannelOutputs() {
 }
 
 #############################################################################
-# Start/Stop the Web Socket Server
-startWebSocketServer() {
-	mkdir -p /run/fppd
-	/usr/bin/nohup ${SCRIPTDIR}/fppwss > ${LOGDIR}/fppwss.log 2>&1 &
-}
-
-stopWebSocketServer() {
-	killall -9 fppwss 2> /dev/null
-}
-
-#############################################################################
 # Detect PiFace
 detectPiFace() {
 	ls -1 /dev/spidev*

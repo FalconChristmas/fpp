@@ -30,7 +30,5 @@ nice -n -20 ${FPPBINDIR}/fppd --config-file ${FPPHOME}/media/settings --daemoniz
 # FIXME, find a better way to wait until fppd is up before continuing
 sleep 2
 
-startWebSocketServer
-
 runPostStartScripts
 
