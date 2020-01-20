@@ -1646,7 +1646,6 @@ void V2FSEQFile::dumpInfo(bool indent) {
         ind[0] = 0;
     }
 
-    LogDebug(VB_SEQUENCE, "%sSequence File Information\n", ind);
     LogDebug(VB_SEQUENCE, "%scompressionType       : %d\n", ind, m_compressionType);
     LogDebug(VB_SEQUENCE, "%snumBlocks             : %d\n", ind, m_handler->computeMaxBlocks());
     // Commented out to declutter the logs ... we can add it back in if we start seeing issues
