@@ -297,7 +297,7 @@ FSEQFile* FSEQFile::createFSEQFile(const std::string &fn,
     } else if (version == V2FSEQ_MAJOR_VERSION) {
         return new V2FSEQFile(fn, ct, level);
     }
-    LogErr(VB_SEQUENCE, "Error creating FSEQ file. Unknown version: %d", version);
+    LogErr(VB_SEQUENCE, "Error creating FSEQ file (%s), unknown version %d\n", fn.c_str(), version);
     return nullptr;
 }
 std::string FSEQFile::getMediaFilename(const std::string &fn) {
