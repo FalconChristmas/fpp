@@ -106,7 +106,7 @@ if (file_exists($settings['model-overlays'])) {
 </script>
 
 <table class='settingsTableWrapper'>
-    <tr><td valign='top'><b>General Audio/Video</b>
+    <tr><td><b>General Audio/Video</b>
             <table class='settingsTable'>
                 <tr><td>Audio Output Device:</td>
                     <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 2, 0, "$CurrentCard", $AlsaCards, ""); stt('AudioOutput'); ?></td>
@@ -153,7 +153,7 @@ if (file_exists($settings['model-overlays'])) {
 <? } ?>
             </td>
         <td width='70px'></td>
-        <td valign='top'><b>General Playback</b>
+        <td><b>General Playback</b>
             <table class='settingsTable'>
                 <tr><td>Blank between sequences:</td>
                     <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 2, 0, "1", "0"); stt('blankBetweenSequences'); ?></td>
