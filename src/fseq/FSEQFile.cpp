@@ -237,7 +237,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
     }
 
     // Validate the 4 byte file format identifier is supported
-    if ((tmpData[0] != 'P' && tmpData[0] != 'F' && tmpData[0] != 'E')
+    if ((tmpData[0] != 'P' && tmpData[0] != 'F' && tmpData[0] != V1ESEQ_HEADER_IDENTIFIER)
         || tmpData[1] != 'S'
         || tmpData[2] != 'E'
         || tmpData[3] != 'Q') {
@@ -1403,6 +1403,7 @@ V2FSEQFile::V2FSEQFile(const std::string &fn, CompressionType ct, int cl)
 {
     m_seqVersionMajor = V2FSEQ_MAJOR_VERSION;
     m_seqVersionMinor = V2FSEQ_MINOR_VERSION;
+    
     createHandler();
 }
 void V2FSEQFile::writeHeader() {
