@@ -552,9 +552,9 @@ void V1FSEQFile::writeHeader() {
         writePos += len;
     }
 
-    // Validate final write position does not exceed channel data offset
-    if (writePos > m_seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Final write position (%d) exceeds channel data offset (%d)! This means the header size failed to compute an accurate buffer size.", writePos, m_seqChanDataOffset);
+    // Validate final write position matches expected channel data offset
+    if (roundTo4(writePos) != m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Final write position (%d, roundTo4 = %d) does not match channel data offset (%d)! This means the header size failed to compute an accurate buffer size.\n", writePos, roundTo4(writePos), m_seqChanDataOffset);
     }
 
     // Write full header at once
@@ -1516,9 +1516,9 @@ void V2FSEQFile::writeHeader() {
         writePos += len;
     }
 
-    // Validate final write position does not exceed channel data offset
-    if (writePos > m_seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Final write position (%d) exceeds channel data offset (%d)! This means the header size failed to compute an accurate buffer size.", writePos, m_seqChanDataOffset);
+    // Validate final write position matches expected channel data offset
+    if (roundTo4(writePos) != m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Final write position (%d, roundTo4 = %d) does not match channel data offset (%d)! This means the header size failed to compute an accurate buffer size.\n", writePos, roundTo4(writePos), m_seqChanDataOffset);
     }
 
     // Write full header at once
