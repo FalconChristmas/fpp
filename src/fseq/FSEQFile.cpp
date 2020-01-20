@@ -474,65 +474,84 @@ V1FSEQFile::V1FSEQFile(const std::string &fn)
 }
 
 void V1FSEQFile::writeHeader() {
-    uint8_t header[V1FSEQ_HEADER_SIZE];
-    memset(header, 0, V1FSEQ_HEADER_SIZE);
+    // Compute headerSize to include the header and variable headers
+    int headerSize = V1FSEQ_HEADER_SIZE;
+    headerSize += m_variableHeaders.size() * FSEQ_VARIABLE_HEADER_SIZE;
+    for (auto &a : m_variableHeaders) {
+        headerSize += a.data.size();
+    }
+
+    // Round to a product of 4 for better memory alignment
+    m_seqChanDataOffset = roundTo4(headerSize);
+
+    // Use m_seqChanDataOffset for buffer size to avoid additional writes or buffer allocations
+    // It also comes pre-memory aligned to avoid additional padding
+    uint8_t header[m_seqChanDataOffset];
+    memset(header, 0, m_seqChanDataOffset);
+
+    // File identifier (PSEQ) - 4 bytes
     header[0] = 'P';
     header[1] = 'S';
     header[2] = 'E';
     header[3] = 'Q';
 
-    // data offset
-    uint32_t dataOffset = V1FSEQ_HEADER_SIZE;
-    for (auto &a : m_variableHeaders) {
-        dataOffset += a.data.size() + 4;
-    }
-    dataOffset = roundTo4(dataOffset);
-    write2ByteUInt(&header[4], dataOffset);
+    // Channel data start offset - 2 bytes
+    write2ByteUInt(&header[4], m_seqChanDataOffset);
 
-    header[6] = m_seqVersionMinor; //minor
-    header[7] = m_seqVersionMajor; //major
-    // Fixed header length
+    // File format version - 2 bytes
+    header[6] = m_seqVersionMinor;
+    header[7] = m_seqVersionMajor;
+
+    // Fixed header length - 2 bytes
+    // Unlike m_seqChanDataOffset this is a static value and does not include m_variableHeaders
     write2ByteUInt(&header[8], V1FSEQ_HEADER_SIZE);
-    // Step Size
+    // Channel count - 4 bytes
     write4ByteUInt(&header[10], m_seqChannelCount);
-    // Number of Steps
+    // Number of frames - 4 bytes
     write4ByteUInt(&header[14], m_seqNumFrames);
-    // Step time in ms
+
+    // Step time in milliseconds - 1 byte
     header[18] = m_seqStepTime;
-    //flags
+    // Flags (unused & reserved, should be 0) - 1 byte
     header[19] = 0;
-    // universe count
+
+    // Universe count (unused by fpp, should be 0) - 2 bytes
     write2ByteUInt(&header[20], 0);
-    // universe Size
+    // Universe size (unused by fpp, should be 0) - 2 bytes
     write2ByteUInt(&header[22], 0);
-    // universe Size
+
+    // Gamma (unused by fpp, should be 1) - 1 byte
     header[24] = 1;
-    // color order
+    // Color order (unused by fpp, should be 2) - 1 byte
     header[25] = 2;
+    // Unused and reserved field(s), should be 0 - 2 bytes
     header[26] = 0;
     header[27] = 0;
-    write(header, V1FSEQ_HEADER_SIZE);
+
+    int writePos = V1FSEQ_HEADER_SIZE;
+
+    // Variable headers
+    // 4 byte size minimum (2 byte length + 2 byte code)
     for (auto &a : m_variableHeaders) {
-        uint8_t buf[4];
-        uint32_t len = a.data.size() + 4;
-        write2ByteUInt(buf, len);
-        buf[2] = a.code[0];
-        buf[3] = a.code[1];
-        write(buf, 4);
-        write(&a.data[0], a.data.size());
+        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        write2ByteUInt(&header[writePos], len);
+        header[writePos + 2] = a.code[0];
+        header[writePos + 3] = a.code[1];
+        memcpy(&header[writePos + 4], &a.data[0], a.data.size());
+        writePos += len;
     }
-    uint64_t pos = tell();
-#ifdef _MSC_VER
-    wxASSERT(pos <= dataOffset); // i dont see how this could be wrong but seeing some crashes
-#endif
-    if (pos != dataOffset) {
-        char buf[4] = {0,0,0,0};
-#ifdef _MSC_VER
-        wxASSERT(dataOffset - pos <= 4); // i dont see how this could be wrong but seeing some crashes
-#endif
-        write(buf, dataOffset - pos);
+
+    // Validate final write position does not exceed channel data offset
+    if (writePos > m_seqChanDataOffset) {
+        LogErr(VB_SEQUENCE, "Final write position (%d) exceeds channel data offset (%d)! This means the header size failed to compute an accurate buffer size.", writePos, m_seqChanDataOffset);
     }
-    m_seqChanDataOffset = dataOffset;
+
+    // Write full header at once
+    // header buffer is sized to the value of m_seqChanDataOffset, which comes padded for memory alignment
+    // If writePos extends past m_seqChanDataOffset (in error), writing m_seqChanDataOffset prevents data overflow
+    write(header, m_seqChanDataOffset);
+
+    LogDebug(VB_SEQUENCE, "Setup for writing v1 FSEQ\n");
     dumpInfo(false);
 }
 
@@ -555,7 +574,6 @@ V1FSEQFile::V1FSEQFile(const std::string &fn, FILE *file, const std::vector<uint
 }
 
 V1FSEQFile::~V1FSEQFile() {
-
 }
 
 class UncompressedFrameData : public FSEQFile::FrameData {
