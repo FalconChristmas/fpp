@@ -280,7 +280,7 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
         file = new V2FSEQFile(fn, seqFile, header);
     } else {
         LogErr(VB_SEQUENCE, "Error opening FSEQ file (%s), unknown version %d.%d\n", fn.c_str(), seqVersionMajor, seqVersionMinor);
-        DumpHeader("File header:", headerPeek, bytesRead);
+        DumpHeader("File header:", &header[0], bytesRead);
         fclose(seqFile);
         return nullptr;
     }
