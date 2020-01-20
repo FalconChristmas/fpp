@@ -1556,7 +1556,7 @@ m_handler(nullptr)
             m_compressionType = CompressionType::zlib;
             break;
             default:
-            LogErr(VB_SEQUENCE, "Unknown compression type: %d", (int)header[20]);
+            LogErr(VB_SEQUENCE, "Unknown compression type: %d\n", (int)header[20]);
         }
 
         // readPos tracks the reader index for variable length data past the fixed header size
@@ -1592,7 +1592,7 @@ m_handler(nullptr)
             // For uncompressed blocks, maxBlocks should always be 0 and m_frameOffsets initially empty
             m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(0, m_seqChanDataOffset));
         } else if (m_frameOffsets.size() == 0) {
-            LogErr(VB_SEQUENCE, "FSEQ file corrupt: did not load any block references from header.");
+            LogErr(VB_SEQUENCE, "FSEQ file corrupt: did not load any block references from header.\n");
 
             // File is flagged as compressed but no compression blocks were read
             // The file is likely corrupted, read the full channel data as a single block as a recovery attempt
@@ -1619,7 +1619,7 @@ m_handler(nullptr)
         uint16_t headerSize = read2ByteUInt(&header[8]);
 
         if (readPos != headerSize) {
-            LogErr(VB_SEQUENCE, "Read position (%d) does not match expected header size %d!", readPos, headerSize);
+            LogErr(VB_SEQUENCE, "Read position (%d) does not match expected header size %d!\n", readPos, headerSize);
         }
         
         // Read timestamp based UUID - 8 bytes
