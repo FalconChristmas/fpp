@@ -209,74 +209,82 @@ static const int V1ESEQ_CHANNEL_DATA_OFFSET = 20;
 static const int V1ESEQ_STEP_TIME = 50;
 
 FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
-
     FILE *seqFile = fopen((const char *)fn.c_str(), "rb");
     if (seqFile == NULL) {
-        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. fopen returned NULL\n",
-               fn.c_str());
+        LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s), fopen returned NULL\n", fn.c_str());
         return nullptr;
     }
 
     fseeko(seqFile, 0L, SEEK_SET);
-    unsigned char tmpData[48];
-    int bytesRead = fread(tmpData, 1, 48, seqFile);
+
+    // An initial read request of 8 bytes covers the file identifier, version fields and channel data offset
+    // This is the minimum needed to validate the file and prepare the proper sized buffer for a larger read
+    static const int initialReadLen = 8;
+
+    unsigned char tmpData[initialReadLen];
+    int bytesRead = fread(tmpData, 1, initialReadLen, seqFile);
 #ifndef PLATFORM_UNKNOWN
     posix_fadvise(fileno(seqFile), 0, 0, POSIX_FADV_SEQUENTIAL);
     posix_fadvise(fileno(seqFile), 0, 1024*1024, POSIX_FADV_WILLNEED);
 #endif
 
-    if ((bytesRead < 4)
-        || (tmpData[0] != 'P' && tmpData[0] != 'F' && tmpData[0] != 'E')
+    // Validate bytesRead covers at least the initial read length
+    if (bytesRead < initialReadLen) {
+        LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s) header, required %d bytes but read %d\n", fn.c_str(), initialReadLen, bytesRead);
+        DumpHeader("Initial header read:", tmpData, bytesRead);
+        fclose(seqFile);
+        return nullptr;
+    }
+
+    // Validate the 4 byte file format identifier is supported
+    if ((tmpData[0] != 'P' && tmpData[0] != 'F' && tmpData[0] != 'E')
         || tmpData[1] != 'S'
         || tmpData[2] != 'E'
         || tmpData[3] != 'Q') {
-        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Incorrect File Format header: '%s', bytesRead: %d\n",
-               fn.c_str(), tmpData, bytesRead);
-        DumpHeader("Sequence File head:", tmpData, bytesRead);
+        LogErr(VB_SEQUENCE, "Error pre-reading FSEQ file (%s) header, invalid identifier\n", fn.c_str());
+        DumpHeader("Initial header read:", tmpData, bytesRead);
         fclose(seqFile);
         return nullptr;
     }
-    if (bytesRead < 8) {
-        LogErr(VB_SEQUENCE, "Sequence file %s too short, unable to read FSEQ version fields\n", fn.c_str());
-        DumpHeader("Sequence File head:", tmpData, bytesRead);
-        fclose(seqFile);
-        return nullptr;
-    }
+
+    uint64_t seqChanDataOffset = read2ByteUInt(&tmpData[4]);
     int seqVersionMinor = tmpData[6];
     int seqVersionMajor = tmpData[7];
 
-    ///////////////////////////////////////////////////////////////////////
-    // Get Channel Data Offset
-    uint64_t seqChanDataOffset = read2ByteUInt(&tmpData[4]);
-    
+    // Test for a ESEQ file (identifier[0] == 'E')
+    // ESEQ files are uncompressed V2 FSEQ files with a custom header
     if (tmpData[0] == V1ESEQ_HEADER_IDENTIFIER) {
-        //v1 eseq file.  This is basically an uncompressed v2 file with a custom header
         seqChanDataOffset = V1ESEQ_CHANNEL_DATA_OFFSET;
         seqVersionMajor = V1ESEQ_MAJOR_VERSION;
         seqVersionMinor = V1ESEQ_MINOR_VERSION;
     }
+
+    // Read the full header size (beginning at 0 and ending at seqChanDataOffset)
     std::vector<uint8_t> header(seqChanDataOffset);
     fseeko(seqFile, 0L, SEEK_SET);
     bytesRead = fread(&header[0], 1, seqChanDataOffset, seqFile);
+
     if (bytesRead != seqChanDataOffset) {
-        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Could not read header.\n", fn.c_str());
-        DumpHeader("Sequence File head:", &header[0], bytesRead);
+        LogErr(VB_SEQUENCE, "Error reading FSEQ file (%s) header, length is %d bytes but read %d\n", fn.c_str(), seqChanDataOffset, bytesRead);
+        DumpHeader("Read file header:", &header[0], bytesRead);
         fclose(seqFile);
         return nullptr;
     }
 
+    // Validate the major version is supported
+    // Return a file wrapper to handle version specific metadata
     FSEQFile *file = nullptr;
     if (seqVersionMajor == V1FSEQ_MAJOR_VERSION) {
         file = new V1FSEQFile(fn, seqFile, header);
     } else if (seqVersionMajor == V2FSEQ_MAJOR_VERSION) {
         file = new V2FSEQFile(fn, seqFile, header);
     } else {
-        LogErr(VB_SEQUENCE, "Error opening sequence file: %s. Unknown FSEQ version %d-%d\n",
-               fn.c_str(), seqVersionMajor, seqVersionMinor);
-        DumpHeader("Sequence File head:", tmpData, bytesRead);
+        LogErr(VB_SEQUENCE, "Error opening FSEQ file (%s), unknown version %d.%d\n", fn.c_str(), seqVersionMajor, seqVersionMinor);
+        DumpHeader("File header:", tmpData, bytesRead);
         fclose(seqFile);
         return nullptr;
     }
+
     file->dumpInfo();
     return file;
 }
