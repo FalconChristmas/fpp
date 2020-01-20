@@ -35,9 +35,7 @@
 #include "log.h"
 #include "common.h"
 #include "mediaoutput.h"
-#include "mpg123.h"
 #include "MultiSync.h"
-#include "ogg123.h"
 #include "omxplayer.h"
 #include "SDLOut.h"
 #include "Sequence.h"
@@ -241,17 +239,6 @@ int OpenMediaOutput(const char *filename) {
 #endif
     }
     
-#if !defined(PLATFORM_BBB)
-    // BBB doesn't have mpg123 installed
-	if (getSettingInt("LegacyMediaOutputs")
-        && (ext == "mp3" || ext == "ogg")) {
-		if (ext == "mp3") {
-			mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
-		} else if (ext == "ogg") {
-			mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
-        }
-    } else
-#endif
     if (IsExtensionAudio(ext)) {
         mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI

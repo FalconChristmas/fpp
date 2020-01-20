@@ -394,7 +394,7 @@ case "${OSVER}" in
 								libdbus-glib-1-dev libdevice-serialport-perl libinline-perl libjs-jquery \
 								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
 								libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
-								mp3info mailutils mpg123 mpg321 mplayer nano net-tools node ntp \
+								mp3info mailutils nano net-tools node ntp \
 								php-cli php-common php-curl php-fpm php-xml \
 								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \

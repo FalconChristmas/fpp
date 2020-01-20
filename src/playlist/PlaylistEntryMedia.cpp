@@ -37,8 +37,6 @@
 #include "Plugins.h"
 #include "settings.h"
 #include "common.h"
-#include "mediaoutput/mpg123.h"
-#include "mediaoutput/ogg123.h"
 #include "mediaoutput/omxplayer.h"
 #include "mediaoutput/SDLOut.h"
 #include "Playlist.h"
@@ -315,15 +313,6 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 #endif
     }
 
-#if !defined(PLATFORM_BBB)
-    if (getSettingInt("LegacyMediaOutputs") && (ext == "mp3" || ext == "ogg")) {
-        if (ext == "mp3") {
-            m_mediaOutput = new mpg123Output(tmpFile, &mediaOutputStatus);
-        } else if (ext == "ogg") {
-            m_mediaOutput = new ogg123Output(tmpFile, &mediaOutputStatus);
-        }
-    } else
-#endif
 	if (IsExtensionAudio(ext)) {
         m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
 #ifdef PLATFORM_PI

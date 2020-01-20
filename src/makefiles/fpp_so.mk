@@ -44,8 +44,6 @@ OBJECTS_fpp_so += \
 	mediadetails.o \
 	mediaoutput/MediaOutputBase.o \
 	mediaoutput/mediaoutput.o \
-	mediaoutput/mpg123.o \
-	mediaoutput/ogg123.o \
 	mediaoutput/omxplayer.o \
 	mediaoutput/SDLOut.o \
 	mqtt.o \

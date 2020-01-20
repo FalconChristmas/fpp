@@ -33,9 +33,6 @@
 
 #include "common.h"
 #include "log.h"
-#include "mediaoutput/mpg123.h"
-#include "mediaoutput/ogg123.h"
-#include "mediaoutput/omxplayer.h"
 #include "PlaylistEntryScript.h"
 #include "scripts.h"
 #include "settings.h"
