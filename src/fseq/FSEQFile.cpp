@@ -309,16 +309,16 @@ std::string FSEQFile::getMediaFilename() const {
     return "";
 }
 
+static const int FSEQ_DEFAULT_STEP_TIME = 50;
+
 FSEQFile::FSEQFile(const std::string &fn)
     : m_filename(fn),
     m_seqNumFrames(0),
     m_seqChannelCount(0),
-    m_seqStepTime(50),
+    m_seqStepTime(FSEQ_DEFAULT_STEP_TIME),
     m_variableHeaders(),
     m_uniqueId(0),
     m_seqFileSize(0),
-    m_seqVersionMajor(1),
-    m_seqVersionMinor(0),
     m_memoryBuffer(),
     m_seqChanDataOffset(0),
     m_memoryBufferPos(0)
