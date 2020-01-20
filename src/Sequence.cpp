@@ -532,8 +532,7 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         char thisMajor = m_seqData[getControlMajor()-1];
         char thisMinor = m_seqData[getControlMinor()-1];
 
-        // Change to '== 1' in FPP v3.x and change 'RawEventIDs' setting to match
-        if (m_seqControlRawIDs <= 1)
+        if (m_seqControlRawIDs == 1)
         {
             thisMajor = NormalizeControlValue(thisMajor);
             thisMinor = NormalizeControlValue(thisMinor);

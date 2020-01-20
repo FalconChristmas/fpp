@@ -305,7 +305,7 @@ function SetSpeakerIndicator(value) {
 					<td width='20'></td>
 					<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td>
 					<td width='20'></td>
-					<td>Use Raw Event ID's in Control Channels (instead of 10x Event ID): <? PrintSettingCheckbox("Raw Event IDs", "RawEventIDs", 2, 0, "2", "1", "", ""); ?></td>
+					<td>Use legacy 10x multiplier for Event ID's in Control Channels: <? PrintSettingCheckbox("10x Event IDs", "RawEventIDs", 2, 0, "0", "1", "", ""); ?></td>
 					</tr>
 		</table>
 		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
