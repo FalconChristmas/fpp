@@ -310,6 +310,7 @@ std::string FSEQFile::getMediaFilename() const {
 }
 
 static const int FSEQ_DEFAULT_STEP_TIME = 50;
+static const int FSEQ_VARIABLE_HEADER_SIZE = 4;
 
 FSEQFile::FSEQFile(const std::string &fn)
     : m_filename(fn),
@@ -432,20 +433,31 @@ void FSEQFile::preload(uint64_t pos, uint64_t size) {
 #endif
 }
 
-void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int start) {
-    while (start < header.size() - 5) {
-        int len = read2ByteUInt(&header[start]);
+void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int readPos) {
+    // Continue reading while the buffer can contain at least an other variable header
+    // The file format header length is rounded to 4, so it may have up to 3 bytes of padding data
+    while (header.size() - readPos > FSEQ_VARIABLE_HEADER_SIZE) {
+        // Each variable header has uint16 length, a [2]uint8 code and a data array
+        // The length of the data array is the uint16 length minus its 2 byte length and the [2]uint8 length (4 total)
+        int len = read2ByteUInt(&header[readPos]);
+
         if (len) {
             VariableHeader vheader;
-            vheader.code[0] = header[start + 2];
-            vheader.code[1] = header[start + 3];
-            vheader.data.resize(len - 4);
-            memcpy(&vheader.data[0], &header[start + 4], len - 4);
+            vheader.code[0] = header[readPos + 2];
+            vheader.code[1] = header[readPos + 3];
+
+            int dataLen = len - FSEQ_VARIABLE_HEADER_SIZE;
+            vheader.data.resize(dataLen);
+            memcpy(&vheader.data[0], &header[readPos + FSEQ_VARIABLE_HEADER_SIZE], dataLen);
+
             m_variableHeaders.push_back(vheader);
+
+            readPos += len;
         } else {
-            len += 4;
+            // 0 len value indicates no data, skip forward
+            // This likely means the loop has read padding data
+            readPos += FSEQ_VARIABLE_HEADER_SIZE;
         }
-        start += len;
     }
 }
 void FSEQFile::finalize() {
@@ -648,7 +660,6 @@ uint32_t V1FSEQFile::getMaxChannel() const {
 }
 
 static const int V2FSEQ_HEADER_SIZE = 32;
-static const int V2FSEQ_VARIABLE_HEADER_SIZE = 4;
 static const int V2FSEQ_SPARSE_RANGE_SIZE = 6;
 static const int V2FSEQ_COMPRESSION_BLOCK_SIZE = 8;
 #if !defined(NO_ZLIB) || !defined(NO_ZSTD)
@@ -1408,7 +1419,7 @@ void V2FSEQFile::writeHeader() {
     // Channel data offset is the headerSize plus size of variable headers
     // Round to a product of 4 for better memory alignment
     m_seqChanDataOffset = headerSize;
-    m_seqChanDataOffset += m_variableHeaders.size() * V2FSEQ_VARIABLE_HEADER_SIZE;
+    m_seqChanDataOffset += m_variableHeaders.size() * FSEQ_VARIABLE_HEADER_SIZE;
     for (auto &a : m_variableHeaders) {
         m_seqChanDataOffset += a.data.size();
     }
@@ -1475,7 +1486,7 @@ void V2FSEQFile::writeHeader() {
     // Variable headers
     // 4 byte size minimum (2 byte length + 2 byte code)
     for (auto &a : m_variableHeaders) {
-        uint32_t len = V2FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
+        uint32_t len = FSEQ_VARIABLE_HEADER_SIZE + a.data.size();
         write2ByteUInt(&header[writePos], len);
         header[writePos + 2] = a.code[0];
         header[writePos + 3] = a.code[1];
