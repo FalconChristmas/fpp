@@ -474,6 +474,9 @@ V1FSEQFile::V1FSEQFile(const std::string &fn)
 }
 
 void V1FSEQFile::writeHeader() {
+    // Additional file format documentation available at:
+    // https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L1
+
     // Compute headerSize to include the header and variable headers
     int headerSize = V1FSEQ_HEADER_SIZE;
     headerSize += m_variableHeaders.size() * FSEQ_VARIABLE_HEADER_SIZE;
@@ -552,22 +555,14 @@ void V1FSEQFile::writeHeader() {
     write(header, m_seqChanDataOffset);
 
     LogDebug(VB_SEQUENCE, "Setup for writing v1 FSEQ\n");
-    dumpInfo(false);
+    dumpInfo(true);
 }
 
 V1FSEQFile::V1FSEQFile(const std::string &fn, FILE *file, const std::vector<uint8_t> &header)
 : FSEQFile(fn, file, header) {
-
-    // m_seqNumUniverses = (header[20])       + (header[21] << 8);
-    // m_seqUniverseSize = (header[22])       + (header[23] << 8);
-    // m_seqGamma         = header[24];
-    // m_seqColorEncoding = header[25];
-
-    // 0 = header[26]
-    // 0 = header[27]
     parseVariableHeaders(header, V1FSEQ_HEADER_SIZE);
 
-    //use the last modified time for the uniqueId
+    // Use the last modified time for the uniqueId
     struct stat stats;
     fstat(fileno(file), &stats);
     m_uniqueId = stats.st_mtime;
@@ -1537,7 +1532,8 @@ m_handler(nullptr)
         uint32_t modelStart = read4ByteUInt(&header[12]);
 
         m_compressionType = CompressionType::none;
-        //ESEQ files use 1 based start channels, we need 0 based
+
+        // ESEQ files use 1 based start channels, offset to start at 0
         m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(modelStart ? modelStart - 1 : modelStart, modelLen));
     } else {
         //24-31 - timestamp/uuid/identifier
