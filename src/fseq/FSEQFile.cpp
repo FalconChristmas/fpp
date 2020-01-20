@@ -1528,18 +1528,14 @@ m_compressionType(none),
 m_handler(nullptr)
 {
     if (header[0] == V1ESEQ_HEADER_IDENTIFIER) {
-        uint32_t modelLen = read4ByteUInt(&header[16]);
-        uint32_t modelStart = read4ByteUInt(&header[12]);
-
         m_compressionType = CompressionType::none;
 
         // ESEQ files use 1 based start channels, offset to start at 0
+        uint32_t modelLen = read4ByteUInt(&header[16]);
+        uint32_t modelStart = read4ByteUInt(&header[12]);
+
         m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(modelStart ? modelStart - 1 : modelStart, modelLen));
     } else {
-        //24-31 - timestamp/uuid/identifier
-        uint64_t *a = (uint64_t*)&header[24];
-        m_uniqueId = *a;
-        
         switch (header[20]) {
             case 0:
             m_compressionType = CompressionType::none;
@@ -1553,45 +1549,78 @@ m_handler(nullptr)
             default:
             LogErr(VB_SEQUENCE, "Unknown compression type: %d", (int)header[20]);
         }
-        
-        uint32_t maxBlocks = header[21];
-        
-        uint64_t offset = m_seqChanDataOffset;
-        int hoffset = V2FSEQ_HEADER_SIZE;
-        for (int x = 0; x < maxBlocks; x++) {
-            int frame = read4ByteUInt(&header[hoffset]);
-            hoffset += 4;
-            uint64_t dlen = read4ByteUInt(&header[hoffset]);
-            hoffset += 4;
-            if (dlen > 0) {
-                m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(frame, offset));
-                offset += dlen;
-            }
-            if (x == 0) {
-                uint64_t doff = m_seqChanDataOffset;
-                preload(doff, dlen);
-            }
-        }
-        if (m_frameOffsets.size() == 0) {
-            // FSEQ files with CompressionType::none will have a (safely) empty m_frameOffsets due to maxBlocks == 0
-            if (m_compressionType != CompressionType::none) {
-                //this is bad... not sure what we can do.  We'll force a "0" block to
-                //avoid a crash, but the data might not load correctly
-                LogErr(VB_SEQUENCE, "FSEQ file corrupt: did not load any block references from header.");
+
+        // readPos tracks the reader index for variable length data past the fixed header size
+        // This is used to check for reader index overflows
+        int readPos = V2FSEQ_HEADER_SIZE;
+
+        // Read compression blocks
+        // 8 byte size each (4 byte firstFrame + 4 byte length)
+        // header[21] is the "max blocks count" field
+        uint64_t lastBlockOffset = m_seqChanDataOffset;
+
+        for (int i = 0; i < header[21]; i++) {
+            uint32_t firstFrame = read4ByteUInt(&header[readPos]);
+            uint64_t length = read4ByteUInt(&header[readPos + 4]);
+
+            if (length > 0) {
+                m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(firstFrame, lastBlockOffset));
+                lastBlockOffset += length;
             }
 
-            m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(0, offset));
-            offset += this->m_seqFileSize - offset;
+            readPos += V2FSEQ_COMPRESSION_BLOCK_SIZE;
+
+            // Duplicated legacy behavior
+            // Preloads up to [length] bytes starting at m_seqChanDataOffset
+            // This pre-buffers the first compression block
+            if (i == 0) {
+                preload(m_seqChanDataOffset, length);
+            }            
         }
-        m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(getNumFrames() + 2, offset));
-        //sparse ranges
-        for (int x = 0; x < header[22]; x++) {
-            uint32_t st = read3ByteUInt(&header[hoffset]);
-            uint32_t len = read3ByteUInt(&header[hoffset + 3]);
-            hoffset += 6;
-            m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(st, len));
+
+        if (m_compressionType == CompressionType::none) {
+            // Push frame offsets that cover the entire file length given the channel data is effectively a single block
+            // For uncompressed blocks, maxBlocks should always be 0 and m_frameOffsets initially empty
+            m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(0, m_seqChanDataOffset));
+        } else if (m_frameOffsets.size() == 0) {
+            LogErr(VB_SEQUENCE, "FSEQ file corrupt: did not load any block references from header.");
+
+            // File is flagged as compressed but no compression blocks were read
+            // The file is likely corrupted, read the full channel data as a single block as a recovery attempt
+            m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(0, m_seqChanDataOffset));
         }
-        parseVariableHeaders(header, hoffset);
+
+        // Always push a final frame offset that ensures coverage of the full channel data length
+        m_frameOffsets.push_back(std::pair<uint32_t, uint64_t>(getNumFrames() + 2, this->m_seqFileSize));
+
+        // Read sparse ranges
+        // 6 byte size each (3 byte firstChannel + 3 byte length)
+        // header[22] is the "sparse range count" field
+        for (int i = 0; i < header[22]; i++) {
+            uint32_t startChan = read3ByteUInt(&header[readPos]);
+            uint32_t length = read3ByteUInt(&header[readPos + 3]);
+
+            m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(startChan, length));
+
+            readPos += V2FSEQ_SPARSE_RANGE_SIZE;
+        }
+
+        // Validate read position matches expected header size
+        // This does not include the variable headers length
+        uint16_t headerSize = read2ByteUInt(&header[8]);
+
+        if (readPos != headerSize) {
+            LogErr(VB_SEQUENCE, "Read position (%d) does not match expected header size %d!", readPos, headerSize);
+        }
+        
+        // Read timestamp based UUID - 8 bytes
+        // This does not advance readPos since it is a fixed index
+        m_uniqueId = *((uint64_t*) &header[24]);
+
+        // The remainder of the buffer (m_seqChanDataOffset - headerSize) contains an unknown count of variable headers
+        // This will loop and continue reading until it hits padding or m_seqChanDataOffset
+        // As long as readPos == headerSize prior to this call, the read is a success
+        parseVariableHeaders(header, readPos);
     }
 
     createHandler();
