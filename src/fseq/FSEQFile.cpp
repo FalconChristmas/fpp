@@ -1530,10 +1530,10 @@ m_handler(nullptr)
     if (header[0] == V1ESEQ_HEADER_IDENTIFIER) {
         m_compressionType = CompressionType::none;
 
-        // ESEQ files use 1 based start channels, offset to start at 0
-        uint32_t modelLen = read4ByteUInt(&header[16]);
         uint32_t modelStart = read4ByteUInt(&header[12]);
+        uint32_t modelLen = read4ByteUInt(&header[16]);
 
+        // ESEQ files use 1 based start channels, offset to start at 0
         m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(modelStart ? modelStart - 1 : modelStart, modelLen));
     } else {
         switch (header[20]) {
@@ -1575,7 +1575,7 @@ m_handler(nullptr)
             // This pre-buffers the first compression block
             if (i == 0) {
                 preload(m_seqChanDataOffset, length);
-            }            
+            }
         }
 
         if (m_compressionType == CompressionType::none) {
