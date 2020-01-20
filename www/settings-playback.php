@@ -149,9 +149,8 @@ if (file_exists($settings['model-overlays'])) {
                     <td><? PrintSettingCheckbox("Ignore media sync packets", "remoteIgnoreSync", 2, 0, "1", "0"); stt('remoteIgnoreSync'); ?></td>
                 </tr>
 <?     } ?>
-<? } ?>
-
             </table>
+<? } ?>
             </td>
         <td width='70px'></td>
         <td valign='top'><b>General Playback</b>
