@@ -150,6 +150,27 @@
  	z-index: 10000;
 }	
 
+.settingsTableWrapper td {
+    padding: 0px;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.settingsTable {
+	border-collapse: collapse;
+    border-spacing: 0px;
+}
+
+.settingsTable th {
+    padding: 0px;
+}
+
+.settingsTable td {
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+}
 
 .settings
 {

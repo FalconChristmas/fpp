@@ -425,6 +425,9 @@ $settings['emailfromtext'] = $emailfromtext;
 $settings['emailtoemail'] = $emailtoemail;
 $settings['outputProcessorsFile'] = $outputProcessorsFile;
 
+if ((isset($settings['masqUIPlatform'])) && ($settings['masqUIPlatform'] != ''))
+    $settings['Platform'] = $settings['masqUIPlatform'];
+
 if (!isset($settings['restartFlag']))
 	$settings['restartFlag'] = 0;
 

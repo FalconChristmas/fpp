@@ -303,6 +303,13 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     if ($changedFunction == "")
         $changedFunction = preg_replace('/\./', '', $setting . "Changed");
 
+    $maxTag = 'maxlength';
+    $sizeTag = 'size';
+    if ($inputType == 'number') {
+        $maxTag = 'max';
+        $sizeTag = 'min';
+    }
+
     echo "
     <script>
     function " . $changedFunction . "() {
@@ -328,7 +335,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     </script>
 
     
-    <input type='$inputType' id='$setting' maxlength='$maxlength' size='$size' onChange='" . $changedFunction . "();' value=\"";
+    <input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
 
 	if (isset($settings[$setting]))
 		echo $settings[$setting];

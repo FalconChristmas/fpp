@@ -1,425 +1,136 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php
-
+<?
+require_once('config.php');
 require_once('common.php');
-include 'common/menuHead.inc';
+include('common/menuHead.inc');
 
-exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-if ( $return_val )
-{
-	error_log("Error getting currently selected alsa card used!");
+$info = Array();
+$infoArr = json_decode(file_get_contents('settings.json'), true);
+
+foreach ($infoArr['settings'] as $i) {
+    $info[$i['name']] = $i;
 }
-else
-{
-	if (isset($output[0]))
-		$CurrentCard = $output[0];
-	else
-		$CurrentCard = "0";
-}
-unset($output);
 
-$AlsaCards = Array();
-exec($SUDO . " aplay -l | grep '^card' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq", $output, $return_val);
-if ( $return_val )
-{
-	error_log("Error getting alsa cards for output!");
-}
-else
-{
-	$foundOurCard = 0;
-	foreach($output as $card)
-	{
-		$values = explode(':', $card);
+function stt($setting) {
+    global $info;
+    if (isset($info[$setting])) {
+        ToolTip($info[$setting]['tip']);
 
-		if ($values[0] == $CurrentCard)
-			$foundOurCard = 1;
-
-		if ($values[1] == "bcm2835 ALSA")
-			$AlsaCards[$values[1] . " (Pi Onboard Audio)"] = $values[0];
-		else if ($values[1] == "CD002")
-			$AlsaCards[$values[1] . " (FM Transmitter)"] = $values[0];
-		else
-			$AlsaCards[$values[1]] = $values[0];
-	}
-
-	if (!$foundOurCard)
-		$AlsaCards['-- Select an Audio Device --'] = $CurrentCard;
-}
-unset($output);
-
-$AudioMixerDevice = "PCM";
-if (isset($settings['AudioMixerDevice']))
-{
-	$AudioMixerDevice = $settings['AudioMixerDevice'];
-}
-else if ($settings['Platform'] == "BeagleBone Black")
-{
-	$AudioMixerDevice = exec($SUDO . " amixer -c $CurrentCard scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
-    if ( $return_val )
-    {
-        $AudioMixerDevice = "PCM";
+        if ($info[$setting]['level'] >= 1)
+            echo " <font color='red'>*</font>\n";
     }
 }
-
-$MixerDevices = Array();
-exec($SUDO . " amixer -c $CurrentCard scontrols | cut -f2 -d\"'\"", $output, $return_val);
-if ( $return_val || strpos($output[0], "Usage:") === 0) {
-	error_log("Error getting mixer devices!");
-    $AudioMixerDevice = "PCM";
-} else {
-	foreach($output as $device)
-	{
-		$MixerDevices[$device] = $device;
-	}
-}
-unset($output);
-    
-$VideoOutputModels = Array();
-if ($settings['Platform'] != "BeagleBone Black") {
-    $VideoOutputModels['HDMI'] = "--HDMI--";
-}
-$VideoOutputModels['Disabled'] = "--Disabled--";
-if (file_exists($settings['model-overlays'])) {
-    $json = json_decode(file_get_contents($settings['model-overlays']));
-    foreach ($json->models as $value) {
-        $VideoOutputModels[$value->Name] = $value->Name;
-    }
-}
-
-$backgroundColors = Array();
-$backgroundColors['No Border']   = '';
-$backgroundColors['Red']       = "ff0000";
-$backgroundColors['Green']     = "008000";
-$backgroundColors['Blue']      = "0000ff";
-$backgroundColors['Aqua']      = "00ffff";
-$backgroundColors['Black']     = "000000";
-$backgroundColors['Gray']      = "808080";
-$backgroundColors['Lime']      = "00FF00";
-$backgroundColors['Navy']      = "000080";
-$backgroundColors['Olive']     = "808000";
-$backgroundColors['Purple']    = "800080";
-$backgroundColors['Silver']    = "C0C0C0";
-$backgroundColors['Teal']      = "008080";
-$backgroundColors['White']     = "FFFFFF";
- 
-$locales = Array();
-if ($handle = opendir($fppDir . '/etc/locale'))
-{
-    while (($file = readdir($handle)) !== false)
-    {
-        if (preg_match('/.json$/', $file))
-        {
-            $file = preg_replace('/.json$/', '', $file);
-            $locales[$file] = $file;
-        }
-    }
-}
-    
-$ledTypes = Array();
-    $ledTypes['Disabled'] = 0;
-    $ledTypes['128x64 I2C (SSD1306)'] = 1;
-    $ledTypes['128x64 Flipped I2C (SSD1306)'] = 2;
-    $ledTypes['128x64 2 Color I2C (SSD1306)'] = 7;
-    $ledTypes['128x64 2 Color Flipped I2C (SSD1306)'] = 8;
-    $ledTypes['128x32 I2C (SSD1306)'] = 3;
-    $ledTypes['128x32 Flipped I2C (SSD1306)'] = 4;
-    $ledTypes['128x64 I2C (SH1106)'] = 5;
-    $ledTypes['128x64 Flipped I2C (SH1106)'] = 6;
-    $ledTypes['128x128 I2C (SSD1327)'] = 9;
-    $ledTypes['128x128 Flipped I2C (SSD1327)'] = 10;
-    
-$AudioFormats = Array();
-    $AudioFormats['Default'] = 0;
-    $AudioFormats['44100/S16'] = 1;
-    $AudioFormats['44100/S32'] = 2;
-    $AudioFormats['44100/FLT'] = 3;
-    $AudioFormats['48000/S16'] = 4;
-    $AudioFormats['48000/S32'] = 5;
-    $AudioFormats['48000/FLT'] = 6;
-    $AudioFormats['96000/S16'] = 7;
-    $AudioFormats['96000/S32'] = 8;
-    $AudioFormats['96000/FLT'] = 9;
-    
-    
-$BBBLeds = Array();
-    $BBBLeds['Disabled'] = "none";
-    $BBBLeds['Heartbeat'] = "heartbeat";
-    $BBBLeds['SD Card Activity'] = "mmc0";
-    $BBBLeds['eMMC Activity'] = "mmc1";
-    $BBBLeds['CPU Activity'] = "cpu";
-    
-$BBBPowerLed = Array();
-    $BBBPowerLed['Disabled'] = 0;
-    $BBBPowerLed['Enabled'] = 1;
-
-
 ?>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title><? echo $pageTitle; ?></title>
 
+<script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
+<script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
 
-<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
-<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
 <script>
 
-	var queuedChanges = 0;
-	function MaskChanged(cbox)
-	{
-		var newValue = false;
-		if ($(cbox).is(':checked', true))
-			newValue = true;
-
-		var id = $(cbox).attr('id');
-		if (id == "mask_all")
-		{
-			$('#LogMask input').prop('checked', false);
-			// Do this so we don't have to put class='mask_most,mask_all' on every 'most' items
-			$('#LogMask input.mask_most').prop('checked', newValue);
-			$('#LogMask input.mask_all').prop('checked', newValue);
-			$('#mask_most').prop('checked', false);
-		}
-		else if (id == "mask_most")
-		{
-			$('#LogMask input').prop('checked', false);
-			$('#LogMask input.mask_most').prop('checked', newValue);
-		}
-		else
-		{
-			$('#mask_most').prop('checked', false);
-			$('#mask_all').prop('checked', false);
-		}
-
-		var newValue = "";
-		$('#LogMask input').each(function() {
-				if ($(this).is(':checked', true)) {
-					if (newValue != "") {
-						newValue += ",";
-					}
-					newValue += $(this).attr('id').replace(/(.*,)?mask_/,"");
-				}
-			});
-
-		$.get("fppjson.php?command=setSetting&key=LogMask&value="
-			+ newValue).fail(function() { alert("Error saving new mask") });
-
-		$.ajax({ url: 'fppjson.php?command=setSetting&key=LogMask&value=' + newValue, 
-				async: false,
-				dataType: 'json',
-				success: function(data) {
-					$.jGrowl("Log Mask Saved.");
-				},
-				failure: function(data) {
-					DialogError("Save Log Mask", "Error Saving new Log Mask.");
-				}
-		});
-	}
-
-$(document).ready(function(){
-  var logLevel = settings['LogLevel'];
-  if (typeof logLevel === 'undefined')
-    logLevel = "info";
-
-  $('#LogLevel').val(logLevel);
-
-  var logMasks = Array('most');
-
-  if (typeof settings['LogMask'] !== 'undefined')
-    logMasks = settings['LogMask'].split(",");
-
-  for (var i = 0; i < logMasks.length; i++) {
-    $('#mask_' + logMasks[i]).prop('checked', true);
-  }
-});
-
-function LogLevelChanged()
-{
-	$.get("fppjson.php?command=setSetting&key=LogLevel&value="
-		+ $('#LogLevel').val()).fail(function() { alert("Error saving new level") });
-}
-
-function SetAudio()
-{
-	$.get("fppjson.php?command=setSetting&key=AudioOutput&value="
-		+ $('#AudioOutput').val()).fail(function() { alert("Failed to change audio output!") });
-    location.reload();
-}
-
-function SetMixerDevice()
-{
-	$.get("fppjson.php?command=setSetting&key=AudioMixerDevice&value="
-		+ $('#AudioMixerDevice').val()).fail(function() { alert("Failed to change audio output!") });
-}
-
-function ToggleLCDNow()
-{
-	var enabled = $('#PI_LCD_Enabled').is(":checked");
-	$.get("fppxml.php?command=setPiLCDenabled&enabled="
-		+ enabled).fail(function() { alert("Failed to enable LCD!") });
+function reloadSettingsPage() {
+    location.href = '/settings.php?tab=' + $('#tabs').tabs('option', 'active');
 }
 
 </script>
-<title><? echo $pageTitle; ?></title>
+
 </head>
+
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
-  <br/>
-<FORM NAME="frmSettings">
-<div id="global" class="settings">
-<fieldset>
-<legend>FPP Global Settings</legend>
-  <table table width = "100%">
-<?php
-    if ($settings['Platform'] == "Raspberry Pi") {
-?>
-    <tr>
-      <td width = "45%">Blank screen on startup:</td>
-      <td width = "55%"><? PrintSettingCheckbox("Screensaver", "screensaver", 0, 1, "1", "0"); ?></td>
-    </tr>
-    <tr>
-      <td>Force HDMI Display:</td>
-      <td><? PrintSettingCheckbox("Force HDMI Display", "ForceHDMI", 0, 1, "1", "0"); ?></td>
-    </tr>
-    <tr>
-      <td>Force Legacy audio outputs (mpg123/ogg123):</td>
-      <td><? PrintSettingCheckbox("Force Legacy Audio Outputs", "LegacyMediaOutputs", 0, 0, "1", "0"); ?></td>
-    </tr>
-    <tr>
-      <td>Pi 2x16 LCD Enabled:</td>
-      <td><? PrintSettingCheckbox("Enable LCD Display", "PI_LCD_Enabled", 0, 0, "1", "0", "", "ToggleLCDNow"); ?></td>
-    </tr>
-<?php
-}
-?>
-    <tr>
-      <td>Always transmit channel data:</td>
-      <td><? PrintSettingCheckbox("Always Transmit", "alwaysTransmit", 2, 0, "1", "0"); ?></td>
-    </tr>
-    <tr>
-      <td>Blank between sequences:</td>
-      <td><? PrintSettingCheckbox("Blank Between Sequences", "blankBetweenSequences", 2, 0, "1", "0"); ?></td>
-    </tr>
-    <tr>
-      <td>Pause Background Effect Sequence when playing a FSEQ file:</td>
-      <td><? PrintSettingCheckbox("Pause Background Effects", "pauseBackgroundEffects", 2, 0, "1", "0"); ?></td>
-    </tr>
-    <tr>
-      <td>Default Video Output Device:</td>
-<td><? PrintSettingSelect("Video Output Device", "VideoOutput", 0, 0, isset($settings['videoOutput']) ? $settings['videoOutput'] : array_values($VideoOutputModels)[0], $VideoOutputModels); ?></td>
-    </tr>
-<?php
- if ($settings['Platform'] == "Raspberry Pi") {
-?>
-    <tr>
-      <td>OMXPlayer (mp4 playback) Audio Output:</td>
-      <td><? PrintSettingSelect("OMXPlayer Audio Device", "OMXPlayerAudioOutput", 0, 0, isset($settings['OMXPlayerAudioOutput']) ? $settings['OMXPlayerAudioOutput'] : "0",
-                                Array("ALSA" => "alsa", "HDMI" => "hdmi", "Local" => "local", "Both" => "both", "Disabled" => "disabled")); ?>
-     </td>
-    </tr>
-    <tr>
-      <td>Disable IP announcement during boot:</td>
-      <td><? PrintSettingCheckbox("Disable IP announcement during boot", "disableIPAnnouncement", 0, 0, "1", "0"); ?></td>
-    </tr>
-<?php
- }
-?>
-    <tr>
-      <td>Audio Output Device:</td>
-      <td><? PrintSettingSelect("Audio Output Device", "AudioOutput", 2, 0, "$CurrentCard", $AlsaCards, "", "SetAudio"); ?></td>
-    </tr>
-    <tr>
-      <td>Audio Output Mixer Device:</td>
-      <td><? PrintSettingSelect("Audio Mixer Device", "AudioMixerDevice", 2, 0, $AudioMixerDevice, $MixerDevices, "", "SetMixerDevice"); ?></td>
-    </tr>
-    <tr>
-      <td>Audio Output Format:</td>
-      <td><? PrintSettingSelect("Audio Output Format", "AudioFormat", 2, 0, isset($settings['AudioFormat']) ? $settings['AudioFormat'] : "0", $AudioFormats); ?></td>
-    </tr>
-    <tr>
-      <td>UI Border Color:</td>
-      <td><? PrintSettingSelect("UI Background Color", "backgroundColor", 0, 0, isset($settings['backgroundColor']) ? $settings['backgroundColor'] : "", $backgroundColors, "", "reloadPage"); ?></td>
-    </tr>
-<? 
-   if ( file_exists("/dev/i2c-1") || file_exists("/dev/i2c-2") ) { ?>
-    <tr>
-        <td>OLED Status Display:</td>
-        <td><? PrintSettingSelect("OLED Status Display", "LEDDisplayType", 0, 1, isset($settings['LEDDisplayType']) ? $settings['LEDDisplayType'] : "", $ledTypes); ?>
-        </td>
-    </tr>
+<?php include 'menu.inc'; ?>
+<div id="fileManager">
+    <br />
+    <div class='title'>FPP Settings</div>
+    <div id="tabs">
+        <ul>
+            <li><a href="#tab-playback">Playback</a></li>
+            <li><a href="#tab-network">Network</a></li>
+            <li><a href="#tab-time">Time</a></li>
+            <li><a href="#tab-ui">UI</a></li>
+            <li><a href="#tab-email">Email</a></li>
+            <li><a href="#tab-proxy">Proxy</a></li>
+            <li><a href="#tab-mqtt">MQTT</a></li>
+            <li><a href="#tab-output">Output</a></li>
+            <li><a href="#tab-logs">Logging</a></li>
+            <li><a href="#tab-system">System</a></li>
+<? if ($uiLevel >= 3) echo "<li><a href='#tab-developer'>Developer</a></li>\n"; ?>
+        </ul>
+
+    <div id='tab-playback'>
+        <? include 'settings-playback.php'; ?>
+    </div>
+
+    <div id='tab-network'>
+        <? include 'settings-network.php'; ?>
+    </div>
+
+    <div id='tab-time'>
+        <? include 'settings-time.php'; ?>
+    </div>
+
+    <div id='tab-ui'>
+        <? include 'settings-ui.php'; ?>
+    </div>
+
+    <div id='tab-email'>
+        <? include 'settings-email.php'; ?>
+    </div>
+
+    <div id='tab-proxy'>
+        <? include 'settings-proxy.php'; ?>
+    </div>
+
+    <div id='tab-mqtt'>
+        <? include 'settings-mqtt.php'; ?>
+    </div>
+
+    <div id='tab-output'>
+        <? include 'settings-output.php'; ?>
+    </div>
+
+    <div id='tab-logs'>
+        <? include 'settings-logs.php'; ?>
+    </div>
+
+    <div id='tab-system'>
+        <? include 'settings-system.php'; ?>
+    </div>
+
+<? if ($uiLevel >= 3) { ?>
+    <div id='tab-developer'>
+        <? include 'settings-developer.php'; ?>
+    </div>
 <? } ?>
 
-    <tr>
-      <td>Locale:</td>
-      <td><? PrintSettingSelect("Locale", "Locale", 2, 0, isset($settings['Locale']) ? $settings['Locale'] : "global", $locales); ?>
-     </td>
-    </tr>
-
-    <tr>
-      <td>Log Level:</td>
-      <td><select id='LogLevel' onChange='LogLevelChanged();'>
-            <option value='warn'>Warn</option>
-            <option value='info'>Info</option>
-            <option value='debug'>Debug</option>
-            <option value='excess'>Excessive</option>
-          </select></td>
-    </tr>
-    <tr>
-      <td valign='top'>Log Mask:</td>
-      <td>
-        <table border=0 cellpadding=2 cellspacing=5 id='LogMask'>
-          <tr>
-            <td valign=top>
-              <input type='checkbox' id='mask_all' class='mask_all' onChange='MaskChanged(this);'>ALL<br>
-              <br>
-              <input type='checkbox' id='mask_channeldata' class='mask_all' onChange='MaskChanged(this);'>Channel Data<br>
-              <input type='checkbox' id='mask_channelout' class='mask_most' onChange='MaskChanged(this);'>Channel Outputs<br>
-              <input type='checkbox' id='mask_command' class='mask_most' onChange='MaskChanged(this);'>Commands<br>
-              <input type='checkbox' id='mask_control' class='mask_most' onChange='MaskChanged(this);'>Control Interface<br>
-              <input type='checkbox' id='mask_e131bridge' class='mask_most' onChange='MaskChanged(this);'>E1.31 Bridge<br>
-              <input type='checkbox' id='mask_effect' class='mask_most' onChange='MaskChanged(this);'>Effects<br>
-              <input type='checkbox' id='mask_event' class='mask_most' onChange='MaskChanged(this);'>Events<br>
-              <input type='checkbox' id='mask_general' class='mask_most' onChange='MaskChanged(this);'>General<br>
-              </td>
-            <td width='10px'></td>
-            <td valign=top>
-              <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most (default)<br>
-              <br>
-              <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
-              <input type='checkbox' id='mask_mediaout' class='mask_most' onChange='MaskChanged(this);'>Media Outputs<br>
-              <input type='checkbox' id='mask_sync' class='mask_most' onChange='MaskChanged(this);'>MultiSync<br>
-              <input type='checkbox' id='mask_playlist' class='mask_most' onChange='MaskChanged(this);'>Playlists<br>
-              <input type='checkbox' id='mask_plugin' class='mask_most' onChange='MaskChanged(this);'>Plugins<br>
-              <input type='checkbox' id='mask_schedule' class='mask_most' onChange='MaskChanged(this);'>Scheduler<br>
-              <input type='checkbox' id='mask_sequence' class='mask_most' onChange='MaskChanged(this);'>Sequence Parser<br>
-              <input type='checkbox' id='mask_setting' class='mask_most' onChange='MaskChanged(this);'>Settings<br>
-              </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-<?php
-    if ($settings['Platform'] == "BeagleBone Black") {
-?>
-    <tr>
-        <td valign='top'>BeagleBone LEDs:</td>
-        <td>
-            <table border=0 cellpadding=0 cellspacing=5 id='BBBLeds'>
-                <tr><td valign=top>USR0:</td><td><? PrintSettingSelect("USR0 LED", "BBBLeds0", 0, 0, isset($settings['BBBLeds0']) ? $settings['BBBLeds0'] : "heartbeat", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>USR1:</td><td><? PrintSettingSelect("USR1 LED", "BBBLeds1", 0, 0, isset($settings['BBBLeds1']) ? $settings['BBBLeds1'] : "mmc0", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>USR2:</td><td><? PrintSettingSelect("USR2 LED", "BBBLeds2", 0, 0, isset($settings['BBBLeds2']) ? $settings['BBBLeds2'] : "cpu", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>USR3:</td><td><? PrintSettingSelect("USR3 LED", "BBBLeds3", 0, 0, isset($settings['BBBLeds3']) ? $settings['BBBLeds3'] : "mmc1", $BBBLeds); ?></td></tr>
-                <tr><td valign=top>Power:</td><td><? PrintSettingSelect("Power LED", "BBBLedPWR", 0, 0, isset($settings['BBBLedPWR']) ? $settings['BBBLedPWR'] : 1, $BBBPowerLed); ?></td></tr>
-            </table>
-        </td>
-    </tr>
-<? } ?>
-
-<tr><td><a href="advancedsettings.php">Advanced Settings</a></td></tr>
-  </table>
-
-</fieldset>
 </div>
-</FORM>
+
+<? if ($uiLevel >= 1) { ?>
+<font color='red'>* Advanced Level Setting</font><br>
+<br>
+<a href="advancedsettings.php">Advanced Settings</a>  NOTE: The Advanced Settings page is being deprecated with settings moved into appropriate tabs on this page and marked as Advanced settings.
+<? } ?>
+
 <?php	include 'common/footer.inc'; ?>
+<script>
+	var activeTabNumber = 
+<?php
+	if (isset($_GET['tab']))
+		print $_GET['tab'];
+	else
+		print "0";
+?>;
+
+    $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+
+$( function() {
+    $(document).tooltip();
+});
+
+</script>
+
 </body>
 </html>
