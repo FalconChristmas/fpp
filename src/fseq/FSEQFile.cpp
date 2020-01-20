@@ -202,6 +202,12 @@ static const int V1FSEQ_MAJOR_VERSION = 1;
 static const int V2FSEQ_MINOR_VERSION = 0;
 static const int V2FSEQ_MAJOR_VERSION = 2;
 
+static const int V1ESEQ_MINOR_VERSION = 0;
+static const int V1ESEQ_MAJOR_VERSION = 2;
+static const int V1ESEQ_HEADER_IDENTIFIER = 'E';
+static const int V1ESEQ_CHANNEL_DATA_OFFSET = 20;
+static const int V1ESEQ_STEP_TIME = 50;
+
 FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
 
     FILE *seqFile = fopen((const char *)fn.c_str(), "rb");
@@ -243,11 +249,11 @@ FSEQFile* FSEQFile::openFSEQFile(const std::string &fn) {
     // Get Channel Data Offset
     uint64_t seqChanDataOffset = read2ByteUInt(&tmpData[4]);
     
-    if (tmpData[0] == 'E') {
+    if (tmpData[0] == V1ESEQ_HEADER_IDENTIFIER) {
         //v1 eseq file.  This is basically an uncompressed v2 file with a custom header
-        seqChanDataOffset = 20;
-        seqVersionMajor = V2FSEQ_MAJOR_VERSION;
-        seqVersionMinor = V2FSEQ_MINOR_VERSION;
+        seqChanDataOffset = V1ESEQ_CHANNEL_DATA_OFFSET;
+        seqVersionMajor = V1ESEQ_MAJOR_VERSION;
+        seqVersionMinor = V1ESEQ_MINOR_VERSION;
     }
     std::vector<uint8_t> header(seqChanDataOffset);
     fseeko(seqFile, 0L, SEEK_SET);
@@ -360,13 +366,13 @@ FSEQFile::FSEQFile(const std::string &fn, FILE *file, const std::vector<uint8_t>
     m_seqFileSize = ftello(m_seqFile);
     fseeko(m_seqFile, 0L, SEEK_SET);
 
-    if (header[0] == 'E') {
-        m_seqChanDataOffset = 20;
-        m_seqVersionMinor = V2FSEQ_MINOR_VERSION;
-        m_seqVersionMajor = V2FSEQ_MAJOR_VERSION;
+    if (header[0] == V1ESEQ_HEADER_IDENTIFIER) {
+        m_seqChanDataOffset = V1ESEQ_CHANNEL_DATA_OFFSET;
+        m_seqVersionMinor = V1ESEQ_MINOR_VERSION;
+        m_seqVersionMajor = V1ESEQ_MAJOR_VERSION;
         m_seqChannelCount = read4ByteUInt(&header[8]);
-        m_seqStepTime = 50;
-        m_seqNumFrames = (m_seqFileSize - 20) / m_seqChannelCount;
+        m_seqStepTime = V1ESEQ_STEP_TIME;
+        m_seqNumFrames = (m_seqFileSize - V1ESEQ_CHANNEL_DATA_OFFSET) / m_seqChannelCount;
     } else {
         m_seqChanDataOffset = read2ByteUInt(&header[4]);
         m_seqVersionMinor = header[6];
@@ -1497,7 +1503,7 @@ V2FSEQFile::V2FSEQFile(const std::string &fn, FILE *file, const std::vector<uint
 m_compressionType(none),
 m_handler(nullptr)
 {
-    if (header[0] == 'E') {
+    if (header[0] == V1ESEQ_HEADER_IDENTIFIER) {
         uint32_t modelLen = read4ByteUInt(&header[16]);
         uint32_t modelStart = read4ByteUInt(&header[12]);
 
