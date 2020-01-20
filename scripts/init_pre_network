@@ -132,18 +132,6 @@ then
     configureBBBLeds
 fi
 
-if [ "${FPPPLATFORM}" == "Raspberry Pi" ]; then
-	PiLCDenabled=$(getSetting PI_LCD_Enabled)
-
-	if [ "x${PiLCDenabled}" = "x1" ]
-	then
-	  echo "FPP - Checking for configured LCD, LCD Enabled, starting LCD daemon"
-	  ${FPPDIR}/scripts/lcd/fppLCD start
-	else
-	  echo "FPP - Checking for configured LCD, LCD Disabled"
-	fi
-fi
-
 ##############################################################################
 # Leave these things till last so user can see output of anything above here
 ##############################################################################

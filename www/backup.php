@@ -776,15 +776,6 @@ function process_restore_data($restore_area, $restore_area_data)
                             //we'll also do this to keep consistency
                             if ($setting_name == 'piRTC') {
                                 SetPiRTC($setting_value);
-                            } else if ($setting_name == "PI_LCD_Enabled") {
-                                //DO a weird work around and set our request params and then call
-                                //the function to enable the LCD
-                                if ($setting_value == 1) {
-                                    $_GET['enabled'] = "true";
-                                } else {
-                                    $_GET['enabled'] = "false";
-                                }
-                                SetPiLCDenabled();
                             } else if ($setting_name == "AudioOutput") {
                                 $args['value'] = $setting_value;
                                 SetAudioOutput($setting_value);
