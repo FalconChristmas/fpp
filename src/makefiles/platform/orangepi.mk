@@ -10,7 +10,4 @@ CXXFLAGS_util/GPIOUtils.o+=-DUSEWIRINGPI
 CFLAGS += \
 	-DPLATFORM_ORANGEPI \
 	$(NULL)
-OBJECTS_fpp_so += \
-	channeloutput/Hill320.o \
-	$(NULL)
 endif
