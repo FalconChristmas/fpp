@@ -1,5 +1,4 @@
 <script src='js/fabric.min.js'></script>
-<script src='js/fabric_snap.js'></script>
 <script>
 
 <?
