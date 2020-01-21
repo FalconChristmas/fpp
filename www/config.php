@@ -240,6 +240,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
 	$settings['Logo'] = "orangepi_logo.png";
 	$settings['LogoLink'] = "http://www.orangepi.org/";
 	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
+	if (preg_match('/Orange Pi Zero/', $settings['SubPlatform'])) {
+		$settings['Logo'] = "orangepi_zero_logo.png";
+	}
 } else if ($settings['Platform'] == "Pine64") {
 	$settings['Logo'] = "pine64_logo.png";
 	$settings['LogoLink'] = "https://www.pine64.org/";
