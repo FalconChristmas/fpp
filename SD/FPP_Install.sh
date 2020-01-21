@@ -400,11 +400,15 @@ case "${OSVER}" in
 								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
 								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
 								dhcp-helper hostapd parprouted bridge-utils cpufrequtils \
-								firmware-atheros firmware-ralink firmware-brcm80211 \
 								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
                                 libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
 								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 \
                                 libzstd-dev zstd gpiod libgpiod-dev"
+
+				if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]
+				then
+					PACKAGE_LIST="$PACKAGE_LIST firmware-atheros firmware-ralink firmware-brcm80211"
+				fi
 				;;
 		esac
 
