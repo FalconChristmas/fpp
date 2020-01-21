@@ -1050,8 +1050,8 @@ function ToggleAdvancedLayout() {
     if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
         if (typeof channelOutputsLookup["LEDPanelMatrix"] === 'undefined') {
             SaveChannelOutputsJSON();
-            $('#LEDPanelUIPixelsWide').val(LEDPanelWidth * LEDPanelCols);
-            $('#LEDPanelUIPixelsHigh').val(LEDPanelHeight * LEDPanelRows);
+            $('#LEDPanelUIPixelsWide').val(LEDPanelWidth * (LEDPanelCols + 1));
+            $('#LEDPanelUIPixelsHigh').val(LEDPanelHeight * (LEDPanelRows + 1));
         }
 
         if (canvasInitialized)
