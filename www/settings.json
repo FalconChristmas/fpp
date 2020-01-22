@@ -563,7 +563,7 @@
         },
         "showAllOptions": {
             "name": "showAllOptions",
-            "desc": "Display all options/settings",
+            "desc": "Display all hardware options/settings",
             "tip": "If FPPD can detect what hardware (cape/hat/etc...) is connected, certain options that are either incompatible with the hardware or are rarely used may not be displayed.  This setting forces FPP to display to display all options even for hardware that was not detected.",
             "level": 1,
             "reboot": 0,
