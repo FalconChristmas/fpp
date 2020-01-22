@@ -231,7 +231,7 @@ function GetLEDPanelColorOrder(key, selectedItem)
 	return html;
 }
 
-function LEDPanelLayoutChanged()
+function UpdateLegacyLEDPanelLayout()
 {
 	var layout = $('#LEDPanelsLayout').val();
 	var parts = layout.split("x");
@@ -246,23 +246,20 @@ function LEDPanelLayoutChanged()
         $('#LEDPanelInterleave').removeAttr("disabled");
     }
 
-    if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
-        channelOutputsLookup["LEDPanelMatrix"].panelWidth = LEDPanelWidth;
-        channelOutputsLookup["LEDPanelMatrix"].panelHeight = LEDPanelHeight;
+    var pixelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight;
+    $('#LEDPanelsPixelCount').html(pixelCount);
 
-        for (var i = 0; i < channelOutputsLookup["LEDPanelMatrix"].panels.length; i++) {
-            SetupCanvasPanel(i);
-        }
-        UpdateMatrixSize();
-    } else {
-        var pixelCount = LEDPanelCols * LEDPanelRows * LEDPanelWidth * LEDPanelHeight;
-        $('#LEDPanelsPixelCount').html(pixelCount);
-
-        var channelCount = pixelCount * 3;
-        $('#LEDPanelsChannelCount').html(channelCount);
-    }
+    var channelCount = pixelCount * 3;
+    $('#LEDPanelsChannelCount').html(channelCount);
 
 	DrawLEDPanelTable();
+}
+
+function LEDPanelLayoutChanged()
+{
+    UpdateLegacyLEDPanelLayout();
+
+    setTimeout(function () { SaveChannelOutputsJSON(); }, 500);
 }
 
 function FrontBackViewToggled() {
@@ -1019,13 +1016,22 @@ function SetCanvasSize() {
     ledPanelCanvas.renderAll();
 }
 
-function InitializeCanvas() {
+function InitializeCanvas(reinit) {
     canvasInitialized = 1;
-    ledPanelCanvas = new fabric.Canvas('ledPanelCanvas',
-        {
-            backgroundColor: '#a0a0a0',
-            selection: false
-        });
+
+    if (reinit) {
+        selectedPanel = -1;
+        for (var key in panelGroups) {
+            ledPanelCanvas.remove(panelGroups[key].group);
+        }
+        panelGroups = [];
+    } else {
+        ledPanelCanvas = new fabric.Canvas('ledPanelCanvas',
+            {
+                backgroundColor: '#a0a0a0',
+                selection: false
+            });
+    }
 
     SetCanvasSize();
 
@@ -1048,14 +1054,16 @@ function ToggleAdvancedLayout() {
             $('#LEDPanelUIPixelsHigh').val(LEDPanelHeight * (LEDPanelRows + 1));
         }
 
-        if (!canvasInitialized)
-            InitializeCanvas();
+        if (canvasInitialized)
+            InitializeCanvas(1);
+        else
+            InitializeCanvas(0);
 
         UpdateMatrixSize();
         $('.ledPanelSimpleUI').hide();
         $('.ledPanelCanvasUI').show();
     } else {
-        LEDPanelLayoutChanged();
+        UpdateLegacyLEDPanelLayout();
         $('.ledPanelCanvasUI').hide();
         $('.ledPanelSimpleUI').show();
     }
@@ -1102,9 +1110,11 @@ $(document).ready(function(){
     SetupAdvancedUISelects();
 
     if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
-        InitializeCanvas();
+        InitializeCanvas(0);
         $('.ledPanelSimpleUI').hide();
         $('.ledPanelCanvasUI').show();
+    } else {
+        $('.ledPanelCanvasUI').hide();
     }
 });
 
