@@ -149,16 +149,11 @@ then
 fi
 
 # Parse build options as arguments
-build_ola=false
 build_omxplayer=false
 clone_fpp=true
 skip_apt_install=false
 while [ -n "$1" ]; do
 	case $1 in
-		--build-ola)
-			build_ola=true
-			shift
-			;;
 		--build-omxplayer)
 			build_omxplayer=true
 			shift
@@ -216,7 +211,6 @@ echo "FPP Branch       : ${FPPBRANCH}"
 echo "Operating System : ${PRETTY_NAME}"
 echo "Platform         : ${FPPPLATFORM}"
 echo "OS Version       : ${OSVER}"
-echo "Build OLA        : $build_ola"
 if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
 echo "Build omxplayer  : $build_omxplayer"
 fi
@@ -498,10 +492,6 @@ case "${FPPPLATFORM}" in
 				echo "FPP - Installing BeagleBone Overlays"
 				cd /opt/ && git clone https://github.com/beagleboard/bb.org-overlays && cd /opt/bb.org-overlays && make && make install && cd /opt/ && rm -rf bb.org-overlays
 
-				echo "FPP - Installing OLA"
-				apt-get -y install ola ola-python libola-dev libola1 libprotobuf-dev libprotobuf9
-				update-rc.d olad remove
-
 				echo "FPP - Updating locale"
 				sed -i -e 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 				dpkg-reconfigure --frontend=noninteractive locales
@@ -540,24 +530,6 @@ case "${FPPPLATFORM}" in
         echo "FPP - Install kernel headers so modules can be compiled later"
         apt-get -y install raspberrypi-kernel-headers
 
-		# TODO: Shouldn't this stuff go somewhere besides the Pi section?  I
-		# believe OLA is supported across most linux systems.  It can probably
-		# go in another location.
-		if $build_ola; then
-			echo "FPP - Installing OLA from source"
-			apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-			apt-get -y clean
-			git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-			(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
-			rm -rf /opt/ola
-		else
-			echo "FPP - Installing OLA"
-			case "${OSVER}" in
-				debian_9 | debian_10)
-					apt-get -y install ola ola-python libola-dev libola1
-				;;
-			esac
-		fi
 		echo "FPP - Installing wiringPi"
 		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
 
@@ -756,13 +728,6 @@ case "${FPPPLATFORM}" in
 
 		echo "FPP - Installing wiringOP (wiringPi port)"
 		cd /opt/ && git clone https://github.com/zhaolei/WiringOP && cd /opt/WiringOP && ./build
-
-		echo "FPP - Installing OLA from source"
-		apt-get -y --force-yes install libcppunit-dev uuid-dev pkg-config libncurses5-dev libtool autoconf automake libmicrohttpd-dev protobuf-compiler python-protobuf libprotobuf-dev libprotoc-dev bison flex libftdi-dev libftdi1 libusb-1.0-0-dev liblo-dev
-		apt-get -y clean
-		git clone https://github.com/OpenLightingProject/ola.git /opt/ola
-		(cd /opt/ola && autoreconf -i && ./configure --enable-rdm-tests --enable-python-libs && make && make install && ldconfig)
-		rm -rf /opt/ola
 
 		echo "FPP - Disabling stock users, use the '${FPPUSER}' user instead"
 		sed -i -e "s/^orangepi:.*/orangepi:*:16372:0:99999:7:::/" /etc/shadow
@@ -1093,7 +1058,6 @@ systemctl enable fppd.service
 systemctl enable rsync
 
 echo "FPP - Disabling services not needed/used"
-systemctl disable olad
 systemctl disable connman-wait-online
 
 echo "FPP - Compiling binaries"

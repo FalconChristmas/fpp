@@ -477,34 +477,6 @@ runPostStopScripts() {
 }
 
 #############################################################################
-# Start/Stop OLA Daemon
-startOLADaemonIfNecessary() {
-	# Start OLA daemon if necessary
-	cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
-	if [ $? -eq 0 ]
-	then
-		OLAPID=$(pgrep olad)
-		if [ -z "${OLAPID}" ]
-		then
-			sudo -u ${FPPUSER} olad -f -c ${FPPHOME}/media/config/ola
-		fi
-	fi
-}
-
-stopOLADaemonIfUnused() {
-	# Start OLA daemon if necessary
-	cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'OLA",[ 	a-zA-Z0-9:",]*"enabled": 1'
-	if [ $? -ne 0 ]
-	then
-		OLAPID=$(pgrep olad)
-		if [ -n "${OLAPID}" ]
-		then
-			killall -9 olad
-		fi
-	fi
-}
-
-#############################################################################
 # Configure Channel Outputs
 setupChannelOutputs() {
 
@@ -536,8 +508,6 @@ setupChannelOutputs() {
 			fi
 		fi
 	fi
-
-	startOLADaemonIfNecessary
 }
 
 #############################################################################

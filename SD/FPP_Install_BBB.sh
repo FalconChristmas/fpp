@@ -146,14 +146,9 @@ then
 fi
 
 # Parse build options as arguments
-build_ola=false
 build_omxplayer=false
 while [ -n "$1" ]; do
 	case $1 in
-		--build-ola)
-			build_ola=true
-			shift
-			;;
 		--build-omxplayer)
 			build_omxplayer=true
 			shift
@@ -203,7 +198,6 @@ echo "FPP Branch       : ${FPPBRANCH}"
 echo "Operating System : ${PRETTY_NAME}"
 echo "Platform         : ${FPPPLATFORM}"
 echo "OS Version       : ${OSVER}"
-echo "Build OLA        : $build_ola"
 if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
 echo "Build omxplayer  : $build_omxplayer"
 fi
@@ -584,7 +578,6 @@ systemctl enable fppd.service
 systemctl enable rsync
 
 echo "FPP - Disabling services not needed/used"
-systemctl disable olad
 systemctl disable dev-hugepages.mount
 
 echo "FPP - update BBB boot scripts"
