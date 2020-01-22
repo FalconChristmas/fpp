@@ -46,21 +46,6 @@ function PrintGitBranchOptions()
   }
 }
 
-$platforms = Array();
-    $platforms['Default'] = '';
-    $platforms['BeagleBone Black'] = 'BeagleBone Black';
-    $platforms['CHIP'] = 'CHIP';
-    $platforms['Debian'] = 'Debian';
-    $platforms['FreeBSD'] = 'FreeBSD';
-    $platforms['Linux'] = 'Linux';
-    $platforms['ODROID'] = 'ODROID';
-    $platforms['OrangePi'] = 'OrangePi';
-    $platforms['Pine64'] = 'Pine64';
-    $platforms['PogoPlug'] = 'PogoPlug';
-    $platforms['qemu'] = 'qemu';
-    $platforms['Raspberry Pi'] = 'Raspberry Pi';
-    $platforms['Ubuntu'] = 'Ubuntu';
-
 ?>
 
 <script language="Javascript">
@@ -74,17 +59,17 @@ function GitReset() {
 </script>
 
 <table class='settingsTable'>
-    <tr><td valign='top'>Git Branch:</td><td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? stt('gitBranch'); ?>
-            <br><b>Note: Changing branches may take a couple minutes to recompile and may not work if you have any modified<br>source files.</b>
-            <br><font color='red'><b>WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing<br>development, you may want to backup the source directory before switching branches using this page.</b></font></td>
+    <tr><th valign='top'>Git Branch:</th>
+        <td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? stt('gitBranch'); ?>
+            <br><b>Note: Changing branches may take a couple minutes to recompile and may not work if you have any modified source files.</b>
+            <br><font color='red'><b>WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing development, you may want to backup the source directory before switching branches using this page.</b></font></td>
     </tr>
-    <tr><td valign='top'>Git Status:</td>
+    <tr><th valign='top'>Git Status:</th>
         <td><input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes<br></td>
     </tr>
-    <tr><td colspan='2'><pre id='gitStatusPre'><? echo $git_status; ?></pre></td>
-<? if ($uiLevel >= 3) { ?>
-    <tr><td>UI Platform Masq:</td>
-        <td><? PrintSettingSelect("UI Platform Masquerade", "masqUIPlatform", 0, 0, '', $platforms, '', 'reloadSettingsPage'); stt('masqUIPlatform'); ?></td>
-    </tr>
-<? } ?>
+    <tr><th colspan='2'><pre id='gitStatusPre'><? echo $git_status; ?></pre></th>
+
+<?
+PrintSetting('masqUIPlatform');
+?>
 </table>

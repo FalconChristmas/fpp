@@ -6,20 +6,12 @@ require_once('config.php');
 require_once('common.php');
 include('common/menuHead.inc');
 
-$info = Array();
-$infoArr = json_decode(file_get_contents('settings.json'), true);
-
-foreach ($infoArr['settings'] as $i) {
-    $info[$i['name']] = $i;
-}
+$sInfos = json_decode(file_get_contents('settings.json'), true);
 
 function stt($setting) {
-    global $info;
-    if (isset($info[$setting])) {
-        ToolTip($info[$setting]['tip']);
-
-        if ($info[$setting]['level'] >= 1)
-            echo " <font color='red'>*</font>\n";
+    global $sInfos;
+    if (isset($sInfos['settings'][$setting])) {
+        ToolTip($setting, $sInfos['settings'][$setting]['tip']);
     }
 }
 ?>
@@ -108,13 +100,25 @@ function reloadSettingsPage() {
 
 </div>
 
+<table>
 <? if ($uiLevel >= 1) { ?>
-<font color='red'>* Advanced Level Setting</font><br>
+<tr><th align='right'>*</th><th align='left'>- Advanced Level Setting</th>
+<? } ?>
+<? if ($uiLevel >= 2) { ?>
+<tr><th align='right'>**</th><th align='left'>- Experimental Level Setting</th>
+<? } ?>
+<? if ($uiLevel >= 3) { ?>
+<tr><th align='right'>***</th><th align='left'>- Developer Level Setting</th>
+<? } ?>
+</table>
+
+<? if ($uiLevel >= 1) { ?>
 <br>
 <a href="advancedsettings.php">Advanced Settings</a>  NOTE: The Advanced Settings page is being deprecated with settings moved into appropriate tabs on this page and marked as Advanced settings.
 <? } ?>
 
 <?php	include 'common/footer.inc'; ?>
+
 <script>
 	var activeTabNumber = 
 <?php
@@ -124,10 +128,30 @@ function reloadSettingsPage() {
 		print "0";
 ?>;
 
-    $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+    $("#tabs").tabs( {
+        cache: true,
+        active: activeTabNumber,
+        spinner: "",
+        fx: {
+            opacity: 'toggle',
+            height: 'toggle'
+        },
+        activate: function(event, ui) {
+            $('.ui-tooltip').hide();
+        }
+    });
 
 $( function() {
-    $(document).tooltip();
+    $(document).tooltip({
+        content: function() {
+            $('.ui-tooltip').hide();
+            var id = $(this).attr('id');
+            id = id.replace('_img', '_tip');
+            //alert('here, tip: ' + $('#' + id).html());
+            return $('#' + id).html();
+        },
+        hide: { delay: 1000 }
+    });
 });
 
 </script>

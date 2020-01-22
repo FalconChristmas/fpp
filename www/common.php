@@ -123,6 +123,166 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
 	}
 }
 
+$settingGroups = Array();
+$settingInfos = Array();
+function LoadSettingInfos() {
+    global $settings;
+    global $settingInfos;
+    global $settingGroups;
+
+    if (empty($settingInfos) || empty($settingGroups)) {
+        $data = json_decode(file_get_contents($settings['fppDir'] . '/www/settings.json'), true);
+        $settingInfos = $data['settings'];
+        $settingGroups = $data['settingGroups'];
+    }
+}
+
+function PrintSetting($setting, $callback = '', $options = Array()) {
+    global $settings;
+    global $settingInfos;
+
+    LoadSettingInfos();
+
+    if (!isset($settingInfos[$setting])) {
+        echo "<tr><td colspan='2'><b>Invalid Setting: $setting</b></td></tr>\n";
+        return;
+    }
+
+    $s = $settingInfos[$setting];
+    $level = isset($s['level']) ? $s['level'] : 0;
+    $reloadUI = isset($s['reloadUI']) ? $s['reloadUI'] : 0;
+
+    if (($callback == '') && ($reloadUI == 1))
+        $callback = 'reloadSettingsPage';
+
+    $checkFileOK = 0;
+    if (isset($s['checkFile'])) {
+        foreach ($s['checkFile'] as $f) {
+            if (file_exists($f)) {
+                $checkFileOK = 1;
+            }
+        }
+    } else {
+        $checkFileOK = 1;
+    }
+
+    if (($settings['uiLevel'] >= $level) &&
+        ($checkFileOK) &&
+        ((!isset($s['fppModes'])) ||
+         (in_array('ALL', $s['fppModes'])) ||
+         (in_array($settings['fppMode'], $s['fppModes']))) &&
+        ((!isset($s['platforms'])) ||
+         (in_array('ALL', $s['platforms'])) ||
+         (in_array($settings['Platform'], $s['platforms'])))) {
+        $restart = isset($s['restart']) ? $s['restart'] : 0;
+        $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
+
+        echo "<tr><th>" . $s['desc'] . ":</th><td>";
+        switch ($s['type']) {
+            case 'select':
+                if (empty($options)) {
+                    if (isset($s['optionsURL'])) {
+                        $json = "";
+                        if (preg_match('/^\//', $s['optionsURL'])) {
+                            $json = file_get_contents("http://" . $_SERVER['SERVER_ADDR'] . $s['optionsURL']);
+                        } else {
+                            $json = file_get_contents($s['optionsURL']);
+                        }
+                        $options = json_decode($json, true);
+                    } else if (isset($s['options'])) {
+                        $options = $s['options'];
+                    }
+                }
+
+                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "";
+
+                PrintSettingSelect($s['desc'], $setting, $restart, $reboot, $defaultValue, $options, '', $callback);
+
+                break;
+            case 'checkbox':
+                $checkedValue = isset($s['checkedValue']) ? $s['checkedValue'] : "1";
+                $uncheckedValue = isset($s['uncheckedValue']) ? $s['uncheckedValue'] : "0";
+                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "0";
+
+                PrintSettingCheckbox($s['desc'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $defaultValue);
+                break;
+            case 'text':
+                $size = isset($s['size']) ? $s['size'] : 32;
+                $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
+                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "";
+
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $defaultValue, $callback);
+                break;
+            case 'password':
+                $size = isset($s['size']) ? $s['size'] : 32;
+                $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
+                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "";
+
+            	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $defaultValue, $callback, '', "password");
+                break;
+            case 'number':
+                $min = isset($s['min']) ? $s['min'] : 0;
+                $max = isset($s['max']) ? $s['max'] : 99;
+                $step = isset($s['step']) ? $s['step'] : 1;
+                $unit = isset($s['unit']) ? $s['unit'] : '';
+                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "0";
+
+                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $defaultValue, $callback, '', 'number');
+                echo $unit . ' ';
+                break;
+            default:
+                printf( "FIXME, handle %s setting type for %s\n", $s['type'], $setting);
+                break;
+        }
+
+        echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $s['tip'] . "</span>\n";
+
+        if ($level == 1)
+            echo " <b>*</b>";
+        else if ($level == 2)
+            echo " <b>**</b>";
+        else if ($level == 3)
+            echo " <b>***</b>";
+
+        echo "</td></tr>\n";
+    }
+}
+
+function printSettingGroup($group) {
+    global $settings;
+    global $settingGroups;
+
+    LoadSettingInfos();
+
+    if (!isset($settingGroups[$group])) {
+    echo "<!--\n";
+    var_dump($settingGroups);
+    echo "-->\n";
+        echo "<b>ERROR: Invalid Setting Group: $group</b><br>\n";
+        return;
+    }
+
+    $g = $settingGroups[$group];
+    $level = isset($g['level']) ? $g['level'] : 0;
+
+    if (($settings['uiLevel'] >= $level) &&
+        ((!isset($g['fppModes'])) ||
+         (in_array('ALL', $g['fppModes'])) ||
+         (in_array($settings['fppMode'], $g['fppModes']))) &&
+        ((!isset($g['platforms'])) ||
+         (in_array('ALL', $g['platforms'])) ||
+         (in_array($settings['Platform'], $g['platforms'])))) {
+        echo "<b>" . $g['desc'] . "</b>\n";
+        echo "<table class='settingsTable settingsGroupTable'>\n";
+
+        foreach ($g['settings'] as $setting) {
+            PrintSetting($setting);
+        }
+
+        echo "</table><br>\n";
+    }
+}
+
 function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "")
 {
 	global $settings;
@@ -1168,8 +1328,8 @@ function DisableOutputBuffering() {
 	flush();
 }
 
-function ToolTip($tooltip) {
-    echo "<span title=\"$tooltip\"><img src='images/questionmark.png'></span>\n";
+function ToolTip($setting, $tip) {
+    echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $tip . "</span>\n";
 }
 
 ?>

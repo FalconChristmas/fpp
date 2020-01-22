@@ -79,10 +79,9 @@ $logLevels['Excessive'] = 'excess';
 ?>
 
 <table class='settingsTable'>
-    <tr>
-        <td>Log Level:</td>
-        <td><? PrintSettingSelect('Log Level', 'LogLevel', 0, 0, 'warn', $logLevels); stt('LogLevel'); ?></td>
-    </tr>
+<?
+PrintSetting('LogLevel');
+?>
     <tr>
         <td valign='top'>Log Mask:</td>
         <td><table border=0 cellpadding=2 cellspacing=5 id='LogMask'>

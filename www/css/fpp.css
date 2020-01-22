@@ -163,6 +163,12 @@
 
 .settingsTable th {
     padding: 0px;
+    padding-right: 5px;
+    padding-bottom: 2px;
+    white-space: nowrap;
+    text-align: left;
+    vertical-align: text-top;
+    font-weight: normal;
 }
 
 .settingsTable td {
@@ -170,7 +176,6 @@
     padding-right: 5px;
     padding-bottom: 2px;
     vertical-align: text-top;
-    white-space: nowrap;
 }
 
 .settingsTable td input {
@@ -179,6 +184,10 @@
 
 .settingsTable td img {
     vertical-align: text-top;
+}
+
+.settingsGroupTable th {
+    padding-left: 15px;
 }
 
 .settings

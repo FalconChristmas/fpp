@@ -3091,12 +3091,33 @@ function GetFPPDmode()
 		xmlhttp.send();
 }
 
+var helpOpen = 0;
+function HelpClosed() {
+    helpOpen = 0;
+}
+
 function DisplayHelp()
 {
+    if (helpOpen) {
+        helpOpen = 0;
+        $('#dialog-help').dialog('close');
+        return;
+    }
+
+    var tmpHelpPage = helpPage;
+
+	if ((helpPage == 'help/settings.php') && $('#tabs').length) {
+		var tab = $("#tabs li.ui-tabs-active a").attr('href').replace('#tab-', '');
+        if (tab != '') {
+            tmpHelpPage = helpPage.replace('.php', '-' + tab + '.php');
+        }
+	}
+
 	$('#helpText').html("No help file exists for this page yet");
-	$('#helpText').load(helpPage);
-	$('#dialog-help').dialog({ height: 600, width: 800, title: "Help" });
+	$('#helpText').load(tmpHelpPage);
+	$('#dialog-help').dialog({ height: 600, width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
 	$('#dialog-help').dialog( "moveToTop" );
+    helpOpen = 1;
 }
 
 function GetGitOriginLog()

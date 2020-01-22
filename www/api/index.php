@@ -25,6 +25,11 @@ dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
 
 dispatch_get   ('/help', 'help_help');
 
+dispatch_get   ('/options/AudioMixerDevice', 'GetOptions_AudioMixerDevice');
+dispatch_get   ('/options/AudioOutput', 'GetOptions_AudioOutputDevice');
+dispatch_get   ('/options/Locale', 'GetOptions_Locale');
+dispatch_get   ('/options/VideoOutput', 'GetOptions_VideoOutput');
+
 dispatch_get   ('/playlists', 'playlist_list');
 dispatch_post  ('/playlists', 'playlist_insert');
 dispatch_get   ('/playlists/stop', 'playlist_stop');
@@ -54,6 +59,10 @@ dispatch_get   ('/sequence/:SequenceName', 'GetSequence');
 dispatch_get   ('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_post  ('/sequence/:SequenceName', 'PostSequence');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
+
+dispatch_get   ('/setting/:SettingName', 'GetSetting');
+dispatch_put   ('/setting/:SettingName', 'PutSetting');
+dispatch_get   ('/settings', 'GetSettings');
 
 dispatch_get   ('/scripts', 'scripts_list');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
