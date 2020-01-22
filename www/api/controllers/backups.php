@@ -3,7 +3,6 @@
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/backups/list
 function GetAvailableBackupsFromDir($backupDir) {
-    $found = 0;
     $excludeList = Array();
     $dirs = Array();
 
@@ -14,12 +13,13 @@ function GetAvailableBackupsFromDir($backupDir) {
         }
     }
 
+    array_push($dirs, '/');
+
     foreach (scandir($backupDir) as $fileName) {
         if (($fileName != '.') &&
             ($fileName != '..') &&
             (!in_array($fileName, $excludeList)) &&
             (is_dir($backupDir . '/' . $fileName))) {
-            $found = 1;
             array_push($dirs, $fileName);
 
             foreach (scandir($backupDir . '/' . $fileName) as $subfileName) {
