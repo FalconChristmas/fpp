@@ -259,7 +259,15 @@ function LEDPanelLayoutChanged()
 {
     UpdateLegacyLEDPanelLayout();
 
-    setTimeout(function () { SaveChannelOutputsJSON(); }, 500);
+    // update in-memory array
+    GetChannelOutputConfig();
+
+    if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
+        for (var i = 0; i < channelOutputsLookup["LEDPanelMatrix"].panels.length; i++) {
+            SetupCanvasPanel(i);
+        }
+        UpdateMatrixSize();
+    }
 }
 
 function FrontBackViewToggled() {
@@ -334,9 +342,7 @@ function DrawLEDPanelTable()
 		html += "</tr>";
 	}
 
-    // This can take a half second on larger matrices so fire via timer so
-    // the rest of the page can load.
-	setTimeout(function () { $('#LEDPanelTable tbody').html(html); }, 500);
+    $('#LEDPanelTable tbody').html(html);
 }
 
 function InitializeLEDPanels()
@@ -1050,9 +1056,10 @@ function ToggleAdvancedLayout() {
     if ($('#LEDPanelUIAdvancedLayout').is(":checked")) {
         if (typeof channelOutputsLookup["LEDPanelMatrix"] === 'undefined') {
             SaveChannelOutputsJSON();
-            $('#LEDPanelUIPixelsWide').val(LEDPanelWidth * (LEDPanelCols + 1));
-            $('#LEDPanelUIPixelsHigh').val(LEDPanelHeight * (LEDPanelRows + 1));
         }
+
+        $('#LEDPanelUIPixelsWide').val(LEDPanelWidth * (LEDPanelCols + 1));
+        $('#LEDPanelUIPixelsHigh').val(LEDPanelHeight * (LEDPanelRows + 1));
 
         if (canvasInitialized)
             InitializeCanvas(1);
