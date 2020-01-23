@@ -66,6 +66,7 @@ private:
     
     std::vector<InputAction*> actions;
 
+    bool setupControlPin(const std::string &file);
     bool parseInputActions(const std::string &file);
     bool checkStatusAbility();
 };

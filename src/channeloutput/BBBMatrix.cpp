@@ -367,10 +367,11 @@ BBBMatrix::~BBBMatrix()
     if (m_panelMatrix) delete m_panelMatrix;
 }
 
-static bool configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {
+bool BBBMatrix::configureControlPin(const std::string &ctype, Json::Value &root, std::ofstream &outputFile) {
     std::string type = root["controls"][ctype]["type"].asString();
     if (type != "none") {
-        const PinCapabilities &pin = PinCapabilities::getPinByName(root["controls"][ctype]["pin"].asString());
+        std::string pinName = root["controls"][ctype]["pin"].asString();
+        const PinCapabilities &pin = PinCapabilities::getPinByName(pinName);
         if (ctype == "oe" && pin.pwm >= 99)  {
             outputFile << "#define oe_pwm_address " << std::to_string(pin.getPWMRegisterAddress()) << "\n";
             outputFile << "#define oe_pwm_output " << std::to_string(pin.subPwm) << "\n";
@@ -387,13 +388,16 @@ static bool configureControlPin(const std::string &ctype, Json::Value &root, std
                 outputFile << "#define gpio_" << ctype << " " << std::to_string(pin.gpio) << "\n";
             }
         }
+        m_usedPins.push_back(pinName);
     }
     return false;
 }
 
 void BBBMatrix::configurePanelPin(int x, const std::string &color, int row, Json::Value &root, std::ofstream &outputFile, int *minPort) {
-    const PinCapabilities &pin = PinCapabilities::getPinByName(root["outputs"][x]["pins"][color + std::to_string(row)].asString());
+    std::string pinName = root["outputs"][x]["pins"][color + std::to_string(row)].asString();
+    const PinCapabilities &pin = PinCapabilities::getPinByName(pinName);
     pin.configPin();
+    m_usedPins.push_back(pinName);
     int gpioIdx = pin.gpioIdx;
     minPort[gpioIdx] = std::min(minPort[gpioIdx], (int)pin.gpio);
     outputFile << "#define " << color << std::to_string(x+1) << std::to_string(row) << "_gpio " << std::to_string(pin.gpioIdx) << "\n";
@@ -568,7 +572,9 @@ int BBBMatrix::Init(Json::Value config)
     if (m_colorDepth > 8) {
         maxBits = m_colorDepth;
     }
-    m_gpioFrame = new uint32_t[m_longestChain * m_panelWidth * maxBits * (m_panelHeight / 2) * 4];
+    int gpioFrameLen = m_longestChain * m_panelWidth * maxBits * (m_panelHeight / 2) * 4;
+    m_gpioFrame = new uint32_t[gpioFrameLen];
+    memset(m_gpioFrame, 0, gpioFrameLen);
 
     std::vector<std::string> compileArgs;
     
@@ -822,6 +828,14 @@ int BBBMatrix::Init(Json::Value config)
         printf("    B2:   %d   %8X\n", m_pinInfo[x].row[1].b_gpio, m_pinInfo[x].row[1].b_pin);
     }
     */
+    
+    //make sure the PRU starts outputting a blank frame to remove any random noise
+    //from the panels
+    memcpy(m_pru->ddr, m_gpioFrame, gpioFrameLen);
+    m_pruData->address_dma = m_pru->ddr_addr;
+    //make sure memory is flushed before command is set to 1
+    __asm__ __volatile__("":::"memory");
+    m_pruData->command = 1;
     return ChannelOutputBase::Init(config);
 }
 
@@ -841,7 +855,11 @@ int BBBMatrix::Close(void)
         delete m_pruCopy;
         m_pruCopy = nullptr;
     }
-    
+    for (auto &pinName : m_usedPins) {
+        
+        const PinCapabilities &pin = PinCapabilities::getPinByName(pinName);
+        pin.configPin("default", false);
+    }
     return ChannelOutputBase::Close();
 }
 

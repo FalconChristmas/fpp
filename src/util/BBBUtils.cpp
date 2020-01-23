@@ -232,8 +232,9 @@ bool BBBPinCapabilities::supportPWM() const {
 
 int BBBPinCapabilities::configPin(const std::string& mode,
                                   bool directionOut) const {
-    if (i2cBus >= 0) {
-        enableOledScreen(i2cBus, mode == "i2c");
+    bool enableI2C = (mode == "i2c" || mode == "default");
+    if (i2cBus >= 0 && !enableI2C) {
+        enableOledScreen(i2cBus, false);
     }
     
     char pinName[16];
@@ -262,7 +263,7 @@ int BBBPinCapabilities::configPin(const std::string& mode,
     fprintf(dir, "%s\n", mode.c_str());
     fclose(dir);
     
-    if (mode != "pwm" && mode != "i2c" && mode != "uart") {
+    if (mode != "pwm" && mode != "i2c" && mode != "uart" && mode != "default") {
         snprintf(dir_name, sizeof(dir_name),
                  "/sys/class/gpio/gpio%u/direction",
                  kernelGpio
@@ -274,6 +275,9 @@ int BBBPinCapabilities::configPin(const std::string& mode,
         }
         fprintf(dir, "%s\n", directionOut ? "out" : "in");
         fclose(dir);
+    }
+    if (i2cBus >= 0 && enableI2C) {
+        enableOledScreen(i2cBus, true);
     }
     return 0;
 }

@@ -45,6 +45,7 @@ struct DisplayStatus {
     volatile unsigned int forceOff;
 };
 static DisplayStatus *currentStatus;
+static std::string controlPin;
 
 extern I2C_DeviceT I2C_DEV_2;
 
@@ -175,6 +176,31 @@ bool FPPOLEDUtils::checkStatusAbility() {
 #endif
 }
 
+bool FPPOLEDUtils::setupControlPin(const std::string &file) {
+    if (FileExists(file)) {
+        std::ifstream t(file);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            if (root.isMember("controls")
+                && root["controls"].isMember("I2CEnable")) {
+                controlPin = root["controls"]["I2CEnable"].asString();
+                printf("Using control pin %s\n", controlPin.c_str());
+                
+                const PinCapabilities &pin = PinCapabilities::getPinByName(controlPin);
+                pin.configPin("gpio", true);
+                pin.setValue(1);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 
 bool FPPOLEDUtils::parseInputActions(const std::string &file) {
     char vbuffer[256];
@@ -303,6 +329,7 @@ gpiod_chip * FPPOLEDUtils::getChip(const std::string &n) {
 
 void FPPOLEDUtils::run() {
     char vbuffer[256];
+    setupControlPin("/home/fpp/media/tmp/cape-info.json");
     bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json");
     std::vector<struct pollfd> fdset(actions.size());
     
@@ -334,13 +361,33 @@ void FPPOLEDUtils::run() {
     long long lastActionTime = GetTime();
     while (true) {
         bool forcedOff = currentStatus->forceOff;
-        OLEDPage::SetForcedOff(forcedOff);
-        if (currentStatus->displayOn && forcedOff) {
-            if (OLEDPage::GetOLEDType() != OLEDPage::OLEDType::NONE) {
-                clearDisplay();
-                Display();
+        if (OLEDPage::IsForcedOff() && !forcedOff) {
+            //turning back on
+            if (controlPin != "") {
+                printf("Re-enabling I2C Bus via pin: %s\n", controlPin.c_str());
+                const PinCapabilities &pin = PinCapabilities::getPinByName(controlPin);
+                pin.configPin("gpio", true);
+                pin.setValue(1);
             }
-	    currentStatus->displayOn = false;
+            OLEDPage::SetForcedOff(forcedOff);
+            currentStatus->displayOn = true;
+            OLEDPage::SetCurrentPage(statusPage);
+            lastActionTime = GetTime();
+        } else if (!OLEDPage::IsForcedOff() && forcedOff) {
+            if (currentStatus->displayOn) {
+                if (OLEDPage::GetOLEDType() != OLEDPage::OLEDType::NONE) {
+                    clearDisplay();
+                    Display();
+                }
+            }
+            if (controlPin != "") {
+                printf("Disabling I2C Bus via pin: %s\n", controlPin.c_str());
+                const PinCapabilities &pin = PinCapabilities::getPinByName(controlPin);
+                pin.configPin("gpio", true);
+                pin.setValue(0);
+            }
+            OLEDPage::SetForcedOff(forcedOff);
+            currentStatus->displayOn = false;
             OLEDPage::SetCurrentPage(statusPage);
         }
         if (ntime > (lastUpdateTime + 1000000)) {
@@ -391,10 +438,17 @@ void FPPOLEDUtils::run() {
                     //just turn the display on if button is hit
                     if (!currentStatus->forceOff) {
                         currentStatus->displayOn = true;
+                        OLEDPage::SetCurrentPage(statusPage);
+                        lastUpdateTime = 0;
+                        lastActionTime = ntime;
+                    } else if ((action == "Test" || action == "Test/Down") && ((ntime - lastActionTime) > 70000)){
+                        printf("Action: %s\n", action.c_str());
+                        lastUpdateTime = 0;
+                        lastActionTime = ntime;
+                        if (OLEDPage::GetCurrentPage()) {
+                            OLEDPage::GetCurrentPage()->doAction(action);
+                        }
                     }
-                    OLEDPage::SetCurrentPage(statusPage);
-                    lastUpdateTime = 0;
-                    lastActionTime = ntime;
                 } else if (action != "" && ((ntime - lastActionTime) > 70000)) { //account for some debounce time
                     printf("Action: %s\n", action.c_str());
                     //force immediate update

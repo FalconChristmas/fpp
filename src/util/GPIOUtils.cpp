@@ -79,6 +79,7 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
     ftruncate(smfd, 1024);
     unsigned int *status = (unsigned int *)mmap(0, 1024, PROT_WRITE | PROT_READ, MAP_SHARED, smfd, 0);
     if (i2cBus == status[0]) {
+        printf("Signal to fppoled to enable/disable I2C:   Bus: %d   Enable: %d\n", i2cBus, enable);
         if (!enable) {
             //force the display off
             status[2] = 1;
