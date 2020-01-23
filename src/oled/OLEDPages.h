@@ -19,6 +19,7 @@ public:
     static OLEDPage *GetCurrentPage() { return currentPage; }
     static void SetCurrentPage(OLEDPage *p);
     static void SetForcedOff(bool b) {oledForcedOff = b;};
+    static bool IsForcedOff() { return oledForcedOff; }
     
     OLEDPage() : autoDeleteOnHide(false) {}
     virtual ~OLEDPage() {}

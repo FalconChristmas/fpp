@@ -25,7 +25,8 @@ static unsigned int proc_read(const char * const fname) {
 }
 
 static int prussUseCount = 0;
-
+static uint8_t *ddr_mem_loc = nullptr;
+static size_t ddr_filelen = 0;
 
 BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) : pru_num(pru) {
     if (prussUseCount == 0) {
@@ -48,23 +49,23 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) : pru_num(pru) {
     const uintptr_t ddr_addr = proc_read("/sys/class/uio/uio0/maps/map1/addr");
     const uintptr_t ddr_sizeb = proc_read("/sys/class/uio/uio0/maps/map1/size");
     
-    const uintptr_t ddr_start = 0x10000000;
-    const uintptr_t ddr_offset = ddr_addr - ddr_start;
-    const size_t ddr_filelen = ddr_sizeb + ddr_start;
-        
-    uint8_t * const ddr_mem = (uint8_t*)mmap(0,
-                                   ddr_filelen,
-                                   PROT_WRITE | PROT_READ,
-                                   MAP_SHARED,
-                                   mem_fd,
-                                   ddr_offset
-                                   );
+    
+    if (ddr_mem_loc == nullptr) {
+        ddr_filelen = ddr_sizeb;
+        ddr_mem_loc = (uint8_t*)mmap(0,
+                                     ddr_filelen,
+                                     PROT_WRITE | PROT_READ,
+                                     MAP_SHARED,
+                                     mem_fd,
+                                     ddr_addr
+                                     );
+    }
     
     close(mem_fd);
     this->ddr_addr = ddr_addr;
     this->data_ram = (uint8_t*)pru_data_mem;
     this->data_ram_size = 8192;
-    this->ddr = (ddr_mem + ddr_start);
+    this->ddr = ddr_mem_loc;
     this->ddr_size = ddr_sizeb;
     
     if (mapShared) {
@@ -83,19 +84,25 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) : pru_num(pru) {
         this->other_data_ram_size = 0;
         this->other_data_ram = 0;
     }
-
 }
 
 BBBPru::~BBBPru() {
     prussUseCount--;
     if (prussUseCount == 0) {
         prussdrv_exit();
+        
+        if (ddr_mem_loc) {
+            munmap(ddr_mem_loc, ddr_filelen);
+            ddr_mem_loc = nullptr;
+        }
     }
 }
 
 int BBBPru::run(const std::string &program) {
     char * program_unconst = (char*)(uintptr_t) program.c_str();
-    return prussdrv_exec_program(pru_num, program_unconst);
+    int ret = prussdrv_exec_program(pru_num, program_unconst);
+    LogDebug(VB_CHANNELOUT, "BBBPru::run(%s) -> %d\n", program_unconst, ret);
+    return ret;
 }
 void BBBPru::stop(bool force) {
     if (!force) {
