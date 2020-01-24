@@ -306,6 +306,8 @@ void Sensors::Init() {
             while (path[r]) {
                 if (path[r] == '-') {
                     path[r] = 0;
+                } else if (path[r] == '\n') {
+                    path[r] = 0;
                 } else {
                     path[r] = toupper(path[r]);
                     r++;
