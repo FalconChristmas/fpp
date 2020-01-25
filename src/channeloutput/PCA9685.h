@@ -47,10 +47,18 @@ class PCA9685Output : public ChannelOutputBase {
     int m_frequency;
     
     
-    int m_min[16];
-    int m_max[16];
-    int m_dataType[16];
-    unsigned short m_lastChannelData[16];
+    class PCA9685Port {
+    public:
+        int m_min = 1000;
+        int m_max = 2000;
+        int m_center = 1500;
+        int m_dataType = 0;
+        int m_zeroBehavior = 0;
+
+        unsigned short m_lastValue;
+    };
+    
+    PCA9685Port m_ports[16];
 };
 
 #endif

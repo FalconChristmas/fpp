@@ -69,25 +69,41 @@ int PCA9685Output::Init(Json::Value config)
     }
 
     for (int x = 0; x < 16; x++) {
-        m_min[x] = config["ports"][x]["min"].asInt();
-        m_max[x] = config["ports"][x]["max"].asInt();
-        
-        if (asUsec) {
-            int z = m_min[x];
-            z *= m_frequency;
-            z *= 4095;
-            z /= 1000000;
-            m_min[x] = z;
-            
-            z = m_max[x];
-            z *= m_frequency;
-            z *= 4095;
-            z /= 1000000;
-            m_max[x] = z;
+        m_ports[x].m_min = config["ports"][x]["min"].asInt();
+        m_ports[x].m_max = config["ports"][x]["max"].asInt();
+        if (config["ports"][x].isMember("center")) {
+            m_ports[x].m_center = config["ports"][x]["center"].asInt();
+        } else {
+            m_ports[x].m_center = (m_ports[x].m_min + m_ports[x].m_max) / 2;
         }
         
-        m_dataType[x] = config["ports"][x]["dataType"].asInt();
-        m_lastChannelData[x] = 0xFFFF;
+        if (asUsec) {
+            int z = m_ports[x].m_min;
+            z *= m_frequency;
+            z *= 4095;
+            z /= 1000000;
+            m_ports[x].m_min = z;
+            
+            z = m_ports[x].m_max;
+            z *= m_frequency;
+            z *= 4095;
+            z /= 1000000;
+            m_ports[x].m_max = z;
+            
+            z = m_ports[x].m_center;
+            z *= m_frequency;
+            z *= 4095;
+            z /= 1000000;
+            m_ports[x].m_center = z;
+        }
+        
+        m_ports[x].m_dataType = config["ports"][x]["dataType"].asInt();
+        if (config["ports"][x].isMember("zeroBehavior")) {
+            m_ports[x].m_zeroBehavior = config["ports"][x]["zeroBehavior"].asInt();
+        } else {
+            m_ports[x].m_zeroBehavior = 0;
+        }
+        m_ports[x].m_lastValue = 0xFFFF;
     }
 
 	// Initialize
@@ -133,6 +149,54 @@ int PCA9685Output::Close(void)
 	return ChannelOutputBase::Close();
 }
 
+
+enum DataTypeEnum {
+    SCALED_8BIT,
+    SCALED_8BIT_REVERSE,
+    SCALED_16BIT,
+    SCALED_16BIT_REVERSE,
+    ABSOLUTE_8BIT,
+    ABSOLUTE_16BIT
+
+};
+enum ZeroTypeEnum {
+    ZERO_HOLD,
+    ZERO_NORMAL,
+    ZERO_CENTER
+};
+
+static inline unsigned short readVal(unsigned char *channelData, int dt, int tp, int &pos) {
+    unsigned short val = channelData[pos];
+    pos++;
+    switch (dt) {
+        case SCALED_16BIT:
+        case SCALED_16BIT_REVERSE:
+        case ABSOLUTE_16BIT:
+            {
+                unsigned short t = channelData[pos];
+                pos++;
+                t = t << 8;
+                val += t;
+            }
+            break;
+        case ABSOLUTE_8BIT:
+            break;
+        default:
+            val *= 256;
+            break;
+    }
+    if (tp != ZERO_NORMAL && val == 0) {
+        return val;
+    }
+    switch (dt) {
+        case SCALED_16BIT_REVERSE:
+        case SCALED_8BIT_REVERSE:
+            val = 65535 - val;
+            break;
+    }
+    return val;
+}
+
 /*
  *
  */
@@ -140,69 +204,44 @@ int PCA9685Output::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "PCA9685Output::SendData(%p)\n", channelData);
 
-    
 	unsigned char *c = channelData;
     c += m_startChannel;
     
 	int ch = 0;
 	for (int x = 0; ch < m_channelCount && x < 16; x++, ch++) {
-        int scl = m_max[x] - m_min[x] + 1;
-        unsigned short val;
-        int tmp;
-        switch (m_dataType[x]) {
-            case 0:
-                tmp = scl;
-                tmp *= c[ch];
-                tmp /= 255;
-                val = tmp + m_min[x];
-                break;
-            case 1:
-                tmp = scl;
-                tmp *= (255 - c[ch]);
-                tmp /= 255;
-                val = tmp + m_min[x];
-                break;
-            case 2:
-                tmp = c[ch + 1];
-                tmp = tmp << 8;
-                tmp = c[ch];
-                ch++;
-                tmp *= scl;
-                tmp /= 0xffff;
-                val = tmp + m_min[x];
-                break;
-            case 3:
-                tmp = c[ch + 1];
-                tmp = tmp << 8;
-                tmp = c[ch];
-                ch++;
-                tmp = 65535 - tmp;
-                tmp *= scl;
-                tmp /= 0xffff;
-                val = tmp + m_min[x];
-                break;
-            case 4:
-                val = c[ch];
-                break;
-            case 5:
-                val = c[ch + 1];
-                val = val << 8;
-                val = c[ch];
-                ch++;
-                break;
-        }
-        if (val > m_max[x]) {
-            val = m_max[x];
-        }
-        if (val  < m_min[x]) {
-            val = m_min[x];
-        }
-        if (m_lastChannelData[x] != val) {
-            m_lastChannelData[x] = val;
-            uint8_t a = val & 0xFF;
-            uint8_t b = ((val & 0xFF00) >> 8);
-            uint8_t bytes[4] = {0, 0, a, b};
-            i2c->writeI2CBlockData(0x06 + (x * 4), bytes, 4);
+        unsigned short val = readVal(channelData, m_ports[x].m_dataType, m_ports[x].m_zeroBehavior, ch);
+        if (val != 0 || m_ports[x].m_zeroBehavior != ZERO_HOLD) {
+            if (val == 0 && m_ports[x].m_zeroBehavior == ZERO_CENTER) {
+                val = m_ports[x].m_center;
+            } else {
+                if (val >= 32767) {
+                    int scale = m_ports[x].m_max - m_ports[x].m_center;
+                    val -= 32767;
+                    scale *= val;
+                    scale /= 32767;
+                    val = scale;
+                    val += m_ports[x].m_center;
+                } else {
+                    int scale = m_ports[x].m_center - m_ports[x].m_min;
+                    scale *= val;
+                    scale /= 32767;
+                    val = scale;
+                    val += m_ports[x].m_min;
+                }
+            }
+            if (val > m_ports[x].m_max) {
+                val = m_ports[x].m_max;
+            }
+            if (val < m_ports[x].m_min) {
+                val = m_ports[x].m_min;
+            }
+            if (m_ports[x].m_lastValue != val) {
+                m_ports[x].m_lastValue = val;
+                uint8_t a = val & 0xFF;
+                uint8_t b = ((val & 0xFF00) >> 8);
+                uint8_t bytes[4] = {0, 0, a, b};
+                i2c->writeI2CBlockData(0x06 + (x * 4), bytes, 4);
+            }
         }
 	}
 	return m_channelCount;
@@ -218,9 +257,11 @@ void PCA9685Output::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    deviceID: %X\n", m_deviceID);
     LogDebug(VB_CHANNELOUT, "    Frequency: %d\n", m_frequency);
     for (int x = 0; x < 16; x++) {
-        LogDebug(VB_CHANNELOUT, "    Port %d:    Min: %d\n", x, m_min[x]);
-        LogDebug(VB_CHANNELOUT, "                Max: %d\n", m_max[x]);
-        LogDebug(VB_CHANNELOUT, "                DataType: %d\n", m_dataType[x]);
+        LogDebug(VB_CHANNELOUT, "    Port %d:    Min:    %d\n", x, m_ports[x].m_min);
+        LogDebug(VB_CHANNELOUT, "                Center: %d\n", m_ports[x].m_center);
+        LogDebug(VB_CHANNELOUT, "                Max:    %d\n", m_ports[x].m_max);
+        LogDebug(VB_CHANNELOUT, "                DataType: %d\n", m_ports[x].m_dataType);
+        LogDebug(VB_CHANNELOUT, "                ZeroType: %d\n", m_ports[x].m_zeroBehavior);
     }
 
 	ChannelOutputBase::DumpConfig();
