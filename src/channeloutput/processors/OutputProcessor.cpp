@@ -17,6 +17,7 @@
 #include "OutputProcessor.h"
 
 #include "RemapOutputProcessor.h"
+#include "HoldValueOutputProcessor.h"
 #include "SetValueOutputProcessor.h"
 #include "BrightnessOutputProcessor.h"
 #include "ColorOrderOutputProcessor.h"
@@ -84,6 +85,8 @@ OutputProcessor *OutputProcessors::create(const Json::Value &config) {
         return new RemapOutputProcessor(config);
     } else if (type == "Brightness") {
         return new BrightnessOutputProcessor(config);
+    } else if (type == "Hold Value") {
+        return new HoldValueOutputProcessor(config);
     } else if (type == "Set Value") {
         return new SetValueOutputProcessor(config);
     } else if (type == "Reorder Colors") {
