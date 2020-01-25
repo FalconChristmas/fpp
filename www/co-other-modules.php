@@ -96,7 +96,7 @@ class OtherBaseDevice extends OtherBase {
 function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass) {
 	var result = selectTitle+": <select class='"+selectClass+"'>";
 
-	if (currentValue == "")
+	if (currentValue === "")
 		result += "<option value=''>"+dropDownTitle+"</option>";
 
 	var found = 0;
@@ -244,29 +244,43 @@ class PCA9685Output extends I2COutput {
     PopulateHTMLRow(config) {
         var result = super.PopulateHTMLRow(config);
         var datatypes = ["8 Bit Scaled", "8 Bit Scaled Reversed", "16 Bit Scaled", "16 Bit Scaled Reversed", "8 Bit Absolute", "16 Bit Absolute"];
-        
+        var zeroBehaviorTypes = ["Hold", "Normal", "To Center"];
+
         var inMicrosecs = config.asUsec;
         if (inMicrosecs == undefined) {
             inMicrosecs = true;
         }
         result += " Frequency (Hz): <input class='frequency' type='number' min='40' max='1600' value='" + config.frequency + "'/><br><input class='asUsec' type='checkbox' " + (inMicrosecs ? "checked" : "") + ">Min/Max in micro-seconds</input><br>";
         
+        result += "<table>";
         for (var x = 0; x < 16; x++) {
-            var min = 500;
-            var max = 2500;
+            var min = 1000;
+            var max = 2000;
+            var center = 1500;
             var dataType = 0;
+            var zeroBehavior = 0;
             
             if (config.ports != undefined && config.ports[x] != undefined) {
                 min = config.ports[x].min;
                 max = config.ports[x].max;
+                if (config.ports[x].center != undefined) {
+                    center = config.ports[x].center;
+                }
+                if (config.ports[x].zeroBehavior != undefined) {
+                    zeroBehavior = config.ports[x].zeroBehavior;
+                }
                 dataType = config.ports[x].dataType;
             }
             
-            result += "<br>Port " + x + ": ";
+            result += "<tr style='outline: thin solid;'><td style='vertical-align:top'>Port " + x + ": </td><td>";
             result += "Min Value:<input class='min" + x + "' type='number' min='0' max='4095' value='" + min + "'/>";
-            result += " Max Value:<input class='max" + x + "' type='number' min='0' max='4095' value='" + max + "'/> ";
-            result += CreateSelect(datatypes, dataType, "Data Type", "Select Data Type", "dataType" + x);
+            result += " Center Value:<input class='center" + x + "' type='number' min='0' max='4095' value='" + center + "'/> ";
+            result += " Max Value:<input class='max" + x + "' type='number' min='0' max='4095' value='" + max + "'/><br>";
+            result += CreateSelect(datatypes, dataType, "Data Type", "Select Data Type", "dataType" + x) + "&nbsp;";
+            result += CreateSelect(zeroBehaviorTypes, zeroBehavior, "Zero Behavior", "Select Zero Behavior", "zeroBehavior" + x);
+            result += "</td></tr>"
         }
+        result += "</table>";
 
         return result;
     }
@@ -277,10 +291,13 @@ class PCA9685Output extends I2COutput {
         result.ports = [];
         for (var x = 0; x < 16; x++) {
             var dt = cell.find("select.dataType" + x).val();
+            var zt = cell.find("select.zeroBehavior" + x).val();
             result.ports[x] = {};
             result.ports[x].dataType = parseInt(dt);
+            result.ports[x].zeroBehavior = parseInt(zt);
             result.ports[x].min = parseInt(cell.find("input.min" + x).val());
             result.ports[x].max = parseInt(cell.find("input.max" + x).val());
+            result.ports[x].center = parseInt(cell.find("input.center" + x).val());
         }
 
         

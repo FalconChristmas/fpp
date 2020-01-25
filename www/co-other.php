@@ -1295,7 +1295,7 @@ function SaveOtherChannelOutputs() {
 	var config;
 	var outputs = [];
 
-	$('#tblOtherOutputs tbody tr').each(function() {
+	$('#tblOtherOutputs > tbody > tr.rowUniverseDetails').each(function() {
 		$this = $(this);
 
 		var enabled = 0;
@@ -1666,7 +1666,7 @@ var otherTableInfo = {
 
 function RenumberColumns(tableName) {
 	var id = 1;
-	$('#' + tableName + ' tbody tr').each(function() {
+	$('#' + tableName + ' > tbody > tr').each(function() {
 		$this = $(this);
 		$this.find("td:first").html(id);
 		id++;
@@ -1675,7 +1675,7 @@ function RenumberColumns(tableName) {
 
 function DeleteOtherOutput() {
 	if (otherTableInfo.selected >= 0) {
-		$('#tblOtherOutputs tbody tr:nth-child(' + (otherTableInfo.selected+1) + ')').remove();
+		$('#tblOtherOutputs > tbody > tr:nth-child(' + (otherTableInfo.selected+1) + ')').remove();
 		otherTableInfo.selected = -1;
 		SetButtonState("#btnDeleteOther", "disable");
 		RenumberColumns("tblOtherOutputs");
