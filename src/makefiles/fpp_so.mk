@@ -15,6 +15,7 @@ OBJECTS_fpp_so += \
 	channeloutput/VirtualDisplay.o \
     channeloutput/processors/OutputProcessor.o \
     channeloutput/processors/RemapOutputProcessor.o \
+    channeloutput/processors/HoldValueOutputProcessor.o \
     channeloutput/processors/SetValueOutputProcessor.o \
     channeloutput/processors/BrightnessOutputProcessor.o \
     channeloutput/processors/ColorOrderOutputProcessor.o \
