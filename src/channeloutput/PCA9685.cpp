@@ -205,7 +205,7 @@ int PCA9685Output::SendData(unsigned char *channelData)
 	LogExcess(VB_CHANNELOUT, "PCA9685Output::SendData(%p)\n", channelData);
 
 	unsigned char *c = channelData;
-    c += m_startChannel;
+    c += (m_startChannel - 1);
     
 	int ch = 0;
 	for (int x = 0; ch < m_channelCount && x < 16; x++) {
