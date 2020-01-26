@@ -249,7 +249,7 @@ class PCA9685Output extends I2COutput {
     PopulateHTMLRow(config) {
         var result = super.PopulateHTMLRow(config);
         var datatypes = ["8 Bit Scaled", "8 Bit Scaled Reversed", "16 Bit Scaled", "16 Bit Scaled Reversed", "8 Bit Absolute", "16 Bit Absolute"];
-        var zeroBehaviorTypes = ["Hold", "Normal", "To Center"];
+        var zeroBehaviorTypes = ["Hold", "Normal", "To Center", "Stop PWM"];
 
         var inMicrosecs = config.asUsec;
         if (inMicrosecs == undefined) {

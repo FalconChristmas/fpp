@@ -162,7 +162,8 @@ enum DataTypeEnum {
 enum ZeroTypeEnum {
     ZERO_HOLD,
     ZERO_NORMAL,
-    ZERO_CENTER
+    ZERO_CENTER,
+    ZERO_OFF
 };
 
 static inline unsigned short readVal(unsigned char *channelData, int dt, int tp, int &pos) {
@@ -213,6 +214,8 @@ int PCA9685Output::SendData(unsigned char *channelData)
         if (val != 0 || m_ports[x].m_zeroBehavior != ZERO_HOLD) {
             if (val == 0 && m_ports[x].m_zeroBehavior == ZERO_CENTER) {
                 val = m_ports[x].m_center;
+            } else if (val == 0 && m_ports[x].m_zeroBehavior == ZERO_OFF) {
+                val = 0;
             } else {
                 if (val >= 32767) {
                     int scale = m_ports[x].m_max - m_ports[x].m_center;
@@ -228,12 +231,12 @@ int PCA9685Output::SendData(unsigned char *channelData)
                     val = scale;
                     val += m_ports[x].m_min;
                 }
-            }
-            if (val > m_ports[x].m_max) {
-                val = m_ports[x].m_max;
-            }
-            if (val < m_ports[x].m_min) {
-                val = m_ports[x].m_min;
+                if (val > m_ports[x].m_max) {
+                    val = m_ports[x].m_max;
+                }
+                if (val < m_ports[x].m_min) {
+                    val = m_ports[x].m_min;
+                }
             }
             if (m_ports[x].m_lastValue != val) {
                 m_ports[x].m_lastValue = val;
