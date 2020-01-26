@@ -208,7 +208,7 @@ int PCA9685Output::SendData(unsigned char *channelData)
     c += m_startChannel;
     
 	int ch = 0;
-	for (int x = 0; ch < m_channelCount && x < 16; x++, ch++) {
+	for (int x = 0; ch < m_channelCount && x < 16; x++) {
         unsigned short val = readVal(channelData, m_ports[x].m_dataType, m_ports[x].m_zeroBehavior, ch);
         if (val != 0 || m_ports[x].m_zeroBehavior != ZERO_HOLD) {
             if (val == 0 && m_ports[x].m_zeroBehavior == ZERO_CENTER) {
