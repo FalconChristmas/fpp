@@ -234,7 +234,12 @@ class I2COutput extends OtherBaseDevice {
         var addr = cell.find("select.addr").val();
         result.deviceID = parseInt(addr);
         return result;
-    }        
+    }
+    
+    CanAddNewOutput() {
+        //almost all i2c devices allow setting addresses so multiple can exist
+        return true;
+    }
 }
 
 class PCA9685Output extends I2COutput {
@@ -273,9 +278,9 @@ class PCA9685Output extends I2COutput {
             }
             
             result += "<tr style='outline: thin solid;'><td style='vertical-align:top'>Port " + x + ": </td><td>";
-            result += "Min Value:<input class='min" + x + "' type='number' min='0' max='4095' value='" + min + "'/>";
-            result += " Center Value:<input class='center" + x + "' type='number' min='0' max='4095' value='" + center + "'/> ";
-            result += " Max Value:<input class='max" + x + "' type='number' min='0' max='4095' value='" + max + "'/><br>";
+            result += "Min&nbsp;Value:<input class='min" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + min + "'/>";
+            result += "&nbsp;Center&nbsp;Value:<input class='center" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + center + "'/>";
+            result += "&nbsp;Max&nbsp;Value:<input class='max" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + max + "'/><br>";
             result += CreateSelect(datatypes, dataType, "Data Type", "Select Data Type", "dataType" + x) + "&nbsp;";
             result += CreateSelect(zeroBehaviorTypes, zeroBehavior, "Zero Behavior", "Select Zero Behavior", "zeroBehavior" + x);
             result += "</td></tr>"

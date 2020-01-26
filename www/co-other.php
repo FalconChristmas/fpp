@@ -1122,7 +1122,7 @@ function NewnRFSPIConfig() {
 /////////////////////////////////////////////////////////////////////////////
 // 'Other' Channel Outputs misc. functions
 function PopulateChannelOutputTable(data) {
-	$('#tblOtherOutputs tbody').html("");
+	$('#tblOtherOutputs > tbody').html("");
     
     if (data) {
         for (var i = 0; i < data.channelOutputs.length; i++) {
@@ -1203,7 +1203,7 @@ function PopulateChannelOutputTable(data) {
             newRow += "</td>" +
                     "</tr>";
 
-            $('#tblOtherOutputs tbody').append(newRow);
+            $('#tblOtherOutputs > tbody').append(newRow);
 
         }
     }
@@ -1561,7 +1561,7 @@ function AddOtherOutput() {
 			"<td> </td>" +
 			"</tr>";
 
-	$('#tblOtherOutputs tbody').append(newRow);
+	$('#tblOtherOutputs > tbody').append(newRow);
 
 	///////new method
 	output_modules.forEach(function addOption(output_module) {
