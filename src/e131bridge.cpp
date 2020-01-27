@@ -894,5 +894,4 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) 
     }
     AddFakeListener(DDP_PORT, "DDP", callbacks);
     AddFakeListener(E131_DEST_PORT, "E1.31", callbacks);
-    AddFakeListener(0x1936, "ArtNet", callbacks);
 }

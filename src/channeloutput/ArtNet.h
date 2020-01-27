@@ -41,13 +41,8 @@ public:
     
     virtual bool IsPingable() override;
     
-    virtual void PrepareData(unsigned char *channelData,
-                             std::vector<struct mmsghdr> &uniMsgs,
-                             std::vector<struct mmsghdr> &bcstMsgs) override;
-    virtual void PostPrepareData(unsigned char *channelData,
-                                 std::vector<struct mmsghdr> &uniMsgs,
-                                 std::vector<struct mmsghdr> &bcstMsgs) override;
-
+    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
+    virtual void PostPrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
     
     virtual void DumpConfig() override;
     virtual void GetRequiredChannelRange(int &min, int & max) override;

@@ -63,6 +63,63 @@ static void DoPingThread(UDPOutput *output) {
     output->BackgroundThreadPing();
 }
 
+class SendSocketInfo {
+public:
+    SendSocketInfo() {
+        errCount = 0;
+        curSocket = -1;
+    }
+    ~SendSocketInfo() {
+        for (int x : sockets) {
+            close(x);
+        }
+    }
+
+    std::vector<int> sockets;
+    int errCount;
+    int curSocket;
+};
+
+UDPOutputMessages::UDPOutputMessages() {
+}
+UDPOutputMessages::~UDPOutputMessages() {
+}
+int UDPOutputMessages::GetSocket(unsigned int key) {
+    SendSocketInfo *info = sendSockets[key];
+    if (info && !info->sockets.empty()) {
+        return info->sockets[0];
+    }
+    return -1;
+}
+void UDPOutputMessages::ForceSocket(unsigned int key, int socket) {
+    SendSocketInfo *info = sendSockets[key];
+    if (info == nullptr) {
+        info = new SendSocketInfo();
+        sendSockets[key] = info;
+    }
+    for (int x = 0; x < info->sockets.size(); x++) {
+        close(info->sockets[x]);
+    }
+    info->sockets.clear();
+    info->sockets.push_back(socket);
+}
+std::vector<struct mmsghdr> & UDPOutputMessages::GetMessages(unsigned int key) {
+    return messages[key];
+}
+void UDPOutputMessages::clearMessages() {
+    for (auto &m : messages) {
+        m.second.clear();
+    }
+}
+void UDPOutputMessages::clearSockets() {
+    for (auto &si : sendSockets) {
+        delete si.second;
+    }
+    sendSockets.clear();
+}
+
+
+
 
 UDPOutput* UDPOutput::INSTANCE = nullptr;
 
@@ -158,10 +215,9 @@ bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChann
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
     : pingThread(nullptr), runPingThread(true),
-      errCount(0), networkCallbackId(0), sendIdx(-1)
+      networkCallbackId(0)
 {
     INSTANCE = this;
-    broadcastSocket = -1;
     m_curlm = curl_multi_init();
 }
 UDPOutput::~UDPOutput() {
@@ -271,22 +327,22 @@ int UDPOutput::Close() {
 }
 void UDPOutput::PrepData(unsigned char *channelData) {
     if (enabled) {
-        udpMsgs.clear();
-        broadcastMsgs.clear();
+        std::unique_lock<std::mutex> lk(socketMutex);
+        messages.clearMessages();
         for (auto a : outputs) {
             if (a->valid && a->active) {
-                a->PrepareData(channelData, udpMsgs, broadcastMsgs);
+                a->PrepareData(channelData, messages);
             }
         }
         //add any sync packets or whatever that are needed
         for (auto a : outputs) {
             if (a->valid && a->active) {
-                a->PostPrepareData(channelData, udpMsgs, broadcastMsgs);
+                a->PostPrepareData(channelData, messages);
             }
         }
     }
 }
-void  UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
+void UDPOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
     if (enabled) {
         for (auto a : outputs) {
             if (a->active) {
@@ -303,36 +359,56 @@ void UDPOutput::addOutput(UDPOutputData* out) {
 }
 
 
-int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
+int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo *socketInfo, std::vector<struct mmsghdr> &sendmsgs) {
     errno = 0;
     struct mmsghdr *msgs = &sendmsgs[0];
     int msgCount = sendmsgs.size();
     if (msgCount == 0) {
         return 0;
     }
-    
-    if (sendIdx == -1) {
-        return msgCount;
+
+    int newSockKey = socketKey;
+    int sendSocket = socketInfo->sockets[socketInfo->curSocket];
+    ++socketInfo->curSocket;
+    if (socketInfo->curSocket == socketInfo->sockets.size()) {
+        socketInfo->curSocket = 0;
     }
-    
+
     errno = 0;
-    int oc = sendmmsg(socket, msgs, msgCount, MSG_DONTWAIT);
-    int outputCount = oc;
-    int newSock = socket;
+    int oc = sendmmsg(sendSocket, msgs, msgCount, MSG_DONTWAIT);
+    int outputCount = 0;
+    if (oc > 0) {
+        outputCount = oc;
+    }
+
+    int errCount = 0;
     while (outputCount != msgCount) {
+        LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   Socket: %d   output count: %d/%d) with error: %d   %s\n",
+               socketKey, sendSocket,
+               outputCount, msgCount,
+               errno,
+               strerror(errno));
+
+        
+        int newSock = sendSocket;
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            if (socket != broadcastSocket) {
-                ++sendIdx;
-                if (sendIdx == 6) {
-                    sendIdx = 0;
+            if (socketKey != BROADCAST_MESSAGES_KEY) {
+                ++socketInfo->curSocket;
+                if (socketInfo->curSocket == socketInfo->sockets.size()) {
+                    socketInfo->curSocket = 0;
                 }
-                newSock = sendSockets[sendIdx];
-                if (newSock == socket) {
-                    return outputCount;
+                newSock = socketInfo->sockets[socketInfo->curSocket];
+                if (newSock == -1) {
+                    socketInfo->sockets[socketInfo->curSocket] = createSocket();
+                    newSock = socketInfo->sockets[socketInfo->curSocket];
                 }
             } else {
                 return outputCount;
             }
+        }
+        ++errCount;
+        if (errCount >= 10) {
+            return outputCount;
         }
         errno = 0;
         int oc = sendmmsg(newSock, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
@@ -344,42 +420,39 @@ int UDPOutput::SendMessages(int socket, std::vector<struct mmsghdr> &sendmsgs) {
 }
 
 int UDPOutput::SendData(unsigned char *channelData) {
-    
-    if ((udpMsgs.size() == 0 && broadcastMsgs.size() == 0) || !enabled || sendIdx == -1) {
+    std::unique_lock<std::mutex> lk(socketMutex);
+    if (!enabled || messages.sendSockets.empty()) {
         return 0;
     }
-    isSending = true;
-    if (udpMsgs.size() > 0) {
-        std::chrono::high_resolution_clock clock;
-        auto t1 = clock.now();
-        int outputCount = SendMessages(sendSockets[sendIdx], udpMsgs);
-        ++sendIdx;
-        if (sendIdx == 6) {
-            sendIdx = 0;
-        }
-        auto t2 = clock.now();
-        long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-        if ((outputCount != udpMsgs.size()) || (diff > 100)) {
-            errCount++;
-            
-            //failed to send all messages or it took more than 100ms to send them
-            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
-                   outputCount, udpMsgs.size(), diff, errCount,
-                   errno,
-                   strerror(errno));
+    for (auto &msgs : messages.messages) {
+        if (!msgs.second.empty()) {
+            std::chrono::high_resolution_clock clock;
+            auto t1 = clock.now();
+
+            SendSocketInfo *socketInfo = findOrCreateSocket(msgs.first, 5);
+            int outputCount = SendMessages(msgs.first, socketInfo, msgs.second);
+            auto t2 = clock.now();
+            long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            if ((outputCount != msgs.second.size()) || (diff > 100)) {
+                socketInfo->errCount++;
                 
-            if (errCount >= 3) {
-                //we'll ping the controllers and rebuild the valid message list, this could take time
-                pingThreadCondition.notify_all();
-                errCount = 0;
+                //failed to send all messages or it took more than 100ms to send them
+                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                       msgs.first,
+                       outputCount, msgs.second.size(), diff, socketInfo->errCount,
+                       errno,
+                       strerror(errno));
+                    
+                if (socketInfo->errCount >= 3) {
+                    //we'll ping the controllers and rebuild the valid message list, this could take time
+                    pingThreadCondition.notify_all();
+                    socketInfo->errCount = 0;
+                }
+            } else {
+                socketInfo->errCount = 0;
             }
-            return 0;
-        } else {
-            errCount = 0;
         }
     }
-    SendMessages(broadcastSocket, broadcastMsgs);
-    isSending = false;
     return 1;
 }
 
@@ -489,97 +562,92 @@ void UDPOutput::DumpConfig() {
         u->DumpConfig();
     }
 }
-void UDPOutput::CloseNetwork() {
-    int bs = broadcastSocket;
-        
-    sendIdx = -1;
-    broadcastSocket = -1;
-    //if other thread is sending data, give it time to complete
-    while (isSending) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    for (int x = 0; x < 6; x++) {
-        close(sendSockets[x]);
-    }
-    close(bs);
 
+void UDPOutput::CloseNetwork() {
+    std::unique_lock<std::mutex> lk(socketMutex);
+    messages.clearSockets();
+    lk.unlock();
     PingControllers();
+}
+SendSocketInfo* UDPOutput::findOrCreateSocket(unsigned int socketKey, int sc) {
+    auto it = messages.sendSockets.find(socketKey);
+    SendSocketInfo *info;
+    if (it == messages.sendSockets.end()) {
+        info = new SendSocketInfo();
+        messages.sendSockets[socketKey] = info;
+    } else {
+        info = it->second;
+    }
+    
+    if (info->sockets.empty()) {
+        for (int x = info->sockets.size(); x < sc; x++) {
+            int s = createSocket();
+            info->sockets.push_back(s);
+        }
+    }
+    if (info->curSocket == -1) {
+        info->curSocket = 0;
+    }
+    return info;
+}
+
+int UDPOutput::createSocket(int port, bool broadCast) {
+    int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (sendSocket < 0) {
+        LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
+        exit(1);
+    }
+    localAddress.sin_port = ntohs(port);
+
+    errno = 0;
+    /* Disable loopback so I do not receive my own datagrams. */
+    char loopch = 0;
+    if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
+        LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
+        close(sendSocket);
+        return -1;
+    }
+    if (broadCast) {
+        int broadcast = 1;
+        if (setsockopt(sendSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
+            LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
+            exit(1);
+        }
+    } else {
+        if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localAddress, sizeof(localAddress)) < 0) {
+            LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_IF error\n");
+            close(sendSocket);
+            return -1;
+        }
+    }
+    if (bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1) {
+        LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
+    }
+    if (connect(sendSocket, (struct sockaddr *)&localAddress, sizeof(localAddress)) < 0)  {
+        LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
+    }
+    return sendSocket;
 }
 
 bool UDPOutput::InitNetwork() {
-    if (sendIdx != -1) {
+    if (!messages.sendSockets.empty()) {
         return true;
     }
+    
     char E131LocalAddress[16];
     GetInterfaceAddress(getE131interface(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n",E131LocalAddress);
 
     if (strcmp(E131LocalAddress, "127.0.0.1") == 0) {
-        return false;
+        return -1;
     }
-    static struct sockaddr_in   localAddress;
     memset(&localAddress, 0, sizeof(struct sockaddr_in));
     localAddress.sin_family = AF_INET;
-    localAddress.sin_port = ntohs(0);
     localAddress.sin_addr.s_addr = inet_addr(E131LocalAddress);
 
-    for (int x = 0; x < 6; x++) {
-        int sendSocket = socket(AF_INET, SOCK_DGRAM, 0);
-
-        if (sendSocket < 0) {
-            LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
-            exit(1);
-        }
-
-        errno = 0;
-        /* Disable loopback so I do not receive my own datagrams. */
-        char loopch = 0;
-        if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
-            LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
-            close(sendSocket);
-            return false;
-        }
-        
-        if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localAddress, sizeof(localAddress)) < 0) {
-            LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
-            close(sendSocket);
-            return false;
-        }
-        if (bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1) {
-            LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
-        }
-        if (connect(sendSocket, (struct sockaddr *)&localAddress, sizeof(localAddress)) < 0)  {
-            LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
-        }
-        sendSockets[x] = sendSocket;
-    }
-    sendIdx = 0;
-    
-    int broadcastSocket = socket(AF_INET, SOCK_DGRAM, 0);
-    if (broadcastSocket < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
-        exit(1);
-    }
-    errno = 0;
-    if (bind(broadcastSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1) {
-        LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
-    }
-    /* Disable loopback so I do not receive my own datagrams. */
-    char loopch = 0;
-    if(setsockopt(broadcastSocket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
-        LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_LOOP error\n");
-        close(broadcastSocket);
-        return 0;
-    }
-    int broadcast = 1;
-    if (setsockopt(broadcastSocket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-        LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
-        exit(1);
-    }
-    if (connect(broadcastSocket, (struct sockaddr *)&localAddress, sizeof(localAddress)) < 0)  {
-        LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
-    }
-    this->broadcastSocket = broadcastSocket;
+    int broadcastSocket = createSocket(0, true);
+    messages.ForceSocket(BROADCAST_MESSAGES_KEY, broadcastSocket);
     return true;
 }
 

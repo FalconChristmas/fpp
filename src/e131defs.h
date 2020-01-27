@@ -31,7 +31,6 @@
 #define MAX_STEPS_OUT_OF_SYNC 2
 
 #define E131_DEST_PORT        5568
-#define E131_SOURCE_PORT      58301
 
 #define E131_UNIVERSE_INDEX   113
 #define E131_SEQUENCE_INDEX   111

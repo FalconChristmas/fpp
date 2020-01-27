@@ -128,8 +128,7 @@ public:
     }
 
     virtual void PrepareData(unsigned char *channelData,
-                             std::vector<struct mmsghdr> &uniMsgs,
-                             std::vector<struct mmsghdr> &bcstMsgs) override {
+                             UDPOutputMessages &msgs) {
         if (valid && active && NeedToOutputFrame(channelData, startChannel - 1, 0 , channelCount)) {
             struct mmsghdr msg;
             memset(&msg, 0, sizeof(msg));
@@ -150,9 +149,9 @@ public:
             }
 
             if (isBroadcast) {
-                bcstMsgs.push_back(msg);
+                msgs[BROADCAST_MESSAGES_KEY].push_back(msg);
             } else {
-                uniMsgs.push_back(msg);
+                msgs[udpAddress.sin_addr.s_addr].push_back(msg);
             }
             SaveFrame(channelData);
         } else {

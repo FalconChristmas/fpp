@@ -36,9 +36,7 @@ public:
     virtual ~DDPOutputData();
     
     virtual bool IsPingable() override { return true; }
-    virtual void PrepareData(unsigned char *channelData,
-                             std::vector<struct mmsghdr> &uniMsgs,
-                             std::vector<struct mmsghdr> &bcstMsgs) override;
+    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
     virtual void DumpConfig() override;
     
     virtual const std::string &GetOutputTypeString() const override;
