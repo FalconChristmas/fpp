@@ -186,6 +186,3 @@ then
         echo "FPP - No IP(s) found"
     fi
 fi
-
-# set the Source port for outgoing ARTNET packets to match the spec
-/sbin/iptables -t nat -I POSTROUTING -p udp --dport 6454 -j SNAT --to-source :6454

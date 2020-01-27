@@ -186,10 +186,7 @@ bool E131OutputData::IsPingable() {
     return type == 1;
 }
 
-void E131OutputData::PrepareData(unsigned char *channelData,
-                                 std::vector<struct mmsghdr> &uniMsgs,
-                                 std::vector<struct mmsghdr> &bcstMsgs) {
-    
+void E131OutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) {
     if (valid && active) {
         unsigned char *cur = channelData + startChannel - 1;
         int start = startChannel - 1;
@@ -205,8 +202,11 @@ void E131OutputData::PrepareData(unsigned char *channelData,
                 msg.msg_hdr.msg_iov = &e131Iovecs[x * 2];
                 msg.msg_hdr.msg_iovlen = 2;
                 msg.msg_len = channelCount + E131_HEADER_LENGTH;
-                uniMsgs.push_back(msg);
-                
+                if (type == E131_TYPE_MULTICAST) {
+                    msgs[MULTICAST_MESSAGES_KEY].push_back(msg);
+                } else {
+                    msgs[ANY_MESSAGES_KEY].push_back(msg);
+                }
                 
                 ++e131Headers[x][E131_SEQUENCE_INDEX];
                 e131Iovecs[x * 2 + 1].iov_base = (void*)cur;

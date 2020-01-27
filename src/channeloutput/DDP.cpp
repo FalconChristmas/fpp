@@ -212,9 +212,7 @@ DDPOutputData::~DDPOutputData() {
     free(ddpIovecs);
 }
 
-void DDPOutputData::PrepareData(unsigned char *channelData,
-                                std::vector<struct mmsghdr> &uniMsgs,
-                                std::vector<struct mmsghdr> &bcstMsgs) {
+void DDPOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) {
     if (valid && active) {
         int start = startChannel - 1;
         if (type == 5) {
@@ -228,11 +226,18 @@ void DDPOutputData::PrepareData(unsigned char *channelData,
         bool skipped = false;
         bool allSkipped = true;
         for (int p = 0; p < pktCount; p++) {
-            if (NeedToOutputFrame(channelData, startChannel-1, start, ddpIovecs[p * 2 + 1].iov_len)) {
+            bool nto = NeedToOutputFrame(channelData, startChannel-1, start, ddpIovecs[p * 2 + 1].iov_len);
+            if (!nto && (p == (pktCount - 1)) && !allSkipped) {
+                // at least one packet is not a duplicate, we need to send the last
+                // packet so that the sync flag is sent
+                nto = true;
+            }
+            if (nto) {
                 msg.msg_hdr.msg_iov = &ddpIovecs[p * 2];
                 msg.msg_hdr.msg_iovlen = 2;
                 msg.msg_len = ddpIovecs[p * 2 + 1].iov_len + DDP_HEADER_LEN;
-                uniMsgs.push_back(msg);
+                
+                msgs[ANY_MESSAGES_KEY].push_back(msg);
 
                 unsigned char *header = ddpBuffers[p];
                 header[1] = sequenceNumber & 0xF;

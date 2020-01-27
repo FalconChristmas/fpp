@@ -63,8 +63,6 @@
 #define ARTNET_SYNC_PACKET_LENGTH    14
 
 #define ARTNET_DEST_PORT        6454
-#define ARTNET_SOURCE_PORT      58302
-#define ARTNET_SYNC_SOURCE_PORT 58303
 
 #define ARTNET_SEQUENCE_INDEX   12
 #define ARTNET_UNIVERSE_INDEX   14
@@ -184,30 +182,31 @@ bool ArtNetOutputData::IsPingable() {
     return type == ARTNET_TYPE_UNICAST;
 }
 
-void ArtNetOutputData::PrepareData(unsigned char *channelData,
-                                   std::vector<struct mmsghdr> &uniMsgs,
-                                   std::vector<struct mmsghdr> &bcstMsgs) {
+void ArtNetOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &messages) {
     if (valid && active) {
-        struct mmsghdr msg;
-        memset(&msg, 0, sizeof(msg));
-
+        //ALL ArtNet messages must go out on the same socket
+        //and the socket MUST have the source port of ARTNET_DEST_PORT
+        //as per the ArtNet protocol
+        if (messages.GetSocket(ARTNET_DEST_PORT) == -1) {
+            messages.ForceSocket(ARTNET_DEST_PORT, UDPOutput::INSTANCE->createSocket(ARTNET_DEST_PORT, true));
+        }
         
         unsigned char *cur = channelData + startChannel - 1;
         int start = startChannel - 1;
         bool skipped = false;
         bool allSkipped = true;
+
+        std::vector<struct mmsghdr> &msgs = messages[ARTNET_DEST_PORT];
         for (int x = 0; x < universeCount; x++) {
             if (NeedToOutputFrame(channelData, startChannel - 1, start, channelCount)) {
+                struct mmsghdr msg;
+                memset(&msg, 0, sizeof(msg));
                 msg.msg_hdr.msg_name = &anAddress;
                 msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
                 msg.msg_hdr.msg_iov = &anIovecs[x * 2];
                 msg.msg_hdr.msg_iovlen = 2;
                 msg.msg_len = channelCount + ARTNET_HEADER_LENGTH;
-                if (type == ARTNET_TYPE_UNICAST) {
-                    uniMsgs.push_back(msg);
-                } else {
-                    bcstMsgs.push_back(msg);
-                }
+                msgs.push_back(msg);
                 
                 anHeaders[x][ARTNET_SEQUENCE_INDEX] = sequenceNumber;
                 anIovecs[x * 2 + 1].iov_base = (void*)cur;
@@ -230,11 +229,9 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData,
         }
     }
 }
-void ArtNetOutputData::PostPrepareData(unsigned char *channelData,
-                                       std::vector<struct mmsghdr> &uniMsgs,
-                                       std::vector<struct mmsghdr> &bcstMsgs) {
+void ArtNetOutputData::PostPrepareData(unsigned char *channelData, UDPOutputMessages &msgs) {
     if (valid && active) {
-        for (auto msg : bcstMsgs) {
+        for (auto msg : msgs[ARTNET_DEST_PORT]) {
             if (msg.msg_hdr.msg_iov == &ArtNetSyncIovecs) {
                 //already added, skip
                 return;
@@ -249,7 +246,7 @@ void ArtNetOutputData::PostPrepareData(unsigned char *channelData,
         msg.msg_hdr.msg_iov = &ArtNetSyncIovecs;
         msg.msg_hdr.msg_iovlen = 1;
         msg.msg_len = ARTNET_SYNC_PACKET_LENGTH;
-        bcstMsgs.push_back(msg);
+        msgs[ARTNET_DEST_PORT].push_back(msg);
     }
 }
 
