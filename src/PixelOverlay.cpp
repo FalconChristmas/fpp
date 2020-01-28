@@ -195,14 +195,18 @@ void PixelOverlayModel::doText(const std::string &msg,
     int lines = 1;
     int last = 0;
     for (int x = 0; x < msg.length(); x++) {
-        if (msg[x] == '\n') {
+        if (msg[x] == '\n' || ((x < msg.length() - 1) && msg[x] == '\\' && msg[x+1] == 'n')) {
             lines++;
             std::string newM = msg.substr(last, x);
             Magick::TypeMetric metrics;
             image.fontTypeMetrics(newM, &metrics);
             maxWid = std::max(maxWid,  (int)metrics.textWidth());
             totalHi += (int)metrics.textHeight();
-            last = x + 1;
+            if (msg[x] == '\n') {
+                last = x + 1;
+            } else {
+                last = x + 2;
+            }
         }
     }
     std::string newM = msg.substr(last);
@@ -243,7 +247,6 @@ void PixelOverlayModel::doText(const std::string &msg,
         rg /= 255.0f;
         rb /= 255.0f;
                 
-        
         Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
         image2.quiet(true);
         image2.depth(8);
