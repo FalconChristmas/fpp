@@ -627,7 +627,7 @@ int main(int argc, char *argv[])
     
     CommandManager::INSTANCE.Init();
 	if (strcmp(getSetting("MQTTHost"),"")) {
-		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort"), getSetting("MQTTPrefix"));
+		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort",1883), getSetting("MQTTPrefix"));
 
 		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername"), getSetting("MQTTPassword"), getSetting("MQTTCaFile")))
 			exit(EXIT_FAILURE);
