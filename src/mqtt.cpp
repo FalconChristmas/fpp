@@ -215,7 +215,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 	    LogInfo(VB_CONTROL, "No CA File specified for MQTT\n");
 	}
 
-	LogDebug(VB_CONTROL, "About to call MQTT Connect (%s, %d, %d)t\n", m_host.c_str(), m_port, m_keepalive);
+	LogDebug(VB_CONTROL, "About to call MQTT Connect (%s, %d, %d)\n", m_host.c_str(), m_port, m_keepalive);
 
 	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
 
