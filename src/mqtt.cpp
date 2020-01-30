@@ -178,11 +178,18 @@ MosquittoClient::~MosquittoClient()
 int MosquittoClient::Init(const std::string &username, const std::string &password, const std::string &ca_file)
 {
 	mosquitto_lib_init();
-    std::string host = getSetting("HostName");
-    if (host == "") {
-	    host = "FPP";
+    std::string clientId = getSetting("HostName");
+    if (clientId == "") {
+	    clientId = "FPP";
     }
-    m_mosq = mosquitto_new(host.c_str(), true, NULL);
+    clientId.append("_");
+    for (int i = 0; i < 4; i++) {
+	    int digit = rand() %10;
+            char digitc = '0' + digit;
+	    clientId.append(1,digitc);
+    }
+    LogInfo(VB_CONTROL, "Using MQTT client id of %s \n", clientId.c_str());
+    m_mosq = mosquitto_new(clientId.c_str(), true, NULL);
 	if (!m_mosq)
 	{
 		LogErr(VB_CONTROL, "Error, unable to create new Mosquitto instance.\n");
