@@ -1470,7 +1470,7 @@ function PerformCopy() {
         storageLocation = "/home/fpp/media/backups";
     }
 
-    if (direction == 'FROMLOCAL') {
+    if (direction.substring(0,4) == 'FROM') {
         if (pathSelect == '') {
             DialogError('Copy Failed', 'No path specified');
             return;
