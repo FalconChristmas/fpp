@@ -141,10 +141,6 @@ then
         sleep 0.5
     fi
 
-	# See if we have a PiFace connected
-	echo "FPP - Checking for PiFace"
-	detectPiFace
-
 	# See if we have any Falcon hardware on the SPI port
 	echo "FPP - Checking for Falcon hardware on SPI port"
 	detectFalconHardware

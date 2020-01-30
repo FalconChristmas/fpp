@@ -29,9 +29,51 @@
 #include <map>
 #include <functional>
 
-int  SetupGPIOInput(std::map<int, std::function<bool(int)>> &callbacks);
-void CleanupGPIOInput();
-void CheckGPIOInputs(void);
+#include <httpserver.hpp>
+#include <gpiod.h>
+
+class PinCapabilities;
+class GPIOManager : public httpserver::http_resource {
+public:
+    static GPIOManager INSTANCE;
+    
+    virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
+    
+    static void ConvertOldSettings();
+    
+    
+    void Initialize(std::map<int, std::function<bool(int)>> &callbacks);
+    void CheckGPIOInputs(void);
+    void Cleanup();
+    
+private:
+    class GPIOState {
+    public:
+        GPIOState() : pin(nullptr), lastValue(0), lastTriggerTime(0) {}
+        const PinCapabilities *pin;
+        int lastValue;
+        long long lastTriggerTime;
+        
+        struct gpiod_line * gpiodLine = nullptr;
+        int file;
+        std::string fallingAction;
+        std::vector<std::string> fallingActionArgs;
+        std::string risingAction;
+        std::vector<std::string> risingActionArgs;
+    };
+    
+    GPIOManager();
+    ~GPIOManager();
+    void SetupGPIOInput(std::map<int, std::function<bool(int)>> &callbacks);
+
+    
+    std::array<gpiod_chip*, 5> gpiodChips;
+    std::vector<GPIOState> pollStates;
+    std::vector<GPIOState> eventStates;
+    
+    friend class GPIOCommand;
+};
+
 int SetupExtGPIO(int gpio, char *mode);
 int ExtGPIO(int gpio, char *mode, int value);
 

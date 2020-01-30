@@ -85,7 +85,6 @@ int parseArguments(int argc, char **argv);
 int loadSettings(const char *filename);
 void CreateSettingsFile(char * file);
 void CheckExistanceOfDirectoriesAndFiles(void);
-int saveSettingsFile(void);
 int parseSetting(char *key, char *value);
 
 // Getters

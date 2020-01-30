@@ -3,7 +3,7 @@
 	font-size: 14px;
 	text-align: center;
 	#background: rgb(240, 240, 240);
-	width: 1200px;
+	width: 95%;
 	margin-left: auto;
 	margin-right: auto;
 }
@@ -99,7 +99,8 @@
 
 #bodyWrapper
 {
-	width: 1200px;
+#	width: 1200px;
+    width: 95%;
 	margin-left: auto;
 	margin-right: auto;
 	background: rgb(240, 240,240);
@@ -192,7 +193,8 @@
 
 .settings
 {
-	width: 1100px;
+#	width: 1100px;
+    width: 95%;
 	margin-left: auto;
 	margin-right: auto;
 }
@@ -339,14 +341,14 @@ fieldset
 .header{padding: 10px; }
 .headerLeft , .headerRight
 {
-	width:200px;
+	width:20%;
 	text-align:center;
 	float:left;
 }
 
 .headerCenter
 {
-	width:770px;
+	width: 60%;
 	text-align:center;
 	float:left;
 }
@@ -719,7 +721,7 @@ fieldset
 
 #fileManager, #channelOutputManager, #channelTester, .fppTabs {
 	min-width: 1068px;
-	width: 1160px;
+	#width: 1160px;
 	margin-left: auto;
 	margin-right: auto;
 }

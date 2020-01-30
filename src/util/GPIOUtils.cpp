@@ -69,6 +69,30 @@ std::vector<std::string> NoPinCapabilities::getPinNames() {
 #define PLAT_GPIO_CLASS NoPinCapabilities
 #endif
 
+Json::Value PinCapabilities::toJSON() const {
+    Json::Value ret;
+    if (name != "" && name != "-non-") {
+        ret["pin"] = name;
+        ret["gpio"] = kernelGpio;
+        ret["gpioChip"] = gpioIdx;
+        ret["gpioLine"] = gpio;
+        if (pru != -1) {
+            ret["pru"] = pru;
+            ret["pruPin"] = pruPin;
+        }
+        if (pwm != -1) {
+            ret["pwm"] = pwm;
+            ret["subPwm"] = subPwm;
+        }
+        if (i2cBus != -1) {
+            ret["i2c"] = i2cBus;
+        }
+        if (uart != "") {
+            ret["uart"] = uart;
+        }
+    }
+    return ret;
+}
 
 
 void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {

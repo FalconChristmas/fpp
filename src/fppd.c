@@ -383,7 +383,6 @@ printf("Usage: %s [OPTION...]\n"
 "  -l, --log-file FILENAME       - Set the log file\n"
 "  -b, --bytes-file FILENAME     - Set the bytes received file\n"
 "  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
-"      --detect-piface           - Detect PiFace hardware on SPI port\n"
 "  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
 "  -h, --help                    - This menu.\n"
 "      --log-level LEVEL         - Set the log output level:\n"
@@ -476,15 +475,6 @@ int parseArguments(int argc, char **argv)
 					LogInfo(VB_SETTING, "Log Mask set to %d (%s)\n", logMask, optarg);
 				}
 				break;
-            case 4: // detect-piface
-                PinCapabilities::InitGPIO();
-                if (PinCapabilities::getPinByGPIO(200).ptr()) {
-                    printf("PiFace found\n");
-                    exit(1);
-                } else {
-                    exit(0);
-                }
-                break;
 			case 'c': //config-file
 				if (FileExists(optarg))
 				{
@@ -623,6 +613,7 @@ int main(int argc, char *argv[])
 		CreateDaemon();
     }
     PinCapabilities::InitGPIO();
+    GPIOManager::ConvertOldSettings();
 
     
     CommandManager::INSTANCE.Init();
@@ -680,9 +671,8 @@ int main(int argc, char *argv[])
 	if (getFPPmode() & PLAYER_MODE) {
 		CloseEffects();
 	}
-    CleanupGPIOInput();
-
 	CloseChannelOutputs();
+    GPIOManager::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
 
 	delete multiSync;
@@ -757,11 +747,12 @@ void MainLoop(void)
     } else {
         Fake_Bridge_Initialize(callbacks);
     }
-    SetupGPIOInput(callbacks);
 
     APIServer apiServer;
     apiServer.Init();
+    
 
+    GPIOManager::INSTANCE.Initialize(callbacks);
     PluginManager::INSTANCE.addControlCallbacks(callbacks);
     NetworkMonitor::INSTANCE.Init(callbacks);
     
@@ -890,7 +881,7 @@ void MainLoop(void)
             idleCount = 0;
             multiSync->PeriodicPing();
         }
-		CheckGPIOInputs();
+        GPIOManager::INSTANCE.CheckGPIOInputs();
 	}
     close(epollf);
 

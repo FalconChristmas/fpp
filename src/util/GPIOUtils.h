@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include <jsoncpp/json/json.h>
+
 class PinCapabilities {
 public:
     static void InitGPIO();
@@ -21,8 +23,8 @@ public:
     uint8_t gpioIdx;
     uint8_t gpio;
 
-    uint8_t pru;
-    uint8_t pruPin;
+    int8_t pru;
+    int8_t pruPin;
     
     int8_t pwm;
     int8_t subPwm;
@@ -32,6 +34,7 @@ public:
     std::string uart;
     
 
+    virtual Json::Value toJSON() const;
     
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true) const = 0;

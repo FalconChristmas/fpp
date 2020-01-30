@@ -3372,6 +3372,7 @@ function CommandToJSON(commandSelect, tblCommand, json) {
 }
 
 var commandList = "";
+var extraCommands = "";
 function LoadCommandList(commandSelect) {
     if (commandList == "") {
         $.ajax({
@@ -3379,11 +3380,16 @@ function LoadCommandList(commandSelect) {
             url: "api/commands",
             async: false,
             success: function(data) {
-                commandList = data;
-                $.each( data, function(key, val) {
-                    option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-                    $('#' + commandSelect).append(option);
-                });
+               commandList = data;
+               if (extraCommands != "") {
+                    $.each( extraCommands, function(key, val) {
+                        commandList.push(val);
+                    });
+               }
+               $.each( data, function(key, val) {
+                   option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
+                   $('#' + commandSelect).append(option);
+               });
             }});
     } else {
         $.each( commandList, function(key, val) {
@@ -3402,112 +3408,118 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
     if (typeof command == "undefined"  ||  command == null) {
         return;
     }
-    $.ajax({
-          dataType: "json",
-          async: false,
-          url: "api/commands/" + command,
-          success: function(data) {
-              var count = 1;
-              $.each( data['args'], function( key, val ) {
-                     var ID = tblCommand + "_arg_" + count;
-                     var line = "<tr id='" + ID + "_row'><td>" + val["description"] + ":</td><td>";
-                     
-                     var dv = "";
-                     if (typeof val['default'] != "undefined") {
-                        dv = val['default'];
-                     }
-                     var contentListPostfix = "";
-                     if (val['type'] == "string") {
-                        if (typeof val['contents'] !== "undefined") {
-                            line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
-                            $.each( val['contents'], function( key, v ) {
-                                   line += "<option value='" + v + "'";
-                                   if (v == dv) {
-                                        line += " selected";
-                                   }
-                                   line += ">" + v + "</option>";
-                            })
-                            line += "</select>";
-                        } else if (typeof val['contentListUrl'] == "undefined") {
-                            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'>";
-                            line += "</input>";
-                            if (configAdjustable && val['adjustable']) {
-                                line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
-                            }
-                        } else {
-                            line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
-                            if (val['allowBlanks']) {
-                                line += "<option value=''></option>";
-                            }
-                            line += "</select>";
-                        }
-                     } else if (val['type'] == "datalist") {
-                        line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
-                        line += "<datalist id='" + ID + "_list'>";
-                        $.each( val['contents'], function( key, v ) {
-                               line += "<option value='" + v + "'";
-                               line += ">" + v + "</option>";
-                        })
-                        line += "</datalist>";
-                        contentListPostfix = "_list";
-                     } else if (val['type'] == "bool") {
-                        line += "<input type='checkbox' class='arg_" + val['name'] + "' id='" + ID  + "' value='true'";
-                         if (dv == "true" || dv == "1") {
-                            line += " checked";
-                         }
-                        line += "></input>";
-                     } else if (val['type'] == "color") {
-                        line += "<input type='color' class='arg_" + val['name'] + "' id='" + ID  + "' value='" + dv + "'></input>";
-                     } else if (val['type'] == "int") {
-                         line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
-                         if (dv != "") {
-                            line += " value='" + dv + "'";
-                         } else if (typeof val['min'] != "undefined") {
-                             line += " value='" + val['min'] + "'";
-                         }
-                         line += "></input>";
-                         if (configAdjustable && val['adjustable']) {
-                            line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
-                         }
-                     }
-                     
-                     line += "</td></tr>";
-                     $('#' + tblCommand + ' tr:last').after(line);
-                     if (typeof val['contentListUrl'] != "undefined") {
-                        var selId = "#" + tblCommand + "_arg_" + count + contentListPostfix;
-                        $.ajax({
-                               dataType: "json",
-                               url: val['contentListUrl'],
-                               async: false,
-                               success: function(data) {
-                                   if (Array.isArray(data)) {
-                                        data.sort();
-                                        $.each( data, function( key, v ) {
-                                          var line = "<option value='" + v + "'"
-                                          if (v == dv) {
-                                               line += " selected";
-                                          }
-                                          line += ">" + v + "</option>";
-                                          $(selId).append(line);
-                                       })
-                                   } else {
-                                        $.each( data, function( key, v ) {
-                                          var line = "<option value='" + key + "'"
-                                          if (key == dv) {
-                                               line += " selected";
-                                          }
-                                          line += ">" + v + "</option>";
-                                          $(selId).append(line);
-                                       })
-                                   }
-                               }
-                               });
-                     }
-                     
-                     count = count + 1;
-              });
-            
-        }
+    var co = commandList.find(function(element) {
+                              return element["name"] == command;
+                              });
+   if (typeof command == "undefined"  ||  command == null) {
+       $.ajax({
+       dataType: "json",
+       async: false,
+       url: "api/commands/" + command,
+       success: function(data) {
+              co = data;
+            }
+        });
+   }
+    
+    var count = 1;
+    $.each( co['args'], function( key, val ) {
+         var ID = tblCommand + "_arg_" + count;
+         var line = "<tr id='" + ID + "_row'><td>" + val["description"] + ":</td><td>";
+         
+         var dv = "";
+         if (typeof val['default'] != "undefined") {
+            dv = val['default'];
+         }
+         var contentListPostfix = "";
+         if (val['type'] == "string") {
+            if (typeof val['contents'] !== "undefined") {
+                line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
+                $.each( val['contents'], function( key, v ) {
+                       line += "<option value='" + v + "'";
+                       if (v == dv) {
+                            line += " selected";
+                       }
+                       line += ">" + v + "</option>";
+                })
+                line += "</select>";
+            } else if (typeof val['contentListUrl'] == "undefined") {
+                line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'>";
+                line += "</input>";
+                if (configAdjustable && val['adjustable']) {
+                    line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
+                }
+            } else {
+                line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
+                if (val['allowBlanks']) {
+                    line += "<option value=''></option>";
+                }
+                line += "</select>";
+            }
+         } else if (val['type'] == "datalist") {
+            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
+            line += "<datalist id='" + ID + "_list'>";
+            $.each( val['contents'], function( key, v ) {
+                   line += "<option value='" + v + "'";
+                   line += ">" + v + "</option>";
+            })
+            line += "</datalist>";
+            contentListPostfix = "_list";
+         } else if (val['type'] == "bool") {
+            line += "<input type='checkbox' class='arg_" + val['name'] + "' id='" + ID  + "' value='true'";
+             if (dv == "true" || dv == "1") {
+                line += " checked";
+             }
+            line += "></input>";
+         } else if (val['type'] == "color") {
+            line += "<input type='color' class='arg_" + val['name'] + "' id='" + ID  + "' value='" + dv + "'></input>";
+         } else if (val['type'] == "int") {
+             line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
+             if (dv != "") {
+                line += " value='" + dv + "'";
+             } else if (typeof val['min'] != "undefined") {
+                 line += " value='" + val['min'] + "'";
+             }
+             line += "></input>";
+             if (configAdjustable && val['adjustable']) {
+                line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
+             }
+         }
+         
+         line += "</td></tr>";
+         $('#' + tblCommand + ' tr:last').after(line);
+         if (typeof val['contentListUrl'] != "undefined") {
+            var selId = "#" + tblCommand + "_arg_" + count + contentListPostfix;
+            $.ajax({
+                   dataType: "json",
+                   url: val['contentListUrl'],
+                   async: false,
+                   success: function(data) {
+                       if (Array.isArray(data)) {
+                            data.sort();
+                            $.each( data, function( key, v ) {
+                              var line = "<option value='" + v + "'"
+                              if (v == dv) {
+                                   line += " selected";
+                              }
+                              line += ">" + v + "</option>";
+                              $(selId).append(line);
+                           })
+                       } else {
+                            $.each( data, function( key, v ) {
+                              var line = "<option value='" + key + "'"
+                              if (key == dv) {
+                                   line += " selected";
+                              }
+                              line += ">" + v + "</option>";
+                              $(selId).append(line);
+                           })
+                       }
+                   }
+                   });
+         }
+         
+         count = count + 1;
     });
 }
 

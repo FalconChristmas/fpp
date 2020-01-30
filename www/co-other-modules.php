@@ -93,23 +93,40 @@ class OtherBaseDevice extends OtherBase {
 
 /////////////////////////////////////////////////////////////////////////////
 // Misc. Support functions
-function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass) {
-	var result = selectTitle+": <select class='"+selectClass+"'>";
+function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass, onselect = "") {
+	var result = selectTitle+": <select class='"+selectClass+"'";
+    if (onselect != "") {
+        result += " onchange='" + onselect + "'";
+    }
+    result += ">";
 
 	if (currentValue === "")
 		result += "<option value=''>"+dropDownTitle+"</option>";
 
 	var found = 0;
-	for (var key in optionArray) {
-		result += "<option value='" + key + "'";
-	
-		if (currentValue == key) {
-			result += " selected";
-			found = 1;
-		}
+    if (optionArray instanceof Map) {
+        optionArray.forEach((key, value) => {
+                                result += "<option value='" + value + "'";
+                            
+                                if (currentValue == value) {
+                                    result += " selected";
+                                    found = 1;
+                                }
 
-		result += ">" + optionArray[key] + "</option>";
-	}
+                                result += ">" + key + "</option>";
+                            });
+    } else {
+        for (var key in optionArray) {
+            result += "<option value='" + key + "'";
+        
+            if (currentValue == key) {
+                result += " selected";
+                found = 1;
+            }
+
+            result += ">" + optionArray[key] + "</option>";
+        }
+    }
 
 	if ((currentValue != '') &&
 		(found == 0)) {
@@ -364,7 +381,82 @@ class GenericUDPDevice extends OtherBase {
 
         return result;
     }
+}
 
+/////////////////////////////////////////////////////////////////////////////
+// GPIO Output
+
+var GPIOPins = new Map();
+var PWMPins = new Array();
+<?
+$data = file_get_contents('http://127.0.0.1:32322/gpio');
+$gpiojson = json_decode($data, true);
+foreach($gpiojson as $gpio) {
+    $pn = $gpio['pin'] . ' (GPIO: ' . $gpio[gpio] . ')';
+    echo "GPIOPins.set(" . $gpio[gpio] . ", '" . $pn . "');\n";
+    if (isset($gpio['pwm'])) {
+        echo "PWMPins['". $gpio[gpio] . "'] = true;\n";
+    }
+}
+?>
+
+function GPIOHeaderPinChanged(item) {
+    var gpio = item.value;
+    var row = item.closest('tr');
+    if (PWMPins[gpio] != true) {
+        $(row).find("span.pwm-span").hide();
+        $(row).find("input.pwm").prop('checked', false);
+    } else {
+        $(row).find("span.pwm-span").show();
+    }
+}
+
+class GPIOOutputDevice extends OtherBase {
+    constructor(name="GPIO", friendlyName="GPIO", maxChannels=1, fixedChans=true, config={}) {
+        super(name, friendlyName, maxChannels, fixedChans, config);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        var gpio = GPIOPins[0];
+        var pwm = 0;
+        var inverted = 0;
+        if (config.gpio != undefined) {
+            gpio = config.gpio;
+        }
+        if (config.pwm != undefined) {
+            pwm = config.pwm;
+        } else if (config.softPWM != undefined) {
+            pwm = config.softPWM;
+        }
+        if (config.invert != undefined) {
+            inverted = config.invert;
+        }
+        result += CreateSelect(GPIOPins, gpio, "GPIO", "", "gpio", "GPIOHeaderPinChanged(this)");
+        result += "\n";
+        result += " Inverted: <input type=checkbox class='inverted'";
+        if (inverted)
+            result += " checked='checked'";
+        result += ">\n";
+        result += "<span class='pwm-span' ";
+        if (PWMPins[gpio] != true) {
+            result += " style='display: none;'";
+        }
+        result += ">PWM: <input type='checkbox' class='pwm'";
+        if (pwm)
+            result += " checked='checked'";
+        result += "></span>\n";
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        var gpio = cell.find("select.gpio").val();
+        result.gpio = parseInt(gpio);
+        result.invert = cell.find("input.invert").is(":checked") ? 1 : 0;
+        result.pwm =  cell.find("input.pwm").is(":checked") ? 1 : 0;
+        return result;
+    }
 }
 
 
@@ -373,6 +465,11 @@ class GenericUDPDevice extends OtherBase {
 var output_modules = [];
 
 //Outputs for all platforms
+
+if (GPIOPins.size > 0) {
+    output_modules.push(new GPIOOutputDevice());
+}
+
 
 //Outputs for Raspberry Pi or Beagle
 <?

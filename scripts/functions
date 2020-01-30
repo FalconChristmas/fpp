@@ -511,16 +511,6 @@ setupChannelOutputs() {
 }
 
 #############################################################################
-# Detect PiFace
-detectPiFace() {
-	ls -1 /dev/spidev*
-	${FPPD} --detect-piface
-    PIFACEFOUND=$?
-
-    setSetting PiFaceDetected ${PIFACEFOUND}
-}
-
-#############################################################################
 # Detect Falcon hardware on SPI port
 detectFalconHardware() {
 	${FPPD} -H

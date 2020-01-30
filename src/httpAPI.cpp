@@ -55,6 +55,7 @@
 #include "commands/Commands.h"
 #include "PixelOverlay.h"
 #include "Plugins.h"
+#include "gpio.h"
 
 
 /*
@@ -79,6 +80,7 @@ APIServer::~APIServer()
     m_ws->unregister_resource("/overlays");
     m_ws->unregister_resource("/command");
     m_ws->unregister_resource("/commands");
+    m_ws->unregister_resource("/gpio");
 
 	delete m_pr;
 	delete m_ws;
@@ -101,6 +103,7 @@ void APIServer::Init(void)
     m_ws->register_resource("/overlays", &PixelOverlayManager::INSTANCE, true);
     m_ws->register_resource("/command", &CommandManager::INSTANCE, true);
     m_ws->register_resource("/commands", &CommandManager::INSTANCE, true);
+    m_ws->register_resource("/gpio", &GPIOManager::INSTANCE, true);
 
     PluginManager::INSTANCE.registerApis(m_ws);
 

@@ -201,6 +201,98 @@ bool FPPOLEDUtils::setupControlPin(const std::string &file) {
     return false;
 }
 
+FPPOLEDUtils::InputAction *FPPOLEDUtils::configureGPIOPin(const std::string &pinName,
+                                                          const std::string &mode,
+                                                          const std::string &edge) {
+    InputAction *action = new InputAction();
+    action->pin = pinName;
+    action->mode = mode;
+    const PinCapabilities &pin = PinCapabilities::getPinByName(action->pin);
+    pin.configPin(action->mode, false);
+
+    action->gpiodLine = nullptr;
+    if (!gpiodChips[pin.gpioIdx]) {
+        gpiodChips[pin.gpioIdx] = gpiod_chip_open_by_number(pin.gpioIdx);
+    }
+    action->gpiodLine = gpiod_chip_get_line(gpiodChips[pin.gpioIdx], pin.gpio);
+    
+    struct gpiod_line_request_config lineConfig;
+    lineConfig.consumer = "FPPOLED";
+    lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
+    lineConfig.flags = 0;
+    if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
+        printf("Could not config line as input.  Line %d.\n", action->gpiodLine);
+    }
+    gpiod_line_release(action->gpiodLine);
+    if (edge == "falling") {
+        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
+    } else if (edge == "rising") {
+        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
+    } else {
+        lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
+    }
+    lineConfig.flags = 0;
+    if (gpiod_line_request(action->gpiodLine, &lineConfig, 0) == -1) {
+        printf("Could not config line edge for line %d\n", action->gpiodLine);
+    }
+    action->file = gpiod_line_event_get_fd(action->gpiodLine);
+    action->kernelGPIO = pin.kernelGpio;
+    action->gpioChipIdx = pin.gpioIdx;
+    action->gpioChipLine = pin.gpio;
+    return action;
+}
+
+bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string &file) {
+    char vbuffer[256];
+    bool needsPolling = false;
+    if (FileExists(file)) {
+        std::ifstream t(file);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        std::string config = buffer.str();
+        Json::Value root;
+        Json::Reader reader;
+        bool success = reader.parse(buffer.str(), root);
+        if (success) {
+            for (int x = 0; x < root.size(); x++) {
+                if (!root[x]["enabled"].asBool()) {
+                    continue;
+                }
+                std::string edge = "";
+                std::string actionValue = "";
+                std::string mode = root[x]["mode"].asString();
+                std::string pinName = root[x]["pin"].asString();
+                std::string fallingAction = "";
+                std::string risingAction = "";
+                if (root[x].isMember("falling") && root[x]["falling"]["command"].asString() == "OLED Navigation") {
+                    edge = "falling";
+                    fallingAction = root[x]["falling"]["args"][0].asString();
+                }
+                if (root[x].isMember("rising") && root[x]["rising"]["command"].asString() == "OLED Navigation") {
+                    if (edge == "falling") {
+                        edge = "both";
+                    } else {
+                        edge = "rising";
+                    }
+                    risingAction = root[x]["rising"]["args"][0].asString();
+                }
+                if (edge != "") {
+                    InputAction *action = configureGPIOPin(pinName, mode, edge);
+                    if (risingAction != "") {
+                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d,  file: %d)\n", action->pin.c_str(), risingAction.c_str(), action->mode.c_str(), action->kernelGPIO, action->file);
+                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(risingAction, 1, 1, 100000));
+                    }
+                    if (fallingAction != "") {
+                        printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d,  file: %d)\n", action->pin.c_str(), fallingAction.c_str(), action->mode.c_str(), action->kernelGPIO, action->file);
+                        action->actions.push_back(new FPPOLEDUtils::InputAction::Action(fallingAction, 0, 0, 100000));
+                    }
+                    actions.push_back(action);
+                }
+            }
+        }
+    }
+    return needsPolling;
+}
 
 bool FPPOLEDUtils::parseInputActions(const std::string &file) {
     char vbuffer[256];
@@ -251,7 +343,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
                     
                     std::string type = root["inputs"][x]["type"].asString();
                     if (type == "gpiod") {
-                        //this is the mode for vairous gpio extenders like the pca9675 chip that
+                        //this is the mode for various gpio extenders like the pca9675 chip that
                         //use a single interrupt line (configured above) fall all the buttons.
                         //The above will trigger an interupt after which we will need to
                         //use libgpiod to get the value of each button to figure out
@@ -331,6 +423,7 @@ void FPPOLEDUtils::run() {
     char vbuffer[256];
     setupControlPin("/home/fpp/media/tmp/cape-info.json");
     bool needsPolling = parseInputActions("/home/fpp/media/tmp/cape-inputs.json");
+    needsPolling |= parseInputActionFromGPIO("/home/fpp/media/config/gpio.json");
     std::vector<struct pollfd> fdset(actions.size());
     
     if (actions.size() == 0 && _ledType == 0) {

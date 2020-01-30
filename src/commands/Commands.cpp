@@ -7,7 +7,6 @@
 #include "PlaylistCommands.h"
 #include "EventCommands.h"
 #include "MediaCommands.h"
-#include "util/GPIOUtils.h"
 
 CommandManager CommandManager::INSTANCE;
 Command::Command(const std::string &n) : name(n) {
@@ -57,29 +56,6 @@ Json::Value Command::getDescription() {
 CommandManager::CommandManager() {
 }
 
-class GPIOCommand : public Command {
-public:
-    GPIOCommand(std::vector<std::string> pins) : Command("GPIO") {
-        args.push_back(CommandArg("pin", "string", "Pin").setContentList(pins));
-        args.push_back(CommandArg("on", "bool", "On"));
-    }
-    virtual ~GPIOCommand() {
-    }
-    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
-        if (args.size() != 2) {
-            return std::make_unique<Command::ErrorResult>("Invalid number of arguments. GPIO needs two arguments.");
-        }
-        std::string n = args[0];
-        std::string v = args[1];
-        const PinCapabilities &p = PinCapabilities::getPinByName(n);
-        if (p.ptr()) {
-            p.configPin();
-            p.setValue(v == "true" || v == "1");
-            std::make_unique<Command::Result>("OK");
-        }
-        return std::make_unique<Command::ErrorResult>("No Pin Named " + n);
-    }
-};
 
 void CommandManager::Init() {
     addCommand(new StopPlaylistCommand());
@@ -110,20 +86,13 @@ void CommandManager::Init() {
     addCommand(new StopRemoteEffectCommand());
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
-    
-    std::vector<std::string> pins = PinCapabilities::getPinNames();
-    if (!pins.empty()) {
-        addCommand(new GPIOCommand(pins));
-    }
 }
 CommandManager::~CommandManager() {
     Cleanup();
 }
 void CommandManager::Cleanup() {
     for (auto &a : commands) {
-        if (a.second->name != "GPIO") {
-            delete a.second;
-        }
+        delete a.second;
     }
     commands.clear();
 }

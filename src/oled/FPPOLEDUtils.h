@@ -54,6 +54,9 @@ public:
         const std::string &checkAction(int i, long long time);
         
         struct gpiod_line *gpiodLine = nullptr;
+        int gpioChipIdx = -1;
+        int gpioChipLine = -1;
+        int kernelGPIO = -1;
     };
 
 private:
@@ -68,6 +71,11 @@ private:
 
     bool setupControlPin(const std::string &file);
     bool parseInputActions(const std::string &file);
+    bool parseInputActionFromGPIO(const std::string &file);
+    
+    InputAction* configureGPIOPin(const std::string &pin,
+                                  const std::string &mode,
+                                  const std::string &edge);
     bool checkStatusAbility();
 };
 
