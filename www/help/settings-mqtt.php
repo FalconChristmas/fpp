@@ -1,9 +1,11 @@
 <center><b>MQTT Settings</b></center>
 <hr>
-MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. <br/>
-CA file is the full path to the signer certificate.  Only needed if using mqtts server that is self signed.<br/>
-Publish Frequence should be zero (disabled) or the number of seconds between periodic mqtt publish events<br/><br/>
-FPP will respond to certain events:
+<ul>
+<li>MQTT events will be published to "$prefix/falcon/player/$hostname/" with playlist events being in the "playlist" subtopic. 
+<li><b>CA file</b> is the full path to the signer certificate.  Only needed if using mqtts server that is self signed.
+<li><b>Publish Frequence</b> should be zero (disabled) or the number of seconds between periodic mqtt publish events<br/>
+<li>FPP will respond to certain events:
+</ul>
 <div class="fppSelectableTableWrapper">
 <table width = "100%" border="0" cellpadding="1" cellspacing="1">
 <thead class='fppTableHeader'>
