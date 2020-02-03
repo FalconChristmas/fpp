@@ -1,10 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <?php require_once 'common/menuHead.inc'; ?>
-    <title>FPP - <? echo gethostname(); ?></title>
-    <!--    <script>var helpPage = "help/backup.php";</script>-->
-<script>
 <?php
 $skipJSsettings = 1;
 //error_reporting(E_ALL);
@@ -1359,6 +1352,13 @@ function is_array_empty($InputVariable)
 moveBackupFiles_ToBackupDirectory();
     
 ?>
+<!DOCTYPE html>
+<html>
+<head>
+    <?php require_once 'common/menuHead.inc'; ?>
+    <title>FPP - <? echo gethostname(); ?></title>
+    <!--    <script>var helpPage = "help/backup.php";</script>-->
+<script>
 </script>
 
 <?
