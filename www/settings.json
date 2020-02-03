@@ -37,6 +37,7 @@
             "desc": "MQTT",
             "settings": [
                 "MQTTHost",
+                "MQTTClientId",
                 "MQTTPort",
                 "MQTTPrefix",
                 "MQTTUsername",
@@ -438,6 +439,15 @@
             "min": 0,
             "max": 3600,
             "step": 1
+        },
+        "MQTTClientId": {
+            "name": "MQTTClientId",
+            "desc": "Client ID",
+            "tip": "If not set, one will be genereated",
+            "restart": 2,
+            "type": "text",
+            "size": 32,
+            "maxlength": 64
         },
         "MQTTHost": {
             "name": "MQTTHost",

@@ -177,16 +177,21 @@ MosquittoClient::~MosquittoClient()
  */
 int MosquittoClient::Init(const std::string &username, const std::string &password, const std::string &ca_file)
 {
-	mosquitto_lib_init();
-    std::string clientId = getSetting("HostName");
+    mosquitto_lib_init();
+    // Use supplied Client Id (If one)
+    std::string clientId = getSetting("MQTTClientId");
     if (clientId == "") {
+	// If not, genereate one with random digits on end
+    	clientId = getSetting("HostName");
+    	if (clientId == "") {
 	    clientId = "FPP";
-    }
-    clientId.append("_");
-    for (int i = 0; i < 4; i++) {
+    	}
+    	clientId.append("_");
+    	for (int i = 0; i < 4; i++) {
 	    int digit = rand() %10;
             char digitc = '0' + digit;
 	    clientId.append(1,digitc);
+    	}
     }
     LogInfo(VB_CONTROL, "Using MQTT client id of %s \n", clientId.c_str());
     m_mosq = mosquitto_new(clientId.c_str(), true, NULL);
