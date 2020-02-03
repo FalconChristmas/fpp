@@ -191,11 +191,18 @@ void PinCapabilities::InitGPIO() {
     if (chip != nullptr) {
         ::gpiod_chip_close(chip);
         // has at least on chip
+        std::set<std::string> found;
         for (auto &a : gpiod::make_chip_iter()) {
             std::string name = a.name();
             std::string label = a.label();
             
             if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
+                char i = 'b';
+                while (found.find(label) != found.end()) {
+                    label = a.label() + i;
+                    i++;
+                }
+                found.insert(label);
                 for (int x = 0; x < a.num_lines(); x++) {
                     std::string n = label + "-" + std::to_string(x);
                     GPIODCapabilities caps(n, pinCount + x);
