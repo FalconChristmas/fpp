@@ -187,20 +187,25 @@ void PinCapabilities::InitGPIO() {
 #ifdef HASGPIOD
     int chipCount = 0;
     int pinCount = 0;
-    for (auto &a : gpiod::make_chip_iter()) {
-        std::string name = a.name();
-        std::string label = a.label();
-        
-        if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
-            for (int x = 0; x < a.num_lines(); x++) {
-                std::string n = label + "-" + std::to_string(x);
-                GPIODCapabilities caps(n, pinCount + x);
-                caps.setGPIO(chipCount, x);
-                GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x).setGPIO(chipCount, x));
+    ::gpiod_chip* chip = gpiod_chip_open_by_number(0);
+    if (chip != nullptr) {
+        ::gpiod_chip_close(chip);
+        // has at least on chip
+        for (auto &a : gpiod::make_chip_iter()) {
+            std::string name = a.name();
+            std::string label = a.label();
+            
+            if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
+                for (int x = 0; x < a.num_lines(); x++) {
+                    std::string n = label + "-" + std::to_string(x);
+                    GPIODCapabilities caps(n, pinCount + x);
+                    caps.setGPIO(chipCount, x);
+                    GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x).setGPIO(chipCount, x));
+                }
             }
+            pinCount += a.num_lines();
+            chipCount++;
         }
-        pinCount += a.num_lines();
-        chipCount++;
     }
 #endif
     PLAT_GPIO_CLASS::Init();
