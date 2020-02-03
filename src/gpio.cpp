@@ -183,12 +183,16 @@ const httpserver::http_response GPIOManager::render_GET(const httpserver::http_r
     if (p1 == "gpio") {
         if (plen <= 1) {
             std::vector<std::string> pins = PinCapabilities::getPinNames();
+            if (pins.empty()) {
+                return httpserver::http_response_builder("[]", 200, "application/json").string_response();
+            }
             Json::Value result;
             for (auto & a : pins) {
                 result.append(PinCapabilities::getPinByName(a).toJSON());
             }
             Json::StyledWriter fastWriter;
             std::string resultStr = fastWriter.write(result);
+            
             return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
         }
     }
