@@ -93,6 +93,7 @@ LIBS_fpp_so += \
 	-lpthread -lrt \
     -lzstd -lz \
 	-lgpiod \
+	-lgpiodcxx \
 	-lhttpserver \
 	-ljsoncpp \
 	-lm \

@@ -159,7 +159,7 @@ foreach($gpiojson as $gpio) {
         <td><?= $pinName ?></td>
     <td><?= $gpioNum ?>&nbsp;-&nbsp;<?= $gpio['gpioChip'] ?>/<?= $gpio['gpioLine'] ?></td>
         <td>
-        <select id='gpio_<?= $pinNameClean ?>_PullUpDown'>
+            <select id='gpio_<?= $pinNameClean ?>_PullUpDown' <? if (!$gpio['supportsPullUpDown']) echo "style='display:none;'"; ?> >
             <option value='gpio'>None/External</option>
             <option value='gpio_pu'>Pull Up</option>
             <option value='gpio_pd'>Pull Down</option>

@@ -49,7 +49,7 @@ public:
 private:
     class GPIOState {
     public:
-        GPIOState() : pin(nullptr), lastValue(0), lastTriggerTime(0) {}
+        GPIOState() : pin(nullptr), lastValue(0), lastTriggerTime(0), file(-1) {}
         const PinCapabilities *pin;
         int lastValue;
         long long lastTriggerTime;

@@ -148,14 +148,13 @@ void GPIOManager::CheckGPIOInputs(void) {
         if (val != a.lastValue) {
             long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
             if ((a.lastTriggerTime < lastAllowedTime)) {
-                LogDebug(VB_GPIO, "GPIO %s triggered\n", a.pin->name.c_str());
-                
                 std::string command = (val == 0) ? a.fallingAction : a.risingAction;
                 if (command != "") {
+                    LogDebug(VB_GPIO, "GPIO %s triggered.   Command: %s\n", a.pin->name.c_str(), command.c_str());
                     CommandManager::INSTANCE.run(command, (val == 0) ? a.fallingActionArgs : a.risingActionArgs);
-                    a.lastTriggerTime = GetTime();
-                    a.lastValue = val;
                 }
+                a.lastTriggerTime = GetTime();
+                a.lastValue = val;
             }
         }
     }
@@ -409,9 +408,10 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                         }
                         lineConfig.flags = 0;
                         if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-                            LogDebug(VB_GPIO, "Could not config line edge\n");
+                            LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
+                        } else {
+                            state.file = gpiod_line_event_get_fd(state.gpiodLine);
                         }
-                        state.file = gpiod_line_event_get_fd(state.gpiodLine);
 
                         if (state.file > 0) {
                             eventStates.push_back(state);

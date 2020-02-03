@@ -18,6 +18,7 @@ LIBS_fppoled = \
 	-lpthread -lrt \
 	-lcurl \
 	-lgpiod \
+	-lgpiodcxx \
 	$(LIBS_GPIO_ADDITIONS)
 
 TARGETS += fppoled
