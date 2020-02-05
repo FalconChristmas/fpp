@@ -18,7 +18,7 @@ function help_help()
 		[ 'POST /playlist/:PlaylistName', 'Update/Insert the Playlist named :PlaylistName.', '{ "name": "UploadTest", "mainPlaylist": [ { "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 } ], "playlistInfo": { "total_duration": 8, "total_items": 1 } }', '{ "Status": "OK", "Message": "" }' ],
 		[ 'DELETE /playlist/:PlaylistName', 'Delete the Playlist named :PlaylistName', '', '{ "Status": "OK", "Message": "" }' ],
 		[ 'POST /playlist/:PlaylistName/:SectionName/item', 'Insert an item into the :SectionName section of the playlist :PlaylistName', '{ "type": "pause", "enabled": 1, "playOnce": 0, "duration": 8 }', '{ "Status": "OK", "Message": "" }' ],
-		[ 'GET /plugin', 'Get list of installed plugins', '', '{ "installedPlugins": [ "fpp-matrixtools" ] }' ],
+		[ 'GET /plugin', 'Get list of installed plugins', '', '[ "fpp-matrixtools", "fpp-vastfmt", "fpp-brightness" ]' ],
 		[ 'POST /plugin', 'Install a new plugin.  The data passed in is a pluginInfo JSON structure with branch and sha values added to the top level to indicate which branch and sha to install.', '{ "repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "description": "MatrixTools description here.", "homeURL": "https://github.com/cpinkham/fpp-matrixtools", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "bugURL": "https://github.com/cpinkham/fpp-matrixtools/issues", "branch": "master", "sha": "", "versions": [ { "minFPPVersion": 0, "maxFPPVersion": 0, "branch": "master", "sha": "" } ] }', '{ "Status": "OK", "Message": "" }' ],
 		[ 'GET /plugin/:PluginRepoName', 'Get pluginInfo.json for installed plugin PluginRepoName.  An additional "updatesAvailable" field is added to indicate whether the plugin has any updates available that have been fetched but not merged.', '', '{ "repoName": "fpp-matrixtools", "name": "MatrixTools", "author": "Chris Pinkham (CaptainMurdoch)", "description": "MatrixTools description here.", "homeURL": "https://github.com/cpinkham/fpp-matrixtools", "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git", "bugURL": "https://github.com/cpinkham/fpp-matrixtools/issues", "updatesAvailable": 0, "versions": [ { "minFPPVersion": 0, "maxFPPVersion": 0, "branch": "master", "sha": "" } ] }' ],
 		[ 'POST /plugin/:PluginRepoName/updates', 'Check plugin PluginRepoName for available updates.  this works by running a "git fetch" in the plugin directory and checking for any non-merged updates.', '', '{ "Status": "OK", "Message": "", "updatesAvailable": 1 }' ],
@@ -84,7 +84,7 @@ td {
 		$output = $endpoint[3];
 		if ($output == '') {
 			$output = '&nbsp;';
-		} else if (preg_match('/{/', $output)) {
+		} else if (preg_match('/[\[{]/', $output)) {
 			$output = json_encode(json_decode($output, true), JSON_PRETTY_PRINT);
 			$output = "<pre>$output</pre>\n";
 		}
@@ -109,7 +109,7 @@ td {
         $output = $endpoint[3];
         if ($output == '') {
             $output = '&nbsp;';
-        } else if (preg_match('/{/', $output)) {
+        } else if (preg_match('/[\[{]/', $output)) {
             $output = json_encode(json_decode($output, true), JSON_PRETTY_PRINT);
             $output = "<pre>$output</pre>\n";
         }

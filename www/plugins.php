@@ -32,7 +32,7 @@ function GetInstalledPlugins() {
 		url: url,
 		dataType: 'json',
 		success: function(data) {
-			installedPlugins = data.installedPlugins;
+			installedPlugins = data;
 			LoadInstalledPlugins();
 			GetPluginList();
 		},

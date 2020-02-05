@@ -5,7 +5,6 @@
 function GetInstalledPlugins()
 {
 	global $settings;
-	$result = Array();
 	$plugins = Array();
 
 	$dir = $settings['pluginDirectory'];
@@ -23,9 +22,7 @@ function GetInstalledPlugins()
 		}
 	}
 
-	$result['installedPlugins'] = $plugins;
-
-	return json($result);
+	return json($plugins);
 }
 
 /////////////////////////////////////////////////////////////////////////////
