@@ -21,7 +21,11 @@ public:
     virtual int getPWMRegisterAddress() const override { return 0;};
     virtual bool supportPWM() const override { return false; };
     
+    virtual bool supportsPullUp() const override { return true; }
+    virtual bool supportsPullDown() const override { return false; }
+
     static void Init(int base);
+    static void getPinNames(std::vector<std::string> &r);
     static const PinCapabilities &getPinByName(const std::string &name);
     static const PinCapabilities &getPinByGPIO(int i);
     static const PinCapabilities &getPinByUART(const std::string &n);

@@ -40,6 +40,7 @@ void PiFacePinCapabilities::setValue(bool i) const {
 }
 
 static std::vector<PiFacePinCapabilities> PIFACE_PINS;
+static std::vector<PiFacePinCapabilities> PIFACE_PINS_HIDDEN;
 
 void PiFacePinCapabilities::Init() {
     //the old wiringPi put the MCP23x17 pins 16 above the PiFace pins
@@ -52,15 +53,20 @@ void PiFacePinCapabilities::Init() {
             const PinCapabilities &read = MCP23x17PinCapabilities::getPinByGPIO(216 + 8 + x);
 
             write.configPin("gpio", true);
-            read.configPin("gpio", false);
+            read.configPin("gpio_pu", false);
             
             std::string name = "PiFace-" + std::to_string(x + 1);
             PIFACE_PINS.push_back(PiFacePinCapabilities(name, 200 + x, read, write));
-            PIFACE_PINS.push_back(PiFacePinCapabilities(name, 200 + 8 + x, read, write));
+            PIFACE_PINS_HIDDEN.push_back(PiFacePinCapabilities(name, 200 + 8 + x, read, write));
         }
     }
 }
-
+void PiFacePinCapabilities::getPinNames(std::vector<std::string> &ret) {
+    MCP23x17PinCapabilities::getPinNames(ret);
+    for (auto &a : PIFACE_PINS) {
+        ret.push_back(a.name);
+    }
+}
 
 const PinCapabilities &PiFacePinCapabilities::getPinByName(const std::string &name) {
     for (auto &a : PIFACE_PINS) {
@@ -72,6 +78,11 @@ const PinCapabilities &PiFacePinCapabilities::getPinByName(const std::string &na
 }
 const PinCapabilities &PiFacePinCapabilities::getPinByGPIO(int i) {
     for (auto &a : PIFACE_PINS) {
+        if (a.kernelGpio == i) {
+            return a;
+        }
+    }
+    for (auto &a : PIFACE_PINS_HIDDEN) {
         if (a.kernelGpio == i) {
             return a;
         }

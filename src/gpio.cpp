@@ -392,35 +392,42 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                             gpiodChips[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
                         }
                         
-                        state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
-                        
-                        struct gpiod_line_request_config lineConfig;
-                        lineConfig.consumer = "FPPD";
-                        lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-                        lineConfig.flags = 0;
-                        if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-                            LogDebug(VB_GPIO, "Could not config line as input\n");
-                        }
-                        gpiod_line_release(state.gpiodLine);
-                        
-                        if (state.risingAction != "" && state.fallingAction != "") {
-                            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
-                        } else if (state.risingAction != "") {
-                            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
+                        if (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx])) {
+                            state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
+                            
+                            struct gpiod_line_request_config lineConfig;
+                            lineConfig.consumer = "FPPD";
+                            lineConfig.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
+                            lineConfig.flags = 0;
+                            if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
+                                LogDebug(VB_GPIO, "Could not config line as input\n");
+                            }
+                            gpiod_line_release(state.gpiodLine);
+                            
+                            if (state.risingAction != "" && state.fallingAction != "") {
+                                lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
+                            } else if (state.risingAction != "") {
+                                lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
+                            } else {
+                                lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
+                            }
+                            lineConfig.flags = 0;
+                            if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
+                                LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
+                            } else {
+                                state.file = gpiod_line_event_get_fd(state.gpiodLine);
+                            }
                         } else {
-                            lineConfig.request_type = GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE;
-                        }
-                        lineConfig.flags = 0;
-                        if (gpiod_line_request(state.gpiodLine, &lineConfig, 0) == -1) {
-                            LogDebug(VB_GPIO, "Could not config line edge for %s, will poll\n", state.pin->name.c_str());
-                        } else {
-                            state.file = gpiod_line_event_get_fd(state.gpiodLine);
+                            state.gpiodLine = nullptr;
+                            state.file = -1;
                         }
 
                         if (state.file > 0) {
                             eventStates.push_back(state);
                         } else {
-                            gpiod_line_release(state.gpiodLine);
+                            if (state.gpiodLine) {
+                                gpiod_line_release(state.gpiodLine);
+                            }
                             state.gpiodLine = nullptr;
                             pollStates.push_back(state);
                         }

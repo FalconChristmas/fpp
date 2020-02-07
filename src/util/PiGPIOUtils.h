@@ -21,7 +21,9 @@ public:
     virtual void setPWMValue(int valueNS) const override;
     
     virtual int getPWMRegisterAddress() const override { return 0;};
-    virtual bool supportPWM() const override { return true; };
+    virtual bool supportPWM() const {
+        return pwm != -1;
+    }
     
     static void Init();
     static const PinCapabilities &getPinByName(const std::string &name);

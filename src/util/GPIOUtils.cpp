@@ -17,7 +17,7 @@
 #if defined(PLATFORM_BBB)
 #include "BBBUtils.h"
 #define PLAT_GPIO_CLASS BBBPinCapabilities
-#elif defined(USEPIGPIO)
+#elif defined(PLATFORM_PI)
 #include "PiGPIOUtils.h"
 #define PLAT_GPIO_CLASS PiGPIOPinCapabilities
 #elif defined(USEWIRINGPI)
@@ -94,7 +94,8 @@ Json::Value PinCapabilities::toJSON() const {
         if (uart != "") {
             ret["uart"] = uart;
         }
-        ret["supportsPullUpDown"] = supportsPullUpDown();
+        ret["supportsPullUp"] = supportsPullUp();
+        ret["supportsPullDown"] = supportsPullDown();
     }
     return ret;
 }
@@ -169,7 +170,8 @@ public:
 #endif
     
     
-    virtual bool supportsPullUpDown() const { return false; }
+    virtual bool supportsPullUp() const override { return false; }
+    virtual bool supportsPullDown() const override { return false; }
 
     
     

@@ -38,8 +38,9 @@ public:
     
     virtual int configPin(const std::string& mode = "gpio",
                           bool directionOut = true) const = 0;
-    virtual bool supportsPullUpDown() const { return true; }
-    
+    virtual bool supportsPullUp() const { return true; }
+    virtual bool supportsPullDown() const { return true; }
+
 
     virtual bool getValue() const = 0;
     virtual void setValue(bool i) const = 0;
