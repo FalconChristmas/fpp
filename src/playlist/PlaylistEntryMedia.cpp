@@ -38,6 +38,7 @@
 #include "settings.h"
 #include "common.h"
 #include "mediaoutput/omxplayer.h"
+#include "mediaoutput/VLCOut.h"
 #include "mediaoutput/SDLOut.h"
 #include "Playlist.h"
 
@@ -318,6 +319,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 #ifdef PLATFORM_PI
     } else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
         m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
+        //m_mediaOutput = new VLCOutput(tmpFile, &mediaOutputStatus, vOut);
 #endif
     } else if (IsExtensionVideo(ext)) {
         m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);

@@ -109,6 +109,12 @@ LIBS_fpp_so += \
     $(LIBS_GPIO_ADDITIONS)
 
 
+ifneq ($(wildcard /usr/include/vlc/vlc.h),)
+LIBS_fpp_so += -lvlc
+OBJECTS_fpp_so += mediaoutput/VLCOut.o
+endif
+
+
 TARGETS += libfpp.so
 OBJECTS_ALL+=$(OBJECTS_fpp_so)
 

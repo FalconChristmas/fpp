@@ -907,7 +907,6 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
 
     data->stopped = 0;
     data->maybeFillBuffer(true);
-
 }
 
 /*
