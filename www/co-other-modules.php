@@ -453,7 +453,7 @@ class GPIOOutputDevice extends OtherBase {
         result = super.GetOutputConfig(result, cell);
         var gpio = cell.find("select.gpio").val();
         result.gpio = parseInt(gpio);
-        result.invert = cell.find("input.invert").is(":checked") ? 1 : 0;
+        result.invert = cell.find("input.inverted").is(":checked") ? 1 : 0;
         result.pwm =  cell.find("input.pwm").is(":checked") ? 1 : 0;
         return result;
     }
