@@ -361,7 +361,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                 if (state.pin) {
                     if (v.isMember("rising")) {
                         state.risingAction = v["rising"]["command"].asString();
-                        if (state.risingAction != "OLED Navigation") {
+                        if (state.risingAction == "OLED Navigation") {
                             state.risingAction = "";
                         } else {
                             for (int a = 0; a < v["rising"]["args"].size(); a++) {
