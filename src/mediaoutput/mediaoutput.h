@@ -44,6 +44,7 @@ int  StartMediaOutput(const char *filename);
 void UpdateMasterMediaPosition(const char *filename, float seconds);
 void CloseMediaOutput();
 
+MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::string &videoOut);
 
 /* If try, filename will be updated with the media filename */
 bool HasVideoForMedia(std::string &filename);

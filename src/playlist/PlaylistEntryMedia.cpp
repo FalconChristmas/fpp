@@ -37,9 +37,6 @@
 #include "Plugins.h"
 #include "settings.h"
 #include "common.h"
-#include "mediaoutput/omxplayer.h"
-#include "mediaoutput/VLCOut.h"
-#include "mediaoutput/SDLOut.h"
 #include "Playlist.h"
 
 
@@ -58,7 +55,6 @@ PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
 	m_minutesTotal(0),
 	m_secondsTotal(0),
 	m_mediaSeconds(0.0),
-	m_speedDelta(0),
 	m_mediaOutput(NULL),
     m_videoOutput("--Default--"),
     m_openTime(0)
@@ -163,8 +159,6 @@ int PlaylistEntryMedia::StartPlaying(void)
         pthread_mutex_unlock(&m_mediaOutputLock);
         return 0;
     }
-    
-    mediaOutputStatus.speedDelta = 0;
     
     pthread_mutex_unlock(&m_mediaOutputLock);
 
@@ -314,24 +308,12 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 #endif
     }
 
-	if (IsExtensionAudio(ext)) {
-        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, "--Disabled--");
-#ifdef PLATFORM_PI
-    } else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
-        m_mediaOutput = new omxplayerOutput(tmpFile, &mediaOutputStatus);
-        //m_mediaOutput = new VLCOutput(tmpFile, &mediaOutputStatus, vOut);
-#endif
-    } else if (IsExtensionVideo(ext)) {
-        m_mediaOutput = new SDLOutput(tmpFile, &mediaOutputStatus, vOut);
-	} else {
-		pthread_mutex_unlock(&mediaOutputLock);
-		LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
-		return 0;
-	}
+    m_mediaOutput = CreateMediaOutput(tmpFile, vOut);
 
 	if (!m_mediaOutput)
 	{
 		pthread_mutex_unlock(&m_mediaOutputLock);
+        LogDebug(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
 		return 0;
 	}
 
@@ -392,7 +374,6 @@ Json::Value PlaylistEntryMedia::GetConfig(void)
 	result["minutesTotal"]        = mediaOutputStatus.minutesTotal;
 	result["secondsTotal"]        = mediaOutputStatus.secondsTotal;
 	result["mediaSeconds"]        = mediaOutputStatus.mediaSeconds;
-	result["speedDelta"]          = mediaOutputStatus.speedDelta;
 
 	return result;
 }

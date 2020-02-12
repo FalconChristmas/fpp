@@ -76,6 +76,7 @@ extern char logMaskStr[1024];
 #define LogExcess(facility, format, args...) _LogWrite(__FILE__, __LINE__, LOG_EXCESSIVE, facility, format, ## args)
 
 void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...);
+bool WillLog(int level, int facility);
 
 void SetLogFile(const char *filename);
 int SetLogLevel(const char *newLevel);

@@ -35,8 +35,6 @@ typedef struct mediaOutputStatus {
 	int minutesTotal;
 	int secondsTotal;
 	float mediaSeconds;
-	int speedDelta;
-    int speedDeltaCount;
 } MediaOutputStatus; 
 
 #endif /* _MEDIAOUTPUT_H */

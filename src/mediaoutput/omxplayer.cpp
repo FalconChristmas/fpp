@@ -52,6 +52,7 @@
  *
  */
 omxplayerOutput::omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status)
+    :  m_speedDelta(0), m_speedDeltaCount(0)
 {
 	LogDebug(VB_MEDIAOUT, "omxplayerOutput::omxplayerOutput(%s)\n", mediaFilename.c_str());
 
@@ -141,26 +142,6 @@ int omxplayerOutput::GetVolumeShift(int volume)
 	volume = 50 + (volume / 2);
 
 	return (volume - 87.5) / 2.5;
-}
-
-/*
- *
- */
-int omxplayerOutput::AdjustSpeed(int delta)
-{
-    if (m_allowSpeedAdjust) {
-        if (delta < 0) {
-            LogDebug(VB_MEDIAOUT, "Slowing Down playback\n");
-            write(m_childPipe[0], "8", 1);
-        } else if (delta > 0) {
-            LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
-            write(m_childPipe[0], "0", 1);
-        } else {
-            LogDebug(VB_MEDIAOUT, "Speed Playback Normal\n");
-            write(m_childPipe[0], "9", 1);
-        }
-	}
-	return 1;
 }
 
 /*
@@ -412,3 +393,74 @@ int omxplayerOutput::Close(void) {
     MediaOutputBase::Close();
     return 0;
 }
+
+int omxplayerOutput::AdjustSpeed(float masterMediaPosition)
+{
+    if (m_allowSpeedAdjust) {
+        // Can't adjust speed if not playing yet
+        if (mediaOutputStatus.mediaSeconds < 0.01)
+            return 1;
+
+        int diff = (int)(mediaOutputStatus.mediaSeconds * 1000)
+                       - (int)(masterMediaPosition * 1000);
+        int i = 0;
+
+        // Allow faster sync in first 10 seconds
+        int maxDelta = (mediaOutputStatus.mediaSeconds < 10) ? 15 : 3;
+        int desiredDelta = diff / -50;
+
+        if (desiredDelta > maxDelta)
+            desiredDelta = maxDelta;
+        else if (desiredDelta < (0 - maxDelta))
+            desiredDelta = 0 - maxDelta;
+
+
+        LogExcess(VB_MEDIAOUT, "Master: %.2f, Local: %.2f, Diff: %dms, delta: %d, new: %d\n",
+                 masterMediaPosition, mediaOutputStatus.mediaSeconds, diff,
+                 m_speedDelta, desiredDelta);
+
+       
+        if ((desiredDelta == -1 || desiredDelta == 1) && m_speedDelta == 0 && m_speedDeltaCount < 3) {
+            //a small change, but lets delay implementing slightly as it could just be
+            //transient network issue or similar, if still need a delta at next sync, then do it
+            m_speedDeltaCount++;
+            desiredDelta = 0;
+        } else if (desiredDelta < 0 && m_speedDelta > 0) {
+            //if going from too slow to to too fast (or vice versa), only do a small step across
+            //to not overshoot
+            desiredDelta = -1;
+        } else if (desiredDelta > 0 && m_speedDelta < 0) {
+            desiredDelta = 1;
+        } else {
+            m_speedDeltaCount = 0;
+        }
+       
+
+        if (desiredDelta) {
+            if (m_speedDelta < desiredDelta) {
+                LogDebug(VB_MEDIAOUT, "Speeding Up playback\n");
+                while (m_speedDelta < desiredDelta) {
+                    write(m_childPipe[0], "0", 1);
+                    m_speedDelta++;
+
+                    if (m_speedDelta < desiredDelta)
+                        usleep(30000);
+                }
+            } else if (m_speedDelta > desiredDelta) {
+                LogDebug(VB_MEDIAOUT, "Slowing Down playback\n");
+                while (m_speedDelta > desiredDelta) {
+                    write(m_childPipe[0], "8", 1);
+                    m_speedDelta--;
+                    if (m_speedDelta > desiredDelta)
+                        usleep(30000);
+                }
+            }
+        } else if (m_speedDelta) {
+            LogDebug(VB_MEDIAOUT, "Speed Playback Normal\n");
+            write(m_childPipe[0], "9", 1);
+            m_speedDelta = 0;
+        }
+    }
+    return 1;
+}
+

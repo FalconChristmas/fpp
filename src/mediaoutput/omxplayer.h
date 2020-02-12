@@ -39,7 +39,7 @@ class omxplayerOutput : public MediaOutputBase {
     virtual int  IsPlaying(void) override;
     virtual int  Close(void) override;
 
-	virtual int  AdjustSpeed(int delta) override;
+	virtual int  AdjustSpeed(float masterPos) override;
 	virtual void SetVolume(int volume) override;
 
   private:
@@ -51,6 +51,9 @@ class omxplayerOutput : public MediaOutputBase {
 	int  m_volumeShift;
     bool m_beforeFirstTick;
     char *m_omxBuffer;
+    
+    int m_speedDelta;
+    int m_speedDeltaCount;
 };
 
 #endif

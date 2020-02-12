@@ -55,7 +55,7 @@ class MediaOutputBase {
 	virtual int   Start(void);
 	virtual int   Stop(void);
 	virtual int   Process(void);
-	virtual int   AdjustSpeed(int delta);
+	virtual int   AdjustSpeed(float masterPos);
 	virtual void  SetVolume(int volume);
 	virtual int   Close(void);
 

@@ -107,19 +107,14 @@ int MediaOutputBase::Close(void)
 /*
  *
  */
-int MediaOutputBase::AdjustSpeed(int delta)
-{
-	(void)delta;
-
+int MediaOutputBase::AdjustSpeed(float masterPos) {
 	return 1;
 }
 
 /*
  *
  */
-void MediaOutputBase::SetVolume(int volume)
-{
-	(void)volume;
+void MediaOutputBase::SetVolume(int volume) {
 }
 
 /*

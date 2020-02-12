@@ -1840,12 +1840,6 @@ void MultiSync::SyncSyncedMedia(const char *filename, int frameNumber, float sec
 	LogExcess(VB_SYNC, "SyncSyncedMedia('%s', %d, %.2f)\n",
 		filename, frameNumber, secondsElapsed);
 
-	if (!mediaOutput) {
-		LogExcess(VB_SYNC, "Received sync for media %s but no media playing\n",
-			filename);
-		return;
-	}
-
     UpdateMasterMediaPosition(filename, secondsElapsed);
 }
 
@@ -1862,8 +1856,8 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 
 	SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
-    LogDebug(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d\n",
-             spkt->filename, spkt->pktType, spkt->fileType, spkt->frameNumber);
+    LogDebug(VB_SYNC, "ProcessSyncPacket()   filename: %s    type: %d   filetype: %d   frameNumber: %d   secondsElapsed: %0.2f\n",
+             spkt->filename, spkt->pktType, spkt->fileType, spkt->frameNumber, spkt->secondsElapsed);
 
 	float secondsElapsed = 0.0;
 

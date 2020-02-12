@@ -60,7 +60,6 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	int   m_minutesTotal;
 	int   m_secondsTotal;
 	float m_mediaSeconds;
-	int   m_speedDelta;
 
     long long m_openTime;
     static int m_openStartDelay;

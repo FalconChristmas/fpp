@@ -45,6 +45,18 @@ char logFileName[1024] = "";
 char logLevelStr[16];
 char logMaskStr[1024];
 
+bool WillLog(int level, int facility) {
+    // Don't log if we're not logging this facility
+    if (!(logMask & facility))
+        return false;
+
+    // Don't log if we're not concerned about anything at this level
+    if (logLevel < level)
+        return false;
+    
+    return true;
+}
+
 void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...)
 {
 	// Don't log if we're not logging this facility
