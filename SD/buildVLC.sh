@@ -12,3 +12,5 @@ export LDFLAGS="-latomic"
 ./configure --disable-lua --disable-a52 --disable-xcb --disable-chromecast --disable-chromaprint --disable-qt --disable-pulse --disable-jack --disable-dbus --disable-avahi  --enable-run-as-root 
 make -j 3
 make install
+ldconfig
+
