@@ -23,6 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <common.h>
 #include <log.h>
 //#include <Player.h>
 
@@ -118,6 +119,26 @@ int PlaylistEntryBranch::Init(Json::Value &config)
 	m_branchType = config["branchType"].asString();
 	m_comparisonMode = asInt(config["compMode"]);
 
+	if (config.isMember("startTime")) {
+		m_startTime = config["startTime"].asString();
+
+		std::vector<std::string> parts = split(m_startTime, ':');
+		m_sHour = atoi(parts[0].c_str());
+		m_sMinute = atoi(parts[1].c_str());
+		m_sSecond = atoi(parts[2].c_str());
+	}
+
+	if (config.isMember("endTime")) {
+		m_endTime = config["endTime"].asString();
+
+		std::vector<std::string> parts = split(m_endTime, ':');
+		m_eHour = atoi(parts[0].c_str());
+		m_eMinute = atoi(parts[1].c_str());
+		m_eSecond = atoi(parts[2].c_str());
+	}
+
+	// compInfo is deprecated and should be removed at some point.  The fields
+	// are now parsed from the startTime and endTime string fields.
 	if (config.isMember("compInfo")) {
 		Json::Value ci = config["compInfo"];
 
@@ -139,17 +160,17 @@ int PlaylistEntryBranch::Init(Json::Value &config)
 
 			if (ci.isMember("endSecond"))
 				m_eSecond = ci["endSecond"].asInt();
-
-			m_sHourSecond = (m_sMinute * 60) + m_sSecond;
-			m_eHourSecond = (m_eMinute * 60) + m_eSecond;
-
-			if (m_sHour >= 0)
-				m_sDaySecond  = (m_sHour * 3600) + (m_sMinute * 60) + m_sSecond;
-
-			if (m_eHour >= 0)
-				m_eDaySecond  = (m_eHour * 3600) + (m_eMinute * 60) + m_eSecond;
 		}
 	}
+
+	m_sHourSecond = (m_sMinute * 60) + m_sSecond;
+	m_eHourSecond = (m_eMinute * 60) + m_eSecond;
+
+	if (m_sHour >= 0)
+		m_sDaySecond  = (m_sHour * 3600) + (m_sMinute * 60) + m_sSecond;
+
+	if (m_eHour >= 0)
+		m_eDaySecond  = (m_eHour * 3600) + (m_eMinute * 60) + m_eSecond;
 
 	return PlaylistEntryBase::Init(config);
 }
@@ -235,6 +256,8 @@ void PlaylistEntryBranch::Dump(void)
 
 	LogDebug(VB_PLAYLIST, "Branch Type       : %s\n", m_branchType.c_str());
 	LogDebug(VB_PLAYLIST, "Comparison Mode   : %d\n", m_comparisonMode);
+	LogDebug(VB_PLAYLIST, "Start Time        ; %s\n", m_startTime.c_str());
+	LogDebug(VB_PLAYLIST, "End Time          ; %s\n", m_endTime.c_str());
 	LogDebug(VB_PLAYLIST, "Start Hour        : %d\n", m_sHour);
 	LogDebug(VB_PLAYLIST, "Start Minute      : %d\n", m_sMinute);
 	LogDebug(VB_PLAYLIST, "Start Second      : %d\n", m_sSecond);
@@ -260,10 +283,21 @@ Json::Value PlaylistEntryBranch::GetConfig(void)
 
 	result["branchType"] = m_branchType;
 	result["comparisonMode"] = m_comparisonMode;
-	result["startHour"] = m_sHour;
-	result["startMinute"] = m_sMinute;
-	result["endHour"] = m_eHour;
-	result["endMinute"] = m_eMinute;
+	if (m_startTime != "") {
+		result["startTime"] = m_startTime;
+	} else {
+		char timeStr[9];
+		snprintf(timeStr, 9, "%02d:%02d:%02d", m_sHour, m_sMinute, m_sSecond);
+		result["startTime"] = timeStr;
+	}
+
+	if (m_endTime != "") {
+		result["endTime"] = m_endTime;
+	} else {
+		char timeStr[9];
+		snprintf(timeStr, 9, "%02d:%02d:%02d", m_eHour, m_eMinute, m_eSecond);
+		result["endTime"] = timeStr;
+	}
 
 	return result;
 }

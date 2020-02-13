@@ -38,6 +38,7 @@ PlaylistEntryVolume::PlaylistEntryVolume(PlaylistEntryBase *parent)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::PlaylistEntryVolume()\n");
 
 	m_type = "volume";
+	m_deprecated = 1;
 }
 
 /*

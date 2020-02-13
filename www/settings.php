@@ -144,16 +144,7 @@ $("#tabs").tabs( {
 });
 
 $( function() {
-    $(document).tooltip({
-        content: function() {
-            $('.ui-tooltip').hide();
-            var id = $(this).attr('id');
-            id = id.replace('_img', '_tip');
-            //alert('here, tip: ' + $('#' + id).html());
-            return $('#' + id).html();
-        },
-        hide: { delay: 1000 }
-    });
+    SetupToolTips();
 });
 
 $('#tabs').show();

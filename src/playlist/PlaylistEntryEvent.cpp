@@ -41,6 +41,7 @@ PlaylistEntryEvent::PlaylistEntryEvent(PlaylistEntryBase *parent)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryEvent::PlaylistEntryEvent()\n");
 
 	m_type = "event";
+	m_deprecated = 1;
 }
 
 /*

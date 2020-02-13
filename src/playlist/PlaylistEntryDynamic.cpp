@@ -81,12 +81,18 @@ int PlaylistEntryDynamic::Init(Json::Value &config)
 	LogDebug(VB_PLAYLIST, "PlaylistEntryDynamic::Init()\n");
 
 	m_subType = config["subType"].asString();
-	m_data = config["data"].asString();
 
 	m_drainQueue = config["drainQueue"].asInt();
 
 	if (config.isMember("pluginHost"))
 		m_pluginHost = config["pluginHost"].asString();
+
+	if (m_subType == "file")
+		m_data = config["dataFile"].asString();
+	else if (m_subType == "plugin")
+		m_data = config["dataPlugin"].asString();
+	else if (m_subType == "url")
+		m_data = config["dataURL"].asString();
 
 	if ((m_subType == "plugin") || (m_subType == "url"))
 	{

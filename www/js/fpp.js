@@ -13,9 +13,6 @@ gblCurrentPlaylistEntrySong = '';
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
 
-lastPlaylistEntry = '';
-lastPlaylistSection = '';
-
 var max_retries = 60;
 var retry_poll_interval_arr = [];
 
@@ -24,6 +21,17 @@ var minimalUI = 0;
 var statusTimeout = null;
 var lastStatus = '';
 
+function PadLeft(string,pad,length) {
+    return (new Array(length+1).join(pad)+string).slice(-length);
+}
+
+function SecondsToHuman(seconds) {
+    var m = parseInt(seconds / 60);
+    var s = parseInt(seconds % 60);
+    var human = PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
+
+    return human;
+}
 
 function versionToNumber(version)
 {
@@ -69,123 +77,410 @@ function CompareFPPVersions(a, b) {
 	return 0;
 }
 
+function Get(url, async) {
+    var result = {};
+
+    $.ajax({
+        url: url,
+        type: 'GET',
+        async: async,
+        dataType: 'json',
+        success: function(data) {
+            result = data;
+        },
+        fail: function() {
+            $.jGrowl('Error: Unable to get ' + url);
+        }
+    });
+
+    return result;
+}
+
+function GetSync(url) {
+    return Get(url, false);
+}
+
+function GetAsync(url) {
+    return Get(url, true);
+}
+
+function SetupToolTips() {
+    $(document).tooltip({
+        content: function() {
+            $('.ui-tooltip').hide();
+            var id = $(this).attr('id');
+            id = id.replace('_img', '_tip');
+            return $('#' + id).html();
+        },
+        hide: { delay: 1000 }
+    });
+}
+
 function ShowPlaylistDetails() {
-	$('#statusPlaylistDetailsWrapper').show();
+	$('#playlistDetailsWrapper').show();
 	$('#btnShowPlaylistDetails').hide();
 	$('#btnHidePlaylistDetails').show();
 }
 
 function HidePlaylistDetails() {
-	$('#statusPlaylistDetailsWrapper').hide();
+	$('#playlistDetailsWrapper').hide();
 	$('#btnShowPlaylistDetails').show();
 	$('#btnHidePlaylistDetails').hide();
 }
 
 function PopulateLists() {
+    DisableButtonClass('playlistEditButton');
 	PlaylistTypeChanged();
-	PopulatePlaylists("playList", '', '');
-	var firstPlaylist = $('#playlist0').html();
-	if (firstPlaylist != undefined)
-		PopulatePlayListEntries(firstPlaylist,true);
+    PopulatePlaylists(false);
 }
 
-var currentPlaylists = [];
-function PopulatePlaylists(element, filter, callback) {
-	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=getPlayLists";
-
-	if (filter != '')
-		url += '&filter=' + filter;
-	
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	var Filename;
- 
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) {
-			var xmlDoc=xmlhttp.responseXML; 
-	
-			var productList = xmlDoc.getElementsByTagName('Playlists')[0];
-			var innerHTML = "";
-			if(productList.childNodes.length> 0) {
-				var colCount = 1;
-				if (productList.childNodes.length > 30) {
-					colCount = 4;
-                } else if (productList.childNodes.length > 20) {
-					colCount = 3;
-                } else if (productList.childNodes.length > 10) {
-                    colCount = 2;
-                }
-                
-                currentPlaylists = [];
-
-                innerHTML += "<ol style='list-style-position: inside; -webkit-column-count:" + colCount + "; -webkit-column-gap:20px; -moz-column-count:"
-                    + colCount + "; -moz-column-gap:20px; column-count:" + colCount + "; column-gap:20px;'>";
-
-				for (i=0; i < productList.childNodes.length; i++) {
-                    Filename = productList.childNodes[i].textContent;
-                    // Remove extension
-                    //Filename = Filename.substr(0, x.lastIndexOf('.'));
-                    currentPlaylists[i] = Filename;
-                    innerHTML += "<li><a href='#editor' id=playlist" + i.toString() + " onclick=\"PopulatePlayListEntries('" + Filename + "',true);" + callback + "\">" + Filename + "</a></li>";
-                }
-                innerHTML += "</ol>";
-			} else {
-				innerHTML = "No Playlists Created";
-			}
-			var results = document.getElementById(element);
-			results.innerHTML = innerHTML;	
-		}
-	};
-	xmlhttp.send();
-}
-
-function GetPlaylistRowHTML(ID, type, data1, data2, data3, firstlast, editMode)
+function PlaylistEntryTypeToString(type)
 {
-	var HTML = "";
-
-	HTML += "<tr id=\"playlistRow" + ID + "\">";
-
-	if (minimalUI)
-	{
-		HTML += "<td class=\"colPlaylistNumber\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
-		HTML += "<td class=\"colPlaylistData1\">" + data1;
-		if (data2 && (data2 != '---'))
-			HTML += "<br>" + data2;
-
-		if (data3 && (data3 != '---'))
-			HTML += "<br>" + data3;
-
-		HTML += "</td>";
-	}
-	else
-	{
-		HTML += "<td class=\"colPlaylistNumber "
-
-		if (editMode)
-			HTML += "colPlaylistNumberDrag";
-
-		HTML += "\" id = \"colEntryNumber" + ID + "\" >" + ID + ".</td>";
-
-		if (editMode)
-			HTML += "<td class=\"colPlaylistType\">" + type + "</td>";
-
-		HTML += "<td class=\"colPlaylistData1\">" + data1 + "</td>";
-        if (data2) {
-            HTML += "<td class=\"colPlaylistData2\">" + data2 + "</td>"
-        } else {
-            HTML += "<td class=\"colPlaylistData2\"></td>"
-        }
-		if (data3) {
-	        HTML += "<td class=\"colPlaylistData3\">" + data3 + "</td>"
-		} else {
-			HTML += "<td class=\"colPlaylistData3\"></td>"
-		}
-	}
-	HTML += "</tr>";
-
-	return HTML;
+    switch (type ) {
+        case 'both':        return 'Seq+Med';
+        case 'branch':      return 'Branch';
+        case 'command':     return 'Command';
+        case 'dynamic':     return 'Dynamic';
+        case 'event':       return 'Event';
+        case 'image':       return 'Image';
+        case 'media':       return 'Media';
+        case 'mqtt':        return 'MQTT';
+        case 'pause':       return 'Pause';
+        case 'playlist':    return 'Playlist';
+        case 'plugin':      return 'Plugin';
+        case 'remap':       return 'Remap';
+        case 'script':      return 'Script';
+        case 'sequence':    return 'Sequence';
+        case 'url':         return 'URL';
+        case 'volume':      return 'Volume';
+    }
 }
+
+function psiDetailsBegin() {
+    return "<div class='psiDetailsWrapper'><div class='psiDetails'>";
+}
+
+function psiDetailsArgBegin() {
+    return "<div class='psiDetailsArg'>";
+}
+
+function psiDetailsHeader(text) {
+    return "<div class='psiDetailsHeader'>" + text + ":</div>";
+}
+
+function psiDetailsData(name, value, units = '', hide = false) {
+    var str = '';
+    var style = "";
+
+    if (hide)
+        style = " style='display: none;'";
+
+    if (units == '') {
+        return "<div class='psiDetailsData field_" + name + "'" + style + ">" + value + "</div>";
+    }
+
+    return "<div class='psiDetailsData'><span class='field_" + name + "'" + style + ">" + value + "</span> " + units + "</div>";
+}
+
+function psiDetailsArgEnd() {
+    return "</div>";
+}
+
+function psiDetailsLF() {
+    return "<div class='psiDetailsLF'></div>";
+}
+
+function psiDetailsEnd() {
+    return "</div></div>";
+}
+
+function psiDetailsForEntrySimple(entry, editMode) {
+    var pet = playlistEntryTypes[entry.type];
+    var result = "";
+    var keys = Object.keys(pet.args);
+    for (var i = 0; i < keys.length; i++) {
+        var a = pet.args[keys[i]];
+
+        if (((!a.hasOwnProperty('simpleUI')) ||
+             (!a.simpleUI)) &&
+            (a.name != 'args')) {
+            continue;
+        }
+
+        if ((editMode) &&
+            (a.hasOwnProperty('statusOnly')) &&
+            (a.statusOnly == true)) {
+            continue;
+        }
+
+        if ((!a.optional) ||
+            ((entry.hasOwnProperty(a.name)) &&
+             (entry[a.name] != ''))) {
+            if (result != "")
+                result += "&nbsp;&nbsp;&nbsp;<b>*</b>&nbsp;&nbsp;&nbsp;";
+
+            if (a.type == 'args') {
+                if ((entry[a.name].length == 1) &&
+                    ($.isNumeric(entry[a.name][0]))) {
+                    result += " " + entry[a.name][0];
+                } else {
+                    for (var x = 0; x < entry[a.name].length; x++) {
+                        result += " \"" + entry[a.name][x] + "\"";
+                    }
+                }
+            } else if (a.type == 'array') {
+                var akeys = Object.keys(entry[a.name]);
+                if ((akeys.length == 1) &&
+                    ($.isNumeric(entry[a.name][akeys[0]]))) {
+                    result += " " + entry[a.name][akeys[0]];
+                } else {
+                    for (var x = 0; x < akeys.length; x++) {
+                        result += " \"" + entry[a.name][akeys[x]] + "\"";
+                    }
+                }
+            } else {
+                if (a.hasOwnProperty('contents')) {
+                    var ckeys = Object.keys(a.contents);
+                    for (var x = 0; x < ckeys.length; x++) {
+                        if (a.contents[ckeys[x]] == entry[a.name]) {
+                            result += ckeys[x];
+                        }
+                    }
+                } else {
+                    result += entry[a.name];
+                }
+
+                if (a.hasOwnProperty('unit')) {
+                    result += " " + a.unit;
+                }
+            }
+        }
+    }
+
+    result += "<br>";
+
+    return result;
+}
+
+function psiDetailsForEntry(entry, editMode) {
+    var pet = playlistEntryTypes[entry.type];
+    var result = "";
+
+    result += psiDetailsBegin();
+
+    var children = [];
+    var childrenToShow = [];
+    var divs = 0;
+    var keys = Object.keys(pet.args);
+    for (var i = 0; i < keys.length; i++) {
+        var a = pet.args[keys[i]];
+
+        if ((editMode) &&
+            (a.hasOwnProperty('statusOnly')) &&
+            (a.statusOnly == true)) {
+            continue;
+        }
+
+        if ((children.includes(a.name)) &&
+            (!childrenToShow.includes(a.name))) {
+            continue;
+        }
+
+        if ((!a.optional) ||
+            ((entry.hasOwnProperty(a.name)) &&
+             (entry[a.name] != ''))) {
+            if (typeof a['children'] === 'object') {
+                var val = entry[a.name];
+                var ckeys = Object.keys(a.children);
+                for (var c = 0; c < ckeys.length; c++) {
+                    for (var x = 0; x < a.children[ckeys[c]].length; x++) {
+                        if (!children.includes(a.children[ckeys[c]][x]))
+                            children.push(a.children[ckeys[c]][x]);
+
+                        if (val == ckeys[c]) {
+                            childrenToShow.push(a.children[ckeys[c]][x]);
+                        }
+                    }
+                }
+            }
+
+            if (i > 0)
+                result += psiDetailsLF();
+
+            if (a.type == 'args') {
+                for (var x = 0; x < entry[a.name].length; x++) {
+                    if (x > 0)
+                        result += psiDetailsLF();
+
+                    result += psiDetailsArgBegin();
+                    result += psiDetailsHeader('Arg #' + (x+1));
+                    result += psiDetailsData(a.name + '_' + (x+1), entry[a.name][x]);
+                    result += psiDetailsArgEnd();
+                }
+            } else if (a.type == 'array') {
+                var keys = Object.keys(entry[a.name]);
+                for (var x = 0; x < keys.length; x++) {
+                    if (x > 0)
+                        result += psiDetailsLF();
+
+                    result += psiDetailsArgBegin();
+                    result += psiDetailsHeader('Extra Data #' + (x+1));
+                    result += psiDetailsData(a.name + '_' + (x+1), entry[a.name][x]);
+                    result += psiDetailsArgEnd();
+                }
+            } else {
+                var units = '';
+                if (a.hasOwnProperty('unit')) {
+                    units = a.unit;
+                }
+
+                result += psiDetailsArgBegin();
+                result += psiDetailsHeader(a.description);
+
+                if (a.hasOwnProperty('contents')) {
+                    result += psiDetailsData(a.name, entry[a.name], '', true);
+
+                    var ckeys = Object.keys(a.contents);
+                    for (var x = 0; x < ckeys.length; x++) {
+                        if (a.contents[ckeys[x]] == entry[a.name]) {
+                            result += ckeys[x] + ' ' + units;
+                        }
+                    }
+                } else {
+                    result += psiDetailsData(a.name, entry[a.name], units);
+                }
+
+                result += psiDetailsArgEnd();
+            }
+        }
+    }
+
+    result += psiDetailsEnd();
+
+    return result;
+}
+
+function psiDetailsForEntryBranch(entry, editMode)
+{
+    var result = "";
+
+    result += psiDetailsBegin();
+
+    var branchStr = "Invalid Config";
+    if (entry.trueNextItem < 999) {
+        branchStr = entry.startTime + " < X < " + entry.endTime;
+        branchStr += ", True: " + BranchItemToString(entry.trueNextBranchType, entry.trueNextSection, entry.trueNextItem);
+
+        if (entry.falseNextItem < 999) {
+            branchStr += ", False: " + BranchItemToString(entry.falseNextBranchType, entry.falseNextSection, entry.falseNextItem);
+        }
+    }
+
+    result += psiDetailsHeader('Test');
+    result += psiDetailsData('test', branchStr);
+    result += psiDetailsEnd();
+
+    var keys = Object.keys(entry);
+    for (var i = 0; i < keys.length; i++) {
+        var a = entry[keys[i]];
+        if (keys[i] == 'compInfo') {
+            var akeys = Object.keys(a);
+            for (var x = 0; x < akeys.length; x++) {
+                var aa = entry[keys[i]][akeys[x]];
+                result += "<span style='display:none;' class='field_compInfo_" + akeys[x] + "'>" + aa + "</span>";
+            }
+        } else {
+            result += "<span style='display:none;' class='field_" + keys[i] + "'>" + a + "</span>";
+        }
+    }
+
+
+    return result;
+}
+
+function VerbosePlaylistItemDetailsToggled() {
+    if ($('#verbosePlaylistItemDetails').is(':checked')) {
+        $('.psiData').show();
+        $('.psiDataSimple').hide();
+    } else {
+        $('.psiDataSimple').show();
+        $('.psiData').hide();
+    }
+}
+
+function GetPlaylistDurationDiv(entry) {
+    var h = "";
+    var s = 0;
+
+	if ((entry.hasOwnProperty('duration')) &&
+        (entry.duration > 0)) {
+        h = "Length: " + SecondsToHuman(entry.duration);
+        s = entry.duration;
+    }
+
+    return "<div class='psiDuration'><span class='humanDuration'>" + h + "</span><span class='psiDurationSeconds'>" + s + "</span></div>";
+}
+
+function GetPlaylistRowHTML(ID, entry, editMode)
+{
+    var HTML = "";
+    var rowNum = ID + 1;
+
+    if (editMode)
+        HTML += "<tr class='playlistRow'>";
+    else
+        HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow'>";
+
+    HTML += "<td class='colPlaylistNumber";
+
+    if (editMode)
+        HTML += " colPlaylistNumberDrag";
+
+    if (editMode)
+        HTML += " playlistRowNumber'>" + rowNum + ".</td>";
+    else
+        HTML += " playlistRowNumber' id='colEntryNumber" + rowNum + "'>" + rowNum + ".</td>";
+
+    var pet = playlistEntryTypes[entry.type];
+    var deprecated = "";
+
+    if ((typeof pet.deprecated === "number") &&
+        (pet.deprecated == 1)) {
+        deprecated = "<font color='red'><b>*</b></font>";
+        $('#deprecationWarning').show();
+    }
+
+    HTML += "<td><div class='psi'><div class='psiHeader' >" + PlaylistEntryTypeToString(entry.type) + ":" + deprecated + "<span style='display: none;' class='entryType'>" + entry.type + "</span></div><div class='psiData'>";
+
+    if (entry.type == 'dynamic') {
+        HTML += psiDetailsForEntry(entry, editMode);
+
+		if (entry.hasOwnProperty('dynamic'))
+            HTML += psiDetailsForEntry(entry.dynamic, editMode);
+    } else if (entry.type == 'branch') {
+        HTML += psiDetailsForEntryBranch(entry, editMode);
+    } else {
+        HTML += psiDetailsForEntry(entry, editMode);
+    }
+
+    HTML += "</div>";
+
+    HTML += "<div class='psiDataSimple'>";
+    if (entry.type == 'dynamic') {
+        HTML += psiDetailsForEntrySimple(entry, editMode);
+
+		if (entry.hasOwnProperty('dynamic'))
+            HTML += psiDetailsForEntrySimple(entry.dynamic, editMode);
+    } else {
+        HTML += psiDetailsForEntrySimple(entry, editMode);
+    }
+    HTML += "</div>";
+
+    HTML += GetPlaylistDurationDiv(entry) + "</div></td></tr>";
+
+    return HTML;
+}
+
 function BranchItemToString(branchType, nextSection, nextIndex) {
     if (typeof branchType == "undefined") {
         branchType = "Index";
@@ -203,567 +498,424 @@ function BranchItemToString(branchType, nextSection, nextIndex) {
         return "Offset: " + nextIndex;
     }
 }
-function PlaylistEntryToTR(i, entry, editMode)
-{
-	var HTML = "";
-
-	if(entry.type == 'both')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Seq/Med", entry.mediaName, entry.sequenceName, entry.videoOut, i.toString(), editMode);
-	else if(entry.type == 'media')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Media", entry.mediaName, "---", entry.videoOut, i.toString(), editMode);
-	else if(entry.type == 'sequence')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Sequence", "---", entry.sequenceName, "", i.toString(), editMode);
-	else if(entry.type == 'pause')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Pause", "PAUSE - " + entry.duration.toString(), "---", "", i.toString(), editMode);
-	else if(entry.type == 'playlist')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Playlist", "PLAYLIST - " + entry.name, "---", "", i.toString(), editMode);
-	else if(entry.type == 'branch') {
-		var branchStr = "Invalid Config";
-		if (entry.trueNextItem < 999) {
-			branchStr = "";
-			if (entry.compInfo.startHour < 0)
-				branchStr += "**:";
-			else
-				branchStr += ((entry.compInfo.startHour < 10) ? ("0" + entry.compInfo.startHour) : entry.compInfo.startHour) + ":";
-
-			branchStr += ""
-				+ ((entry.compInfo.startMinute < 10) ? ("0" + entry.compInfo.startMinute) : entry.compInfo.startMinute) + ":"
-				+ ((entry.compInfo.startSecond < 10) ? ("0" + entry.compInfo.startSecond) : entry.compInfo.startSecond) + " < X < ";
-
-			if (entry.compInfo.endHour < 0)
-				branchStr += "**:";
-			else
-				branchStr += ((entry.compInfo.endHour < 10) ? ("0" + entry.compInfo.endHour) : entry.compInfo.endHour) + ":";
-
-			branchStr += ""
-				+ ((entry.compInfo.endMinute < 10) ? ("0" + entry.compInfo.endMinute) : entry.compInfo.endMinute) + ":"
-				+ ((entry.compInfo.endSecond < 10) ? ("0" + entry.compInfo.endSecond) : entry.compInfo.endSecond);
-
-			branchStr += ", True: " + BranchItemToString(entry.trueNextBranchType, entry.trueNextSection, entry.trueNextItem);
-            
-			if (entry.falseNextItem < 999) {
-				branchStr += ", False: " + BranchItemToString(entry.falseNextBranchType, entry.falseNextSection, entry.falseNextItem);
-			}
-		}
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Branch", "BRANCH - " + branchStr, "---", "", i.toString(), editMode);
-	}
-	else if(entry.type == 'mqtt')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "MQTT", "MQTT - " + entry.topic, entry.message, "", i.toString(), editMode);
-	else if(entry.type == 'dynamic')
-	{
-		if (entry.hasOwnProperty('dynamic'))
-		{
-			entry.dynamic.mediaName = "DYNAMIC >> " + entry.dynamic.mediaName;
-			HTML += PlaylistEntryToTR(i, entry.dynamic, editMode);
-		}
-		else
-			HTML += GetPlaylistRowHTML((i+1).toString(), "Dynamic", "DYNAMIC - " + entry.subType, entry.data, "", i.toString(), editMode);
-	}
-    else if(entry.type == 'volume')
-        HTML += GetPlaylistRowHTML((i+1).toString(), "Volume", "VOLUME - " + entry.volume.toString(), "", "", i.toString(), editMode);
-    else if(entry.type == 'url')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "URL", "URL - " + entry.method + ' - ' + entry.url, "", entry.data, i.toString(), editMode);
-    else if(entry.type == 'image')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Image", "Image - " + entry.imagePath, entry.imageFilename, entry.data, i.toString(), editMode);
-    else if(entry.type == 'command') {
-        var av = "";
-        $.each( entry.args, function( key, v ) {
-               av += "\"";
-               av += v;
-               av += "\" ";
-        })
-        HTML += GetPlaylistRowHTML((i+1).toString(), "FPP Command", "FPP Command - " + entry.command, av, "", i.toString(), editMode);
-    }
-	else if(entry.type == 'remap')
-	{
-		var desc = "Add ";
-		if (entry.action == "remove")
-			desc = "Remove ";
-
-		desc += "remap for " + entry.count + " channels from " + entry.source + " to " + entry.destination + " " + entry.loops + " times";
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Remap", desc, "", "", i.toString(), editMode);
-	}
-	else if(entry.type == 'event')
-	{
-		majorID = parseInt(entry.majorID);
-		if (entry.majorID < 10)
-			majorID = "0" + majorID;
-
-		minorID = parseInt(entry.minorID);
-		if (entry.minorID < 10)
-			minorID = "0" + minorID;
-
-		id = majorID + '_' + minorID;
-
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Event", id + " - " + entry.desc, "---", "", i.toString(), editMode);
-	}
-	else if(entry.type == 'plugin')
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Plugin", "---", "", entry.data, editMode);
-    else if(entry.type == 'script') {
-        var blocking = "No Wait";
-        if (entry.blocking) {
-            blocking = "Wait";
-        }
-		HTML += GetPlaylistRowHTML((i+1).toString(), "Script", entry.scriptName, entry.scriptArgs, blocking, i.toString(), editMode);
-    }
-
-	return HTML;
-}
-
-function PopulatePlayListEntries(playList,reloadFile,selectedRow) {
-	if ( ! playList ) {
-		$('#txtPlaylistName').val(playList);
-
-		var innerHTML="";
-		innerHTML +=  "<tr class=\"playlistPlayingEntry\">";
-		innerHTML +=  "<td>No playlist loaded.</td>";
-		innerHTML += "</tr>";
-		$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
-
-		return false;
-	}
-
-	lastPlaylistEntry = '';
-	lastPlaylistSection = '';
-
-	$.ajax({
-		url: 'fppjson.php?command=getPlayListEntries&pl=' + playList + '&reload=' + reloadFile + '&mergeSubs=0',
-		dataType: 'json',
-		success: function(data, reqStatus, xhr) {	
-			var innerHTML = "";
-
-			if(data && typeof data === 'object') {
-				var entries = 0;
-				if (data.hasOwnProperty('leadIn') && data.leadIn.length > 0)
-				{
-					innerHTML = "";
-					for (i = 0; i < data.leadIn.length; i++)
-					{
-						innerHTML += PlaylistEntryToTR(entries, data.leadIn[i], 1);
-						entries++;
-					}
-					$('#tblPlaylistLeadIn').html(innerHTML);
-				}
-				else
-					$('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder'><td>&nbsp;</td></tr>");
-					
-
-				if (data.hasOwnProperty('mainPlaylist') && data.mainPlaylist.length > 0)
-				{
-					innerHTML = "";
-					for (i = 0; i < data.mainPlaylist.length; i++)
-					{
-						innerHTML += PlaylistEntryToTR(entries, data.mainPlaylist[i], 1);
-						entries++;
-					}
-					$('#tblPlaylistMainPlaylist').html(innerHTML);
-				}
-				else
-					$('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder'><td>&nbsp;</td></tr>");
-
-				if (data.hasOwnProperty('leadOut') && data.leadOut.length > 0)
-				{
-					innerHTML = "";
-					for (i = 0; i < data.leadOut.length; i++)
-					{
-						innerHTML += PlaylistEntryToTR(entries, data.leadOut[i], 1);
-						entries++;
-					}
-					$('#tblPlaylistLeadOut').html(innerHTML);
-				}
-				else
-					$('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder'><td>&nbsp;</td></tr>");
-
-                if (data.hasOwnProperty('playlistInfo')) {
-                    $('#playlistDuration').text(data.playlistInfo.total_duration);
-                    $('#playlistItems').text(data.playlistInfo.total_items);
-                } else {
-                    $('#playlistDuration').text("00m:00s");
-                    $('#playlistItems').text("0");
-                }
-
-				if (entries == 0)
-				{
-					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-					innerHTML +=  "<td colspan='4'>No entries in playlist section.</td>";
-					innerHTML += "</tr>";
-					$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
-				}
-
-				gblCurrentLoadedPlaylist = playList;
-				gblCurrentLoadedPlaylistCount = entries;
-				$('#txtPlaylistName').val(playList);
-			}
-			else
-			{
-				innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-				innerHTML +=  "<td>No entries in playlist section.</td>";
-				innerHTML += "</tr>";
-				$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
-
-				gblCurrentLoadedPlaylist = playList;
-				gblCurrentLoadedPlaylistCount = 0;
-				$('#txtPlaylistName').val(playList);
-			}
-		}
-	});
-}
-
 
 function PlaylistTypeChanged() {
-	var type = $('#selType').val();
+	var type = $('#pe_type').val();
 
 	$('.playlistOptions').hide();
+    $('#pbody_' + type).show();
+
+    $('#playlistEntryOptions').html('');
+    $('#playlistEntryCommandOptions').html('');
+    PrintArgInputs('playlistEntryOptions', true, playlistEntryTypes[type].args);
 
 	if (type == 'both')
 	{
-		$("#musicOptions").show();
-		$("#sequenceOptions").show();
 		$("#autoSelectWrapper").show();
 		$("#autoSelectMatches").prop('checked', true);
 	}
-	else if (type == 'media')
-	{
-		$("#musicOptions").show();
-	}
-	else if (type == 'sequence')
-	{
-		$("#sequenceOptions").show();
-	}
-	else if (type == 'pause')
-	{
-		$("#pauseTime").show();
-		$("#pauseText").show();
-	}
-	else if (type == 'script')
-	{
-		$("#scriptOptions").show();
-	}
-	else if (type == 'event')
-	{
-		$("#eventOptions").show();
-	}
-	else if (type == 'plugin')
-	{
-		$("#pluginData").show();
-	}
-	else if (type == 'branch')
-	{
-		$('#branchOptions').show();
-	}
-	else if (type == 'mqtt')
-	{
-		$('#mqttOptions').show();
-	}
-	else if (type == 'remap')
-	{
-		$('#remapOptions').show();
-	}
-	else if (type == 'dynamic')
-	{
-		$('#dynamicOptions').show();
-	}
-	else if (type == 'playlist')
-	{
-		$('#subPlaylistOptions').show();
-	}
-    else if (type == 'volume')
-    {
-        $('#volumeOptions').show();
+}
+
+function PlaylistNameOK(name) {
+    var tmpName = name.replace(/[^-a-zA-Z0-9_ ]/g,'');
+    if (name != tmpName) {
+        DialogError('Invalid Playlist Name', 'You may use only letters, numbers, spaces, hyphens, and underscores in playlist names.');
+        return 0;
     }
-	else if (type == 'url')
-	{
-		$('#urlOptions').show();
-	}
-	else if (type == 'image')
-	{
-		$('#imageOptions').show();
+
+    return 1;
+}
+
+function LoadPlaylistDetails(name) {
+    $.get('/api/playlist/' + name
+    ).done(function(data) {
+        PopulatePlaylistDetails(data, 1);
+        RenumberPlaylistEditorEntries();
+        UpdatePlaylistDurations();
+        VerbosePlaylistItemDetailsToggled();
+    }).fail(function() {
+        DialogError('Error loading playlist', 'Error loading playlist details!');
+    });
+}
+
+function CreateNewPlaylist() {
+	var name = $('#txtNewPlaylistName').val().replace(/ /,'_');
+
+    if (!PlaylistNameOK(name))
+        return;
+
+    if (playListArray.includes(name)) {
+		DialogError('Playlist name conflict', "Found existing playlist named '" + name + "'.  Loading existing playlist.");
+        $('#playlistSelect option[value="' + name + '"]').prop('selected', true);
+        LoadPlaylistDetails(name);
+        return;
     }
-    else if (type == 'command')
-	{
-        CommandSelectChanged('commandSelect', 'tblCommand');
-		$('#commandOptions').show();
-	}
+
+    $('#txtPlaylistName').val(name);
+    $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+    $('#tblPlaylistLeadIn').show();
+    $('#tblPlaylistLeadInHeader').show();
+
+    $('#tblPlaylistMainPlaylist').html("<tr id='tblPlaylistMainPlaylistPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+    $('#tblPlaylistMainPlaylist').show();
+    $('#tblPlaylistMainPlaylistHeader').show();
+
+    $('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+    $('#tblPlaylistLeadOut').show();
+    $('#tblPlaylistLeadOutHeader').show();
 }
 
-function AddNewPlaylist() {
-	var name=document.getElementById("txtNewPlaylistName");
-	var plName = name.value.replace(/ /,'_');
+function EditPlaylist() {
+    var name = $('#playlistSelect').val();
+    EnableButtonClass('playlistEditButton');
+    DisableButtonClass('playlistDetailsEditButton');
 
-	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=addPlayList&pl=" + plName;
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-		{
-			var xmlDoc=xmlhttp.responseXML; 
-			var productList = xmlDoc.getElementsByTagName('Music')[0];
-			PopulatePlaylists('playList', '', '');
-			PopulatePlayListEntries(plName,true);
-			$('#txtName').val(plName);
-			$('#txtName').focus()
-			$('#txtName').select()
-			
-		}
-	};
-	
-	xmlhttp.send();
-
-}
-		
-function PlaylistEntryPositionChanged(newSection,newIndex,oldSection,oldIndex) {
-	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=playlistEntryPositionChanged&newSection=" + newSection + "&newIndex=" + newIndex + "&oldSection=" + oldSection + "&oldIndex=" + oldIndex;
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-		{
-//					var xmlDoc=xmlhttp.responseXML; 
-//					var productList = xmlDoc.getElementsByTagName('Music')[0];
-//					PopulatePlaylists('playList', '', '');
-//					PopulatePlayListEntries(name.value);
-//					$('#txtName').val(name.value);
-//					$('#txtName').focus()
-//					$('#txtName').select()
-		}
-	};
-	
-	xmlhttp.send();
-
+    LoadPlaylistDetails(name);
 }
 
-function AddPlaylistEntry() {
-    	var xmlhttp=new XMLHttpRequest();
-			var	name=document.getElementById("txtPlaylistName");
-			var	type = document.getElementById("selType").value;
-			var	seqFile = document.getElementById("selSequence").value;
-			var	mediaFile = document.getElementById("selMedia").value;
-			var	eventSel = document.getElementById("selEvent");
-			var	eventID = eventSel.value;
-			var	eventName = '';
-			var	pluginData = document.getElementById("txtData").value;
+function EnableButtonClass(c) {
+    $('.' + c).addClass('buttons');
+    $('.' + c).removeClass('disableButtons');
+    $('.' + c).removeAttr("disabled");
+}
 
-			if ((type == "both") &&
-					((seqFile == "") || (mediaFile == "")))
-			{
-				var missingType = "";
-				if (seqFile == "")
-					missingType = "sequence";
-				else if (mediaFile == "")
-					missingType = "media";
+function DisableButtonClass(c) {
+    $('.' + c).removeClass('buttons');
+    $('.' + c).addClass('disableButtons');
+    $('.' + c).attr("disabled", "disabled");
+}
 
-				DialogError("Error adding playlist entry", "You must select a " +
-										missingType + " file to add a 'Media and Sequence' " +
-										"playlist entry");
+function RenumberPlaylistEditorEntries() {
+    var id = 1;
+    var sections = ['LeadIn', 'MainPlaylist', 'LeadOut'];
+    for (var s = 0; s < sections.length; s++) {
+        $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function() {
+            $(this).find('.playlistRowNumber').html('' + id + '.');
+            id++;
+        });
+    }
+}
 
-				return;
-			}
+function UpdatePlaylistDurations() {
+    var sections = ['LeadIn', 'MainPlaylist', 'LeadOut'];
+    for (var s = 0; s < sections.length; s++) {
+        var duration = 0;
 
-      if(eventSel.selectedIndex>=0)
-      {
-        eventName = eventSel.options[eventSel.selectedIndex].innerHTML.replace(/.. \/ .. - /, '');
-      }
+        $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function() {
+            if ($(this).find('.psiDurationSeconds').length)
+                duration += parseFloat($(this).find('.psiDurationSeconds').html());
+        });
 
-			var entry = new Object();
+        var items = $('#tblPlaylist' + sections[s] + ' tr.playlistRow').length;
+        $('.playlistItemCount' + sections[s]).html(items);
+        if (items == 1)
+            items = items.toString() + " item";
+        else
+            items = items.toString() + " items";
 
-			entry.type = $('#selType').val();
-			entry.enabled = 1; // FIXME
-			entry.playOnce = 0; // FIXME
+        $('.playlistItemCountWithLabel' + sections[s]).html(items);
 
-			if (entry.type == 'sequence')
-			{
-				entry.sequenceName = encodeURIComponent($('#selSequence').val());
-			}
-			else if (entry.type == 'media')
-			{
-				entry.mediaName = encodeURIComponent($('#selMedia').val());
-                entry.videoOut = encodeURIComponent($('#videoOut').val());
-			}
-			else if (entry.type == 'both')
-			{
-				entry.sequenceName = encodeURIComponent($('#selSequence').val());
-				entry.mediaName = encodeURIComponent($('#selMedia').val());
-                entry.videoOut = encodeURIComponent($('#videoOut').val());
-			}
-			else if (entry.type == 'pause')
-			{
-				if ($('#txtPause').val() != '')
-					entry.duration = parseFloat($('#txtPause').val());
-				else
-					entry.duration = 0;
-			}
-			else if (entry.type == 'event')
-			{
-				entry.majorID = $('#selEvent').val().substring(0,2);
-				entry.minorID = $('#selEvent').val().substring(3,5);
-				entry.desc =  eventName.replace(new RegExp("'", "g"),"").trim();
-				entry.blocking = 0;
-			}
-			else if (entry.type == 'branch')
-			{
-				entry.branchType = $('#branchType').val();
-				entry.compMode = 1; // FIXME
-                entry.trueNextBranchType = $('#branchTrueType').val();
-				entry.trueNextSection = $('#branchTrueSection').val();
-				entry.trueNextItem = parseInt($('#branchTrueItem').val());
-                entry.falseNextBranchType = $('#branchFalseType').val();
-				entry.falseNextSection = $('#branchFalseSection').val();
-				entry.falseNextItem = parseInt($('#branchFalseItem').val());
-				entry.compInfo = new Object();
-				entry.compInfo.startHour = parseInt($('#branchStartTime').val().substring(0,2));
-				entry.compInfo.startMinute = parseInt($('#branchStartTime').val().substring(3,5));
-				entry.compInfo.startSecond = parseInt($('#branchStartTime').val().substring(6,8));
-				entry.compInfo.endHour = parseInt($('#branchEndTime').val().substring(0,2));
-				entry.compInfo.endMinute = parseInt($('#branchEndTime').val().substring(3,5));
-				entry.compInfo.endSecond = parseInt($('#branchEndTime').val().substring(6,8));
-			}
-			else if (entry.type == 'script')
-			{
-				entry.scriptName =  encodeURIComponent($('#selScript').val());
-				entry.scriptArgs =  encodeURIComponent($('#selScript_args').val().replace(new RegExp('"',"g"),'\\"'));
-                entry.blocking = $('#selScript_blocking').prop('checked');;
-			}
-			else if (entry.type == 'mqtt')
-			{
-				entry.topic = $('#mqttTopic').val();
-				entry.message = $('#mqttMessage').val();
-			}
-			else if (entry.type == 'remap')
-			{
-				entry.action = $('#remapAction').val();
-				entry.source = parseInt($('#srcChannel').val());
-				entry.destination = parseInt($('#dstChannel').val());
-				entry.count = parseInt($('#channelCount').val());
-				entry.loops = parseInt($('#remapLoops').val());
-				entry.reverse = parseInt($('#remapReverse').val());
-			}
-			else if (entry.type == 'dynamic')
-			{
-				entry.subType = $('#dynamicSubType').val();
-				entry.data = $('#dynamicData').val();
-				entry.pluginHost = $('#dynamicDataHost').val();
-				entry.dataArgs = $('#dynamicData_args').val();
+        $('.playlistDuration' + sections[s]).html(SecondsToHuman(duration));
 
-				if ($('#drainQueue').is(':checked'))
-					entry.drainQueue = 1;
-				else
-					entry.drainQueue = 0;
-			}
-			else if (entry.type == 'playlist')
-			{
-				entry.name = encodeURIComponent($('#selSubPlaylist').val());
-			}
-            else if (entry.type == 'volume')
-            {
-                entry.volume = $('#volume').val();
+        if (sections[s] == 'MainPlaylist')
+            $('#playlistDuration').html(duration);
+    }
+}
+
+function GetSequenceDuration(sequence, updateUI, row) {
+    var durationInSeconds = 0;
+    $.ajax({
+        url: "/api/sequence/" + sequence.replace(/.fseq$/, '') + '/meta',
+        type: 'GET',
+        async: updateUI,
+        dataType: 'json',
+        success: function(data) {
+            durationInSeconds = 1.0 * data.NumFrames / (1000 / data.StepTime);
+            if (updateUI) {
+                var humanDuration = SecondsToHuman(durationInSeconds);
+
+                row.find('.psiDurationSeconds').html(durationInSeconds);
+                row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
+
+                UpdatePlaylistDurations();
             }
-			else if (entry.type == 'url')
-			{
-				entry.url = encodeURIComponent($('#url').val());
-				entry.method = $('#urlMethod').val();
-				entry.data = encodeURIComponent($('#urlData').val());
-			}
-			else if (entry.type == 'command')
-			{
-                CommandToJSON('commandSelect', 'tblCommand', entry);
-			}
-            else if (entry.type == 'image')
-            {
-                entry.imagePath = encodeURIComponent($('#imagePath').val());
-                entry.transitionType = $('#transitionType').val();
-                entry.outputDevice = encodeURIComponent($('#outputDevice').val());
-            }
-			else if (entry.type == 'plugin')
-			{
-				entry.data = $('#txtData').val();
-			}
+        },
+        fail: function() {
+            $.jGrowl('Error: Unable to get metadata for ' + sequence);
+        }
+    });
 
-			var postData = 'command=addPlaylistEntry&data=' + JSON.stringify(entry);
-
-			$.post("fppjson.php", postData).done(function(data) {
-				PopulatePlayListEntries($('#txtPlaylistName').val(),false);
-			}).fail(function() {
-				$.jGrowl("Error: Unable to add new playlist entry.");
-			});
-		}
-
-function ConvertPlaylistsToJSON() {
-	$('#playlistConvertText').html("Converting");
-	$('#playlistConverter').dialog({ height: 600, width: 800, title: "Playlist Converter" });
-	$('#playlistConverter').dialog( "moveToTop" );
-
-	$.ajax({
-		url: 'fppjson.php?command=convertPlaylists',
-		dataType: 'json',
-		success: function(data, reqStatus, xhr) {
-			if(data && typeof data === 'object') {
-				for (i = 0; i < data.playlists.length; i++)
-				{
-					$('#playlistConverterText').append(data.playlists[i] + '<br>');
-				}
-				PopulatePlaylists('playList', '', '');
-			}
-		}
-	});
+    return durationInSeconds;
 }
 
-function SavePlaylist(filter, callback)	{
-	var name=document.getElementById("txtPlaylistName");
-    if (name.value == "") {
+function SetPlaylistItemMetaData(row) {
+    var type = row.find('.entryType').html();
+    var file = row.find('.field_mediaName').html();
+
+    if ((type == 'both') || (type == 'media')) {
+        $.get('/api/media/' + file + '/meta').success(function(mdata) {
+            var duration = 99999;
+
+            if ((mdata.hasOwnProperty(file)) &&
+                (mdata[file].hasOwnProperty(duration))) {
+                duration = mdata[file].duration;
+            }
+
+            if (type == 'both') {
+                var sDuration = GetSequenceDuration(row.find('.field_sequenceName').html(), false, '');
+
+                // Playlist/PlaylistEntryBoth.cpp ends whenever shortest item ends
+                if (duration > sDuration)
+                    duration = sDuration;
+            }
+
+            var humanDuration = SecondsToHuman(duration);
+
+            row.find('.psiDurationSeconds').html(duration);
+            row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
+
+            UpdatePlaylistDurations();
+        }).fail(function() {
+            $.jGrowl('Error: Unable to get metadata for ' + file);
+        });
+    } else {
+        GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
+    }
+}
+
+function PopulatePlaylistItemDuration(row) {
+    var type = row.find('.entryType').html();
+
+    if ((type == 'media') || (type == 'sequence') || (type == 'both'))
+        SetPlaylistItemMetaData(row);
+
+    if (type == 'pause') {
+        var duration = parseFloat(row.find('.field_duration').html());
+        row.find('.psiDurationSeconds').html(duration);
+        row.find('.humanDuration').html('<b>Length: </b>' + SecondsToHuman(duration));
+        UpdatePlaylistDurations();
+    }
+}
+
+function AddPlaylistEntry(replace) {
+    if (replace && !$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
+        DialogError('No playlist item selected', "Error: No playlist item selected.");
+        return;
+    }
+
+    $('#tblPlaylistMainPlaylistPlaceHolder').remove();
+
+    var type = $('#pe_type').val();
+    var pet = playlistEntryTypes[type];
+
+    var pe = {};
+    pe.type = type;
+    pe.enabled = 1;  // no way to disable currently, so force this
+    pe.playOnce = 0; // Not currently used by player
+
+    var keys = Object.keys(pet.args);
+    for (var i = 0; i < keys.length; i++) {
+        var a = pet.args[keys[i]];
+
+        if (a.type == 'int') {
+            pe[a.name] = parseInt($('#playlistEntryOptions').find('.arg_' + a.name).val());
+        } else if (a.type == 'float') {
+            pe[a.name] = parseFloat($('#playlistEntryOptions').find('.arg_' + a.name).val());
+        } else if (a.type == 'bool') {
+            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).is(':checked') ? 'true' : 'false';
+        } else if ((a.type == 'time') || (a.type == 'date')) {
+            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).val();
+        } else if (a.type == 'array') {
+            var f = {};
+            for (x = 0; x < a.keys; x++) {
+                f[a.keys[x]] = $('#playlistEntryOptions').find('.arg_' + a.name + '_' + a.keys[x]).val();
+            }
+            pe[a.name] = f;
+        } else if (a.type == 'args') {
+            var arr = [];
+            for (x = 1; x <= 20; x++) {
+                if ($('#playlistEntryCommandOptions_arg_' + x).length) {
+                    arr.push($('#playlistEntryCommandOptions_arg_' + x).val());
+                }
+            }
+            pe[a.name] = arr;
+        } else if (a.type == 'string') {
+            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).val();
+        } else {
+            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).html();
+        }
+    }
+
+    var newRow;
+    var html = GetPlaylistRowHTML(0, pe, 1);
+    if (replace) {
+        var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
+        $(row).after(html);
+        $(row).removeClass('playlistSelectedEntry');
+        $(row).next().addClass('playlistSelectedEntry');
+        newRow = $(row).next();
+        $(row).remove();
+
+    } else {
+        $('#tblPlaylistMainPlaylist').append(html);
+
+        $('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
+
+        newRow = $('#tblPlaylistMainPlaylist > tr').last();
+        $(newRow).addClass('playlistSelectedEntry');
+    }
+
+    RenumberPlaylistEditorEntries();
+
+    PopulatePlaylistItemDuration($(newRow));
+
+    if (type == 'pause')
+        UpdatePlaylistDurations();
+
+    VerbosePlaylistItemDetailsToggled();
+}
+
+function GetPlaylistEntry(row) {
+    var e = {};
+    e.type = $(row).find('.entryType').html();
+    e.enabled = 1;  // no way to disable currently, so force this
+    e.playOnce = 0; // Not currently used by player
+
+    var pet = playlistEntryTypes[e.type];
+    var haveDuration = 0;
+
+    var keys = Object.keys(pet.args);
+    for (var i = 0; i < keys.length; i++) {
+        var a = pet.args[keys[i]];
+
+        if (a.type == 'int') {
+            e[a.name] = parseInt($(row).find('.field_' + a.name).html());
+
+            if (a.name == 'duration')
+                haveDuration = 1;
+        } else if (a.type == 'float') {
+            e[a.name] = parseFloat($(row).find('.field_' + a.name).html());
+
+            if (a.name == 'duration')
+                haveDuration = 1;
+        } else if (a.type == 'bool') {
+            e[a.name] = ($(row).find('.field_' + a.name).html() == 'true') ? true : false;
+        } else if (a.type == 'array') {
+            var f = {};
+            for (var x = 0; x < a.keys.length; x++) {
+                f[a.keys[x]] = parseInt($(row).find('.field_' + a.name + '_' + a.keys[x]).html());
+            }
+            e[a.name] = f;
+        } else if (a.type == 'args') {
+            var arr = [];
+            for (x = 1; x <= 20; x++) {
+                if ($(row).find('.field_args_' + x).length) {
+                    arr.push($(row).find('.field_args_' + x).html());
+                }
+            }
+            e[a.name] = arr;
+        } else if (a.type == 'string') {
+            var v = $(row).find('.field_' + a.name).html();
+            if (parseInt(v) == v) {
+                e[a.name] = parseInt(v);
+            } else {
+                e[a.name] = v;
+            }
+        } else {
+            e[a.name] = $(row).find('.field_' + a.name).html();
+        }
+    }
+
+    if ((!haveDuration) && ($(row).find('.psiDurationSeconds').html() != "0"))
+        e['duration'] = parseFloat($(row).find('.psiDurationSeconds').html());
+
+    return e;
+}
+
+function SavePlaylist(filter, callback) {
+	var name = document.getElementById("txtPlaylistName").value;
+    if (name == "") {
         alert("Playlist name cannot be empty");
         return;
     }
-    var xmlhttp=new XMLHttpRequest();
-	var url = "fppjson.php?command=savePlaylist&name=" + name.value;
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
 
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200) {
-			var xmlDoc=xmlhttp.responseXML; 
-			PopulatePlaylists("playList", filter, callback);
-  			PopulatePlayListEntries(name.value,true);
-		}
-	};
-	
-	xmlhttp.send();
+    return SavePlaylistAs(name, filter, callback);
+}
 
+function SavePlaylistAs(name, filter, callback) {
+    if (!PlaylistNameOK(name))
+        return 0;
+
+    var itemCount = 0;
+    var pl = {};
+    pl.name = name;
+    pl.version = 3;   // v1 == CSV, v2 == JSON, v3 == deprecated some things
+    pl.repeat = 0;    // currently unused by player
+    pl.loopCount = 0; // currently unused by player
+
+    var leadIn = [];
+    $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
+        leadIn.push(GetPlaylistEntry(this));
+    });
+    if (leadIn.length)
+        pl.leadIn = leadIn;
+
+    var mainPlaylist = [];
+    $('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function() {
+        mainPlaylist.push(GetPlaylistEntry(this));
+    });
+    if (mainPlaylist.length)
+        pl.mainPlaylist = mainPlaylist;
+
+    var leadOut = [];
+    $('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
+        leadOut.push(GetPlaylistEntry(this));
+    });
+    if (leadOut.length)
+        pl.leadOut = leadOut;
+
+    var playlistInfo = {};
+    playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
+    playlistInfo.total_items = mainPlaylist.length;
+    pl.playlistInfo = playlistInfo;
+
+    var str = JSON.stringify(pl, true);
+    $.ajax({
+        url: "/api/playlist/" + name,
+        type: 'POST',
+        contentType: 'application/json',
+        data: str,
+        async: false,
+        dataType: 'json',
+        success: function(data) {
+            $.jGrowl("Playlist Saved");
+        },
+        fail: function() {
+            DialogError('Unable to save playlist', "Error: Unable to save playlist.");
+        }
+    });
+
+    return 1;
 }
 
 function RandomizePlaylistEntries() {
-    //Number of children / rows in the main playlist
-    var mainPlaylistItems = $("#tblPlaylistMainPlaylist > tr").length;
-    var mainPlaylistElements = [];
+    $('#randomizeBuffer').html($('#tblPlaylistMainPlaylist').html());
+    $('#tblPlaylistMainPlaylist').empty();
 
-    //Build a list of child element id's
-    $("#tblPlaylistMainPlaylist > tr").each(function (index) {
-        // console.log( index + ": " + $( this ).text() )
-        // console.log( index + ": " + $( this ).attr('id') );
-        mainPlaylistElements.push($(this).attr('id'));
-    });
+    var itemsLeft = $('#randomizeBuffer > tr').length;
+    while (itemsLeft > 0) {
+        var x = Math.floor(Math.random() * Math.floor(itemsLeft)) + 1;
+        var item = $('#randomizeBuffer > tr:nth-child(' + x + ')').clone();
+        $('#randomizeBuffer > tr:nth-child(' + x + ')').remove();
 
-    //Loop for the entire length of the main playlist, shifting items around
-    var i;
-    var pl = document.getElementById("txtPlaylistName").value;
-    for (i = 0; i < mainPlaylistItems; i++) {
-        random_pos = Math.floor(Math.random() * Math.floor(mainPlaylistItems));
-        this_element = mainPlaylistElements[i];
-        random_element = mainPlaylistElements[random_pos];
+        $('#tblPlaylistMainPlaylist').append(item);
 
-        //Move this item to the item determined by random pos;
-        // $("#"+this_element).insertAfter( $("#"+random_element));
-
-        //Change positions of items on the MainPlaylist
-        PlaylistEntryPositionChanged('MainPlaylist', random_pos, 'MainPlaylist', i);
+        itemsLeft = $('#randomizeBuffer > tr').length;
     }
-    //Refresh playlist after all the moves
-    PopulatePlayListEntries(pl, false, random_pos);
-    //Refresh the sortable table
-    $('.tblCreatePlaylistEntries_tbody').sortable('refresh').sortable('refreshPositions');
+
+    RenumberPlaylistEditorEntries();
+
+//    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
 }
 
 /**
@@ -796,43 +948,70 @@ function RemoveIllegalChars(name) {
 }
 
 function CopyPlaylist()	{
-    var name = document.getElementById("txtPlaylistName");
-    //pop the dialog
+    var name = $('#txtPlaylistName').val();
+
     $("#copyPlaylist_dialog").dialog({
+        width: 400,
         buttons: {
-            "Copy Playlist": function () {
+            "Copy": function() {
                 var new_playlist_name = $(this).find(".newPlaylistName").val();
-                var copy_playlist_url = "fppjson.php?command=copyPlaylist&from=" + name.value + "&to=" + new_playlist_name;
 
-                //Make the request
-                var xmlhttp = new XMLHttpRequest();
-                xmlhttp.open("GET", copy_playlist_url, false);
-                xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+                if (name == new_playlist_name) {
+                    DialogError('Error, same name given', 'Identical name given.');
+                    return;
+                }
 
-                xmlhttp.onreadystatechange = function () {
-                    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                        var xmlDoc = xmlhttp.responseXML;
-                        PopulatePlaylists("playList", '', '');
-                        var firstPlaylist = document.getElementById("playlist0");
-                        if (firstPlaylist)
-                            PopulatePlayListEntries(firstPlaylist.innerHTML, true);
-                        else
-                            PopulatePlayListEntries();
+                if (!SavePlaylistAs(new_playlist_name, '', ''))
+                    return;
 
-                        //Close the dialog once done
-                        $("#copyPlaylist_dialog").dialog("close");
-                    }
-                };
-
-                xmlhttp.send();
+                PopulateLists();
+                $('#txtPlaylistName').val(new_playlist_name);
+                $(this).dialog("close");
             },
-            Cancel: function () {
+            Cancel: function() {
                 $(this).dialog("close");
             }
         },
         open: function (event, ui) {
             //Generate a name for the new playlist
-            $(this).find(".newPlaylistName").val(name.value + " - Copy");
+            $(this).find(".newPlaylistName").val(name + " - Copy");
+        },
+        close: function () {
+            $(this).find(".newPlaylistName").val("New Playlist Name");
+        }
+    });
+}
+
+function RenamePlaylist()	{
+    var name = $('#txtPlaylistName').val();
+
+    $("#renamePlaylist_dialog").dialog({
+        width: 400,
+        buttons: {
+            "Rename": function() {
+                var new_playlist_name = $(this).find(".newPlaylistName").val();
+
+                if (name == new_playlist_name) {
+                    DialogError('Error, same name given', 'Identical name given.');
+                    return;
+                }
+
+                if (!SavePlaylistAs(new_playlist_name, '', ''))
+                    return;
+
+                DeleteNamedPlaylist(name);
+                PopulateLists();
+
+                $('#txtPlaylistName').val(new_playlist_name);
+                $(this).dialog("close");
+            },
+            Cancel: function() {
+                $(this).dialog("close");
+            }
+        },
+        open: function (event, ui) {
+            //Generate a name for the new playlist
+            $(this).find(".newPlaylistName").val(name);
         },
         close: function () {
             $(this).find(".newPlaylistName").val("New Playlist Name");
@@ -841,67 +1020,77 @@ function CopyPlaylist()	{
 }
 
 function DeletePlaylist() {
-		var name=document.getElementById("txtPlaylistName");
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deletePlaylist&name=" + name.value;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML;
-                    status_xml = xmlDoc.getElementsByTagName("Status")[0].textContent;
+    var name = $('#txtPlaylistName').val();
 
-                    if (status_xml === "Failure" || status_xml !== "Success"){
-                        //fail
-                        DialogError("Failed to delete Playlist","Failed to delete Playlist '" + name.value + "'.")
-					}
-
-                    PopulatePlaylists("playList", '', '');
-					var firstPlaylist = document.getElementById("playlist0");
-					if ( firstPlaylist )
-						PopulatePlayListEntries(firstPlaylist.innerHTML,true);
-					else
-						PopulatePlayListEntries();
-				}
-			};
-			
-			xmlhttp.send();
-
+    DeleteNamedPlaylist(name);
 }
 
-		
-		
+function DeleteNamedPlaylist(name) {
+    var postDataString = "";
+    $.ajax({
+        dataType: "json",
+        url: "api/playlist/" + name,
+        type: "DELETE",
+        async: false,
+        success: function(data) {
+            PopulateLists();
+            $.jGrowl("Playlist Deleted");
+        },
+        fail: function() {
+            DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist");
+        }
+    });
+}
+
+function EditPlaylistEntry() {
+    if (!$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
+        DialogError('No playlist item selected', "Error: No playlist item selected.");
+        return;
+    }
+
+    var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
+    var type = $(row).find('.entryType').html();
+    var pet = playlistEntryTypes[type];
+
+    $('#pe_type').val(type);
+    PlaylistTypeChanged();
+    EnableButtonClass('playlistEditButton');
+
+    var keys = Object.keys(pet.args);
+    for (var i = 0; i < keys.length; i++) {
+        var a = pet.args[keys[i]];
+
+        if (a.type == 'bool') {
+            if ($(row).find('.field_' + a.name).html() == 'true')
+                $('.arg_' + a.name).prop('checked', true).trigger('change');
+            else
+                $('.arg_' + a.name).prop('checked', false).trigger('change');
+        } else if (a.type == 'args') {
+            var arr = [];
+            for (x = 1; x <= 20; x++) {
+                if ($(row).find('.field_args_' + x).length) {
+                    $('#playlistEntryCommandOptions_arg_' + x).val($(row).find('.field_args_' + x).html());
+                }
+            }
+        } else {
+            $('.arg_' + a.name).val($(row).find('.field_' + a.name).html()).trigger('change');
+        }
+    }
+
+    UpdateChildVisibility();
+}
+
 function RemovePlaylistEntry()	{
-		if (lastPlaylistEntry == '')
-		{
-			$.jGrowl("Error: No playlist item selected.");
-			return;
-		}
+    if (!$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
+        DialogError('No playlist item selected', "Error: No playlist item selected.");
+        return;
+    }
 
-			var name=document.getElementById("txtPlaylistName");
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteEntry&index=" + (lastPlaylistEntry-1) + "&section=" + lastPlaylistSection;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-          PopulatePlayListEntries(name.value,false);
-					SelectEntry(lastPlaylistEntry);
-				}
-			};
-			
-			xmlhttp.send();
-		}
-
-		function reloadPage()
-		{
-			location.reload(true);
-		}
+    DisableButtonClass('playlistDetailsEditButton');
+    $('#tblPlaylistDetails').find('.playlistSelectedEntry').remove();
+    RenumberPlaylistEditorEntries();
+    UpdatePlaylistDurations();
+}
 
 		function reloadPage()
 		{
@@ -990,17 +1179,6 @@ function RemovePlaylistEntry()	{
 			xmlhttp.send();
 		}
 	
-		function SelectEntry(index)
-		{
-			$('#sortable li:nth-child(1n)').removeClass('selectedEntry');
-			if(index > $("#sortable li").size())
-			{	
-				index = $("#sortable li").size()-1;
-			}
-			var j = $("#sortable li").get(index).addClass('selectedEntry');
-			lastPlaylistEntry = index;
-		}
-		
 		function SetUniverseCount(input)
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
@@ -1539,7 +1717,7 @@ function updateUniverseEndChannel(row) {
                                                        SetRestartFlag(2);
                                                        CheckRestartRebootFlags();
                                                  }).fail(function() {
-                                                        $.jGrowl("Error: Unable to save E1.31 Universes.");
+                                                        DialogError('Save Universes', "Error: Unable to save E1.31 Universes.");
                                                   });
             
         }
@@ -1832,7 +2010,7 @@ function HolidaySelect(userKey, classToAdd)
 					var entries = xmlDoc.getElementsByTagName('ScheduleEntries')[0];
 					if(entries.childNodes.length> 0)
 					{
-						GetPlaylistArray();
+						GetPlaylistArray(false);
 						headerHTML = "<tr class=\"tblheader\">" +  
 							"<th>#</th>" +
 							"<th>Enable</th>" +
@@ -1884,7 +2062,7 @@ function HolidaySelect(userKey, classToAdd)
 									var dayMaskStyle = day >= 0x10000 ? "" : "display: none;";
 
 									playlistOptionsText = ""
-									for(j=0;j<PlaylistCount;j++)
+									for(j = 0; j < playListArray.length; j++)
 									{
 										playListChecked = playListArray[j] == playlist ? "selected" : "";
 										playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\" " + playListChecked + ">" + playListArray[j] + "</option>";
@@ -1956,30 +2134,37 @@ function HolidaySelect(userKey, classToAdd)
 			xmlhttp.send();			
 		}
 
-	function GetPlaylistArray()
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getPlayLists";
-			var playListArr = new Array();
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+var playListArray = [];
+function GetPlaylistArray()
+{
+    $.ajax({
+        dataType: "json",
+        url: "api/playlists",
+        async: false,
+        success: function(data) {
+            playListArray = data;
+        },
+        fail: function() {
+            DialogError('Load Playlists', 'Error loading list of playlists');
+        }
+    });
+}
 
-			xmlhttp.onreadystatechange = function() {
-			var xmlDoc=xmlhttp.responseXML; 
-			var playlist = xmlDoc.getElementsByTagName('Playlists')[0];
-			PlaylistCount =playlist.childNodes.length;
-			if(playlist.childNodes.length> 0)
-			{
-  			for(i=0;i<playlist.childNodes.length;i++)
-				{
-					playListArr[i] = playlist.childNodes[i].textContent;
-				}
-			}
-			playListArray = playListArr;
-			};
-
-			xmlhttp.send();
-		}
+var sequenceArray = [];
+function GetSequenceArray()
+{
+    $.ajax({
+        dataType: "json",
+        url: "api/sequence",
+        async: false,
+        success: function(data) {
+            sequenceArray = data;
+        },
+        fail: function() {
+            DialogError('Load Sequences', 'Error loading list of sequences');
+        }
+    });
+}
 
 	function AddScheduleEntry()
 	{
@@ -2111,32 +2296,21 @@ function HolidaySelect(userKey, classToAdd)
 	{
 		if (fppMode == 1) // Bridge Mode
 		{
-			$("#playerInfo").hide();
-			$("#nextPlaylist").hide();
-			$("#bytesTransferred").show();
-			$("#remoteStatus").hide();
-            $("#playerStatusBottom").hide();
+			$("#playerModeInfo").hide();
+			$("#remoteModeInfo").hide();
+			$("#bridgeModeInfo").show();
 		}
-		else
+		else if (fppMode == 8) // Remote Mode
 		{
-			if (fppMode == 8) // Remote Mode
-			{
-				$("#playerInfo").show();
-				$("#playerStatusTop").hide();
-				$("#playerStatusBottom").hide();
-				$("#remoteStatus").show();
-				$("#nextPlaylist").hide();
-				$("#bytesTransferred").hide();
-			}
-			else // Player or Master Modes
-			{
-				$("#playerInfo").show();
-				$("#playerStatusTop").show();
-				$("#playerStatusBottom").show();
-				$("#remoteStatus").hide();
-				$("#nextPlaylist").show();
-				$("#bytesTransferred").hide();
-			}
+			$("#playerModeInfo").hide();
+			$("#remoteModeInfo").show();
+			$("#bridgeModeInfo").hide();
+		}
+		else // Player or Master Modes
+		{
+			$("#playerModeInfo").show();
+			$("#remoteModeInfo").hide();
+			$("#bridgeModeInfo").hide();
 		}
 	}
 
@@ -2163,8 +2337,7 @@ function HolidaySelect(userKey, classToAdd)
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPPD is stopped.");
 						$('#txtPlayerStatus').html(status);
-						$('#txtTimePlayed').html("");
-						$('#txtTimeRemaining').html("");
+						$('#playerTime').hide();
 						$('#txtSeqFilename').html("");
 						$('#txtMediaFilename').html("");
 						$('#schedulerStatus').html("");
@@ -2178,8 +2351,7 @@ function HolidaySelect(userKey, classToAdd)
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPP is currently updating.");
 						$('#txtPlayerStatus').html(status);
-						$('#txtTimePlayed').html("");
-						$('#txtTimeRemaining').html("");
+						$('#playerTime').hide();
 						$('#txtSeqFilename').html("");
 						$('#txtMediaFilename').html("");
 						$('#schedulerStatus').html("");
@@ -2248,9 +2420,8 @@ function HolidaySelect(userKey, classToAdd)
 
 			if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
 				GetUniverseBytesReceived();
-
-			$('#schedulerStatusWrapper').hide();
 		} else if (fppMode == 8) {
+			// Remote Mode
 			$('#fppTime').html(jsonStatus.time);
 
 			if(jsonStatus.time_elapsed) {
@@ -2260,24 +2431,20 @@ function HolidaySelect(userKey, classToAdd)
 			$('#txtRemoteStatus').html(status);
 			$('#txtRemoteSeqFilename').html(jsonStatus.sequence_filename);
 			$('#txtRemoteMediaFilename').html(jsonStatus.media_filename);
-			$('#schedulerStatusWrapper').hide();
-		
 		} else {
-
+			// Player/Master Mode
 			var nextPlaylist = jsonStatus.next_playlist;
 			var nextPlaylistStartTime = jsonStatus.next_playlist_start_time;
 			var currentPlaylist = jsonStatus.current_playlist;
 
-			$('#schedulerStatusWrapper').show();
-
 			if (fppStatus == STATUS_IDLE) {
+				// Not Playing Anything
 				gblCurrentPlaylistIndex =0;
 				gblCurrentPlaylistEntryType = '';
 				gblCurrentPlaylistEntrySeq = '';
 				gblCurrentPlaylistEntrySong = '';
 				$('#txtPlayerStatus').html(status);
-				$('#txtTimePlayed').html("");								
-				$('#txtTimeRemaining').html("");	
+				$('#playerTime').hide();
 				$('#txtSeqFilename').html("");
 				$('#txtMediaFilename').html("");
 				$('#schedulerStatus').html("Idle");
@@ -2291,9 +2458,10 @@ function HolidaySelect(userKey, classToAdd)
 				SetButtonState('#btnNext','disable');
 				SetButtonState('#btnStopGracefully','disable');
 				SetButtonState('#btnStopGracefullyAfterLoop','disable');
-				$('#selStartPlaylist').removeAttr("disabled");
+				$('#playlistSelect').removeAttr("disabled");
 				UpdateCurrentEntryPlaying(0);
 			} else if (currentPlaylist.playlist != "") {
+				// Playing a playlist
 				var playerStatusText = "Playing ";
                 if (jsonStatus.current_song != "") {
                     playerStatusText += " - <strong>'" + jsonStatus.current_song + "'</strong>";
@@ -2313,8 +2481,8 @@ function HolidaySelect(userKey, classToAdd)
 					(gblCurrentPlaylistEntryType != currentPlaylist.type) ||
 					(gblCurrentPlaylistEntrySeq != jsonStatus.current_sequence) ||
 					(gblCurrentPlaylistEntrySong != jsonStatus.current_song)) {
-					$('#selStartPlaylist').val(currentPlaylist.playlist);
-					PopulateStatusPlaylistEntries(false,currentPlaylist.playlist,true);
+					$('#playlistSelect').val(currentPlaylist.playlist);
+					PopulatePlaylistDetailsEntries(false,currentPlaylist.playlist);
 
 					gblCurrentPlaylistEntryType = currentPlaylist.type;
 					gblCurrentPlaylistEntrySeq = jsonStatus.current_sequence;
@@ -2327,7 +2495,7 @@ function HolidaySelect(userKey, classToAdd)
                 SetButtonState('#btnNext','enable');
 				SetButtonState('#btnStopGracefully','enable');
 				SetButtonState('#btnStopGracefullyAfterLoop','enable');
-				$('#selStartPlaylist').attr("disabled");
+				$('#playlistSelect').attr("disabled");
 
 				if(fppStatus == STATUS_STOPPING_GRACEFULLY) {
 					playerStatusText += " - Stopping Gracefully";
@@ -2336,8 +2504,9 @@ function HolidaySelect(userKey, classToAdd)
 				}
 
 				$('#txtPlayerStatus').html(playerStatusText);
-				$('#txtTimePlayed').html("Elapsed:&nbsp;" + jsonStatus.time_elapsed );
-				$('#txtTimeRemaining').html("Remaining:&nbsp;" + jsonStatus.time_remaining );
+				$('#playerTime').show();
+				$('#txtTimePlayed').html(jsonStatus.time_elapsed );
+				$('#txtTimeRemaining').html(jsonStatus.time_remaining );
 				$('#txtSeqFilename').html(jsonStatus.current_sequence);
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 
@@ -2391,7 +2560,7 @@ if (1) {
 					$('#schedulerEndTime').html("N/A");
 				}
             } else if (jsonStatus.current_sequence != "") {
-                //only playing a sequence
+                //  Playing a sequence via test mode
                 var playerStatusText = "Playing <strong>'" + jsonStatus.current_sequence + "'</strong>";
                 SetButtonState('#btnPlay','disable');
                 SetButtonState('#btnPrev','enable');
@@ -2401,8 +2570,9 @@ if (1) {
                 SetButtonState('#btnStopGracefullyAfterLoop','enable');
                 
                 $('#txtPlayerStatus').html(playerStatusText);
-                $('#txtTimePlayed').html("Elapsed: " + jsonStatus.time_elapsed );
-                $('#txtTimeRemaining').html("Remaining: " + jsonStatus.time_remaining );
+				$('#playerTime').show();
+                $('#txtTimePlayed').html(jsonStatus.time_elapsed );
+                $('#txtTimeRemaining').html(jsonStatus.time_remaining );
 				$('#txtSeqFilename').html(jsonStatus.current_sequence);
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 
@@ -2423,9 +2593,9 @@ if (1) {
                 if ((jsonStatus.sensors.length < 4) || ((i % 2) == 0)) {
                     sensorText += "<tr>";
                 }
-                sensorText += "<td>";
+                sensorText += "<th>";
                 sensorText += jsonStatus.sensors[i].label;
-                sensorText += "</td><td";
+                sensorText += "</th><td";
                 if (jsonStatus.sensors[i].valueType == "Temperature") {
                     sensorText += " onclick='changeTemperatureUnit()'>";
                     var val = jsonStatus.sensors[i].value;
@@ -2517,8 +2687,8 @@ if (1) {
 	
 	function UpdateCurrentEntryPlaying(index,lastIndex)
 	{
-		$('#tblStatusPlaylist tbody tr').removeClass('PlaylistRowPlaying');
-		$('#tblStatusPlaylist tbody td').removeClass('PlaylistPlayingIcon');
+		$('#tblPlaylistDetails tbody tr').removeClass('PlaylistRowPlaying');
+		$('#tblPlaylistDetails tbody td').removeClass('PlaylistPlayingIcon');
 
 		if((index >= 0) && ($('#playlistRow' + index).length))
 		{
@@ -2624,7 +2794,7 @@ if (1) {
 
 				CheckRestartRebootFlags();
 			}).fail(function() {
-				DialogError("Failed to save " + key + " setting.");
+				DialogError('Save Setting', "Failed to save " + key + " setting.");
 				CheckRestartRebootFlags();
 			});
 	}
@@ -2775,23 +2945,45 @@ function ControlFPPD()
 		xmlhttp.send();
 	}
 	
-function StatusPopulatePlaylists()
-	{
-		var playlistOptionsText="";
-		GetPlaylistArray();
-		
-		for(j=0;j<PlaylistCount;j++)
-		{
-			playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
-		}	
-		$('#selStartPlaylist').html(playlistOptionsText);
-		
+function PopulatePlaylists(sequencesAlso)
+{
+    var playlistOptionsText="";
+    GetPlaylistArray();
 
-	}
-	
+//    if (sequencesAlso)
+//        playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";
+
+    for(j = 0; j < playListArray.length; j++)
+    {
+        playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
+    }
+
+//    if (sequencesAlso) {
+//        GetSequenceArray();
+
+//        playlistOptionsText += "<option disabled>---------- Sequences ---------- </option>";
+//        for(j = 0; j < sequenceArray.length; j++)
+//        {
+//            playlistOptionsText +=  "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + ".fseq</option>";
+//        }
+//    }
+
+    $('#playlistSelect').html(playlistOptionsText);
+}
+
+function PlayPlaylist(Playlist, goToStatus = 0)
+{
+    $.get("/api/command/Start Playlist/" + Playlist + "/0").success(function() {
+        if (goToStatus)
+	        location.href="index.php";
+        else
+            $.jGrowl("Playlist Started");
+    });
+}
+
 function StartPlaylistNow()
 	{
-		var Playlist =  $("#selStartPlaylist").val();
+		var Playlist =  $("#playlistSelect").val();
         var xmlhttp=new XMLHttpRequest();
 		var repeat = $("#chkRepeat").is(':checked')?'checked':'unchecked';
 		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected + "&section=" + PlaySectionSelected ;
@@ -2894,110 +3086,206 @@ function GetRunningEffects()
 			xmlhttp.send();
 		} 
 	}
-		
-function PopulateStatusPlaylistEntries(playselected,playList,reloadFile)
+
+function UpgradePlaylist(data, editMode)
 {
-			var type;
-			var pl;
-    	var xmlhttp=new XMLHttpRequest();
-			var innerHTML="";
-			var fromMemory = "";
-			if(playselected==true)
-			{
-				pl = $('#selStartPlaylist :selected').text(); 
-			}
-			else
-			{	
-				pl = playList;
-				fromMemory = '&fromMemory=1';
-			}
+    var sections = ['leadIn', 'mainPlaylist', 'leadOut'];
+    var events = GetSync('/api/events');
+    var error = "";
 
-			PlayEntrySelected = 0;
-			PlaySectionSelected = '';
+    for (var s = 0; s < sections.length; s++) {
+        if (typeof data[sections[s]] != 'object') {
+            continue;
+        }
 
-	$.ajax({
-		url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&reload=' + reloadFile + '&mergeSubs=1' + fromMemory,
-		dataType: 'json',
-		success: function(data, reqStatus, xhr) {	
-			var innerHTML = "";
+        for (i = 0; i < data[sections[s]].length; i++) {
+            var type = data[sections[s]][i]['type'];
+            var o = data[sections[s]][i];
+            var n = {};
 
-			if(data && typeof data === 'object') {
-				var entries = 0;
-				if (data.hasOwnProperty('leadIn') && data.leadIn.length > 0)
-				{
-					innerHTML = "";
-					for (i = 0; i < data.leadIn.length; i++)
-					{
-						innerHTML += PlaylistEntryToTR(entries, data.leadIn[i], 0);
-						entries++;
-					}
-					$('#tblPlaylistLeadIn').html(innerHTML);
-					$('#tblPlaylistLeadInHeader').show();
-				}
-				else
-				{
-					$('#tblPlaylistLeadIn').html("");
-					$('#tblPlaylistLeadInHeader').hide();
-				}
+            n.enabled = o.enabled;
+            n.playOnce = o.playOnce;
 
-				if (data.hasOwnProperty('mainPlaylist') && data.mainPlaylist.length > 0)
-				{
-					innerHTML = "";
-					for (i = 0; i < data.mainPlaylist.length; i++)
-					{
-						innerHTML += PlaylistEntryToTR(entries, data.mainPlaylist[i], 0);
-						entries++;
-					}
-					$('#tblPlaylistMainPlaylist').html(innerHTML);
-					$('#tblPlaylistMainPlaylistHeader').show();
-				}
-				else
-				{
-					$('#tblPlaylistMainPlaylist').html("");
-					$('#tblPlaylistMainPlaylistHeader').hide();
-				}
+            // Changes for both Status UI and Edit Mode.  These are needed in the status UI
+            // when new fields replace old fields and where the PlaylistEntry* classes also
+            // handle these conversions.
+            if (type == 'branch') {
+                if ((typeof o.startTime === 'undefined') ||
+                    (typeof o.endTime === 'undefined')) {
+                    n = o;
+                    n.startTime =
+                        PadLeft(o.compInfo.startHour, '0', 2) + ':' +
+                        PadLeft(o.compInfo.startMinute, '0', 2) + ':' +
+                        PadLeft(o.compInfo.startSecond, '0', 2);
 
-				if (data.hasOwnProperty('leadOut') && data.leadOut.length > 0)
-				{
-					innerHTML = "";
-					for (i = 0; i < data.leadOut.length; i++)
-					{
-						innerHTML += PlaylistEntryToTR(entries, data.leadOut[i], 0);
-						entries++;
-					}
-					$('#tblPlaylistLeadOut').html(innerHTML);
-					$('#tblPlaylistLeadOutHeader').show();
-				}
-				else
-				{
-					$('#tblPlaylistLeadOut').html("");
-					$('#tblPlaylistLeadOutHeader').hide();
-				}
+                    n.endTime =
+                        PadLeft(o.compInfo.endHour, '0', 2) + ':' +
+                        PadLeft(o.compInfo.endMinute, '0', 2) + ':' +
+                        PadLeft(o.compInfo.endSecond, '0', 2);
 
-				if (entries == 0)
-				{
-					innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-					innerHTML +=  "<td>No entries in playlist section.</td>";
-					innerHTML += "</tr>";
-					$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
-				}
+                    delete n.compInfo;
+                    data[sections[s]][i] = n;
+                }
+            } else if (type == 'dynamic') {
+                if ((o.subType == 'file') &&
+                    (typeof o.dataFile != 'string') &&
+                    (typeof o.data == 'string')) {
+                    n = o;
+                    n.dataFile = n.data;
+                    data[sections[s]][i] = n;
+                } else if ((o.subType == 'plugin') &&
+                    (typeof o.pluginName != 'string') &&
+                    (typeof o.data == 'string')) {
+                    n = o;
+                    n.pluginName = n.data;
+                    data[sections[s]][i] = n;
+                } else if ((o.subType == 'url') &&
+                    (typeof o.url != 'string') &&
+                    (typeof o.data == 'string')) {
+                    n = o;
+                    n.url = n.data;
+                    data[sections[s]][i] = n;
+                }
+            }
 
-				gblCurrentLoadedPlaylist = playList;
-				gblCurrentLoadedPlaylistCount = entries;
-				$('#txtPlaylistName').val(playList);
-			}
-			else
-			{
-				innerHTML  =  "<tr class=\"playlistPlayingEntry\">";
-				innerHTML +=  "<td>No entries in playlist section.</td>";
-				innerHTML += "</tr>";
-				$('.tblCreatePlaylistEntries_tbody').html(innerHTML);
-			}
-		}
-	});
+            // Changes needed only during edit mode when we are upgrading a playlist
+            if (editMode) {
+                if (type == 'event') {
+                    var id = PadLeft(o.majorID, '0', 2) + '_' + PadLeft(o.minorID, '0', 2);
+                    if (typeof events[id] === 'object') {
+                        n.type = 'command';
+                        n.command = events[id].command;
+                        n.args = events[id].args;
+
+                        data[sections[s]][i] = n;
+                    } else {
+                        DialogError("Converting deprecated Event", "The Event playlist entry type has been deprecated.  FPP tries to automatically convert these to the new FPP Command playlist entry type, but the specified event ID '" + id + "' could not be found.  The existing playlist on-disk will not be modified, but the deprecated Event has been removed from the playlist editor.");
+                    }
+                } else if (type == 'mqtt') {
+                    n.type = 'command';
+                    n.command = "MQTT";
+
+                    var args = [];
+                    args.push(o.topic);
+                    args.push(o.message);
+
+                    n.args = args;
+
+                    data[sections[s]][i] = n;
+// 'Run Script' command does not support blocking yet. If this
+// is done, then PlaylistEntryScript.cpp can be deprecated.
+//                } else if (type == 'script') {
+//                    n.type = 'command';
+//                    n.command = 'Run Script';
+//
+//                    var args = [];
+//                    args.push(o.scriptName);
+//                    args.push(o.scriptArgs);
+//
+//                    n.args = args;
+//
+//                    data[sections[s]][i] = n;
+                } else if (type == 'volume') {
+                    n.type = 'command';
+                    n.command = 'Volume Adjust';
+                    n.args = [ o.volume ];
+
+                    data[sections[s]][i] = n;
+                }
+            }
+        }
+    }
+
+    return data;
 }
 
-function SelectStatusPlaylistEntryRow(index)
+function PopulatePlaylistDetails(data, editMode)
+{
+    var innerHTML = "";
+    var entries = 0;
+
+    data = UpgradePlaylist(data, editMode);
+
+    if (!editMode)
+        $('#deprecationWarning').hide(); // will re-show if we find any
+
+    var sections = ['leadIn', 'mainPlaylist', 'leadOut'];
+    for (var s = 0; s < sections.length; s++) {
+        var idPart = sections[s].charAt(0).toUpperCase() + sections[s].slice(1);
+
+        if (data.hasOwnProperty(sections[s]) && data[sections[s]].length > 0)
+        {
+            innerHTML = "";
+            for (i = 0; i < data[sections[s]].length; i++)
+            {
+                innerHTML += GetPlaylistRowHTML(entries, data[sections[s]][i], editMode);
+                entries++;
+            }
+            $('#tblPlaylist' + idPart).html(innerHTML);
+            $('#tblPlaylist' + idPart + 'Header').show();
+
+            if (!data[sections[s]].length)
+                $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+
+            if (editMode) {
+                $('#tblPlaylist' + idPart + ' > tr').each(function() {
+                    PopulatePlaylistItemDuration($(this));
+                });
+            }
+        }
+        else
+        {
+            $('#tblPlaylist' + idPart).html("");
+            if (editMode) {
+                $('#tblPlaylist' + idPart + 'Header').show();
+                $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
+            } else {
+                $('#tblPlaylist' + idPart + 'Header').hide();
+            }
+        }
+    }
+
+    if (!editMode) {
+        gblCurrentLoadedPlaylist = data.name;
+        gblCurrentLoadedPlaylistCount = entries;
+        UpdatePlaylistDurations();
+    }
+
+    $('#txtPlaylistName').val(data.name);
+}
+
+function PopulatePlaylistDetailsEntries(playselected,playList)
+{
+    var type;
+    var pl;
+    var xmlhttp=new XMLHttpRequest();
+    var innerHTML="";
+    var fromMemory = "";
+
+    if (playselected == true)
+    {
+        pl = $('#playlistSelect :selected').text();
+    }
+    else
+    {
+        pl = playList;
+        fromMemory = '&fromMemory=1';
+    }
+
+    PlayEntrySelected = 0;
+    PlaySectionSelected = '';
+
+    $.ajax({
+        url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&mergeSubs=1' + fromMemory,
+        dataType: 'json',
+        success: function(data, reqStatus, xhr) {
+            PopulatePlaylistDetails(data, 0);
+            VerbosePlaylistItemDetailsToggled();
+        }
+    });
+}
+
+function SelectPlaylistDetailsEntryRow(index)
 {
 		PlayEntrySelected  = index;
 }
@@ -3018,7 +3306,7 @@ function SetFPPDmode()
 		$.jGrowl("fppMode Saved");
 		RestartFPPD();
 	}).fail(function() {
-		DialogError("Save fppdMode", "Save Failed");
+		DialogError("FPP Mode Change", "Save Failed");
 	});
 }
 
@@ -3151,9 +3439,9 @@ function CopyFile(dir, file)
 		if (data.status == 'success')
 			GetFiles(dir);
 		else
-			$.jGrowl("Error: File Copy failed.");
+			DialogError("File Copy Failed", "Error: File Copy failed.");
 	}).fail(function() {
-		$.jGrowl("Error: File Copy failed.");
+		DialogError("File Copy Failed", "Error: File Copy failed.");
 	});
 }
 
@@ -3167,9 +3455,9 @@ function RenameFile(dir, file)
 		if (data.status == 'success')
 			GetFiles(dir);
 		else
-			$.jGrowl("Error: File Rename failed.");
+			DialogError("File Rename Failed", "Error: File Rename failed.");
 	}).fail(function() {
-		$.jGrowl("Error: File Rename failed.");
+		DialogError("File Rename Failed", "Error: File Rename failed.");
 	});
 }
 
@@ -3371,6 +3659,10 @@ function CommandToJSON(commandSelect, tblCommand, json) {
     return json;
 }
 
+function LoadCommandArg() {
+    LoadCommandList($('.arg_command'));
+}
+
 var commandList = "";
 var extraCommands = "";
 function LoadCommandList(commandSelect) {
@@ -3388,15 +3680,46 @@ function LoadCommandList(commandSelect) {
                }
                $.each( data, function(key, val) {
                    option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-                   $('#' + commandSelect).append(option);
+                   commandSelect.append(option);
                });
             }});
     } else {
         $.each( commandList, function(key, val) {
             option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-            $('#' + commandSelect).append(option);
+            commandSelect.append(option);
         });
     }
+}
+
+function UpdateChildVisibility() {
+    var pet = playlistEntryTypes[$('#pe_type').val()];
+    var keys = Object.keys(pet.args);
+    var shown = [];
+
+    for (var i = 0; i < keys.length; i++) {
+        var a = pet.args[keys[i]];
+        if (typeof a['children'] === 'object') {
+            var val = $('.arg_' + a.name).val();
+            var ckeys = Object.keys(a.children);
+            for (var c = 0; c < ckeys.length; c++) {
+                for (var x = 0; x < a.children[ckeys[c]].length; x++) {
+                    if (val == ckeys[c]) {
+                        $('.arg_row_' + a.children[ckeys[c]][x]).show();
+                        shown.push(a.children[ckeys[c]][x]);
+                    } else {
+                        if (!shown.includes(a.children[ckeys[c]][x])) {
+                            $('.arg_row_' + a.children[ckeys[c]][x]).hide();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function CommandArgChanged() {
+    $('#playlistEntryCommandOptions').html('');
+    CommandSelectChanged('playlistEntryOptions_arg_1', 'playlistEntryCommandOptions');
 }
 
 function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false)
@@ -3421,11 +3744,33 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
             }
         });
    }
-    
+
+    PrintArgInputs(tblCommand, configAdjustable, co['args']);
+}
+
+function PrintArgInputs(tblCommand, configAdjustable, args) {
     var count = 1;
-    $.each( co['args'], function( key, val ) {
+    var initFuncs = [];
+    var haveTime = 0;
+    var haveDate = 0;
+    var children = [];
+
+    $.each( args, function( key, val ) {
+         if (val['type'] == 'args')
+            return;
+
+         if ((val.hasOwnProperty('statusOnly')) &&
+             (val.statusOnly == true)) {
+            return;
+         }
+
          var ID = tblCommand + "_arg_" + count;
-         var line = "<tr id='" + ID + "_row'><td>" + val["description"] + ":</td><td>";
+         var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
+
+         if (children.includes(val['name']))
+            line += "&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;";
+
+         line += val["description"] + ":</td><td>";
          
          var dv = "";
          if (typeof val['default'] != "undefined") {
@@ -3433,24 +3778,87 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
          }
          var contentListPostfix = "";
          if (val['type'] == "string") {
+            if (typeof val['init'] === 'string') {
+                initFuncs.push(val['init']);
+            }
+
             if (typeof val['contents'] !== "undefined") {
-                line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
+                line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
+
+                if (typeof val['children'] === 'object') {
+                    line += " onChange='UpdateChildVisibility();";
+                    if (typeof val['onChange'] === 'string') {
+                        line += ' ' + val['onChange'] + '();';
+                        initFuncs.push(val['onChange']);
+                    }
+
+                    line += "'";
+
+                    var ckeys = Object.keys(val['children']);
+                    for (var c = 0; c < ckeys.length; c++) {
+                        for (var x = 0; x < val['children'][ckeys[c]].length; x++) {
+                            children.push(val['children'][ckeys[c]][x]);
+                        }
+                    }
+                } else {
+                    if (typeof val['onChange'] === 'string') {
+                        line += " onChange='" + val['onChange'] + "();'";
+                        initFuncs.push(val['onChange']);
+                    }
+                }
+
+                line += ">";
                 $.each( val['contents'], function( key, v ) {
                        line += "<option value='" + v + "'";
                        if (v == dv) {
                             line += " selected";
                        }
-                       line += ">" + v + "</option>";
-                })
+
+                        if (Array.isArray(val['contents']))
+                            line += ">" + v + "</option>";
+                        else
+                            line += ">" + key + "</option>";
+                });
                 line += "</select>";
-            } else if (typeof val['contentListUrl'] == "undefined") {
-                line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'>";
-                line += "</input>";
+            } else if ((typeof val['contentListUrl'] == "undefined") &&
+                       (typeof val['init'] == "undefined")) {
+                line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'";
+
+                if (typeof val['placeholder'] === 'string') {
+                    line += " placeholder='" + val['placeholder'] + "'";
+                }
+
+                line += "></input>";
                 if (configAdjustable && val['adjustable']) {
                     line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
                 }
             } else {
-                line += "<select class='arg_" + val['name'] + "' id='" + ID + "'>";
+                // Has a contentListUrl OR a init script
+                line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' id='" + ID + "'";
+
+                if (typeof val['children'] === 'object') {
+                    line += " onChange='UpdateChildVisibility();";
+                    if (typeof val['onChange'] === 'string') {
+                        line += ' ' + val['onChange'] + '();';
+                        initFuncs.push(val['onChange']);
+                    }
+
+                    line += "'";
+
+                    var ckeys = Object.keys(val['children']);
+                    for (var c = 0; c < ckeys.length; c++) {
+                        for (var x = 0; x < val['children'][ckeys[c]].length; x++) {
+                            children.push(val['children'][ckeys[c]][x]);
+                        }
+                    }
+                } else {
+                    if (typeof val['onChange'] === 'string') {
+                        line += " onChange='" + val['onChange'] + "();'";
+                        initFuncs.push(val['onChange']);
+                    }
+                }
+
+                line += ">";
                 if (val['allowBlanks']) {
                     line += "<option value=''></option>";
                 }
@@ -3473,21 +3881,34 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
             line += "></input>";
          } else if (val['type'] == "color") {
             line += "<input type='color' class='arg_" + val['name'] + "' id='" + ID  + "' value='" + dv + "'></input>";
-         } else if (val['type'] == "int") {
+         } else if (val['type'] == "time") {
+            haveTime = 1;
+            line += "<input class='time center arg_" + val['name'] + "' id='" + ID + "' type='text' size='8' value='00:00:00'/>";
+         } else if (val['type'] == "date") {
+            haveDate = 1;
+            line += "<input class='date center arg_" + val['name'] + "' id='" + ID + "' type='text' size='10' value='2020-01-01'/>";
+         } else if ((val['type'] == "int") || (val['type'] == "float")) {
              line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
              if (dv != "") {
                 line += " value='" + dv + "'";
              } else if (typeof val['min'] != "undefined") {
                  line += " value='" + val['min'] + "'";
              }
+             if (typeof val['step'] === "number") {
+                line += " step='" + val['step'] + "'";
+             }
              line += "></input>";
+
+             if (typeof val['unit'] === 'string') {
+                line += ' ' + val['unit'];
+             }
              if (configAdjustable && val['adjustable']) {
                 line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
              }
          }
          
          line += "</td></tr>";
-         $('#' + tblCommand + ' tr:last').after(line);
+         $('#' + tblCommand).append(line);
          if (typeof val['contentListUrl'] != "undefined") {
             var selId = "#" + tblCommand + "_arg_" + count + contentListPostfix;
             $.ajax({
@@ -3518,9 +3939,38 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
                    }
                    });
          }
-         
          count = count + 1;
     });
+
+    if (haveTime) {
+        $('.time').timepicker({
+            'timeFormat': 'H:i:s',
+            'typeaheadHighlight': false
+        });
+    }
+
+    if (haveDate) {
+        $('.date').datepicker({
+            'changeMonth': true,
+            'changeYear': true,
+            'dateFormat': 'yy-mm-dd',
+            'minDate': new Date(2019, 1 - 1, 1),
+            'maxDate': new Date(2099, 12 - 1, 31),
+            'showButtonPanel': true,
+            'selectOtherMonths': true,
+            'showOtherMonths': true,
+            'yearRange': "2019:2099",
+            'autoclose': true,
+        });
+    }
+
+    UpdateChildVisibility();
+
+    for (var i = 0; i < initFuncs.length; i++) {
+        if (typeof window[initFuncs[i]] == 'function' ) {
+            window[initFuncs[i]]();
+        }
+    }
 }
 
 function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustable = false) {

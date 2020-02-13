@@ -29,7 +29,7 @@
 	text-align: center;
 	text-shadow: 0 1px 0 #eee;
 	width: 90px;
-	height: 20px;
+	height: 18px;
 }
 
 .buttons:hover
@@ -106,7 +106,7 @@
 	background: rgb(240, 240,240);
 }
 
-#daemoncontrol, #playerstats
+#playerstats
 {
 	background: rgb(240, 240, 240);
 	margin:10px;
@@ -151,6 +151,45 @@
  	z-index: 10000;
 }	
 
+.statusDiv {
+    width: 100%;
+}
+
+.statusHr {
+    clear: both;
+}
+
+#daemonControl td {
+    white-space: nowrap;
+}
+
+.sensorTable td {
+    white-space: nowrap;
+}
+
+.schedulerExtend {
+    text-align: center;
+}
+
+.statusTable th {
+    text-align: left;
+    padding-right: 10px;
+}
+
+.statusTable td {
+    padding-right: 10px;
+}
+
+.statusBoxLeft {
+    float: left;
+    width: 75%;
+}
+
+.statusBoxRight {
+    float: left;
+    width: 25%;
+}
+
 .settingsTableWrapper td {
     padding: 0px;
     vertical-align: top;
@@ -189,6 +228,13 @@
 
 .settingsGroupTable th {
     padding-left: 15px;
+}
+
+.pageContent {
+    width: 95%;
+    margin-top: 0;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .settings
@@ -268,7 +314,7 @@ html
 	float: left;
 }
 
-#divSeqData, #divMusicData, #divVideoData, #divEffectsData, #divScriptsData, #divLogsData, #divUploadsData {
+#divSeqData, #divMusicData, #divVideoData, #divImageData, #divEffectsData, #divScriptsData, #divLogsData, #divUploadsData {
 	overflow: auto;
 	min-height: 120px;
 	max-height: 120px;
@@ -361,12 +407,17 @@ fieldset
 	background-repeat:no-repeat;
 	background-size:7px 14px;
 	background-position:0 2px;
-	padding-left:20px;
+	padding-left:20px !important;
+}
+.colPlaylistNumberHeader {
+    text-align: center;
 }
 .colPlaylistNumber {
-	text-align:right;
-	padding-right:0px;
-//	width: 5%;
+    text-align:right;
+    vertical-align: top;
+    padding: 1px;
+    padding-right:0px;
+    width: 3%;
 }
 .colPlaylistType {
 	text-align:left;
@@ -374,7 +425,7 @@ fieldset
 //	width: 10%;
 }
 .colPlaylistData1 {
-	text-align:left;
+	text-align:center;
 	padding-left:5px;
 //	width: 40%;
 }
@@ -383,6 +434,8 @@ fieldset
 	padding-left:5px;
 //	width: 40%;
 }
+
+
 
 .volumeButton {
 	float: left;
@@ -444,16 +497,125 @@ fieldset
 	border-radius: 25px;
 }
 
-#statusPlaylistContents{
-	height:220px;
-	min-height:220px;
-	max-height:220px;
-	overflow:auto
+.playlistRow {
+    border: thin solid;
 }
 
-#statusPlaylistContents table {
+.playlistRow td {
+    padding: 1px;
+    padding-right: 5px;
+}
+
+.PlaylistRowPlaying{
+	background:#D1E0FF;
+}
+
+.playlistRowNumber {
+    padding: 1px;
+}
+
+.psi {
+    width: 100%;
+    overflow: hidden;
+    padding: 0px;
+    display: flex;
+}
+
+.psiHeader {
+    text-align: left;
+    font-weight: bold;
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 10%;
+}
+
+.psiDuration {
+    padding: 0px;
+    vertical-align: top;
+    width: 10%;
+}
+
+.psiDurationSeconds {
+    display: none;
+}
+
+.psiDataSimple {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 80%;
+}
+
+.psiData {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 80%;
+    display: none;
+}
+
+.psiDetailsWrapper {
+    width: 100%;
+    float: left;
+}
+
+.psiDetails {
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.psiDetailsArg {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.psiDetailsHeader {
+    text-align: left;
+    font-weight: bold;
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 15%;
+}
+
+.psiDetailsData {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 74%;
+}
+
+.psiDetailsLF {
+    flex-basis: 100%;
+    height: 0px;
+}
+
+#playlistDetailsContents{
+	height:250px;
+	min-height:250px;
+//	max-height:220px;
+	overflow: auto;
+}
+
+#playlistDetailsContents table {
 	border-collapse:collapse;
 } 
+
+.playlistDetailsSelect {
+    max-width: 300px;
+}
+
+.playlistDetailsSelect option {
+    overflow: hidden;
+    white-space: no-wrap;
+    text-overflow: ellipsis;
+}
 
 #eventListContents, #effectListContents{
 	height:120px;
@@ -462,41 +624,35 @@ fieldset
 	overflow:auto
 }
 
-#statusPlaylist, #eventList, #effectList, #effectLibrary, #runningEffects{
+#playlistDetails, #eventList, #effectList, #effectLibrary, #runningEffects{
 	border:thin solid;	
 	margin-top: 5px;
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 	-webkit-border-radius: 5px;
 	min-height: 65px;
+    overflow: hidden;
 }
 
 #playerStatus{
 }
 
-.playerStatusHeader{
-    width: 1%;
-    white-space: nowrap;
-    padding-right: 15px;
-}
-.playerStatusLeft{
-	width: 70%;
-	float: left;
-}
-.playerStatusRight{
-	width: 30%;
-	float: left;
-}
-
-#tblStatusPlaylist {
+#tblPlaylistDetails {
 	 width:100%;
 }
 
-#tblStatusPlaylist tbody tr th{
+//.playlistEntriesBody > tr:nth-child(even) {
+//}
+
+//.playlistEntriesBody > tr:nth-child(odd) {
+//    background: #dddddd;
+//}
+
+.tblPlaylistDetailsHeader {
 	background: #aaaaaa;
 }
 
-#tblStatusPlaylistEntries{
+#tblPlaylistDetailsEntries{
 	 width:100%;
 	 border-collapse:collapse;
 }
@@ -517,6 +673,16 @@ fieldset
 .playlistHeader, .eventListHeader, .effectListHeader{
 	background:#DDD;
 	text-align:center;
+}
+
+.playlistBoxLeft {
+    float: left;
+    width: 50%;
+}
+
+.playlistBoxRight {
+    float: left;
+    width: 50%;
 }
 
 .textRight{
@@ -553,10 +719,6 @@ fieldset
 	background-position: 4px 4px;
 }
 
-.PlaylistRowPlaying{
-	background:#D1E0FF;
-}	
-
 #MusicOptions{
 	display:none;
 }
@@ -592,7 +754,17 @@ fieldset
 	-webkit-border-radius: 5px;
 }
 
-#bytesTransferred{
+.playlistItemCountLeadIn, .playlistItemCountMainPlaylist, .playlistItemCountLeadOut {
+    text-align: right;
+    padding-right: 5px;
+}
+
+.playlistDurationLeadIn, .playlistDurationMainPlaylist, .playlistDurationLeadOut {
+    text-align: right;
+    padding-left: 5px;
+}
+
+#bridgeModeInfo {
   margin:10px;
   padding:10px;
 	border:thin solid;	

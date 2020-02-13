@@ -1,0 +1,547 @@
+{
+    "branch": {
+        "name": "branch",
+        "description": "Branch",
+        "args": {
+            "branchType": {
+                "name": "branchType",
+                "description": "Test Condition",
+                "type": "string",
+                "contents": {
+                    "Time": "Time"
+                },
+                "children": {
+                    "Time": [
+                        "startTime",
+                        "endTime"
+                    ]
+                },
+                "optional": false,
+                "simpleUI": true
+            },
+            "startTime": {
+                "name": "startTime",
+                "description": "Start Time",
+                "type": "time",
+                "optional": false,
+                "simpleUI": true
+            },
+            "endTime": {
+                "name": "endTime",
+                "description": "End Time",
+                "type": "time",
+                "optional": false,
+                "simpleUI": true
+            },
+            "trueNextBranchType": {
+                "name": "trueNextBranchType",
+                "description": "If True jump to",
+                "type": "string",
+                "default": "Offset",
+                "onChange": "BranchTypeChanged",
+                "contents": {
+                    "None": "None",
+                    "Index": "Index",
+                    "Offset": "Offset"
+                },
+                "children": {
+                    "Index": [
+                        "trueNextSection",
+                        "trueNextItem"
+                    ],
+                    "Offset": [
+                        "trueNextItem"
+                    ]
+                },
+                "optional": false
+            },
+            "trueNextSection": {
+                "name": "trueNextSection",
+                "description": "Section",
+                "type": "string",
+                "optional": false,
+                "contents": {
+                    "** Same **": "",
+                    "Lead In": "leadIn",
+                    "Main Playlist": "mainPlaylist",
+                    "Lead Out": "leadOut"
+                }
+            },
+            "trueNextItem": {
+                "name": "trueNextItem",
+                "description": "Item",
+                "type": "int",
+                "min": -99,
+                "max": 99,
+                "default": 1,
+                "optional": false
+            },
+            "falseNextBranchType": {
+                "name": "falseNextBranchType",
+                "description": "If False jump to",
+                "type": "string",
+                "default": "Offset",
+                "onChange": "BranchTypeChanged",
+                "contents": {
+                    "None": "None",
+                    "Index": "Index",
+                    "Offset": "Offset"
+                },
+                "children": {
+                    "Index": [
+                        "falseNextSection",
+                        "falseNextItem"
+                    ],
+                    "Offset": [
+                        "falseNextItem"
+                    ]
+                },
+                "optional": false
+            },
+            "falseNextSection": {
+                "name": "falseNextSection",
+                "description": "Section",
+                "type": "string",
+                "optional": false,
+                "contents": {
+                    "** Same **": "",
+                    "Lead In": "leadIn",
+                    "Main Playlist": "mainPlaylist",
+                    "Lead Out": "leadOut"
+                }
+            },
+            "falseNextItem": {
+                "name": "falseNextItem",
+                "description": "Item",
+                "type": "int",
+                "default": 1,
+                "min": -99,
+                "max": 99,
+                "optional": false
+            }
+        }
+    },
+    "dynamic": {
+        "name": "dynamic",
+        "description": "Dynamic",
+        "args": {
+            "subType": {
+                "name": "subType",
+                "description": "Source Type",
+                "type": "string",
+                "contents": {
+                    "File": "file",
+                    "Plugin": "plugin",
+                    "URL": "url"
+                },
+                "children": {
+                    "file": [
+                        "dataFile"
+                    ],
+                    "plugin": [
+                        "pluginName",
+                        "pluginHost",
+                        "drainQueue"
+                    ],
+                    "url": [
+                        "url"
+                    ]
+                },
+                "optional": false,
+                "simpleUI": true
+            },
+            "dataFile": {
+                "name": "dataFile",
+                "description": "File",
+                "type": "string",
+                "placeholder": "Full File Name of JSON file",
+                "optional": true,
+                "simpleUI": true
+            },
+            "pluginName": {
+                "name": "pluginName",
+                "description": "Plugin",
+                "type": "string",
+                "contentListUrl": "/api/plugin",
+                "optional": true,
+                "simpleUI": true
+            },
+            "pluginHost": {
+                "name": "pluginHost",
+                "description": "Plugin Host",
+                "type": "string",
+                "contentListUrl": "/api/remotes",
+                "optional": true
+            },
+            "url": {
+                "name": "url",
+                "description": "URL",
+                "type": "string",
+                "placeholder": "URL to JSON data",
+                "optional": true,
+                "simpleUI": true
+            },
+            "drainQueue": {
+                "name": "drainQueue",
+                "description": "Drain Queue",
+                "type": "bool",
+                "optional": false
+            }
+        }
+    },
+    "event": {
+        "name": "event",
+        "description": "Event",
+        "deprecated": 1,
+        "args" : {
+            "majorID": {
+                "name": "majorID",
+                "description": "Major ID",
+                "type": "int",
+                "min": 1,
+                "max": 255,
+                "default": 1,
+                "optional": false
+            },
+            "minorID": {
+                "name": "minorID",
+                "description": "Minor ID",
+                "type": "int",
+                "min": 1,
+                "max": 255,
+                "default": 1,
+                "optional": false
+            },
+            "desc": {
+                "name": "desc",
+                "description": "Description",
+                "type": "string",
+                "optional": true,
+                "simpleUI": true
+            }
+        }
+    },
+    "command": {
+        "name": "command",
+        "description": "FPP Command",
+        "args": {
+            "command": {
+                "name": "command",
+                "description": "Command",
+                "type": "string",
+                "init": "LoadCommandArg",
+                "onChange": "CommandArgChanged",
+                "optional": false,
+                "simpleUI": true
+            },
+            "args": {
+                "name": "args",
+                "description": "Args",
+                "type": "args",
+                "optional": false
+            }
+        }
+    },
+    "image": {
+        "name": "image",
+        "description": "Image",
+        "args": {
+            "imagePath": {
+                "name": "imagePath",
+                "description": "Path",
+                "type": "string",
+                "optional": false,
+                "simpleUI": true
+            },
+            "transitionType": {
+                "name": "transitionType",
+                "description": "Transition Type",
+                "type": "string",
+                "contents": {
+                    "Random": -2,
+                    "None": 0,
+                    "Slide Up": 1,
+                    "Slide Down": 2,
+                    "Wipe Up": 3,
+                    "Wipe Down": 4,
+                    "Wipe to Horizontal Center": 5
+                },
+                "optional": false,
+                "simpleUI": true
+            },
+            "fileName": {
+                "name": "fileName",
+                "description": "File",
+                "type": "string",
+                "optional": true,
+                "statusOnly": true
+            },
+            "outputDevice": {
+                "name": "outputDevice",
+                "description": "Output Device",
+                "contentListUrl": "/api/options/FrameBuffer",
+                "type": "string",
+                "optional": false
+            }
+        }
+    },
+    "media": {
+        "name": "media",
+        "description": "Media",
+        "longDescription": "Media Only",
+        "args": {
+            "mediaName": {
+                "name": "mediaName",
+                "description": "Media",
+                "contentListUrl": "api/media",
+                "type": "string",
+                "onChange": "MediaChanged",
+                "optional": false,
+                "simpleUI": true
+            },
+            "videoOut": {
+                "name": "videoOut",
+                "description": "Video Out",
+                "type": "string",
+                "contentListUrl": "api/options/PlaylistVideoOutput",
+                "optional": true
+            }
+        }
+    },
+    "mqtt": {
+        "name": "mqtt",
+        "description": "MQTT",
+        "deprecated": 1,
+        "args": {
+            "topic": {
+                "name": "topic",
+                "type": "string",
+                "description": "Topic",
+                "optional": false,
+                "simpleUI": true
+            },
+            "message": {
+                "name": "message",
+                "type": "string",
+                "description": "Message",
+                "optional": false,
+                "simpleUI": true
+            }
+        }
+    },
+    "pause": {
+        "name": "pause",
+        "description": "Pause",
+        "args": {
+            "duration": {
+                "name": "duration",
+                "description": "Duration",
+                "type": "float",
+                "min": 0,
+                "max": 9999,
+                "step": 1.0,
+                "default": 1,
+                "unit": "seconds",
+                "optional": false,
+                "simpleUI": true
+            }
+        }
+    },
+    "playlist": {
+        "name": "playlist",
+        "description": "Playlist",
+        "args": {
+            "name": {
+                "name": "name",
+                "description": "Playlist",
+                "type": "string",
+                "contentListUrl": "api/playlists",
+                "optional": false,
+                "simpleUI": true
+            }
+        }
+    },
+    "remap": {
+        "name": "remap",
+        "description": "Remap",
+        "args": {
+            "action": {
+                "name": "action",
+                "description": "Action",
+                "type": "string",
+                "contents": {
+                    "Add": "add",
+                    "Remove": "remove"
+                },
+                "optional": false,
+                "simpleUI": true
+            },
+            "source": {
+                "name": "source",
+                "description": "Source",
+                "type": "int",
+                "min": 1,
+                "max": 99999999,
+                "optional": false
+            },
+            "destination": {
+                "name": "destination",
+                "description": "Destination",
+                "type": "int",
+                "min": 1,
+                "max": 99999999,
+                "optional": false
+            },
+            "count": {
+                "name": "count",
+                "description": "Count",
+                "type": "int",
+                "min": 1,
+                "max": 99999999,
+                "optional": false
+            },
+            "loops": {
+                "name": "loops",
+                "description": "Loops",
+                "type": "int",
+                "default": 1,
+                "min": 1,
+                "max": 9999,
+                "optional": false
+            },
+            "reverse": {
+                "name": "reverse",
+                "description": "Reverse",
+                "type": "bool",
+                "optional": false
+            }
+        }
+    },
+    "script": {
+        "name": "script",
+        "description": "Script",
+        "args": {
+            "scriptName": {
+                "name": "scriptName",
+                "description": "Script",
+                "type": "string",
+                "contentListUrl": "api/scripts",
+                "optional": false,
+                "simpleUI": true
+            },
+            "scriptArgs": {
+                "name": "scriptArgs",
+                "description": "Args",
+                "type": "string",
+                "optional": false,
+                "simpleUI": true
+            },
+            "blocking": {
+                "name": "blocking",
+                "description": "Blocking",
+                "type": "bool",
+                "optional": false
+            }
+        }
+    },
+    "both": {
+        "name": "both",
+        "description": "Seq+Med",
+        "longDescription": "Sequence and Media",
+        "args": {
+            "sequenceName": {
+                "name": "sequenceName",
+                "description": "Sequence",
+                "contentListUrl": "api/files/sequences",
+                "type": "string",
+                "onChange": "SequenceChanged",
+                "optional": false,
+                "simpleUI": true
+            },
+            "mediaName": {
+                "name": "mediaName",
+                "description": "Media",
+                "contentListUrl": "api/media",
+                "type": "string",
+                "onChange": "MediaChanged",
+                "optional": false,
+                "simpleUI": true
+            },
+            "videoOut": {
+                "name": "videoOut",
+                "description": "Video Out",
+                "type": "string",
+                "contentListUrl": "api/options/PlaylistVideoOutput",
+                "optional": true
+            }
+        }
+    },
+    "sequence": {
+        "name": "sequence",
+        "description": "Sequence",
+        "longDescription": "Sequence Only",
+        "args": {
+            "sequenceName": {
+                "name": "sequenceName",
+                "description": "Sequence",
+                "contentListUrl": "api/files/sequences",
+                "type": "string",
+                "onChange": "SequenceChanged",
+                "optional": false,
+                "simpleUI": true
+            }
+        }
+    },
+    "url": {
+        "name": "url",
+        "description": "URL",
+        "args": {
+            "method": {
+                "name": "method",
+                "description": "Method",
+                "type": "string",
+                "contents": {
+                    "GET": "GET",
+                    "POST": "POST"
+                },
+                "children": {
+                    "POST": [
+                        "data"
+                    ]
+                },
+                "optional": false,
+                "simpleUI": true
+            },
+            "url": {
+                "name": "url",
+                "description": "URL",
+                "type": "string",
+                "optional": false,
+                "simpleUI": true
+            },
+            "data": {
+                "name": "data",
+                "description": "POST Data",
+                "type": "string",
+                "optional": false
+            }
+        }
+    },
+    "volume": {
+        "name": "volume",
+        "description": "Volume",
+        "deprecated": 1,
+        "args": {
+            "volume": {
+                "name": "volume",
+                "description": "Volume",
+                "type": "int",
+                "min": 0,
+                "max": 100,
+                "default": 80,
+                "optional": false,
+                "simpleUI": true
+            }
+        }
+    }
+}

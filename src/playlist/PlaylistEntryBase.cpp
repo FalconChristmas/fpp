@@ -39,6 +39,7 @@ PlaylistEntryBase::PlaylistEntryBase(PlaylistEntryBase *parent)
 	m_playOnce(0),
 	m_playCount(0),
 	m_isPrepped(0),
+	m_deprecated(0),
 	m_parent(parent)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryBase::PlaylistEntryBase()\n");
@@ -225,6 +226,7 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	result["isFinished"] = m_isFinished;
 	result["playOnce"]   = m_playOnce;
 	result["playCount"]  = m_playCount;
+	result["deprecated"] = m_deprecated;
 
 	return result;
 }

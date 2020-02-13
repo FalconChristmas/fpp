@@ -177,7 +177,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
         $restart = isset($s['restart']) ? $s['restart'] : 0;
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
 
-        echo "<tr><th>" . $s['desc'] . ":</th><td>";
+        echo "<tr><th>" . $s['description'] . ":</th><td>";
         switch ($s['type']) {
             case 'select':
                 if (empty($options)) {
@@ -194,40 +194,40 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                     }
                 }
 
-                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "";
+                $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingSelect($s['desc'], $setting, $restart, $reboot, $defaultValue, $options, '', $callback);
+                PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, '', $callback);
 
                 break;
             case 'checkbox':
                 $checkedValue = isset($s['checkedValue']) ? $s['checkedValue'] : "1";
                 $uncheckedValue = isset($s['uncheckedValue']) ? $s['uncheckedValue'] : "0";
-                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "0";
+                $default = isset($s['default']) ? $s['default'] : "0";
 
-                PrintSettingCheckbox($s['desc'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $defaultValue);
+                PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $default);
                 break;
             case 'text':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
-                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "";
+                $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $defaultValue, $callback);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback);
                 break;
             case 'password':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
-                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "";
+                $default = isset($s['default']) ? $s['default'] : "";
 
-            	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $defaultValue, $callback, '', "password");
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', "password");
                 break;
             case 'number':
                 $min = isset($s['min']) ? $s['min'] : 0;
                 $max = isset($s['max']) ? $s['max'] : 99;
                 $step = isset($s['step']) ? $s['step'] : 1;
                 $unit = isset($s['unit']) ? $s['unit'] : '';
-                $defaultValue = isset($s['defaultValue']) ? $s['defaultValue'] : "0";
+                $default = isset($s['default']) ? $s['default'] : "0";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $defaultValue, $callback, '', 'number');
+                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $default, $callback, '', 'number');
                 echo $unit . ' ';
                 break;
             default:
@@ -272,7 +272,7 @@ function printSettingGroup($group) {
         ((!isset($g['platforms'])) ||
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
-        echo "<b>" . $g['desc'] . "</b>\n";
+        echo "<b>" . $g['description'] . "</b>\n";
         echo "<table class='settingsTable settingsGroupTable'>\n";
 
         foreach ($g['settings'] as $setting) {

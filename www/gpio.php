@@ -180,8 +180,8 @@ foreach($gpiojson as $gpio) {
                 </table>
         </td>
         <script>
-        LoadCommandList('gpio_<?= $pinNameClean ?>_RisingCommand');
-        LoadCommandList('gpio_<?= $pinNameClean ?>_FallingCommand');
+        LoadCommandList($('#gpio_<?= $pinNameClean ?>_RisingCommand'));
+        LoadCommandList($('#gpio_<?= $pinNameClean ?>_FallingCommand'));
         </script>
     </tr>
 <?

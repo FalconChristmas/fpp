@@ -129,7 +129,7 @@ $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v
 
 
 </head>
-<body onLoad="GetFPPDmode();StatusPopulatePlaylists();GetFPPStatus();bindVisibilityListener();GetVolume();">
+<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();">
 <div id="bodyWrapper">
   <div class="header">
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
@@ -220,7 +220,7 @@ $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v
           </tr>
           <tr>
             <td class='controlHeader'>Playlist:</td>
-            <td><select id="selStartPlaylist" name="selStartPlaylist" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select>
+            <td><select id="playlistSelect" name="playlistSelect" size="1" onClick="SelectStatusPlaylistEntryRow();PopulateStatusPlaylistEntries(true,'',true);" onChange="PopulateStatusPlaylistEntries(true,'',true);"></select>
             	&nbsp;Repeat: <input type="checkbox" id="chkRepeat"></input>
 				</td>
           </tr>
@@ -247,7 +247,7 @@ $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v
        	<input id="btnHidePlaylistDetails" type="button" class='buttons' value="Hide Details" onClick="HidePlaylistDetails();" style='display: none;'>
        </div>
     	<div id="playerStatusBottom" style='margins: 5px'>
-		<div id='statusPlaylistDetailsWrapper' style='display: none;'>
+		<div id='playlistDetailsWrapper' style='display: none;'>
         <table width="100%">
           <tr>
 			<td class='controlHeader'>Position:</td>

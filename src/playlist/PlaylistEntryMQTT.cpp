@@ -39,6 +39,7 @@ PlaylistEntryMQTT::PlaylistEntryMQTT(PlaylistEntryBase *parent)
     LogDebug(VB_PLAYLIST, "PlaylistEntryMQTT::PlaylistEntryMQTT()\n");
 
 	m_type = "mqtt";
+	m_deprecated = 1;
 }
 
 /*

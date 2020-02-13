@@ -1,5 +1,5 @@
 <?
-
+/////////////////////////////////////////////////////////////////////////////
 function GetAudioCurrentCard() {
     global $SUDO;
 
@@ -20,6 +20,7 @@ function GetAudioCurrentCard() {
     return $CurrentCard;
 }
 
+/////////////////////////////////////////////////////////////////////////////
 function GetOptions_AudioMixerDevice() {
     global $SUDO;
     global $settings;
@@ -42,6 +43,7 @@ function GetOptions_AudioMixerDevice() {
     return json($MixerDevices);
 }
 
+/////////////////////////////////////////////////////////////////////////////
 function GetOptions_AudioOutputDevice() {
     global $SUDO;
 
@@ -79,6 +81,19 @@ function GetOptions_AudioOutputDevice() {
     return json($AlsaCards);
 }
 
+/////////////////////////////////////////////////////////////////////////////
+function GetOptions_FrameBuffer() {
+    $framebuffers = Array();
+
+    if (file_exists('/dev/fb0'))
+        $framebuffers['/dev/fb0'] = '/dev/fb0';
+    if (file_exists('/dev/fb1'))
+        $framebuffers['/dev/fb1'] = '/dev/fb1';
+
+    return json($framebuffers);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 function GetOptions_Locale() {
     global $settings;
 
@@ -96,14 +111,19 @@ function GetOptions_Locale() {
     return json($locales);
 }
 
-function GetOptions_VideoOutput() {
+/////////////////////////////////////////////////////////////////////////////
+function GetOptions_VideoOutput($playlist) {
     global $settings;
 
     $VideoOutputModels = Array();
-    if ($settings['Platform'] != "BeagleBone Black") {
-        $VideoOutputModels['HDMI'] = "--HDMI--";
+    if ($playlist) {
+        $VideoOutputModels['--Default--'] = "--Default--";
+    } else {
+        if ($settings['Platform'] != "BeagleBone Black") {
+            $VideoOutputModels['HDMI'] = "HDMI";
+        }
     }
-    $VideoOutputModels['Disabled'] = "--Disabled--";
+    $VideoOutputModels['Disabled'] = "Disabled";
     if (file_exists($settings['model-overlays'])) {
         $json = json_decode(file_get_contents($settings['model-overlays']));
         foreach ($json->models as $value) {
@@ -112,6 +132,23 @@ function GetOptions_VideoOutput() {
     }
 
     return json($VideoOutputModels);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// GET /api/options/:SettingName
+function GetOptions() {
+    $SettingName = params('SettingName');
+
+    switch ($SettingName) {
+        case 'AudioMixerDevice':    return GetOptions_AudioMixerDevice();
+        case 'AudioOutput':         return GetOptions_AudioOutputDevice();
+        case 'FrameBuffer':         return GetOptions_FrameBuffer();
+        case 'Locale':              return GetOptions_Locale();
+        case 'VideoOutput':         return GetOptions_VideoOutput(0);
+        case 'PlaylistVideoOutput': return GetOptions_VideoOutput(1);
+    }
+
+    return json("{}");
 }
 
 ?>

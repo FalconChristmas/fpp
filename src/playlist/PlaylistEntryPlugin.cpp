@@ -28,6 +28,7 @@
 PlaylistEntryPlugin::PlaylistEntryPlugin(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent)
 {
+    m_type = "plugin";
 }
 
 PlaylistEntryPlugin::~PlaylistEntryPlugin()

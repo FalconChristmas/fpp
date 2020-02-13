@@ -23,12 +23,14 @@ dispatch_get   ('/events', 'events_list');
 dispatch_get   ('/events/:eventId', 'event_get');
 dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
 
+dispatch_get   ('/files/:DirName', 'GetFiles');
+
 dispatch_get   ('/help', 'help_help');
 
-dispatch_get   ('/options/AudioMixerDevice', 'GetOptions_AudioMixerDevice');
-dispatch_get   ('/options/AudioOutput', 'GetOptions_AudioOutputDevice');
-dispatch_get   ('/options/Locale', 'GetOptions_Locale');
-dispatch_get   ('/options/VideoOutput', 'GetOptions_VideoOutput');
+dispatch_get   ('/media', 'GetMedia');
+dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
+
+dispatch_get   ('/options/:SettingName', 'GetOptions');
 
 dispatch_get   ('/playlists', 'playlist_list');
 dispatch_post  ('/playlists', 'playlist_insert');

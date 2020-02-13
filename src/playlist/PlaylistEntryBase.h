@@ -85,6 +85,7 @@ class PlaylistEntryBase {
 	int          m_playOnce;
 	int          m_playCount;
 	int          m_isPrepped;
+	int          m_deprecated;
 
 
 	Json::Value  m_config;

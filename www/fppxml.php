@@ -3,7 +3,6 @@
 $skipJSsettings = 1;
 require_once('common.php');
 
-require_once('playlistentry.php');
 require_once('universeentry.php');
 require_once('scheduleentry.php');
 require_once('pixelnetdmxentry.php');
@@ -31,17 +30,10 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"getPlayLists" => 'GetPlaylists',
 	"getFiles" => 'GetFiles',
 	"getZip" => 'GetZip',
-	"setPlayListFirstLast" => 'SetPlayListFirstLast',
-	"addPlayList" => 'AddPlaylist',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
-	"playlistEntryPositionChanged" => 'PlaylistEntryPositionChanged',
-	"deletePlaylist" => 'DeletePlaylist',
-	"deleteEntry" => 'DeleteEntry',
 	"deleteFile" => 'DeleteFile',
-	"addPlaylistEntry" => 'AddPlayListEntry',
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
@@ -74,7 +66,6 @@ $command_array = Array(
 	"gitStatus" => 'GitStatus',
 	"resetGit" => 'ResetGit',
 	"setAutoUpdate" => 'SetAutoUpdate',
-	"setDeveloperMode" => 'SetDeveloperMode',
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
@@ -92,7 +83,6 @@ $command_array = Array(
 	"getVideoInfo" => 'GetVideoInfo',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
-	"setPiLCDenabled" => 'SetPiLCDenabled',
 	"setupExtGPIO" => 'SetupExtGPIO',
 	"extGPIO" => 'ExtGPIO'
 );
@@ -290,25 +280,6 @@ function SetVolume()
 
 	// Why do we do this here and in fppd's settings.c
 	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
-
-	EchoStatusXML($status);
-}
-
-function SetPiLCDenabled()
-{
-	global $SUDO;
-
-	$enabled = $_GET['enabled'];
-	check($enabled, "enabled", __FUNCTION__);
-
-	if ($enabled == "true")
-	{
-		$status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD start");
-	}
-	else
-	{
-		$status = exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/lcd/fppLCD stop");
-	}
 
 	EchoStatusXML($status);
 }
@@ -1833,70 +1804,6 @@ function SetUniverseCount()
 	EchoStatusXML('Success');
 }
 
-function AddPlayListEntry()
-{
-	$type = $_GET['type'];
-	$seqFile = $_GET['seqFile'];
-	$songFile = $_GET['mediaFile'];
-	$pause = $_GET['pause'];
-	$scriptName = $_GET['scriptName'];
-	$eventName = $_GET['eventName'];
-	$eventID = $_GET['eventID'];
-	$pluginData = $_GET['pluginData'];
-	check($section, "section", __FUNCTION__);
-	check($type, "type", __FUNCTION__);
-	check($seqFile, "seqFile", __FUNCTION__);
-	check($songFile, "songFile", __FUNCTION__);
-	check($pause, "pause", __FUNCTION__);
-	check($scriptName, "scriptName", __FUNCTION__);
-	check($eventName, "eventName", __FUNCTION__);
-	check($eventID, "eventID", __FUNCTION__);
-	check($pluginData, "pluginData", __FUNCTION__);
-	$index = 0;
-
-	// Always insert new entries into the main playlist section
-	$section = "MainPlaylist";
-
-	$_SESSION['playListEntries' . $section][] = new PlaylistEntry($type,$songFile,$seqFile,$pause,$scriptName,$eventName,$eventID,$pluginData,
-		0, // FIXME PLAYLIST
-		count($_SESSION['playListEntries' . $section]));
-	EchoStatusXML(sprintf("Playlist Entry added with ID #%d, playlist now has %d entries", count($_SESSION['playListEntries' . $section]) - 1, count($_SESSION['playListEntries' . $section])));
-}
-
-function GetPlaylists()
-{
-	global $playlistDirectory;
-	$filter = "";
-	if (isset($_GET['filter']))
-		$filter = $_GET['filter'];
-
-	$FirstList=TRUE;
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Playlists');
-	$root = $doc->appendChild($root);
-
-	if (!file_exists($playlistDirectory))
-	{
-		echo $doc->saveHTML();
-		return;
-	}
-
-	foreach(scandir($playlistDirectory) as $pFile)
-	{
-		if (($pFile != "." && $pFile != "..") &&
-			(is_file($playlistDirectory . '/' . $pFile)) &&
-			($filter == "" || preg_match('/' . $filter . '/', $pFile)))
-		{
-			$pFile = preg_replace("/\.json/", "", $pFile);
-			$playList = $doc->createElement('Playlist');
-			$playList = $root->appendChild($playList);
-			$value = $doc->createTextNode(utf8_encode($pFile));
-			$value = $playList->appendChild($value);
-		}
-	}
-	echo $doc->saveHTML();
-}
-
 function GetFileInfo(&$root, &$doc, $dirName, $fileName)
 {
 	$fileFullName = $dirName . '/' . $fileName;
@@ -1998,201 +1905,6 @@ function GetFiles()
 	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
 	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
 	echo strtr($doc->saveHTML(), $trans);
-}
-
-function AddPlaylist()
-{
-	global $playlistDirectory;
-
-	$name = $_GET['pl'];
-	check($name, "name", __FUNCTION__);
-
-	$doc = new DomDocument('1.0');
-	$name =str_replace(' ', '_', $name);
-
-	//TODO Playlists - Reassess whether this is still needed once scheduler is stored in json
-	//Replace Illegal chars in the playlist name
-	$name = ReplaceIllegalCharacters($name);
-
-	$response = $doc->createElement('Response');
-	$response = $doc->appendChild($response);
-	$successAttribute = $doc->createAttribute('Success');
-
-	if($name != "")
-	{
-		$successAttribute->value = 'true';
-		$successAttribute = $response->appendChild($successAttribute);
-
-		//$_SESSION['currentPlaylist']	= $pl;
-		$filename = $playlistDirectory . '/' . $name . ".json";
-		$file = fopen($filename, "w");
-		$emptyPlaylist = <<<EOT
-{
-	"name": "$name",
-	"repeat": 0,
-	"loopCount": 0,
-	"leadIn": [
-	],
-	"mainPlaylist": [
-	],
-	"leadOut": [
-	]
-}
-EOT;
-		fwrite($file, $emptyPlaylist);
-		fclose($file);
-
-		$playList = $doc->createElement('Playlist');
-		$playList = $response->appendChild($playList);
-		$value = $doc->createTextNode($name);
-		$value = $playList->appendChild($value);
-	}
-	else
-	{
-		//$successAttribute->value = 'false';
-	}
-	$_SESSION['playListEntriesLeadIn'] = NULL;
-	$_SESSION['playListEntriesMainPlaylist'] = NULL;
-	$_SESSION['playListEntriesLeadOut'] = NULL;
-	echo $doc->saveHTML();
-}
-
-function PlaylistEntryPositionChanged()
-{
-	$newSection = $_GET['newSection'];
-	$newIndex = $_GET['newIndex'];
-	$oldSection = $_GET['oldSection'];
-	$oldIndex = $_GET['oldIndex'];
-	check($newSection, "newSection", __FUNCTION__);
-	check($newIndex, "newIndex", __FUNCTION__);
-	check($oldSection, "oldSection", __FUNCTION__);
-	check($oldIndex, "oldIndex", __FUNCTION__);
-
-	if ($newSection == $oldSection)
-	{
-		if(count($_SESSION['playListEntries' . $newSection]) > $oldIndex && count($_SESSION['playListEntries' . $newSection]) > $newIndex)
-		{
-			$_SESSION['playListEntries' . $newSection][$oldIndex]->index = $newIndex;
-			if($newIndex < 	$oldIndex)
-			{
-				for($index=$newIndex;$index<$oldIndex;$index++)
-				{
-					$_SESSION['playListEntries' . $newSection][$index]->index++;
-				}
-			}
-			if ($oldIndex < $newIndex)
-			{
-				for($index=$oldIndex+1;$index<=$newIndex;$index++)
-				{
-					$_SESSION['playListEntries' . $newSection][$index]->index--;
-				}
-			}
-			usort($_SESSION['playListEntries' . $newSection],"cmp_index");
-		}
-	}
-	else
-	{
-		// Insert the new entry
-		$_SESSION['playListEntries' . $newSection][] = new PlaylistEntry(
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->type,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->songFile,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->seqFile,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pause,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->scriptName,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventName,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->eventID,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->pluginData,
-			$_SESSION['playListEntries' . $oldSection][$oldIndex]->entry,
-			$newIndex);
-
-		// Backup the entry
-		unset($_SESSION['playListEntries' . $oldSection][$oldIndex]);
-
-		// Delete from the old section
-		for($index = $oldIndex+1; $index < count($_SESSION['playListEntries' . $oldSection]); $index++)
-		{
-			$_SESSION['playListEntries' . $oldSection][$index]->index--;
-		}
-		usort($_SESSION['playListEntries' . $oldSection],"cmp_index");
-
-		// Insert into the new section
-		if ($newIndex < (count($_SESSION['playListEntries' . $newSection]) - 1))
-		{
-			for($index = $newIndex; $index < (count($_SESSION['playListEntries' . $newSection]) - 1); $index++)
-			{
-				$_SESSION['playListEntries' . $newSection][$index]->index++;
-			}
-			usort($_SESSION['playListEntries' . $newSection],"cmp_index");
-		}
-	}
-
-	EchoStatusXML('NewSectionCount: ' . count($_SESSION['playListEntries' . $newSection]));
-}
-
-function DeletePlaylist()
-{
-	global $playlistDirectory;
-
-	$name = $_GET['name'];
-	check($name, "name", __FUNCTION__);
-
-    //Check if the file exists, old playlists don't have extensions
-    $playlist_exists = file_exists($playlistDirectory . '/' . $name);
-
-    if($playlist_exists){
-        //then just delete the file
-        $delete_status = unlink($playlistDirectory . '/' . $name);
-    }	else{
-        //if it doesn't exist, then add .json to the filename
-        //All Playlists in FPP v2 are json files
-        $name = $name . '.json';
-        //
-        $delete_status = unlink($playlistDirectory . '/' . $name);
-    }
-
-    if($delete_status == true){
-        EchoStatusXML('Success');
-    }else{
-        EchoStatusXML('Failure');
-    }
-}
-
-function DeleteEntry()
-{
-	$section = $_GET['section'];
-	$index = $_GET['index'];
-	check($section, "section", __FUNCTION__);
-	check($index, "index", __FUNCTION__);
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Status');
-	$root = $doc->appendChild($root);
-
-	if ($section == 'LeadOut')
-		$index -= count($_SESSION['playListEntriesMainPlaylist']);
-
-	if ($section != 'LeadIn')
-		$index -= count($_SESSION['playListEntriesLeadIn']);
-
-	// Delete from array.
-	if($index < count($_SESSION['playListEntries' . $section]))
-	{
-		unset($_SESSION['playListEntries' . $section][$index]);
-		$_SESSION['playListEntries' . $section] = array_values($_SESSION['playListEntries' . $section]);
-		for($i=0;$i<count($_SESSION['playListEntries' . $section]);$i++)
-		{
-			$_SESSION['playListEntries' . $section][$i]->index = $i;
-		}
-		$value = $doc->createTextNode(("Success"));
-	}
-	else
-	{
-		$value = $doc->createTextNode("Failed. Index out of Range.");
-	}
-
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
-
 }
 
 function cmp_index($a, $b)

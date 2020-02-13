@@ -63,6 +63,8 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
 	int  m_comparisonMode;
 
 	// Time comparison
+	std::string m_startTime;
+	std::string m_endTime;
 	int  m_sHour;
 	int  m_sMinute;
 	int  m_sSecond;
