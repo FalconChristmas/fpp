@@ -123,14 +123,6 @@ this.value = default_value;
 });
 });
 
-function ToggleAutoUpdate() {
-	if ($('#autoUpdateDisabled').is(':checked')) {
-		SetAutoUpdate(0);
-	} else {
-		SetAutoUpdate(1);
-	}
-}
-
 </script>
 <title><? echo $pageTitle; ?></title>
 <style>
@@ -221,11 +213,7 @@ a:visited {
     echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
 ?>
                 </td></tr>
-            <tr><td>Disable Auto Update:</td><td><input type='checkbox' id='autoUpdateDisabled' onChange='ToggleAutoUpdate();'
-<? if (file_exists($mediaDirectory."/.auto_update_disabled")) { ?>
-            checked
-<? } ?>
-              >  <input type='button' value='Manual Update' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
+            <tr><td>Manual Update:</td><td><input type='button' value='Update FPP' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
             <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
             <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>

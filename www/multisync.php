@@ -164,7 +164,7 @@ if (isset($_GET['advancedView'])) {
             }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
-            var auto_updates_stirng = "";
+            var updatesAvailable = "";
 
 			$('#' + rowID + '_status').html(status);
 			$('#' + rowID + '_elapsed').html(elapsed);
@@ -190,15 +190,13 @@ if (isset($_GET['advancedView'])) {
                 //$('#advancedViewBranch_' + rowID).html(data.advancedView.Branch);
 
                 $('#advancedViewGitVersions_' + rowID).html("R: " + (typeof (data.advancedView.RemoteGitVersion) !== 'undefined' ? data.advancedView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof (data.advancedView.LocalGitVersion) !== 'undefined' ? data.advancedView.LocalGitVersion : 'Unknown'));
-                //Generate autoupdate status
-                auto_updates_stirng = ((data.advancedView.AutoUpdatesDisabled === true ? "Disabled" : "Enabled"));
                 //Work out if there is a Git version difference
                 if (((typeof (data.advancedView.RemoteGitVersion) !== 'undefined' && typeof (data.advancedView.LocalGitVersion) !== 'undefined')) && data.advancedView.RemoteGitVersion !== "Unknown") {
                     if (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion) {
-                        auto_updates_stirng = auto_updates_stirng + "<br>" + '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>';
+                        updatesAvailable = '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>';
                     }
                 }
-                $('#advancedViewAutoUpdateState_' + rowID).html(auto_updates_stirng);
+                $('#advancedViewUpdates_' + rowID).html(updatesAvailable);
 
                 $('#advancedViewUtilization_' + rowID).html("CPU: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.CPU) : 'Unk.') + "%" +
                     "<br>" +
@@ -308,7 +306,7 @@ if (isset($_GET['advancedView'])) {
                     "<td id='advancedViewVersion_" + rowID + "' class='advancedViewRow'></td>" +
                     //"<td id='advancedViewBranch_" + rowID + "'  class='advancedViewRow'></td>" +
                     "<td id='advancedViewGitVersions_" + rowID + "'  class='advancedViewRow'></td>" +
-                    "<td id='advancedViewAutoUpdateState_" + rowID + "' class='advancedViewRow'></td>" +
+                    "<td id='advancedViewUpdates_" + rowID + "' class='advancedViewRow'></td>" +
                     "<td id='advancedViewUtilization_" + rowID + "'  class='advancedViewRow'></td>";
             }
 
@@ -396,7 +394,7 @@ if (isset($_GET['advancedView'])) {
                             <th class="advancedViewHeader">Version</th>
                             <!--<th class="advancedViewHeader">Branch</th> -->
                             <th class="advancedViewHeader">Git Version(s)</th>
-                            <th class="advancedViewHeader">Auto Updates</th>
+                            <th class="advancedViewHeader">Updates</th>
                             <th class="advancedViewHeader">Utilization</th>
 							<?php
 						}

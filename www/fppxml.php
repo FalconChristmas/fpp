@@ -65,7 +65,6 @@ $command_array = Array(
 	"getGitOriginLog" => 'GetGitOriginLog',
 	"gitStatus" => 'GitStatus',
 	"resetGit" => 'ResetGit',
-	"setAutoUpdate" => 'SetAutoUpdate',
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
@@ -206,18 +205,6 @@ function ResetGit()
 	exec("$fppDir/scripts/git_reset");
 
 	EchoStatusXML("OK");
-}
-
-function SetAutoUpdate()
-{
-	$enabled = $_GET['enabled'];
-	check($enabled, "enabled", __FUNCTION__);
-
-	global $mediaDirectory;
-	if ($enabled)
-		unlink("$mediaDirectory/.auto_update_disabled");
-	else
-		exec("touch $mediaDirectory/.auto_update_disabled");
 }
 
 function SetVolume()

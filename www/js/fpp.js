@@ -1166,19 +1166,6 @@ function RemovePlaylistEntry()	{
             location.href="changebranch.php?branch=" + newBranch;
 		}
 	
-		function SetAutoUpdate(enabled)
-		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setAutoUpdate&enabled=" + enabled;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4)
-					location.reload(true);
-			}
-			xmlhttp.send();
-		}
-	
 		function SetUniverseCount(input)
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
