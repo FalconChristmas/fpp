@@ -151,6 +151,8 @@ public:
     void Initialize();
     
     const std::string &mapFont(const std::string &f);
+    void LightMessageHandler(const std::string &topic, const std::string &payload);
+
 private:
     PixelOverlayManager();
     ~PixelOverlayManager();

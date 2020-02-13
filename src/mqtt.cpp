@@ -28,6 +28,7 @@
 #include "settings.h"
 #include "events.h"
 #include "effects.h"
+#include "PixelOverlay.h"
 #include "playlist/Playlist.h"
 
 #include <sstream>
@@ -154,6 +155,11 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
     };
     AddCallback("/set/command", f);
     AddCallback("/set/command/#", f);
+
+    std::function<void(const std::string &, const std::string &)> lf = [] (const std::string &topic, const std::string &payload) {
+        PixelOverlayManager::INSTANCE.LightMessageHandler(topic, payload);
+    };
+    AddCallback("/light/#", lf);
 }
 /*
  *
@@ -348,6 +354,7 @@ void MosquittoClient::HandleConnect() {
 	m_isConnected = true;
 	std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
+    subscribe_topics.push_back(m_baseTopic + "/light/#");
     subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
