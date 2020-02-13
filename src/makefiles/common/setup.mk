@@ -30,13 +30,14 @@ endif
 ifeq "$(GCCVERSIONGTEQ4)" "1"
 OPTIMIZE_FLAGS=-O3 -Wno-psabi
 debug: OPTIMIZE_FLAGS=-g -Wno-psabi
+CXXFLAGS += -std=gnu++2a
 else
 OPTIMIZE_FLAGS=-O1
 debug: OPTIMIZE_FLAGS=-g
+CXXFLAGS += -std=gnu++17
 endif
 
 CFLAGS+=$(OPTIMIZE_FLAGS) -pipe \
 	-I $(SRCDIR) \
 	-fpic
-CXXFLAGS += -std=gnu++14
 
