@@ -2937,23 +2937,23 @@ function PopulatePlaylists(sequencesAlso)
     var playlistOptionsText="";
     GetPlaylistArray();
 
-//    if (sequencesAlso)
-//        playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";
+    if (sequencesAlso)
+        playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";
 
     for(j = 0; j < playListArray.length; j++)
     {
         playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
     }
 
-//    if (sequencesAlso) {
-//        GetSequenceArray();
+    if (sequencesAlso) {
+        GetSequenceArray();
 
-//        playlistOptionsText += "<option disabled>---------- Sequences ---------- </option>";
-//        for(j = 0; j < sequenceArray.length; j++)
-//        {
-//            playlistOptionsText +=  "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + ".fseq</option>";
-//        }
-//    }
+        playlistOptionsText += "<option disabled>---------- Sequences ---------- </option>";
+        for(j = 0; j < sequenceArray.length; j++)
+        {
+            playlistOptionsText +=  "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + ".fseq</option>";
+        }
+    }
 
     $('#playlistSelect').html(playlistOptionsText);
 }
