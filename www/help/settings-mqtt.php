@@ -45,5 +45,9 @@
 <tr>
 <td>$prefix/falcon/player/$hostname/effect/stop</td><td>Stops the effect named in the payload or all effects if payload is empty</td>
 </tr>
+<tr>
+<td>$prefix/falcon/player/$hostname/light/$modelname/cmd<br>
+    $prefix/falcon/player/$hostname/light/$modelname/state</td><td>Control a Pixel Overlay Model via Home Assistant's MQTT Light interface.  The Pixel Overlay Model is treated as a RGB light.</td>
+</tr>
 </table>
 </div>
