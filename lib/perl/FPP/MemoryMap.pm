@@ -686,8 +686,29 @@ sub GetTextMetrics {
 	$img2->Set( size=>'1x1' );
 	$img2->ReadImage( 'xc:none' );
 
-	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance) =
-		$img2->QueryFontMetrics(text => $text, font => $font, pointsize => $size );
+	my ($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance);
+
+	if ( $text =~ /\n/ ) {
+		my @parts = split('\n', $text);
+		my $h = 0;
+		my $w = 0;
+		for ($x = 0; $x < scalar(@parts); $x++) {
+			($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance) =
+				$img2->QueryFontMetrics(text => $parts[$x], font => $font, pointsize => $size );
+
+			if ($width > $w) {
+				$w = $width;
+			}
+
+			$h += $height;
+		}
+
+		$width = $w;
+		$height = $h;
+	} else {
+		($x_ppem, $y_ppem, $ascender, $descender, $width, $height, $max_advance) =
+			$img2->QueryFontMetrics(text => $text, font => $font, pointsize => $size );
+	}
 
 	$result{x_ppem} = $x_ppem;
 	$result{y_ppem} = $y_ppem;
