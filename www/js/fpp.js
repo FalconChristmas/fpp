@@ -657,7 +657,7 @@ function SetPlaylistItemMetaData(row) {
             var duration = 99999;
 
             if ((mdata.hasOwnProperty(file)) &&
-                (mdata[file].hasOwnProperty(duration))) {
+                (mdata[file].hasOwnProperty('duration'))) {
                 duration = mdata[file].duration;
             }
 

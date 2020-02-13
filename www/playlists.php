@@ -25,7 +25,7 @@ include 'menu.inc';
             <legend>Playlists</legend>
             <div class='playlistBoxLeft'>
                 <b>Select Playlist to Edit:</b><br>
-                <select id='playlistSelect' size='5' onChange='EditPlaylist();'>
+                <select id='playlistSelect' size='5' style='min-width: 150px;' onChange='EditPlaylist();'>
                 </select><br>
             </div>
             <div class='playlistBoxRight'>

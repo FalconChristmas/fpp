@@ -122,6 +122,9 @@ function SequenceChanged()
 		return;
 
     var val = $('.arg_sequenceName').val();
+    if (val == null)  {
+        return;
+    }
     
     var value = val.replace(/\.fseq/i, "");
     var media = document.getElementsByClassName("arg_mediaName")[0];
