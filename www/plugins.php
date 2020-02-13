@@ -254,6 +254,7 @@ function LoadPlugin(data) {
 	html += '</td></tr>';
 	html += '<tr><td colspan="7">' + data.description;
 	html += '<br><b>By:</b> ' + data.author;
+	html += '<br><b>Repo:</b> ' + data.homeURL;
 
 	if (compatibleVersion == -1)
 	{
