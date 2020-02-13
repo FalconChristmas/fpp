@@ -29,6 +29,8 @@ require_once('config.php');
           $('#tblSequences tr').removeClass('selectedentry');
           $(this).addClass('selectedentry');
           SequenceNameSelected  = $(this).find('td:first').text();
+		  SetButtonState('#btnPlaySequence','enable');
+		  SetButtonState('#btnPlayHereSequence','enable');
 		  SetButtonState('#btnDownloadSequence','enable');
 		  SetButtonState('#btnRenameSequence','enable');
 		  SetButtonState('#btnDeleteSequence','enable');
@@ -233,12 +235,12 @@ h2 {
           </div>
           <hr />
           <div class='right'>
+            <input onclick= "PlayPlaylist(SequenceNameSelected, 1);" id="btnPlaySequence" class="disableButtons" type="button"  value="Play" />
+            <input onclick= "PlayPlaylist(SequenceNameSelected, 0);" id="btnPlayHereSequence" class="disableButtons" type="button"  value="Play Here" />
             <input onclick= "DownloadFile('Sequences', SequenceNameSelected);" id="btnDownloadSequence" class="disableButtons" type="button"  value="Download" />
             <input onclick= "RenameFile('Sequences', SequenceNameSelected);" id="btnRenameSequence" class="disableButtons" type="button"  value="Rename" />
             <input onclick="DeleteFile('Sequences', SequenceNameSelected);" id="btnDeleteSequence" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>Sequence files must be in the Falcon Player .fseq format and may be converted from various other sequencer formats using <a href='https://github.com/smeighan/xLights' target='_sequencer'>xLights</a> or <a href='https://github.com/pharhp/Light-Elf' target='_sequencer'>Light-Elf</a>.  <a href='https://github.com/smeighan/xLights' target='_sequencer'>xLights v4</a> uses .fseq as its native file format.  <a href='http://www.vixenlights.com' target='_sequencer'>Vixen 3</a> and recent versions of <a href='http://vixenplus.com/'>Vixen+</a> also have the ability to directly export .fseq files.</font>
         </fieldset>
       </div>
     </div>
@@ -258,8 +260,6 @@ h2 {
             <input onclick= "RenameFile('Music', SongNameSelected);" id="btnRenameMusic" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Music', SongNameSelected);" id="btnDeleteMusic" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>Audio files must be in MP3, OGG, or M4A format.</font>
         </fieldset>
       </div>
     </div>
@@ -282,8 +282,6 @@ h2 {
             <input onclick= "RenameFile('Videos', VideoNameSelected);" id="btnRenameVideo" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Videos', VideoNameSelected);" id="btnDeleteVideo" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>Video files must be in .mp4 or .mkv format.  H264 video is required for hardware acceleration on the Pi and AAC or MP3 audio are preferred.  Video playback is not currently supported on the BBB.</font>
         </fieldset>
       </div>
     </div>
@@ -320,8 +318,6 @@ h2 {
             <input onclick= "RenameFile('Effects', EffectNameSelected);" id="btnRenameEffect" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Effects', EffectNameSelected);" id="btnDeleteEffect" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>Effects files are .fseq format files with an .eseq extension.  These special sequence files contain only the channels for a specific effect and always start at channel 1 in the sequence file.  The actual starting channel offset for the Effect is specified when you run it or configure the Effect in an Event.</font>
         </fieldset>
       </div>
     </div>
@@ -344,8 +340,6 @@ h2 {
             <input onclick= "RenameFile('Scripts', ScriptNameSelected);" id="btnRenameScript" class="disableButtons" type="button"  value="Rename" />
             <input onclick= "DeleteFile('Scripts', ScriptNameSelected);" id="btnDeleteScript" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>Scripts must have a .sh, .pl, .pm, .php, or .py extension.  Scripts may be executed inside an event.  These might be used in a show to trigger an external action such as sending a message to a RDS capable FM transmitter or a non-DMX/Pixelnet LED sign.</font>
         </fieldset>
       </div>
     </div>
@@ -365,8 +359,6 @@ h2 {
             <input onclick= "DownloadFile('Logs', LogFileSelected);" id="btnDownloadLog" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Logs', LogFileSelected);" id="btnDeleteLog" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>FPP logs may be viewed or downloaded for submission with bug reports.</font>
         </fieldset>
       </div>
     </div>
@@ -384,8 +376,6 @@ h2 {
             <input onclick= "DownloadFile('Uploads', UploadFileSelected);" id="btnDownloadUpload" class="disableButtons" type="button"  value="Download" />
             <input onclick= "DeleteFile('Uploads', UploadFileSelected);" id="btnDeleteUpload" class="disableButtons" type="button"  value="Delete" />
           </div>
-          <br />
-          <font size=-1>The upload directory is used as temporary storage when uploading media and sequencee files.  It is also used as permanent storage for other file formats which have no dedicated home.</font>
         </fieldset>
       </div>
     </div>

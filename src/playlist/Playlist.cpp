@@ -278,14 +278,74 @@ int Playlist::Load(const char *filename)
 		mqtt->Publish("playlist/name/status", filename);
     }
 
-	m_filename = getPlaylistDirectory();
-	m_filename += "/";
-	m_filename += filename;
-	m_filename += ".json";
+    Json::Value root;
+    std::string tmpFilename = filename;
 
-	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
-	Json::Value root = LoadJSON(m_filename.c_str());
+    if (endsWith(tmpFilename, ".fseq")) {
+        m_filename = getSequenceDirectory();
+        m_filename += "/";
+        m_filename += tmpFilename;
+
+        root["name"] = tmpFilename;
+        root["repeat"] = 0;
+        root["loopCount"] = 0;
+
+        std::string mediaName;
+        FSEQFile *src = FSEQFile::openFSEQFile(m_filename);
+        if (src && !src->getVariableHeaders().empty()) {
+            for (auto &head : src->getVariableHeaders()) {
+                if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
+                    if (strchr((char *)&head.data[0], '/')) {
+                        mediaName = (char *)(strrchr((char *)&head.data[0], '/') + 1);
+
+                        std::string tmpMedia = getMusicDirectory();
+                        tmpMedia += "/";
+                        tmpMedia += mediaName;
+
+                        if (!FileExists(tmpMedia)) {
+                            tmpMedia = getVideoDirectory();
+                            tmpMedia += "/";
+                            tmpMedia += mediaName;
+
+                            if (!FileExists(tmpMedia)) {
+                                LogDebug(VB_PLAYLIST, "fseq %s lists a media file of %s, but it can not be found\n", tmpFilename.c_str(), mediaName.c_str());
+                                mediaName = "";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Json::Value mp(Json::arrayValue);
+        Json::Value pe;
+        if (mediaName.empty()) {
+            pe["type"]         = "sequence";
+            LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s\n", tmpFilename.c_str());
+        } else {
+            pe["type"]         = "both";
+            pe["mediaName"]    = mediaName;
+            LogDebug(VB_PLAYLIST, "Generated an on-the-fly playlist for %s/%s\n", tmpFilename.c_str(), mediaName.c_str());
+        }
+
+        pe["enabled"]      = 1;
+        pe["playOnce"]     = 0;
+        pe["sequenceName"] = tmpFilename;
+        pe["videoOut"]     = "--Default--";
+
+        mp.append(pe);
+        root["mainPlaylist"] = mp;
+    } else {
+        m_filename = getPlaylistDirectory();
+        m_filename += "/";
+        m_filename += filename;
+        m_filename += ".json";
+
+	    root = LoadJSON(m_filename.c_str());
+    }
+
 	int res = Load(root);
 
 	GetConfigStr();
@@ -557,6 +617,9 @@ int Playlist::IsPlaying(void)
  */
 int Playlist::FileHasBeenModified(void)
 {
+    if (endsWith(m_filename, ".fseq"))
+        return 0;
+
 	struct stat attr;
 	stat(m_filename.c_str(), &attr);
 

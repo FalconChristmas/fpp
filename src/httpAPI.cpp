@@ -728,7 +728,10 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
         std::string plname = pl["name"].asString();
         plname = plname.substr(plname.find_last_of("\\/") + 1);
-        plname = plname.substr(0, plname.find_last_of("."));
+
+        if (!endsWith(plname, ".fseq"))
+            plname = plname.substr(0, plname.find_last_of("."));
+
         result["current_playlist"]["playlist"] = plname;
         result["current_playlist"]["index"] = std::to_string(playlist->GetPosition());
         result["current_playlist"]["count"] = std::to_string(pl["size"].asInt());
