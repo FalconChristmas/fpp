@@ -184,6 +184,9 @@ function list_plugin_entries($menu)
           <li><a href="https://docs.google.com/viewer?url=https://falconchristmas.github.io/FPP_Manual.pdf" target="_blank">FPP Manual</a></li>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="help.php">Help Index</a></li>
+<? if ($settings['uiLevel'] > 0) { ?>
+          <li><a href="api/help">REST API Help</a></li>
+<? } ?>
           <li><a href="cliHelp.php">fpp &amp; fppmm Usage</a></li>
           <li><a href="troubleshooting.php">Troubleshooting Commands</a></li>
           <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
