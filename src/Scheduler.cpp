@@ -206,8 +206,12 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 	localtime_r(&currTime, &now);
 
     if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
-        repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
-		return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist;
+        if (m_currentSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
+            repeat = m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat;
+            return m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist;
+        } else {
+            return "";
+        }
     }
 
 	int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
