@@ -13,4 +13,6 @@ export LDFLAGS="-latomic"
 make
 make install
 ldconfig
+cd /opt
+rm -rf vlc
 

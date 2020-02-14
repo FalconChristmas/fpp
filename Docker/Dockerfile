@@ -1,34 +1,28 @@
 FROM debian:buster
 
-
-RUN apt-get update
-
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
-# then the FPP_Install step is faster
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  g++ gcc build-essential libgtk2.0-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev freeglut3-dev libavcodec-dev libavformat-dev libswscale-dev libsdl2-dev libswresample-dev liblog4cpp5-dev libavutil-dev libavresample-dev libportmidi-dev wget git fuse gpgv colormake libzstd-dev sudo alsa-utils arping avahi-daemon \
-    apache2 apache2-bin apache2-data apache2-utils \
-    zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
-    avahi-discover avahi-utils bash-completion bc btrfs-tools build-essential \
-    bzip2 ca-certificates ccache connman curl device-tree-compiler \
-    dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-    gdebi-core git git-core hdparm i2c-tools ifplugd less \
-    libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
+# then the FPP_Install step is faster.   In addition, docker will cache this result
+# so building docker containers will be faster
+RUN apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
+    apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
+    bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
+    fbi fbset file flite linux-cpupower cpufrequtils ca-certificates lshw \
+    build-essential gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
+    git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
+    samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
+    mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
+    php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-fpm php-xml \
     libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
-    libboost-atomic-dev libboost-math-dev libboost-signals-dev libconvert-binary-c-perl \
-    libdbus-glib-1-dev libdevice-serialport-perl libjs-jquery \
-    libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
-    libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
-    mp3info mailutils mpg123 mpg321 mplayer nano net-tools ntp \
-    php-cli php-common php-curl php-fpm php-xml \
-    php-sqlite3 php-zip python-daemon python-smbus rsync samba \
-    samba-common-bin shellinabox sudo sysstat tcpdump time vim \
-    vim-common vorbis-tools vsftpd \
-    dhcp-helper hostapd parprouted bridge-utils cpufrequtils \
-    dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
-    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
-    wireless-tools libcurl4-openssl-dev sqlite3 \
-    libzstd-dev gpiod libgpiod-dev
-RUN apt-get clean
+    libboost-atomic-dev libboost-math-dev libboost-signals-dev \
+    libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
+    vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
+    libmosquitto-dev mosquitto-clients libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
+    python-daemon python-smbus wget ; apt-get clean
+
+# similar to above, do this once and Docker can cache the intermediary
+ADD SD/buildVLC.sh /root/buildVLC.sh
+RUN ( yes | /root/buildVLC.sh ) || true
+
 
 # Pass --build-arg EXTRA_INSTALL_FLAG=--skip-clone to build without
 # cloning the lastest from git and instead use the stuff in the local
@@ -37,7 +31,7 @@ ARG EXTRA_INSTALL_FLAG=
 
 ADD ./ /opt/fpp/
 ADD SD/FPP_Install.sh /root/FPP_Install.sh
-RUN ( yes | /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --skip-apt-install ) || true
+RUN ( yes | /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --skip-apt-install --skip-vlc ) || true
 
 # this will do additional updates and create the required directories
 # and set permissions

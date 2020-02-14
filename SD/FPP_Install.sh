@@ -30,14 +30,14 @@
 #       Raspberry Pi
 #           - URL: https://www.raspberrypi.org/downloads/
 #           - Image
-#             - 2017-11-29-raspbian-stretch-lite.zip
+#             - 2020-02-05-raspbian-buster-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
 #       BeagleBone Black
-#           - URL: http://beagleboard.org/latest-images
+#           - URL: https://rcn-ee.com/rootfs/bb.org/testing/2020-02-10/buster-console/
 #           - Images
-#             - bone-debian-9.3-iot-armhf-2018-03-05-4gb.img
+#             - bone-debian-10.3-console-armhf-2020-02-10-1gb.img.xz
 #           - Login/Password
 #             - debian/temppwd
 #
@@ -48,31 +48,14 @@
 #############################################################################
 # Other platforms which may be functioning:
 #
-# NOTE: FPP Development is based on the latest *bian Stretch images, so
-#       hardware which does not support Stretch may have issues.
-#
-#       ODROID C1
-#           http://oph.mdrjr.net/meveric/images/
-#           - Jessie/Debian-Jessie-1.1-20170526-C1.img.xz
-#           - Login/Password
-#             - root/odroid
-#           - When building a FPP image from this stock image, we will need
-#             to do something about the image size so we don't bloat the
-#             the FPP download.
-#
-#       Pine64
-#           http://wiki.pine64.org/index.php/Pine_A64_Software_Release
-#           - "Debian Base (3.10.102 BSP 2)" image
-#           - Login/Password
-#             - debian/debian
-#           - This image has very little free space after installing FPP,
-#             so you may want to expand the root partition by a few hundred MB.
+# NOTE: FPP Development is based on the latest *bian Buster images, so
+#       hardware which does not support Buster may have issues.
 #
 #############################################################################
-SCRIPTVER="1.0"
+SCRIPTVER="4.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="3.0"
-FPPCFGVER="47"
+FPPIMAGEVER="4.0-alpha"
+FPPCFGVER="59"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -151,6 +134,7 @@ fi
 # Parse build options as arguments
 build_omxplayer=false
 clone_fpp=true
+build_vlc=true
 skip_apt_install=false
 while [ -n "$1" ]; do
 	case $1 in
@@ -160,6 +144,10 @@ while [ -n "$1" ]; do
 			;;
 		--skip-clone)
 			clone_fpp=false
+			shift
+			;;
+		--skip-vlc)
+			build_vlc=false
 			shift
 			;;
 		--skip-apt-install)
@@ -333,23 +321,26 @@ case "${OSVER}" in
 		esac
 
 		echo "FPP - Marking unneeded packages for removal to save space"
-		case "${OSVER}" in
-			debian_9 | debian_10)
-				systemctl disable network-manager.service
+		systemctl disable network-manager.service
 
-				# This list is based on the Stretch Lite SD image which we base our image on
-				for package in libxmuu1 xauth network-manager
-				do
-					echo "$package deinstall" | dpkg --set-selections
-				done
-				;;
-		esac
-        apt autoremove
-
-		echo "FPP - Make things cleaner by removing unneeded packages"
-		dpkg --get-selections | grep deinstall | while read package deinstall; do
-			apt-get -y purge $package
-		done
+        #remove a bunch of packages that aren't neeeded, free's up space
+        PACKAGE_REMOVE="nginx nginx-full nginx-common python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools python3-smbus\
+            python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
+            python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe \
+            gfortran glib-networking libxmuu1 xauth network-manager"
+        if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+            PACKAGE_REMOVE="$PACKAGE_REMOVE roboticscape nodejs c9-core-installer \
+                doc-beaglebone-getting-started bonescript bone101 bb-node-red-installer ardupilot-copter-bbbmini ardupilot-copter-blue \
+                ardupilot-plane-bbbmini ardupilot-plane-blue ardupilot-rover-bbbmini ardupilot-rover-blue \
+                ardupilot-copter-3.6-bbbmini ardupilot-copter-3.6-blue ardupilot-copter-3.6-pocket \
+                ardupilot-rover-3.4-bbbmini ardupilot-rover-3.4-blue ardupilot-rover-3.4-pocket"
+        fi
+        if $skip_apt_install; then
+            PACKAGE_REMOVE=""
+        else
+            apt-get remove -y --purge --autoremove --allow-change-held-packages ${PACKAGE_REMOVE}
+        fi
+        
 
 		echo "FPP - Removing anything left that wasn't explicity removed"
 		apt-get -y --purge autoremove
@@ -365,6 +356,11 @@ case "${OSVER}" in
 
 		echo "FPP - Upgrading other installed packages"
 		apt-get -y upgrade
+  
+        echo "FPP - Cleanup caches"
+        apt-get -y clean
+        apt-get -y --purge autoremove
+        apt-get -y clean
 
 		# remove gnome keyring module config which causes pkcs11 warnings
 		# when trying to do a git pull
@@ -372,77 +368,45 @@ case "${OSVER}" in
 
 		echo "FPP - Installing required packages"
 		# Install 10 packages, then clean to lower total disk space required
-		PACKAGE_LIST=""
-		case "${OSVER}" in
-			debian_9 | debian_10)
-				PACKAGE_LIST="alsa-base alsa-utils arping avahi-daemon \
-								apache2 apache2-bin apache2-data apache2-utils \
-								zlib1g-dev libpcre3 libpcre3-dev libbz2-dev libssl-dev \
-								avahi-discover avahi-utils bash-completion bc btrfs-tools build-essential \
-								bzip2 ca-certificates ccache connman curl device-tree-compiler \
-								dh-autoreconf ethtool exfat-fuse fbi fbset file flite gdb \
-								gdebi-core git git-core hdparm i2c-tools ifplugd less \
-                                libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
-                                libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
-                                libboost-atomic-dev libboost-math-dev libboost-signals-dev libconvert-binary-c-perl \
-								libdbus-glib-1-dev libdevice-serialport-perl libinline-perl libjs-jquery \
-								libjs-jquery-ui libjson-perl libjsoncpp-dev liblo-dev libmicrohttpd-dev libnet-bonjour-perl \
-								libsdl2-dev libssh-4 libtagc0-dev libtest-nowarnings-perl locales lsof \
-								mp3info mailutils nano net-tools node ntp \
-								php-cli php-common php-curl php-fpm php-xml \
-								php-sqlite3 php-zip python-daemon python-smbus rsync samba \
-								samba-common-bin shellinabox sudo sysstat tcpdump time usbmount vim \
-								vim-common vorbis-tools vsftpd firmware-realtek gcc g++\
-								dhcp-helper hostapd parprouted bridge-utils cpufrequtils \
-								dos2unix libmosquitto-dev mosquitto-clients librtmidi-dev \
-                                libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
-								wireless-tools libcurl4-openssl-dev resolvconf sqlite3 \
-                                libzstd-dev zstd gpiod libgpiod-dev"
 
-				if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]
-				then
-					PACKAGE_LIST="$PACKAGE_LIST firmware-atheros firmware-ralink firmware-brcm80211"
-				fi
-				;;
-		esac
+        PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
+                      apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
+                      bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 resolvconf wireless-tools dos2unix \
+                      fbi fbset file flite linux-cpupower cpufrequtils ca-certificates lshw \
+                      build-essential gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
+                      git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
+                      samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
+                      mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
+                      php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-fpm php-xml \
+                      libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
+                      libboost-atomic-dev libboost-math-dev libboost-signals-dev \
+                      libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
+                      vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
+                      libmosquitto-dev mosquitto-clients libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
+                      python-daemon python-smbus"
+                      
+        if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
+            PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity"
+        fi
+
 
         if $skip_apt_install; then
             PACKAGE_LIST=""
+        else
+            apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${PACKAGE_LIST}
         fi
 
-		let packages=0
-		for package in ${PACKAGE_LIST}
-		do
-			apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install ${package}
-			let packages=$((${packages}+1))
-			if [ $packages -gt 10 ]; then
-				let packages=0
-				apt-get -y clean
-			fi
-		done
+        echo "FPP - Cleaning up after installing packages"
+        apt-get -y clean
 
-        case "${OSVER}" in
-            debian_9)
-                apt-get install -y libapache2-mod-php7.0 php7.0-zip libpam-smbpass php7.1-mcrypt
-                ;;
-            debian_10)
-                apt-get install -y libapache2-mod-php php-zip
-                ;;
-        esac
-
-		echo "FPP - Configuring shellinabox to use /var/tmp"
-		echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
-		sed -i -e "s/SHELLINABOX_ARGS.*/SHELLINABOX_ARGS=\"--no-beep -t\"/" /etc/default/shellinabox
-
-		echo "FPP - Cleaning up after installing packages"
-		apt-get -y clean
 
 		echo "FPP - Installing libhttpserver SHA bd08772"
 		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout bd08772 && ./bootstrap && mkdir build && cd build && CXXFLAGS=-std=c++98 ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
-		echo "FPP - Installing non-packaged Perl modules via App::cpanminus"
-		curl -L https://cpanmin.us | perl - --sudo App::cpanminus
-		echo "yes" | cpanm -fi Test::Tester File::Map Net::WebSocket::Server Net::PJLink
+        echo "FPP - Configuring shellinabox to use /var/tmp"
+        echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
+        sed -i -e "s/SHELLINABOX_ARGS.*/SHELLINABOX_ARGS=\"--no-beep -t\"/" /etc/default/shellinabox
+
 
 		if [ -f /bin/systemctl ]
 		then
@@ -454,20 +418,16 @@ case "${OSVER}" in
 		fi
 
 		echo "FPP - Disabling GUI"
-		update-rc.d -f gdm remove
-		update-rc.d -f gdm3 remove
-		update-rc.d -f lightdm remove
-		update-rc.d -f wdm remove
-		update-rc.d -f xdm remove
+		systemctl disable gdm
+   		systemctl disable gdm3
+		systemctl disable lightdm
+		systemctl disable wdm
+		systemctl disable xdm
+        systemctl disable display-manager.service
 
 		echo "FPP - Disabling dhcp-helper and hostapd from automatically starting"
-		update-rc.d -f dhcp-helper remove
-		update-rc.d -f hostapd remove
-
-		if [ "x${OSVER}" == "xdebian_9" ] || [ "x${OSVER}" == "xdebian_10" ]; then
-			systemctl disable display-manager.service
-		fi
-
+		systemctl disable dhcp-helper
+		systemctl disable hostapd
 		;;
 	ubuntu_14.04)
 		echo "FPP - Updating package list"
@@ -479,44 +439,45 @@ case "${OSVER}" in
 		;;
 esac
 
+if [ ! -f "/usr/include/SDL2/SDL.h" ]; then
+    # we don't want to "apt-get install libsdl2-dev" as that brings in wayland, a bunch
+    # of X libraries, mesa, some OpenGL libs, etc... A bunch of things we DON'T need
+    # Thus, we'll grab the .deb file, modify it to remove those deps, and install
+    echo "FPP - Installing SDL2"
+    cd /tmp
+    apt-get download libsdl2-dev
+    mkdir deb
+    dpkg-deb -R ./libsdl2*.deb  deb
+    sed -i -e "s/Version\(.*\)+\(.*\)/Version\1~fpp/g" deb/DEBIAN/control
+    sed -i -e "s/Depends: \(.*\)/Depends: libsdl2-2.0-0, libasound2-dev, libdbus-1-dev, libsndio-dev, libudev-dev/g" deb/DEBIAN/control
+    dpkg-deb -b deb ./libsdl2-dev.deb
+    apt install ./libsdl2-dev.deb
+    apt-mark hold libsdl2-dev
+fi
+ 
 #######################################
 # Platform-specific config
 case "${FPPPLATFORM}" in
 	'BeagleBone Black')
+        echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
+        echo "# allocate 3M instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
+        echo "options uio_pruss extram_pool_sz=3145728" >> /etc/modprobe.d/uio_pruss.conf
 
-		case "${OSVER}" in
-			debian_9 | debian_10)
-				echo "FPP - Disabling HDMI for Falcon and LEDscape cape support"
-				sed -i -e 's/#dtb=am335x-boneblack-emmc-overlay.dtb/dtb=am335x-boneblack-emmc-overlay.dtb/' /boot/uEnv.txt
+        # need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
+        echo "blacklist st_pressure_i2c" > /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist st_pressure" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist inv_mpu6050_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
+        echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
-				echo "FPP - Installing BeagleBone Overlays"
-				cd /opt/ && git clone https://github.com/beagleboard/bb.org-overlays && cd /opt/bb.org-overlays && make && make install && cd /opt/ && rm -rf bb.org-overlays
-
-				echo "FPP - Updating locale"
-				sed -i -e 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
-				dpkg-reconfigure --frontend=noninteractive locales
-				update-locale LANG=en_US.UTF-8
-
-				# Bind mount /tmp over /var/tmp because the default 10G /var/tmp is not
-				# big enough to rebuild the initrd when the kernel is updated
-				mount -o bind /tmp /var/tmp
-
-				# We need the 'bone' kernel so LEDscape PRU code can work
-				BBB_KERNEL_VER=4.1.19-bone-rt-r20
-				echo "FPP - Switching to Bone kernel"
-				cd /opt/scripts/tools && ./update_kernel.sh --bone-rt-kernel --lts-4_1 --kernel=${BBB_KERNEL_VER}
-
-				echo "FPP - Installing updated 8192cu module"
-				# FIXME, get this in github once kernel version is finalized
-				wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko http://fpp.bc2va.org/modules/8192cu-${BBB_KERNEL_VER}.ko
-				sudo depmod ${BBB_KERNEL_VER}
-				#wget -O /lib/modules/${BBB_KERNEL_VER}/kernel/drivers/net/wireless/8192cu.ko https://github.com/FalconChristmas/fpp/releases/download/1.5/8192cu-${BBB_KERNEL_VER}.ko
-				;;
-		esac
-
-
-		echo "FPP - Fixing potential ping issue"
-		chmod u+s /bin/ping
+        cd /opt
+        git clone https://github.com/beagleboard/am335x_pru_package
+        cd am335x_pru_package
+        make
+        make install
+        make clean
+        ldconfig
 
 		;;
 
@@ -529,12 +490,6 @@ case "${FPPPLATFORM}" in
 
         echo "FPP - Install kernel headers so modules can be compiled later"
         apt-get -y install raspberrypi-kernel-headers
-
-		echo "FPP - Installing wiringPi"
-		cd /opt/ && git clone https://github.com/hardkernel/wiringPi && cd /opt/wiringPi && ./build
-
-		echo "FPP - Installing pigpio"
-		cd /opt/ && rm -rf pigpio && git clone https://github.com/joan2937/pigpio && cd /opt/pigpio && make prefix=/usr && make install prefix=/usr
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
@@ -665,6 +620,8 @@ case "${FPPPLATFORM}" in
         echo "[pi2]" >> /boot/config.txt
         echo "gpu_mem=64" >> /boot/config.txt
 		echo >> /boot/config.txt
+        echo "dtoverlay=dwc2" >> /boot/config.txt
+        echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
 		apt-get -y purge wolfram-engine sonic-pi minecraft-pi
@@ -693,6 +650,27 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Fix ifup/ifdown scripts for manual dns"
 		sed -i -n 'H;${x;s/^\n//;s/esac\n/&\nif grep -qc "Generated by fpp" \/etc\/resolv.conf\; then\n\texit 0\nfi\n/;p}' /etc/network/if-up.d/000resolvconf
 		sed -i -n 'H;${x;s/^\n//;s/esac\n/&\nif grep -qc "Generated by fpp" \/etc\/resolv.conf\; then\n\texit 0\nfi\n\n/;p}' /etc/network/if-down.d/resolvconf
+
+        cat <<-EOF > /etc/dnsmasq.d/usb.conf
+		interface=usb0
+		interface=usb1
+		port=53
+		dhcp-authoritative
+		domain-needed
+		bogus-priv
+		expand-hosts
+		cache-size=2048
+		dhcp-range=usb0,192.168.7.1,192.168.7.1,2m
+		dhcp-range=usb1,192.168.6.1,192.168.6.1,2m
+		listen-address=127.0.0.1
+		listen-address=192.168.7.2
+		listen-address=192.168.6.2
+		dhcp-option=usb0,3
+		dhcp-option=usb0,6
+		dhcp-option=usb1,3
+		dhcp-option=usb1,6
+		dhcp-leasefile=/var/run/dnsmasq.leases
+		EOF
 
         echo "FPP - Removing extraneous blacklisted modules"
         rm -f /etc/modprobe.d/blacklist-rtl8192cu.conf
@@ -744,7 +722,7 @@ case "${FPPPLATFORM}" in
 		echo "FPP - Unknown platform"
 		;;
 esac
-	
+
 #######################################
 # Clone git repository
 cd /opt
@@ -761,6 +739,15 @@ if $clone_fpp; then
     echo "FPP - Cloning git repository into /opt/fpp"
     git clone https://github.com/FalconChristmas/fpp fpp
 fi
+
+#######################################
+# Build VLC
+if $build_vlc; then
+    cd /opt/fpp/SD
+    ./buildVLC.sh
+    rm -rf /opt/vlc/
+fi
+
 
 #######################################
 # Switch to desired code branch
@@ -780,8 +767,7 @@ mv ./composer.phar /usr/local/bin/composer
 chmod 755 /usr/local/bin/composer
 
 #######################################
-PHPDIR="/etc/php/7.0"
-
+PHPDIR="/etc/php/7.3"
 if [ -d "/etc/php/7.3" ]; then
     PHPDIR="/etc/php/7.3"
 fi
@@ -882,7 +868,7 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 #######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
-ccache -M 50M
+ccache -M 75M
 ccache --set-config=temporary_dir=/tmp
 
 #######################################
@@ -899,6 +885,8 @@ cat <<-EOF >> /etc/samba/smb.conf
 [FPP]
   comment = FPP Media Share
   path = ${FPPHOME}/media
+  veto files = /._*/.DS_Store/
+  delete veto files = yes
   writeable = Yes
   only guest = Yes
   create mask = 0777
@@ -995,18 +983,12 @@ echo "${COMMENTED}/dev/sda1     ${FPPHOME}/media  auto    defaults,nonempty,noat
 echo "#####################################" >> /etc/fstab
 
 #######################################
-# Disable IPv6
-echo "FPP - Disabling IPv6"
-#prefer ipv4
+#  Prefer IPv4
+echo "FPP - Prefer IPv4"
 echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
 
-cat <<-EOF >> /etc/sysctl.conf
-	# FPP - Disable IPv6
-	net.ipv6.conf.all.disable_ipv6 = 1
-	net.ipv6.conf.default.disable_ipv6 = 1
-	net.ipv6.conf.lo.disable_ipv6 = 1
-	net.ipv6.conf.eth0.disable_ipv6 = 1
-	EOF
+# need to keep extra memory to process network packets
+echo "vm.min_free_kbytes=16384" >> /etc/sysctl.conf
 
 #######################################
 echo "FPP - Configuring Apache webserver"
@@ -1044,16 +1026,54 @@ case "${OSVER}" in
 esac
 
 
+if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
+    #######################################
+    echo "FPP - Updating HotSpot"
+    sed -i -e "s/USE_PERSONAL_SSID=.*/USE_PERSONAL_SSID=FPP/" /etc/default/bb-wl18xx
+    sed -i -e "s/USE_PERSONAL_PASSWORD=.*/USE_PERSONAL_PASSWORD=Christmas/" /etc/default/bb-wl18xx
+    
+    systemctl disable dev-hugepages.mount
+
+    echo "FPP - update BBB boot scripts"
+    cd /opt/scripts
+    git reset --hard
+    git pull
+    sed -i 's/systemctl restart serial-getty/systemctl is-enabled serial-getty/g' boot/am335x_evm.sh
+    
+    cd /opt/fpp/capes/drivers/bbb
+    make
+    make install
+    make clean
+    
+    # install the newer pru code generator
+    apt-get install ti-pru-cgt-installer
+    
+    #set the preferred tech
+    sed -i -e "s/PreferredTechnologies\(.*\)/PreferredTechnologies=wifi,ethernet/" /etc/connman/main.conf
+
+    #Set colored prompt
+    sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
+    
+    cd /etc
+    rm resolv.conf
+    ln -s /var/run/connman/resolv.conf .
+fi
+
+
+
 #######################################
 echo "FPP - Configuring FPP startup"
 cp /opt/fpp/etc/systemd/*.service /lib/systemd/system/
+systemctl daemon-reload
 systemctl enable fppinit.service
 systemctl enable fppcapedetect.service
 systemctl enable fpprtc.service
 systemctl enable fppoled.service
 systemctl enable fppd.service
-
+systemctl enable fpp_postnetwork.service
 systemctl enable rsync
+
+cp /opt/fpp/etc/update-RTC /etc/cron.daily
 
 echo "FPP - Disabling services not needed/used"
 systemctl disable connman-wait-online
@@ -1064,10 +1084,32 @@ make clean ; make optimized
 
 
 ######################################
-if [ "x${FPPPLATFORM}" = "xRaspberry Pi" ]; then
+if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
     echo "FPP - Compiling WIFI drivers"
     cd /opt/fpp/SD
     sh ./FPP-Wifi-Drivers.sh
+    rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
+    
+    sed -i 's/ExecStart.*/ExecStart=\/usr\/sbin\/connmand -n --nodnsproxy/g' /lib/systemd/system/connman.service
+
+    # replace entry already there
+    sed -i 's/^DAEMON_CONF.*/DAEMON_CONF="\/etc\/hostapd\/hostapd.conf"/g' /etc/default/hostapd
+    if ! grep -q etc/hostapd/hostapd.conf "/etc/default/hostapd"; then
+        # not there, append after the commented out default line
+        sed -i 's/^#DAEMON_CONF\(.*\)/#DAEMON_CONF\1\nDAEMON_CONF="\/etc\/hostapd\/hostapd.conf"/g' /etc/default/hostapd
+    fi
+    if ! grep -q etc/hostapd/hostapd.conf "/etc/default/hostapd"; then
+        # default line not there, just append to end of file
+        echo "DAEMON_CONF=\"/etc/hostapd/hostapd.conf\"" >> /etc/default/hostapd
+    fi
+
+    sed -i 's/^NetworkInterfaceBlacklist.*/NetworkInterfaceBlacklist=SoftAp0,usb0,usb1/g' /etc/connman/main.conf
+    if ! grep -q etc/hostapd/hostapd.conf "/etc/default/hostapd"; then
+        echo "NetworkInterfaceBlacklist=SoftAp0,usb0,usb1" >> /etc/connman/main.conf
+    fi
+    
+    systemctl enable dnsmasq
+    systemctl unmask hostapd
 fi
 
 ENDTIME=$(date)
@@ -1080,14 +1122,14 @@ echo "========================================================="
 echo "You can reboot the system by changing to the '${FPPUSER} user with the"
 echo "password 'falcon' and running the shutdown command."
 echo ""
-echo "su - ${FPPUSER}
+echo "su - ${FPPUSER}"
 echo "sudo shutdown -r now"
 echo ""
 echo "NOTE: If you are prepping this as an image for release,"
 echo "remove the SSH keys before shutting down so they will be"
 echo "rebuilt during the next boot."
 echo ""
-echo "su - ${FPPUSER}
+echo "su - ${FPPUSER}"
 echo "sudo rm -rf /etc/ssh/ssh_host*key*"
 echo "sudo shutdown -r now"
 echo "========================================================="

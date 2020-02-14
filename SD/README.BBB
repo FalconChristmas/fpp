@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-10.0-iot-armhf-2019-07-28-4gb.img
-# from https://rcn-ee.com/rootfs/bb.org/testing/2019-07-29/buster-iot/
+# bone-debian-10.3-console-armhf-2020-02-10-1gb.img.xz
+# from  https://rcn-ee.com/rootfs/bb.org/testing/2020-02-10/buster-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -33,17 +33,16 @@ cp -a /etc/ssh/* /tmp/rootfs/etc/ssh
 shutdown -h now
 
 
-#That will flash the stretch-console image to the internal eMMC and then shutdown
+#That will flash the buster-console image to the internal eMMC and then shutdown
 #Remove the SD card and restart the BBB, re-login with default debian:temppwd
 #then "sudo bash" to become root
-
 
 apt-get update
 apt-get -y upgrade
 
 #need to install/generate the UTF-8 locales
 apt-get install -y locales
-#   echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 localectl set-locale LANG="en_US.utf8"
 
@@ -57,13 +56,13 @@ cd /opt/scripts/tools
 # ./update_kernel.sh --lts-4_19 --bone-kernel
 # and see what is the latest kernel version and put it here
 
-export KERNEL_VERSION=4.19.50-bone35
+export KERNEL_VERSION=4.19.100-bone46
 ./update_kernel.sh --lts-4_19 --bone-kernel  $KERNEL_VERSION
 apt-get install -y linux-headers-$KERNEL_VERSION
 
 
 #if the sancloud dtbs are missing in /boot/dtbs/$(uname -r)
-cp -a /boot/dtbs/$(uname -r)/*  /boot/dtbs/$KERNEL_VERSION/
+cp -a /boot/dtbs/$(uname -r)/am335x-sancloud-bbe-uboot*  /boot/dtbs/$KERNEL_VERSION/
 
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r)
 apt-get remove -y --purge --autoremove ti-temperature-modules-$(uname -r) ti-debugss-modules-$(uname -r)
@@ -79,9 +78,8 @@ rm -rf /boot/initrd.img*
 cd /opt/scripts/tools/developers/
 sudo ./update_bootloader.sh
 
-
 cd /opt/backup/uboot
-export BOOTLOADERVER=v2019.04-r4
+export BOOTLOADERVER=v2019.04-r9
 wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
 wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
 mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
@@ -89,52 +87,15 @@ mv -f u-boot-am335x_evm-${BOOTLOADERVER}.img u-boot.img
 echo "$BOOTLOADERVER" > version.txt
 
 
-
-# need to keep extra memory to process network packets
-echo "vm.min_free_kbytes=16384" >> /etc/sysctl.conf
-
-#prefer ipv4
-echo "precedence ::ffff:0:0/96  100" >>  /etc/gai.conf
-
-nano /boot/uEnv.txt
-#     enable_uboot_overlays=1
-#     disable_uboot_overlay_video=1
-#     disable_uboot_overlay_audio=1
-#     uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo
-#     uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo
-#     uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo
-#     bootdelay=0
-#  add "rootwait" to cmdline
-
-nano /opt/scripts/boot/am335x_evm.sh
-# change "systemctl restart serial-getty" to "systemctl is-enabled serial-getty"
-
-
-apt-get -y --purge autoremove
-
-#remove a bunch of packages that aren't neeeded, free's up space
-apt-get remove -y --purge --autoremove --allow-change-held-packages roboticscape nodejs c9-core-installer \
-    doc-beaglebone-getting-started \
-    bonescript bone101 bb-node-red-installer \
-    ardupilot-copter-bbbmini ardupilot-copter-blue ardupilot-plane-bbbmini ardupilot-plane-blue ardupilot-rover-bbbmini ardupilot-rover-blue
-
-apt-get remove -y --purge --autoremove nginx nginx-full nginx-common
-
-apt-get remove -y --purge --autoremove doc-beaglebonegreen-getting-started doc-seeed-bbgw-getting-started
-
-apt-get -y --purge --autoremove remove ardupilot-copter-3.6-bbbmini ardupilot-copter-3.6-blue ardupilot-copter-3.6-pocket ardupilot-rover-3.4-bbbmini ardupilot-rover-3.4-blue ardupilot-rover-3.4-pocket
-
-sudo apt-get remove --autoremove ti-opencl
-
-apt-get remove -y --autoremove python3-numpy python3-opencv python3-pip python3-pkg-resources python3-scipy python3-setuptools python3-smbus\
-    python3-werkzeug python3-click python3-colorama python3-decorator python3-dev python3-distro \
-    python3-distutils python3-flask python3-itsdangerous python3-jinja2 python3-lib2to3 python3-libgpiod python3-markupsafe
-
-apt-get remove  -y --autoremove gfortran glib-networking
-
-apt-get -y clean
-apt-get -y --purge autoremove
-apt-get -y clean
+#adjust a bunch of settings in /boot/uEnv.txt
+sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
+sed -i -e "s+#uboot_overlay_addr4=\(.*\)+uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo+g"  /boot/uEnv.txt
+sed -i -e "s+#uboot_overlay_addr5=\(.*\)+uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo+g"  /boot/uEnv.txt
+sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
+sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
+echo "uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo" >> /boot/uEnv.txt
+echo "bootdelay=0" >> /boot/uEnv.txt
+echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
 
 
 # remove a bunch of source that is not needed, free's up space
@@ -168,113 +129,14 @@ rm -f /var/local/bb_usb_mass_storage.img
 reboot
 #re-login in and make sure "df -k" reports 2.5G+ of space for /
 
-#install all the needed packages.  This will take a while to even compute everything.
-#this results in about 650 packages needing to be downloaded and installed.
-apt-get install -y \
-    alsa-utils arping avahi-daemon avahi-discover avahi-utils \
-    apache2 apache2-bin apache2-data apache2-utils \
-    bc build-essential ca-certificates ccache connman bzip2 samba rsync \
-    curl dh-autoreconf ethtool fbi fbset file vsftpd shellinabox vorbis-tools \
-    bash-completion exfat-fuse ntp ethtool sysstat tcpdump  \
-    php php-cli php-common php-curl php-pear \
-    python-daemon python-smbus hdparm i2c-tools ifplugd \
-    libmicrohttpd-dev libmosquitto-dev liblo-dev \
-    ola ola-python libola-dev libola1 libjsoncpp-dev libtag1-dev \
-    libconvert-binary-c-perl libjson-perl libinline-perl btrfs-progs \
-    libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat \
-    libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev  libboost-atomic-dev libboost-math-dev libboost-signals-dev \
-    libavcodec-dev libavformat-dev libswresample-dev libsdl2-dev libswscale-dev libavdevice-dev libavfilter-dev \
-    sqlite3 php-sqlite3 php-zip zip unzip dos2unix \
-    mailutils librtmidi-dev libcurl4-openssl-dev \
-    gcc g++ firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211\
-    firmware-ti-connectivity resolvconf wireless-tools \
-    mailutils mp3info linux-cpupower cpufrequtils \
-    usbutils usb-modeswitch locales lzma lshw lsof libiio-utils device-tree-compiler at haveged bluetooth bluez \
-    libzstd-dev zstd gpiod libgpiod-dev libapache2-mod-php php-zip libsdl2-dev
-
-
-curl -L https://cpanmin.us | perl - --sudo App::cpanminus
-echo "yes" | cpanm -fin Test::Tester File::Map Net::WebSocket::Server Net::PJLink
-
-apt-get -y clean
-apt-get -y --purge autoremove
-apt-get -y clean
-
-
-echo "blacklist spidev" > /etc/modprobe.d/blacklist-spidev.conf
-echo "# allocate 3M instead of the default 256K" > /etc/modprobe.d/uio_pruss.conf
-echo "options uio_pruss extram_pool_sz=3145728" >> /etc/modprobe.d/uio_pruss.conf
-
-# need to blacklist the gyroscope and barometer on the SanCloud enhanced or it consumes some pins
-echo "blacklist st_pressure_i2c" > /etc/modprobe.d/blacklist-gyro.conf
-echo "blacklist st_pressure" >> /etc/modprobe.d/blacklist-gyro.conf
-echo "blacklist inv_mpu6050_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
-echo "blacklist st_sensors_i2c" >> /etc/modprobe.d/blacklist-gyro.conf
-echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
-echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
-
-
-cd /opt/
-git clone https://github.com/etr/libhttpserver
-cd libhttpserver
-# cannot use anything newer than bd08772 due to old version of libmicrohttpd on Pi/BBB
-git checkout bd08772
-./bootstrap
-mkdir build
-cd build
-CXXFLAGS=-std=c++98 ../configure --prefix=/usr
-make
-make install
-cd /opt
-rm -rf libhttpserver
-
-cd /opt
-git clone https://github.com/beagleboard/am335x_pru_package
-cd am335x_pru_package
-make
-make install
-make clean
-
-
-ldconfig
-
-# need to edit some files... sed/awk/perl can do this automatically?
-#nano /etc/default/shellinabox
-#    add -t to args
-#nano /etc/connman/main.conf
-#    PreferredTechnologies=wifi,ethernet
-
-
-#install new Wifi drivers
-cd /tmp
-wget -O ./FPP-Wifi-Drivers.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP-Wifi-Drivers.sh
-chmod +x FPP-Wifi-Drivers.sh
-./FPP-Wifi-Drivers.sh
-
-rm /etc/modprobe.d/rtl8723bu-blacklist.conf
 
 cd /root
-wget -O ./FPP_Install_BBB.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install_BBB.sh
-chmod 700 ./FPP_Install_BBB.sh
-./FPP_Install_BBB.sh
-
-# install sound drivers
-cd /opt/fpp/capes/drivers/bbb
-make
-make install
-make clean
-
-nano /home/fpp/.bashrc
-# uncomment force_color_prompt=yes
-
-cd /etc
-rm resolv.conf
-ln -s /var/run/connman/resolv.conf .
-
+wget -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+chmod 700 ./FPP_Install.sh
+./FPP_Install.sh
 
 
 # edit /etc/fstab and make sure it looks OK for tmpfs
-
 reboot
 
 
