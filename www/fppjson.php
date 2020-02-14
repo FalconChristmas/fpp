@@ -5,7 +5,6 @@ require_once('common.php');
 require_once('common/metadata.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
-require_once('playlistentry.php');
 require_once('fppversion.php');
 
 

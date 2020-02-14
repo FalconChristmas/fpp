@@ -3,8 +3,6 @@
 <?php
 require_once('config.php');
 require_once('common.php');
-require_once('playlistentry.php');
-//require_once('pi_functions.php');
 
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
@@ -33,6 +31,7 @@ include 'menu.inc';
                 <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
                 <input id="btnNew" onclick="CreateNewPlaylist();" type="button" class="buttons" value="Create" />
             </div>
+            <div class='clear'></div>
         </fieldset>
         <br/>
         <a name='editor'></a>

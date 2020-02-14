@@ -1,5 +1,4 @@
 <?php
-require_once('playlistentry.php');
 include "playlistEntryTypes.php";
 
 if (!isset($simplifiedPlaylist))
@@ -105,7 +104,11 @@ function MediaChanged()
 	if ($('#autoSelectMatches').is(':checked') == false)
 		return;
 
-	var value = $('.arg_mediaName').val().replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
+	var value = $('.arg_mediaName').val();
+    if (value == null)  {
+        return;
+    }
+    value = value.replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
 
 	var seq = document.getElementsByClassName("arg_sequenceName")[0];
     if (seq) {
@@ -197,18 +200,18 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
     <fieldset style="padding: 10px; border: 2px solid #000;">
         <legend>Playlist Details</legend>
         <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
-            <div style="float:left">
+            <div style="float:left; margin-right: 50px;">
                 <b>Playlist Name:</b><br>
-                <input type="text" id="txtPlaylistName" size='50' class="pl_title" disabled style='margin-bottom: 10px' />
+                <input type="text" id="txtPlaylistName" class="pl_title" disabled />
                 <br />
-                <input id='btnSavePlaylist' type="button" value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons playlistEditButton" />
-                <input id='btnDeletePlaylist' type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons playlistEditButton" style="margin-left:10px" />
-                <input id="btnCopyPlaylist" type="button" value="Copy" onclick="CopyPlaylist();"  class="buttons playlistEditButton" style="margin-left:10px" />
-                <input id="btnRenamePlaylist" type="button" value="Rename" onclick="RenamePlaylist();"  class="buttons playlistEditButton" style="margin-left:10px" />
-                <input id="btnRandomizePlaylist" type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons playlistEditButton" style="margin-left:10px" />
-                <input id="btnResetPlaylist" type="button" value="Reset" onclick="EditPlaylist();"  class="buttons playlistEditButton" style="margin-left:10px" />
+                <input type="button" value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons playlistEditButton" />
+                <input type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
+                <input type="button" value="Copy" onclick="CopyPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
+                <input type="button" value="Rename" onclick="RenamePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
+                <input type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons playlistEditButton" />
+                <input type="button" value="Reset" onclick="EditPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
             </div>
-            <div style="float:left; margin-left: 50px;" class="playlistInfoText">
+            <div style="float:left;" class="playlistInfoText">
                 <table>
                     <tr><th></th>
                         <th>Items</th>
@@ -266,18 +269,15 @@ foreach ($playlistEntryTypes as $pet) {
     </div>
     <div class="clear"></div>
     <div>
-        <table>
-        <tr><td height='18'></td></tr>
-        <tr><td colspan='2'>
-            <input id='peAddButton' width="200px"  onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" type="button" value="Add" />
-            <input id='peEditButton' width="200px"  onclick="EditPlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Edit" />
-            <input id='peReplaceButton' width="200px"  onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" type="button" value="Replace" />
-            <input id='peRemoveButton' width="200px"  onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Remove" />
-            </td></tr>
-				</table>
+        <input width="200px"  onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" type="button" value="Add" />
+        <input width="200px"  onclick="AddPlaylistEntry(2);" class="buttons playlistDetailsEditButton" type="button" value="Insert Before" />
+        <input width="200px"  onclick="AddPlaylistEntry(3);" class="buttons playlistDetailsEditButton" type="button" value="Insert After" />
+        <input width="200px"  onclick="EditPlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Edit" />
+        <input width="200px"  onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" type="button" value="Replace" />
+        <input width="200px"  onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Remove" />
+        <br>
 <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
-          <div class="clear"></div>
-        </div>
+    </div>
 <?
 include "playlistDetails.php";
 ?>

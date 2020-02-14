@@ -13,7 +13,7 @@ RewriteRule ^command(.*)$  "http://localhost:32322/command$1"  [P]
 RewriteRule ^gpio(.*)$  "http://localhost:32322/gpio$1"  [P]
 RewriteRule ^plugin-apis/(.*)$  "http://localhost:32322/$1"  [P]
 RewriteRule ^index.php - [L,NC]
-RewriteRule ^(.*)$   /api/index.php?uri=/$1    [NC,L,QSA]
+RewriteRule ^(.*)$   /api/index.php?uri=/$1    [NC,L,QSA,B]
 
 Header add Access-Control-Allow-Origin "*"
 Header add Access-Control-Allow-Methods "GET,POST,OPTIONS,DELETE,PUT"

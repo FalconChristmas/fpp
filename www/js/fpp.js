@@ -216,26 +216,31 @@ function psiDetailsForEntrySimple(entry, editMode) {
         if ((!a.optional) ||
             ((entry.hasOwnProperty(a.name)) &&
              (entry[a.name] != ''))) {
-            if (result != "")
-                result += "&nbsp;&nbsp;&nbsp;<b>*</b>&nbsp;&nbsp;&nbsp;";
+            var partialResult = '';
 
             if (a.type == 'args') {
                 if ((entry[a.name].length == 1) &&
                     ($.isNumeric(entry[a.name][0]))) {
-                    result += " " + entry[a.name][0];
+                    partialResult += entry[a.name][0];
                 } else {
                     for (var x = 0; x < entry[a.name].length; x++) {
-                        result += " \"" + entry[a.name][x] + "\"";
+                        if (partialResult != '')
+                            partialResult += ' ';
+
+                        partialResult += "\"" + entry[a.name][x] + "\"";
                     }
                 }
             } else if (a.type == 'array') {
                 var akeys = Object.keys(entry[a.name]);
                 if ((akeys.length == 1) &&
                     ($.isNumeric(entry[a.name][akeys[0]]))) {
-                    result += " " + entry[a.name][akeys[0]];
+                    partialResult += entry[a.name][akeys[0]];
                 } else {
                     for (var x = 0; x < akeys.length; x++) {
-                        result += " \"" + entry[a.name][akeys[x]] + "\"";
+                        if (partialResult != '')
+                            partialResult += ' ';
+
+                        partialResult += "\"" + entry[a.name][akeys[x]] + "\"";
                     }
                 }
             } else {
@@ -243,16 +248,23 @@ function psiDetailsForEntrySimple(entry, editMode) {
                     var ckeys = Object.keys(a.contents);
                     for (var x = 0; x < ckeys.length; x++) {
                         if (a.contents[ckeys[x]] == entry[a.name]) {
-                            result += ckeys[x];
+                            partialResult += ckeys[x];
                         }
                     }
                 } else {
-                    result += entry[a.name];
+                    partialResult += entry[a.name];
                 }
 
                 if (a.hasOwnProperty('unit')) {
-                    result += " " + a.unit;
+                    partialResult += " " + a.unit;
                 }
+            }
+
+            if (partialResult != '') {
+                if (result != '')
+                    result += "&nbsp;&nbsp;&nbsp;<b>|</b>&nbsp;&nbsp;&nbsp;";
+
+                result += partialResult;
             }
         }
     }
@@ -499,21 +511,62 @@ function BranchItemToString(branchType, nextSection, nextIndex) {
     }
 }
 
+var oldPlaylistEntryType = '';
 function PlaylistTypeChanged() {
 	var type = $('#pe_type').val();
 
 	$('.playlistOptions').hide();
     $('#pbody_' + type).show();
 
+    var oldSequence = '';
+    if ((oldPlaylistEntryType == 'sequence') ||
+        (oldPlaylistEntryType == 'both')) {
+        oldSequence = $('.arg_sequenceName').val();
+    }
+
+    var oldMedia = '';
+    if ((oldPlaylistEntryType == 'media') ||
+        (oldPlaylistEntryType == 'both')) {
+        oldMedia = $('.arg_mediaName').val();
+    }
+
     $('#playlistEntryOptions').html('');
     $('#playlistEntryCommandOptions').html('');
     PrintArgInputs('playlistEntryOptions', true, playlistEntryTypes[type].args);
+
+    if (oldPlaylistEntryType == '') { // First load on page defaults to 'both'
+        if ($('.arg_sequenceName option').length == 0) {
+            if ($('.arg_mediaName option').length >= 0) {
+                oldPlaylistEntryType = 'both';
+                $('#pe_type').val('media');
+                PlaylistTypeChanged();
+                return;
+            }
+        } else {
+            if ($('.arg_mediaName option').length == 0) {
+                oldPlaylistEntryType = 'both';
+                $('#pe_type').val('sequence');
+                PlaylistTypeChanged();
+                return;
+            }
+        }
+    }
 
 	if (type == 'both')
 	{
 		$("#autoSelectWrapper").show();
 		$("#autoSelectMatches").prop('checked', true);
 	}
+
+    if (oldSequence != '') {
+        $('.arg_sequenceName').val(oldSequence);
+    }
+
+    if (oldMedia != '') {
+        $('.arg_mediaName').val(oldMedia);
+    }
+
+    oldPlaylistEntryType = type;
 }
 
 function PlaylistNameOK(name) {
@@ -533,6 +586,7 @@ function LoadPlaylistDetails(name) {
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
         VerbosePlaylistItemDetailsToggled();
+        $("#tblPlaylistLeadInHeader tr").get(0).scrollIntoView();
     }).fail(function() {
         DialogError('Error loading playlist', 'Error loading playlist details!');
     });
@@ -551,7 +605,7 @@ function CreateNewPlaylist() {
         return;
     }
 
-    $('#txtPlaylistName').val(name);
+    SetPlaylistName(name);
     $('#tblPlaylistLeadIn').html("<tr id='tblPlaylistLeadInPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
     $('#tblPlaylistLeadIn').show();
     $('#tblPlaylistLeadInHeader').show();
@@ -563,6 +617,10 @@ function CreateNewPlaylist() {
     $('#tblPlaylistLeadOut').html("<tr id='tblPlaylistLeadOutPlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
     $('#tblPlaylistLeadOut').show();
     $('#tblPlaylistLeadOutHeader').show();
+
+    EnableButtonClass('playlistEditButton');
+    DisableButtonClass('playlistExistingButton');
+    DisableButtonClass('playlistDetailsEditButton');
 }
 
 function EditPlaylist() {
@@ -624,8 +682,9 @@ function UpdatePlaylistDurations() {
 
 function GetSequenceDuration(sequence, updateUI, row) {
     var durationInSeconds = 0;
+    var file = sequence.replace(/.fseq$/, '');
     $.ajax({
-        url: "/api/sequence/" + sequence.replace(/.fseq$/, '') + '/meta',
+        url: "/api/sequence/" + encodeURIComponent(file) + '/meta',
         type: 'GET',
         async: updateUI,
         dataType: 'json',
@@ -653,7 +712,8 @@ function SetPlaylistItemMetaData(row) {
     var file = row.find('.field_mediaName').html();
 
     if ((type == 'both') || (type == 'media')) {
-        $.get('/api/media/' + file + '/meta').success(function(mdata) {
+        file = $('<div/>').html(file).text(); // handle any & or other chars that got converted
+        $.get('/api/media/' + encodeURIComponent(file) + '/meta').success(function(mdata) {
             var duration = 99999;
 
             if ((mdata.hasOwnProperty(file)) &&
@@ -697,8 +757,8 @@ function PopulatePlaylistItemDuration(row) {
     }
 }
 
-function AddPlaylistEntry(replace) {
-    if (replace && !$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
+function AddPlaylistEntry(mode) {
+    if (mode && !$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
         DialogError('No playlist item selected', "Error: No playlist item selected.");
         return;
     }
@@ -748,14 +808,25 @@ function AddPlaylistEntry(replace) {
 
     var newRow;
     var html = GetPlaylistRowHTML(0, pe, 1);
-    if (replace) {
+    if (mode == 1) { // replace
         var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
         $(row).after(html);
         $(row).removeClass('playlistSelectedEntry');
-        $(row).next().addClass('playlistSelectedEntry');
         newRow = $(row).next();
+        newRow.addClass('playlistSelectedEntry');
         $(row).remove();
-
+    } else if (mode == 2) { // insert before
+        var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
+        $(row).before(html);
+        $(row).removeClass('playlistSelectedEntry');
+        newRow = $(row).prev();
+        newRow.addClass('playlistSelectedEntry');
+    } else if (mode == 3) { // insert after
+        var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
+        $(row).after(html);
+        $(row).removeClass('playlistSelectedEntry');
+        newRow = $(row).next();
+        newRow.addClass('playlistSelectedEntry');
     } else {
         $('#tblPlaylistMainPlaylist').append(html);
 
@@ -833,13 +904,18 @@ function GetPlaylistEntry(row) {
 }
 
 function SavePlaylist(filter, callback) {
-	var name = document.getElementById("txtPlaylistName").value;
+    var name = $('#txtPlaylistName').val();
     if (name == "") {
         alert("Playlist name cannot be empty");
         return;
     }
 
     return SavePlaylistAs(name, filter, callback);
+}
+
+function SetPlaylistName(name) {
+    $('#txtPlaylistName').val(name);
+    $('#txtPlaylistName').prop('size', name.length);
 }
 
 function SavePlaylistAs(name, filter, callback) {
@@ -888,6 +964,18 @@ function SavePlaylistAs(name, filter, callback) {
         async: false,
         dataType: 'json',
         success: function(data) {
+            var rowSelected = $('#tblPlaylistDetails').find('.playlistSelectedEntry').length;
+
+            PopulateLists();
+            EnableButtonClass('playlistEditButton');
+
+            if (rowSelected) {
+                EnableButtonClass('playlistDetailsEditButton');
+            } else {
+                DisableButtonClass('playlistDetailsEditButton');
+            }
+
+            SetPlaylistName(name);
             $.jGrowl("Playlist Saved");
         },
         fail: function() {
@@ -965,7 +1053,7 @@ function CopyPlaylist()	{
                     return;
 
                 PopulateLists();
-                $('#txtPlaylistName').val(new_playlist_name);
+                SetPlaylistName(new_playlist_name);
                 $(this).dialog("close");
             },
             Cancel: function() {
@@ -1002,7 +1090,7 @@ function RenamePlaylist()	{
                 DeleteNamedPlaylist(name);
                 PopulateLists();
 
-                $('#txtPlaylistName').val(new_playlist_name);
+                SetPlaylistName(new_playlist_name);
                 $(this).dialog("close");
             },
             Cancel: function() {
@@ -1047,6 +1135,8 @@ function EditPlaylistEntry() {
         DialogError('No playlist item selected', "Error: No playlist item selected.");
         return;
     }
+
+    $("#playlistDetails").get(0).scrollIntoView();
 
     var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
     var type = $(row).find('.entryType').html();
@@ -3238,7 +3328,7 @@ function PopulatePlaylistDetails(data, editMode)
         UpdatePlaylistDurations();
     }
 
-    $('#txtPlaylistName').val(data.name);
+    SetPlaylistName(data.name);
 }
 
 function PopulatePlaylistDetailsEntries(playselected,playList)
@@ -3796,7 +3886,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
 
                 line += ">";
                 $.each( val['contents'], function( key, v ) {
-                       line += "<option value='" + v + "'";
+                       line += '<option value="' + v + '"';
                        if (v == dv) {
                             line += " selected";
                        }
@@ -3855,7 +3945,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
             line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
             line += "<datalist id='" + ID + "_list'>";
             $.each( val['contents'], function( key, v ) {
-                   line += "<option value='" + v + "'";
+                   line += '<option value="' + v + '"';
                    line += ">" + v + "</option>";
             })
             line += "</datalist>";
@@ -3906,7 +3996,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
                        if (Array.isArray(data)) {
                             data.sort();
                             $.each( data, function( key, v ) {
-                              var line = "<option value='" + v + "'"
+                              var line = '<option value="' + v + '"'
                               if (v == dv) {
                                    line += " selected";
                               }
@@ -3915,7 +4005,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
                            })
                        } else {
                             $.each( data, function( key, v ) {
-                              var line = "<option value='" + key + "'"
+                              var line = '<option value="' + key + '"'
                               if (key == dv) {
                                    line += " selected";
                               }

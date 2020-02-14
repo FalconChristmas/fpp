@@ -677,12 +677,14 @@ fieldset
 
 .playlistBoxLeft {
     float: left;
-    width: 50%;
+    min-width: 300px;
+    padding-right: 50px;
+    padding-bottom: 15px;
 }
 
 .playlistBoxRight {
     float: left;
-    width: 50%;
+    min-width: 300px;
 }
 
 .textRight{
@@ -812,8 +814,15 @@ fieldset
 	min-height: 20px;
 }
 
+.playlistEditButton, .playlistDetailsEditButton {
+    margin-right: 10px;
+    margin-top: 5px;
+}
+
 .pl_title {
 	font-size: larger;
+    text-align: center;
+    min-width: 300px;
 }
 
 .title {
