@@ -2,8 +2,8 @@
 Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
-Install the latest Raspbian Stretch Lite image to the SD card.  The last
-version tested is 2019-06-20-raspbian-buster-lite.img
+Install the latest Raspbian Buster Lite image to the SD card.  The last
+version tested is 2020-02-13-raspbian-buster-lite.zip
 
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
@@ -56,13 +56,9 @@ Do a system upgrade to make sure everything is at the latest versions
 
 Reboot again to pick up the latest kernel that may have been installed with the dist-upgrade
 
-cd /etc
-rm resolv.conf
-ln -s /var/run/connman/resolv.conf .
 
 On the Pi, run the FPP installer:
-	wget -O ./FPP_Install.sh \
-		http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
+	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 	chmod 700 ./FPP_Install.sh
 	sudo ./FPP_Install.sh --build-omxplayer
 
@@ -77,8 +73,8 @@ up.
 
 If you are installing to create a SD image zip, do the following:
     If you did the above on a armv7 Pi, you will need to boot the new image up
-    on a armv6 device (or vice versa) to compile the Wifi drivers for the other
-    architecture/kernel.  Boot up and then run:
+    on a armv6 device and armv7l device to compile the Wifi drivers for the other
+    architectures/kernel.  Boot up and then run:
     cd /opt/fpp/SD
     sudo ./FPP-Wifi-Drivers.sh
 

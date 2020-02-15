@@ -30,7 +30,7 @@
 #       Raspberry Pi
 #           - URL: https://www.raspberrypi.org/downloads/
 #           - Image
-#             - 2020-02-05-raspbian-buster-lite.zip
+#             - 2020-02-13-raspbian-buster-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
@@ -451,8 +451,9 @@ if [ ! -f "/usr/include/SDL2/SDL.h" ]; then
     sed -i -e "s/Version\(.*\)+\(.*\)/Version\1~fpp/g" deb/DEBIAN/control
     sed -i -e "s/Depends: \(.*\)/Depends: libsdl2-2.0-0, libasound2-dev, libdbus-1-dev, libsndio-dev, libudev-dev/g" deb/DEBIAN/control
     dpkg-deb -b deb ./libsdl2-dev.deb
-    apt install ./libsdl2-dev.deb
+    apt -y install ./libsdl2-dev.deb
     apt-mark hold libsdl2-dev
+    apt-get clean
 fi
  
 #######################################
@@ -493,7 +494,7 @@ case "${FPPPLATFORM}" in
 
 		if $build_omxplayer; then
 			echo "FPP - Building omxplayer from source with our patch"
-			apt-get -y install  libssh-dev libsmbclient-dev omxplayer
+			apt-get -y install  libssh-dev libsmbclient-dev omxplayer libpcre3-dev
             cd /opt
 			git clone https://github.com/popcornmix/omxplayer.git
 			cd omxplayer
@@ -675,6 +676,7 @@ case "${FPPPLATFORM}" in
         echo "FPP - Removing extraneous blacklisted modules"
         rm -f /etc/modprobe.d/blacklist-rtl8192cu.conf
         rm -f /etc/modprobe.d/blacklist-rtl8xxxu.conf
+        
 		;;
 	#TODO
 	'CHIP')
@@ -1040,6 +1042,12 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     git pull
     sed -i 's/systemctl restart serial-getty/systemctl is-enabled serial-getty/g' boot/am335x_evm.sh
     
+    if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
+        mkdir -p /opt/source
+        cd /opt/source
+        git clone https://github.com/beagleboard/bb.org-overlays
+    fi
+    
     cd /opt/fpp/capes/drivers/bbb
     make
     make install
@@ -1053,12 +1061,10 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
 
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
-    
-    cd /etc
-    rm resolv.conf
-    ln -s /var/run/connman/resolv.conf .
 fi
 
+rm -rf /usr/share/doc/*
+apt-get clean
 
 
 #######################################
@@ -1110,6 +1116,10 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     
     systemctl enable dnsmasq
     systemctl unmask hostapd
+    
+    cd /etc
+    rm resolv.conf
+    ln -s /var/run/connman/resolv.conf .
 fi
 
 ENDTIME=$(date)
