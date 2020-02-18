@@ -1161,7 +1161,7 @@ int Scheduler::ExtendRunningSchedule(int seconds)
     if (m_currentSchedulePlaylist.endWeeklySeconds < 0)
         m_currentSchedulePlaylist.endWeeklySeconds += 7 * 24 * 60 * 60;
 
-    if (m_currentSchedulePlaylist.endWeeklySeconds > (7 * 24 * 60 * 60))
+    if (m_currentSchedulePlaylist.endWeeklySeconds >= (7 * 24 * 60 * 60))
         m_currentSchedulePlaylist.endWeeklySeconds -= 7 * 24 * 60 * 60;
 
     m_currentSchedulePlaylist.actualEndTime += seconds;
