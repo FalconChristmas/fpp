@@ -579,8 +579,13 @@ case "${FPPPLATFORM}" in
 		echo "dtparam=spi=on" >> /boot/config.txt
 		echo >> /boot/config.txt
 
-		echo "FPP - Updating SPI buffer size"
-		sed -i 's/$/ spidev.bufsiz=102400/' /boot/cmdline.txt
+		echo "FPP - Updating SPI buffer size and enabling HDMI audio devices"
+		sed -i 's/$/ spidev.bufsiz=102400 snd_bcm2835.enable_hdmi=1 snd_bcm2835.enable_compat_alsa=1/' /boot/cmdline.txt
+
+		echo "FPP - Updating root partition device"
+		sed -i 's/root=PARTUUID=[A-Fa-f0-9-]* /root=\/dev\/mmcblk0p2 /g' /boot/cmdline.txt
+		sed -i 's/PARTUUID=[A-Fa-f0-9]*-01/\/dev\/mmcblk0p1/g' /etc/fstab
+		sed -i 's/PARTUUID=[A-Fa-f0-9]*-02/\/dev\/mmcblk0p2/g' /etc/fstab
 
 		echo "FPP - Disabling fancy network interface names"
 		sed -e 's/rootwait/rootwait net.ifnames=0 biosdevname=0/' /boot/cmdline.txt
