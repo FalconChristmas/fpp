@@ -19,6 +19,16 @@ else
     rsync -aAxv boot /mnt --delete-during
 fi
 
+if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+    # need to install the bootloader that goes with this version of the os
+    cd /opt/backup/uboot
+    dd if=MLO of=/dev/mmcblk1 seek=1 bs=128k
+    dd if=u-boot.img of=/dev/mmcblk1 seek=1 bs=384k
+    dd if=MLO of=/dev/mmcblk0 seek=1 bs=128k
+    dd if=u-boot.img of=/dev/mmcblk0 seek=1 bs=384k
+    cd /
+fi
+
 # temporarily copy the ssh keys
 mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh

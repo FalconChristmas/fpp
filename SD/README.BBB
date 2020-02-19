@@ -166,4 +166,4 @@ sudo dd if=/dev/rdisk3 of=FPP-v3.1-BBB-btrfs.img bs=1m count=2000
 # box for this and not an actual BBB
 apt-get install squashfs-tools
 mount /dev/sda1 /mnt
-mksquashfs /mnt /home/fpp/media/bbb-4.0.sqfs -comp gzip
+mksquashfs /mnt /home/fpp/media/bbb-4.0.sqfs -comp xz

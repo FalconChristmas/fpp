@@ -118,7 +118,7 @@ for testing/release.
 apt-get install squashfs-tools
 mount /dev/sda2 /mnt
 mount /dev/sda1 /mnt/boot
-mksquashfs /mnt /home/fpp/media/pi-4.0.sqfs -comp gzip
+mksquashfs /mnt /home/fpp/media/pi-4.0.sqfs -comp xz
 
 =============================================================================
 
