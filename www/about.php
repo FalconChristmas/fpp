@@ -79,6 +79,19 @@ function getFileCount($dir)
 
   return $i;
 }
+    
+function getFileList($dir, $ext)
+{
+  $i = array();
+  if ($handle = opendir($dir)) {
+      while (($file = readdir($handle)) !== false) {
+          if (!in_array($file, array('.', '..')) && !is_dir($dir . $file) && strtolower(substr($file, strrpos($file, '.') + 1)) == $ext) {
+              array_push($i, $file);
+          }
+      }
+  }
+  return $i;
+}
 
 function PrintGitBranchOptions()
 {
@@ -98,7 +111,6 @@ function PrintGitBranchOptions()
     }
   }
 }
-
 ?>
 
 <head>
@@ -122,6 +134,13 @@ this.value = default_value;
 });
 });
 });
+
+function UpgradeOS() {
+    var os = $('#OSSelect').val();
+    if (confirm('Upgrade the OS using ' + os + '?\nThis can take a long time.')) {
+        location.href="upgradeOS.php?os=" + os;
+    }
+}
 
 </script>
 <title><? echo $pageTitle; ?></title>
@@ -213,7 +232,17 @@ a:visited {
     echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
 ?>
                 </td></tr>
-            <tr><td>Manual Update:</td><td><input type='button' value='Update FPP' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
+            <tr><td>Update FPP:</td><td><input type='button' value='Update FPP' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
+<?
+            $osUpdateFiles = getFileList($uploadDirectory, "fppos");
+            if (count($osUpdateFiles) > 0) {
+                echo "<tr><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
+                foreach ($osUpdateFiles as $key => $value) {
+                    echo "<option value='" . $value . "'>" . $value . "</option>\n";
+                }
+                echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
+            }
+?>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
             <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
             <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
