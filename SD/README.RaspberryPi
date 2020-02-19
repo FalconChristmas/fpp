@@ -103,7 +103,7 @@ the proper device name for your SD card in place of '/dev/sdg'):
 	NOTE: The 3800 on the "BLOCK=" line below must be at least the new size of the
 	      second partition created at the top of this document using fdisk.
 
-	VERSION=v3.1-Pi
+	VERSION=v4.0-Pi
 	BLOCKS=3800
 	sudo time dd if=/dev/sdg bs=1M count=${BLOCKS} > FPP-${VERSION}.img
 	time zip -9 FPP-$VERSION.zip FPP-${VERSION}.img
@@ -111,6 +111,14 @@ the proper device name for your SD card in place of '/dev/sdg'):
 
 This will create a file called FPP-${VERSION}.zip that can be distributed
 for testing/release.
+
+
+# To create the squashfs image needed for OS updates
+# On a separate Linux box:  (this will take a LOOOONG time)
+apt-get install squashfs-tools
+mount /dev/sda2 /mnt
+mount /dev/sda1 /mnt/boot
+mksquashfs /mnt /home/fpp/media/pi-4.0.sqfs -comp gzip
 
 =============================================================================
 

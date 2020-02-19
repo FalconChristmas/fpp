@@ -797,7 +797,7 @@ do
 	sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
 	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
-	sed -i -e "s/^; max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+	sed -i -e "s/^;max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
 done
 
 #######################################
@@ -816,9 +816,11 @@ case "${FPPPLATFORM}" in
 	'Raspberry Pi'|'BeagleBone Black')
 		adduser ${FPPUSER} spi
 		adduser ${FPPUSER} gpio
+		adduser ${FPPUSER} i2c
 		;;
 esac
 adduser ${FPPUSER} video
+adduser ${FPPUSER} audio
 # FIXME, use ${FPPUSER} here instead of hardcoding
 sed -i -e 's/^fpp:\*:/fpp:\$6\$rA953Jvd\$oOoLypAK8pAnRYgQQhcwl0jQs8y0zdx1Mh77f7EgKPFNk\/jGPlOiNQOtE.ZQXTK79Gfg.8e3VwtcCuwz2BOTR.:/' /etc/shadow
 

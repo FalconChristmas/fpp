@@ -151,8 +151,6 @@ rmdir /tmp/rootfs
 sudo dd if=/dev/rdisk3 of=FPP-v4.0-BBB.img bs=1m count=3572
 
 
-
-
 # For btrfs:
 
 dd if=/dev/zero of=/dev/mmcblk0 bs=1M status=progress count=2000
@@ -162,3 +160,10 @@ sudo dd if=/dev/rdisk3 of=FPP-v3.1-BBB-btrfs.img bs=1m count=2000
 
 
 
+# To create the squashfs image needed for OS updates
+# On a separate Linux box:  (this will take a LOOOONG time)
+# mksquashfs is multithreaded so its recommended to use a multicore
+# box for this and not an actual BBB
+apt-get install squashfs-tools
+mount /dev/sda1 /mnt
+mksquashfs /mnt /home/fpp/media/bbb-4.0.sqfs -comp gzip
