@@ -7,7 +7,7 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 teeOutput
 
-if curl --silent --head https://github.com | grep "Content-Type: text/html; charset=utf-8" >/dev/null; then
+if curl --silent --head https://github.com | grep -i "Content-Type: text/html; charset=utf-8" >/dev/null; then
     GITBRANCH=$(cd ${FPPDIR} && git branch | grep "^\*" | sed -e "s/\*\s//")
 
     echo "Upgrading git revision from branch ${GITBRANCH}"
