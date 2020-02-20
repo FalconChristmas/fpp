@@ -151,6 +151,7 @@ public:
     void Initialize();
     
     const std::string &mapFont(const std::string &f);
+    void SendHomeAssistantDiscoveryConfig();
     void LightMessageHandler(const std::string &topic, const std::string &payload);
 
 private:

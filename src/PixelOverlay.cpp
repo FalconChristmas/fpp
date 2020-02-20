@@ -468,6 +468,9 @@ void PixelOverlayManager::Initialize() {
     if (ctrlHeader->totalBlocks && !getRestarted()) {
         StartChannelOutputThread();
     }
+
+    if (getSettingInt("MQTTHADiscovery", 0))
+        SendHomeAssistantDiscoveryConfig();
 }
 
 bool PixelOverlayManager::createChannelDataMap() {
@@ -962,16 +965,37 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
 }
 
 
+void PixelOverlayManager::SendHomeAssistantDiscoveryConfig() {
+    std::unique_lock<std::mutex> lock(modelsLock);
+    for (auto & m : models) {
+        Json::Value s;
+
+        s["schema"] = "json";
+        s["qos"] = 0;
+        s["brightness"] = true;
+        s["rgb"] = true;
+        s["effect"] = false;
+
+        mqtt->AddHomeAssistantDiscoveryConfig("light", m.second->getName(), s);
+    }
+}
+
 void PixelOverlayManager::LightMessageHandler(const std::string &topic, const std::string &payload) {
     static Json::Value cache;
     std::vector<std::string> parts = split(topic, '/'); // "/light/ModelName/cmd"
 
+    std::string model = parts[2];
+    auto m = getModel(model);
+
+    if ((parts[3] == "config") && (!m) && (!payload.empty())) {
+        mqtt->RemoveHomeAssistantDiscoveryConfig("light", model);
+        return;
+    }
+
     if (parts[3] != "cmd")
         return;
 
-    std::string model = parts[2];
     Json::Value s = JSONStringToObject(payload);
-    auto m = getModel(model);
     if (m) {
         std::unique_lock<std::mutex> lock(modelsLock);
         std::string newState = boost::algorithm::to_upper_copy(s["state"].asString());

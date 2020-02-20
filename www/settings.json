@@ -43,7 +43,9 @@
                 "MQTTUsername",
                 "MQTTPassword",
                 "MQTTCaFile",
-                "MQTTFrequency"
+                "MQTTFrequency",
+                "MQTTHADiscovery",
+                "MQTTHADiscoveryPrefix"
             ]
         },
         "omxplayer": {
@@ -453,6 +455,23 @@
             "type": "text",
             "size": 32,
             "maxlength": 64
+        },
+        "MQTTHADiscovery": {
+            "name": "MQTTHADiscovery",
+            "description": "Home Assistant MQTT Discovery",
+            "tip": "Enable automatic Home Assistant MQTT discovery of FPP Pixel Overlay models.  This allows FPP Pixel Overlay models to be treated as RGB Lights in Home Assistant.",
+            "restart": 2,
+            "type": "checkbox"
+        },
+        "MQTTHADiscoveryPrefix": {
+            "name": "MQTTHADiscoveryPrefix",
+            "description": "Home Assistant Topic Prefix",
+            "tip": "Prefix to use on Home Assistant MQTT Discovery messages.  The default is 'homeassistant' in both FPP and Home Assistant.",
+            "restart": 2,
+            "type": "text",
+            "default": "homeassistant",
+            "size": 20,
+            "maxlength": 20
         },
         "MQTTHost": {
             "name": "MQTTHost",

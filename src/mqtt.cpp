@@ -35,7 +35,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <vector>
-#include <jsoncpp/json/json.h>
 
 #include "commands/Commands.h"
 #include "common.h"
@@ -253,13 +252,13 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 /*
  *
  */
-int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg)
+int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg, const int qos, const bool retain)
 {
 	LogDebug(VB_CONTROL, "Publishing message '%s' on topic '%s'\n", msg.c_str(), topic.c_str());
 
 	pthread_mutex_lock(&m_mosqLock);
 
-	int result = mosquitto_publish(m_mosq, NULL, topic.c_str(), msg.size(), msg.c_str(), 1, 1);
+	int result = mosquitto_publish(m_mosq, NULL, topic.c_str(), msg.size(), msg.c_str(), qos, retain);
 
 	pthread_mutex_unlock(&m_mosqLock);
 
@@ -275,22 +274,22 @@ int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg
 /*
  *
  */
-int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg)
+int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg, const int qos, const bool retain)
 {
 	std::string topic = m_baseTopic + "/" + subTopic;
 
-	return PublishRaw(topic, msg);
+	return PublishRaw(topic, msg, qos, retain);
 }
 
 /*
  *
  */
-int MosquittoClient::Publish(const std::string &subTopic, const int value)
+int MosquittoClient::Publish(const std::string &subTopic, const int value, const int qos, const bool retain)
 {
 	std::string topic = m_baseTopic + "/" + subTopic;
 	std::string msg = std::to_string(value);
 
-	return PublishRaw(topic, msg);
+	return PublishRaw(topic, msg, qos, retain);
 }
 
 /*
@@ -510,3 +509,87 @@ void *RunMqttPublishThread(void *data) {
 		me->PublishStatus();
 	}
 }
+
+void MosquittoClient::AddHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id, Json::Value &config)
+{
+    LogDebug(VB_CONTROL, "Adding Home Assistant discovery config for %s/%s\n", component.c_str(), id.c_str());
+    std::string cfgTopic = getSetting("MQTTHADiscoveryPrefix");
+
+    if (cfgTopic.empty())
+        cfgTopic = "homeassistant";
+
+    cfgTopic += "/";
+    cfgTopic += component;
+    cfgTopic += "/";
+    cfgTopic += getSetting("HostName");
+    cfgTopic += "/";
+    cfgTopic += id;
+    cfgTopic += "/config";
+
+    std::string cmdTopic = mqtt->GetBaseTopic();
+    cmdTopic += "/";
+    cmdTopic += component;
+    cmdTopic += "/";
+    cmdTopic += id;
+
+    std::string stateTopic = cmdTopic;
+    stateTopic += "/state";
+    cmdTopic += "/cmd";
+
+    if (getSettingInt("MQTTHADiscoveryAddHost", 0)) {
+        std::string name = getSetting("HostName");
+        name += "_";
+        name += id;
+        config["name"] = name;
+    } else {
+        config["name"] = id;
+    }
+
+    config["state_topic"] = stateTopic;
+    config["command_topic"] = cmdTopic;
+
+    Json::StreamWriterBuilder wbuilder;
+    wbuilder["indentation"] = "";
+    std::string configStr = Json::writeString(wbuilder, config);
+    //std::string configStr = SaveJsonToString(config);
+    PublishRaw(cfgTopic, configStr);
+
+    // Store a copy of this so we can detect when we remove models
+    cfgTopic = component;
+    cfgTopic += "/";
+    cfgTopic += id;
+    cfgTopic += "/config";
+    Publish(cfgTopic, configStr);
+}
+
+void MosquittoClient::RemoveHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id)
+{
+    LogDebug(VB_CONTROL, "Removing Home Assistant discovery config for %s/%s\n", component.c_str(), id.c_str());
+    std::string cfgTopic = getSetting("MQTTHADiscoveryPrefix");
+    if (cfgTopic.empty())
+        cfgTopic = "homeassistant";
+
+    cfgTopic += "/";
+    cfgTopic += component;
+    cfgTopic += "/";
+    cfgTopic += getSetting("HostName");
+    cfgTopic += "/";
+    cfgTopic += id;
+    cfgTopic += "/config";
+
+    std::string emptyStr;
+    PublishRaw(cfgTopic, emptyStr);
+
+    // Clear our cache copy and any state message
+    cfgTopic = component;
+    cfgTopic += "/";
+    cfgTopic += id;
+
+    std::string stateTopic = cfgTopic;
+    stateTopic += "/state";
+    cfgTopic += "/config";
+
+    Publish(cfgTopic, emptyStr);
+    Publish(stateTopic, emptyStr);
+}
+

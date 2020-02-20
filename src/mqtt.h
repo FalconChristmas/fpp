@@ -31,6 +31,8 @@
 #include <map>
 #include <functional>
 
+#include <jsoncpp/json/json.h>
+
 #include "mosquitto.h"
 
 void * RunMqttPublishThread(void *data);
@@ -42,9 +44,9 @@ class MosquittoClient {
 
 	int  Init(const std::string &username, const std::string &password, const std::string &ca_file);
 
-	int  PublishRaw(const std::string &topic, const std::string &msg);
-	int  Publish(const std::string &subTopic, const std::string &msg);
-	int  Publish(const std::string &subTopic, const int value);
+	int  PublishRaw(const std::string &topic, const std::string &msg, const int qos = 1, const bool retain = true);
+	int  Publish(const std::string &subTopic, const std::string &msg, const int qos = 1, const bool retain = true);
+	int  Publish(const std::string &subTopic, const int value, const int qos = 1, const bool retain = true);
 
 	void LogCallback(void *userdata, int level, const char *str);
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
@@ -55,6 +57,12 @@ class MosquittoClient {
 
 	void PublishStatus();
 	void SetReady();
+
+	std::string GetBaseTopic() { return m_baseTopic; }
+
+	void AddHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id, Json::Value &config);
+    void RemoveHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id);
+
   private:
 	bool        m_canProcessMessages;
 	bool        m_isConnected;
