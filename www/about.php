@@ -79,6 +79,19 @@ function getFileCount($dir)
 
   return $i;
 }
+    
+function getFileList($dir, $ext)
+{
+  $i = array();
+  if ($handle = opendir($dir)) {
+      while (($file = readdir($handle)) !== false) {
+          if (!in_array($file, array('.', '..')) && !is_dir($dir . $file) && strtolower(substr($file, strrpos($file, '.') + 1)) == $ext) {
+              array_push($i, $file);
+          }
+      }
+  }
+  return $i;
+}
 
 function PrintGitBranchOptions()
 {
