@@ -130,7 +130,12 @@ function ToggleAutoUpdate() {
 		SetAutoUpdate(1);
 	}
 }
-
+function UpgradeOS() {
+    var os = $('#OSSelect').val();
+    if (confirm('Upgrade the OS using ' + os + '?\nThis can take a long time.')) {
+        location.href="upgradeOS.php?os=" + os;
+    }
+}
 </script>
 <title><? echo $pageTitle; ?></title>
 <style>
@@ -226,6 +231,16 @@ a:visited {
             checked
 <? } ?>
               >  <input type='button' value='Manual Update' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
+<?
+            $osUpdateFiles = getFileList($uploadDirectory, "fppos");
+            if (count($osUpdateFiles) > 0) {
+                echo "<tr><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
+                foreach ($osUpdateFiles as $key => $value) {
+                    echo "<option value='" . $value . "'>" . $value . "</option>\n";
+                }
+                echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
+            }
+?>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
             <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
             <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
