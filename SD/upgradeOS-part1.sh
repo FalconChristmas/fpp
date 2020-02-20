@@ -29,7 +29,7 @@ umount /mnt/mnt
 sync
 
 echo "</pre>"
-echo "<b>Rebooting.... please wait for FPP to reboot.</b>"
+echo "<b>Rebooting.... please wait for FPP to reboot.</b><br>"
 echo "<a href='index.php'>Go to FPP Main Status Page</a><br>"
 echo "<a href='about.php'>Go back to FPP About page</a><br>"
 echo "</body>"
