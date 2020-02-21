@@ -476,7 +476,10 @@ if ($debug)
 	error_log("emailtoemail: $emailtoemail");
 }
 
-$uiLevel = GetSettingValue('uiLevel', 0);
+if (!isset($settings['uiLevel']))
+    $settings['uiLevel'] = 0;
+
+$uiLevel = $settings['uiLevel'];
 
 LoadLocale();
 
