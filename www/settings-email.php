@@ -27,19 +27,9 @@ function SendTestEmail() {
     });
 }
 
-$(document).ready(function(){
-    if ($('#emailenable').is(':checked')) {
-        $('.emailenableChild').show();
-    } else {
-        $('.emailenableChild').hide();
-    }
-});
 </script>
 
 <?
-$extraData = "<span class='emailenableChild'>
-<input type='button' value='Configure Email' onClick='ConfigureEmail();'>
-<input type='button' value='Send Test Email' onClick='SendTestEmail();'>
-</span>";
+$extraData = "<input type='button' value='Configure Email' onClick='ConfigureEmail();'> <input type='button' value='Send Test Email' onClick='SendTestEmail();'>";
 PrintSettingGroup('email', $extraData);
 ?>

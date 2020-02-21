@@ -16,7 +16,6 @@
         "email": {
             "description": "Outbound Email Configuration",
             "settings": [
-                "emailenable",
                 "emailguser",
                 "emailgpass",
                 "emailfromtext",
@@ -335,21 +334,6 @@
                 "40ms": "40",
                 "50ms": "50",
                 "100ms": "100"
-            }
-        },
-        "emailenable": {
-            "name": "emailenable",
-            "description": "Enable Outbound Email",
-            "tip": "Enable outbound email from this system for use by plugins and scripts.",
-            "level": 1,
-            "type": "checkbox",
-            "children": {
-                "1": [
-                    "emailguser",
-                    "emailgpass",
-                    "emailfromtext",
-                    "emailtoemail"
-                ]
             }
         },
         "emailfromtext": {
