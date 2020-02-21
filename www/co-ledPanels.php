@@ -106,9 +106,12 @@ function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
         $values["32x32 1/8 Scan"] = "32x32x8";
         $values["40x20 1/5 Scan"] = "40x20x5";
     } else {
-        $values["32x16"] = "32x16x8";
-        $values["32x32"] = "32x32x16";
-        $values["64x32"] = "64x32x16";
+        $values["32x16 1/8 Scan"] = "32x16x8";
+        $values["32x16 1/4 Scan"] = "32x16x4";
+        $values["32x32 1/16 Scan"] = "32x32x16";
+        $values["64x32 1/16 Scan"] = "64x32x16";
+        $values["64x32 1/8 Scan"] = "64x32x8";
+        $values["32x32 1/8 Scan"] = "32x32x8";
     }
     
     if ($addr != "0" && $addr != "") {
@@ -130,19 +133,33 @@ function printLEDPanelInterleaveSelect($platform, $interleave)
 {
     $values = array();
 
-    $values["Off"] = "0";
-    $values["4 Pixels"] = "4";
-    $values["8 Pixels"] = "8";
-    $values["16 Pixels"] = "16";
-    $values["32 Pixels"] = "32";
-    $values["64 Pixels"] = "64";
-    $values["4 Pixels Zig/Zag"] = "4z";
-    $values["8 Pixels Zig/Zag"] = "8z";
-    $values["16 Pixels Zig/Zag"] = "16z";
-    $values["8 Pixels Flip Rows"] = "8f";
-    $values["16 Pixels Flip Rows"] = "16f";
-    $values["32 Pixels Flip Rows"] = "32f";
-    $values["64 Pixels Flip Rows"] = "64f";
+    if ($settings['Platform'] == "BeagleBone Black") {
+        $values["Off"] = "0";
+        $values["4 Pixels"] = "4";
+        $values["8 Pixels"] = "8";
+        $values["16 Pixels"] = "16";
+        $values["32 Pixels"] = "32";
+        $values["64 Pixels"] = "64";
+        $values["4 Pixels Zig/Zag"] = "4z";
+        $values["8 Pixels Zig/Zag"] = "8z";
+        $values["16 Pixels Zig/Zag"] = "16z";
+        $values["8 Pixels Flip Rows"] = "8f";
+        $values["16 Pixels Flip Rows"] = "16f";
+        $values["32 Pixels Flip Rows"] = "32f";
+        $values["64 Pixels Flip Rows"] = "64f";
+    } else {
+        $values["Off"] = "0";
+        $values["Stripe"] = "1";
+        $values["Checkered"] = "2";
+        $values["Spiral"] = "3";
+        $values["ZStripe"] = "4";
+        $values["ZnMirrorZStripe"] = "5";
+        $values["Coreman"] = "6";
+        $values["Kaler2Scan"] = "7";
+        $values["ZStripeUneven"] = "8";
+        $values["P10-128x4-Z"] = "9";
+        $values["QiangLiQ8"] = "10";
+    }
 
     PrintSettingSelect("Panel Interleave", "LEDPanelInterleave", 1, 0, $interleave, $values, "", "LEDPanelLayoutChanged");
 }
@@ -629,6 +646,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
     echo "        $('#LEDPanelsOutputBlankRow').hide();\n";
 }
 if ($settings['Platform'] == "Raspberry Pi") {
+    echo "        $('#LEDPanelsInterleaveLabel').hide();\n";
+    echo "        $('#LEDPanelInterleave').hide();\n";
     echo "        $('#LEDPanelsOutputCPUPWMLabel').hide();\n";
     echo "        $('#LEDPanelsOutputCPUPWM').hide();\n";
 }
@@ -677,6 +696,8 @@ if ($settings['Platform'] == "BeagleBone Black") {
 <?
 } else {
         if ($settings['Platform'] == "Raspberry Pi") {
+            echo "        $('#LEDPanelsInterleaveLabel').show();\n";
+            echo "        $('#LEDPanelInterleave').show();\n";
             echo "        $('#LEDPanelsOutputCPUPWMLabel').show();\n";
             echo "        $('#LEDPanelsOutputCPUPWM').show();\n";
         }
@@ -1255,11 +1276,22 @@ if ($settings['Platform'] == "BeagleBone Black") {
                             <td><input id='LEDPanelsOutputByRow' type='checkbox' onclick='outputByRowClicked()'></td>
 						</tr>
 <?
+} else if ($settings['Platform'] == "Raspberry Pi") {
+?>
+                        <tr><td><span id='LEDPanelsInterleaveLabel'><b>Panel Interleave:</b></span></td>
+                            <td><? printLEDPanelInterleaveSelect($settings['Platform'], $LEDPanelInterleave); ?></td>
+                            <td>&nbsp;</td>
+                            <td><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></td>
+                            <td><input id='LEDPanelsOutputCPUPWM' type='checkbox'></td>
+                        </tr>
+<?
 }
 ?>
 						<tr><td><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></td>
 							<td><select id='LEDPanelsColorDepth'>
+<? if ($settings['Platform'] == "BeagleBone Black") { ?>
                                     <option value='12'>12 Bit</option>
+<? } ?>
                                     <option value='11'>11 Bit</option>
                                     <option value='10'>10 Bit</option>
                                     <option value='9'>9 Bit</option>
@@ -1275,12 +1307,6 @@ if ($settings['Platform'] == "BeagleBone Black") {
                             <td>&nbsp;</td>
                             <td><span id='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></td>
                             <td><input id='LEDPanelsOutputBlankRow' type='checkbox'></td>
-<?
-} else if ($settings['Platform'] == "Raspberry Pi") {
-?>
-                            <td>&nbsp;</td>
-                            <td><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></td>
-                            <td><input id='LEDPanelsOutputCPUPWM' type='checkbox'></td>
 <?
 }
 ?>
