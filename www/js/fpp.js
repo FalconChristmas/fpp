@@ -3769,6 +3769,9 @@ function LoadCommandList(commandSelect) {
 }
 
 function UpdateChildVisibility() {
+    if (typeof playlistEntryTypes === "undefined") {
+        return;
+    }
     var pet = playlistEntryTypes[$('#pe_type').val()];
     var keys = Object.keys(pet.args);
     var shown = [];
