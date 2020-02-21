@@ -392,10 +392,10 @@ var PWMPins = new Array();
 $data = file_get_contents('http://127.0.0.1:32322/gpio');
 $gpiojson = json_decode($data, true);
 foreach($gpiojson as $gpio) {
-    $pn = $gpio['pin'] . ' (GPIO: ' . $gpio[gpio] . ')';
-    echo "GPIOPins.set(" . $gpio[gpio] . ", '" . $pn . "');\n";
+    $pn = $gpio['pin'] . ' (GPIO: ' . $gpio['gpio'] . ')';
+    echo "GPIOPins.set(" . $gpio['gpio'] . ", '" . $pn . "');\n";
     if (isset($gpio['pwm'])) {
-        echo "PWMPins['". $gpio[gpio] . "'] = true;\n";
+        echo "PWMPins['". $gpio['gpio'] . "'] = true;\n";
     }
 }
 ?>
