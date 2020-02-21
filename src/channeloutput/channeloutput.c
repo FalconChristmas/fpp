@@ -241,10 +241,10 @@ int InitializeChannelOutputs(void) {
 	// FIXME, build this list dynamically
 	const char *configFiles[] = {
         "/config/co-universes.json",
-		"/config/channeloutputs.json",
 		"/config/co-other.json",
 		"/config/co-pixelStrings.json",
         "/config/co-bbbStrings.json",
+        "/config/channeloutputs.json",
 		NULL
 		};
 
@@ -503,7 +503,7 @@ void StopOutputThreads(void) {
 void CloseChannelOutputs(void) {
 	int i = 0;
 
-	for (i = 0; i < channelOutputCount; i++) {
+	for (i = channelOutputCount-1; i >= 0; i--) {
 		if (channelOutputs[i].outputOld)
 			channelOutputs[i].outputOld->close(channelOutputs[i].privData);
 		else if (channelOutputs[i].output)
@@ -513,7 +513,7 @@ void CloseChannelOutputs(void) {
 			free(channelOutputs[i].privData);
 	}
     
-    for (i = 0; i < channelOutputCount; i++) {
+    for (i = channelOutputCount-1; i >= 0; i--) {
         if (channelOutputs[i].output) {
             delete channelOutputs[i].output;
             channelOutputs[i].output = NULL;
