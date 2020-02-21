@@ -248,7 +248,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
     }
 }
 
-function printSettingGroup($group) {
+function printSettingGroup($group, $extraData = "") {
     global $settings;
     global $settingGroups;
 
@@ -277,6 +277,10 @@ function printSettingGroup($group) {
 
         foreach ($g['settings'] as $setting) {
             PrintSetting($setting);
+        }
+
+        if ($extraData != "") {
+            echo "<tr><th colspan=2>$extraData</td></tr>\n";
         }
 
         echo "</table><br>\n";
@@ -363,6 +367,12 @@ if (isset($sData['children'])) {
 
 echo "
 			$callbackName
+
+            if (checked)
+                $('.$escSetting' + 'Child').show();
+            else
+                $('.$escSetting' + 'Child').hide();
+
 			CheckRestartRebootFlags();
 		}).fail(function() {
 			if (checked) {
