@@ -126,8 +126,10 @@ function GetOptions_VideoOutput($playlist) {
     $VideoOutputModels['Disabled'] = "Disabled";
     if (file_exists($settings['model-overlays'])) {
         $json = json_decode(file_get_contents($settings['model-overlays']));
-        foreach ($json->models as $value) {
-            $VideoOutputModels[$value->Name] = $value->Name;
+        if (isset($json->models)) {
+            foreach ($json->models as $value) {
+                $VideoOutputModels[$value->Name] = $value->Name;
+            }
         }
     }
 
