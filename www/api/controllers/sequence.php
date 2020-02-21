@@ -49,7 +49,7 @@ function GetSequenceMetaData() {
         $file = $file . ".fseq";
     }
     if (file_exists($file)) {
-        $cmd = "/opt/fpp/src/fsequtils -j $file 2>&1";
+        $cmd = "/opt/fpp/src/fsequtils -j \"$file\" 2>&1";
         exec( $cmd, $output);
         $js = json_decode($output[0]);
         return json($js);
