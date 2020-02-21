@@ -27,6 +27,23 @@ function reloadSettingsPage() {
     location.href = '/settings.php?tab=' + $('#tabs').tabs('option', 'active');
 }
 
+var hiddenChildren = {};
+function UpdateChildSettingsVisibility() {
+    hiddenChildren = {};
+    $('.parentSetting').each(function() {
+        var fn = 'Update' + $(this).attr('id') + 'Children';
+        window[fn](2); // Hide if necessary
+    });
+    $('.parentSetting').each(function() {
+        var fn = 'Update' + $(this).attr('id') + 'Children';
+        window[fn](1); // Show if not hidden
+    });
+}
+
+$(document).ready(function() {
+    UpdateChildSettingsVisibility();
+});
+
 </script>
 
 </head>

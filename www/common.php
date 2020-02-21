@@ -177,7 +177,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
         $restart = isset($s['restart']) ? $s['restart'] : 0;
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
 
-        echo "<tr><th>" . $s['description'] . ":</th><td>";
+        echo "<tr id='" . $setting . "Row'><th>" . $s['description'] . ":</th><td>";
         switch ($s['type']) {
             case 'select':
                 if (empty($options)) {
@@ -196,7 +196,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
 
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, '', $callback);
+                PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, '', $callback, '', $s);
 
                 break;
             case 'checkbox':
@@ -204,21 +204,21 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 $uncheckedValue = isset($s['uncheckedValue']) ? $s['uncheckedValue'] : "0";
                 $default = isset($s['default']) ? $s['default'] : "0";
 
-                PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $default);
+                PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $default, '', $s);
                 break;
             case 'text':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
                 break;
             case 'password':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', "password");
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', "password", $s);
                 break;
             case 'number':
                 $min = isset($s['min']) ? $s['min'] : 0;
@@ -227,7 +227,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 $unit = isset($s['unit']) ? $s['unit'] : '';
                 $default = isset($s['default']) ? $s['default'] : "0";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $default, $callback, '', 'number');
+                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $default, $callback, '', 'number', $s);
                 echo $unit . ' ';
                 break;
             default:
@@ -283,7 +283,7 @@ function printSettingGroup($group) {
     }
 }
 
-function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "")
+function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = Array())
 {
 	global $settings;
 	global $pluginSettings;
@@ -303,8 +303,38 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
 
     $changedFunction = preg_replace('/\./', '', $setting . "Changed");
 
+    echo "<script>\n";
+    if (isset($sData['children'])) {
+        echo "function Update$setting" . "Children(mode) {
+	var checked = 0;
+	if ($('#$escSetting').is(':checked')) {
+		checked = 1;
+    }
+";
+        foreach ( $sData['children'] as $k => $v) {
+            if ($k == "1") {
+                echo "if (checked) {\n";
+                echo "    if (mode != 2) {\n";
+                foreach ($v as $name) {
+                    echo "    if ((mode == 0) || (hiddenChildren.$name != 1))\n";
+                    echo "        $('#" . $name . "Row').show();\n";
+                }
+                echo "    }\n";
+                echo "} else {\n";
+                echo "    if (mode != 1) {\n";
+                foreach ($v as $name) {
+                    echo "$('#" . $name . "Row').hide();\n";
+                    echo "hiddenChildren.$name = 1\n";
+                }
+                echo "    }\n";
+                echo "}\n";
+            }
+        }
+
+        echo "}\n\n";
+    }
+
 	echo "
-<script>
 function " . $changedFunction . "() {
 	var value = '$uncheckedValue';
 	var checked = 0;
@@ -327,6 +357,10 @@ if ($restart)
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
+if (isset($sData['children'])) {
+    echo "Update$setting" . "Children(0);\n";
+}
+
 echo "
 			$callbackName
 			CheckRestartRebootFlags();
@@ -344,6 +378,10 @@ echo "
 
 <input type='checkbox' id='$setting' ";
 
+    if (isset($sData['children'])) {
+        echo "class='parentSetting' ";
+    }
+
 	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName, $defaultValue);
 
 	echo " onChange='" . $changedFunction . "();'";
@@ -354,7 +392,7 @@ echo "
         echo " />\n";
 }
 
-function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "")
+function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaultValue, $values, $pluginName = "", $callbackName = "", $changedFunction = "", $sData = Array())
 {
 	global $settings;
 	global $pluginSettings;
@@ -375,8 +413,34 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
     if ($changedFunction == "")
         $changedFunction = preg_replace('/\./', '', $setting . "Changed");
 
+    echo "<script>\n";
+
+    if (isset($sData['children'])) {
+        echo "function Update$setting" . "Children(mode) {
+    var val = $('#$escSetting').val();
+";
+        foreach ( $sData['children'] as $k => $v) {
+            echo "if (val == '$k') {\n";
+            echo "    if (mode != 2) {\n";
+            foreach ($v as $name) {
+                echo "    if ((mode == 0) || (hiddenChildren.$name != 1))\n";
+                echo "        $('#" . $name . "Row').show();\n";
+            }
+            echo "    }\n";
+            echo "} else {\n";
+            echo "    if (mode != 1) {\n";
+            foreach ($v as $name) {
+                echo "$('#" . $name . "Row').hide();\n";
+                echo "hiddenChildren.$name = 1\n";
+            }
+            echo "    }\n";
+            echo "}\n";
+        }
+
+        echo "}\n\n";
+    }
+
 	echo "
-<script>
 function " . $changedFunction . "() {
 	var value = $('#$escSetting').val();
 
@@ -392,6 +456,10 @@ if ($restart)
 if ($reboot)
 	echo "SetRebootFlag();\n";
 
+if (isset($sData['children'])) {
+    echo "Update$setting" . "Children(0);\n";
+}
+
 echo "
 		}).fail(function() {
 			DialogError('$title', 'Failed to save $title');
@@ -399,7 +467,14 @@ echo "
 }
 </script>
 
-<select id='$setting' onChange='" . $changedFunction . "();'>\n";
+<select id='$setting' onChange='" . $changedFunction . "();' ";
+
+    if (isset($sData['children'])) {
+        echo "class='parentSetting' ";
+    }
+
+    echo ">\n";
+
 
 	foreach ( $values as $key => $value )
 	{
@@ -442,7 +517,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 	echo "\">\n";
 }
 
-function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text")
+function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text", $sData = Array())
 { 
 	global $settings;
 	global $pluginSettings;
@@ -470,8 +545,33 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         $sizeTag = 'min';
     }
 
+    echo "<script>\n";
+    if (isset($sData['children'])) {
+        echo "function Update$setting" . "Children(mode) {
+    var val = $('#$escSetting').val();
+";
+        foreach ( $sData['children'] as $k => $v) {
+            echo "if (val != '') {\n";
+            echo "    if (mode != 2) {\n";
+            foreach ($v as $name) {
+                echo "    if ((mode == 0) || (hiddenChildren.$name != 1))\n";
+                echo "        $('#" . $name . "Row').show();\n";
+            }
+            echo "    }\n";
+            echo "} else {\n";
+            echo "    if (mode != 1) {\n";
+            foreach ($v as $name) {
+                echo "$('#" . $name . "Row').hide();\n";
+                echo "hiddenChildren.$name = 1\n";
+            }
+            echo "    }\n";
+            echo "}\n";
+        }
+
+        echo "}\n\n";
+    }
+
     echo "
-    <script>
     function " . $changedFunction . "() {
         var value = $('#$escSetting').val();
         $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
@@ -485,6 +585,10 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
               if ($reboot)
                 echo "SetRebootFlag();\n";
               
+              if (isset($sData['children'])) {
+                echo "Update$setting" . "Children(0);\n";
+              }
+
               echo "
               $callbackName
               CheckRestartRebootFlags();
@@ -504,11 +608,18 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 	else
 		echo $defaultValue;
 
-	echo "\">\n";
+	echo "\" \n";
+
+    if (isset($sData['children'])) {
+        echo "class='parentSetting' ";
+    }
+
+	echo ">\n";
 }
 function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "")
 {
-	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password");
+    $sData = Array();
+	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password", $sData);
 }
 
 

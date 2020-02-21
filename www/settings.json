@@ -37,8 +37,8 @@
             "description": "MQTT",
             "settings": [
                 "MQTTHost",
-                "MQTTClientId",
                 "MQTTPort",
+                "MQTTClientId",
                 "MQTTPrefix",
                 "MQTTUsername",
                 "MQTTPassword",
@@ -461,7 +461,12 @@
             "description": "Home Assistant MQTT Discovery",
             "tip": "Enable automatic Home Assistant MQTT discovery of FPP Pixel Overlay models.  This allows FPP Pixel Overlay models to be treated as RGB Lights in Home Assistant.",
             "restart": 2,
-            "type": "checkbox"
+            "type": "checkbox",
+            "children": {
+                "1": [
+                    "MQTTHADiscoveryPrefix"
+                ]
+            }
         },
         "MQTTHADiscoveryPrefix": {
             "name": "MQTTHADiscoveryPrefix",
@@ -480,7 +485,20 @@
             "restart": 2,
             "type": "text",
             "size": 32,
-            "maxlength": 64
+            "maxlength": 64,
+            "children": {
+                "*": [
+                    "MQTTPort",
+                    "MQTTClientId",
+                    "MQTTPrefix",
+                    "MQTTUsername",
+                    "MQTTPassword",
+                    "MQTTCaFile",
+                    "MQTTFrequency",
+                    "MQTTHADiscovery",
+                    "MQTTHADiscoveryPrefix"
+                ]
+            }
         },
         "MQTTPassword": {
             "name": "MQTTPassword",
@@ -517,7 +535,12 @@
             "restart": 2,
             "size": 32,
             "maxlength": 32,
-            "type": "text"
+            "type": "text",
+            "children": {
+                "*": [
+                    "MQTTPassword"
+                ]
+            }
         },
         "OMXPlayerAudioOutput": {
             "name": "OMXPlayerAudioOutput",

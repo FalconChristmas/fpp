@@ -23,13 +23,17 @@ $pluginSettings = array();
 $settings['fppMode'] = "player";
 
 // Helper function for accessing the global settings array
-function GetSettingValue($setting, $default = '') {
-	global $settings;
+function GetSettingValue($setting, $default = '', $prefix = '', $suffix = '') {
+    global $settings;
 
-	if (isset($settings[$setting]))
-		return $settings[$setting];
+    if (isset($settings[$setting])) {
+        if ($settings[$setting] != '')
+            return $prefix . $settings[$setting] . $suffix;
+        else
+            return $default;
+    }
 
-	return $default;
+    return $default;
 }
 
 function LoadLocale()
