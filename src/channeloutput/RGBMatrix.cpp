@@ -183,8 +183,8 @@ int RGBMatrixOutput::Init(Json::Value config)
     if (config.isMember("panelColorDepth")) {
         colorDepth = config["panelColorDepth"].asInt();
     }
-    if (colorDepth > 8 || colorDepth < 6) {
-        colorDepth = 8;
+    if (colorDepth > 11 || colorDepth < 6) {
+        colorDepth = 11;
     }
     options.pwm_bits = colorDepth;
 
@@ -198,7 +198,18 @@ int RGBMatrixOutput::Init(Json::Value config)
             LogDebug(VB_CHANNELOUT, "Disabling use of Hardware PWM for OE pin\n");
         }
     }
-    
+    if (config.isMember("panelInterleave")) {
+        options.multiplexing = std::atoi(config["panelInterleave"].asString().c_str());
+        
+        int panelScan = config["panelScan"].asInt();
+        if (panelScan == 0) {
+            // 1/8 scan by default
+            panelScan = m_panelHeight / 2;
+        }
+        if (panelScan == (m_panelHeight / 2)) {
+            options.multiplexing = 0;
+        }
+    }
 	m_rgbmatrix = new RGBMatrix(m_gpio, options);
 	if (!m_rgbmatrix)
 	{
