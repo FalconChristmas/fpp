@@ -192,7 +192,12 @@ int RGBMatrixOutput::Init(Json::Value config)
              options.chain_length, options.parallel, options.rows, options.cols,
              options.brightness, options.pwm_bits);
 
-    
+    if (config.isMember("cpuPWM")) {
+        options.disable_hardware_pulsing = config["cpuPWM"].asBool();
+        if (options.disable_hardware_pulsing) {
+            LogDebug(VB_CHANNELOUT, "Disabling use of Hardware PWM for OE pin\n");
+        }
+    }
     
 	m_rgbmatrix = new RGBMatrix(m_gpio, options);
 	if (!m_rgbmatrix)

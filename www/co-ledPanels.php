@@ -396,6 +396,13 @@ function InitializeLEDPanels()
             $('#LEDPanelsOutputBlankRow').hide();
             $('#LEDPanelsOutputBlankLabel').hide();
         }
+<? } else if ($settings['Platform'] == "Raspberry Pi") {?>
+        var cpuPWM = false;
+        var cpuPWM = channelOutputsLookup["LEDPanelMatrix"].cpuPWM;
+        if (typeof cpuPWM === 'undefined') {
+            cpuPWM = false;
+        }
+        $('#LEDPanelsOutputCPUPWM').prop("checked", cpuPWM);
 <? } ?>
         
         $('#LEDPanelsColorDepth').val(colordepth);
@@ -501,6 +508,9 @@ function GetLEDPanelConfig()
     <? if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black") { ?>
         config.panelOutputOrder = $('#LEDPanelsOutputByRow').is(':checked');
         config.panelOutputBlankRow = $('#LEDPanelsOutputBlankRow').is(':checked');
+    <? } ?>
+    <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+        config.cpuPWM = $('#LEDPanelsOutputCPUPWM').is(':checked');
     <? } ?>
     
     if (LEDPanelAddressing) {
@@ -618,6 +628,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
     echo "        $('#LEDPanelsOutputBlankRowLabel').hide();\n";
     echo "        $('#LEDPanelsOutputBlankRow').hide();\n";
 }
+if ($settings['Platform'] == "Raspberry Pi") {
+    echo "        $('#LEDPanelsOutputCPUPWMLabel').hide();\n";
+    echo "        $('#LEDPanelsOutputCPUPWM').hide();\n";
+}
 ?>
 
 		LEDPanelOutputs = 12;
@@ -662,6 +676,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
     $('#LEDPanelsGPIOSlowdown').hide();
 <?
 } else {
+        if ($settings['Platform'] == "Raspberry Pi") {
+            echo "        $('#LEDPanelsOutputCPUPWMLabel').show();\n";
+            echo "        $('#LEDPanelsOutputCPUPWM').show();\n";
+        }
 ?>
 		LEDPanelOutputs = 3;
 		$('#LEDPanelsGPIOSlowdownLabel').show();
@@ -1241,16 +1259,10 @@ if ($settings['Platform'] == "BeagleBone Black") {
 ?>
 						<tr><td><span id='LEDPanelsColorDepthLabel'><b>Color Depth:</b></span></td>
 							<td><select id='LEDPanelsColorDepth'>
-<?
-if ($settings['Platform'] == "BeagleBone Black") {
-?>
                                     <option value='12'>12 Bit</option>
                                     <option value='11'>11 Bit</option>
                                     <option value='10'>10 Bit</option>
                                     <option value='9'>9 Bit</option>
-<?
-}
-?>
 									<option value='8' selected>8 Bit</option>
 									<option value='7'>7 Bit</option>
 									<option value='6'>6 Bit</option>
@@ -1263,6 +1275,12 @@ if ($settings['Platform'] == "BeagleBone Black") {
                             <td>&nbsp;</td>
                             <td><span id='LEDPanelsOutputBlankRowLabel'><b>Blank between rows:</b></span></td>
                             <td><input id='LEDPanelsOutputBlankRow' type='checkbox'></td>
+<?
+} else if ($settings['Platform'] == "Raspberry Pi") {
+?>
+                            <td>&nbsp;</td>
+                            <td><span id='LEDPanelsOutputCPUPWMLabel'><b>Use CPU PWM:</b></span></td>
+                            <td><input id='LEDPanelsOutputCPUPWM' type='checkbox'></td>
 <?
 }
 ?>
@@ -1298,6 +1316,8 @@ if ($settings['Platform'] == "Raspberry Pi") {
 									<option value='1' selected>1 (multi-core Pi's)</option>
 									<option value='2'>2 (slow panels)</option>
 									<option value='3'>3 (slower panels)</option>
+                                    <option value='4'>4 (slower panels or faster Pi)</option>
+                                    <option value='5'>5 (slower panels or faster Pi)</option>
 								</select>
 							</td>
 						</tr>
