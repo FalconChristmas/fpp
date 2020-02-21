@@ -30,4 +30,6 @@ LDFLAGS_fppd += -L.
 
 LDFLAGS_fppd += $(shell log4cpp-config --libs)
 
+OBJECTS_GPIO_ADDITIONS+=util/TmpFileGPIO.o
+
 endif

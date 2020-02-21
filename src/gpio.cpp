@@ -388,11 +388,13 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                         state.lastTriggerTime = GetTime();
                         state.lastValue = state.pin->getValue();
                         
-                        if (!gpiodChips[state.pin->gpioIdx]) {
+                        if ((state.pin->supportsGpiod()) &&
+                            (!gpiodChips[state.pin->gpioIdx])) {
                             gpiodChips[state.pin->gpioIdx] = gpiod_chip_open_by_number(state.pin->gpioIdx);
                         }
                         
-                        if (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx])) {
+                        if ((state.pin->supportsGpiod()) &&
+                            (state.pin->gpio < gpiod_chip_num_lines(gpiodChips[state.pin->gpioIdx]))) {
                             state.gpiodLine = gpiod_chip_get_line(gpiodChips[state.pin->gpioIdx], state.pin->gpio);
                             
                             struct gpiod_line_request_config lineConfig;

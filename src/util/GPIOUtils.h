@@ -40,7 +40,7 @@ public:
                           bool directionOut = true) const = 0;
     virtual bool supportsPullUp() const { return true; }
     virtual bool supportsPullDown() const { return true; }
-
+    virtual bool supportsGpiod() const { return true; }
 
     virtual bool getValue() const = 0;
     virtual void setValue(bool i) const = 0;

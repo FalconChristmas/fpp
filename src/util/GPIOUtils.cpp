@@ -23,6 +23,9 @@
 #elif defined(USEWIRINGPI)
 #include "WiringPiGPIO.h"
 #define PLAT_GPIO_CLASS WPPinCapabilities
+#elif defined(PLATFORM_UNKNOWN)
+#include "TmpFileGPIO.h"
+#define PLAT_GPIO_CLASS TmpFilePinCapabilities
 #else
 // No platform information on how to control pins
 class NoPinCapabilities : public PinCapabilitiesFluent<NoPinCapabilities> {
