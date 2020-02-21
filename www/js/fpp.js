@@ -3899,7 +3899,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
                 line += "</select>";
             } else if ((typeof val['contentListUrl'] == "undefined") &&
                        (typeof val['init'] == "undefined")) {
-                line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "'";
+                line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='40' maxlength='200' value='" + dv + "'";
 
                 if (typeof val['placeholder'] === 'string') {
                     line += " placeholder='" + val['placeholder'] + "'";
@@ -3942,7 +3942,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
                 line += "</select>";
             }
          } else if (val['type'] == "datalist") {
-            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='60' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
+            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='40' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
             line += "<datalist id='" + ID + "_list'>";
             $.each( val['contents'], function( key, v ) {
                    line += '<option value="' + v + '"';
