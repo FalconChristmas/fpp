@@ -30,6 +30,7 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #ifndef PLATFORM_OSX
 #include <linux/if_link.h>
@@ -48,6 +49,7 @@
 #include <sys/types.h>
 #include <ctype.h>
 #include <unistd.h>
+
 
 #include <sstream>
 #include <fstream>
@@ -107,6 +109,17 @@ int FileExists(const char * File)
 int FileExists(const std::string &f) {
     return FileExists(f.c_str());
 }
+
+int Touch(const std::string &File) {
+    int fd = open(File.c_str(), O_WRONLY|O_CREAT|O_NOCTTY|O_NONBLOCK, 0666);
+    if (fd < 0)
+        return 0;
+
+    close(fd);
+
+    return 1;
+}
+
 
 /*
  * Dump memory block in hex and human-readable formats
