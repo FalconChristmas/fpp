@@ -62,7 +62,6 @@ $(document).ready(function() {
                     <li><a href="#tab-time">Time</a></li>
                     <li><a href="#tab-ui">UI</a></li>
                     <li><a href="#tab-email">Email</a></li>
-                    <li><a href="#tab-proxy">Proxy</a></li>
                     <li><a href="#tab-mqtt">MQTT</a></li>
                     <li><a href="#tab-output">Output</a></li>
                     <li><a href="#tab-logs">Logging</a></li>
@@ -88,10 +87,6 @@ $(document).ready(function() {
 
                 <div id='tab-email'>
                     <? include 'settings-email.php'; ?>
-                </div>
-
-                <div id='tab-proxy'>
-                    <? include 'settings-proxy.php'; ?>
                 </div>
 
                 <div id='tab-mqtt'>

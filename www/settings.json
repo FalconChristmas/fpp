@@ -13,6 +13,23 @@
                 "BBBLedPWR"
             ]
         },
+        "email": {
+            "description": "Outbound Email Configuration",
+            "settings": [
+                "emailenable",
+                "emailguser",
+                "emailgpass",
+                "emailfromtext",
+                "emailtoemail"
+            ]
+        },
+        "geolocation": {
+            "description": "Geographic Location",
+            "settings": [
+                "Latitude",
+                "Longitude"
+            ]
+        },
         "generalAudioVideo": {
             "description": "General Audio/Video",
             "settings": [
@@ -320,6 +337,53 @@
                 "100ms": "100"
             }
         },
+        "emailenable": {
+            "name": "emailenable",
+            "description": "Enable Outbound Email",
+            "tip": "Enable outbound email from this system for use by plugins and scripts.",
+            "level": 1,
+            "type": "checkbox",
+            "children": {
+                "1": [
+                    "emailguser",
+                    "emailgpass",
+                    "emailfromtext",
+                    "emailtoemail"
+                ]
+            }
+        },
+        "emailfromtext": {
+            "name": "emailfromtext",
+            "description": "Destination From Text",
+            "tip": "Text to use in From field of emails.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64
+        },
+        "emailgpass": {
+            "name": "emailgpass",
+            "description": "Gmail Password",
+            "tip": "Password to be used to authenticate with Gmail mail server.",
+            "type": "password",
+            "size": 30,
+            "maxlength": 64
+        },
+        "emailguser": {
+            "name": "emailguser",
+            "description": "Gmail Account",
+            "tip": "Gmail email address to be used to send emails.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64
+        },
+        "emailtoemail": {
+            "name": "emailtoemail",
+            "description": "Destination To Email",
+            "tip": "Destination email address to send all emails.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64
+        },
         "ForceHDMI": {
             "name": "ForceHDMI",
             "description": "Force HDMI Display",
@@ -334,6 +398,16 @@
             "name": "gitBranch",
             "tip": "Switch code branches to test features outside the current release branch.  The 'master' branch is the main development branch for the next version of FPP.  There may also be a 'master-vY.x' branch were 'Y' is the major FPP version.  These master-v* branches are created to allow development on the next major release to continue in the master branch while bugfixes for the 'Y' release are applied only to the master-vY.x branch.",
             "level": 2
+        },
+        "Latitude": {
+            "name": "Latitude",
+            "description": "Latitude",
+            "tip": "Latitude of geographic location of FPP system.  The latitude/longitude can be used by the FPP scheduler to calculate the sunrise/sunset times.  The default values provided are for Falcon, Colorado.",
+            "restart": 2,
+            "default": "38.938524",
+            "type": "text",
+            "size": 11,
+            "maxlength": 11
         },
         "LEDDisplayType": {
             "name": "LEDDisplayType",
@@ -385,6 +459,16 @@
             "name": "LogMask",
             "description": "Log Mask",
             "tip": "The Log Mask controls which sections of code are logged.  This allows a user to disable logging in most sections of the code and turn up the Log Level on specific areas of code for troubleshooting.  It is recommended that the Log Mask be set to 'Most' on production systems."
+        },
+        "Longitude": {
+            "name": "Longitude",
+            "description": "Longitude",
+            "tip": "Longitude of geographic location of FPP system.  The latitude/longitude can be used by the FPP scheduler to calculate the sunrise/sunset times.  The default values provided are for Falcon, Colorado.",
+            "restart": 2,
+            "default": "-104.600945",
+            "type": "text",
+            "size": 11,
+            "maxlength": 11
         },
         "masqUIPlatform": {
             "name": "masqUIPlatform",

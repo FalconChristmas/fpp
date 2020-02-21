@@ -19,6 +19,9 @@ dispatch_delete('/configfile/**', 'DeleteConfigFile');
 dispatch_get   ('/effects', 'effects_list');
 dispatch_get   ('/effects/ALL', 'effects_list_ALL');
 
+dispatch_post  ('/email/configure', 'ConfigureEmail');
+dispatch_post  ('/email/test', 'SendTestEmail');
+
 dispatch_get   ('/events', 'events_list');
 dispatch_get   ('/events/:eventId', 'event_get');
 dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
