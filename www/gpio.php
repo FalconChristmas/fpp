@@ -131,19 +131,20 @@ extraCommands = [
     </div>
     <table id='GPIOInputs' class='fppTable fppTable-GPIOInputs' width="100%">
     <tr class='fppTableHeader' width='100%'>
-            <td width='5%'>En.</td>
-            <td >Hdr - Pin</td>
-            <td >GPIO # - GPIOD</td>
-            <td >Pull Up/Down</td>
+            <td>En.</td>
+            <td >Hdr -<br>Pin</td>
+            <td >GPIO # -<br>GPIOD</td>
+            <td id='pullHeader' >Pull<br>Up/Down</td>
             <td colspan='2'>Commands</td>
     </tr>
     <tr class='fppTableHeader'>
-            <td colspan='4'></td>
+            <td colspan='4' id='pullFiller'></td>
             <td >Rising Edge</td>
             <td >Falling Edge</td>
     </tr>
 <?
 $count = 0;
+$pCount = 0;
 foreach($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
     $gpioNum = $gpio['gpio'];
@@ -153,11 +154,17 @@ foreach($gpiojson as $gpio) {
         $style = " style='background: #FFFFFF;' ";
     }
     $count = $count + 1;
+
+    if ($gpio['supportsPullUp'] || $gpio['supportsPullDown'])
+        $pCount++;
 ?>
     <tr class='fppTableRow' <?= $style ?> id='row_<?=$pinNameClean?>'>
         <td><input type="checkbox" id="gpio_<?= $pinNameClean ?>_enabled"></td>
         <td><?= $pinName ?></td>
     <td><?= $gpioNum ?>&nbsp;-&nbsp;<?= $gpio['gpioChip'] ?>/<?= $gpio['gpioLine'] ?></td>
+<?
+if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
+?>
         <td>
             <select id='gpio_<?= $pinNameClean ?>_PullUpDown' <? if (!$gpio['supportsPullUp'] && !$gpio['supportsPullDown']) echo "style='display:none;'"; ?> >
             <option value='gpio'>None/External</option>
@@ -165,6 +172,9 @@ foreach($gpiojson as $gpio) {
             <? if ($gpio['supportsPullDown']) echo "<option value='gpio_pd'>Pull Down</option>\n"; ?>
         </select>
         </td>
+<?
+}
+?>
         <td>
             <table border=0 class='fppTable' id='tableRisingGPIO<?= $pinNameClean ?>'>
             <tr>
@@ -190,6 +200,11 @@ foreach($gpiojson as $gpio) {
 </table>
 <script>
 <?
+if ($pCount == 0) {
+    echo "$('#pullHeader').hide();";
+    echo "$('#pullFiller').attr('colspan', 3);";
+}
+
 if (file_exists('/home/fpp/media/config/gpio.json')) {
     $data = file_get_contents('/home/fpp/media/config/gpio.json');
     $gpioInputJson = json_decode($data, true);
