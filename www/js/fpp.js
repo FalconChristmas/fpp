@@ -3743,6 +3743,9 @@ function LoadCommandArg() {
 var commandList = "";
 var extraCommands = "";
 function LoadCommandList(commandSelect) {
+    if (typeof commandSelect === "string") {
+        commandSelect = $('#' + commandSelect);
+    }
     if (commandList == "") {
         $.ajax({
             dataType: "json",
