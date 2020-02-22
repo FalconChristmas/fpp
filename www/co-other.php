@@ -75,12 +75,6 @@ var FBDevices = new Array();
 
 function VirtualMatrixLayoutChanged(item) {
 	var val = parseInt($(item).val());
-
-	if ((val % 16) != 0)
-	{
-		alert("ERROR: Value must be divisible by 16");
-	}
-
 	var width = $(item).parent().parent().find("input.width").val();
 	var height = $(item).parent().parent().find("input.height").val();
 	var channels = width * height * 3;
