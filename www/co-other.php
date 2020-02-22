@@ -74,7 +74,6 @@ var FBDevices = new Array();
 ?>
 
 function VirtualMatrixLayoutChanged(item) {
-	var val = parseInt($(item).val());
 	var width = $(item).parent().parent().find("input.width").val();
 	var height = $(item).parent().parent().find("input.height").val();
 	var channels = width * height * 3;
