@@ -377,12 +377,12 @@ case "${OSVER}" in
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-                      php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-fpm php-xml \
+                      php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
                       libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
                       libboost-atomic-dev libboost-math-dev libboost-signals-dev \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
-                      libmosquitto-dev mosquitto-clients libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
+                      libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
                       python-daemon python-smbus"
                       
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
@@ -780,24 +780,28 @@ if [ -d "/etc/php/7.3" ]; then
 fi
 
 echo "FPP - Setting up for UI"
-sed -i -e "s/^user =.*/user = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/^group =.*/group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.owner =.*/listen.owner = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.group =.*/listen.group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
+if [ -f  ${PHPDIR}/fpm/pool.d/www.conf ]; then
+    sed -i -e "s/^user =.*/user = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+    sed -i -e "s/^group =.*/group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+    sed -i -e "s/.*listen.owner =.*/listen.owner = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+    sed -i -e "s/.*listen.group =.*/listen.group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
+    sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
+fi
 
 echo "FPP - Allowing short tags in PHP"
 FILES="cli/php.ini apache2/php.ini fpm/php.ini"
 for FILE in ${FILES}
 do
-	sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
-	sed -i -e "s/max_execution_time.*/max_execution_time = 1000/" ${PHPDIR}/${FILE}
-	sed -i -e "s/max_input_time.*/max_input_time = 900/" ${PHPDIR}/${FILE}
-	sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 900/" ${PHPDIR}/${FILE}
-	sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
-	sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
-	sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
-	sed -i -e "s/^;max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+    if [ -f ${PHPDIR}/${FILE} ]; then
+        sed -i -e "s/^short_open_tag.*/short_open_tag = On/" ${PHPDIR}/${FILE}
+        sed -i -e "s/max_execution_time.*/max_execution_time = 1000/" ${PHPDIR}/${FILE}
+        sed -i -e "s/max_input_time.*/max_input_time = 900/" ${PHPDIR}/${FILE}
+        sed -i -e "s/default_socket_timeout.*/default_socket_timeout = 900/" ${PHPDIR}/${FILE}
+        sed -i -e "s/post_max_size.*/post_max_size = 4G/" ${PHPDIR}/${FILE}
+        sed -i -e "s/upload_max_filesize.*/upload_max_filesize = 4G/" ${PHPDIR}/${FILE}
+        sed -i -e "s/;upload_tmp_dir =.*/upload_tmp_dir = \/home\/${FPPUSER}\/media\/upload/" ${PHPDIR}/${FILE}
+        sed -i -e "s/^;max_input_vars.*/max_input_vars = 5000/" ${PHPDIR}/${FILE}
+    fi
 done
 
 #######################################
@@ -1117,7 +1121,7 @@ if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ];
     fi
 
     sed -i 's/^NetworkInterfaceBlacklist.*/NetworkInterfaceBlacklist=SoftAp0,usb0,usb1/g' /etc/connman/main.conf
-    if ! grep -q etc/hostapd/hostapd.conf "/etc/default/hostapd"; then
+    if ! grep -q "^NetworkInterfaceBlacklist" "/etc/connman/main.conf"; then
         echo "NetworkInterfaceBlacklist=SoftAp0,usb0,usb1" >> /etc/connman/main.conf
     fi
     

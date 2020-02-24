@@ -11,7 +11,7 @@ RUN apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg:
     git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
     samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
     mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
-    php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-fpm php-xml \
+    php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
     libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
     libboost-atomic-dev libboost-math-dev libboost-signals-dev \
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
@@ -39,6 +39,6 @@ RUN /opt/fpp/scripts/init_pre_network
 
 VOLUME /home/fpp/media
 
-#      HTTP  DDP      e1.31    Multisync
-EXPOSE 80    4048/udp 5568/udp 32320/udp
+#      HTTP  DDP      e1.31    Multisync  FPPD/HTTP    Other
+EXPOSE 80    4048/udp 5568/udp 32320/udp    32322      9000/udp 9000/tcp
 ENTRYPOINT ["/opt/fpp/Docker/runDocker.sh"]

@@ -3751,8 +3751,9 @@ function handleSettingsVisibilityChange() {
     }
 }
 
-function CommandToJSON(commandSelect, tblCommand, json) {
+function CommandToJSON(commandSelect, tblCommand, json, typeAttr = "") {
     var args = new Array()
+    var argTypes = new Array()
     json['command'] = $('#' + commandSelect).val();
     for (var x = 1; x < 20; x++) {
         var inp =  $("#" + tblCommand + "_arg_" + x);
@@ -3762,6 +3763,9 @@ function CommandToJSON(commandSelect, tblCommand, json) {
                 args.push("true");
             } else {
                 args.push("false");
+            }
+            if (typeAttr != "") {
+                argTypes.push(inp.data(typeAttr));
             }
         } else if (inp.attr('type') == 'number' || inp.attr('type') == 'text') {
             args.push(val);
@@ -3781,11 +3785,20 @@ function CommandToJSON(commandSelect, tblCommand, json) {
                     }
                 }
             }
+            if (typeAttr != "") {
+                argTypes.push(inp.data(typeAttr));
+            }
         } else if (typeof val != "undefined") {
             args.push(val);
+            if (typeAttr != "") {
+                argTypes.push(inp.data(typeAttr));
+            }
         }
     }
     json['args'] = args;
+    if (typeAttr != "") {
+        json['argTypes'] = argTypes;
+    }
     return json;
 }
 
@@ -3858,7 +3871,7 @@ function CommandArgChanged() {
     CommandSelectChanged('playlistEntryOptions_arg_1', 'playlistEntryCommandOptions');
 }
 
-function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false)
+function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false, argPrintFunc = PrintArgInputs)
 {
     for (var x = 1; x < 20; x++) {
         $('#' + tblCommand + '_arg_' + x + '_row').remove();
@@ -3881,7 +3894,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
         });
    }
 
-    PrintArgInputs(tblCommand, configAdjustable, co['args']);
+    argPrintFunc(tblCommand, configAdjustable, co['args']);
 }
 
 function PrintArgInputs(tblCommand, configAdjustable, args) {
@@ -4095,10 +4108,10 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
     }
 }
 
-function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustable = false) {
+function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustable = false, argPrintFunc = PrintArgInputs) {
     if (typeof json != "undefined") {
         $('#' + commandSelect).val(json["command"]);
-        CommandSelectChanged(commandSelect, tblCommand, configAdjustable);
+        CommandSelectChanged(commandSelect, tblCommand, configAdjustable, argPrintFunc);
     
         if (typeof json['args'] != "undefined") {
             var count = 1;
