@@ -57,7 +57,10 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 		//cache duration will be null if not in cache, then retrieve it
 		if ($cache_duration == NULL) {
 			//Include our getid3 library for media
-			require_once('./lib/getid3/getid3.php');
+			if (file_exists('./lib/getid3/getid3.php'))
+				require_once('./lib/getid3/getid3.php');
+			else
+				require_once('../lib/getid3/getid3.php');
 
 			//Instantiate getID3 object
 			$getID3 = new getID3;
