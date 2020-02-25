@@ -776,11 +776,18 @@ function SetPlaylistItemMetaData(row) {
     }
 }
 
-function PopulatePlaylistItemDuration(row) {
+function PopulatePlaylistItemDuration(row, editMode) {
     var type = row.find('.entryType').html();
 
-    if ((type == 'media') || (type == 'sequence') || (type == 'both'))
+    if (!editMode) {
+        var duration = row.find('.psiDurationSeconds').html();
+        if (duration != "0")
+            return;
+    }
+
+    if ((type == 'media') || (type == 'sequence') || (type == 'both')) {
         SetPlaylistItemMetaData(row);
+    }
 
     if (type == 'pause') {
         var duration = parseFloat(row.find('.field_duration').html());
@@ -871,7 +878,7 @@ function AddPlaylistEntry(mode) {
 
     RenumberPlaylistEditorEntries();
 
-    PopulatePlaylistItemDuration($(newRow));
+    PopulatePlaylistItemDuration($(newRow), 1);
 
     if (type == 'pause')
         UpdatePlaylistDurations();
@@ -3337,11 +3344,9 @@ function PopulatePlaylistDetails(data, editMode)
             if (!data[sections[s]].length)
                 $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
 
-            if (editMode) {
-                $('#tblPlaylist' + idPart + ' > tr').each(function() {
-                    PopulatePlaylistItemDuration($(this));
-                });
-            }
+            $('#tblPlaylist' + idPart + ' > tr').each(function() {
+                PopulatePlaylistItemDuration($(this), editMode);
+            });
         }
         else
         {
