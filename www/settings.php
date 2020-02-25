@@ -71,7 +71,6 @@ $(document).ready(function() {
             <div id="tabs" style='display:none'>
                 <ul>
                     <li><a href="#tab-playback">Playback</a></li>
-                    <li><a href="#tab-network">Network</a></li>
                     <li><a href="#tab-time">Time</a></li>
                     <li><a href="#tab-ui">UI</a></li>
                     <li><a href="#tab-email">Email</a></li>
@@ -84,10 +83,6 @@ $(document).ready(function() {
 
                 <div id='tab-playback'>
                     <? include 'settings-playback.php'; ?>
-                </div>
-
-                <div id='tab-network'>
-                    <? include 'settings-network.php'; ?>
                 </div>
 
                 <div id='tab-time'>
