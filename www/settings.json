@@ -691,7 +691,7 @@
         },
         "pauseBackgroundEffects": {
             "name": "pauseBackgroundEffects",
-            "description": "Pause Background Effect Sequence when playing a FSEQ file",
+            "description": "Pause background effects during FSEQ playback",
             "tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.",
             "restart": 2,
             "type": "checkbox"
