@@ -176,6 +176,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
          (in_array($settings['Platform'], $s['platforms'])))) {
         $restart = isset($s['restart']) ? $s['restart'] : 0;
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
+        $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
         echo "<tr id='" . $setting . "Row'><th>" . $s['description'] . ":</th><td>";
         switch ($s['type']) {
@@ -189,6 +190,13 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                             $json = file_get_contents($s['optionsURL']);
                         }
                         $options = json_decode($json, true);
+                        if (!(array_keys($options) !== range(0, count($options) - 1))) {
+                            $tmp = $options;
+                            $options = Array();
+                            foreach ($tmp as $item) {
+                                $options[$item] = $item;
+                            }
+                        }
                     } else if (isset($s['options'])) {
                         $options = $s['options'];
                     }
@@ -205,6 +213,18 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 $default = isset($s['default']) ? $s['default'] : "0";
 
                 PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $default, '', $s);
+                break;
+            case 'time':
+                $size = 8;
+                $maxlength = 8;
+                $default = isset($s['default']) ? $s['default'] : '';
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
+                break;
+            case 'date':
+                $size = 10;
+                $maxlength = 10;
+                $default = isset($s['default']) ? $s['default'] : '';
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
                 break;
             case 'text':
                 $size = isset($s['size']) ? $s['size'] : 32;
@@ -224,16 +244,17 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 $min = isset($s['min']) ? $s['min'] : 0;
                 $max = isset($s['max']) ? $s['max'] : 99;
                 $step = isset($s['step']) ? $s['step'] : 1;
-                $unit = isset($s['unit']) ? $s['unit'] : '';
                 $default = isset($s['default']) ? $s['default'] : "0";
 
                 PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $default, $callback, '', 'number', $s);
-                echo $unit . ' ';
                 break;
             default:
                 printf( "FIXME, handle %s setting type for %s\n", $s['type'], $setting);
                 break;
         }
+
+        if ($suffix != '')
+            echo $suffix . ' ';
 
         echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $s['tip'] . "</span>\n";
 
@@ -584,6 +605,18 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     echo "
     function " . $changedFunction . "() {
         var value = $('#$escSetting').val();
+";
+
+    if (isset($sData['regex'])) {
+        echo "
+        if (!RegexCheckData('" . $sData['regex'] . "', value)) {
+            $('#" . $escSetting . "').focus();
+            return;
+        }
+";
+    }
+
+    echo "
         $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
         .done(function() {
               $.jGrowl('$setting Saved');
@@ -611,17 +644,29 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     
     <input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
 
-	if (isset($settings[$setting]))
-		echo $settings[$setting];
-	elseif (isset($pluginSettings[$setting]))
-		echo $pluginSettings[$setting];
-	else
-		echo $defaultValue;
+    if ((isset($sData['alwaysReset'])) && ($sData['alwaysReset'] == 1)) {
+        echo $defaultValue;
+    } else {
+        if (isset($settings[$setting]))
+            echo $settings[$setting];
+        elseif (isset($pluginSettings[$setting]))
+            echo $pluginSettings[$setting];
+        else
+            echo $defaultValue;
+    }
 
 	echo "\" \n";
 
     if (isset($sData['children'])) {
         echo "class='parentSetting' ";
+    }
+    if (isset($sData['type'])) {
+        if ($sData['type'] == 'time') {
+            echo "class='time' autocomplete='off' ";
+        }
+        if ($sData['type'] == 'date') {
+            echo "class='date' autocomplete='off' ";
+        }
     }
 
 	echo ">\n";
@@ -1266,64 +1311,6 @@ function ReplaceIllegalCharacters($input_string)
 	}
 
 	return $input_string;
-}
-
-/**
- * Restarts the ntp server service
- */
-function NtpServiceRestart(){
-	global $SUDO;
-
-	exec($SUDO . " service ntp restart", $output, $return_val);
-	unset($output);
-	//TODO: check return
-}
-
-/**
- * Sets the NTP server source to the supplied NTP server, if nothing is supplied default to the debian pool
- * @param $ntp_server String DNS or IP address of a NTP server
- */
-function SetNtpServer($ntp_server){
-	global $SUDO;
-
-	WriteSettingToFile("ntpServer",$ntp_server);
-	$settings['ntpServer'] = $ntp_server;
-	if ($ntp_server != "")
-	{
-		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver " . $ntp_server . " iburst/' /etc/ntp.conf");
-	}
-	else
-	{
-		exec($SUDO . " sed -i '/^server.*/d' /etc/ntp.conf ; " . $SUDO . " sed -i '\$s/\$/\\nserver 0.debian.pool.ntp.org iburst\\nserver 1.debian.pool.ntp.org iburst\\nserver 2.debian.pool.ntp.org iburst\\nserver 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
-	}
-}
-
-/**
- * Toggles NTP service state
- * @param $state int 1 to Enable, 0 to Disable
- */
-function SetNtpState($state){
-	global $SUDO;
-
-    WriteSettingToFile("NTP",$state);
-
-    if($state == true){
-        error_log("Enabling NTP because it's disabled and we were told to enable it.");
-        exec($SUDO . " update-rc.d ntp defaults", $output, $return_val);
-        unset($output);
-        //TODO: check return
-        exec($SUDO . " service ntp start", $output, $return_val);
-        unset($output);
-        //TODO: check return
-    }else if ($state == false){
-        error_log("Disabling NTP because it's enabled and we were told to disable it.");
-        exec($SUDO . " service ntp stop", $output, $return_val);
-        unset($output);
-        //TODO: check return
-        exec($SUDO . " update-rc.d ntp remove", $output, $return_val);
-        unset($output);
-        //TODO: check return
-    }
 }
 
 /**

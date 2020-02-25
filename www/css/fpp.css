@@ -1195,3 +1195,8 @@ td.bgDarkOrange {
 	#fppMenu li ul li {
 		background: #555; }
 }
+
+.ui-datepicker {
+    z-index: 9999 !important;
+}
+

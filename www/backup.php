@@ -5,6 +5,7 @@ $skipJSsettings = 1;
 
 //Include other scripts
 require_once('common.php');
+require_once('common/settings.php');
 //Includes for API access
 //require_once('fppjson.php');
 require_once('fppxml.php');
@@ -767,19 +768,14 @@ function process_restore_data($restore_area, $restore_area_data)
                             //Do special things that require some sort of system change
                             //eg. changing piRTC via GUI will fire off a shell command to set it up
                             //we'll also do this to keep consistency
-                            if ($setting_name == 'piRTC') {
-                                SetPiRTC($setting_value);
-                            } else if ($setting_name == "AudioOutput") {
+                            if ($setting_name == "AudioOutput") {
                                 $args['value'] = $setting_value;
                                 SetAudioOutput($setting_value);
                             } else if ($setting_name == "volume") {
                                 $_GET['volume'] = trim($setting_value);
                                 SetVolume();
-                            } else if ($setting_name == "ntpServer") {
-                                SetNtpServer($setting_value);
-                                NtpServiceRestart();//Restart NTP client so changes take effect
-                            } else if ($setting_name == "NTP") {
-                                SetNtpState($setting_value);
+                            } else {
+                                ApplySetting($setting_name, $setting_value);
                             }
                         }
 

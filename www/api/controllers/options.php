@@ -112,6 +112,37 @@ function GetOptions_Locale() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+function GetOptions_RTC() {
+    global $settings;
+    $rtcOptions = Array();
+
+    $rtcOptions['None'] = 'N';
+    $rtcOptions['DS1305 / DS1307 / DS3231 (PiCap)'] = '2';
+    $rtcOptions['pcf8523 (Kulp / Adafruit PiRTC)'] = '4';
+    $rtcOptions['mcp7941x (PiFace)'] = '3';
+    $rtcOptions['pcf2127 (RasClock)'] = '1';
+
+    return json($rtcOptions);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function GetOptions_TimeZone() {
+    global $settings;
+    $zones = Array();
+
+    exec("find /usr/share/zoneinfo ! -type d | sed 's/\/usr\/share\/zoneinfo\///' | grep -v ^right | grep -v ^posix | grep -v ^\\/ | grep -v \\\\. | sort", $output, $return_val);
+
+    if ($return_val != 0)
+        return json($zones);
+
+    foreach ($output as $zone) {
+        array_push($zones, $zone);
+    }
+
+    return json($zones);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 function GetOptions_VideoOutput($playlist) {
     global $settings;
 
@@ -146,8 +177,10 @@ function GetOptions() {
         case 'AudioOutput':         return GetOptions_AudioOutputDevice();
         case 'FrameBuffer':         return GetOptions_FrameBuffer();
         case 'Locale':              return GetOptions_Locale();
-        case 'VideoOutput':         return GetOptions_VideoOutput(0);
+        case 'RTC':                 return GetOptions_RTC();
         case 'PlaylistVideoOutput': return GetOptions_VideoOutput(1);
+        case 'TimeZone':            return GetOptions_TimeZone();
+        case 'VideoOutput':         return GetOptions_VideoOutput(0);
     }
 
     return json("{}");

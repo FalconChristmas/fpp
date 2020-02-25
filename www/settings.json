@@ -91,6 +91,17 @@
                 "bootDelay"
             ]
         },
+        "time": {
+            "description": "Time Config",
+            "settings": [
+                "ClockDate",
+                "ClockTime",
+                "piRTC",
+                "ntp",
+                "ntpServer",
+                "TimeZone"
+            ]
+        },
         "ui": {
             "description": "User Interface",
             "settings": [
@@ -147,7 +158,7 @@
             "restart": 2,
             "default": "PCM",
             "type": "select",
-            "optionsURL": "/api/options/AudioMixerDevice"
+            "optionsURL": "/api/settings/AudioMixerDevice/options"
         },
         "AudioOutput": {
             "name": "AudioOutput",
@@ -156,7 +167,7 @@
             "restart": 2,
             "default": "0",
             "type": "select",
-            "optionsURL": "/api/options/AudioOutput"
+            "optionsURL": "/api/settings/AudioOutput/options"
         },
         "backgroundColor": {
             "name": "backgroundColor",
@@ -298,6 +309,22 @@
                 "30s": 30
             }
         },
+        "ClockDate": {
+            "name": "ClockDate",
+            "description": "Set Date",
+            "tip": "Current Date to use to set the system date.",
+            "suffix": "(YYYY-MM-DD)",
+            "type": "date",
+            "alwaysReset": 1
+        },
+        "ClockTime": {
+            "name": "ClockTime",
+            "description": "Set Time",
+            "tip": "Current Time to use to set the system time.",
+            "suffix": "(HH:MM:SS)",
+            "type": "time",
+            "alwaysReset": 1
+        },
         "disableIPAnnouncement": {
             "name": "disableIPAnnouncement",
             "description": "Disable IP announcement",
@@ -424,7 +451,7 @@
             "restart": 2,
             "default": "global",
             "type": "select",
-            "optionsURL": "/api/options/Locale"
+            "optionsURL": "/api/settings/Locale/options"
         },
         "LogLevel": {
             "name": "LogLevel",
@@ -494,7 +521,7 @@
             "min": -9999,
             "max": 9999,
             "step": 1,
-            "unit": "ms"
+            "suffix": "ms"
         },
         "MQTTCaFile": {
             "name": "MQTTCaFile",
@@ -610,6 +637,26 @@
                 ]
             }
         },
+        "ntp": {
+            "name": "ntp",
+            "description": "Enable NTP",
+            "tip": "Enable the NTP client to allow this system to sync time with a NTP server elsewhere.",
+            "type": "checkbox",
+            "reboot": 1,
+            "children": {
+                "1": [
+                    "ntpServer"
+                ]
+            }
+        },
+        "ntpServer": {
+            "name": "ntpServer",
+            "description": "NTP Server",
+            "tip": "Optional NTP Server to use to sync time.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64
+        },
         "OMXPlayerAudioOutput": {
             "name": "OMXPlayerAudioOutput",
             "description": "OMXPlayer Audio Output",
@@ -640,7 +687,7 @@
             "min": 0,
             "max": 9999,
             "step": 1,
-            "unit": "ms"
+            "suffix": "ms"
         },
         "pauseBackgroundEffects": {
             "name": "pauseBackgroundEffects",
@@ -648,6 +695,14 @@
             "tip": "Background effects normally continue to run when a sequence is playing.  This setting instructs FPP to pause all background effects when a sequence is running.  When the sequence stops running, the background effects resume playback.",
             "restart": 2,
             "type": "checkbox"
+        },
+        "piRTC": {
+            "name": "piRTC",
+            "description": "Real Time Clock",
+            "tip": "The Real Time Clock (RTC) is a hardware clock used by FPP to track time when the Pi or BeagleBone is powered off.  At boot time, the operating system reads the RTC to set the system time.",
+            "reboot": 1,
+            "type": "select",
+            "optionsURL": "/api/settings/RTC/options"
         },
         "remoteIgnoreSync": {
             "name": "remoteIgnoreSync",
@@ -674,7 +729,7 @@
             "min": -9999,
             "max": 9999,
             "step": 1,
-            "unit": "ms"
+            "suffix": "ms"
         },
         "scheduling": {
             "name": "scheduling",
@@ -743,7 +798,16 @@
             "description": "Default Video Output Device",
             "tip": "The Default Video Output device to be used when playing a video.  On all FPP systems, video played in a playlist can be displayed on a Pixel Overlay model.  On the Raspberry Pi, video can also be played on the HDMI/Composite video outputs.",
             "type": "select",
-            "optionsURL": "/api/options/VideoOutput"
+            "optionsURL": "/api/settings/VideoOutput/options"
+        },
+        "TimeZone": {
+            "name": "TimeZone",
+            "description": "Time Zone",
+            "tip": "The Time Zone is used to set the local time zone of this FPP instance.",
+            "restart": 2,
+            "default": "America/New_York",
+            "type": "select",
+            "optionsURL": "/api/settings/TimeZone/options"
         }
     }
 }

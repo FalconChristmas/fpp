@@ -3,6 +3,7 @@
 $skipJSsettings = 1;
 require_once('common.php');
 require_once('common/metadata.php');
+require_once('common/settings.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
 require_once('fppversion.php');
@@ -243,6 +244,7 @@ function SetSetting()
 	} else if ($setting == "scheduling") {
 		SendCommand("EnableScheduling,$value,");
 	} else {
+        ApplySetting($setting, $value);
 		SendCommand("SetSetting,$setting,$value,");
 	}
 

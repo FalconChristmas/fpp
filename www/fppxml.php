@@ -1057,7 +1057,7 @@ function DeleteScheduleEntry()
 
 function AddScheduleEntry()
 {
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,"2019-01-01","2099-12-31",0);
+	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,MINYEAR . "-01-01",MAXYEAR . "-12-31",0);
 	EchoStatusXML('Success');
 }
 
@@ -1145,9 +1145,9 @@ function SaveSchedule()
 		$_SESSION['ScheduleEntries'][$i]->endDate   =	$_POST['txtEndDate'][$i];
 
 		if (trim($_SESSION['ScheduleEntries'][$i]->startDate) == "")
-			$_SESSION['ScheduleEntries'][$i]->startDate = "2019-01-01";
+			$_SESSION['ScheduleEntries'][$i]->startDate = MINYEAR . "-01-01";
 		if (trim($_SESSION['ScheduleEntries'][$i]->endDate) == "")
-			$_SESSION['ScheduleEntries'][$i]->endDate = "2099-12-31";
+			$_SESSION['ScheduleEntries'][$i]->endDate = MAXYEAR . "-12-31";
 
 		$_SESSION['ScheduleEntries'][$i]->stopType = $_POST['selStopType'][$i];
 	}
@@ -1242,8 +1242,8 @@ function LoadScheduleFile()
 			$endMinute = $entry[7];
 			$endSecond = $entry[8];
 			$repeat = $entry[9];
-			$startDate = "2019-01-01";
-			$endDate = "2099-12-31";
+			$startDate = MINYEAR . "-01-01";
+			$endDate = MAXYEAR . "-12-31";
 			$stopType = 0;
 
 			if ((count($entry) >= 11) && $entry[10] != "")

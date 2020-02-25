@@ -43,7 +43,16 @@ function PutSetting() {
 }
 
 function GetSettings() {
+    global $settings;
     return file_get_contents($settings['fppDir'] . '/www/settings.json');
+}
+
+/////////////////////////////////////////////////////////////////////////////
+function GetTime() {
+    $result = Array();
+    //$result['time'] = date('D M d H:i:s T Y'); // Apache needs restarting after a timezone change
+    $result['time'] = exec('date');
+    return json($result);
 }
 
 ?>

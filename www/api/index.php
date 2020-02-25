@@ -65,13 +65,16 @@ dispatch_get   ('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_post  ('/sequence/:SequenceName', 'PostSequence');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
 
-dispatch_get   ('/setting/:SettingName', 'GetSetting');
-dispatch_put   ('/setting/:SettingName', 'PutSetting');
 dispatch_get   ('/settings', 'GetSettings');
+dispatch_get   ('/settings/:SettingName', 'GetSetting');
+dispatch_get   ('/settings/:SettingName/options', 'GetOptions');
+dispatch_put   ('/settings/:SettingName', 'PutSetting');
 
 dispatch_get   ('/scripts', 'scripts_list');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
+
+dispatch_get   ('/time', 'GetTime');
 
 run();
 ?>

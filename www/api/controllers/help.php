@@ -9,10 +9,11 @@ function help_help()
 		[ 'GET /configfile/:FileName<br>GET /configfile/:SubDir/:FileName', 'Get contents of config file', '', 'Raw config file contents' ],
 		[ 'POST /configfile/:FileName<br>POST /configfile/:SubDir/:FileName', 'Upload config file.  NOTE: Content-type must equal "text/html" even if content is not HTML.', 'Raw config file contents', '{ "Status": "OK", "Message": "" }' ],
 		[ 'DELETE /configfile/:FileName<br>DELETE /configfile/:SubDir/:FileName', 'Delete config file.', '', '{ "Status": "OK", "Message": "" }' ],
+        [ 'POST /email/configure', 'Configure outbound email using existing settings', '', '{ "Status": "OK", "Message": "" }' ],
+        [ 'POST /email/test', 'Send test email using existing settings', '', '{ "Status": "OK", "Message": "" }' ],
 		[ 'GET /files/:DirName', 'Get list of files in :DirName where :DirName is one of ("config", "effects", "events", "images", "logs", "music", "playlists", "plugins", "scripts", "sequences", "tmp", "upload", "videos").', '', '[ "PlayIntro.sh", "TestScript-02.sh", "TestScript.sh", "UserCallbackHook.sh", "fppdWatcher.sh", "fppdWatcherStart.sh" ]' ],
 		[ 'GET /media', 'Get list of media files (includes both music and video files).', '', '[ "1min_720p29_2014-10-01.mp4", "30min_720p29_2014-08-08.mp3", "30min_720p29_2014-08-08.mp4", "30min_720p29_2014-08-08.ogg", "5min_720p29_2014-10-01.mp4", "Frosty.mp4" ]' ],
 		[ 'GET /media/:MediaName/meta', 'Get meta data for a specific media file.', '', '{ "1min_720p29_2014-10-01.mp4": { "duration": 60.010666666667 } }' ],
-        [ 'GET /options/:SettingName', 'Get array of options for a particular setting.  This is currently only valid for options requiring a list of valid items and only for some of those which are used in the settings and playlist User Interfaces.', '', '{ "HDMI": "HDMI", "Disabled": "Disabled", "Matrix": "Matrix" }' ],
 		[ 'GET /playlists', 'Get list of playlist names', '', '[ "Playlist_1", "Playlist_2", "Playlist_3" ]' ],
         [ 'GET /playlists/stop', 'Immediately stop the currently running playlist', '', '' ],
         [ 'GET /playlists/stopgracefully', 'Gracefully stop the currently running playlist', '', '' ],
@@ -32,8 +33,10 @@ function help_help()
         [ 'GET /sequence/:SequenceName', 'Get the FSEQ file for the named sequence', '', 'Raw FSEQ file'],
         [ 'GET /sequence/:SequenceName/meta', 'Get metadata from the FSEQ file for the named sequence', '', '{"Name":"GreatestShow.fseq","Version":"2.0","ID":"1553194098754908","StepTime":25,"NumFrames":10750,"MaxChannel":84992,"ChannelCount":84992}'],
         [ 'POST /sequence/:SequenceName', 'Upload a new FSEQ file', '', 'Raw FSEQ file'],
-        [ 'DELETE /sequence/:SequenceName', 'Delete the named FSEQ file', '', '']
-
+        [ 'DELETE /sequence/:SequenceName', 'Delete the named FSEQ file', '', ''],
+        [ 'GET /settings', 'Get JSON list of settings.', '', '' ],
+        [ 'GET /settings/:SettingName', 'Get info about a for a particular setting.', '', '' ],
+        [ 'GET /settings/:SettingName/options', 'Get array of options for a particular setting.  This is currently only valid for options requiring a list of valid items and only for some of those which are used in the settings and playlist User Interfaces.', '', '{ "HDMI": "HDMI", "Disabled": "Disabled", "Matrix": "Matrix" }' ]
 	);
     $fppEndpoints = array(
         [ 'GET /fppd/status', 'Gets the current status of the FPPD daemon', '', '{"current_playlist":{"count":"0","index":"0","playlist":"","type":""},"current_sequence":"","current_song":"","fppd":"running","mode":2,"mode_name":"player","next_playlist":{"playlist":"No playlist scheduled.","start_time":""},"repeat_mode":"0","seconds_played":"0","seconds_remaining":"0","status":0,"status_name":"idle","time":"Tue Apr 02 08:06:34 EDT 2019","time_elapsed":"00:00","time_remaining":"00:00","volume":0}'],
@@ -93,8 +96,14 @@ td {
 			$output = "<pre>$output</pre>\n";
 		}
 
+        $desc = $endpoint[0];
+        if ((preg_match('/^GET \//', $endpoint[0])) && (!preg_match('/:/', $endpoint[0]))) {
+            $desc = sprintf("<a href='/api/%s' target='_blank'>%s</a>",
+                preg_replace('/^GET \//', '', $endpoint[0]), $endpoint[0]);
+        }
+
 		$h .= sprintf("<tr><td class='endpoint'>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			$endpoint[0], $endpoint[1], $input, $output);
+			$desc, $endpoint[1], $input, $output);
 	}
     $h .= "</table><br><hr>
     <h2>FPPD Daemon Endpoints - these require FPPD to be running or a timeout error will occur</h2>

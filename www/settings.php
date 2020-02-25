@@ -15,6 +15,8 @@ function stt($setting) {
     }
 }
 ?>
+<link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
+<script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 
@@ -40,8 +42,19 @@ function UpdateChildSettingsVisibility() {
     });
 }
 
+function UpdateCurrentTime() {
+    $.get('/api/time', function(data) {
+        $('#currentTime').html(data.time);
+        statusTimeout = setTimeout(UpdateCurrentTime, 1000);
+    });
+}
+
 $(document).ready(function() {
     UpdateChildSettingsVisibility();
+    InitializeTimeInputs();
+    InitializeDateInputs();
+    bindSettingsVisibilityListener();
+    UpdateCurrentTime();
 });
 
 </script>

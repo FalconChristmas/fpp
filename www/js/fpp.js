@@ -60,6 +60,17 @@ function versionToNumber(version)
     return number;
 }
 
+function RegexCheckData(regexStr, value) {
+    var regex = new RegExp(regexStr);
+
+    if (regex.test(value)) {
+        return true;
+    }
+
+    DialogError('Data Format Error', "ERROR: '" + value + "' does not match proper format");
+    return false;
+}
+
 // Compare two version numbers
 function CompareFPPVersions(a, b) {
 	// Turn any non-string version numbers into a string
@@ -75,6 +86,28 @@ function CompareFPPVersions(a, b) {
 	}
 
 	return 0;
+}
+
+function InitializeTimeInputs(format = 'H:i:s') {
+    $('.time').timepicker({
+        'timeFormat': format,
+        'typeaheadHighlight': false
+    });
+}
+
+function InitializeDateInputs(format = 'yy-mm-dd') {
+    $('.date').datepicker({
+        'changeMonth': true,
+        'changeYear': true,
+        'dateFormat': format,
+        'minDate': new Date(MINYEAR - 1, 1 - 1, 1),
+        'maxDate': new Date(MAXYEAR, 12 - 1, 31),
+        'showButtonPanel': true,
+        'selectOtherMonths': true,
+        'showOtherMonths': true,
+        'yearRange': "" + MINYEAR +":" + MAXYEAR,
+        'autoclose': true,
+    });
 }
 
 function Get(url, async) {
@@ -714,7 +747,7 @@ function SetPlaylistItemMetaData(row) {
     if ((type == 'both') || (type == 'media')) {
         file = $('<div/>').html(file).text(); // handle any & or other chars that got converted
         $.get('/api/media/' + encodeURIComponent(file) + '/meta').success(function(mdata) {
-            var duration = 99999;
+            var duration = -1;
 
             if ((mdata.hasOwnProperty(file)) &&
                 (mdata[file].hasOwnProperty('duration'))) {
@@ -725,7 +758,7 @@ function SetPlaylistItemMetaData(row) {
                 var sDuration = GetSequenceDuration(row.find('.field_sequenceName').html(), false, '');
 
                 // Playlist/PlaylistEntryBoth.cpp ends whenever shortest item ends
-                if (duration > sDuration)
+                if ((duration > sDuration) || (duration < 0))
                     duration = sDuration;
             }
 
@@ -2013,12 +2046,12 @@ function SetScheduleInputNames() {
 		'changeMonth': true,
 		'changeYear': true,
 		'dateFormat': 'yy-mm-dd',
-		'minDate': new Date(2019, 1 - 1, 1),
-		'maxDate': new Date(2099, 12 - 1, 31),
+		'minDate': new Date(MINYEAR-1, 1 - 1, 1),
+		'maxDate': new Date(MAXYEAR, 12 - 1, 31),
 		'showButtonPanel': true,
 		'selectOtherMonths': true,
 		'showOtherMonths': true,
-		'yearRange': "2019:2099",
+		'yearRange': "" + MINYEAR +":" + MAXYEAR,
 		'autoclose': true,
 		'beforeShow': function( input ) {
 		setTimeout(function() {
@@ -3688,14 +3721,29 @@ function bindVisibilityListener() {
 }
 
 function handleVisibilityChange() {
-
     if (isHidden() && statusTimeout != null) {
         clearTimeout(statusTimeout);
         statusTimeout = null;
     } else {
          GetFPPStatus();
     }
-   
+}
+
+function bindSettingsVisibilityListener() {
+	var visProp = getHiddenProp();
+	if (visProp) {
+	  var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
+	  document.addEventListener(evtname, handleSettingsVisibilityChange);
+	}
+}
+
+function handleSettingsVisibilityChange() {
+    if (isHidden() && statusTimeout != null) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    } else {
+        UpdateCurrentTime();
+    }
 }
 
 function CommandToJSON(commandSelect, tblCommand, json) {
@@ -4026,25 +4074,11 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
     });
 
     if (haveTime) {
-        $('.time').timepicker({
-            'timeFormat': 'H:i:s',
-            'typeaheadHighlight': false
-        });
+        InitializeTimeInputs();
     }
 
     if (haveDate) {
-        $('.date').datepicker({
-            'changeMonth': true,
-            'changeYear': true,
-            'dateFormat': 'yy-mm-dd',
-            'minDate': new Date(2019, 1 - 1, 1),
-            'maxDate': new Date(2099, 12 - 1, 31),
-            'showButtonPanel': true,
-            'selectOtherMonths': true,
-            'showOtherMonths': true,
-            'yearRange': "2019:2099",
-            'autoclose': true,
-        });
+        InitializeDateInputs();
     }
 
     UpdateChildVisibility();

@@ -481,6 +481,9 @@ if (!isset($settings['uiLevel']))
 
 $uiLevel = $settings['uiLevel'];
 
+define('MINYEAR', date('Y'));
+define('MAXYEAR', date('Y') + 5);
+
 LoadLocale();
 
 /////////////////////////////////////////////////////////////////////////////
@@ -507,6 +510,8 @@ function GetDirSetting($dir)
 if (!isset($skipJSsettings)) {
 ?>
 <script type="text/javascript">
+    MINYEAR = <? echo MINYEAR; ?>;
+    MAXYEAR = <? echo MAXYEAR; ?>;
 	var settings = new Array();
 <?
 	foreach ($settings as $key => $value) {
