@@ -207,6 +207,11 @@ a:visited {
           <table class='tblAbout'>
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
             <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
+            <tr><td>Platform:</td><td><?
+echo $settings['Platform'];
+if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform']))
+    echo " (" . $settings['Variant'] . ")";
+?></td></tr>
             <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
             <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
 <? if (isset($serialNumber) && $serialNumber != "") { ?>
