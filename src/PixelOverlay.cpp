@@ -1290,7 +1290,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                             if (color[0] == '#') {
                                 color = "0x" + color.substr(1);
                             }
-                            unsigned int x = std::stoul(color, nullptr, 16);
+                            unsigned int x = std::stoul(color, nullptr, 0);
 
                             std::string msg = root["Message"].asString();
 
@@ -1405,7 +1405,7 @@ public:
                 color = "0x" + color.substr(1);
             
             }
-            unsigned int x = std::stoul(color, nullptr, 16);
+            unsigned int x = std::stoul(color, nullptr, 0);
             m->fill((x >> 16) & 0xFF,
                     (x >> 8) & 0xFF,
                     x & 0xFF);
@@ -1459,7 +1459,7 @@ public:
                 color = "0x" + color.substr(1);
             
             }
-            unsigned int cint = std::stoul(color, nullptr, 16);
+            unsigned int cint = std::stoul(color, nullptr, 0);
             std::string font = manager->mapFont(args[2]);
             int fontSize = std::atoi(args[3].c_str());
             if (fontSize < 4) {
