@@ -978,56 +978,6 @@ function RestoreScripts($file_names)
 }
 
 /**
- * Sets the timezone (taken from timeconfig.php)
- * @param $timezone_setting String Timezone in correct format
- * @see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones For a list of timezones
- */
-function SetTimezone($timezone_setting)
-{
-    global $SUDO, $mediaDirectory;
-    //TODO: Check timezone for validity
-    $timezone = $timezone_setting;
-    error_log("RESTORE: Changing timezone to '" . $timezone . "'.");
-	if (file_exists("/.dockerenv")) {
-		exec($SUDO . " ln -s -f /usr/share/zoneinfo/$timezone /etc/localtime", $output, $return_val);
-		unset($output);
-
-		exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
-		unset($output);
-		//TODO: check return
-		exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
-		unset($output);
-	} else if (file_exists('/usr/bin/timedatectl')) {
-		exec($SUDO . " timedatectl set-timezone $timezone", $output, $return_val);
-		unset($output);
-	} else {
-		exec($SUDO . " bash -c \"echo $timezone > /etc/timezone\"", $output, $return_val);
-		unset($output);
-		//TODO: check return
-		exec($SUDO . " dpkg-reconfigure -f noninteractive tzdata", $output, $return_val);
-		unset($output);
-		//TODO: check return
-	}
-	exec(" bash -c \"echo $timezone > $mediaDirectory/timezone\"", $output, $return_val);
-	unset($output);
-	//TODO: check return
-}
-
-/**
- * Sets the PiRTC setting exec's the appropriate command (taken from timeconfig.php)
- * @param $pi_rtc_setting String PIRTC setting
- */
-function SetPiRTC($pi_rtc_setting)
-{
-    global $SUDO, $fppDir;
-
-    $piRTC = $pi_rtc_setting;
-    WriteSettingToFile("piRTC", $piRTC);
-    exec($SUDO . " $fppDir/scripts/piRTC set");
-    error_log("RESTORE: Set RTC: " . $piRTC);
-}
-
-/**
  * Sets the Audio Output device (extracted from fppjson.php)
  * @param $card String soundcard
  * @return  string
