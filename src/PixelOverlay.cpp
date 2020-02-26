@@ -162,6 +162,20 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     chanDataMap[pixelMap[c++]] = b;
 }
 
+static uint32_t mapColor(const std::string &c) {
+    if (c[0] == '#') {
+        std::string color = "0x" + c.substr(1);
+        return std::stoul(color, nullptr, 0);
+    } else if (c == "red") {
+        return 0xFF0000;
+    } else if (c == "green") {
+        return 0x00FF00;
+    } else if (c == "blue") {
+        return 0x0000FF;
+    }
+    return std::stoul(c, nullptr, 0);
+}
+
 void PixelOverlayModel::doText(const std::string &msg,
                                int r, int g, int b,
                                const std::string &font,
@@ -1287,10 +1301,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                     if (reader.parse(req.get_content(), root)) {
                         if (root.isMember("Message")) {
                             std::string color = root["Color"].asString();
-                            if (color[0] == '#') {
-                                color = "0x" + color.substr(1);
-                            }
-                            unsigned int x = std::stoul(color, nullptr, 0);
+                            unsigned int x = mapColor(color);
 
                             std::string msg = root["Message"].asString();
 
@@ -1390,22 +1401,29 @@ class FillOverlayCommand : public OverlayCommand {
 public:
     FillOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Fill", m) {
         args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("State", "string", "State").setContentList({"Don't Set", "Enabled", "Transparent", "TransparentRGB"}));
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
-        if (args.size() != 2) {
-            return std::make_unique<Command::ErrorResult>("Command needs 2 arguments, found " + std::to_string(args.size()));
+        if (args.size() <  2 || args.size() > 3) {
+            return std::make_unique<Command::ErrorResult>("Command needs 2 or 3 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
         auto m = manager->getModel(args[0]);
         if (m) {
-            std::string color = args[1];
-            if (color[0] == '#') {
-                color = "0x" + color.substr(1);
-            
+            std::string color;
+            std::string state = "Don't Set";
+            if (args.size() == 2) {
+                color = args[1];
+            } else {
+                state = args[1];
+                color = args[2];
             }
-            unsigned int x = std::stoul(color, nullptr, 0);
+            if (state != "Don't Set") {
+                m->setState(PixelOverlayState(state));
+            }
+            unsigned int x = mapColor(color);
             m->fill((x >> 16) & 0xFF,
                     (x >> 8) & 0xFF,
                     x & 0xFF);
@@ -1455,11 +1473,7 @@ public:
         auto m = manager->getModel(args[0]);
         if (m) {
             std::string color = args[1];
-            if (color[0] == '#') {
-                color = "0x" + color.substr(1);
-            
-            }
-            unsigned int cint = std::stoul(color, nullptr, 0);
+            unsigned int cint = mapColor(color);
             std::string font = manager->mapFont(args[2]);
             int fontSize = std::atoi(args[3].c_str());
             if (fontSize < 4) {
