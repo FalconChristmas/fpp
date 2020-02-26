@@ -77,15 +77,63 @@ function SetNTPServer($value)
         RestartNTPD();
 }
 
+function SetupHtaccess($enablePW)
+{
+    global $settings;
+    $filename = $settings['mediaDirectory'] . "/config/.htaccess";
+
+    if (file_exists($filename))
+        unlink($filename);
+
+    $data = $settings['htaccessContents'];
+    if ($enablePW) {
+        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\n<If \"%{HTTP_HOST} != '127.0.0.1'\">\nRequire valid-user\n</If>\n";
+    }
+
+    file_put_contents($filename, $data);
+}
+
+function EnableUIPassword($value)
+{
+    global $settings;
+
+    if ($value == '0') {
+        SetupHtaccess(0);
+    } else if ($value == '1') {
+        $password = ReadSettingFromFile('password');
+
+        if ($password == '')
+            $password = 'falcon';
+
+        shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd admin " . $password);
+        shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $password);
+
+        SetupHtaccess(1);
+    }
+}
+
+function SetUIPassword($value)
+{
+    global $settings; // for default .htaccess contents
+
+    if ($value == '')
+        $value = 'falcon';
+
+    shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd admin " . $value);
+    shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $value);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 function ApplySetting($setting, $value) {
     switch ($setting) {
-        case 'ClockDate': SetDate($value);              break;
-        case 'ClockTime': SetTime($value);              break;
-        case 'ntp':       SetNTP($value);               break;
-        case 'ntpServer': SetNTPServer($value);         break;
-        case 'piRTC':     SetRTC($value);               break;
-        case 'TimeZone':  SetTimeZone($value);          break;
+        case 'ClockDate':       SetDate($value);              break;
+        case 'ClockTime':       SetTime($value);              break;
+        case 'ntp':             SetNTP($value);               break;
+        case 'ntpServer':       SetNTPServer($value);         break;
+        case 'passwordEnable':  EnableUIPassword($value);     break;
+        case 'password':        SetUIPassword($value);        break;
+        case 'piRTC':           SetRTC($value);               break;
+        case 'TimeZone':        SetTimeZone($value);          break;
     }
 }
 

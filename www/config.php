@@ -541,4 +541,8 @@ if (!isset($skipJSsettings)) {
 </script>
 <?
 }
+
+// Put variables here that we don't want in the JavaScript settings array
+$settings['htaccessContents'] = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
+
 ?>

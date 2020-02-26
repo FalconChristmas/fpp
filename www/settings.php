@@ -75,7 +75,7 @@ $(document).ready(function() {
                     <li><a href="#tab-ui">UI</a></li>
                     <li><a href="#tab-email">Email</a></li>
                     <li><a href="#tab-mqtt">MQTT</a></li>
-                    <li><a href="#tab-output">Output</a></li>
+<? if ($uiLevel >= 1) echo "<li><a href='#tab-output'>Output</a></li>\n"; ?>
                     <li><a href="#tab-logs">Logging</a></li>
                     <li><a href="#tab-system">System</a></li>
 <? if ($uiLevel >= 3) echo "<li><a href='#tab-developer'>Developer</a></li>\n"; ?>
@@ -101,9 +101,11 @@ $(document).ready(function() {
                     <? include 'settings-mqtt.php'; ?>
                 </div>
 
+<? if ($uiLevel >= 1) { ?>
                 <div id='tab-output'>
                     <? include 'settings-output.php'; ?>
                 </div>
+<? } ?>
 
                 <div id='tab-logs'>
                     <? include 'settings-logs.php'; ?>

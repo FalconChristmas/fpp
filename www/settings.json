@@ -696,6 +696,45 @@
             "restart": 2,
             "type": "checkbox"
         },
+        "password": {
+            "name": "password",
+            "description": "Password",
+            "tip": "Password to protect the User Interface.",
+            "type": "password",
+            "size": 16,
+            "maxlength": 16,
+            "onChange": "CheckPassword"
+        },
+        "passwordEnable": {
+            "name": "passwordEnable",
+            "description": "Enable UI password",
+            "tip": "Enable password protection on the FPP UI",
+            "type": "checkbox",
+            "onChange": "ConfirmPasswordEnable",
+            "children": {
+                "1": [
+                    "password",
+                    "passwordVerify",
+                    "passwordShow"
+                ]
+            }
+        },
+        "passwordShow": {
+            "name": "passwordShow",
+            "description": "Show password",
+            "tip": "Show the UI password instead of ********",
+            "type": "checkbox",
+            "onChange": "ShowHidePassword"
+        },
+        "passwordVerify": {
+            "name": "passwordVerify",
+            "description": "Verify Password",
+            "tip": "Verify the UI Password.",
+            "type": "password",
+            "size": 16,
+            "maxlength": 16,
+            "onChange": "CheckPasswordVerify"
+        },
         "piRTC": {
             "name": "piRTC",
             "description": "Real Time Clock",

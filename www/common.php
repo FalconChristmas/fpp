@@ -185,7 +185,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                     if (isset($s['optionsURL'])) {
                         $json = "";
                         if (preg_match('/^\//', $s['optionsURL'])) {
-                            $json = file_get_contents("http://" . $_SERVER['SERVER_ADDR'] . $s['optionsURL']);
+                            $json = file_get_contents("http://127.0.0.1" . $s['optionsURL']);
                         } else {
                             $json = file_get_contents($s['optionsURL']);
                         }
@@ -269,16 +269,13 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
     }
 }
 
-function printSettingGroup($group, $extraData = "") {
+function printSettingGroup($group, $appendData = "", $prependData = "") {
     global $settings;
     global $settingGroups;
 
     LoadSettingInfos();
 
     if (!isset($settingGroups[$group])) {
-    echo "<!--\n";
-    var_dump($settingGroups);
-    echo "-->\n";
         echo "<b>ERROR: Invalid Setting Group: $group</b><br>\n";
         return;
     }
@@ -296,12 +293,22 @@ function printSettingGroup($group, $extraData = "") {
         echo "<b>" . $g['description'] . "</b>\n";
         echo "<table class='settingsTable settingsGroupTable'>\n";
 
+        if ($prependData != "") {
+            if (preg_match("/<tr>/", $prependData))
+                echo $prependData;
+            else
+                echo "<tr><th colspan=2>$prependData</td></tr>\n";
+        }
+
         foreach ($g['settings'] as $setting) {
             PrintSetting($setting);
         }
 
-        if ($extraData != "") {
-            echo "<tr><th colspan=2>$extraData</td></tr>\n";
+        if ($appendData != "") {
+            if (preg_match("/<tr>/", $appendData))
+                echo $appendData;
+            else
+                echo "<tr><th colspan=2>$appendData</td></tr>\n";
         }
 
         echo "</table><br>\n";
@@ -335,6 +342,12 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
 	if ($('#$escSetting').is(':checked')) {
 		checked = 1;
     }
+
+    if (checked)
+        $('.$escSetting' + 'Child').show();
+    else
+        $('.$escSetting' + 'Child').hide();
+
 ";
         foreach ( $sData['children'] as $k => $v) {
             if ($k == "1") {
@@ -415,7 +428,10 @@ echo "
 
 	IfSettingEqualPrint($setting, $checkedValue, "checked", $pluginName, $defaultValue);
 
-	echo " onChange='" . $changedFunction . "();'";
+    if (isset($sData['onChange']))
+	    echo " onChange='" . $sData['onChange'] . "();'";
+    else
+	    echo " onChange='" . $changedFunction . "();'";
 
     if ($desc != "")
         echo '>' . $desc . "</input>\n";
@@ -497,8 +513,12 @@ echo "
 		});
 }
 </script>
+";
 
-<select id='$setting' onChange='" . $changedFunction . "();' ";
+    if (isset($sData['onChange']))
+        echo "<select id='$setting' onChange='" . $sData['onChange'] . "();' ";
+    else
+        echo "<select id='$setting' onChange='" . $changedFunction . "();' ";
 
     if (isset($sData['children'])) {
         echo "class='parentSetting' ";
@@ -607,9 +627,9 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
         var value = $('#$escSetting').val();
 ";
 
-    if (isset($sData['regex'])) {
+    if (isset($sData['regex']) && isset($sData['regexDesc'])) {
         echo "
-        if (!RegexCheckData('" . $sData['regex'] . "', value)) {
+        if (!RegexCheckData('" . $sData['regex'] . "', value, '" . $sData['regexDesc'] . ", '$inputType' == 'password')) {
             $('#" . $escSetting . "').focus();
             return;
         }
@@ -640,9 +660,12 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
               });
     }
     </script>
+";
 
-    
-    <input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
+    if (isset($sData['onChange']))
+        echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $sData['onChange'] . "();' value=\"";
+    else
+        echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
 
     if ((isset($sData['alwaysReset'])) && ($sData['alwaysReset'] == 1)) {
         echo $defaultValue;

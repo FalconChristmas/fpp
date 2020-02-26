@@ -43,7 +43,7 @@ function list_plugin_entries($menu)
 						if ($first)
 						{
 							$first = 0;
-							echo "<li><b><font color='white' size=-1>-=- Plugins -=-</font></b></li>\n";
+							echo "<li><b><font color='white' size=-1>- - - - - - - Plugins - - - - - - -</font></b></li>\n";
 						}
 
 						-include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
@@ -56,7 +56,7 @@ function list_plugin_entries($menu)
 						if ($first)
 						{
 							$first = 0;
-							echo "<li><b><font color='white' size=-1>-=- Plugins -=-</font></b></li>\n";
+							echo "<li><b><font color='white' size=-1>- - - - - - - Plugins - - - - - - -</font></b></li>\n";
 						}
 
 						-include($pluginDirectory."/".$plugin."/menu.inc");
@@ -137,7 +137,6 @@ function list_plugin_entries($menu)
       <li><a>Status/Control</a>
         <ul>
           <li><a href="index.php">Status Page</a></li>
-          <li><a href="uipassword.php">Set UI Password</a></li>
           <li><a href="networkconfig.php">Network</a></li>
           <li><a href="multisync.php">MultiSync</a></li>
           <li><a href="settings.php">FPP Settings</a></li>

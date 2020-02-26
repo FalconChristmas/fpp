@@ -60,14 +60,17 @@ function versionToNumber(version)
     return number;
 }
 
-function RegexCheckData(regexStr, value) {
+function RegexCheckData(regexStr, value, desc, hideValue = false) {
     var regex = new RegExp(regexStr);
 
     if (regex.test(value)) {
         return true;
     }
 
-    DialogError('Data Format Error', "ERROR: '" + value + "' does not match proper format");
+    if (hideValue)
+        DialogError('Data Format Error', "ERROR: The new value does not match proper format: " + desc);
+    else
+        DialogError('Data Format Error', "ERROR: '" + value + "' does not match proper format: " + desc);
     return false;
 }
 
@@ -2903,18 +2906,21 @@ if (1) {
 		SetSetting(key, value, 0, 1);
 	}
 
-	function SetSetting(key, value, restart, reboot) {
-		$.get("fppjson.php?command=setSetting&key=" + key + "&value=" + value)
-			.done(function() {
-				if ((key != 'restartFlag') && (key != 'rebootFlag'))
-					$.jGrowl(key + " setting saved.");
+function SetSetting(key, value, restart, reboot) {
+    $.ajax({
+        url: "fppjson.php?command=setSetting&key=" + key + "&value=" + value,
+        timeout: 1000,
+        async: false
+    }).success(function() {
+        if ((key != 'restartFlag') && (key != 'rebootFlag'))
+            $.jGrowl(key + " setting saved.");
 
-				CheckRestartRebootFlags();
-			}).fail(function() {
-				DialogError('Save Setting', "Failed to save " + key + " setting.");
-				CheckRestartRebootFlags();
-			});
-	}
+        CheckRestartRebootFlags();
+    }).fail(function() {
+        DialogError('Save Setting', "Failed to save " + key + " setting.");
+        CheckRestartRebootFlags();
+    });
+}
 
 	function ClearRestartFlag() {
 		settings['restartFlag'] = 0;
