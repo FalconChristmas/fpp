@@ -649,6 +649,7 @@ fieldset
 //}
 
 .evenRow {
+    background: #F0F0F0;
 }
 
 .oddRow {
@@ -933,9 +934,7 @@ fieldset
 }
 
 .genericTableContents {
-	height:400px;
 	min-height:400px;
-//	max-height:220px;
 	overflow: auto;
 }
 

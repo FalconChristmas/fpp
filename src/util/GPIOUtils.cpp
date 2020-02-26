@@ -23,7 +23,7 @@
 #elif defined(USEWIRINGPI)
 #include "WiringPiGPIO.h"
 #define PLAT_GPIO_CLASS WPPinCapabilities
-#elif defined(PLATFORM_UNKNOWN)
+#elif defined(PLATFORM_UNKNOWN) || defined(PLATFORM_DOCKER)
 #include "TmpFileGPIO.h"
 #define PLAT_GPIO_CLASS TmpFilePinCapabilities
 #else

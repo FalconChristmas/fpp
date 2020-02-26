@@ -129,6 +129,8 @@ extraCommands = [
     <div>
         <input type="button" value="Save" class="buttons" onClick="SaveGPIOInputs();"></input>
     </div>
+    <div class='genericTableWrapper'>
+    <div class='genericTableContents'>
     <table id='GPIOInputs' class='fppTable fppTable-GPIOInputs' width="100%">
     <tr class='fppTableHeader' width='100%'>
             <td>En.</td>
@@ -149,16 +151,16 @@ foreach($gpiojson as $gpio) {
     $pinName = $gpio['pin'];
     $gpioNum = $gpio['gpio'];
     $pinNameClean = str_replace("-", "_", $pinName);
-    $style = "";
+    $style = " evenRow";
     if ($count % 2 == 0) {
-        $style = " style='background: #FFFFFF;' ";
+        $style = " oddRow";
     }
     $count = $count + 1;
 
     if ($gpio['supportsPullUp'] || $gpio['supportsPullDown'])
         $pCount++;
 ?>
-    <tr class='fppTableRow' <?= $style ?> id='row_<?=$pinNameClean?>'>
+    <tr class='fppTableRow <?= $style ?>' id='row_<?=$pinNameClean?>'>
         <td><input type="checkbox" id="gpio_<?= $pinNameClean ?>_enabled"></td>
         <td><?= $pinName ?></td>
     <td><?= $gpioNum ?>&nbsp;-&nbsp;<?= $gpio['gpioChip'] ?>/<?= $gpio['gpioLine'] ?></td>
@@ -198,6 +200,8 @@ if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
 }
 ?>
 </table>
+</div>
+</div>
 <script>
 <?
 if ($pCount == 0) {
