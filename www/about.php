@@ -298,6 +298,7 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
     if (isSet($settings["cape-info"]))  {
         $currentCapeInfo = $settings["cape-info"];
     ?>
+        <br>
         <fieldset style="padding: 10px; border: 2px solid #000;">
         <legend>About Cape/Hat</legend>
         <div style="overflow: hidden; padding: 10px;">
