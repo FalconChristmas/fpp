@@ -77,7 +77,7 @@ function SaveGPIOInputs() {
                         alert('ERROR: ' + data.Message);
                     }
             },
-            fail: function() {
+            error: function() {
                     $('html,body').css('cursor','auto');
                     alert('Error, Failed to save GPIO inputs');
             }

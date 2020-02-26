@@ -36,7 +36,7 @@ function GetInstalledPlugins() {
 			LoadInstalledPlugins();
 			GetPluginList();
 		},
-		fail: function() {
+		error: function() {
 			GetPluginList();
 			alert('Error, failed to get list of installed plugins.');
 		}
@@ -51,7 +51,7 @@ function GetPluginList() {
 		success: function(data) {
 			LoadPlugins(data.pluginList);
 		},
-		fail: function() {
+		error: function() {
 			alert('Error, failed to get pluginList.json');
 		}
 	});
@@ -77,7 +77,7 @@ function CheckPluginForUpdates(plugin) {
 			else
 				alert('ERROR: ' + data.Message);
 		},
-		fail: function() {
+		error: function() {
 			$('html,body').css('cursor','auto');
 			alert('Error, API call failed when checking plugin for updates');
 		}
@@ -99,7 +99,7 @@ function UpgradePlugin(plugin) {
 			else
 				alert('ERROR: ' + data.Message);
 		},
-		fail: function() {
+		error: function() {
 			$('html,body').css('cursor','auto');
 			alert('Error, API call failed when upgrading plugin');
 		}
@@ -136,7 +136,7 @@ function InstallPlugin(plugin, branch, sha) {
 			else
 				alert('ERROR: ' + data.Message);
 		},
-		fail: function() {
+		error: function() {
 			$('html,body').css('cursor','auto');
 			alert('Error, API call to install plugin failed');
 		}
@@ -157,7 +157,7 @@ function UninstallPlugin(plugin) {
 			else
 				alert('ERROR: ' + data.Message);
 		},
-		fail: function() {
+		error: function() {
 			$('html,body').css('cursor','auto');
 			alert('Error, API call to uninstall plugin failed');
 		}
@@ -178,7 +178,7 @@ var firstInstalled = 1;
 var firstCompatible = 1;
 var firstUntested = 1;
 var firstIncompatible = 1;
-function LoadPlugin(data) {
+function LoadPlugin(data, insert = false) {
 	var html = '';
 	var infoURL = pluginInfoURLs[data.repoName];
 
@@ -310,12 +310,21 @@ function LoadPlugin(data) {
 	}
 	else if (compatibleVersion != -1)
 	{
-		if (firstCompatible)
+		if (firstCompatible) {
 			firstCompatible = 0;
-		else
-			$('#pluginTable').append('<tr><td colspan="7"><hr></td></tr>');
+		} else {
+			if (insert)
+				$('#pluginTable').find('tr:nth-child(2)').after('<tr><td colspan="7"><hr></td></tr>');
+			else
+				$('#pluginTable').append('<tr><td colspan="7"><hr></td></tr>');
+		}
 
-		$('#pluginTable').append(html);
+		if (insert) {
+			$('#pluginTable').find('tr:nth-child(2)').after(html);
+			document.getElementById("pluginTable").scrollIntoView();
+		} else {
+			$('#pluginTable').append(html);
+		}
 	}
 	else
 	{
@@ -341,7 +350,7 @@ function LoadInstalledPlugins() {
 			success: function(data) {
 				LoadPlugin(data);
 			},
-			fail: function() {
+			error: function() {
 				alert('Error, failed to fetch ' + installedPlugins[i]);
 			}
 		});
@@ -365,7 +374,7 @@ function LoadPlugins(pluginList) {
 					$('html,body').css('cursor','auto');
 					LoadPlugin(data);
 				},
-				fail: function() {
+				error: function() {
 					$('html,body').css('cursor','auto');
 					alert('Error, failed to fetch ' + pluginList[i]);
 				}
@@ -385,9 +394,10 @@ function ManualLoadInfo() {
 			dataType: 'json',
 			success: function(data) {
 				$('html,body').css('cursor','auto');
-				LoadPlugin(data);
+				pluginInfoURLs[data.repoName] = url;
+				LoadPlugin(data, true);
 			},
-			fail: function() {
+			error: function() {
 				$('html,body').css('cursor','auto');
 				alert('Error, failed to fetch ' + pluginInfos[i]);
 			}

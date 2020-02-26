@@ -7,7 +7,7 @@ function ConfigureEmail() {
         success: function(data) {
             $.jGrowl("Email configured.");
         },
-        fail: function() {
+        error: function() {
             DialogError('Error configuring email', 'Error configuring email');
         }
     });
@@ -21,7 +21,7 @@ function SendTestEmail() {
         success: function(data) {
             $.jGrowl("Test Email sent.");
         },
-        fail: function() {
+        error: function() {
             DialogError('Error sending email', 'Error sending email');
         }
     });

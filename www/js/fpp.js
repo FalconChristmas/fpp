@@ -124,7 +124,7 @@ function Get(url, async) {
         success: function(data) {
             result = data;
         },
-        fail: function() {
+        error: function() {
             $.jGrowl('Error: Unable to get ' + url);
         }
     });
@@ -735,7 +735,7 @@ function GetSequenceDuration(sequence, updateUI, row) {
                 UpdatePlaylistDurations();
             }
         },
-        fail: function() {
+        error: function() {
             $.jGrowl('Error: Unable to get metadata for ' + sequence);
         }
     });
@@ -1021,7 +1021,7 @@ function SavePlaylistAs(name, filter, callback) {
             SetPlaylistName(name);
             $.jGrowl("Playlist Saved");
         },
-        fail: function() {
+        error: function() {
             DialogError('Unable to save playlist', "Error: Unable to save playlist.");
         }
     });
@@ -1167,7 +1167,7 @@ function DeleteNamedPlaylist(name) {
             PopulateLists();
             $.jGrowl("Playlist Deleted");
         },
-        fail: function() {
+        error: function() {
             DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist");
         }
     });
@@ -2264,7 +2264,7 @@ function GetPlaylistArray()
         success: function(data) {
             playListArray = data;
         },
-        fail: function() {
+        error: function() {
             DialogError('Load Playlists', 'Error loading list of playlists');
         }
     });
@@ -2280,7 +2280,7 @@ function GetSequenceArray()
         success: function(data) {
             sequenceArray = data;
         },
-        fail: function() {
+        error: function() {
             DialogError('Load Sequences', 'Error loading list of sequences');
         }
     });
