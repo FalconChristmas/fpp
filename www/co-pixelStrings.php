@@ -18,24 +18,6 @@
     padding: 0px 9px 0px 0px ;
 }
 
-.addButton {
-	background-image: url(images/addicon.gif);
-	width: 12px;
-	height: 12px;
-	display: block;
-	background-size: 12px 12px;
-	background-repeat: no-repeat;
-}
-
-.deleteButton {
-	background-image: url(images/deleteicon.gif);
-	width: 12px;
-	height: 12px;
-	display: block;
-	background-size: 12px 12px;
-	background-repeat: no-repeat;
-}
-
 .outputTable tbody tr td input[type=text] {
 	text-align: center;
     width: 100%;

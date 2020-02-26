@@ -402,17 +402,17 @@ fieldset
 .siteName{font-size: 200%; padding-top: 13px; }
 
 
-.colPlaylistNumberDrag {
+.colPlaylistNumberDrag, .colNumberDrag {
 	background-image: url(../images/vertdrag.png);
 	background-repeat:no-repeat;
 	background-size:7px 14px;
 	background-position:0 2px;
 	padding-left:20px !important;
 }
-.colPlaylistNumberHeader {
+.colPlaylistNumberHeader, .colNumberHeader {
     text-align: center;
 }
-.colPlaylistNumber {
+.colPlaylistNumber, .colNumber {
     text-align:right;
     vertical-align: top;
     padding: 1px;
@@ -624,7 +624,7 @@ fieldset
 	overflow:auto
 }
 
-#playlistDetails, #eventList, #effectList, #effectLibrary, #runningEffects{
+#playlistDetails, #eventList, #effectList, #effectLibrary, #runningEffects, .genericTableWrapper {
 	border:thin solid;	
 	margin-top: 5px;
 	-moz-border-radius: 5px;
@@ -647,6 +647,13 @@ fieldset
 //.playlistEntriesBody > tr:nth-child(odd) {
 //    background: #dddddd;
 //}
+
+.evenRow {
+}
+
+.oddRow {
+    background: #ffffff;
+}
 
 .tblPlaylistDetailsHeader {
 	background: #aaaaaa;
@@ -701,7 +708,7 @@ fieldset
 	text-align:center;
 	}	
 
-.playlistSelectedEntry, .eventSelectedEntry, .effectSelectedEntry{
+.playlistSelectedEntry, .eventSelectedEntry, .effectSelectedEntry, .selectedTableRow {
 	background:#CCC;
 }
 
@@ -814,7 +821,7 @@ fieldset
 	min-height: 20px;
 }
 
-.playlistEditButton, .playlistDetailsEditButton {
+.playlistEditButton, .playlistDetailsEditButton, .genericButton {
     margin-right: 10px;
     margin-top: 5px;
 }
@@ -925,6 +932,25 @@ fieldset
 	border: 2px solid #000000;
 }
 
+.genericTableContents {
+	height:400px;
+	min-height:400px;
+//	max-height:220px;
+	overflow: auto;
+}
+
+.fppTable {
+    border-collapse: collapse;
+}
+
+.fppTable > tbody > tr {
+//    border: thin solid;
+}
+
+.fppTable > tbody > tr > td {
+    vertical-align: top;
+}
+
 .fppTableWrapper {
 	border:thin solid;
 	font-size:12px;
@@ -942,7 +968,7 @@ fieldset
 }
 
 .fppTableHeader {
-	background:#DDD;
+	background:#AAAAAA;
 	text-align:center;
 	font-weight: bold;
 }
@@ -996,6 +1022,24 @@ pre
 .button:hover
 {
 	cursor:pointer;
+}
+
+.addButton {
+    background-image: url(../images/addicon.gif);
+    width: 12px;
+    height: 12px;
+    display: block;
+    background-size: 12px 12px;
+    background-repeat: no-repeat;
+}
+
+.deleteButton {
+    background-image: url(../images/deleteicon.gif);
+    width: 12px;
+    height: 12px;
+    display: block;
+    background-size: 12px 12px;
+    background-repeat: no-repeat;
 }
 
 .pluginTitle
