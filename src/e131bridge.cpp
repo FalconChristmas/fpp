@@ -44,7 +44,6 @@
 #include "common.h"
 #include "e131bridge.h"
 #include "log.h"
-#include "PixelOverlay.h"
 #include "Sequence.h"
 #include "settings.h"
 #include "command.h"

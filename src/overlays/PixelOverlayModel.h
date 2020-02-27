@@ -1,13 +1,5 @@
 /*
- *   Pixel Overlay handler for Falcon Player (FPP)
- *
- *   Copyright (C) 2013-2018 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
- *      For additional credits and developers, see credits.php.
+ *   Pixel Overlay Model for Falcon Player (FPP)
  *
  *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
@@ -23,18 +15,14 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PIXELOVERLAY_H
-#define _PIXELOVERLAY_H
+#ifndef _PIXELOVERLAY_MODEL_H
+#define _PIXELOVERLAY_MODEL_H
 
-#include <string>
-#include <httpserver.hpp>
-#include <map>
-#include <mutex>
 #include <thread>
-#include <jsoncpp/json/json.h>
-
+#include <mutex>
 #include "PixelOverlayControl.h"
 
+class RunningEffect;
 
 class PixelOverlayState {
 public:
@@ -94,7 +82,7 @@ public:
     void setData(const uint8_t *data);
     void clear() { fill(0, 0, 0); }
     void fill(int r, int g, int b);
-    
+
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
     void setPixelValue(int x, int y, int r, int g, int b);
     void doText(const std::string &msg,
@@ -117,69 +105,23 @@ public:
     void toJson(Json::Value &v);
     void getDataJson(Json::Value &v);
     
-private:
-    void copyImageData(int xoff, int yoff);
-    void doImageMovementThread(const std::string &direction, int x, int y, int speed, bool disableWhenDone);
     
+    uint8_t *getOverlayBuffer();
+    FPPChannelMemoryMapControlBlock *getBlock() { return block; }
+    
+    bool applyEffect(bool autoEnable, const std::string &effect, const std::vector<std::string> &args);
+    void setRunningEffect(RunningEffect *r, int32_t firstUpdateMS);
+    int32_t updateRunningEffects();
+
+private:
     std::string name;
     FPPChannelMemoryMapControlBlock *block;
     char         *chanDataMap;
     uint32_t     *pixelMap;
-    
-    std::thread *updateThread;
-    volatile bool threadKeepRunning;
     uint8_t *overlayBuffer;
-    uint8_t *imageData;
-    int imageDataRows;
-    int imageDataCols;
+
+    std::mutex   effectLock;
+    RunningEffect *runningEffect;
 };
 
-
-class PixelOverlayManager : public httpserver::http_resource {
-public:
-    static PixelOverlayManager INSTANCE;
-
-    virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
-    virtual const httpserver::http_response render_POST(const httpserver::http_request &req) override;
-    virtual const httpserver::http_response render_PUT(const httpserver::http_request &req) override;
-
-    void OverlayMemoryMap(char *channelData);
-    int UsingMemoryMapInput();
-    
-    PixelOverlayModel* getModel(const std::string &name);
-    
-    void Initialize();
-    
-    const std::string &mapFont(const std::string &f);
-    void SendHomeAssistantDiscoveryConfig();
-    void LightMessageHandler(const std::string &topic, const std::string &payload);
-
-private:
-    PixelOverlayManager();
-    ~PixelOverlayManager();
-    
-    bool createChannelDataMap();
-    bool createControlMap();
-    bool createPixelMap();
-    void loadModelMap();
-    void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *b);
-    void ConvertCMMFileToJSON();
-    void RegisterCommands();
-    
-    std::map<std::string, PixelOverlayModel*> models;
-    std::map<std::string, std::string> fonts;
-    bool fontsLoaded = false;
-    std::mutex   modelsLock;
-    char         *ctrlMap = nullptr;
-    char         *chanDataMap = nullptr;
-    uint32_t     *pixelMap = nullptr;
-    
-    FPPChannelMemoryMapControlHeader *ctrlHeader = nullptr;
-    
-    void loadFonts();
-    
-    friend class OverlayCommand;
-};
-
-
-#endif /* _PIXELOVERLAY_H */
+#endif

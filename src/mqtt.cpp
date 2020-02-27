@@ -28,7 +28,7 @@
 #include "settings.h"
 #include "events.h"
 #include "effects.h"
-#include "PixelOverlay.h"
+#include "overlays/PixelOverlay.h"
 #include "playlist/Playlist.h"
 
 #include <sstream>

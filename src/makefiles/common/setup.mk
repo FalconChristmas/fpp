@@ -1,3 +1,7 @@
+CXXCOMPILER := g++
+CCOMPILER := gcc
+
+# CC has been set to g++ so keep for compatibility with C++ plugins
 CC := g++
 
 ifneq ($(wildcard /usr/bin/ccache),)

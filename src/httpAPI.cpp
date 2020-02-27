@@ -53,7 +53,7 @@
 #include "mediaoutput/mediaoutput.h"
 #include "sensors/Sensors.h"
 #include "commands/Commands.h"
-#include "PixelOverlay.h"
+#include "overlays/PixelOverlay.h"
 #include "Plugins.h"
 #include "gpio.h"
 

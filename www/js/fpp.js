@@ -3757,7 +3757,7 @@ function handleSettingsVisibilityChange() {
     }
 }
 
-function CommandToJSON(commandSelect, tblCommand, json, typeAttr = "") {
+function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {
     var args = new Array()
     var argTypes = new Array()
     json['command'] = $('#' + commandSelect).val();
@@ -3770,8 +3770,8 @@ function CommandToJSON(commandSelect, tblCommand, json, typeAttr = "") {
             } else {
                 args.push("false");
             }
-            if (typeAttr != "") {
-                argTypes.push(inp.data(typeAttr));
+            if (addArgTypes) {
+                argTypes.push(inp.data("arg-type"));
             }
         } else if (inp.attr('type') == 'number' || inp.attr('type') == 'text') {
             args.push(val);
@@ -3791,18 +3791,18 @@ function CommandToJSON(commandSelect, tblCommand, json, typeAttr = "") {
                     }
                 }
             }
-            if (typeAttr != "") {
-                argTypes.push(inp.data(typeAttr));
+            if (addArgTypes) {
+                argTypes.push(inp.data("arg-type"));
             }
         } else if (typeof val != "undefined") {
             args.push(val);
-            if (typeAttr != "") {
-                argTypes.push(inp.data(typeAttr));
+            if (addArgTypes) {
+                argTypes.push(inp.data("arg-type"));
             }
         }
     }
     json['args'] = args;
-    if (typeAttr != "") {
+    if (addArgTypes) {
         json['argTypes'] = argTypes;
     }
     return json;
@@ -3879,7 +3879,7 @@ function CommandArgChanged() {
 
 function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false, argPrintFunc = PrintArgInputs)
 {
-    for (var x = 1; x < 20; x++) {
+    for (var x = 1; x < 25; x++) {
         $('#' + tblCommand + '_arg_' + x + '_row').remove();
     }
     var command = $('#' + commandSelect).val();
@@ -3902,9 +3902,168 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
 
     argPrintFunc(tblCommand, configAdjustable, co['args']);
 }
+function SubCommandChanged(subCommandV, configAdjustable = false, argPrintFunc = PrintArgInputs) {
+    var subCommand = $(subCommandV);
+    if (typeof subCommandV === "string") {
+        subCommand = $("#" + subCommandV);
+    }
+    var val = subCommand.val();
+    var url = subCommand.data("url");
+    var count = subCommand.data("count");
+    var tblCommand = subCommand.data('tblcommand');
+    
+    for (var x = count+1; x < 25; x++) {
+        $('#' + tblCommand + '_arg_' + x + '_row').remove();
+    }
+    $.ajax({
+           dataType: "json",
+           async: false,
+           url: url + val,
+           success: function(data) {
+            argPrintFunc(tblCommand, false, data['args'], count+1);
+           }
+    });
 
-function PrintArgInputs(tblCommand, configAdjustable, args) {
-    var count = 1;
+}
+function PrintArgsInputsForEditable(tblCommand, configAdjustable, args, startCount = 1) {
+    var count = startCount;
+    var initFuncs = [];
+    var haveTime = 0;
+    var haveDate = 0;
+    var children = [];
+
+//    $.each( args,
+    var valFunc = function( key, val ) {
+        if (val['type'] == 'args') {
+            return;
+        }
+        
+        if ((val.hasOwnProperty('statusOnly')) &&
+            (val.statusOnly == true)) {
+            return;
+        }
+        var ID = tblCommand + "_arg_" + count;
+        var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
+        var subCommandInitFunc = null;
+        if (children.includes(val['name']))
+            line += "&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;";
+
+        var typeName = val['type'];
+        if (typeName == "datalist") {
+            typeName = "string";
+        }
+
+        var dv = "";
+        if (typeof val['default'] != "undefined") {
+            dv = val['default'];
+        }
+        var contentListPostfix = "";
+        if (val['type'] == "subcommand") {
+            line += val["description"] + ":</td><td>";
+            line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
+            line += " onChange='SubCommandChanged(this, " + configAdjustable + ", PrintArgsInputsForEditable)'";
+            line += " data-url='" + val['contentListUrl'] + "'";
+            line += " data-count='" + count + "'";
+            line += " data-tblcommand='" + tblCommand + "'";
+            line += " data-arg-type='subcommand'";
+            line += ">";
+            subCommandInitFunc = function () { SubCommandChanged(ID, configAdjustable, PrintArgsInputsForEditable);};
+            $.each( val['contents'], function( key, v ) {
+                   line += '<option value="' + v + '"';
+                   if (v == dv) {
+                        line += " selected";
+                   }
+
+                    if (Array.isArray(val['contents']))
+                        line += ">" + v + "</option>";
+                    else
+                        line += ">" + key + "</option>";
+             });
+             line += "</select>";
+        } else {
+            line += val["description"] + " (" + typeName + "):</td><td>";
+            line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='40' maxlength='200' data-arg-type='" + typeName + "' ";
+            if (val['type'] == "datalist" ||  (typeof val['contentListUrl'] != "undefined") || (typeof val['contents'] != "undefined")) {
+                line += " list='" + ID + "_list' value='" + dv + "'";
+            } else if (val['type'] == "bool") {
+                if (dv == "true" || dv == "1") {
+                    line += " value='true'";
+                } else {
+                    line += " value='false'";
+                }
+            } else if (val['type'] == "time") {
+                line += " value='00:00:00'";
+            } else if (val['type'] == "date") {
+                line += " value='2020-12-25'";
+            } else if ((val['type'] == "int") || (val['type'] == "float")) {
+                if (dv != "") {
+                    line += " value='" + dv + "'";
+                } else if (typeof val['min'] != "undefined") {
+                    line += " value='" + val['min'] + "'";
+                }
+            } else if (dv != "") {
+                line += " value='" + dv + "'";
+            }
+            line += ">";
+            if ((val['type'] == "int") || (val['type'] == "float")) {
+                if (typeof val['unit'] === 'string') {
+                    line += ' ' + val['unit'];
+                }
+            }
+            line +="</input>";
+            if (val['type'] == "datalist" || (typeof val['contentListUrl'] != "undefined") || (typeof val['contents'] != "undefined")) {
+                line += "<datalist id='" + ID + "_list'>";
+                $.each(val['contents'], function( key, v ) {
+                       line += '<option value="' + v + '"';
+                       line += ">" + v + "</option>";
+                       });
+                line += "</datalist>";
+                contentListPostfix = "_list";
+            }
+        }
+
+        line += "</td></tr>";
+        $('#' + tblCommand).append(line);
+        if (typeof val['contentListUrl'] != "undefined") {
+            var selId = "#" + tblCommand + "_arg_" + count + contentListPostfix;
+            $.ajax({
+                   dataType: "json",
+                   url: val['contentListUrl'],
+                   async: false,
+                   success: function(data) {
+                       if (Array.isArray(data)) {
+                            data.sort();
+                            $.each( data, function( key, v ) {
+                              var line = '<option value="' + v + '"';
+                              if (v == dv) {
+                                line += " selected";
+                              }
+                              line += ">" + v + "</option>";
+                              $(selId).append(line);
+                            });
+                       } else {
+                            $.each( data, function( key, v ) {
+                                   var line = '<option value="' + key + '"';
+                                   if (key == dv) {
+                                        line += " selected";
+                                   }
+                                   line += ">" + v + "</option>";
+                                   $(selId).append(line);
+                            });
+                       }
+                   }
+                   });
+        }
+        if (subCommandInitFunc != null) {
+            subCommandInitFunc();
+        }
+        count = count + 1;
+    };
+    $.each( args, valFunc);
+}
+
+function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
+    var count = startCount;
     var initFuncs = [];
     var haveTime = 0;
     var haveDate = 0;
@@ -3921,7 +4080,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
 
          var ID = tblCommand + "_arg_" + count;
          var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
-
+         var subCommandInitFunc = null;
+           
          if (children.includes(val['name']))
             line += "&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;";
 
@@ -4060,6 +4220,26 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
              if (configAdjustable && val['adjustable']) {
                 line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
              }
+         } else if (val['type'] == "subcommand") {
+             line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
+             line += " onChange='SubCommandChanged(this, " + configAdjustable + ")'";
+             line += " data-url='" + val['contentListUrl'] + "'";
+             line += " data-count='" + count + "'";
+             line += " data-tblcommand='" + tblCommand + "'";
+             line += ">";
+             subCommandInitFunc = function () { SubCommandChanged(ID, configAdjustable);};
+             $.each( val['contents'], function( key, v ) {
+                   line += '<option value="' + v + '"';
+                   if (v == dv) {
+                        line += " selected";
+                   }
+
+                    if (Array.isArray(val['contents']))
+                        line += ">" + v + "</option>";
+                    else
+                        line += ">" + key + "</option>";
+             });
+             line += "</select>";
          }
          
          line += "</td></tr>";
@@ -4093,6 +4273,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args) {
                        }
                    }
                    });
+         }
+         if (subCommandInitFunc != null) {
+           subCommandInitFunc();
          }
          count = count + 1;
     });
@@ -4131,6 +4314,10 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                        inp.prop( "checked", checked);
                    } else {
                        inp.val(v);
+                   }
+                   
+                   if (inp.data('url') != null) {
+                      SubCommandChanged(tblCommand + "_arg_" + count, configAdjustable, argPrintFunc);
                    }
                    
                    if (typeof json['adjustable'] != "undefined"

@@ -23,146 +23,34 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
+#include <stdio.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <memory>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <chrono>
-
-#include <dirent.h>
-#include <dlfcn.h>
-#include <sys/stat.h>
-
-#include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/replace.hpp>
-#include <jsoncpp/json/json.h>
 
 #include <Magick++.h>
 #include <magick/type.h>
+#include <jsoncpp/json/json.h>
+#include <boost/algorithm/string.hpp>
 
-#include "common.h"
+#include <chrono>
+
 #include "effects.h"
-#include "log.h"
-#include "mqtt.h"
-#include "PixelOverlay.h"
-#include "PixelOverlayControl.h"
-#include "Sequence.h"
-#include "settings.h"
 #include "channeloutput/channeloutputthread.h"
+#include "mqtt.h"
+#include "common.h"
+#include "settings.h"
+#include "Sequence.h"
+#include "log.h"
+#include "PixelOverlay.h"
+#include "PixelOverlayEffects.h"
+#include "PixelOverlayModel.h"
 #include "commands/Commands.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
 
-PixelOverlayModel::PixelOverlayModel(FPPChannelMemoryMapControlBlock *b,
-                                     const std::string &n,
-                                     char         *cdm,
-                                     uint32_t     *pm)
-    : block(b), name(n), chanDataMap(cdm), pixelMap(pm),
-    updateThread(nullptr),threadKeepRunning(false), overlayBuffer(nullptr),
-    imageData(nullptr), imageDataRows(0), imageDataCols(0)
-{
-}
-PixelOverlayModel::~PixelOverlayModel() {
-    if (updateThread) {
-        threadKeepRunning = false;
-        updateThread->join();
-        delete updateThread;
-    }
-    if (imageData) {
-        free(imageData);
-    }
-    if (overlayBuffer) {
-        free(overlayBuffer);
-    }
-}
-
-int PixelOverlayModel::getWidth() const {
-    int h, w;
-    getSize(w, h);
-    return w;
-}
-int PixelOverlayModel::getHeight() const {
-    int h, w;
-    getSize(w, h);
-    return h;
-}
-void PixelOverlayModel::getSize(int &w, int &h) const {
-    h = block->stringCount * block->strandsPerString;
-    w = block->channelCount / 3;
-    w /= h;
-
-    if (block->orientation == 'V') {
-        std::swap(w, h);
-    }
-}
-PixelOverlayState PixelOverlayModel::getState() const {
-    int i = block->isActive;
-    return PixelOverlayState(i);
-}
-void PixelOverlayModel::setState(const PixelOverlayState &state) {
-    int i = (int)state.getState();
-    block->isActive = i;
-}
-
-void PixelOverlayModel::setData(const uint8_t *data) {
-    for (int c = 0; c < block->channelCount; c++) {
-        chanDataMap[pixelMap[block->startChannel + c - 1]] = data[c];
-    }
-}
-void PixelOverlayModel::fill(int r, int g, int b) {
-    int start = block->startChannel - 1;
-    int end = block->startChannel + block->channelCount - 2;
-    
-    for (int c = start; c <= end;) {
-        chanDataMap[pixelMap[c++]] = r;
-        chanDataMap[pixelMap[c++]] = g;
-        chanDataMap[pixelMap[c++]] = b;
-    }
-}
-void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel) {
-    int start;
-    int end;
-    
-    if (startChannel != -1) {
-        start = startChannel >= block->startChannel ? startChannel : block->startChannel;
-    } else {
-        start = block->startChannel;
-    }
-    
-    int modelEnd = block->startChannel + block->channelCount - 1;
-    if (endChannel != -1) {
-        end = endChannel <= modelEnd ? endChannel : modelEnd;
-    } else {
-        end = modelEnd;
-    }
-    
-    // Offset for zero-based arrays
-    start--;
-    end--;
-    
-    for (int c = start; c <= end; c++) {
-        chanDataMap[pixelMap[c]] = value;
-    }
-}
-void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
-    int c = block->startChannel - 1 + (y*getWidth()*3) + x*3;
-    chanDataMap[pixelMap[c++]] = r;
-    chanDataMap[pixelMap[c++]] = g;
-    chanDataMap[pixelMap[c++]] = b;
-}
-
-static uint32_t mapColor(const std::string &c) {
+uint32_t PixelOverlayManager::mapColor(const std::string &c) {
     if (c[0] == '#') {
         std::string color = "0x" + c.substr(1);
         return std::stoul(color, nullptr, 0);
@@ -172,282 +60,37 @@ static uint32_t mapColor(const std::string &c) {
         return 0x00FF00;
     } else if (c == "blue") {
         return 0x0000FF;
+    } else if (c == "yellow") {
+        return 0xFFFF00;
+    } else if (c == "black") {
+        return 0x000000;
+    } else if (c == "white") {
+        return 0xFFFFFF;
+    } else if (c == "cyan") {
+        return 0x00FFFF;
+    } else if (c == "magenta") {
+        return 0xFF00FF;
+    } else if (c == "gray") {
+        return 0x808080;
+    } else if (c == "grey") {
+        return 0x808080;
     }
     return std::stoul(c, nullptr, 0);
-}
-
-void PixelOverlayModel::doText(const std::string &msg,
-                               int r, int g, int b,
-                               const std::string &font,
-                               int fontSize,
-                               bool antialias,
-                               const std::string &position,
-                               int pixelsPerSecond,
-                               bool autoEnable) {
-    if (updateThread) {
-        threadKeepRunning = false;
-        updateThread->join();
-        delete updateThread;
-    }
-    updateThread = nullptr;
-
-    Magick::Image image(Magick::Geometry(getWidth(),getHeight()), Magick::Color("black"));
-    image.quiet(true);
-    image.depth(8);
-    image.font(font);
-    image.fontPointsize(fontSize);
-    image.antiAlias(antialias);
-
-    bool disableWhenDone = false;
-    if ((autoEnable) && (getState().getState() == PixelOverlayState::PixelState::Disabled))
-    {
-        setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
-        disableWhenDone = true;
-    }
-    
-    int maxWid = 0;
-    int totalHi = 0;
-    
-    int lines = 1;
-    int last = 0;
-    for (int x = 0; x < msg.length(); x++) {
-        if (msg[x] == '\n' || ((x < msg.length() - 1) && msg[x] == '\\' && msg[x+1] == 'n')) {
-            lines++;
-            std::string newM = msg.substr(last, x);
-            Magick::TypeMetric metrics;
-            image.fontTypeMetrics(newM, &metrics);
-            maxWid = std::max(maxWid,  (int)metrics.textWidth());
-            totalHi += (int)metrics.textHeight();
-            if (msg[x] == '\n') {
-                last = x + 1;
-            } else {
-                last = x + 2;
-            }
-        }
-    }
-    std::string newM = msg.substr(last);
-    Magick::TypeMetric metrics;
-    image.fontTypeMetrics(newM, &metrics);
-    maxWid = std::max(maxWid,  (int)metrics.textWidth());
-    totalHi += (int)metrics.textHeight();
-    
-    if (position == "Centered" || position == "Center") {
-        image.magick("RGB");
-        //one shot, just draw the text and return
-        double rr = r;
-        double rg = g;
-        double rb = b;
-        rr /= 255.0f;
-        rg /= 255.0f;
-        rb /= 255.0f;
-        
-        image.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
-                                      Magick::Color::scaleDoubleToQuantum(rg),
-                                      Magick::Color::scaleDoubleToQuantum(rb)));
-        image.antiAlias(antialias);
-        image.strokeAntiAlias(antialias);
-        image.annotate(msg, Magick::CenterGravity);
-        Magick::Blob blob;
-        image.write( &blob );
-        
-        setData((uint8_t*)blob.data());
-
-        if (disableWhenDone)
-            setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
-    } else {
-        //movement
-        double rr = r;
-        double rg = g;
-        double rb = b;
-        rr /= 255.0f;
-        rg /= 255.0f;
-        rb /= 255.0f;
-                
-        Magick::Image image2(Magick::Geometry(maxWid, totalHi), Magick::Color("black"));
-        image2.quiet(true);
-        image2.depth(8);
-        image2.font(font);
-        image2.fontPointsize(fontSize);
-        image2.antiAlias(antialias);
-
-        image2.fillColor(Magick::Color(Magick::Color::scaleDoubleToQuantum(rr),
-                                      Magick::Color::scaleDoubleToQuantum(rg),
-                                      Magick::Color::scaleDoubleToQuantum(rb)));
-        image2.antiAlias(antialias);
-        image2.strokeAntiAlias(antialias);
-        image2.annotate(msg, Magick::CenterGravity);
-
-        double y = (getHeight() / 2.0) - ((totalHi) / 2.0);
-        double x = (getWidth() / 2.0) - (maxWid / 2.0);
-        if (position == "R2L") {
-            x = getWidth();
-        } else if (position == "L2R") {
-            x = -maxWid;
-        } else if (position == "B2T") {
-            y = getHeight();
-        } else if (position == "T2B") {
-            y =  -metrics.ascent();
-        }
-        image2.modifyImage();
-        
-        const MagickLib::PixelPacket *pixel_cache = image2.getConstPixels(0,0, image2.columns(), image2.rows());
-        if (imageData) {
-            free(imageData);
-        }
-        imageData = (uint8_t*)malloc(image2.columns() * image2.rows() * 3);
-        imageDataCols = image2.columns();
-        imageDataRows = image2.rows();
-        for (int yi = 0; yi < imageDataRows; yi++) {
-            int idx = yi * imageDataCols;
-            int nidx = yi * imageDataCols * 3;
-
-            for (int xi = 0; xi < image2.columns(); xi++) {
-                const MagickLib::PixelPacket *ptr2 = &pixel_cache[idx + xi];
-                uint8_t *np = &imageData[nidx + (xi*3)];
-                
-                float r = Magick::Color::scaleQuantumToDouble(ptr2->red);
-                float g = Magick::Color::scaleQuantumToDouble(ptr2->green);
-                float b = Magick::Color::scaleQuantumToDouble(ptr2->blue);
-                r *= 255;
-                g *= 255;
-                b *= 255;
-                np[0] = r;
-                np[1] = g;
-                np[2] = b;
-            }
-        }
-
-        if (!overlayBuffer)
-            overlayBuffer = (uint8_t*)malloc(block->channelCount);
-
-        copyImageData(x, y);
-        lock();
-        threadKeepRunning = true;
-        updateThread = new std::thread(&PixelOverlayModel::doImageMovementThread, this, position, (int)x, (int)y, pixelsPerSecond, disableWhenDone);
-    }
-}
-void PixelOverlayModel::doImageMovementThread(const std::string &direction, int x, int y, int speed, bool disableWhenDone) {
-    int msDelay = 1000 / speed;
-    bool done = false;
-    while (threadKeepRunning && !done) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(msDelay));
-        if (direction == "R2L") {
-            --x;
-            if (x <= (-imageDataCols)) {
-                done = true;
-            }
-        } else if (direction == "L2R") {
-            ++x;
-            if (x >= getWidth()) {
-                done = true;
-            }
-        } else if (direction == "B2T") {
-            --y;
-            if (y <= (-imageDataRows)) {
-                done = true;
-            }
-        } else if (direction == "T2B") {
-            ++y;
-            if (y >= getHeight()) {
-                done = true;
-            }
-        }
-        copyImageData(x, y);
-    }
-    if (disableWhenDone)
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-        setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
-    }
-
-    unlock();
-}
-
-
-void PixelOverlayModel::copyImageData(int xoff, int yoff) {
-    if (imageData) {
-        memset(overlayBuffer, 0, block->channelCount);
-        int h, w;
-        getSize(w, h);
-        for (int y = 0; y < imageDataRows; ++y)  {
-            int ny = yoff + y;
-            if (ny < 0 || ny >= h) {
-                continue;
-            }
-
-            uint8_t *src = imageData + (y * imageDataCols * 3);
-            uint8_t *dst = overlayBuffer + (ny * w * 3);
-            int pixelsToCopy = imageDataCols;
-            int c = w * 3;
-
-            if (xoff < 0) {
-                src -= xoff * 3;
-                pixelsToCopy += xoff;
-                if (pixelsToCopy >= w)
-                    pixelsToCopy = w;
-            } else if (xoff > 0) {
-                dst += xoff * 3;
-                if (pixelsToCopy > (w - xoff))
-                    pixelsToCopy = w - xoff;
-            } else {
-                if (pixelsToCopy >= w)
-                    pixelsToCopy = w;
-            }
-
-            if (pixelsToCopy > 0)
-                memcpy(dst, src, pixelsToCopy * 3);
-        }
-        setData(overlayBuffer);
-    }
-}
-
-
-
-void PixelOverlayModel::getDataJson(Json::Value &v) {
-    for (int c = 0; c < block->channelCount; c++) {
-        unsigned char i = chanDataMap[pixelMap[block->startChannel + c - 1]];
-        v.append(i);
-    }
-}
-bool PixelOverlayModel::isLocked() {
-    return block->isLocked;
-}
-void PixelOverlayModel::lock(bool l) {
-    block->isLocked = l ? 1 : 0;
-}
-
-int PixelOverlayModel::getStartChannel() const {
-    return block->startChannel;
-}
-int PixelOverlayModel::getChannelCount() const {
-    return block->channelCount;
-}
-bool PixelOverlayModel::isHorizontal() const {
-    return block->orientation == 'H';
-}
-int PixelOverlayModel::getNumStrings() const {
-    return block->stringCount;
-}
-int PixelOverlayModel::getStrandsPerString() const {
-    return block->strandsPerString;
-}
-std::string PixelOverlayModel::getStartCorner() const {
-    return block->startCorner;
-}
-void PixelOverlayModel::toJson(Json::Value &result) {
-    result["Name"] = getName();
-    result["StartChannel"] = getStartChannel();
-    result["ChannelCount"] = getChannelCount();
-    result["Orientation"] = isHorizontal() ? "horizontal" : "vertical";
-    result["StartCorner"] = getStartCorner();
-    result["StringCount"] = getNumStrings();
-    result["StrandsPerString"] = getStrandsPerString();
 }
 
 
 PixelOverlayManager::PixelOverlayManager() {
 }
 PixelOverlayManager::~PixelOverlayManager() {
+    if (updateThread != nullptr) {
+        std::unique_lock<std::mutex> l(threadLock);
+        threadKeepRunning = false;
+        l.unlock();
+        threadCV.notify_all();
+        updateThread->join();
+        delete updateThread;
+        updateThread = nullptr;
+    }
     for (auto a : models) {
         delete a.second;
     }
@@ -629,7 +272,16 @@ static void PrintChannelMapBlocks(FPPChannelMemoryMapControlHeader *ctrlHeader) 
 
 void PixelOverlayManager::loadModelMap() {
     LogDebug(VB_CHANNELOUT, "PixelOverlayManager::loadModelMap()\n");
-    
+    if (updateThread != nullptr) {
+        std::unique_lock<std::mutex> l(threadLock);
+        threadKeepRunning = false;
+        updates.clear();
+        l.unlock();
+        threadCV.notify_all();
+        updateThread->join();
+        delete updateThread;
+        updateThread = nullptr;
+    }
     for (auto a : models) {
         delete a.second;
     }
@@ -646,20 +298,7 @@ void PixelOverlayManager::loadModelMap() {
     strcpy(filename, getMediaDirectory());
     strcat(filename, "/config/model-overlays.json");
     if (FileExists(filename)) {
-        std::ifstream t(filename);
-        std::stringstream buffer;
-        
-        buffer << t.rdbuf();
-        
-        std::string config = buffer.str();
-
-        Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (!success) {
-            LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
-            return;
-        }
+        Json::Value root = loadJSON(filename);
         const Json::Value models = root["models"];
         FPPChannelMemoryMapControlBlock *cb = NULL;
         cb = (FPPChannelMemoryMapControlBlock*)(ctrlMap +
@@ -953,6 +592,14 @@ void PixelOverlayManager::OverlayMemoryMap(char *chanData) {
             }
         }
     }
+    std::unique_lock<std::mutex> l(threadLock);
+    while (!afterOverlayModels.empty()) {
+        PixelOverlayModel *m = afterOverlayModels.front();
+        afterOverlayModels.pop_front();
+        l.unlock();
+        m->updateRunningEffects();
+        l.lock();
+    }
 }
 
 
@@ -1200,6 +847,17 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
                     result["isActive"] = (int)m->getState().getState();
                 }
             }
+        } else if (p2 == "effects") {
+            if (p3 == "") {
+                for (auto &a : PixelOverlayEffect::GetPixelOverlayEffects()) {
+                    result.append(a);
+                }
+            } else {
+                PixelOverlayEffect *e = PixelOverlayEffect::GetPixelOverlayEffect(p3);
+                if (e) {
+                    result = e->getDescription();
+                }
+            }
         }
         Json::FastWriter fastWriter;
         std::string resultStr = fastWriter.write(result);
@@ -1423,7 +1081,7 @@ public:
             if (state != "Don't Set") {
                 m->setState(PixelOverlayState(state));
             }
-            unsigned int x = mapColor(color);
+            unsigned int x = PixelOverlayManager::mapColor(color);
             m->fill((x >> 16) & 0xFF,
                     (x >> 8) & 0xFF,
                     x & 0xFF);
@@ -1473,7 +1131,7 @@ public:
         auto m = manager->getModel(args[0]);
         if (m) {
             std::string color = args[1];
-            unsigned int cint = mapColor(color);
+            unsigned int cint = PixelOverlayManager::mapColor(color);
             std::string font = manager->mapFont(args[2]);
             int fontSize = std::atoi(args[3].c_str());
             if (fontSize < 4) {
@@ -1505,6 +1163,34 @@ public:
     }
 };
 
+class ApplyEffectOverlayCommand : public OverlayCommand {
+public:
+    ApplyEffectOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Effect", m) {
+        args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("AutoEnable", "bool", "Auto Enable/Disable").setDefaultValue("false"));
+        args.push_back(CommandArg("Effect", "subcommand", "Effect").setContentListUrl("api/overlays/effects/", false));
+    }
+    
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
+        if (args.size() < 3) {
+            return std::make_unique<Command::ErrorResult>("Command needs at least 3 arguments, found " + std::to_string(args.size()));
+        }
+        std::unique_lock<std::mutex> lock(getLock());
+        auto m = manager->getModel(args[0]);
+        if (m) {
+            bool autoEnable = (args[1] == "true" || args[1] == "1");
+            std::string effect = args[2];
+            std::vector<std::string> newArgs(args.begin() + 3, args.end());
+
+            if (m->applyEffect(autoEnable, effect, newArgs)) {
+                return std::make_unique<Command::Result>("Model Effect Started");
+            }
+            return std::make_unique<Command::ErrorResult>("Could not start effect: " + effect);
+        }
+        return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
+    }
+};
+
 void PixelOverlayManager::RegisterCommands() {
     if (models.empty()) {
         return;
@@ -1514,4 +1200,65 @@ void PixelOverlayManager::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new FillOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new TextOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new ClearOverlayCommand(this));
+    CommandManager::INSTANCE.addCommand(new ApplyEffectOverlayCommand(this));
+}
+
+void PixelOverlayManager::doOverlayModelEffects() {
+    std::unique_lock<std::mutex> l(threadLock);
+    while (threadKeepRunning) {
+        uint32_t waitTime = 1000;
+        if (!updates.empty()) {
+            uint64_t curTime = GetTimeMS();
+            while (!updates.empty() && updates.begin()->first <= curTime) {
+                std::list<PixelOverlayModel*> models = updates.begin()->second;
+                uint64_t startTime = updates.begin()->first;
+                updates.erase(updates.begin());
+                l.unlock();
+                
+                for (auto m : models) {
+                    uint32_t ms = m->updateRunningEffects();
+                    if (ms != 0) {
+                        l.lock();
+                        if (ms > 0) {
+                            uint64_t t = startTime + ms;
+                            updates[t].push_back(m);
+                        } else {
+                            afterOverlayModels.push_back(m);
+                        }
+                        l.unlock();
+                    }
+                }
+                l.lock();
+                curTime = GetTimeMS();
+            }
+            if (!updates.empty()) {
+                waitTime = updates.begin()->first - curTime;
+            }
+        }
+        threadCV.wait_for(l, std::chrono::milliseconds(waitTime));
+    }
+}
+void PixelOverlayManager::removePeriodicUpdate(PixelOverlayModel*m) {
+    std::unique_lock<std::mutex> l(threadLock);
+    for (auto &a : updates) {
+        updates.begin()->second.remove(m);
+    }
+    afterOverlayModels.remove(m);
+}
+
+void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlayModel*m) {
+    std::unique_lock<std::mutex> l(threadLock);
+    if (updateThread == nullptr) {
+        threadKeepRunning = true;
+        updateThread = new std::thread(&PixelOverlayManager::doOverlayModelEffects, this);
+    }
+    if (initialDelayMS > 0) {
+        uint64_t nextTime = GetTimeMS();
+        nextTime += initialDelayMS;
+        updates[nextTime].push_back(m);
+    } else {
+        afterOverlayModels.push_back(m);
+    }
+    l.unlock();
+    threadCV.notify_all();
 }

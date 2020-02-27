@@ -65,10 +65,10 @@ fppversion.c: fppversion.sh
 fppversion_defines.h: fppversion.c
 
 %.o: %.cpp %.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $< -o $@
 
 %.o: %.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
-	$(CCACHE) $(CC) $(CFLAGS) $(CXXFLAGS) $(CFLAGS_$@) -c $< -o $@
+	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $< -o $@
 
 cleanfpp:
 	rm -f fppversion.c fppversion_defines.h ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)

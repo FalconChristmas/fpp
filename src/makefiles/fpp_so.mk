@@ -50,7 +50,9 @@ OBJECTS_fpp_so += \
 	mqtt.o \
  	NetworkMonitor.o \
 	ping.o \
-	PixelOverlay.o \
+	overlays/PixelOverlay.o \
+    overlays/PixelOverlayEffects.o \
+	overlays/PixelOverlayModel.o \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
@@ -83,6 +85,8 @@ OBJECTS_fpp_so += \
     util/GPIOUtils.o \
     util/I2CUtils.o \
     util/SPIUtils.o \
+    util/tinyexpr.o \
+    util/ExpressionProcessor.o \
     $(OBJECTS_GPIO_ADDITIONS)
 
 
@@ -114,6 +118,10 @@ LIBS_fpp_so += -L/usr/local/lib -lvlc
 OBJECTS_fpp_so += mediaoutput/VLCOut.o
 CFLAGS_mediaoutput/mediaoutput.o+=-DHASVLC
 endif
+
+
+util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
+	$(CCACHE) $(CCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $< -o $@
 
 
 TARGETS += libfpp.so

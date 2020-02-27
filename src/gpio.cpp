@@ -103,7 +103,7 @@ int ExtGPIO(int gpio, char *mode, int value)
 
 class GPIOCommand : public Command {
 public:
-    GPIOCommand(std::vector<std::string> pins) : Command("GPIO") {
+    GPIOCommand(std::vector<std::string> &pins) : Command("GPIO") {
         args.push_back(CommandArg("pin", "string", "Pin").setContentList(pins));
         args.push_back(CommandArg("on", "bool", "On"));
     }

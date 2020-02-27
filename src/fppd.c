@@ -41,7 +41,7 @@
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
 #include "mqtt.h"
-#include "PixelOverlay.h"
+#include "overlays/PixelOverlay.h"
 #include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"

@@ -36,7 +36,7 @@
 #include <unistd.h>
 
 #include "fppversion.h"
-#include "PixelOverlayControl.h"
+#include "overlays/PixelOverlayControl.h"
 #include "common.h"
 #include "Sequence.h"
 

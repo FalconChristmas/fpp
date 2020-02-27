@@ -43,7 +43,7 @@
 #include "fppd.h"
 #include "log.h"
 #include "MultiSync.h"
-#include "PixelOverlay.h"
+#include "overlays/PixelOverlay.h"
 #include "Plugins.h"
 #include "Sequence.h"
 #include "Warnings.h"
