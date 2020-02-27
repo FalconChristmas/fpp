@@ -10,7 +10,7 @@ function GetTimeZone() {
 
 </script>
 
-<b>Current Time:</b> <span id='currentTime'></span><br>
+<b>FPP Time:</b> <span id='currentTime'></span><br>
 <br>
 <?
 $extraData = "<input type='button' value='Lookup Time Zone' onClick='GetTimeZone();'>";
