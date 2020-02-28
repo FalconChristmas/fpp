@@ -424,7 +424,7 @@
             "name": "LEDDisplayType",
             "description": "OLED Status Display",
             "tip": "OLED Status Display type.  There are serveral OLED displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
-            "restart": 1,
+            "reboot": 1,
             "checkFile": [
                 "/dev/i2c-1",
                 "/dev/i2c-2"
