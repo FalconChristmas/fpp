@@ -3547,7 +3547,7 @@ function GetVideoInfo(file)
 
 function PlayFileInBrowser(dir, file)
 {
-	location.href="fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file;
+	window.open("fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file);
 }
 
 function CopyFile(dir, file)
@@ -3587,6 +3587,17 @@ function DownloadFile(dir, file)
 	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
 }
 
+function DownloadFiles(dir, files)
+{
+    if (files.length == 1) {
+        DownloadFile(dir, files[0]);
+    } else {
+        for (var i = 0; i < files.length; i++) {
+            window.open("fppxml.php?command=getFile&dir=" + dir + "&filename=" + files[i]);
+        }
+    }
+}
+
 function DownloadZip(dir)
 {
 	location.href="fppxml.php?command=getZip&dir=" + dir;
@@ -3611,7 +3622,7 @@ function ViewFile(dir, file)
 	$('#fileViewer').dialog( "moveToTop" );
 }
 
-function DeleteFile(dir, file)
+function DeleteFile(dir, row, file)
 {
 	if (file.indexOf("/") > -1)
 	{
@@ -3619,18 +3630,12 @@ function DeleteFile(dir, file)
 		return;
 	}
 
-	var xmlhttp=new XMLHttpRequest();
-	var url = "fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + encodeURIComponent(file);
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-		{
-			GetFiles(dir);
-		}
-	};
-	xmlhttp.send();
+    $.get("fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + encodeURIComponent(file)
+    ).done(function() {
+        $(row).remove();
+    }).fail(function() {
+        DialogError("ERROR", "Error deleting file: " + file);
+    });
 }
 
 function SaveUSBDongleSettings()
