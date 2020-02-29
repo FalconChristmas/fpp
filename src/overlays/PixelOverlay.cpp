@@ -622,7 +622,11 @@ int PixelOverlayManager::UsingMemoryMapInput() {
     return false;
 }
 PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
-    return models[name];
+    auto a = models.find(name);
+    if (a == models.end()) {
+        return nullptr;
+    }
+    return a->second;
 }
 
 
