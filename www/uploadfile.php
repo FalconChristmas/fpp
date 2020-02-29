@@ -107,11 +107,38 @@ function ClearSelections(table) {
 }
 
 function HandleMouseClick(event, row, table) {
+    event.preventDefault(); // prevent shift from highlighting text
+
     if (row.hasClass('selectedentry')) {
         row.removeClass('selectedentry');
     } else {
-        if (!event.ctrlKey)
-            $('#tbl' + table + ' tr').removeClass('selectedentry');
+        if (event.shiftKey) {
+            var na = row.nextAll().length;
+            var nl = row.nextUntil('.selectedentry').length;
+            var pa = row.prevAll().length;
+            var pl = row.prevUntil('.selectedentry').length;
+
+            if (pa == pl)
+                pl = -1;
+
+            if (na == nl)
+                nl = -1;
+
+            if ((pl >= 0) && (nl >= 0)) {
+                if (nl > pl) {
+                    row.prevUntil('.selectedentry').addClass('selectedentry');
+                } else {
+                    row.nextUntil('.selectedentry').addClass('selectedentry');
+                }
+            } else if (pl >= 0) {
+                row.prevUntil('.selectedentry').addClass('selectedentry');
+            } else if (nl >= 0) {
+                row.nextUntil('.selectedentry').addClass('selectedentry');
+            }
+        } else {
+            if (!event.ctrlKey)
+                $('#tbl' + table + ' tr').removeClass('selectedentry');
+        }
 
         row.addClass('selectedentry');
     }
