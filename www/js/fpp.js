@@ -3925,7 +3925,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
     var co = commandList.find(function(element) {
                               return element["name"] == command;
                               });
-   if (typeof command == "undefined"  ||  command == null) {
+   if (typeof co == "undefined"  ||  co == null) {
        $.ajax({
        dataType: "json",
        async: false,
@@ -3936,7 +3936,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
         });
    }
     var line = "<tr id='" + tblCommand + "_multisync_row' ";
-    if (!allowMultisyncCommands) {
+    if (!allowMultisyncCommands || command == "") {
         line += "style='display:none'";
     }
     line += "><td>Multicast:</td><td><input type='checkbox' id='" + tblCommand
