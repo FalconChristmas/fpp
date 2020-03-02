@@ -189,6 +189,7 @@ function BranchTypeChanged() {
 }
 
 $(document).ready(function() {
+    allowMultisyncCommands = true;
     SetupToolTips();
 	playlistEditorDocReady();
     LoadCommandList($('#commandSelect'));

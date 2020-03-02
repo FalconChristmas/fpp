@@ -13,6 +13,7 @@ $data = file_get_contents('http://127.0.0.1:32322/gpio');
 $gpiojson = json_decode($data, true);
 ?>
 <script language="Javascript">
+allowMultisyncCommands = true;
 
 var gpioPinNames = {
 <?
@@ -72,7 +73,7 @@ function SaveGPIOInputs() {
                     $('html,body').css('cursor','auto');
                     if (data.Status == 'OK') {
                         $.jGrowl("GPIO Inputs Saved.");
-                        SetRestartFlag(1);
+                        SetRestartFlag(2);
                     } else {
                         alert('ERROR: ' + data.Message);
                     }

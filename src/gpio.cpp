@@ -148,10 +148,10 @@ void GPIOManager::CheckGPIOInputs(void) {
         if (val != a.lastValue) {
             long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
             if ((a.lastTriggerTime < lastAllowedTime)) {
-                std::string command = (val == 0) ? a.fallingAction : a.risingAction;
+                std::string command = (val == 0) ? a.fallingAction["command"].asString() : a.risingAction["command"].asString();
                 if (command != "") {
                     LogDebug(VB_GPIO, "GPIO %s triggered.   Command: %s\n", a.pin->name.c_str(), command.c_str());
-                    CommandManager::INSTANCE.run(command, (val == 0) ? a.fallingActionArgs : a.risingActionArgs);
+                    CommandManager::INSTANCE.run((val == 0) ? a.fallingAction : a.risingAction);
                 }
                 a.lastTriggerTime = GetTime();
                 a.lastValue = val;
@@ -360,27 +360,19 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                 }
                 if (state.pin) {
                     if (v.isMember("rising")) {
-                        state.risingAction = v["rising"]["command"].asString();
-                        if (state.risingAction == "OLED Navigation") {
-                            state.risingAction = "";
-                        } else {
-                            for (int a = 0; a < v["rising"]["args"].size(); a++) {
-                                state.risingActionArgs.push_back(v["rising"]["args"][a].asString());
-                            }
+                        state.risingAction = v["rising"];
+                        if (state.risingAction["command"].asString() == "OLED Navigation") {
+                            state.risingAction["command"] = "";
                         }
                     }
                     if (v.isMember("falling")) {
-                        state.fallingAction = v["falling"]["command"].asString();
-                        if (state.fallingAction == "OLED Navigation") {
-                            state.fallingAction = "";
-                        } else {
-                            for (int a = 0; a < v["falling"]["args"].size(); a++) {
-                                state.fallingActionArgs.push_back(v["falling"]["args"][a].asString());
-                            }
+                        state.fallingAction = v["falling"];
+                        if (state.fallingAction["command"].asString() == "OLED Navigation") {
+                            state.fallingAction["command"] = "";
                         }
                     }
                     
-                    if (state.risingAction != "" || state.fallingAction != "") {
+                    if (state.risingAction["command"].asString() != "" || state.fallingAction["command"].asString() != "") {
                         state.pin->configPin(mode, false);
 
                         // Set the time immediately to utilize the debounce code
@@ -452,9 +444,9 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                 
                 LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", a.pin->name.c_str(), v);
 
-                std::string command = (v == 0) ? a.fallingAction : a.risingAction;
+                std::string command = (v == 0) ? a.fallingAction["command"].asString() : a.risingAction["command"].asString();
                 if (command != "") {
-                    CommandManager::INSTANCE.run(command, (v == 0) ? a.fallingActionArgs : a.risingActionArgs);
+                    CommandManager::INSTANCE.run((v == 0) ? a.fallingAction : a.risingAction);
                     a.lastTriggerTime = GetTime();
                     a.lastValue = v;
                 }

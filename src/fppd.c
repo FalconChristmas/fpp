@@ -630,9 +630,8 @@ int main(int argc, char *argv[])
 	scheduler = new Scheduler();
 	playlist = new Playlist();
 	sequence  = new Sequence();
-	multiSync = new MultiSync();
 
-    if (!multiSync->Init()) {
+    if (!MultiSync::INSTANCE.Init()) {
 		exit(EXIT_FAILURE);
     }
     
@@ -675,7 +674,6 @@ int main(int argc, char *argv[])
     GPIOManager::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
 
-	delete multiSync;
 	delete scheduler;
 	delete playlist;
 	delete sequence;

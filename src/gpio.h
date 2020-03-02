@@ -31,6 +31,7 @@
 
 #include <httpserver.hpp>
 #include <gpiod.h>
+#include <jsoncpp/json/json.h>
 
 class PinCapabilities;
 class GPIOManager : public httpserver::http_resource {
@@ -56,10 +57,8 @@ private:
         
         struct gpiod_line * gpiodLine = nullptr;
         int file;
-        std::string fallingAction;
-        std::vector<std::string> fallingActionArgs;
-        std::string risingAction;
-        std::vector<std::string> risingActionArgs;
+        Json::Value fallingAction;
+        Json::Value risingAction;
     };
     
     GPIOManager();

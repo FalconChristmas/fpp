@@ -4,12 +4,13 @@ FPPD Control Protocol Information
 Control Port: UDP 32320
 
 Packet Types:
-0x00 - Command
+0x00 - Legacy Command
 0x01 - MultiSync
 0x02 - Event
 0x03 - Send Blanking Data
 0x04 - Ping
 0x05 - Plugin
+0x06 - FPP Command
 
 Base Packet Format: (All packets start with these 7 bytes plus optional ExtraData
 
@@ -123,7 +124,22 @@ buf[0]     = 'F'
 buf[1]     = 'P'
 buf[2]     = 'P'
 buf[3]     = 'D'
-buf[4]     = PacketType (0x00 for Command packet)
+buf[4]     = PacketType (0x05 for Plugin packet)
 buf[5-6]   = ExtraDataLen
 buf[7+] = Null Terminated string containing plugin name
 buf[x+] = Data sent by plugin 
+
+
+FPP Command
+buf[0]     = 'F'
+buf[1]     = 'P'
+buf[2]     = 'P'
+buf[3]     = 'D'
+buf[4]     = PacketType (0x06 for FPP Command packet)
+buf[5-6]   = ExtraDataLen
+buf[7]     = NumberOfArgs
+buf[8+]    = Null Terminated string containing target host (likely empty string)
+buf[x+]    = Null Terminated string containing FPP Command Name
+buf[x+]    = Null Terminated string containing arg1
+buf[x+]    = Null Terminated string containing arg2.....
+

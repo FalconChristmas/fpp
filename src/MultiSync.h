@@ -46,6 +46,7 @@
 #define CTRL_PKT_BLANK  3
 #define CTRL_PKT_PING   4
 #define CTRL_PKT_PLUGIN 5
+#define CTRL_PKT_FPPCOMMAND 6
 
 typedef struct __attribute__((packed)) {
 	char     fppd[4];        // 'FPPD'
@@ -162,6 +163,7 @@ class MultiSyncPlugin {
     virtual void SendBlankingDataPacket(void) {}
     
     virtual void SendPluginData(const std::string &name, const uint8_t *data, int len) {}
+    virtual void SendFPPCommandPacket(const std::string &host, const std::string &cmd, const std::vector<std::string> &args) {}
 };
 
 
@@ -180,6 +182,8 @@ public:
 
 class MultiSync {
   public:
+    static MultiSync INSTANCE;
+    
 	MultiSync();
 	~MultiSync();
 
@@ -216,6 +220,7 @@ class MultiSync {
 	void SendMediaSyncPacket(const std::string &filename, float seconds);
 
 	void SendEventPacket(const std::string &eventID);
+    void SendFPPCommandPacket(const std::string &host, const std::string &cmd, const std::vector<std::string> &args);
 	void SendBlankingDataPacket(void);
 
     void SendPluginData(const std::string &name, const uint8_t *data, int len);
@@ -270,6 +275,7 @@ class MultiSync {
 	void ProcessEventPacket(ControlPkt *pkt, int len);
 	void ProcessPingPacket(ControlPkt *pkt, int len);
     void ProcessPluginPacket(ControlPkt *pkt, int len);
+    void ProcessFPPCommandPacket(ControlPkt *pkt, int len);
 
 	std::mutex                   m_systemsLock;
 	std::vector<MultiSyncSystem> m_localSystems;

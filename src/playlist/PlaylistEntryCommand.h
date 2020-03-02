@@ -40,8 +40,7 @@ class PlaylistEntryCommand : public PlaylistEntryBase {
 	virtual Json::Value GetConfig(void) override;
 
   private:
-    std::string m_command;
-    std::vector<std::string> m_args;
+    Json::Value m_command;
     std::unique_ptr<Command::Result> m_result;
 };
 

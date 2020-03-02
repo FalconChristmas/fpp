@@ -52,11 +52,7 @@ PlaylistEntryCommand::~PlaylistEntryCommand()
 int PlaylistEntryCommand::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::Init()\n");
-    
-    m_command = config["command"].asString();
-    for (int x = 0; x < config["args"].size(); x++) {
-        m_args.push_back(config["args"][x].asString());
-    }
+    m_command = config;
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -73,7 +69,7 @@ int PlaylistEntryCommand::StartPlaying(void)
 		return 0;
 	}
 
-    m_result = CommandManager::INSTANCE.run(m_command, m_args);
+    m_result = CommandManager::INSTANCE.run(m_command);
     if (m_result->isDone() && m_result->isError()) {
         // failed, so mark finished
         FinishPlay();
@@ -113,9 +109,9 @@ void PlaylistEntryCommand::Dump(void)
 {
 	PlaylistEntryBase::Dump();
 
-	LogDebug(VB_PLAYLIST, "Command: %s\n", m_command.c_str());
-    for (auto &a : m_args) {
-        LogDebug(VB_PLAYLIST, "  \"%s\"\n", a.c_str());
+	LogDebug(VB_PLAYLIST, "Command: %s\n", m_command["command"].asString().c_str());
+    for (int x = 0; x < m_command["args"].size(); x++) {
+        LogDebug(VB_PLAYLIST, "  \"%s\"\n", m_command["args"][x].asString().c_str());
     }
 }
 
@@ -124,15 +120,6 @@ void PlaylistEntryCommand::Dump(void)
  */
 Json::Value PlaylistEntryCommand::GetConfig(void)
 {
-	Json::Value result = PlaylistEntryBase::GetConfig();
-
-	result["command"]  = m_command;
-
-	Json::Value args(Json::arrayValue);
-    for (auto &a : m_args) {
-        args.append(a);
-    }
-	result["args"] = args;
-	return result;
+	return m_command;
 }
 

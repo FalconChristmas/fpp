@@ -39,21 +39,18 @@ class FPPEvent {
 public:
     FPPEvent(const std::string &id);
     FPPEvent(uint8_t major, uint8_t minor);
-    Json::Value toJsonValue();
+    const Json::Value &toJsonValue() const { return event; };
     void save();
-    
-	uint8_t  majorID;
-	uint8_t  minorID;
-	std::string name;
-    
-    std::string command;
-    std::vector<std::string> args;
-    
-    
+        
     static std::string getEventFileName(const std::string &id);
     std::string getEventFileName();
+    
+    int getMajorId();
+    int getMinorId();
+    std::string getName();
 private:
     void Load(const std::string &id);
+    Json::Value event;
 };
 
 void UpgradeEvents();

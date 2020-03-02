@@ -7,6 +7,7 @@
 #include "PlaylistCommands.h"
 #include "EventCommands.h"
 #include "MediaCommands.h"
+#include "MultiSync.h"
 
 CommandManager CommandManager::INSTANCE;
 Command::Command(const std::string &n) : name(n) {
@@ -146,7 +147,7 @@ std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::str
     return run("URL", uargs);
 }
 
-std::unique_ptr<Command::Result> CommandManager::run(const std::string &command, Json::Value &argsArray) {
+std::unique_ptr<Command::Result> CommandManager::run(const std::string &command, const Json::Value &argsArray) {
     auto f = commands.find(command);
     if (f != commands.end()) {
         LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
@@ -159,8 +160,19 @@ std::unique_ptr<Command::Result> CommandManager::run(const std::string &command,
     LogWarn(VB_COMMAND, "No command found for \"%s\"\n", command.c_str());
     return std::make_unique<Command::ErrorResult>("No Command: " + command);
 }
-std::unique_ptr<Command::Result> CommandManager::run(Json::Value &cmd) {
+std::unique_ptr<Command::Result> CommandManager::run(const Json::Value &cmd) {
     std::string command = cmd["command"].asString();
+    if (cmd.isMember("multisyncCommand")) {
+        bool multisync = cmd["multisyncCommand"].asBool();
+        if (multisync) {
+            std::string hosts = cmd.isMember("multisyncHosts") ? cmd["multisyncHosts"].asString() : "";
+            std::vector<std::string> args;
+            for (int x = 0; x < cmd["args"].size(); x++) {
+                args.push_back(cmd["args"][x].asString());
+            }
+            MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
+        }
+    }
     return run(command, cmd["args"]);
 }
 
@@ -216,16 +228,34 @@ const httpserver::http_response CommandManager::render_GET(const httpserver::htt
 const httpserver::http_response CommandManager::render_POST(const httpserver::http_request &req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "command") {
-        std::string command = req.get_path_pieces()[1];
-        Json::Value val = JSONStringToObject(req.get_content());
-        std::vector<std::string> args;
-        for (int x = 0; x < val.size(); x++) {
-            args.push_back(val[x].asString());
-        }
-        auto f = commands.find(command);
-        if (f != commands.end()) {
-            LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
-            std::unique_ptr<Command::Result> r = f->second->run(args);
+        if (req.get_path_pieces().size() > 1) {
+            std::string command = req.get_path_pieces()[1];
+            Json::Value val = JSONStringToObject(req.get_content());
+            std::vector<std::string> args;
+            for (int x = 0; x < val.size(); x++) {
+                args.push_back(val[x].asString());
+            }
+            auto f = commands.find(command);
+            if (f != commands.end()) {
+                LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
+                std::unique_ptr<Command::Result> r = f->second->run(args);
+                int count = 0;
+                while (!r->isDone() && count < 1000) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    count++;
+                }
+                if (r->isDone()) {
+                    if (r->isError()) {
+                        return httpserver::http_response_builder(r->get(), 500, r->contentType());
+                    }
+                    return httpserver::http_response_builder(r->get(), 200, r->contentType());
+                } else {
+                    return httpserver::http_response_builder("Timeout running command", 500, "text/plain");
+                }
+            }
+        } else {
+            Json::Value val = JSONStringToObject(req.get_content());
+            std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));

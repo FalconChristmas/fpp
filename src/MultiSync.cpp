@@ -53,10 +53,12 @@
 #include "mediaoutput/mediaoutput.h"
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
+#include "commands/Commands.h"
 #include "NetworkMonitor.h"
 
 
-MultiSync *multiSync;
+MultiSync MultiSync::INSTANCE;
+MultiSync *multiSync = &MultiSync::INSTANCE;
 
 static const char * MULTISYNC_MULTICAST_ADDRESS = "239.70.80.80"; // 239.F.P.P
 static uint32_t MULTISYNC_MULTICAST_ADD = inet_addr(MULTISYNC_MULTICAST_ADDRESS);
@@ -1203,6 +1205,10 @@ int MultiSync::OpenControlSockets()
 	}
 
     std::string remotesString = getSetting("MultiSyncRemotes");
+    if (remotesString == "" || getFPPmode() != MASTER_MODE) {
+        remotesString += ",";
+        remotesString += MULTISYNC_MULTICAST_ADDRESS;
+    }
     std::vector<std::string> tokens = split(remotesString, ',');
     std::set<std::string> remotes;
     for (auto &token : tokens) {
@@ -1743,6 +1749,9 @@ void MultiSync::ProcessControlPacket(void)
                 case CTRL_PKT_PLUGIN:
                     ProcessPluginPacket(pkt, len);
                     break;
+                case CTRL_PKT_FPPCOMMAND:
+                    ProcessFPPCommandPacket(pkt, len);
+                    break;
             }
         }
         msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
@@ -2039,4 +2048,63 @@ void MultiSync::ProcessPluginPacket(ControlPkt *pkt, int plen) {
     len -= nlen;
     uint8_t *data = (uint8_t*)&cpkt->command[nlen];
     PluginManager::INSTANCE.multiSyncData(pn, data, len);
+}
+
+static bool MyHostMatches(const std::string &host, const std::string &hostName) {
+    std::vector<std::string> names = split(host, ',');
+    return std::find(names.begin(), names.end(), hostName) != names.end();
+}
+
+void MultiSync::ProcessFPPCommandPacket(ControlPkt *pkt, int len) {
+    char *b = (char *)pkt;
+    int pos = sizeof(ControlPkt);
+    int numArgs = b[pos++];
+    std::string host = &b[pos];
+    pos += host.length() + 1;
+    std::string cmd = &b[pos];
+    pos += cmd.length() + 1;
+    std::vector<std::string> args;
+    for (int x = 0; x < numArgs; x++) {
+        std::string arg = &b[pos];
+        pos += arg.length() + 1;
+        args.push_back(arg);
+    }
+    
+    if (host == "" || MyHostMatches(host, m_hostname)) {
+        CommandManager::INSTANCE.run(cmd, args);
+    }
+}
+
+void MultiSync::SendFPPCommandPacket(const std::string &host, const std::string &cmd, const std::vector<std::string> &args) {
+    if (m_controlSock < 0) {
+        OpenControlSockets();
+    }
+    if (m_controlSock < 0) {
+        OpenControlSockets();
+        LogErr(VB_SYNC, "ERROR: Tried to send FPP Command packet but sync socket is not open.\n");
+        return;
+    }
+    LogDebug(VB_SYNC, "SendFPPCommandPacket\n");
+    for (auto a : m_plugins) {
+        a->SendFPPCommandPacket(host, cmd, args);
+    }
+    char           outBuf[2048];
+    bzero(outBuf, sizeof(outBuf));
+
+    ControlPkt    *cpkt = (ControlPkt*)outBuf;
+    InitControlPacket(cpkt);
+    cpkt->pktType        = CTRL_PKT_FPPCOMMAND;
+    
+    int pos = sizeof(ControlPkt);
+    outBuf[pos++] = args.size();
+    strcpy(&outBuf[pos], host.c_str());
+    pos += host.length() + 1;
+    strcpy(&outBuf[pos], cmd.c_str());
+    pos += cmd.length() + 1;
+    for (auto &a : args) {
+        strcpy(&outBuf[pos], a.c_str());
+        pos += a.length() + 1;
+    }
+    cpkt->extraDataLen   = pos - sizeof(SyncPkt);
+    SendControlPacket(outBuf, pos);
 }

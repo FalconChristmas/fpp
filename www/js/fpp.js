@@ -3765,44 +3765,49 @@ function handleSettingsVisibilityChange() {
 function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {
     var args = new Array()
     var argTypes = new Array()
-    json['command'] = $('#' + commandSelect).val();
-    for (var x = 1; x < 20; x++) {
-        var inp =  $("#" + tblCommand + "_arg_" + x);
-        var val = inp.val();
-        if (inp.attr('type') == 'checkbox') {
-            if (inp.is(":checked")) {
-                args.push("true");
-            } else {
-                args.push("false");
-            }
-            if (addArgTypes) {
-                argTypes.push(inp.data("arg-type"));
-            }
-        } else if (inp.attr('type') == 'number' || inp.attr('type') == 'text') {
-            args.push(val);
-            var adj =  $("#" + tblCommand + "_arg_" + x + "_adjustable");
-            if (adj.attr('type') == "checkbox") {
-                if (adj.is(":checked")) {
-                    if (typeof json['adjustable'] == "undefined") {
-                        json['adjustable'] = {};
-                    }
-                    json['adjustable'][x] = inp.attr('type');
+    var commandVal = $('#' + commandSelect).val();;
+    json['command'] = commandVal;
+    if (commandVal != "" && !(typeof commandVal == "undefined")) {
+        json['multisyncCommand'] = $("#" + tblCommand + "_multisync").is(":checked");
+        json['multisyncHosts'] = $("#" + tblCommand + "_multisyncHosts").val();
+        for (var x = 1; x < 20; x++) {
+            var inp =  $("#" + tblCommand + "_arg_" + x);
+            var val = inp.val();
+            if (inp.attr('type') == 'checkbox') {
+                if (inp.is(":checked")) {
+                    args.push("true");
                 } else {
-                    if (typeof json['adjustable'] != "undefined") {
-                        delete json['adjustable'][x];
-                        if (jQuery.isEmptyObject(json['adjustable'])) {
-                            delete json['adjustable'];
+                    args.push("false");
+                }
+                if (addArgTypes) {
+                    argTypes.push(inp.data("arg-type"));
+                }
+            } else if (inp.attr('type') == 'number' || inp.attr('type') == 'text') {
+                args.push(val);
+                var adj =  $("#" + tblCommand + "_arg_" + x + "_adjustable");
+                if (adj.attr('type') == "checkbox") {
+                    if (adj.is(":checked")) {
+                        if (typeof json['adjustable'] == "undefined") {
+                            json['adjustable'] = {};
+                        }
+                        json['adjustable'][x] = inp.attr('type');
+                    } else {
+                        if (typeof json['adjustable'] != "undefined") {
+                            delete json['adjustable'][x];
+                            if (jQuery.isEmptyObject(json['adjustable'])) {
+                                delete json['adjustable'];
+                            }
                         }
                     }
                 }
-            }
-            if (addArgTypes) {
-                argTypes.push(inp.data("arg-type"));
-            }
-        } else if (typeof val != "undefined") {
-            args.push(val);
-            if (addArgTypes) {
-                argTypes.push(inp.data("arg-type"));
+                if (addArgTypes) {
+                    argTypes.push(inp.data("arg-type"));
+                }
+            } else if (typeof val != "undefined") {
+                args.push(val);
+                if (addArgTypes) {
+                    argTypes.push(inp.data("arg-type"));
+                }
             }
         }
     }
@@ -3882,10 +3887,36 @@ function CommandArgChanged() {
     CommandSelectChanged('playlistEntryOptions_arg_1', 'playlistEntryCommandOptions');
 }
 
+var allowMultisyncCommands = false;
+function OnMultisyncChanged(mscheck, tblCommand) {
+    var b = $(mscheck).is(":checked");
+    if (b) {
+        $("#" + tblCommand + "_multisyncHosts_row").show();
+    } else {
+        $("#" + tblCommand + "_multisyncHosts_row").hide();
+    }
+}
+
+var remoteIpList = null;
+function GetRemotes() {
+    if (remoteIpList == null) {
+        $.ajax({
+        dataType: "json",
+        async: false,
+        url: "api/remotes",
+        success: function(data) {
+               remoteIpList = data;
+             }
+         });
+    }
+    return remoteIpList;
+}
 function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = false, argPrintFunc = PrintArgInputs)
 {
     for (var x = 1; x < 25; x++) {
         $('#' + tblCommand + '_arg_' + x + '_row').remove();
+        $("#" + tblCommand + "_multisync_row").remove();
+        $("#" + tblCommand + "_multisyncHosts_row").remove();
     }
     var command = $('#' + commandSelect).val();
     if (typeof command == "undefined"  ||  command == null) {
@@ -3904,8 +3935,26 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
             }
         });
    }
+    var line = "<tr id='" + tblCommand + "_multisync_row' ";
+    if (!allowMultisyncCommands) {
+        line += "style='display:none'";
+    }
+    line += "><td>Multicast:</td><td><input type='checkbox' id='" + tblCommand
+        + "_multisync' onChange='OnMultisyncChanged(this, \"" +  tblCommand + "\");'></input></td></tr>";
+    $('#' + tblCommand).append(line);
+    line = "<tr id='" + tblCommand + "_multisyncHosts_row' style='display:none'><td>Hosts:</td><td><input style='width:100%;' type='text' id='" + tblCommand + "_multisyncHosts'";
+    line += " list='" + tblCommand + "_multisyncHosts_list'></input>";
+    line += "<datalist id='"+ tblCommand + "_multisyncHosts_list'>";
+    remotes = GetRemotes();
+    $.each( remotes, function (k, v) {
+           line += "<option value='" + k + "'>" + v + "</option>\n";
+           });
+    line += "</datalist></td></tr>";
+    
+    $('#' + tblCommand).append(line);
 
     argPrintFunc(tblCommand, configAdjustable, co['args']);
+
 }
 function SubCommandChanged(subCommandV, configAdjustable = false, argPrintFunc = PrintArgInputs) {
     var subCommand = $(subCommandV);
@@ -4302,10 +4351,28 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
     }
 }
 
+
 function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustable = false, argPrintFunc = PrintArgInputs) {
     if (typeof json != "undefined") {
         $('#' + commandSelect).val(json["command"]);
         CommandSelectChanged(commandSelect, tblCommand, configAdjustable, argPrintFunc);
+        if (allowMultisyncCommands) {
+            var to = typeof json['multisyncCommand'] ;
+            
+            if (typeof json['multisyncCommand'] != "undefined") {
+                var val = json['multisyncCommand'];
+                $("#" + tblCommand + "_multisync").prop("checked", val);
+                if (val) {
+                    val = json['multisyncHosts']
+                    $("#" + tblCommand + "_multisyncHosts_row").show();
+                    $("#" + tblCommand + "_multisyncHosts").val(val);
+                }
+            }
+        } else {
+            $("#" + tblCommand + "_multisync_row").hide();
+            $("#" + tblCommand + "_multisyncHosts_row").hide();
+        }
+        
     
         if (typeof json['args'] != "undefined") {
             var count = 1;

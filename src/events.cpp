@@ -34,6 +34,10 @@ std::string FPPEvent::getEventFileName(const std::string &id) {
 }
 std::string FPPEvent::getEventFileName() {
     char id[6] = {0};
+    
+    int minorID = event["minorId"].asInt();
+    int majorID = event["majorId"].asInt();
+
     sprintf(id, "%02d_%02d", majorID, minorID);
 
     std::string filename = getEventDirectory();
@@ -42,15 +46,28 @@ std::string FPPEvent::getEventFileName() {
 }
 
 
-FPPEvent::FPPEvent(uint8_t major, uint8_t minor) : minorID(1), majorID(1) {
+FPPEvent::FPPEvent(uint8_t major, uint8_t minor) {
     char id[6];
     sprintf(id, "%02d_%02d", major, minor);
     Load(id);
+    event["minorId"] = minor;
+    event["majorId"] = major;
 }
 
 FPPEvent::FPPEvent(const std::string &id) {
     Load(id);
 }
+int FPPEvent::getMajorId() {
+    return event["majorId"].asInt();
+}
+int FPPEvent::getMinorId() {
+    return event["minorId"].asInt();
+}
+std::string FPPEvent::getName() {
+    return event["name"].asString();
+}
+
+
 inline void insertAtStart(std::vector<std::string> &a, const std::string &s) {
     if (a.empty()) {
         a.push_back(s);
@@ -73,17 +90,9 @@ void FPPEvent::Load(const std::string &id) {
     
     if (contents[0] == '{') {
         //new JSON format
-        Json::Value val = JSONStringToObject(contents);
-        name = val["name"].asString();
-        minorID = val["minorId"].asInt();
-        majorID = val["majorId"].asInt();
-        command = val["command"].asString();
-        for (int x = 0; x < val["args"].size(); x++) {
-            args.push_back(val["args"][x].asString());
-        }
+        event = JSONStringToObject(contents);
     } else {
         //old line format
-                
         std::stringstream ss(contents);
         std::string to;
         
@@ -103,11 +112,11 @@ void FPPEvent::Load(const std::string &id) {
             }
             
             if (elems[0] == "minorID") {
-                minorID = std::atoi(val.c_str());
+                event["minorId"] = std::atoi(val.c_str());
             } else if (elems[0] == "majorID") {
-                majorID = std::atoi(val.c_str());
+                event["majorId"] = std::atoi(val.c_str());
             } else if (elems[0] == "name") {
-                name = val;
+                event["name"] = val;
             } else if (elems[0] == "effect" && val != "") {
                 insertAtStart(effectArgs, "false");
                 insertAtStart(effectArgs, val);
@@ -120,49 +129,40 @@ void FPPEvent::Load(const std::string &id) {
             }
         }
         if (!scriptArgs.empty()) {
-            command = "Run Script";
-            args = scriptArgs;
+            event["command"] = "Run Script";
+            for (auto &a : scriptArgs) {
+                event["args"].append(a);
+            }
         } else {
-            command = "Play Effect";
-            args = effectArgs;
+            event["command"] = "Play Effect";
+            for (auto &a : effectArgs) {
+                event["args"].append(a);
+            }
         }
         save();
     }
     
-    if (command == "Run Script") {
+    if (event["command"].asString() == "Run Script") {
         //need to add the script environment
-        while (args.size() < 3) {
-            args.push_back("");
+        while (event["args"].size() < 3) {
+            event["args"].append("");
         }
         std::string env = "FPP_EVENT_MAJOR_ID=";
-        env += std::to_string(majorID);
+        env += std::to_string(event["majorId"].asInt());
         env += ",FPP_EVENT_MINOR_ID=";
-        env += std::to_string(minorID);
+        env += std::to_string(event["minorId"].asInt());
         env += ",FPP_EVENT_NAME=";
-        env += name;
+        env += event["name"].asString();
         env += ",FPP_EVENT_SCRIPT=";
-        env += args[0];
-        args[2] = env;
+        env += event["args"][0].asString();
+        event["args"][2] = env;
     }
-}
-Json::Value FPPEvent::toJsonValue() {
-    Json::Value ret;
-    ret["majorId"] = majorID;
-    ret["minorId"] = minorID;
-    ret["name"] = name;
-    ret["command"] = command;
-    for (auto &a : args) {
-        ret["args"].append(a);
-    }
-    return ret;
 }
 void FPPEvent::save() {
-    Json::Value value = toJsonValue();
     std::string filename = getEventFileName();
-
     std::ofstream ostream(filename);
     Json::StyledWriter writer;
-    ostream << writer.write(value);
+    ostream << writer.write(event);
     ostream.close();
 }
 
@@ -175,17 +175,18 @@ FPPEvent* LoadEvent(const char *id)
 {
 	FPPEvent *event = new FPPEvent(id);
     
-    if (event->command == "") {
+    if (!event->toJsonValue().isMember("command")
+        || event->toJsonValue()["command"].asString() == "") {
         delete event;
         return nullptr;
     }
 
 	LogDebug(VB_EVENT, "Event Loaded:\n");
-	if (event->name != "")
-		LogDebug(VB_EVENT, "Event Name  : %s\n", event->name.c_str());
+	if (event->getName() != "")
+		LogDebug(VB_EVENT, "Event Name  : %s\n", event->getName().c_str());
 	else
 		LogDebug(VB_EVENT, "Event Name  : ERROR, no name defined in event file\n");
-	LogDebug(VB_EVENT, "Event ID    : %d/%d\n", event->majorID, event->minorID);
+	LogDebug(VB_EVENT, "Event ID    : %d/%d\n", event->getMajorId(), event->getMinorId());
 
 	return event;
 }
@@ -224,7 +225,7 @@ int TriggerEventByID(const char *id)
 		return 0;
 	}
 
-    CommandManager::INSTANCE.run(event->command, event->args);
+    CommandManager::INSTANCE.run(event->toJsonValue());
 
     delete event;
 	return 1;

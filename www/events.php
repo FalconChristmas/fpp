@@ -4,6 +4,8 @@
 <?php	include 'common.php'; ?>
 <?php	include 'common/menuHead.inc'; ?>
 <script>
+        allowMultisyncCommands = true;
+
 		var TriggerEventSelected = "";
 		var TriggerEventID = "";
 		$(function() {
