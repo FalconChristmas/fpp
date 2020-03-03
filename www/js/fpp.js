@@ -2521,7 +2521,7 @@ function GetSequenceArray()
 		$('#slider').slider('value', Volume);
 		SetSpeakerIndicator(Volume);
 
-		SetupUIForMode(fppMode);
+        AdjustFPPDModeFromStatus(fppMode);
         
         if (jsonStatus.hasOwnProperty('warnings')) {
             var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
@@ -3467,37 +3467,60 @@ function GetVolume()
 
 }
 
+function AdjustFPPDModeFromStatus(mode) {
+    var cur = $("#selFPPDmode").val();
+    SetupUIForMode(mode);
+    if (mode != cur) {
+        if(mode == 1) // Bridge Mode
+        {
+            $("#selFPPDmode").prop("selectedIndex",3);
+            $("#textFPPDmode").text("Bridge");
+        } else if (mode == 8) { // Remote Mode
+            $("#selFPPDmode").prop("selectedIndex",2);
+            $("#textFPPDmode").text("Player (Remote)");
+        } else { // Player or Master modes
+            if (mode == 2) { // Player
+                $("#selFPPDmode").prop("selectedIndex",0);
+                $("#textFPPDmode").text("Player (Standalone)");
+            } else {
+                $("#selFPPDmode").prop("selectedIndex",1);
+                $("#textFPPDmode").text("Player (Master)");
+            }
+        }
+    }
+}
+
 function GetFPPDmode()
 {
     var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=getFPPDmode";
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-			{
-				var xmlDoc=xmlhttp.responseXML; 
-				var mode = parseInt(xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent);
-				SetupUIForMode(mode);
-				if(mode == 1) // Bridge Mode
-				{
-					$("#selFPPDmode").prop("selectedIndex",3);
-					$("#textFPPDmode").text("Bridge");
-				} else if (mode == 8) { // Remote Mode
-					$("#selFPPDmode").prop("selectedIndex",2);
-					$("#textFPPDmode").text("Player (Remote)");
-				} else { // Player or Master modes
-					if (mode == 2) { // Player
-						$("#selFPPDmode").prop("selectedIndex",0);
-						$("#textFPPDmode").text("Player (Standalone)");
-					} else {
-						$("#selFPPDmode").prop("selectedIndex",1);
-						$("#textFPPDmode").text("Player (Master)");
-					}
-				}
-			}
-		};
-		xmlhttp.send();
+    var url = "fppxml.php?command=getFPPDmode";
+    xmlhttp.open("GET",url,true);
+    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
+    xmlhttp.onreadystatechange = function () {
+        if (xmlhttp.readyState == 4 && xmlhttp.status==200)
+        {
+            var xmlDoc=xmlhttp.responseXML;
+            var mode = parseInt(xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent);
+            SetupUIForMode(mode);
+            if(mode == 1) // Bridge Mode
+            {
+                $("#selFPPDmode").prop("selectedIndex",3);
+                $("#textFPPDmode").text("Bridge");
+            } else if (mode == 8) { // Remote Mode
+                $("#selFPPDmode").prop("selectedIndex",2);
+                $("#textFPPDmode").text("Player (Remote)");
+            } else { // Player or Master modes
+                if (mode == 2) { // Player
+                    $("#selFPPDmode").prop("selectedIndex",0);
+                    $("#textFPPDmode").text("Player (Standalone)");
+                } else {
+                    $("#selFPPDmode").prop("selectedIndex",1);
+                    $("#textFPPDmode").text("Player (Master)");
+                }
+            }
+        }
+    };
+    xmlhttp.send();
 }
 
 var helpOpen = 0;
