@@ -334,6 +334,20 @@ function psiDetailsForEntry(entry, editMode) {
             continue;
         }
 
+        if ((!a.optional) &&
+            (!entry.hasOwnProperty(a.name))) {
+            if (a.hasOwnProperty("default")) {
+                entry[a.name] = a.default;
+            } else {
+                if (a.type == 'int')
+                    entry[a.name] = 0;
+                else if (a.type == 'bool')
+                    entry[a.name] = false;
+                else
+                    entry[a.name] = "";
+            }
+        }
+
         if ((!a.optional) ||
             ((entry.hasOwnProperty(a.name)) &&
              (entry[a.name] != ''))) {
@@ -747,7 +761,8 @@ function SetPlaylistItemMetaData(row) {
     var type = row.find('.entryType').html();
     var file = row.find('.field_mediaName').html();
 
-    if ((type == 'both') || (type == 'media')) {
+    if (((type == 'both') || (type == 'media')) &&
+        (typeof file != 'undefined')) {
         file = $('<div/>').html(file).text(); // handle any & or other chars that got converted
         $.get('/api/media/' + encodeURIComponent(file) + '/meta').success(function(mdata) {
             var duration = -1;
@@ -774,8 +789,15 @@ function SetPlaylistItemMetaData(row) {
         }).fail(function() {
             $.jGrowl('Error: Unable to get metadata for ' + file);
         });
-    } else {
+    } else if (type == 'sequence') {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
+    } else {
+        var humanDuration = SecondsToHuman(0);
+
+        row.find('.psiDurationSeconds').html(0);
+        row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
+
+        UpdatePlaylistDurations();
     }
 }
 
@@ -819,6 +841,11 @@ function AddPlaylistEntry(mode) {
     var keys = Object.keys(pet.args);
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
+
+        var style = $('#playlistEntryOptions').find('.arg_' + a.name).parent().parent().attr('style');
+        if ((typeof style != 'undefined') && (style.includes('display: none;'))) {
+            continue;
+        }
 
         if (a.type == 'int') {
             pe[a.name] = parseInt($('#playlistEntryOptions').find('.arg_' + a.name).val());
