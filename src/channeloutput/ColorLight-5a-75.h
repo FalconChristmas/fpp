@@ -29,14 +29,23 @@
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <string>
+#include <sys/uio.h>
+#include <vector>
 
 #include "ChannelOutputBase.h"
 #include "ColorOrder.h"
 #include "Matrix.h"
 #include "PanelMatrix.h"
 
-#define CL5A75_BUFFER_SIZE  1536
+#define CL5A75_BUFFER_SIZE               1536
+#define CL5A75_HEADER_LEN                7
+#define CL5A75_MAX_PIXELS_PER_PACKET     497
+#define CL5A75_MAX_CHANNELS_PER_PACKET   (CL5A75_MAX_PIXELS_PER_PACKET * 3)
+#define CL5A75_0101_PACKET_DATA_LEN      98
+#define CL5A75_0AFF_PACKET_DATA_LEN      63
+
 
 class ColorLight5a75Output : public ChannelOutputBase {
   public:
@@ -64,15 +73,6 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	FPPColorOrder m_colorOrder;
 
 	int   m_fd;
-
-	char *m_buffer_0101;
-	int   m_buffer_0101_len;
-	char *m_buffer_0AFF;
-	int   m_buffer_0AFF_len;
-	
-	char  m_buffer[CL5A75_BUFFER_SIZE];
-	char *m_data;
-	char *m_rowData;
 	int   m_rowSize;
     
     int m_slowCount;
@@ -81,6 +81,9 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	struct ifreq          m_if_mac;
 	struct ether_header  *m_eh;
 	struct sockaddr_ll    m_sock_addr;
+
+	std::vector<struct mmsghdr>  m_msgs;
+	std::vector<struct iovec>    m_iovecs;
 
 	int          m_panelWidth;
 	int          m_panelHeight;

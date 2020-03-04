@@ -26,23 +26,25 @@
  *
  *   0x0101 Packet: (send first)
  *   	- Data Length:     98
- *   	- Source MAC:      22:22:33:44:55:66
  *   	- Destination MAC: 11:22:33:44:55:66
+ *   	- Source MAC:      22:22:33:44:55:66
  *   	- Ether Type:      0x0101 (have also seen 0x0100, 0x0104, 0x0107.
+ *   	- Data[0-end]:     0x00
  *
  *   0x0AFF Packet: (send second, but not at all in some captures)
  *   	- Data Length:     63
- *   	- Source MAC:      22:22:33:44:55:66
  *   	- Destination MAC: 11:22:33:44:55:66
+ *   	- Source MAC:      22:22:33:44:55:66
  *   	- Ether Type:      0x0AFF 
  *   	- Data[0]:         0xFF
  *   	- Data[1]:         0xFF
  *   	- Data[2]:         0xFF
+ *   	- Data[3-end]:     0x00
  *
  *   Row data packets: (send one packet for each row of display)
  *      - Data Length:     (Row_Width * 3) + 7
- *   	- Source MAC:      22:22:33:44:55:66
  *   	- Destination MAC: 11:22:33:44:55:66
+ *   	- Source MAC:      22:22:33:44:55:66
  *   	- Ether Type:      0x5500 + MSB of Row Number
  *   	                     0x5500 for rows 0-255
  *   	                     0x5501 for rows 256-511
@@ -100,11 +102,6 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 	m_height(0),
 	m_colorOrder(kColorOrderRGB),
 	m_fd(-1),
-	m_buffer_0101(NULL),
-	m_buffer_0101_len(0),
-	m_buffer_0AFF(NULL),
-	m_buffer_0AFF_len(0),
-	m_data(NULL),
 	m_rowSize(0),
 	m_panelWidth(0),
 	m_panelHeight(0),
@@ -128,17 +125,18 @@ ColorLight5a75Output::~ColorLight5a75Output()
 {
 	LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::~ColorLight5a75Output()\n");
 
+    for (int i = 0; i < m_iovecs.size(); i++) {
+        free(m_iovecs[i].iov_base);
+
+        if (i >= 4)
+            i++; // first 4 are header+data, only headers for the rest
+    }
+
 	if (m_fd >= 0)
 		close(m_fd);
 
 	if (m_outputFrame)
 		delete [] m_outputFrame;
-
-	if (m_buffer_0101)
-		free(m_buffer_0101);
-
-	if (m_buffer_0AFF)
-		free(m_buffer_0AFF);
 }
 
 /*
@@ -176,19 +174,6 @@ int ColorLight5a75Output::Init(Json::Value config)
 
 		if (o && *o)
 			orientation = o[0];
-
-		// FIXME, is the ColorLight receiver flipping the panels 180 degrees?
-		switch (orientation)
-		{
-			case 'N':	orientation = 'U';
-						break;
-			case 'U':	orientation = 'N';
-						break;
-			case 'R':	orientation = 'L';
-						break;
-			case 'L':	orientation = 'R';
-						break;
-		}
 
 		if (p["colorOrder"].asString() == "")
 			p["colorOrder"] = ColorOrderToString(m_colorOrder);
@@ -260,49 +245,7 @@ int ColorLight5a75Output::Init(Json::Value config)
 	else
 		m_ifName = "eth1";
 
-
-	////////////////////////////
-	// Setup 0x0101 packet data
-	m_buffer_0101_len = sizeof(struct ether_header) + 98;
-	m_buffer_0101 = (char *)calloc(m_buffer_0101_len, 1);
-	if (!m_buffer_0101) {
-		LogErr(VB_CHANNELOUT, "Error allocating m_buffer_0101\n");
-		return 0;
-	}
-
-	memset(m_buffer_0101, 0, m_buffer_0101_len);
-	SetHostMACs(m_buffer_0101);
-	m_eh = (struct ether_header *)m_buffer_0101;
-	m_eh->ether_type = htons(0x0101);
-
-	////////////////////////////
-	// Setup 0x0AFF packet data
-	m_buffer_0AFF_len = sizeof(struct ether_header) + 63;
-	m_buffer_0AFF = (char *)calloc(m_buffer_0AFF_len, 1);
-	if (!m_buffer_0AFF) {
-		LogErr(VB_CHANNELOUT, "Error allocating m_buffer_0AFF\n");
-		return 0;
-	}
-
-	memset(m_buffer_0AFF, 0, m_buffer_0AFF_len);
-	SetHostMACs(m_buffer_0AFF);
-	m_eh = (struct ether_header *)m_buffer_0AFF;
-	m_data = m_buffer_0AFF + sizeof(struct ether_header);
-	m_eh->ether_type = htons(0x0AFF);
-	m_data[0] = 0xff;
-	m_data[1] = 0xff;
-	m_data[2] = 0xff;
-
-	////////////////////////////
-	// Set main data packet
-	memset(m_buffer, 0, CL5A75_BUFFER_SIZE);
-	m_eh = (struct ether_header *)m_buffer;
-	m_data = m_buffer + sizeof(struct ether_header);
-	m_eh->ether_type = htons(0x5500);
-	SetHostMACs(m_buffer);
-
 	m_rowSize = m_longestChain * m_panelWidth * 3;
-
 
 	// Open our raw socket
 	if ((m_fd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1) {
@@ -310,21 +253,131 @@ int ColorLight5a75Output::Init(Json::Value config)
 		return 0;
 	}
 
+	// Get the output interface ID
 	memset(&m_if_idx, 0, sizeof(struct ifreq));
 	strcpy(m_if_idx.ifr_name, m_ifName.c_str());
-    if (ioctl(m_fd, SIOCGIFINDEX, &m_if_idx) < 0) {
-		LogErr(VB_CHANNELOUT, "Error getting index of %s inteface: %s\n",
+	if (ioctl(m_fd, SIOCGIFINDEX, &m_if_idx) < 0) {
+		LogErr(VB_CHANNELOUT, "Error getting index of %s interface: %s\n",
 			m_ifName.c_str(), strerror(errno));
 		return 0;
 	}
 
+	m_sock_addr.sll_family = AF_PACKET;
 	m_sock_addr.sll_ifindex = m_if_idx.ifr_ifindex;
 	m_sock_addr.sll_halen = ETH_ALEN;
-	memcpy(m_sock_addr.sll_addr, m_eh->ether_dhost, 6);
 
-	m_rowData = m_data + 7;
+    unsigned char dhost[] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
+    memcpy(m_sock_addr.sll_addr, dhost, 6);
 
-	return ChannelOutputBase::Init(config);
+    // Force packets out the desired interface
+    if ((bind(m_fd, (struct sockaddr *)&m_sock_addr, sizeof(m_sock_addr))) == -1) {
+        LogDebug(VB_CHANNELOUT, "bind() failed\n");
+        return 0;
+    }
+
+    int packetCount = 2 + (m_rows * (((int)(m_rowSize-1) / CL5A75_MAX_CHANNELS_PER_PACKET) + 1));
+    m_msgs.resize(packetCount);
+    m_iovecs.resize(packetCount * 2);
+
+    unsigned int   p = 0;
+    unsigned char *header = nullptr;
+    unsigned char *data = nullptr;
+
+    // First Init packet
+    header = (unsigned char *)malloc(sizeof(struct ether_header));
+    memset(header, 0, sizeof(struct ether_header));
+    m_eh = (struct ether_header *)header;
+    m_eh->ether_type = htons(0x0101);
+    SetHostMACs(header);
+    m_iovecs[p * 2].iov_base = header;
+    m_iovecs[p * 2].iov_len = sizeof(struct ether_header);
+
+    data = (unsigned char *)malloc(CL5A75_0101_PACKET_DATA_LEN);
+    memset(data, 0, CL5A75_0101_PACKET_DATA_LEN);
+    m_iovecs[p * 2 + 1].iov_base = data;
+    m_iovecs[p * 2 + 1].iov_len = CL5A75_0101_PACKET_DATA_LEN;
+    p++;
+
+    // Second Init packet
+    header = (unsigned char *)malloc(sizeof(struct ether_header));
+    memset(header, 0, sizeof(struct ether_header));
+    m_eh = (struct ether_header *)header;
+    m_eh->ether_type = htons(0x0AFF);
+    SetHostMACs(header);
+    m_iovecs[p * 2].iov_base = header;
+    m_iovecs[p * 2].iov_len = sizeof(struct ether_header);
+
+    data = (unsigned char *)malloc(CL5A75_0AFF_PACKET_DATA_LEN);
+    memset(data, 0, CL5A75_0AFF_PACKET_DATA_LEN);
+    data[0] = 0xff;
+    data[1] = 0xff;
+    data[2] = 0xff;
+    m_iovecs[p * 2 + 1].iov_base = data;
+    m_iovecs[p * 2 + 1].iov_len = CL5A75_0AFF_PACKET_DATA_LEN;
+    p++;
+
+    char *rowPtr = (char *)m_outputFrame;
+    unsigned int dSize = 0;
+    unsigned int part = 0;
+    unsigned int hSize = sizeof(struct ether_header) + CL5A75_HEADER_LEN;
+    unsigned int offset = 0;
+    unsigned int bytesInPacket = 0;
+    unsigned int pixelOffset = 0;
+    unsigned int pixelsInPacket = 0;
+
+    for (int r = 0; r < m_rows; r++) {
+        part = 0;
+        offset = 0;
+
+        while (offset < m_rowSize) {
+            header = (unsigned char *)malloc(hSize);
+            memset(header, 0, hSize);
+            m_eh = (struct ether_header *)header;
+
+            m_eh->ether_type = htons(0x5500 + (int)(r / 256));
+            SetHostMACs(header);
+
+            data = header + sizeof(struct ether_header);
+            data[0] = r % 256;
+
+            if ((offset + CL5A75_MAX_CHANNELS_PER_PACKET) > m_rowSize)
+                bytesInPacket = m_rowSize - offset;
+            else
+                bytesInPacket = CL5A75_MAX_CHANNELS_PER_PACKET;
+
+            pixelOffset = offset / 3;
+            pixelsInPacket = bytesInPacket / 3;
+
+            data[1] = pixelOffset >> 8;      // Pixel Offset MSB
+            data[2] = pixelOffset & 0xFF;    // Pixel Offset LSB
+            data[3] = pixelsInPacket >> 8;   // Pixels In Packet MSB
+            data[4] = pixelsInPacket & 0xFF; // Pixels In Packet LSB
+
+            data[5] = 0x08; // ?? still not sure what this value is
+            data[6] = 0x80; // ?? still not sure what this value is
+
+            m_iovecs[p * 2].iov_base = header;
+            m_iovecs[p * 2].iov_len = hSize;
+            m_iovecs[p * 2 + 1].iov_base = rowPtr + offset;
+            m_iovecs[p * 2 + 1].iov_len = bytesInPacket;
+
+            offset += bytesInPacket;
+            part++;
+            p++;
+        }
+
+        rowPtr += m_rowSize;
+    }
+
+    for (int m = 0; m < packetCount; m++) {
+        struct mmsghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_hdr.msg_iov = &m_iovecs[m * 2];
+        msg.msg_hdr.msg_iovlen = 2;
+        m_msgs[m] = msg;
+    }
+
+    return ChannelOutputBase::Init(config);
 }
 
 /*
@@ -362,7 +415,6 @@ void ColorLight5a75Output::PrepData(unsigned char *channelData)
 		for (int i = 0; i < panelsOnOutput; i++) {
 			int panel = m_panelMatrix->m_outputPanels[output][i];
 			int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
-			chain = m_panelMatrix->m_panels[panel].chain;
 
 			for (int y = 0; y < m_panelHeight; y++) {
 				int px = chain * m_panelWidth;
@@ -390,68 +442,32 @@ int ColorLight5a75Output::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "ColorLight5a75Output::SendData(%p)\n", channelData);
 
-	if (sendto(m_fd, m_buffer_0101, m_buffer_0101_len, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
-		LogErr(VB_CHANNELOUT, "Error sending 0x0101 packet: %s\n", strerror(errno));
-		return 0;
-	}
-
-	if (sendto(m_fd, m_buffer_0AFF, m_buffer_0AFF_len, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
-		LogErr(VB_CHANNELOUT, "Error sending 0x0AFF packet: %s\n", strerror(errno));
-		return 0;
-	}
-
-	char *rowPtr = (char *)m_outputFrame;
-	int row = 0;
-	int offset = 0;
-	int pixelOffset = 0;
-	int maxPixelsPerPacket = 497;
-	int maxBytesPerPacket = maxPixelsPerPacket * 3;
-	int bytesInPacket = 0;
-	int pixelsInPacket = 0;
-	int pktSize = 0;
     long long startTime = GetTimeMS();
+    struct mmsghdr *msgs = &m_msgs[0];
+    int msgCount = m_msgs.size();
+    if (msgCount == 0)
+        return 0;
 
-	for (row = 0; row < m_rows; row++) {
-		if (row < 256) {
-			m_eh->ether_type = htons(0x5500);
-			m_data[0] = row;
-		} else {
-			m_eh->ether_type = htons(0x5501);
-			m_data[0] = row % 256;
-		}
+    errno = 0;
+    int oc = sendmmsg(m_fd, msgs, msgCount, MSG_DONTWAIT);
+    int outputCount = 0;
+    if (oc > 0) {
+        outputCount = oc;
+    }
 
-		m_data[5] = 0x08; // ?? still not sure what this value is
-		m_data[6] = 0x80; // ?? still not sure what this value is
+    int errCount = 0;
+    while ((outputCount != msgCount) && (errCount < 5)) {
+        errCount++;
+        LogErr(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d) with error: %d   %s\n",
+            m_fd, outputCount, msgCount, errno, strerror(errno));
 
-		offset = 0;
-		while (offset < m_rowSize) {
-			if ((offset + maxBytesPerPacket) > m_rowSize)
-				bytesInPacket = m_rowSize - offset;
-			else
-				bytesInPacket = maxBytesPerPacket;
+        errno = 0;
+        oc = sendmmsg(m_fd, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+        if (oc > 0) {
+            outputCount += oc;
+        }
+    }
 
-			memcpy(m_rowData, rowPtr + offset, bytesInPacket);
-
-			pixelOffset = offset / 3;
-			pixelsInPacket = bytesInPacket / 3;
-
-			m_data[1] = pixelOffset >> 8;      // Pixel Offset MSB
-			m_data[2] = pixelOffset & 0xFF;    // Pixel Offset LSB
-			m_data[3] = pixelsInPacket >> 8;   // Pixels In Packet MSB
-			m_data[4] = pixelsInPacket & 0xFF; // Pixels In Packet LSB
-
-			offset += bytesInPacket;
-
-			pktSize = sizeof(struct ether_header) + 7 + bytesInPacket;
-
-			if (sendto(m_fd, m_buffer, pktSize, 0, (struct sockaddr*)&m_sock_addr, sizeof(struct sockaddr_ll)) < 0) {
-				LogErr(VB_CHANNELOUT, "Error sending row data packet: %s\n", strerror(errno));
-				return 0;
-			}
-		}
-
-		rowPtr += m_rowSize;
-	}
     long long endTime = GetTimeMS();
     long long totalTime = endTime - startTime;
     if (totalTime > 25) {
@@ -464,6 +480,7 @@ int ColorLight5a75Output::SendData(unsigned char *channelData)
     } else {
         m_slowCount = 0;
     }
+
 	return m_channelCount;
 }
 
