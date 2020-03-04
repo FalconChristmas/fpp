@@ -27,6 +27,7 @@
 #include <string.h>
 #include <thread>
 #include <boost/algorithm/string.hpp>
+#include "boost/filesystem.hpp"
 #include <sys/wait.h>
 
 #include "log.h"
@@ -57,13 +58,15 @@ PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
 	m_mediaSeconds(0.0),
 	m_mediaOutput(NULL),
     m_videoOutput("--Default--"),
-    m_openTime(0)
+    m_openTime(0),
+    m_fileMode("single")
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PlaylistEntryMedia()\n");
     if (m_openStartDelay == -1) {
         m_openStartDelay = getSettingInt("openStartDelay");
     }
 	m_type = "media";
+	m_fileSeed = (unsigned int)time(NULL);
 	pthread_mutex_init(&m_mediaOutputLock, NULL);
 }
 
@@ -82,27 +85,55 @@ int PlaylistEntryMedia::Init(Json::Value &config)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::Init()\n");
 
-	if (!config.isMember("mediaName"))
-	{
-		LogErr(VB_PLAYLIST, "Missing mediaName entry\n");
-		return 0;
-	}
+    if (config.isMember("fileMode")) {
+        m_fileMode = config["fileMode"].asString();
+    }
 
-	m_mediaFilename = config["mediaName"].asString();
-    
+    if (m_fileMode == "single") {
+        if (config.isMember("mediaName")) {
+            m_mediaFilename = config["mediaName"].asString();
+        } else {
+            LogErr(VB_PLAYLIST, "Missing mediaName entry\n");
+            return 0;
+        }
+    } else {
+        if (GetFileList()) {
+            m_mediaFilename = GetNextRandomFile();
+        } else {
+            LogErr(VB_PLAYLIST, "Error, no files found when trying to play random file in %s mode\n",
+                m_fileMode.c_str());
+            return 0;
+        }
+    }
+
     if (config.isMember("videoOut")) {
         m_videoOutput = config["videoOut"].asString();
     }
-	return PlaylistEntryBase::Init(config);
+
+    return PlaylistEntryBase::Init(config);
 }
 
 
 int PlaylistEntryMedia::PreparePlay() {
-    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::StartPlaying()\n");
+    LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PreparePlay()\n");
     
     if (!CanPlay()) {
         FinishPlay();
         return 0;
+    }
+
+    if (m_fileMode != "single") {
+        if (m_files.size()) {
+            m_mediaFilename = GetNextRandomFile();
+        } else {
+            if (GetFileList()) {
+                m_mediaFilename = GetNextRandomFile();
+            } else {
+                LogErr(VB_PLAYLIST, "Error, no files found when trying to play random file in %s mode\n",
+                    m_fileMode.c_str());
+                return 0;
+            }
+        }
     }
 
     if (!OpenMediaOutput()) {
@@ -355,6 +386,60 @@ int PlaylistEntryMedia::CloseMediaOutput(void)
 	pthread_mutex_unlock(&m_mediaOutputLock);
 
 	return 1;
+}
+
+/*
+ *
+ */
+int PlaylistEntryMedia::GetFileList(void)
+{
+    std::string dir;
+
+    m_files.clear();
+
+    if (m_fileMode == "randomVideo")
+        dir = getVideoDirectory();
+    else if (m_fileMode == "randomAudio")
+        dir = getMusicDirectory();
+
+    namespace fs = boost::filesystem;
+
+    fs::path apk_path(dir);
+    fs::recursive_directory_iterator end;
+
+    for (fs::recursive_directory_iterator i(apk_path); i != end; ++i) {
+        const fs::path cp = (*i);
+        std::string entry = cp.string();
+        m_files.push_back(entry);
+    }
+
+    LogDebug(VB_PLAYLIST, "%d images in %s directory\n", m_files.size(), dir.c_str());
+
+    return m_files.size();
+}
+
+/*
+ *
+ */
+std::string PlaylistEntryMedia::GetNextRandomFile(void)
+{
+    std::string filename;
+
+    if (!m_files.size())
+        GetFileList();
+
+    if (!m_files.size()) {
+        LogWarn(VB_PLAYLIST, "No files found in GetNextRandomFile()\n");
+        return filename;
+    }
+
+    int i = rand_r(&m_fileSeed) % m_files.size();
+    filename = m_files[i];
+    m_files.erase(m_files.begin() + i);
+
+    LogDebug(VB_PLAYLIST, "GetNextRandomFile() = %s\n", filename.c_str());
+
+    return filename;
 }
 
 /*

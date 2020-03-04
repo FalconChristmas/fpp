@@ -290,13 +290,31 @@
         "description": "Media",
         "longDescription": "Media Only",
         "args": {
+            "fileMode": {
+                "name": "fileMode",
+                "description": "File Mode",
+                "type": "string",
+                "default": "single",
+                "contents": {
+                    "Single File": "single",
+                    "Random Video": "randomVideo",
+                    "Random Audio": "randomAudio"
+                },
+                "children": {
+                    "single": [
+                        "mediaName"
+                    ]
+                },
+                "optional": false,
+                "simpleUI": true
+            },
             "mediaName": {
                 "name": "mediaName",
                 "description": "Media",
                 "contentListUrl": "api/media",
                 "type": "string",
                 "onChange": "MediaChanged",
-                "optional": false,
+                "optional": true,
                 "simpleUI": true
             },
             "videoOut": {

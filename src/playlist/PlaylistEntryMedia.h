@@ -63,14 +63,22 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 
     long long m_openTime;
     static int m_openStartDelay;
+
   private:
 	int OpenMediaOutput(void);
 	int CloseMediaOutput(void);
+
+    unsigned int  m_fileSeed;
+    int           GetFileList(void);
+    std::string   GetNextRandomFile(void);
 
 	std::string        m_mediaFilename;
     std::string        m_videoOutput;
 	MediaOutputBase   *m_mediaOutput;
 	pthread_mutex_t    m_mediaOutputLock;
+
+    std::string              m_fileMode;
+    std::vector<std::string> m_files;
 };
 
 #endif
