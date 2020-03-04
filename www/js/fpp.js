@@ -795,7 +795,7 @@ function SetPlaylistItemMetaData(row) {
         var humanDuration = SecondsToHuman(0);
 
         row.find('.psiDurationSeconds').html(0);
-        row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
+        row.find('.humanDuration').html('<b>Length: ??:??</b>');
 
         UpdatePlaylistDurations();
     }
