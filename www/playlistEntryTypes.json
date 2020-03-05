@@ -269,8 +269,8 @@
                 "optional": false,
                 "simpleUI": true
             },
-            "fileName": {
-                "name": "fileName",
+            "imageFilename": {
+                "name": "imageFilename",
                 "description": "File",
                 "type": "string",
                 "optional": true,
