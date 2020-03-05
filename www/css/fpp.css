@@ -370,9 +370,9 @@ legend
 	font-weight: bold;
 	padding: 0.1em 0.4em;
 	text-align: left;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	-webkit-border-radius: 5px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+	-webkit-border-radius: 6px;
 	margin-left: auto;
 	margin-right: auto;
 	border: solid 2px rgb(0,0,0);
@@ -380,9 +380,10 @@ legend
 
 fieldset
 {
-	-moz-border-radius:5px;
-    border-radius: 5px;
-    -webkit-border-radius: 5px;
+    border: solid 2px;
+	-moz-border-radius:6px;
+    border-radius: 6px;
+    -webkit-border-radius: 6px;
 }
 .header{padding: 10px; }
 .headerLeft , .headerRight
@@ -617,19 +618,12 @@ fieldset
     text-overflow: ellipsis;
 }
 
-#eventListContents, #effectListContents{
-	height:120px;
-	min-height:120px;
-	max-height:120px;
-	overflow:auto
-}
-
-#playlistDetails, #eventList, #effectList, #effectLibrary, #runningEffects, .genericTableWrapper {
-	border:thin solid;	
+#playlistDetails, #effectList, .genericTableWrapper {
+	border: solid 2px;
 	margin-top: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	-webkit-border-radius: 5px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+	-webkit-border-radius: 6px;
 	min-height: 65px;
     overflow: hidden;
 }
@@ -678,7 +672,7 @@ fieldset
 	background:#CCC;
 }
 
-.playlistHeader, .eventListHeader, .effectListHeader{
+.playlistHeader {
 	background:#DDD;
 	text-align:center;
 }
@@ -711,14 +705,6 @@ fieldset
 
 .playlistSelectedEntry, .eventSelectedEntry, .effectSelectedEntry, .selectedTableRow {
 	background:#CCC;
-}
-
-.unselectable {
-   -moz-user-select: -moz-none;
-   -khtml-user-select: none;
-   -webkit-user-select: none;
-  -ms-user-select: none;
-   user-select: none;
 }
 
 
@@ -759,9 +745,9 @@ fieldset
   padding:10px;
 	border:thin solid;	
 	font-size:12px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	-webkit-border-radius: 5px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+	-webkit-border-radius: 6px;
 }
 
 .playlistItemCountLeadIn, .playlistItemCountMainPlaylist, .playlistItemCountLeadOut {
@@ -779,9 +765,9 @@ fieldset
   padding:10px;
 	border:thin solid;	
 	font-size:12px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	-webkit-border-radius: 5px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+	-webkit-border-radius: 6px;
 	min-height:200px;
 	text-align:center;
 	display:none;
@@ -866,37 +852,15 @@ fieldset
 	height: 60px;
 }
 
-.channelOutputTable {
-    background: #F0F0F0;
-	width: 100%;
-    border:thin;
-    border-color:#333;
-    border-spacing: 0px;
-    border-collapse: collapse;
-}
-
-.channelOutputTable tr {
-    border: thin solid;
-    border-color: #CCC;
-}
-
-.channelOutputTable th {
-    vertical-align: bottom;
-    text-align: center;
-    border: solid 2px #888888;
-    font-size: 0.8em;
-    background-color:#CCC;
-}
-
-.universeOutputTable td {
+.universeTable td {
     text-align: center;
 }
 
-.universeOutputTable input[type=text] {
+.universeTable input[type=text] {
     text-align: center;
     width: 100%;
 }
-.universeOutputTable input[type=number] {
+.universeTable input[type=number] {
     text-align: center;
     width: 100%;
 }
@@ -951,25 +915,61 @@ fieldset
 }
 
 .fppTableWrapper {
-	border:thin solid;
-	font-size:12px;
+	border: solid 2px;
 	margin-top: 5px;
-	-moz-border-radius: 5px;
-	border-radius: 5px;
-	-webkit-border-radius: 5px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+	-webkit-border-radius: 6px;
 	min-height: 65px;
+    overflow: hidden;
 
 	-moz-user-select: -moz-none;
 	-khtml-user-select: none;
 	-webkit-user-select: none;
 	-ms-user-select: none;
 	user-select: none;
+
+    display: table;
 }
 
-.fppTableHeader {
-	background:#AAAAAA;
-	text-align:center;
-	font-weight: bold;
+.fppTableContents {
+}
+
+.fppTableContents > table {
+    background: #F0F0F0;
+    border: thin;
+    border-color:#333;
+    border-spacing: 0px;
+    border-collapse: collapse;
+}
+
+.fullWidth {
+    width: 100%;
+}
+
+.fppTableContents > table > thead > tr, .fppTableContents > table > tbody > tr {
+    border: thin solid;
+    border-color: #CCC;
+}
+
+.fppTableContents > table > thead > tr > th {
+    vertical-align: bottom;
+    text-align: center;
+    color: #000000;
+    border-left: thin solid #888888;
+    border-right: thin solid #888888;
+    border-bottom: thin solid #888888;
+    font-size: 12pt;
+    font-family: Verdana,Arial,sans-serif;
+    background-color:#CCC;
+}
+
+.fppTableContents > table > tbody > tr > td {
+    font-size: 12pt;
+    padding-left: 1px;
+    padding-right: 5px;
+    padding-top: 1px;
+    padding-bottom: 1px;
 }
 
 .fppTableSelectedEntry {
@@ -1050,7 +1050,7 @@ pre
 
 .pluginTable
 {
-	width: 800px;
+	width: 100%;
 }
 
 .pluginTable td
@@ -1203,7 +1203,35 @@ td.bgDarkOrange {
 	font-weight: bold;
 }
 
-@media screen and (max-width: 950px) {
+@media screen and (max-width: 980px) {
+    #bodyWrapper
+    {
+        width: 96%;
+    }
+}
+
+@media screen and (max-width: 960px) {
+    #bodyWrapper
+    {
+        width: 97%;
+    }
+}
+
+@media screen and (max-width: 940px) {
+    #bodyWrapper
+    {
+        width: 98%;
+    }
+}
+
+@media screen and (max-width: 920px) {
+    #bodyWrapper
+    {
+        width: 99%;
+    }
+}
+
+@media screen and (max-width: 900px) {
 	html {
 		background: #f0f0f0;
 	}
@@ -1237,6 +1265,22 @@ td.bgDarkOrange {
 		color: white !important; }
 	#fppMenu li ul li {
 		background: #555; }
+}
+
+.selectable {
+   -moz-user-select: -moz-auto;
+   -khtml-user-select: auto;
+   -webkit-user-select: auto;
+  -ms-user-select: auto;
+   user-select: auto;
+}
+
+.unselectable {
+   -moz-user-select: -moz-none;
+   -khtml-user-select: none;
+   -webkit-user-select: none;
+  -ms-user-select: none;
+   user-select: none;
 }
 
 .ui-datepicker {

@@ -9,9 +9,10 @@ require_once('../config.php');
 <li><b>Publish Frequence</b> should be zero (disabled) or the number of seconds between periodic mqtt publish events<br/>
 <li>FPP will respond to certain events:
 </ul>
-<div class="fppSelectableTableWrapper">
+<div class='fppTableWrapper selectable'>
+<div class='fppTableContents'>
 <table width = "100%" border="1" cellpadding="1" cellspacing="1">
-<thead class='fppTableHeader'>
+<thead>
 <tr><th>Topic</th><th>Action</th></tr>
 </thead>
 <tbody>
@@ -53,4 +54,5 @@ require_once('../config.php');
     <? echo GetSettingValue('MQTTPrefix', '', '', '/'); ?>falcon/player/<? echo GetSettingValue('HostName', 'FPP'); ?>/light/${MODELNAME}/state</td><td>Control a Pixel Overlay Model via Home Assistant's MQTT Light interface.  The Pixel Overlay Model is treated as a RGB light.</td>
 </tr>
 </table>
+</div>
 </div>

@@ -74,6 +74,8 @@ $(document).ready(function() {
              DialogError("Save E1.31 Universes", "Validation Failed");
          }
 	});
+
+    $(document).tooltip();
 });
 
 <?
@@ -162,45 +164,6 @@ $(document).ready(function(){
     border: solid 2px #888888;
     text-align:center;
 }
-tr.rowUniverseDetails
-{
-    border:thin solid;
-    border-color:#CCC;
-}
-
-tr.rowUniverseDetails td
-{
-    padding:1px 5px;
-}
-
-.channelInputTable
-{
-    background: #F0F0F0;
-    border:thin;
-    border-color:#333;
-    border-spacing: 0px;
-    border-collapse: collapse;
-}
-
-#tblUniverses th {
-	vertical-align: bottom;
-	text-align: center;
-	border: solid 2px #888888;
-}
-
-#tblUniverses td {
-	text-align: center;
-}
-
-#tblUniverses input[type=text] {
-	text-align: center;
-	width: 100%;
-}
-#tblUniverses input[type=number] {
-    text-align: center;
-    width: 100%;
-}
-
 </style>
 
 <title><? echo $pageTitle; ?></title>
@@ -244,13 +207,17 @@ tr.rowUniverseDetails td
       	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(1);" /></td>
       </tr>
     </table>
-    
-		<table id="tblUniverses" class='channelInputTable'>
-			<thead id='tblUniversesHead'>
-			</thead>
-			<tbody id='tblUniversesBody'>
-			</tbody>
-    </table>
+
+    <div class='fppTableWrapper'>
+        <div class='fppTableContents'>
+            <table id="tblUniverses" class='universeTable fullWidth'>
+                <thead id='tblUniversesHead'>
+                </thead>
+                <tbody id='tblUniversesBody'>
+                </tbody>
+            </table>
+        </div>
+    </div>
 		<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
 		</form>
 	</div>

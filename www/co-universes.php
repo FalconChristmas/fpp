@@ -129,12 +129,16 @@ function PopulateInterfaces()
 							</tr>
 						</table>
 
-						<table id="tblUniverses" class='channelOutputTable universeOutputTable'>
+                        <div class='fppTableWrapper'>
+                            <div class='fppTableContents'>
+						<table id="tblUniverses" class='universeTable fullWidth'>
 							<thead id='tblUniversesHead'>
 							</thead>
 							<tbody id='tblUniversesBody'>
 							</tbody>
 						</table>
+                            </div>
+                        </div>
 						<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
 					</form>
 				</div>

@@ -123,17 +123,19 @@ For example, if this FPP instance is used as a wireless proxy to another e1.31 c
             </tr>
         </table>
         <div class="fppTableWrapper">
-            <table id="proxyTable">
-                <thead>
-                    <tr class="fppTableHeader">
-                        <th>#</td>
-                        <th>IP/HostName</td>
-                        <th>Link</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+            <div class='fppTableContents'>
+                <table id="proxyTable">
+                    <thead>
+                        <tr>
+                            <th>#</td>
+                            <th>IP/HostName</td>
+                            <th>Link</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </fieldset>
   </div>

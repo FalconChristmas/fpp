@@ -1407,9 +1407,9 @@ function RemovePlaylistEntry()	{
             }
 		}
 
-        function IPOutputTypeChanged(item) {
-            var itemVal = $(item).val();
-            if (itemVal == 4 || itemVal == 5) { // DDP
+        function IPOutputTypeChanged(item, input) {
+            var type = $(item).val();
+            if (type == 4 || type == 5) { // DDP
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', true);
                 var univc = $(item).parent().parent().find("input.numUniverseCount");
@@ -1440,18 +1440,27 @@ function RemovePlaylistEntry()	{
                 }
                 sz.prop('max', 512);
                 
-                var monitor = $(item).parent().parent().find("input.txtMonitor");
-                if (itemVal == 0 || itemVal == 2) {
-                    monitor.prop('disabled', true);
-                } else {
-                    monitor.prop('disabled', false);
-                }
+                if (!input) {
+                    if ((type == 0) || (type == 2)) {
+                        $(item).parent().parent().find("input.txtIP").val('');
+                        $(item).parent().parent().find("input.txtIP").prop('disabled', true);
+                    } else {
+                        $(item).parent().parent().find("input.txtIP").prop('disabled', false);
+                    }
 
-                var universe = $(item).parent().parent().find("input.txtUniverse");
-                if (itemVal == 2 || itemVal == 3) {
-                    universe.prop('min', 0);
-                } else {
-                    universe.prop('min', 1);
+                    var monitor = $(item).parent().parent().find("input.txtMonitor");
+                    if (type == 0 || type == 2) {
+                        monitor.prop('disabled', true);
+                    } else {
+                        monitor.prop('disabled', false);
+                    }
+
+                    var universe = $(item).parent().parent().find("input.txtUniverse");
+                    if (type == 2 || type == 3) {
+                        universe.prop('min', 0);
+                    } else {
+                        universe.prop('min', 1);
+                    }
                 }
             }
         }
@@ -1470,30 +1479,34 @@ function updateUniverseEndChannel(row) {
 			var bodyHTML="";
 			UniverseCount = 0;
             var inputStyle = "";
-            if (input)
+            var inputStr = 'Output';
+
+            if (input) {
+                inputStr = 'Input';
                 inputStyle = "style='display: none;'";
+            }
 
             var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
             
             if (channelData.universes.length > 0) {
                 headHTML = "<tr class=\"tblheader\">" +
-                "<th rowspan=2>Line<br>#</th>" +
-                "<th rowspan=2>Active</th>" +
-                "<th rowspan=2>Description</th>" +
+                "<th rowspan=2 title='" + inputStr + " Number'>" + (input ? "Input" : "Out<br>put") + "</th>" +
+                "<th rowspan=2 title='" + inputStr + " Enabled/Disabled status'>" + (input ? "Active" : "Act<br>ive") + "</th>" +
+                "<th rowspan=2 title='User Description'>Description</th>" +
+                "<th rowspan=2 title='" + inputStr + " Type'>" + inputStr + "<br>Type</th>" +
+                "<th rowspan=2 " + inputStyle + " title='Unicast IP Address'>Unicast<br>Address</th>" +
                 "<th colspan=2>FPP Channel</th>" +
-                "<th colspan=4>Universe</th>" +
-                "<th rowspan=2 " + inputStyle + ">Unicast<br>Address</th>" +
-                "<th rowspan=2 " + inputStyle + ">Priority</th>" +
-                "<th rowspan=2 " + inputStyle + ">Monitor</th>" +
-                "<th rowspan=2 " + inputStyle + ">DeDup</th>" +
-                "<th rowspan=2 " + inputStyle + ">Ping</th>" +
+                "<th colspan=" + (input ? 3 : 4) + ">Universe</th>" +
+                "<th rowspan=2 " + inputStyle + " title='Monitor controller'>Mon<br>itor</th>" +
+                "<th rowspan=2 " + inputStyle + " title='Suppress Duplicate network packets'>De<br>Dup</th>" +
+                "<th rowspan=2 " + inputStyle + " title='Test ping controller'>Ping</th>" +
                 "</tr><tr class=\"tblheader\">" +
-                "<th>Start</th>" +
-                "<th>End</th>" +
-                "<th>#</th>" +
-                "<th>Count</th>" +
-                "<th>Size</th>" +
-                "<th>Type</th>" +
+                "<th title='FPP Start Channel'>Start</th>" +
+                "<th title='FPP End Channel'>End</th>" +
+                "<th title='Universe Number'>#</th>" +
+                "<th title='Universe Count for this controller'>Count</th>" +
+                "<th title='Universe size'>Size</th>" +
+                "<th " + inputStyle + " title='Universe Priority'>Priority</th>" +
                 "</tr>";
             }
             UniverseCount = channelData.universes.length;
@@ -1534,6 +1547,7 @@ function updateUniverseEndChannel(row) {
                 var universeCountDisable = "";
                 var universeNumberDisable = "";
                 var monitorDisabled = "";
+                var ipDisabled = "";
                 if (type == 4 || type == 5) {
                     universeSize = 512000;
                     universeCountDisable = " disabled";
@@ -1546,19 +1560,16 @@ function updateUniverseEndChannel(row) {
                 if (type == 2 || type == 3) {
                     minNum = 0;
                 }
+                if (type == 0 || type == 2) {
+                    ipDisabled = " disabled";
+                    unicastAddress = "";
+                }
 
-                bodyHTML += "<tr class=\"rowUniverseDetails\">" +
+                bodyHTML += "<tr>" +
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
-                            "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>" +
-                            "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>" +
-                            "<td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>" +
-                            "<td><input class='txtUniverse' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
-
-                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
-
-                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>" +
-                            "<td><select class='universeType' style='width:150px'";
+                            "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>";
+                bodyHTML += "<td><select class='universeType' style='width:150px'";
 
                 if (input) {
                     bodyHTML += ">" +
@@ -1566,19 +1577,26 @@ function updateUniverseEndChannel(row) {
                                 "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
                                 "<option value='2' " + typeBroadcastArtNet + ">ArtNet</option>";
                 } else {
-                    bodyHTML += " onChange='IPOutputTypeChanged(this);'>" +
+                    bodyHTML += " onChange='IPOutputTypeChanged(this, " + input + ");'>" +
                                 "<option value='0' " + typeMulticastE131 + ">E1.31 - Multicast</option>" +
                                 "<option value='1' " + typeUnicastE131 + ">E1.31 - Unicast</option>" +
                                 "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
                                 "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
-                                "<option value='4' " + typeDDPR + ">DDP Raw Channel Numbers</option>" +
-                                "<option value='5' " + typeDDP1 + ">DDP One Based</option>";
+                                "<option value='4' " + typeDDPR + ">DDP - Raw Channel Numbers</option>" +
+                                "<option value='5' " + typeDDP1 + ">DDP - One Based</option>";
                 }
 
-                bodyHTML += "</select></td>" +
-                            "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32'></td>" +
-                            "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>" +
-                            "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
+                bodyHTML += "</select></td>";
+                bodyHTML += "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32' " + ipDisabled + "></td>";
+                bodyHTML += "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
+
+                bodyHTML += "<td><input class='txtUniverse' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
+
+                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='250' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
+
+                bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
+                bodyHTML += "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>";
+                bodyHTML += "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "" ) + "/></td>" +
                             "<td " + inputStyle + "><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
@@ -1627,13 +1645,13 @@ function updateUniverseEndChannel(row) {
 					var entries = xmlDoc.getElementsByTagName('PixelnetDMXentries')[0];
 					if(entries.childNodes.length> 0)
 					{
-						innerHTML = "<tr class=\"tblheader\">" +  
-    	                  "<td>#</td>" +
-                        "<td>Act</td>" +
-                        "<td>Type</td>" +
-												"<td>Start</td>" +
-												"</tr>";
-												
+						innerHTML = "<tr>" +
+                            "<th>#</th>" +
+                            "<th>Active</th>" +
+                            "<th>Type</th>" +
+                            "<th>Start</th>" +
+                            "</tr>";
+
 							PixelnetDMXcount = entries.childNodes.length;
 							for(i=0;i<PixelnetDMXcount;i++)
 							{

@@ -366,12 +366,6 @@ body {
 	user-select: none;
 }
 
-.fppTableHeader {
-	background:#DDD;
-	text-align:center;
-	font-weight: bold;
-}
-
 .fppTableSelectedEntry {
 	background:#CCC;
 }

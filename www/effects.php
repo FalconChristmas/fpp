@@ -5,12 +5,6 @@
 require_once('config.php');
 include 'common/menuHead.inc';
 ?>
-<style>
-td {
-    padding-left: 2em;
-    text-indent: -2em;
-}
-</style>
 <script>
     var EffectSelectedName = "";
     var EffectSelectedType = "";
@@ -68,13 +62,11 @@ function StartSelectedEffect() {
         });
 }
 
-function SetSpeakerIndicator(value) {
-}
 </script>
 
 <title><? echo $pageTitle; ?></title>
 </head>
-<body onLoad="GetFPPDmode();GetFPPStatus();GetRunningEffects();">
+<body onLoad="GetRunningEffects();">
 <div id="bodyWrapper">
 <?php
   include 'menu.inc';
@@ -113,27 +105,6 @@ function SetSpeakerIndicator(value) {
   ?>
 <br/>
 <div id="top" class="settings">
-  <fieldset>
-    <legend>Player Status</legend>
-    <div id="daemonControl">
-      <table width= "100%">
-        <tr>
-          <td class='controlHeader'> FPPD Mode: </td>
-          <td><div id='textFPPDmode'>Player Mode</div>
-        </tr>
-        <tr>
-          <td class='controlHeader'> FPPD Status: </td>
-          <td id="daemonStatus"></td>
-        </tr>
-        <tr>
-          <td class='controlHeader'> FPP Time: </td>
-          <td id="fppTime"></td>
-        </tr>
-      </table>
-    </div>
-  </fieldset>
-
-  <br />
   <fieldset class="fs">
 	  <legend> Effects </legend>
         <div id= "divEffectLibrary">
@@ -146,22 +117,26 @@ function SetSpeakerIndicator(value) {
                 <tr><td><input id= "btnStartEffect" type="button" class ="disableButtons" value="Start Effect" onClick="StartSelectedEffect();"></td>
                 </tr>
               </table>
-          <div id="effectLibrary">
-              <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0>
-                <thead><tr class="effectListHeader"><th>Effects Library</th><th>Type</th></tr></thead>
-                <tbody id='tblEffectLibraryBody'>
+            <div class='fppTableWrapper'>
+                <div class='fppTableContents'>
+                    <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0>
+                        <thead><tr><th>Effects Library</th><th>Type</th></tr></thead>
+                        <tbody id='tblEffectLibraryBody'>
 <? PrintEffectRows(); ?>
-                </tbody>
-              </table>
-          </div>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
       </div>
       <div id= "divRunningEffects">
           <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br>
-          <div id="runningEffects">
+          <div class='fppTableWrapper'>
+            <div class='fppTableContents'>
               <table id="tblRunningEffects" width="100%" cellpadding=1 cellspacing=0>
-                <thead><tr class="effectListHeader"><th width='8%'>ID</th><th>Running Effects</th></tr></thead>
+                <thead><tr><th width='8%'>ID</th><th>Running Effects</th></tr></thead>
                 <tbody id='tblRunningEffectsBody'></tbody>
               </table>
+            </div>
           </div>
       </div>
    </fieldset>

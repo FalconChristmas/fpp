@@ -86,7 +86,9 @@ function addPixelOutput()
 	str += '<b>' + type + ' Output</b><br>';
 	str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable' checked><br>";
 
-	str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + portCount + "' class='channelOutputTable'>";
+    str += "<div class='fppTableWrapper'>" +
+        "<div class='fppTableContents'>";
+	str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + portCount + "'>";
 	str += pixelOutputTableHeader();
 	str += "<tbody>";
 
@@ -99,6 +101,8 @@ function addPixelOutput()
 
 	str += "</tbody>";
 	str += "</table>";
+    str += "</div>";
+    str += "</div>";
 
 	$('#pixelOutputs').append(str);
 
@@ -159,7 +163,9 @@ function populatePixelStringOutputs(data)
             str += "><br>";
 
             str += '<b>' + type + ' Output</b><br>';
-            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "' class='channelOutputTable'>";
+            str += "<div class='fppTableWrapper'>" +
+                "<div class='fppTableContents'>";
+            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "'>";
             str += pixelOutputTableHeader();
             str += "<tbody>";
 
@@ -190,6 +196,8 @@ function populatePixelStringOutputs(data)
 
             str += "</tbody>";
             str += "</table>";
+            str += "</div>";
+            str += "</div>";
 
             $('#pixelOutputs').append(str);
 

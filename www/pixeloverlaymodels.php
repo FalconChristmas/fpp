@@ -182,21 +182,23 @@ $(document).tooltip();
 					</tr>
 				</table>
 				<div class="fppTableWrapper">
-					<table id="channelMemMaps">
-						<thead>
-							<tr class="fppTableHeader">
-								<th title='Name of Model'>Model Name</td>
-								<th title='Start Channel'>Start Ch.</td>
-								<th title='Channel Count'>Ch. Count</td>
-								<th title='String Orientation'>Orientation</td>
-								<th title='Starting Corner'>Start Corner</td>
-								<th title='Number of Strings'>Strings</td>
-								<th title='Number of Strands Per String'>Strands</td>
-							</tr>
-						</thead>
-						<tbody>
-						</tbody>
-					</table>
+                    <div class='fppTableContents'>
+                        <table id="channelMemMaps">
+                            <thead>
+                                <tr>
+                                    <th title='Name of Model'>Model Name</td>
+                                    <th title='Start Channel'>Start Ch.</td>
+                                    <th title='Channel Count'>Ch. Count</td>
+                                    <th title='String Orientation'>Orientation</td>
+                                    <th title='Starting Corner'>Start Corner</td>
+                                    <th title='Number of Strings'>Strings</td>
+                                    <th title='Number of Strands Per String'>Strands</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
 				</div>
 				<br>
 				<font size=-1>

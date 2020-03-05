@@ -130,21 +130,23 @@ extraCommands = [
     <div>
         <input type="button" value="Save" class="buttons" onClick="SaveGPIOInputs();"></input>
     </div>
-    <div class='genericTableWrapper'>
-    <div class='genericTableContents'>
-    <table id='GPIOInputs' class='fppTable fppTable-GPIOInputs' width="100%">
-    <tr class='fppTableHeader' width='100%'>
-            <td>En.</td>
-            <td >Hdr -<br>Pin</td>
-            <td >GPIO # -<br>GPIOD</td>
-            <td id='pullHeader' >Pull<br>Up/Down</td>
-            <td colspan='2'>Commands</td>
-    </tr>
-    <tr class='fppTableHeader'>
-            <td colspan='4' id='pullFiller'></td>
-            <td >Rising Edge</td>
-            <td >Falling Edge</td>
-    </tr>
+    <div class='fppTableWrapper'>
+    <div class='fppTableContents fullWidth'>
+    <table id='GPIOInputs' width="100%">
+        <thead>
+            <tr>
+                <th rowspan='2'>En.</th>
+                <th rowspan='2'>Hdr -<br>Pin</th>
+                <th rowspan='2'>GPIO # -<br>GPIOD</th>
+                <th rowspan='2' id='pullHeader' >Pull<br>Up/Down</th>
+                <th colspan='2'>Commands</th>
+            </tr>
+            <tr>
+                <th >Rising Edge</th>
+                <th >Falling Edge</th>
+            </tr>
+        </thead>
+        <tbody>
 <?
 $count = 0;
 $pCount = 0;
@@ -200,6 +202,7 @@ if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
 <?
 }
 ?>
+</tbody>
 </table>
 </div>
 </div>
@@ -207,7 +210,6 @@ if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
 <?
 if ($pCount == 0) {
     echo "$('#pullHeader').hide();";
-    echo "$('#pullFiller').attr('colspan', 3);";
 }
 
 if (file_exists('/home/fpp/media/config/gpio.json')) {
@@ -224,7 +226,10 @@ if (file_exists('/home/fpp/media/config/gpio.json')) {
         if ($gpio['enabled'] == true) {
             echo "$('#gpio_" . $pinNameClean . "_enabled').prop('checked', true);\n";
         }
-        echo "$('#gpio_" . $pinNameClean . "_PullUpDown').val(\"" . $gpio["mode"] . "\");\n";
+
+        if (isset($gpio["mode"]))
+            echo "$('#gpio_" . $pinNameClean . "_PullUpDown').val(\"" . $gpio["mode"] . "\");\n";
+
         echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"falling\"], 'gpio_" . $pinNameClean . "_FallingCommand', 'tableFallingGPIO" . $pinNameClean . "', false);\n";
         echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"rising\"], 'gpio_" . $pinNameClean . "_RisingCommand', 'tableRisingGPIO" . $pinNameClean . "', false);\n";
         $x = $x + 1;

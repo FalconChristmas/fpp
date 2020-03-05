@@ -51,8 +51,12 @@ $(document).ready(function(){
 								<td width = "40 px">&nbsp;</td>
 							</tr>
 						</table>
-						<table id="tblOutputs" class='channelOutputTable'>
-						</table>
+                        <div class='fppTableWrapper'>
+                            <div class='fppTableContents'>
+                                <table id="tblOutputs">
+                                </table>
+                            </div>
+                        </div>
 					</form>
 				</div>
 			</div>

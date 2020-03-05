@@ -1338,20 +1338,24 @@ $(document).ready(function(){
 								<td width = "70 px"><input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();"></td>
 							</tr>
 						</table>
-						<table id="tblOtherOutputs" class='channelOutputTable'>
-							<thead>
-								<tr class='tblheader'>
-									<th>#</th>
-									<th>Active</th>
-									<th>Output Type</th>
-									<th>Start<br>Ch.</th>
-									<th>Channel<br>Count</th>
-									<th>Output Config</th>
-								</tr>
-							</thead>
-							<tbody>
-							</tbody>
-						</table>
+                        <div class='fppTableWrapper'>
+                            <div class='fppTableContents'>
+                                <table id="tblOtherOutputs">
+                                    <thead>
+                                        <tr class='tblheader'>
+                                            <th>#</th>
+                                            <th>Active</th>
+                                            <th>Output Type</th>
+                                            <th>Start<br>Ch.</th>
+                                            <th>Channel<br>Count</th>
+                                            <th>Output Config</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 					</form>
 				</div>
 			</div>

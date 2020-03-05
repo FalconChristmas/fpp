@@ -338,19 +338,21 @@ $(document).tooltip();
 					</tr>
 				</table>
 				<div class="fppTableWrapper">
-					<table id="outputProcessors">
-						<thead>
-							<tr class="fppTableHeader">
-                                <th>#</td>
-								<th>Active</td>
-                                <th>Type</th>
-								<th>Description</th>
-                                <th>Configuration</th>
-							</tr>
-						</thead>
-						<tbody>
-						</tbody>
-					</table>
+                    <div class='fppTableContents'>
+                        <table id="outputProcessors">
+                            <thead>
+                                <tr>
+                                    <th>#</td>
+                                    <th>Active</td>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Configuration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
 				</div>
 			</fieldset>
 		</div>

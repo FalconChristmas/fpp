@@ -185,24 +185,11 @@ $(document).ready(function(){
 		else
 			$tabs.unbind('tabsload');
 	}).tabs('load',currentLoadingTab);
+
+    $(document).tooltip();
 });
 
 </script>
-<!-- FIXME, move this to CSS to standardize the UI -->
-<style>
-tr.rowUniverseDetails
-{
-    border:thin solid;
-    border-color:#CCC;
-}
-
-tr.rowUniverseDetails td
-{
-    padding:1px 5px;
-}
-
-</style>
-
 <title><? echo $pageTitle; ?></title>
 </head>
 <body>

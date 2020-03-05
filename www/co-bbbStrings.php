@@ -466,8 +466,11 @@ function populatePixelStringOutputs(data) {
                 $('#pixelOutputs').html("");
                 
                 var outputCount = GetBBB48StringRows();
-                
-                var str = "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "' class='channelOutputTable'>";
+
+                var str = "";
+                str += "<div class='fppTableWrapper'>" +
+                    "<div class='fppTableContents'>";
+                str += "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
 
@@ -584,6 +587,8 @@ function populatePixelStringOutputs(data) {
 
                 str += "</tbody>";
                 str += "</table>";
+                str += "</div>";
+                str += "</div>";
                 
                 $('#pixelOutputs').append(str);
                 
@@ -854,7 +859,9 @@ $(document).ready(function(){
 							<td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
 						</tr>
                     </table>
-						<table ports='8' id='BBBSerial_Output' class='channelOutputTable serialOutputTable'>
+                        <div class='fppTableWrapper'>
+                            <div class='fppTableContents'>
+						<table ports='8' id='BBBSerial_Output' class='serialOutputTable'>
 							<thead>
 								<tr>
 									<th width='30px'>#</th>
@@ -896,6 +903,8 @@ $(document).ready(function(){
 								</tr>
                             </tbody>
 						</table>
+                        </div>
+                        </div>
 					</span>
 				</div>
 			</div>
