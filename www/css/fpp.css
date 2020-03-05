@@ -852,26 +852,6 @@ fieldset
 	height: 60px;
 }
 
-.universeTable td {
-    text-align: center;
-}
-
-.universeTable input[type=text] {
-    text-align: center;
-    width: 100%;
-}
-.universeTable input[type=number] {
-    text-align: center;
-    width: 100%;
-}
-
-.serialOutputTable {
-    width: 120px;
-}
-.serialOutputTable td {
-    text-align: center;
-}
-
 #fileManager, #channelOutputManager, #channelTester, .fppTabs {
 	min-width: 1068px;
 	#width: 1160px;
@@ -928,7 +908,9 @@ fieldset
 	-webkit-user-select: none;
 	-ms-user-select: none;
 	user-select: none;
+}
 
+.fppTableWrapperAsTable {
     display: table;
 }
 
@@ -941,6 +923,7 @@ fieldset
     border-color:#333;
     border-spacing: 0px;
     border-collapse: collapse;
+    width: 100%;
 }
 
 .fullWidth {
@@ -974,6 +957,25 @@ fieldset
 
 .fppTableSelectedEntry {
 	background:#CCC;
+}
+
+.universeTable td {
+    text-align: center;
+}
+
+.universeTable input[type=text] {
+    text-align: center;
+    width: 100%;
+}
+
+.universeTable input[type=number] {
+    text-align: center;
+    width: 100%;
+}
+
+.serialOutputContents > table {
+    width: 120px;
+    text-align: center;
 }
 
 #restoreSuccessFlag{
@@ -1271,7 +1273,7 @@ td.bgDarkOrange {
    -moz-user-select: -moz-auto;
    -khtml-user-select: auto;
    -webkit-user-select: auto;
-  -ms-user-select: auto;
+   -ms-user-select: auto;
    user-select: auto;
 }
 
@@ -1279,8 +1281,12 @@ td.bgDarkOrange {
    -moz-user-select: -moz-none;
    -khtml-user-select: none;
    -webkit-user-select: none;
-  -ms-user-select: none;
+   -ms-user-select: none;
    user-select: none;
+}
+
+.hidden {
+    display: none;
 }
 
 .ui-datepicker {

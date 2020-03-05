@@ -181,7 +181,7 @@ $(document).tooltip();
 						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'></td>
 					</tr>
 				</table>
-				<div class="fppTableWrapper">
+				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents'>
                         <table id="channelMemMaps">
                             <thead>

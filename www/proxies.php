@@ -122,7 +122,7 @@ For example, if this FPP instance is used as a wireless proxy to another e1.31 c
                 <td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProxy();' id='btnDelete' class='disableButtons'></td>
             </tr>
         </table>
-        <div class="fppTableWrapper">
+        <div class="fppTableWrapper fppTableWrapperAsTable">
             <div class='fppTableContents'>
                 <table id="proxyTable">
                     <thead>

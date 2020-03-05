@@ -212,6 +212,20 @@ $(document).ready(function(){
         <div class='fppTableContents'>
             <table id="tblUniverses" class='universeTable fullWidth'>
                 <thead id='tblUniversesHead'>
+                    <th rowspan=2 title='Input Number'>Input</th>
+                        <th rowspan=2 title='Input Enabled/Disabled status'>Active</th>
+                        <th rowspan=2 title='User Description'>Description</th>
+                        <th rowspan=2 title='Input Type'>Input<br>Type</th>
+                        <th colspan=2>FPP Channel</th>
+                        <th colspan=3>Universe</th>
+                    </tr>
+                    <tr>
+                        <th title='FPP Start Channel'>Start</th>
+                        <th title='FPP End Channel'>End</th>
+                        <th title='Universe Number'>#</th>
+                        <th title='Universe Count for this controller'>Count</th>
+                        <th title='Universe size'>Size</th>
+                    </tr>
                 </thead>
                 <tbody id='tblUniversesBody'>
                 </tbody>

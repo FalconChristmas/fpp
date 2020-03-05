@@ -133,6 +133,26 @@ function PopulateInterfaces()
                             <div class='fppTableContents'>
 						<table id="tblUniverses" class='universeTable fullWidth'>
 							<thead id='tblUniversesHead'>
+                                <tr>
+                                    <th rowspan=2 title='Output Number'>Out<br>put</th>
+                                    <th rowspan=2 title='Output Enabled/Disabled status'>Act<br>ive</th>
+                                    <th rowspan=2 title='User Description'>Description</th>
+                                    <th rowspan=2 title='Output Type'>Output<br>Type</th>
+                                    <th rowspan=2 title='Unicast IP Address'>Unicast<br>Address</th>
+                                    <th colspan=2>FPP Channel</th>
+                                    <th colspan=4>Universe</th>
+                                    <th rowspan=2 title='Monitor controller'>Mon<br>itor</th>
+                                    <th rowspan=2 title='Suppress Duplicate network packets'>De<br>Dup</th>
+                                    <th rowspan=2 title='Test ping controller'>Ping</th>
+                                </tr>
+                                <tr>
+                                    <th title='FPP Start Channel'>Start</th>
+                                    <th title='FPP End Channel'>End</th>
+                                    <th title='Universe Number'>#</th>
+                                    <th title='Universe Count for this controller'>Count</th>
+                                    <th title='Universe size'>Size</th>
+                                    <th title='Universe Priority'>Priority</th>
+                                </tr>
 							</thead>
 							<tbody id='tblUniversesBody'>
 							</tbody>

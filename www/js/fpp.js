@@ -152,6 +152,17 @@ function SetupToolTips() {
     });
 }
 
+function ShowTableWrapper(tableName) {
+    if ($('#' + tableName).parent().parent().hasClass('fppTableWrapperAsTable'))
+        $('#' + tableName).parent().parent().attr('style', 'display: table');
+    else
+        $('#' + tableName).parent().parent().show();
+}
+
+function HideTableWrapper(tableName) {
+    $('#' + tableName).parent().parent().hide();
+}
+
 function ShowPlaylistDetails() {
 	$('#playlistDetailsWrapper').show();
 	$('#btnShowPlaylistDetails').hide();
@@ -1475,7 +1486,6 @@ function updateUniverseEndChannel(row) {
 }
 
         function populateUniverseData(data, reload, input) {
-			var headHTML="";
 			var bodyHTML="";
 			UniverseCount = 0;
             var inputStyle = "";
@@ -1488,27 +1498,6 @@ function updateUniverseEndChannel(row) {
 
             var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
             
-            if (channelData.universes.length > 0) {
-                headHTML = "<tr class=\"tblheader\">" +
-                "<th rowspan=2 title='" + inputStr + " Number'>" + (input ? "Input" : "Out<br>put") + "</th>" +
-                "<th rowspan=2 title='" + inputStr + " Enabled/Disabled status'>" + (input ? "Active" : "Act<br>ive") + "</th>" +
-                "<th rowspan=2 title='User Description'>Description</th>" +
-                "<th rowspan=2 title='" + inputStr + " Type'>" + inputStr + "<br>Type</th>" +
-                "<th rowspan=2 " + inputStyle + " title='Unicast IP Address'>Unicast<br>Address</th>" +
-                "<th colspan=2>FPP Channel</th>" +
-                "<th colspan=" + (input ? 3 : 4) + ">Universe</th>" +
-                "<th rowspan=2 " + inputStyle + " title='Monitor controller'>Mon<br>itor</th>" +
-                "<th rowspan=2 " + inputStyle + " title='Suppress Duplicate network packets'>De<br>Dup</th>" +
-                "<th rowspan=2 " + inputStyle + " title='Test ping controller'>Ping</th>" +
-                "</tr><tr class=\"tblheader\">" +
-                "<th title='FPP Start Channel'>Start</th>" +
-                "<th title='FPP End Channel'>End</th>" +
-                "<th title='Universe Number'>#</th>" +
-                "<th title='Universe Count for this controller'>Count</th>" +
-                "<th title='Universe size'>Size</th>" +
-                "<th " + inputStyle + " title='Universe Priority'>Priority</th>" +
-                "</tr>";
-            }
             UniverseCount = channelData.universes.length;
             for (var i = 0; i < channelData.universes.length; i++) {
                 var universe = channelData.universes[i];
@@ -1610,7 +1599,6 @@ function updateUniverseEndChannel(row) {
                     ecb.prop('checked', false)
                 }
             }
-            $('#tblUniversesHead').html(headHTML);
             $('#tblUniversesBody').html(bodyHTML);
 
             $('#txtUniverseCount').val(UniverseCount);

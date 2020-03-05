@@ -195,13 +195,13 @@ function HasSerial(subType) {
 function BBB48SerialTypeChanged() {
     if ($('#BBBSerialMode').val() == 'DMX') {
         $('#DMXNumChannelOutput').show();
-        $('#BBBSerial_Output').show();
+        ShowTableWrapper('BBBSerial_Output');
     } else if ($('#BBBSerialMode').val() == 'Pixelnet') {
         $('#DMXNumChannelOutput').hide();
-        $('#BBBSerial_Output').show();
+        ShowTableWrapper('BBBSerial_Output');
     } else {
         $('#DMXNumChannelOutput').hide();
-        $('#BBBSerial_Output').hide();
+        HideTableWrapper('BBBSerial_Output');
     }
 }
 
@@ -623,9 +623,9 @@ function populatePixelStringOutputs(data) {
                     $('#DMXNumChannelOutput').hide();
                 }
                 if (subType == "off")  {
-                    $('#BBBSerial_Output').hide();
+                    HideTableWrapper('BBBSerial_Output');
                 } else {
-                    $('#BBBSerial_Output').show();
+                    ShowTableWrapper('BBBSerial_Output');
                 }
                 if (outputs) {
                     for (var i = 0; i < outputs.length; i++)
@@ -859,9 +859,9 @@ $(document).ready(function(){
 							<td><div id="DMXNumChannelOutput">Num&nbsp;DMX&nbsp;Channels:&nbsp;<input id='BBBSerialNumDMXChannels' size='6' maxlength='6' value='512'></div></td>
 						</tr>
                     </table>
-                        <div class='fppTableWrapper'>
-                            <div class='fppTableContents'>
-						<table ports='8' id='BBBSerial_Output' class='serialOutputTable'>
+                        <div class='fppTableWrapper fppTableWrapperAsTable hidden'>
+                            <div class='fppTableContents serialOutputContents'>
+						<table ports='8' id='BBBSerial_Output'>
 							<thead>
 								<tr>
 									<th width='30px'>#</th>
