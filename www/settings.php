@@ -42,6 +42,7 @@ function UpdateChildSettingsVisibility() {
     });
 }
 
+var statusTimeout = null;
 function UpdateCurrentTime() {
     $.get('/api/time', function(data) {
         $('#currentTime').html(data.time);
@@ -54,7 +55,6 @@ $(document).ready(function() {
     InitializeTimeInputs();
     InitializeDateInputs();
     bindSettingsVisibilityListener();
-    UpdateCurrentTime();
 });
 
 </script>
@@ -162,6 +162,12 @@ $("#tabs").tabs( {
     },
     activate: function(event, ui) {
         $('.ui-tooltip').hide();
+        if (ui.newTab.index() == 1) {
+            UpdateCurrentTime();
+        } else if (statusTimeout != null) {
+            clearTimeout(statusTimeout);
+            statusTimeout = null;
+        }
     }
 });
 
