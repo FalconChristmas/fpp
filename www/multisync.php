@@ -375,6 +375,8 @@ if (isset($_GET['advancedView'])) {
 	<div id="uifppsystems" class="settings">
 		<fieldset>
 			<legend>Discovered FPP Systems</legend>
+            <div class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
+                <div class='fppTableContents'>
 			<table id='fppSystems' cellpadding='3'>
 				<thead>
 					<tr>
@@ -405,6 +407,7 @@ if (isset($_GET['advancedView'])) {
 					<tr><td colspan=5 align='center'>Loading system list from fppd.</td></tr>
 				</tbody>
 			</table>
+</div></div>
 			<hr>
 <?php
 if ($settings['fppMode'] == 'master')
