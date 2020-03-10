@@ -23,6 +23,8 @@
 #include <Magick++.h>
 #include <magick/type.h>
 
+#include "channeloutput/channeloutputthread.h"
+
 #include "PixelOverlayModel.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -151,9 +153,14 @@ PixelOverlayState PixelOverlayModel::getState() const {
     int i = block->isActive;
     return PixelOverlayState(i);
 }
+
 void PixelOverlayModel::setState(const PixelOverlayState &state) {
     int i = (int)state.getState();
     block->isActive = i;
+    if (i) {
+        // we are going active, make sure teh output thread is started up
+        StartChannelOutputThread();
+    }
 }
 
 void PixelOverlayModel::setData(const uint8_t *data) {

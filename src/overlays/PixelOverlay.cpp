@@ -1226,7 +1226,7 @@ void PixelOverlayManager::doOverlayModelEffects() {
                 l.unlock();
                 
                 for (auto m : models) {
-                    uint32_t ms = m->updateRunningEffects();
+                    int32_t ms = m->updateRunningEffects();
                     if (ms != 0) {
                         l.lock();
                         if (ms > 0) {
