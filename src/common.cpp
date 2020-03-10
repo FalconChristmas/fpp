@@ -38,6 +38,7 @@
 #include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -550,12 +551,32 @@ bool PutFileContents(const std::string &filename, const std::string &str) {
     if (out) {
         out << str;
         out.close();
+
+        SetFilePerms(filename);
+
         return true;
     }
 
     LogErr(VB_GENERAL, "ERROR: Unable to open %s for writing.\n", filename.c_str());
 
     return false;
+}
+
+bool SetFilePerms(const std::string &filename)
+{
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    chmod(filename.c_str(), mode);
+
+    struct passwd *pwd = getpwnam("fpp");
+    chown(filename.c_str(), pwd->pw_uid, pwd->pw_gid);
+
+    return true;
+}
+
+bool SetFilePerms(const char *file)
+{
+    const std::string filename = file;
+    return SetFilePerms(filename);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -584,6 +605,18 @@ void MergeJsonValues(Json::Value &a, Json::Value &b)
 			a[key] = b[key];
 		}
 	}
+}
+
+/*
+ *
+ */
+Json::Value LoadJsonFromFile(const std::string &filename)
+{
+    Json::Value root;
+
+    LoadJsonFromFile(filename, root);
+
+    return root;
 }
 
 /*

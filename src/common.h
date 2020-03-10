@@ -85,10 +85,13 @@ void TrimWhiteSpace(std::string &s);
 
 uint8_t   ReverseBitsInByte(uint8_t n);
 
+bool SetFilePerms(const std::string &filename);
+bool SetFilePerms(const char *file);
 
 #ifndef PLATFORM_OSX
 #include <jsoncpp/json/json.h>
 void      MergeJsonValues(Json::Value &a, Json::Value &b);
+Json::Value LoadJsonFromFile(const std::string &filename);
 Json::Value LoadJsonFromString(const std::string &str);
 bool LoadJsonFromString(const std::string &str, Json::Value &root);
 bool LoadJsonFromFile(const std::string &filename, Json::Value &root);
