@@ -19,7 +19,7 @@ function ConfirmPasswordEnable()
     }
 }
 
-function ShowHidePassword() {
+function UpdatePasswordFieldsType() {
     if ($('#passwordShow').is(':checked')) {
         $('#password').attr('type', 'text');
         $('#passwordVerify').attr('type', 'text');
@@ -27,6 +27,10 @@ function ShowHidePassword() {
         $('#password').attr('type', 'password');
         $('#passwordVerify').attr('type', 'password');
     }
+}
+
+function ShowHidePassword() {
+    UpdatePasswordFieldsType();
 
     window["passwordShowChanged"]();
 }
@@ -75,7 +79,7 @@ function CheckPasswordVerify()
 }
 
 $(document).ready(function() {
-    ShowHidePassword();
+    UpdatePasswordFieldsType();
 });
 
 </script>
