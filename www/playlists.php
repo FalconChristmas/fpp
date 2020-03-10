@@ -12,8 +12,23 @@ error_reporting(E_ALL);
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title><? echo $pageTitle; ?></title>
+<?
+if (isset($_GET['playlist'])) {
+?>
+<script>
+function LoadInitialPlaylist() {
+    $('#playlistSelect').val("<? echo $_GET['playlist']; ?>").trigger('change');
+}
+</script>
+<?
+}
+?>
 </head>
-<body onload="PopulateLists();">
+<body onload="PopulateLists(); <?
+if (isset($_GET['playlist'])) {
+    echo "LoadInitialPlaylist();";
+}
+?>">
 <div id="bodyWrapper">
 <?php
 include 'menu.inc';
