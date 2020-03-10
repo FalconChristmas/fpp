@@ -26,11 +26,11 @@ require_once('config.php');
 <script>
 
 function ButtonHandler(table, button) {
-    var selectedCount = $('#tbl' + table + ' tr.selectedentry').length;
+    var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
     var filename = '';
     var filenames = [];
     if (selectedCount == 1) {
-        filename = $('#tbl' + table + ' tr.selectedentry').find('td:first').text();
+        filename = $('#tbl' + table + ' tr.selectedEntry').find('td:first').text();
     }
 
     if ((button == 'play') || (button == 'playHere')) {
@@ -41,7 +41,7 @@ function ButtonHandler(table, button) {
         }
     } else if (button == 'download') {
         var files = [];
-        $('#tbl' + table + ' tr.selectedentry').each(function() {
+        $('#tbl' + table + ' tr.selectedEntry').each(function() {
             files.push($(this).find('td:first').text());
         });
         DownloadFiles(table, files);
@@ -58,7 +58,7 @@ function ButtonHandler(table, button) {
             DialogError('Error', 'Error, unable to copy multiple files at the same time.');
         }
     } else if (button == 'delete') {
-        $('#tbl' + table + ' tr.selectedentry').each(function() {
+        $('#tbl' + table + ' tr.selectedEntry').each(function() {
             DeleteFile(table, $(this), $(this).find('td:first').text());
         });
     } else if (button == 'editScript') {
@@ -101,49 +101,15 @@ function ButtonHandler(table, button) {
 }
 
 function ClearSelections(table) {
-    $('#tbl' + table + ' tr').removeClass('selectedentry');
+    $('#tbl' + table + ' tr').removeClass('selectedEntry');
     DisableButtonClass('single' + table + 'Button');
     DisableButtonClass('multi' + table + 'Button');
 }
 
 function HandleMouseClick(event, row, table) {
-    event.preventDefault(); // prevent shift from highlighting text
+    HandleTableRowMouseClick(event, row);
 
-    if (row.hasClass('selectedentry')) {
-        row.removeClass('selectedentry');
-    } else {
-        if (event.shiftKey) {
-            var na = row.nextAll().length;
-            var nl = row.nextUntil('.selectedentry').length;
-            var pa = row.prevAll().length;
-            var pl = row.prevUntil('.selectedentry').length;
-
-            if (pa == pl)
-                pl = -1;
-
-            if (na == nl)
-                nl = -1;
-
-            if ((pl >= 0) && (nl >= 0)) {
-                if (nl > pl) {
-                    row.prevUntil('.selectedentry').addClass('selectedentry');
-                } else {
-                    row.nextUntil('.selectedentry').addClass('selectedentry');
-                }
-            } else if (pl >= 0) {
-                row.prevUntil('.selectedentry').addClass('selectedentry');
-            } else if (nl >= 0) {
-                row.nextUntil('.selectedentry').addClass('selectedentry');
-            }
-        } else {
-            if (!event.ctrlKey)
-                $('#tbl' + table + ' tr').removeClass('selectedentry');
-        }
-
-        row.addClass('selectedentry');
-    }
-
-    var selectedCount = $('#tbl' + table + ' tr.selectedentry').length;
+    var selectedCount = $('#tbl' + table + ' tr.selectedEntry').length;
 
     DisableButtonClass('single' + table + 'Button');
     DisableButtonClass('multi' + table + 'Button');
@@ -280,9 +246,6 @@ h2 {
 }
 .right {
 	text-align: right;
-}
-.selectedentry {
-	background: #888;
 }
 </style>
 </head>

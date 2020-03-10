@@ -113,6 +113,60 @@ function InitializeDateInputs(format = 'yy-mm-dd') {
     });
 }
 
+function DeleteSelectedEntries(item) {
+    $('#' + item).find('.selectedEntry').remove();
+}
+
+function AddTableRowFromTemplate(table) {
+    $('#' + table).append($('#' + table).parent().parent().find('.fppTableRowTemplate').find('tr').parent().html());
+
+    return $('#' + table + ' > tr').last();
+}
+
+function HandleTableRowMouseClick(event, row) {
+    if ((event.target.nodeName == 'INPUT') ||
+        (event.target.nodeName == 'TEXTAREA') ||
+        (event.target.nodeName == 'SELECT'))
+        return;
+
+    event.preventDefault(); // prevent mouse move from highlighting text
+
+    if (row.hasClass('selectedEntry')) {
+        row.removeClass('selectedEntry');
+    } else {
+        if (event.shiftKey) {
+            var na = row.nextAll().length;
+            var nl = row.nextUntil('.selectedEntry').length;
+            var pa = row.prevAll().length;
+            var pl = row.prevUntil('.selectedEntry').length;
+
+            if (pa == pl)
+                pl = -1;
+
+            if (na == nl)
+                nl = -1;
+
+            if ((pl >= 0) && (nl >= 0)) {
+                if (nl > pl) {
+                    row.prevUntil('.selectedEntry').addClass('selectedEntry');
+                } else {
+                    row.nextUntil('.selectedEntry').addClass('selectedEntry');
+                }
+            } else if (pl >= 0) {
+                row.prevUntil('.selectedEntry').addClass('selectedEntry');
+            } else if (nl >= 0) {
+                row.nextUntil('.selectedEntry').addClass('selectedEntry');
+            }
+        } else {
+            if (!event.ctrlKey) {
+                row.parent().find('tr').removeClass('selectedEntry');
+            }
+        }
+
+        row.addClass('selectedEntry');
+    }
+}
+
 function Get(url, async) {
     var result = {};
 
@@ -140,7 +194,7 @@ function GetAsync(url) {
     return Get(url, true);
 }
 
-function SetupToolTips() {
+function SetupToolTips(delay = 100) {
     $(document).tooltip({
         content: function() {
             $('.ui-tooltip').hide();
@@ -148,7 +202,7 @@ function SetupToolTips() {
             id = id.replace('_img', '_tip');
             return $('#' + id).html();
         },
-        hide: { delay: 1000 }
+        hide: { delay: delay }
     });
 }
 
@@ -1980,11 +2034,6 @@ function updateUniverseEndChannel(row) {
 			getPixelnetDMXoutputs("TRUE");
 		} 
 
-		function ReloadSchedule()
-		{
-			getSchedule("TRUE");	
-		}  
-
 		function ExtendSchedule(minutes)
 		{
 			var seconds = minutes * 60;
@@ -2021,272 +2070,6 @@ function updateUniverseEndChannel(row) {
 		}
 
 
-		function ScheduleDaysSelectChanged(item)
-		{
-			var name = $(item).attr('name');
-			var maskSpan = name.replace('selDay', 'dayMask');
-			maskSpan = maskSpan.replace('[', '\\[');
-			maskSpan = maskSpan.replace(']', '\\]');
-
-			if ($(item).find('option:selected').text() == 'Day Mask')
-				$('#' + maskSpan).show();
-			else
-				$('#' + maskSpan).hide();
-		}
-
-
-function SetScheduleRowInputNames(row, id) {
-	var fields = Array('chkEnable', 'txtStartDate', 'txtEndDate',
-						'selPlaylist', 'selDay', 'dayMask', 'maskSunday', 'maskMonday',
-						'maskTuesday', 'maskWednesday', 'maskThursday', 'maskFriday',
-						'maskSaturday', 'txtStartTime', 'txtEndTime', 'selStopType', 'chkRepeat');
-	row.find('span.rowID').html((id + 1).toString());
-
-	for (var i = 0; i < fields.length; i++)
-	{
-		row.find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
-		row.find('input.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
-		row.find('select.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
-		row.find('select.' + fields[i]).attr('id', fields[i] + '[' + id + ']');
-	}
-
-    var startDate = row.find('.txtStartDate').val().replace(/[-0-9]/g,'');
-    if (startDate != '') {
-        row.find('.txtStartDate').hide();
-        row.find('.holStartDate').show();
-    }
-    var endDate = row.find('.txtEndDate').val().replace(/[-0-9]/g,'');
-    if (endDate != '') {
-        row.find('.txtEndDate').hide();
-        row.find('.holEndDate').show();
-    }
-}
-
-function SetScheduleInputNames() {
-	var id = 0;
-	$('#tblScheduleBody tr').each(function() {
-		SetScheduleRowInputNames($(this), id);
-		id += 1;
-	});
-
-	$('.time').timepicker({
-		'timeFormat': 'H:i:s',
-		'typeaheadHighlight': false,
-		'show2400': true,
-		'noneOption': [
-				{
-					'label': 'SunRise',
-					'value': 'SunRise'
-				},
-				{
-					'label': 'SunSet',
-					'value': 'SunSet'
-				}
-			]
-		});
-
-	$('.date').datepicker({
-		'changeMonth': true,
-		'changeYear': true,
-		'dateFormat': 'yy-mm-dd',
-		'minDate': new Date(MINYEAR-1, 1 - 1, 1),
-		'maxDate': new Date(MAXYEAR, 12 - 1, 31),
-		'showButtonPanel': true,
-		'selectOtherMonths': true,
-		'showOtherMonths': true,
-		'yearRange': "" + MINYEAR +":" + MAXYEAR,
-		'autoclose': true,
-		'beforeShow': function( input ) {
-		setTimeout(function() {
-			var buttonPane = $( input )
-				.datepicker( "widget" )
-				.find( ".ui-datepicker-buttonpane" );
-
-			$( "<button>", {
-				text: "Select from Holidays",
-				click: function() {
-					$('.ui-datepicker').hide();
-					$(input).hide();
-					$(input).val('Christmas');
-					$(input).parent().find('.holidays').val('Christmas');
-					$(input).parent().find('.holidays').show();
-				}
-			}).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
-		}, 1 );
-	}
-		});
-}
-
-function HolidaySelected(item)
-{
-    if ($(item).val() == 'SpecifyDate') {
-        $(item).hide();
-        $(item).parent().find('.date').show();
-    } else {
-        $(item).parent().find('.date').val($(item).val());
-        $(item).parent().find('.date').hide();
-    }
-}
-
-function HolidaySelect(userKey, classToAdd)
-{
-    var result = "<select class='holidays " + classToAdd + "' onChange='HolidaySelected(this);' style='display: none;'>";
-    result += "<option value='SpecifyDate'>Specify Date</option>";
-
-    for (var i in settings['locale']['holidays']) {
-        var holiday = settings['locale']['holidays'][i];
-
-        result += "<option value='" + holiday['shortName'] + "'";
-
-        if (holiday['shortName'] == userKey)
-            result += " selected";
-
-        result += ">" + holiday['name'] + "</option>";
-    }
-
-    result += "</select>";
-    return result;
-}
-
-		function getSchedule(reload)
-		{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getSchedule&reload=" + reload;
-			$('#tblScheduleHead').empty();
-			$('#tblScheduleBody').empty();
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-					var entries = xmlDoc.getElementsByTagName('ScheduleEntries')[0];
-					if(entries.childNodes.length> 0)
-					{
-						GetPlaylistArray(false);
-						headerHTML = "<tr class=\"tblheader\">" +  
-							"<th>#</th>" +
-							"<th>Enable</th>" +
-							"<th>Start Date</th>" +
-							"<th>End Date</th>" +
-							"<th>Playlist</th>" +
-							"<th>Day(s)</th>" +
-							"<th>Start Time</th>" +
-							"<th>End Time</th>" +
-							"<th>Repeat</th>" +
-							"<th>Stop Type</th>" +
-							"</tr>";
-
-
-							
-							$('#tblScheduleHead').html(headerHTML);
-							ScheduleCount = entries.childNodes.length;
-							for(var i=0;i<ScheduleCount;i++)
-							{
-									var enable = entries.childNodes[i].childNodes[0].textContent;
-									var day = entries.childNodes[i].childNodes[1].textContent;
-									var playlist = entries.childNodes[i].childNodes[2].textContent;
-									var startTime = entries.childNodes[i].childNodes[3].textContent;
-									var endTime = entries.childNodes[i].childNodes[4].textContent;
-									var repeat = entries.childNodes[i].childNodes[5].textContent;
-									var startDate = entries.childNodes[i].childNodes[6].textContent;
-									var endDate = entries.childNodes[i].childNodes[7].textContent;
-									var stopType = entries.childNodes[i].childNodes[8].textContent;
-
-									var enableChecked = enable == 1  ? "checked=\"checked\"" : "";
-									var repeatChecked = repeat == 1  ? "checked=\"checked\"" : "";
-									var dayChecked_0 =  day == 0  ? "selected" : "";
-									var dayChecked_1 =  day == 1  ? "selected" : "";
-									var dayChecked_2 =  day == 2  ? "selected" : "";
-									var dayChecked_3 =  day == 3  ? "selected" : "";
-									var dayChecked_4 =  day == 4  ? "selected" : "";
-									var dayChecked_5 =  day == 5  ? "selected" : "";
-									var dayChecked_6 =  day == 6  ? "selected" : "";
-									var dayChecked_7 =  day == 7  ? "selected" : "";
-									var dayChecked_8 =  day == 8  ? "selected" : "";
-									var dayChecked_9 =  day == 9  ? "selected" : "";
-									var dayChecked_10 =  day == 10  ? "selected" : "";
-									var dayChecked_11 =  day == 11  ? "selected" : "";
-									var dayChecked_12 =  day == 12  ? "selected" : "";
-									var dayChecked_13 =  day == 13  ? "selected" : "";
-									var dayChecked_14 =  day == 14  ? "selected" : "";
-									var dayChecked_15 =  day == 15  ? "selected" : "";
-									var dayChecked_0x10000 = day >= 0x10000 ? "selected" : "";
-									var dayMaskStyle = day >= 0x10000 ? "" : "display: none;";
-
-									playlistOptionsText = ""
-									for(j = 0; j < playListArray.length; j++)
-									{
-										playListChecked = playListArray[j] == playlist ? "selected" : "";
-										playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\" " + playListChecked + ">" + playListArray[j] + "</option>";
-									}
-									var tableRow = 	"<tr class=\"rowScheduleDetails\">" +
-								              "<td class='center'><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
-															"<td class='center' ><input class='chkEnable' type=\"checkbox\" " + enableChecked +"/></td>" +
-															"<td><input class='date center txtStartDate' type=\"text\" size=\"10\" value=\"" + startDate + "\"/>" + HolidaySelect(startDate, "holStartDate") + "</td><td>" +
-																"<input class='date center txtEndDate' type=\"text\" size=\"10\" value=\"" + endDate + "\"/>" + HolidaySelect(endDate, "holEndDate") + "</td>" +
-
-															"<td><select class='selPlaylist'>" +
-															playlistOptionsText + "</select></td>" +
-															"<td><select class='selDay' onChange='ScheduleDaysSelectChanged(this);'>" +
-															      "<option value=\"7\" " + dayChecked_7 + ">Everyday</option>" +
-															      "<option value=\"0\" " + dayChecked_0 + ">Sunday</option>" +
-															      "<option value=\"1\" " + dayChecked_1 + ">Monday</option>" +
-															      "<option value=\"2\" " + dayChecked_2 + ">Tuesday</option>" +
-															      "<option value=\"3\" " + dayChecked_3 + ">Wednesday</option>" +
-															      "<option value=\"4\" " + dayChecked_4 + ">Thursday</option>" +
-															      "<option value=\"5\" " + dayChecked_5 + ">Friday</option>" +
-															      "<option value=\"6\" " + dayChecked_6 + ">Saturday</option>" +
-															      "<option value=\"8\" " + dayChecked_8 + ">Mon-Fri</option>" +
-															      "<option value=\"9\" " + dayChecked_9 + ">Sat/Sun</option>" +
-															      "<option value=\"10\" " + dayChecked_10 + ">Mon/Wed/Fri</option>" +
-															      "<option value=\"11\" " + dayChecked_11 + ">Tues/Thurs</option>" +
-															      "<option value=\"12\" " + dayChecked_12 + ">Sun-Thurs</option>" +
-															      "<option value=\"13\" " + dayChecked_13 + ">Fri/Sat</option>" +
-															      "<option value=\"14\" " + dayChecked_14 + ">Odd</option>" +
-															      "<option value=\"15\" " + dayChecked_15 + ">Even</option>" +
-															      "<option value=\"65536\" " + dayChecked_0x10000 + ">Day Mask</option></select><br>" +
-																  "<span class='dayMask' id='dayMask[" + i + "]' style='" + dayMaskStyle + "'>" +
-																  "S:<input class='maskSunday' type='checkbox' " +
-																	((day & 0x04000) ? " checked" : "") + "> " +
-																  "M:<input class='maskMonday' type='checkbox' " +
-																	((day & 0x02000) ? " checked" : "") + "> " +
-																  "T:<input class='maskTuesday' type='checkbox' " +
-																	((day & 0x01000) ? " checked" : "") + "> " +
-																  "W:<input class='maskWednesday' type='checkbox' " +
-																	((day & 0x00800) ? " checked" : "") + "> " +
-																  "T:<input class='maskThursday' type='checkbox' " +
-																	((day & 0x00400) ? " checked" : "") + "> " +
-																  "F:<input class='maskFriday' type='checkbox' " +
-																	((day & 0x00200) ? " checked" : "") + "> " +
-																  "S:<input class='maskSaturday' type='checkbox' " +
-																	((day & 0x00100) ? " checked" : "") + "> " +
-																  "</span>" +
-																  "</td>" +
-															"<td><input class='time center txtStartTime' type=\"text\" size=\"8\" value=\"" + startTime + "\"/></td><td>" +
-															"<input class='time center txtEndTime' type=\"text\" size=\"8\" value=\"" + endTime + "\"/></td>" +
-															"<td class='center' ><input class='chkRepeat' type=\"checkbox\" " + repeatChecked +"/></td>" +
-															"<td class='center' ><select class='selStopType'>" +
-																	"<option value='0'" + ((stopType == 0) ? " selected" : "") +
-																		">Graceful</option>" +
-																	"<option value='2'" + ((stopType == 2) ? " selected" : "") +
-																		">Graceful Loop</option>" +
-																	"<option value='1'" + ((stopType == 1) ? " selected" : "") +
-																		">Hard Stop</option>" +
-																	"</select></td>" +
-															"</tr>";
-															
-									$('#tblScheduleBody').append(tableRow);
-							}
-
-							SetScheduleInputNames();
-					}
-				}
-			};
-			
-			xmlhttp.send();			
-		}
-
 var playListArray = [];
 function GetPlaylistArray()
 {
@@ -2318,40 +2101,6 @@ function GetSequenceArray()
         }
     });
 }
-
-	function AddScheduleEntry()
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=addScheduleEntry";
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					getSchedule("FALSE");					
-				}
-			};
-			
-			xmlhttp.send();
-	}
-
-		function DeleteScheduleEntry()
-		{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=deleteScheduleEntry&index=" + (ScheduleEntrySelected).toString();
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	 
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-          getSchedule("FALSE");
-				}
-			};
-			
-			xmlhttp.send();
-		}
 
   function GetFiles(dir)
   {

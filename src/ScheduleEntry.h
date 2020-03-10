@@ -43,6 +43,8 @@ class ScheduleEntry {
 	std::string CheckHoliday(std::string date);
 
 	int  LoadFromString(std::string entryStr);
+	int  LoadFromJson(Json::Value &entry);
+	Json::Value GetJson(void);
 
 	bool         enabled;
 	std::string  playlist;
@@ -61,6 +63,9 @@ class ScheduleEntry {
 	int          startDate; // YYYYMMDD format as an integer
 	int          endDate;   // YYYYMMDD format as an integer
 	int          stopType;
+
+	std::string  startDateStr;
+	std::string  endDateStr;
 };
 
 #endif /* _SCHEDULEENTRY_H */

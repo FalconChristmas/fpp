@@ -4,7 +4,6 @@ $skipJSsettings = 1;
 require_once('common.php');
 
 require_once('universeentry.php');
-require_once('scheduleentry.php');
 require_once('pixelnetdmxentry.php');
 require_once('commandsocket.php');
 
@@ -39,9 +38,6 @@ $command_array = Array(
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
 	"deleteUniverse" => 'DeleteUniverse',
 	"cloneUniverse" => 'CloneUniverse',
-	"getSchedule" => 'GetSchedule',
-	"addScheduleEntry" => 'AddScheduleEntry',
-	"deleteScheduleEntry" => 'DeleteScheduleEntry',
 	"viewReleaseNotes" => 'ViewReleaseNotes',
 	"viewRemoteScript" => 'ViewRemoteScript',
 	"installRemoteScript" => 'InstallRemoteScript',
@@ -102,10 +98,6 @@ if ( isset($_GET['command']) && !empty($_GET['command']) )
 		call_user_func($command_array[$_GET['command']]);
 	}
 	return;
-}
-else if(!empty($_POST['command']) && $_POST['command'] == "saveSchedule")
-{
-	SaveSchedule();
 }
 else if(!empty($_POST['command']) && $_POST['command'] == "saveHardwareConfig")
 {
@@ -1041,317 +1033,6 @@ function GetLocalTime()
 	return exec("date");
 }
 
-function DeleteScheduleEntry()
-{
-	$index = $_GET['index'];
-	check($index, "index", __FUNCTION__);
-
-	if($index < count($_SESSION['ScheduleEntries']) && count($_SESSION['ScheduleEntries']) > 0 )
-	{
-		unset($_SESSION['ScheduleEntries'][$index]);
-		$_SESSION['ScheduleEntries'] = array_values($_SESSION['ScheduleEntries']);
-
-	}
-	EchoStatusXML('Success');
-}
-
-function AddScheduleEntry()
-{
-	$_SESSION['ScheduleEntries'][] = new ScheduleEntry(1,'',7,0,0,0,24,0,0,1,MINYEAR . "-01-01",MAXYEAR . "-12-31",0);
-	EchoStatusXML('Success');
-}
-
-function SaveSchedule()
-{
-	for($i=0;$i<count($_SESSION['ScheduleEntries']);$i++)
-	{
-		if(isset($_POST['chkEnable'][$i]))
-		{
-			$_SESSION['ScheduleEntries'][$i]->enable = 1;
-		}
-		else
-		{
-			$_SESSION['ScheduleEntries'][$i]->enable = 0;
-		}
-		$_SESSION['ScheduleEntries'][$i]->playlist = 	$_POST['selPlaylist'][$i];
-		$_SESSION['ScheduleEntries'][$i]->startDay = intval($_POST['selDay'][$i]);
-
-		if ($_SESSION['ScheduleEntries'][$i]->startDay & 0x10000) {
-			$dayMask = 0x10000;
-			if (isset($_POST['maskSunday'][$i]))
-				$dayMask |= 0x4000;
-			if (isset($_POST['maskMonday'][$i]))
-				$dayMask |= 0x2000;
-			if (isset($_POST['maskTuesday'][$i]))
-				$dayMask |= 0x1000;
-			if (isset($_POST['maskWednesday'][$i]))
-				$dayMask |= 0x0800;
-			if (isset($_POST['maskThursday'][$i]))
-				$dayMask |= 0x0400;
-			if (isset($_POST['maskFriday'][$i]))
-				$dayMask |= 0x0200;
-			if (isset($_POST['maskSaturday'][$i]))
-				$dayMask |= 0x0100;
-
-			$_SESSION['ScheduleEntries'][$i]->startDay |= $dayMask;
-		}
-
-		if ($_POST['txtStartTime'][$i] == 'SunRise')
-		{
-			$_SESSION['ScheduleEntries'][$i]->startHour = '25';
-			$_SESSION['ScheduleEntries'][$i]->startMinute = '00';
-			$_SESSION['ScheduleEntries'][$i]->startSecond = '00';
-		}
-		else if ($_POST['txtStartTime'][$i] == 'SunSet')
-		{
-			$_SESSION['ScheduleEntries'][$i]->startHour = '26';
-			$_SESSION['ScheduleEntries'][$i]->startMinute = '00';
-			$_SESSION['ScheduleEntries'][$i]->startSecond = '00';
-		}
-		else
-		{
-			$startTime = explode(":",$_POST['txtStartTime'][$i],3);
-			$_SESSION['ScheduleEntries'][$i]->startHour = $startTime[0];
-			$_SESSION['ScheduleEntries'][$i]->startMinute = $startTime[1];
-			$_SESSION['ScheduleEntries'][$i]->startSecond = $startTime[2];
-		}
-
-		if ($_POST['txtEndTime'][$i] == 'SunRise')
-		{
-			$_SESSION['ScheduleEntries'][$i]->endHour = '25';
-			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
-			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
-		}
-		else if ($_POST['txtEndTime'][$i] == 'SunSet')
-		{
-			$_SESSION['ScheduleEntries'][$i]->endHour = '26';
-			$_SESSION['ScheduleEntries'][$i]->endMinute = '00';
-			$_SESSION['ScheduleEntries'][$i]->endSecond = '00';
-		}
-		else
-		{
-			$endTime = explode(":",$_POST['txtEndTime'][$i],3);
-			$_SESSION['ScheduleEntries'][$i]->endHour = $endTime[0];
-			$_SESSION['ScheduleEntries'][$i]->endMinute = $endTime[1];
-			$_SESSION['ScheduleEntries'][$i]->endSecond = $endTime[2];
-		}
-
-		if(isset($_POST['chkRepeat'][$i]))
-			$_SESSION['ScheduleEntries'][$i]->repeat = 1;
-		else
-			$_SESSION['ScheduleEntries'][$i]->repeat = 0;
-
-		$_SESSION['ScheduleEntries'][$i]->startDate =	$_POST['txtStartDate'][$i];
-		$_SESSION['ScheduleEntries'][$i]->endDate   =	$_POST['txtEndDate'][$i];
-
-		if (trim($_SESSION['ScheduleEntries'][$i]->startDate) == "")
-			$_SESSION['ScheduleEntries'][$i]->startDate = MINYEAR . "-01-01";
-		if (trim($_SESSION['ScheduleEntries'][$i]->endDate) == "")
-			$_SESSION['ScheduleEntries'][$i]->endDate = MAXYEAR . "-12-31";
-
-		$_SESSION['ScheduleEntries'][$i]->stopType = $_POST['selStopType'][$i];
-	}
-
-	SaveScheduleToFile();
-	FPPDreloadSchedule();
-
-	EchoStatusXML('Success');
-}
-
-function FPPDreloadSchedule()
-{
-	$status=SendCommand('R');
-}
-
-function SaveScheduleToFile()
-{
-	global $scheduleFile;
-
-	$entries = "";
-	$f=fopen($scheduleFile,"w") or exit("Unable to open file! : " . $scheduleFile);
-	for($i=0;$i<count($_SESSION['ScheduleEntries']);$i++)
-	{
-			if($i==0)
-			{
-			$entries .= sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
-						$_SESSION['ScheduleEntries'][$i]->enable,
-						$_SESSION['ScheduleEntries'][$i]->playlist,
-						$_SESSION['ScheduleEntries'][$i]->startDay,
-						$_SESSION['ScheduleEntries'][$i]->startHour,
-						$_SESSION['ScheduleEntries'][$i]->startMinute,
-						$_SESSION['ScheduleEntries'][$i]->startSecond,
-						$_SESSION['ScheduleEntries'][$i]->endHour,
-						$_SESSION['ScheduleEntries'][$i]->endMinute,
-						$_SESSION['ScheduleEntries'][$i]->endSecond,
-						$_SESSION['ScheduleEntries'][$i]->repeat,
-						$_SESSION['ScheduleEntries'][$i]->startDate,
-						$_SESSION['ScheduleEntries'][$i]->endDate,
-						$_SESSION['ScheduleEntries'][$i]->stopType
-						);
-			}
-			else
-			{
-			$entries .= sprintf("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,",
-						$_SESSION['ScheduleEntries'][$i]->enable,
-						$_SESSION['ScheduleEntries'][$i]->playlist,
-						$_SESSION['ScheduleEntries'][$i]->startDay,
-						$_SESSION['ScheduleEntries'][$i]->startHour,
-						$_SESSION['ScheduleEntries'][$i]->startMinute,
-						$_SESSION['ScheduleEntries'][$i]->startSecond,
-						$_SESSION['ScheduleEntries'][$i]->endHour,
-						$_SESSION['ScheduleEntries'][$i]->endMinute,
-						$_SESSION['ScheduleEntries'][$i]->endSecond,
-						$_SESSION['ScheduleEntries'][$i]->repeat,
-						$_SESSION['ScheduleEntries'][$i]->startDate,
-						$_SESSION['ScheduleEntries'][$i]->endDate,
-						$_SESSION['ScheduleEntries'][$i]->stopType
-						);
-			}
-
-	}
-	fwrite($f,$entries);
-	fclose($f);
-}
-
-function LoadScheduleFile()
-{
-	global $scheduleFile;
-
-	$_SESSION['ScheduleEntries']=NULL;
-
-	$f=fopen($scheduleFile,"r");
-	if($f == FALSE)
-	{
-		die();
-	}
-
-	while (!feof($f))
-	{
-		$line=fgets($f);
-		$line = trim($line);
-		$entry = explode(",",$line);
-		if ( ! empty($entry) && count($entry) > 1 )
-		{
-			$enable = $entry[0];
-			$playlist = $entry[1];
-			$startDay = $entry[2];
-			$startHour = $entry[3];
-			$startMinute = $entry[4];
-			$startSecond = $entry[5];
-			$endHour = $entry[6];
-			$endMinute = $entry[7];
-			$endSecond = $entry[8];
-			$repeat = $entry[9];
-			$startDate = MINYEAR . "-01-01";
-			$endDate = MAXYEAR . "-12-31";
-			$stopType = 0;
-
-			if ((count($entry) >= 11) && $entry[10] != "")
-				$startDate = $entry[10];
-
-			if ((count($entry) >= 12) && $entry[11] != "")
-				$endDate = $entry[11];
-
-			if ((count($entry) >= 13) && $entry[12] != "")
-				$stopType = $entry[12];
-
-			$_SESSION['ScheduleEntries'][] = new ScheduleEntry($enable,$playlist,$startDay,$startHour,$startMinute,$startSecond,
-				$endHour, $endMinute, $endSecond, $repeat,$startDate,$endDate,$stopType);
-		}
-	}
-	fclose($f);
-}
-
-function GetSchedule()
-{
-	$reload = $_GET['reload'];
-	check($reload, "reload", __FUNCTION__);
-
-	if($reload == "TRUE")
-	{
-		LoadScheduleFile();
-	}
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('ScheduleEntries');
-	$root = $doc->appendChild($root);
-	for($i=0;$i<count($_SESSION['ScheduleEntries']);$i++)
-	{
-		$ScheduleEntry = $doc->createElement('ScheduleEntry');
-		$ScheduleEntry = $root->appendChild($ScheduleEntry);
-		// enable
-		$enable = $doc->createElement('enable');
-		$enable = $ScheduleEntry->appendChild($enable);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->enable);
-		$value = $enable->appendChild($value);
-		// day
-		$day = $doc->createElement('day');
-		$day = $ScheduleEntry->appendChild($day);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->startDay);
-		$value = $day->appendChild($value);
-		// playlist
-		$playlist = $doc->createElement('playlist');
-		$playlist = $ScheduleEntry->appendChild($playlist);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->playlist);
-		$value = $playlist->appendChild($value);
-
-		// startTime
-		$startTime = $doc->createElement('startTime');
-		$startTime = $ScheduleEntry->appendChild($startTime);
-
-		if ($_SESSION['ScheduleEntries'][$i]->startHour == 25)
-			$sStartTime = 'SunRise';
-		else if ($_SESSION['ScheduleEntries'][$i]->startHour == 26)
-			$sStartTime = 'SunSet';
-		else
-			$sStartTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->startHour,
-													$_SESSION['ScheduleEntries'][$i]->startMinute,
-													$_SESSION['ScheduleEntries'][$i]->startSecond);
-		$value = $doc->createTextNode($sStartTime);
-		$value = $startTime->appendChild($value);
-		// endTime
-		$endTime = $doc->createElement('endTime');
-		$endTime = $ScheduleEntry->appendChild($endTime);
-
-		if ($_SESSION['ScheduleEntries'][$i]->endHour == 25)
-			$sEndTime = 'SunRise';
-		else if ($_SESSION['ScheduleEntries'][$i]->endHour == 26)
-			$sEndTime = 'SunSet';
-		else
-			$sEndTime = sprintf("%02s:%02s:%02s", $_SESSION['ScheduleEntries'][$i]->endHour,
-												  $_SESSION['ScheduleEntries'][$i]->endMinute,
-												  $_SESSION['ScheduleEntries'][$i]->endSecond);
-
-		$value = $doc->createTextNode($sEndTime);
-		$value = $endTime->appendChild($value);
-		// repeat
-		$repeat = $doc->createElement('repeat');
-		$repeat = $ScheduleEntry->appendChild($repeat);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->repeat);
-		$value = $repeat->appendChild($value);
-
-		// startDate
-		$startDate = $doc->createElement('startDate');
-		$startDate = $ScheduleEntry->appendChild($startDate);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->startDate);
-		$value = $startDate->appendChild($value);
-
-		// endDate
-		$endDate = $doc->createElement('endDate');
-		$endDate = $ScheduleEntry->appendChild($endDate);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->endDate);
-		$value = $endDate->appendChild($value);
-
-		// stopType
-		$stopType = $doc->createElement('stopType');
-		$stopType = $ScheduleEntry->appendChild($stopType);
-		$value = $doc->createTextNode($_SESSION['ScheduleEntries'][$i]->stopType);
-		$value = $stopType->appendChild($value);
-
-	}
-	echo $doc->saveHTML();
-}
-
 function SaveHardwareConfig()
 {
 	if (!isset($_POST['model']))
@@ -2049,6 +1730,7 @@ function GetZip()
         "channelremap",
         "config/channeloutputs.json",
         //new v2 config files
+        "config/schedule.json",
         "config/outputprocessors.json",
         "config/co-other.json",
         "config/co-pixelStrings.json",
@@ -2058,7 +1740,6 @@ function GetZip()
         "config/model-overlays.json",
         //
         "pixelnetDMX",
-        "schedule",
         "settings",
         "universes"
     );

@@ -79,7 +79,7 @@
 	text-align: center;
 	text-shadow: 0 1px 0 #eee;
 	width: 90px;
-	height: 20px;
+	height: 18px;
 }
 
 .disableButtons:active
@@ -169,6 +169,10 @@
 
 .schedulerExtend {
     text-align: center;
+}
+
+.dayMask input {
+    margin: 1px;
 }
 
 .statusTable th {
@@ -912,6 +916,18 @@ fieldset
 
 .fppTableWrapperAsTable {
     display: table;
+}
+
+.fppTableWrapper input {
+	-moz-user-select: -moz-auto;
+	-khtml-user-select: auto;
+	-webkit-user-select: auto;
+	-ms-user-select: auto;
+	user-select: auto;
+}
+
+.fppTableRowTemplate {
+    display: none;
 }
 
 .fppTableContents {

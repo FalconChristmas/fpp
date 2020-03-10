@@ -240,22 +240,26 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 	repeat             = atoi(elems[9].c_str());
 
 	if (elems.size() > 10) {
-		std::string startDateStr = CheckHoliday(elems[10]);
+		startDateStr = elems[10];
+		std::string tempStr = CheckHoliday(startDateStr);
 
-		if (startDateStr.length() == 10) {
-			startDate = DateStrToInt(startDateStr.c_str());
+		if (tempStr.length() == 10) {
+			startDate = DateStrToInt(tempStr.c_str());
 		} else {
 			startDate = 20190101;
+			startDateStr = "20190101";
 		}
 	}
 
 	if (elems.size() > 11) {
-		std::string endDateStr = CheckHoliday(elems[11]);
+		endDateStr = elems[11];
+		std::string tempStr = CheckHoliday(endDateStr);
 
-		if (endDateStr.length() == 10) {
-			endDate = DateStrToInt(endDateStr.c_str());
+		if (tempStr.length() == 10) {
+			endDate = DateStrToInt(tempStr.c_str());
 		} else {
 			endDate = 20991231;
+			endDateStr = "20991231";
 		}
 	}
 
@@ -263,5 +267,71 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 		stopType = atoi(elems[12].c_str());
 
 	return 1;
+}
+
+int ScheduleEntry::LoadFromJson(Json::Value &entry)
+{
+    enabled            = entry["enabled"].asInt();
+    playlist           = entry["playlist"].asString();
+    dayIndex           = entry["day"].asInt();
+
+    std::vector<std::string> sparts = split(entry["startTime"].asString(), ':');
+    startHour          = atoi(sparts[0].c_str());
+    startMinute        = atoi(sparts[1].c_str());
+    startSecond        = atoi(sparts[2].c_str());
+
+    std::vector<std::string> eparts = split(entry["endTime"].asString(), ':');
+    endHour            = atoi(eparts[0].c_str());
+    endMinute          = atoi(eparts[1].c_str());
+    endSecond          = atoi(eparts[2].c_str());
+
+    repeat             = entry["repeat"].asInt();
+
+    startDateStr = entry["startDate"].asString();
+    std::string tempStr = CheckHoliday(startDateStr);
+
+    if (tempStr.length() == 10) {
+        startDate = DateStrToInt(tempStr.c_str());
+    } else {
+        startDate = 20190101;
+        startDateStr = "20190101";
+    }
+
+    endDateStr = entry["endDate"].asString();
+    tempStr = CheckHoliday(endDateStr);
+
+    if (tempStr.length() == 10) {
+        endDate = DateStrToInt(tempStr.c_str());
+    } else {
+        endDate = 20991231;
+        endDateStr = "20991231";
+    }
+
+    stopType = entry["stopType"].asInt();
+
+    return 1;
+}
+
+Json::Value ScheduleEntry::GetJson(void)
+{
+    Json::Value e;
+    char timeText[9];
+
+    e["enabled"] = (int)enabled;
+    e["playlist"] = playlist;
+    e["day"] = dayIndex;
+
+    sprintf(timeText, "%02d:%02d:%02d", startHour, startMinute, startSecond);
+    e["startTime"] = timeText;
+
+    sprintf(timeText, "%02d:%02d:%02d", endHour, endMinute, endSecond);
+    e["endTime"] = timeText;
+
+    e["repeat"] = (int)repeat;
+    e["startDate"] = startDateStr;
+    e["endDate"] = endDateStr;
+    e["stopType"] = stopType;
+
+    return e;
 }
 

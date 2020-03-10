@@ -60,7 +60,6 @@ SettingsConfig::~SettingsConfig() {
     if (pluginDirectory) free(pluginDirectory);
     if (playlistDirectory) free(playlistDirectory);
     if (pixelnetFile) free(pixelnetFile);
-    if (scheduleFile) free(scheduleFile);
     if (logFile) free(logFile);
     if (silenceMusic) free(silenceMusic);
     if (settingsFile) free(settingsFile);
@@ -132,8 +131,6 @@ void initSettings(int argc, char **argv)
 	settings.pluginDirectory = strdup(strcat(tmpDir, "/plugins"));
 	strcpy(tmpDir, mediaDir);
 	settings.pixelnetFile = strdup(strcat(tmpDir, "/config/Falcon.FPDV1"));
-	strcpy(tmpDir, mediaDir);
-	settings.scheduleFile = strdup(strcat(tmpDir, "/schedule"));
 	strcpy(tmpDir, mediaDir);
 	settings.logFile = strdup(strcat(tmpDir, "/logs/fppd.log"));
 	strcpy(tmpDir, mediaDir);
@@ -340,16 +337,6 @@ int parseSetting(char *key, char *value)
 		}
 		else
 			fprintf(stderr, "Failed to apply pixelnetFile\n");
-	}
-	else if ( strcmp(key, "scheduleFile") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.scheduleFile);
-			settings.scheduleFile = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply scheduleFile\n");
 	}
 	else if ( strcmp(key, "LogLevel") == 0 )
 	{
@@ -606,10 +593,6 @@ char *getPixelnetFile(void)
 {
 	return settings.pixelnetFile;
 }
-char *getScheduleFile(void)
-{
-	return settings.scheduleFile;
-}
 char *getLogFile(void)
 {
 	return settings.logFile;
@@ -732,15 +715,6 @@ void CheckExistanceOfDirectoriesAndFiles(void)
 			LogErr(VB_SETTING, "Error: Unable to create playlist directory.\n");
 			exit(EXIT_FAILURE);
 		}
-	}
-
-	if(!FileExists(getScheduleFile()))
-	{
-		LogWarn(VB_SETTING, "Schedule file does not exist, creating it.\n");
-        if (!createFile(getScheduleFile())) {
-            LogErr(VB_SETTING, "Error: Unable to create schedule file.\n");
-            exit(EXIT_FAILURE);
-        }
 	}
 
 	if(!FileExists(getSettingsFile()))

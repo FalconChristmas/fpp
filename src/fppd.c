@@ -546,10 +546,6 @@ int parseArguments(int argc, char **argv)
 				free(settings.pixelnetFile);
 				settings.pixelnetFile = strdup(optarg);
 				break;
-			case 's': //schedule-file
-				free(settings.scheduleFile);
-				settings.scheduleFile = strdup(optarg);
-				break;
 			case 'l': //log-file
 				free(settings.logFile);
 				settings.logFile = strdup(optarg);

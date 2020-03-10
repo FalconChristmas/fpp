@@ -43,6 +43,9 @@
 #include "settings.h"
 #include "SunSet.h"
 
+#define SCHEDULE_FILE     "/home/fpp/media/config/schedule.json"
+#define SCHEDULE_FILE_CSV "/home/fpp/media/schedule"
+
 Scheduler *scheduler = NULL;
 
 void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
@@ -77,6 +80,8 @@ Scheduler::Scheduler()
 	m_runThread(0),
 	m_threadIsRunning(0)
 {
+	ConvertScheduleFile();
+
 	RegisterCommands();
 
 	m_lastProcTime = time(NULL);
@@ -731,13 +736,43 @@ void Scheduler::PlayListStopCheck(void)
   }
 }
 
+void Scheduler::ConvertScheduleFile(void)
+{
+    if ((!FileExists(SCHEDULE_FILE)) &&
+        (FileExists(SCHEDULE_FILE_CSV))) {
+        FILE *fp;
+        char buf[512];
+        char *s;
+        int scheduleEntryCount = 0;
+        int day;
+        Json::Value newSchedule(Json::arrayValue);
+
+        LogInfo(VB_SCHEDULE, "Converting Schedule CSV to JSON\n");
+        fp = fopen(SCHEDULE_FILE_CSV, "r");
+        if (fp == NULL)
+        {
+            return;
+        }
+
+        while(fgets(buf, 512, fp) != NULL)
+        {
+            ScheduleEntry scheduleEntry;
+            scheduleEntry.LoadFromString(buf);
+
+            Json::Value e = scheduleEntry.GetJson();
+            newSchedule.append(e);
+        }
+
+        fclose(fp);
+
+        if (SaveJsonToFile(newSchedule, SCHEDULE_FILE))
+            unlink(SCHEDULE_FILE_CSV);
+    }
+}
+
 void Scheduler::LoadScheduleFromFile(void)
 {
-  FILE *fp;
-  char buf[512];
-  char *s;
-  int scheduleEntryCount = 0;
-  int day;
+  LogInfo(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
 
   m_loadSchedule = false;
   m_lastLoadDate = GetCurrentDateInt();
@@ -745,16 +780,10 @@ void Scheduler::LoadScheduleFromFile(void)
   std::unique_lock<std::mutex> lock(m_scheduleLock);
   m_Schedule.clear();
 
-  LogInfo(VB_SCHEDULE, "Loading Schedule from %s\n",getScheduleFile());
-  fp = fopen((const char *)getScheduleFile(), "r");
-  if (fp == NULL) 
-  {
-		return;
-  }
-  while(fgets(buf, 512, fp) != NULL)
-  {
+  Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE);
+  for (int i = 0; i < sch.size(); i++) {
 	ScheduleEntry scheduleEntry;
-	scheduleEntry.LoadFromString(buf);
+	scheduleEntry.LoadFromJson(sch[i]);
 
 	// Check for sunrise/sunset flags
 	if (scheduleEntry.startHour == 25)
@@ -783,7 +812,6 @@ void Scheduler::LoadScheduleFromFile(void)
     SetScheduleEntrysWeeklyStartAndEndSeconds(&scheduleEntry);
     m_Schedule.push_back(scheduleEntry);
   }
-  fclose(fp);
 
   lock.unlock();
 

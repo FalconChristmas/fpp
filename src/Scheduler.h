@@ -115,6 +115,7 @@ class Scheduler {
 	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry);
 	void PlayListLoadCheck(void);
 	void PlayListStopCheck(void);
+	void ConvertScheduleFile(void);
 	void LoadScheduleFromFile(void);
 	void SchedulePrint(void);
 	std::string GetWeekDayStrFromSeconds(int weeklySeconds);

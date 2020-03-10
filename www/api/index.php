@@ -65,6 +65,10 @@ dispatch_get   ('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
 dispatch_post  ('/sequence/:SequenceName', 'PostSequence');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
 
+dispatch_post  ('/schedule/reload', 'ReloadSchedule');
+dispatch_get   ('/schedule', 'GetSchedule');
+dispatch_post  ('/schedule', 'SaveSchedule');
+
 dispatch_get   ('/settings', 'GetSettings');
 dispatch_get   ('/settings/:SettingName', 'GetSetting');
 dispatch_get   ('/settings/:SettingName/options', 'GetOptions');
