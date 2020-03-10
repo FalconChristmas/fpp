@@ -46,7 +46,7 @@
 #include "commands/Commands.h"
 #include "util/GPIOUtils.h"
 
-#define GPIO_DEBOUNCE_TIME 200000
+#define GPIO_DEBOUNCE_TIME 100000
 
 
 /*
@@ -127,7 +127,7 @@ public:
 
 GPIOManager GPIOManager::INSTANCE;
 
-GPIOManager::GPIOManager() {
+GPIOManager::GPIOManager() : checkDebounces(false) {
     for (auto &a : gpiodChips) {
         a = nullptr;
     }
@@ -143,18 +143,33 @@ void GPIOManager::Initialize(std::map<int, std::function<bool(int)>> &callbacks)
     }
 }
 void GPIOManager::CheckGPIOInputs(void) {
+    if (pollStates.empty() && !checkDebounces) {
+        return;
+    }
+    long long tm = GetTime();
     for (auto &a : pollStates) {
         int val = a.pin->getValue();
         if (val != a.lastValue) {
-            long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
+            long long lastAllowedTime = tm - GPIO_DEBOUNCE_TIME; // usec's ago
             if ((a.lastTriggerTime < lastAllowedTime)) {
-                std::string command = (val == 0) ? a.fallingAction["command"].asString() : a.risingAction["command"].asString();
-                if (command != "") {
-                    LogDebug(VB_GPIO, "GPIO %s triggered.   Command: %s\n", a.pin->name.c_str(), command.c_str());
-                    CommandManager::INSTANCE.run((val == 0) ? a.fallingAction : a.risingAction);
+                a.doAction(val);
+            }
+        }
+    }
+    if (checkDebounces) {
+        checkDebounces = false;
+        for (auto &a : eventStates) {
+            if (a.futureValue != a.lastValue) {
+                long long lastAllowedTime = tm - GPIO_DEBOUNCE_TIME; // usec's ago
+                if ((a.lastTriggerTime < lastAllowedTime)) {
+                    int val = a.pin->getValue();
+                    if (val != a.lastValue) {
+                        a.doAction(val);
+                    }
+                } else {
+                    //will need to check again
+                    checkDebounces = true;
                 }
-                a.lastTriggerTime = GetTime();
-                a.lastValue = val;
             }
         }
     }
@@ -378,7 +393,7 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
                         // Set the time immediately to utilize the debounce code
                         // from triggering our GPIOs on startup.
                         state.lastTriggerTime = GetTime();
-                        state.lastValue = state.pin->getValue();
+                        state.lastValue = state.futureValue = state.pin->getValue();
                         
                         if ((state.pin->supportsGpiod()) &&
                             (!gpiodChips[state.pin->gpioIdx])) {
@@ -433,26 +448,39 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
     }
     LogDebug(VB_GPIO, "%d GPIO Input(s) enabled\n", enabledCount);
     
+    
     for (auto &a : eventStates) {
-        std::function<bool(int)> f = [&a](int i) {
+        std::function<bool(int)> f = [&a, this](int i) {
             struct gpiod_line_event event;
             int rc = gpiod_line_event_read_fd(i, &event);
 
-            long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
-            if (a.lastTriggerTime < lastAllowedTime) {
-                int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
-                
-                LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", a.pin->name.c_str(), v);
-
-                std::string command = (v == 0) ? a.fallingAction["command"].asString() : a.risingAction["command"].asString();
-                if (command != "") {
-                    CommandManager::INSTANCE.run((v == 0) ? a.fallingAction : a.risingAction);
-                    a.lastTriggerTime = GetTime();
-                    a.lastValue = v;
+            int v = event.event_type == GPIOD_LINE_EVENT_RISING_EDGE;
+            if (v != a.lastValue) {
+                long long lastAllowedTime = GetTime() - GPIO_DEBOUNCE_TIME; // usec's ago
+                if (a.lastTriggerTime < lastAllowedTime) {
+                    a.doAction(v);
+                } else {
+                    //we are within the debounce time, we'll record this as a last value
+                    //and if we end up witha different value after the debounce time,
+                    //we'll send the command then
+                    a.futureValue = v;
+                    checkDebounces = true;
                 }
             }
             return false;
         };
         callbacks[a.file] = f;
     }
+}
+
+
+void GPIOManager::GPIOState::doAction(int v) {
+    LogDebug(VB_GPIO, "GPIO %s triggered.  Value:  %d\n", pin->name.c_str(), v);
+    std::string command = (v == 0) ? fallingAction["command"].asString() : risingAction["command"].asString();
+    if (command != "") {
+        CommandManager::INSTANCE.run((v == 0) ? fallingAction : risingAction);
+    }
+    lastTriggerTime = GetTime();
+    lastValue = v;
+    futureValue = v;
 }

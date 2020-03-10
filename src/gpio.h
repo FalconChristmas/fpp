@@ -54,11 +54,14 @@ private:
         const PinCapabilities *pin;
         int lastValue;
         long long lastTriggerTime;
+        int futureValue;
         
         struct gpiod_line * gpiodLine = nullptr;
         int file;
         Json::Value fallingAction;
         Json::Value risingAction;
+        
+        void doAction(int newVal);
     };
     
     GPIOManager();
@@ -69,6 +72,8 @@ private:
     std::array<gpiod_chip*, 5> gpiodChips;
     std::vector<GPIOState> pollStates;
     std::vector<GPIOState> eventStates;
+    
+    bool checkDebounces;
     
     friend class GPIOCommand;
 };

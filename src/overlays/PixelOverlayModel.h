@@ -68,9 +68,9 @@ public:
 
     const std::string &getName() const {return name;};
 
-    int getWidth() const;
-    int getHeight() const;
-    void getSize(int &w, int &h) const;
+    int getWidth() const { return width; }
+    int getHeight() const { return height; }
+    void getSize(int &w, int &h) const { w = width; h = height; }
     
     PixelOverlayState getState() const;
     void setState(const PixelOverlayState &state);
@@ -107,14 +107,21 @@ public:
     
     
     uint8_t *getOverlayBuffer();
+    void clearOverlayBuffer();
+    void setOverlayPixelValue(int x, int y, int r, int g, int b);
+    void flushOverlayBuffer();
+
     FPPChannelMemoryMapControlBlock *getBlock() { return block; }
     
     bool applyEffect(bool autoEnable, const std::string &effect, const std::vector<std::string> &args);
     void setRunningEffect(RunningEffect *r, int32_t firstUpdateMS);
+    RunningEffect *getRunningEffect() const { return runningEffect; }
+    
     int32_t updateRunningEffects();
 
 private:
     std::string name;
+    int width, height;
     FPPChannelMemoryMapControlBlock *block;
     char         *chanDataMap;
     uint32_t     *pixelMap;

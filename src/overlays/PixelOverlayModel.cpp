@@ -132,6 +132,14 @@ PixelOverlayModel::PixelOverlayModel(FPPChannelMemoryMapControlBlock *b,
     : block(b), name(n), chanDataMap(cdm), pixelMap(pm),
     overlayBuffer(nullptr), runningEffect(nullptr)
 {
+    height = block->stringCount * block->strandsPerString;
+    width = block->channelCount / 3;
+    width /= height;
+
+    if (block->orientation == 'V') {
+        std::swap(width, height);
+    }
+    
 }
 PixelOverlayModel::~PixelOverlayModel() {
     if (overlayBuffer) {
@@ -139,25 +147,6 @@ PixelOverlayModel::~PixelOverlayModel() {
     }
 }
 
-int PixelOverlayModel::getWidth() const {
-    int h, w;
-    getSize(w, h);
-    return w;
-}
-int PixelOverlayModel::getHeight() const {
-    int h, w;
-    getSize(w, h);
-    return h;
-}
-void PixelOverlayModel::getSize(int &w, int &h) const {
-    h = block->stringCount * block->strandsPerString;
-    w = block->channelCount / 3;
-    w /= h;
-
-    if (block->orientation == 'V') {
-        std::swap(w, h);
-    }
-}
 PixelOverlayState PixelOverlayModel::getState() const {
     int i = block->isActive;
     return PixelOverlayState(i);
@@ -363,11 +352,27 @@ void PixelOverlayModel::doText(const std::string &msg,
 }
 uint8_t *PixelOverlayModel::getOverlayBuffer() {
     if (!overlayBuffer)
-        overlayBuffer = (uint8_t*)malloc(block->channelCount);
+        overlayBuffer = (uint8_t*)calloc(1, block->channelCount);
     return overlayBuffer;
 }
 
+void PixelOverlayModel::clearOverlayBuffer() {
+    memset(getOverlayBuffer(), 0, block->channelCount);
+}
+void PixelOverlayModel::setOverlayPixelValue(int x, int y, int r, int g, int b) {
+    if (y >= height || x >= width || x < 0 || y < 0) {
+        return;
+    }
+    int idx = y * width * 3 + x * 3;
+    uint8_t *buf = getOverlayBuffer();
+    buf[idx++] = r;
+    buf[idx++] = g;
+    buf[idx] = b;
+}
 
+void PixelOverlayModel::flushOverlayBuffer() {
+    setData(getOverlayBuffer());
+}
 
 
 void PixelOverlayModel::getDataJson(Json::Value &v) {
@@ -428,7 +433,9 @@ int32_t PixelOverlayModel::updateRunningEffects() {
 void PixelOverlayModel::setRunningEffect(RunningEffect *ef, int32_t firstUpdateMS) {
     std::unique_lock<std::mutex> l(effectLock);
     if (runningEffect) {
-        delete runningEffect;
+        if (runningEffect != ef) {
+            delete runningEffect;
+        }
         PixelOverlayManager::INSTANCE.removePeriodicUpdate(this);
     }
     runningEffect = ef;
