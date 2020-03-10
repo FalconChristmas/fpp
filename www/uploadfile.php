@@ -87,7 +87,7 @@ function ButtonHandler(table, button) {
         }
     } else if (button == 'viewFile') {
         if (selectedCount == 1) {
-            ViewFile('Scripts', filename);
+            ViewFile(table, filename);
         } else {
             DialogError('Error', 'Error, unable to view multiple files at the same time.');
         }
