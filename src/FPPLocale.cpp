@@ -24,8 +24,13 @@ Json::Value LocaleHolder::GetLocale() {
         localeFile = "/opt/fpp/etc/locale/Global.json";
     }
 
-    locale = loadJSON(localeFile);
+    bool result = LoadJsonFromFile(localeFile, locale);
 
-    return locale;
+    if (result)
+        return locale;
+
+    Json::Value empty;
+
+    return empty;
 }
 

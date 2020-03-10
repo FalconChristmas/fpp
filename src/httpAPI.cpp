@@ -217,7 +217,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	else if (url == "testing")
 	{
 		LogDebug(VB_HTTP, "API - Getting test mode status\n");
-		result["config"] = JSONStringToObject(ChannelTester::INSTANCE.GetConfig().c_str());
+		result["config"] = LoadJsonFromString(ChannelTester::INSTANCE.GetConfig().c_str());
 		SetOKResult(result, "");
 	}
 	else

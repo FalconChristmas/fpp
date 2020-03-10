@@ -545,7 +545,20 @@ std::string GetFileContents(const std::string &filename)
     return "";
 }
 
+bool PutFileContents(const std::string &filename, const std::string &str) {
+    std::ofstream out(filename, std::ofstream::out);
+    if (out) {
+        out << str;
+        out.close();
+        return true;
+    }
 
+    LogErr(VB_GENERAL, "ERROR: Unable to open %s for writing.\n", filename.c_str());
+
+    return false;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 #ifndef PLATFORM_OSX
 /*
  * Merge the contens of Json::Value b into Json::Value a
@@ -576,40 +589,104 @@ void MergeJsonValues(Json::Value &a, Json::Value &b)
 /*
  *
  */
-Json::Value JSONStringToObject(const std::string &str)
-{
-	Json::Value result;
-	Json::Reader reader;
+Json::Value LoadJsonFromString(const std::string &str) {
+    Json::Value root;
+    bool result = LoadJsonFromString(str, root);
 
-	bool success = reader.parse(str.c_str(), result);
-	if (!success)
-		LogErr(VB_GENERAL, "Error parsing JSON string in JSONStringToObject()\n");
-
-	return result;
+    return root;
 }
 
-Json::Value loadJSON(const std::string &filename)
+/*
+ *
+ */
+bool LoadJsonFromString(const std::string &str, Json::Value &root)
 {
-    Json::Value empty;
+    Json::CharReaderBuilder builder;
+    Json::CharReader *reader = builder.newCharReader();
+    std::string errors;
 
+    builder["collectComments"] = false;
+
+    bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &root, &errors);
+    delete reader;
+
+    if (!success) {
+        LogErr(VB_GENERAL, "Error parsing JSON string in LoadJsonFromString(): '%s'\n", str.c_str());
+        Json::Value empty;
+        root = empty;
+        return false;
+    }
+
+    LogDebug(VB_GENERAL, "LoadJsonFromString() loaded: '%s'\n", str.c_str());
+
+    return true;
+}
+
+bool LoadJsonFromFile(const std::string &filename, Json::Value &root)
+{
     if (!FileExists(filename)) {
         LogErr(VB_GENERAL, "JSON File %s does not exist\n", filename);
-        return empty;
+        return false;
     }
 
     std::string jsonStr = GetFileContents(filename);
-    return JSONStringToObject(jsonStr);
+
+    return LoadJsonFromString(jsonStr, root);
 }
 
-Json::Value loadJSON(const char *filename)
+bool LoadJsonFromFile(const char *filename, Json::Value &root)
 {
     std::string filenameStr = filename;
-    return loadJSON(filenameStr);
+
+    return LoadJsonFromFile(filenameStr, root);
 }
 
+std::string SaveJsonToString(const Json::Value &root, const std::string &indentation) {
+    Json::StreamWriterBuilder wbuilder;
+    wbuilder["indentation"] = indentation;
+
+    std::string result = Json::writeString(wbuilder, root);
+
+    return result;
+}
+
+bool SaveJsonToString(const Json::Value &root, std::string &str, const std::string &indentation) {
+    str = SaveJsonToString(root, indentation);
+
+    if (str.empty())
+        return false;
+
+    return true;
+}
+
+bool SaveJsonToFile(const Json::Value &root, const std::string &filename, const std::string &indentation) {
+    std::string str;
+
+    bool result = SaveJsonToString(root, str, indentation);
+
+    if (!result) {
+        LogErr(VB_GENERAL, "Error converting Json::Value to std::string()\n");
+        return false;
+    }
+
+    result = PutFileContents(filename, str);
+    if (!result) {
+        return false;
+    }
+
+    return true;
+}
+
+bool SaveJsonToFile(const Json::Value &root, const char *filename, const char *indentation) {
+    std::string filenameStr = filename;
+    std::string indentationStr = indentation;
+
+    return SaveJsonToFile(root, filenameStr, indentationStr);
+}
 #endif
 
 
+/////////////////////////////////////////////////////////////////////////////
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {

@@ -89,9 +89,14 @@ uint8_t   ReverseBitsInByte(uint8_t n);
 #ifndef PLATFORM_OSX
 #include <jsoncpp/json/json.h>
 void      MergeJsonValues(Json::Value &a, Json::Value &b);
-Json::Value JSONStringToObject(const std::string &str);
-Json::Value loadJSON(const std::string &filename);
-Json::Value loadJSON(const char *filename);
+Json::Value LoadJsonFromString(const std::string &str);
+bool LoadJsonFromString(const std::string &str, Json::Value &root);
+bool LoadJsonFromFile(const std::string &filename, Json::Value &root);
+bool LoadJsonFromFile(const char *filename, Json::Value &root);
+std::string SaveJsonToString(const Json::Value &root, const std::string &indentation = "");
+bool SaveJsonToString(const Json::Value &root, std::string &str, const std::string &indentation);
+bool SaveJsonToFile(const Json::Value &root, const std::string &filename, const std::string &indentation = "\t");
+bool SaveJsonToFile(const Json::Value &root, const char *filename, const char *indentation = "\t");
 #endif
 
 std::string tail(std::string const& source, size_t const length);

@@ -124,7 +124,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 
     std::function<void(const std::string &, const std::string &)> f = [] (const std::string &topic, const std::string &payload) {
         if (topic.size() <= 13) {
-            Json::Value val = JSONStringToObject(payload);
+            Json::Value val = LoadJsonFromString(payload);
             CommandManager::INSTANCE.run(val);
         } else {
             std::vector<std::string> args;
@@ -145,7 +145,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
                 args.push_back(payload);
             }
             if (args.size() == 0 && payload != "") {
-                Json::Value val = JSONStringToObject(payload);
+                Json::Value val = LoadJsonFromString(payload);
                 CommandManager::INSTANCE.run(command, val);
             } else {
                 CommandManager::INSTANCE.run(command, args);

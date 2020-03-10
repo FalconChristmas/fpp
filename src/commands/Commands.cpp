@@ -230,7 +230,7 @@ const httpserver::http_response CommandManager::render_POST(const httpserver::ht
     if (p1 == "command") {
         if (req.get_path_pieces().size() > 1) {
             std::string command = req.get_path_pieces()[1];
-            Json::Value val = JSONStringToObject(req.get_content());
+            Json::Value val = LoadJsonFromString(req.get_content());
             std::vector<std::string> args;
             for (int x = 0; x < val.size(); x++) {
                 args.push_back(val[x].asString());
@@ -254,7 +254,7 @@ const httpserver::http_response CommandManager::render_POST(const httpserver::ht
                 }
             }
         } else {
-            Json::Value val = JSONStringToObject(req.get_content());
+            Json::Value val = LoadJsonFromString(req.get_content());
             std::unique_ptr<Command::Result> r = run(val);
             int count = 0;
             while (!r->isDone() && count < 1000) {

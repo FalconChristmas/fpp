@@ -298,7 +298,13 @@ void PixelOverlayManager::loadModelMap() {
     strcpy(filename, getMediaDirectory());
     strcat(filename, "/config/model-overlays.json");
     if (FileExists(filename)) {
-        Json::Value root = loadJSON(filename);
+        Json::Value root;
+        bool result = LoadJsonFromFile(filename, root);
+        if (!result) {
+            LogErr(VB_CHANNELOUT, "Error parsing model-overlays.json.");
+            return;
+        }
+
         const Json::Value models = root["models"];
         FPPChannelMemoryMapControlBlock *cb = NULL;
         cb = (FPPChannelMemoryMapControlBlock*)(ctrlMap +
@@ -660,7 +666,7 @@ void PixelOverlayManager::LightMessageHandler(const std::string &topic, const st
     if (parts[3] != "cmd")
         return;
 
-    Json::Value s = JSONStringToObject(payload);
+    Json::Value s = LoadJsonFromString(payload);
     if (m) {
         std::unique_lock<std::mutex> lock(modelsLock);
         std::string newState = boost::algorithm::to_upper_copy(s["state"].asString());

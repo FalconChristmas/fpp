@@ -90,7 +90,7 @@ void FPPEvent::Load(const std::string &id) {
     
     if (contents[0] == '{') {
         //new JSON format
-        event = JSONStringToObject(contents);
+        event = LoadJsonFromString(contents);
     } else {
         //old line format
         std::stringstream ss(contents);
