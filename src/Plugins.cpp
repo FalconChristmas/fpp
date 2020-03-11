@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <libgen.h>
+#include <list>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -8,6 +9,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <iostream>
 
@@ -21,11 +23,6 @@
 #include <jsoncpp/json/json.h>
 
 #include "playlist/Playlist.h"
-
-//Boost because... why not?
-#include <boost/algorithm/string.hpp>
-#include <boost/foreach.hpp>
-#include <boost/tokenizer.hpp>
 
 #include "Plugin.h"
 #include "mediadetails.h"
@@ -163,20 +160,19 @@ const char *type_to_string[] = {
 class ScriptFPPPlugin : public FPPPlugin {
 public:
     ScriptFPPPlugin(const std::string &n, const std::string &filename, const std::string &lst) : FPPPlugin(n), fileName(filename) {
-        boost::char_separator<char> sep(",");
-        boost::tokenizer< boost::char_separator<char> > tokens(lst, sep);
-        BOOST_FOREACH (const std::string& type, tokens) {
-            if (type == "media") {
+        std::vector<std::string> types = split(lst, ',');
+        for (int i = 0; i < types.size(); i++) {
+            if (types[i] == "media") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports media callback.\n", name.c_str());
                 m_mediaCallback = new MediaCallback(name, filename);
-            } else if (type == "event") {
+            } else if (types[i] == "event") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports event callback.\n", name.c_str());
                 m_eventCallback = new EventCallback(name, filename);
-            } else if (type == "playlist") {
+            } else if (types[i] == "playlist") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports playlist callback.\n", name.c_str());
                 m_playlistCallback = new PlaylistCallback(name, filename);
             } else {
-                otherTypes.push_back(type);
+                otherTypes.push_back(types[i]);
             }
         }
     }
@@ -317,7 +313,7 @@ void PluginManager::init()
 					callback_list += readbuffer;
 				}
 
-				boost::trim(callback_list);
+				TrimWhiteSpace(callback_list);
 
 				LogExcess(VB_PLUGIN, "Callback output: (%s)\n", callback_list.c_str());
 				wait(NULL);
