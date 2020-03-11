@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <thread>
-#include <boost/algorithm/string.hpp>
 #include "boost/filesystem.hpp"
 #include <sys/wait.h>
 
@@ -317,7 +316,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 		return 0;
 	}
 
-	std::string ext = boost::algorithm::to_lower_copy(tmpFile.substr(found + 1));
+	std::string ext = toLowerCopy(tmpFile.substr(found + 1));
 
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
 

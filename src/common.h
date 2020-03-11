@@ -115,6 +115,11 @@ bool contains(const std::string &str, const std::string &v);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 bool replaceStart(std::string& str, const std::string& from, const std::string& to = "");
 bool replaceEnd(std::string& str, const std::string& from, const std::string& to = "");
+void toUpper(std::string& str);
+void toLower(std::string& str);
+std::string toUpperCopy(const std::string& str);
+std::string toLowerCopy(const std::string& str);
+
 
 // URL Helpers
 bool urlGet(const std::string url, std::string &resp);

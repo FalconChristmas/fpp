@@ -30,8 +30,6 @@
 #include <string>
 #include <set>
 
-#include <boost/algorithm/string.hpp>
-
 #include "log.h"
 #include "common.h"
 #include "mediaoutput.h"
@@ -152,7 +150,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
     std::string result("");
     std::size_t found = filename.find_last_of(".");
     std::string oext = filename.substr(found + 1);
-    std::string lext = boost::algorithm::to_lower_copy(oext);
+    std::string lext = toLowerCopy(oext);
     std::string bfile = filename.substr(0, found + 1);
     std::string videoPath(getVideoDirectory());
     videoPath += "/";
@@ -204,7 +202,7 @@ MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::
                  mediaFilename.c_str());
         return nullptr;
     }
-    std::string ext = boost::algorithm::to_lower_copy(mediaFilename.substr(found + 1));
+    std::string ext = toLowerCopy(mediaFilename.substr(found + 1));
 
     if (IsExtensionAudio(ext)) {
         if (getFPPmode() == REMOTE_MODE) {
@@ -252,7 +250,7 @@ int OpenMediaOutput(const char *filename) {
                  tmpFile.c_str());
         return 0;
     }
-    std::string ext = boost::algorithm::to_lower_copy(tmpFile.substr(found + 1));
+    std::string ext = toLowerCopy(tmpFile.substr(found + 1));
 
 	if (getFPPmode() == REMOTE_MODE) {
         std::string orgTmp = tmpFile;

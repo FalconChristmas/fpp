@@ -32,7 +32,6 @@
 #include <Magick++.h>
 #include <magick/type.h>
 #include <jsoncpp/json/json.h>
-#include <boost/algorithm/string.hpp>
 
 #include <chrono>
 
@@ -665,7 +664,7 @@ void PixelOverlayManager::LightMessageHandler(const std::string &topic, const st
     Json::Value s = LoadJsonFromString(payload);
     if (m) {
         std::unique_lock<std::mutex> lock(modelsLock);
-        std::string newState = boost::algorithm::to_upper_copy(s["state"].asString());
+        std::string newState = toUpperCopy(s["state"].asString());
 
         if (newState == "OFF") {
             m->fill(0, 0, 0);

@@ -771,6 +771,24 @@ bool replaceEnd(std::string& str, const std::string& from, const std::string& to
     return true;
 }
 
+void toUpper(std::string& str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+}
+void toLower(std::string& str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+}
+std::string toUpperCopy(const std::string& str) {
+    std::string cp = str;
+    toUpper(cp);
+    return cp;
+}
+std::string toLowerCopy(const std::string& str) {
+    std::string cp = str;
+    toLower(cp);
+    return cp;
+}
+
+
 // URL Helpers
 size_t urlWriteData(void *buffer, size_t size, size_t nmemb, void *userp)
 {
