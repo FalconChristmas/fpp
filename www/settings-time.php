@@ -1,3 +1,8 @@
+<?
+$skipJSsettings = 1;
+require_once('common.php');
+?>
+
 <script>
 function GetTimeZone() {
     $.get('https://ipapi.co/json/'
@@ -17,3 +22,6 @@ $extraData = "<input type='button' value='Lookup Time Zone' onClick='GetTimeZone
 PrintSettingGroup('time', $extraData);
 ?>
 
+<script>
+UpdateCurrentTime(true);
+</script>

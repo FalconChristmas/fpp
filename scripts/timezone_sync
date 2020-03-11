@@ -11,20 +11,16 @@ then
 	chmod 775 ${LOGDIR}
 fi
 
-if [ ! -f "${MEDIADIR}/timezone" ]
-then
-	cp /etc/timezone ${MEDIADIR}/timezone
-	chown ${FPPUSER}.${FPPUSER} ${MEDIADIR}/timezone
-	exit 0
-fi
+FPPTZ=$(grep "TimeZone" ${MEDIADIR}/settings | cut -f2 -d\")
+SYSTEMTZ=$(cat /etc/timezone)
 
-if [ "x$(cat /etc/timezone)" != "x$(cat ${MEDIADIR}/timezone)" ]
+if [ ! -z "${FPPTZ}" -a "x${FPPTZ}" != "x${SYSTEMTZ}" ]
 then
     if [ -f "/usr/bin/timedatectl" ]
     then
-        ${SUDO} timedatectl set-timezone `cat ${MEDIADIR}/timezone`
+        ${SUDO} timedatectl set-timezone ${FPPTZ}
     else
-        ${SUDO} cp ${MEDIADIR}/timezone /etc/timezone
+        echo ${FPPTZ} | ${SUDO} tee /etc/timezone > /dev/null
         ${SUDO} dpkg-reconfigure -f noninteractive tzdata
     fi
 fi

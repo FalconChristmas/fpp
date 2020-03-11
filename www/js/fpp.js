@@ -3550,23 +3550,6 @@ function handleVisibilityChange() {
     }
 }
 
-function bindSettingsVisibilityListener() {
-	var visProp = getHiddenProp();
-	if (visProp) {
-	  var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
-	  document.addEventListener(evtname, handleSettingsVisibilityChange);
-	}
-}
-
-function handleSettingsVisibilityChange() {
-    if (isHidden() && statusTimeout != null) {
-        clearTimeout(statusTimeout);
-        statusTimeout = null;
-    } else {
-        UpdateCurrentTime();
-    }
-}
-
 function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {
     var args = new Array()
     var argTypes = new Array()

@@ -1,3 +1,8 @@
+<?
+$skipJSsettings = 1;
+require_once('common.php');
+?>
+
 <script>
 function MaskChanged(cbox)
 {
@@ -50,24 +55,6 @@ function MaskChanged(cbox)
     });
 }
 
-
-$(document).ready(function(){
-  var logLevel = settings['LogLevel'];
-  if (typeof logLevel === 'undefined')
-    logLevel = "info";
-
-  $('#LogLevel').val(logLevel);
-
-  var logMasks = Array('most');
-
-  if (typeof settings['LogMask'] !== 'undefined')
-    logMasks = settings['LogMask'].split(",");
-
-  for (var i = 0; i < logMasks.length; i++) {
-    $('#mask_' + logMasks[i]).prop('checked', true);
-  }
-});
-
 </script>
 
 <?
@@ -99,7 +86,7 @@ PrintSetting('LogLevel');
                     </td>
                     <td width='10px'></td>
                     <td valign=top>
-                        <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most (default) <? stt('LogMask'); ?><br>
+                        <input type='checkbox' id='mask_most' class='mask_most' onChange='MaskChanged(this);'>Most (default) <? PrintToolTip('LogMask'); ?><br>
                         <br>
                         <input type='checkbox' id='mask_gpio' class='mask_most' onChange='MaskChanged(this);'>GPIO<br>
                         <input type='checkbox' id='mask_mediaout' class='mask_most' onChange='MaskChanged(this);'>Media Outputs<br>
@@ -115,3 +102,20 @@ PrintSetting('LogLevel');
         </td>
     </tr>
 </table>
+
+<script>
+var logLevel = settings['LogLevel'];
+if (typeof logLevel === 'undefined')
+    logLevel = "info";
+
+$('#LogLevel').val(logLevel);
+
+var logMasks = Array('most');
+
+if (typeof settings['LogMask'] !== 'undefined')
+    logMasks = settings['LogMask'].split(",");
+
+for (var i = 0; i < logMasks.length; i++) {
+    $('#mask_' + logMasks[i]).prop('checked', true);
+}
+</script>

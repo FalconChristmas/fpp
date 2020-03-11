@@ -1,3 +1,8 @@
+<?
+$skipJSsettings = 1;
+require_once('common.php');
+?>
+
 <script>
 function ConfirmPasswordEnable()
 {
@@ -78,10 +83,6 @@ function CheckPasswordVerify()
     }
 }
 
-$(document).ready(function() {
-    UpdatePasswordFieldsType();
-});
-
 </script>
 
 <table class='settingsTableWrapper'>
@@ -91,7 +92,8 @@ PrintSettingGroup('ui');
 ?>
 
         </td>
-        <td width='70px'></td>
+    </tr>
+    <tr>
         <td>
             <b>UI Password</b><br>
             <table class='settingsTable settingsGroupTable'>
@@ -109,3 +111,6 @@ PrintSetting('passwordShow');
     </tr>
 </table>
 
+<script>
+UpdatePasswordFieldsType();
+</script>

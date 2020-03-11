@@ -256,7 +256,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
         if ($suffix != '')
             echo $suffix . ' ';
 
-        echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $s['tip'] . "</span>\n";
+        PrintToolTip($setting);
 
         if ($level == 1)
             echo " <b>*</b>";
@@ -1459,8 +1459,16 @@ function DisableOutputBuffering() {
 	flush();
 }
 
-function ToolTip($setting, $tip) {
-    echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $tip . "</span>\n";
+function PrintToolTip($setting) {
+    global $settingInfos;
+    if (empty($settingInfos)) {
+        LoadSettingInfos();
+    }
+
+    if ((isset($settingInfos[$setting])) &&
+        (isset($settingInfos[$setting]['tip']))) {
+        echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $settingInfos[$setting]['tip'] . "</span>\n";
+    }
 }
 
 ?>

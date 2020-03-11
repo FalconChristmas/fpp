@@ -407,6 +407,7 @@
         },
         "gitBranch": {
             "name": "gitBranch",
+            "description": "Git Branch",
             "tip": "Switch code branches to test features outside the current release branch.  The 'master' branch is the main development branch for the next version of FPP.  There may also be a 'master-vY.x' branch were 'Y' is the major FPP version.  These master-v* branches are created to allow development on the next major release to continue in the master branch while bugfixes for the 'Y' release are applied only to the master-vY.x branch.",
             "level": 2
         },

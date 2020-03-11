@@ -1,4 +1,7 @@
 <?
+$skipJSsettings = 1;
+require_once('common.php');
+
 $cmd = "cd " . dirname(dirname(__FILE__)) . " && /usr/bin/git status";
 $git_status = "Unknown";
 exec($cmd, $output, $return_val);
@@ -60,7 +63,7 @@ function GitReset() {
 
 <table class='settingsTable'>
     <tr><th valign='top'>Git Branch:</th>
-        <td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? stt('gitBranch'); ?>
+        <td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? PrintToolTip('gitBranch'); ?>
             <br><b>Note: Changing branches may take a couple minutes to recompile and may not work if you have any modified source files.</b>
             <br><font color='red'><b>WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing development, you may want to backup the source directory before switching branches using this page.</b></font></td>
     </tr>

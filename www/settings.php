@@ -6,14 +6,6 @@ require_once('config.php');
 require_once('common.php');
 include('common/menuHead.inc');
 
-$sInfos = json_decode(file_get_contents('settings.json'), true);
-
-function stt($setting) {
-    global $sInfos;
-    if (isset($sInfos['settings'][$setting])) {
-        ToolTip($setting, $sInfos['settings'][$setting]['tip']);
-    }
-}
 ?>
 <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
 <script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
@@ -24,6 +16,23 @@ function stt($setting) {
 <script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
 
 <script>
+
+function bindSettingsVisibilityListener() {
+    var visProp = getHiddenProp();
+    if (visProp) {
+      var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
+      document.addEventListener(evtname, handleSettingsVisibilityChange);
+    }
+}
+
+function handleSettingsVisibilityChange() {
+    if (isHidden() && statusTimeout != null) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    } else {
+        UpdateCurrentTime();
+    }
+}
 
 function reloadSettingsPage() {
     location.href = '/settings.php?tab=' + $('#tabs').tabs('option', 'active');
@@ -43,17 +52,16 @@ function UpdateChildSettingsVisibility() {
 }
 
 var statusTimeout = null;
-function UpdateCurrentTime() {
+function UpdateCurrentTime(once = false) {
     $.get('/api/time', function(data) {
         $('#currentTime').html(data.time);
-        statusTimeout = setTimeout(UpdateCurrentTime, 1000);
+        if (!once)
+            statusTimeout = setTimeout(UpdateCurrentTime, 1000);
     });
 }
 
 $(document).ready(function() {
     UpdateChildSettingsVisibility();
-    InitializeTimeInputs();
-    InitializeDateInputs();
     bindSettingsVisibilityListener();
 });
 
@@ -70,56 +78,17 @@ $(document).ready(function() {
             <div class='title'>FPP Settings</div>
             <div id="tabs" style='display:none'>
                 <ul>
-                    <li><a href="#tab-playback">Playback</a></li>
-                    <li><a href="#tab-time">Time</a></li>
-                    <li><a href="#tab-ui">UI</a></li>
-                    <li><a href="#tab-email">Email</a></li>
-                    <li><a href="#tab-mqtt">MQTT</a></li>
-<? if ($uiLevel >= 1) echo "<li><a href='#tab-output'>Output</a></li>\n"; ?>
-                    <li><a href="#tab-logs">Logging</a></li>
-                    <li><a href="#tab-system">System</a></li>
-<? if ($uiLevel >= 3) echo "<li><a href='#tab-developer'>Developer</a></li>\n"; ?>
+                    <li><a href='settings-playback.php'>Playback</a></li>
+                    <li><a href='settings-av.php'>Audio/Video</a></li>
+                    <li><a href='settings-time.php'>Time</a></li>
+                    <li><a href='settings-ui.php'>UI</a></li>
+                    <li><a href='settings-email.php'>Email</a></li>
+                    <li><a href='settings-mqtt.php'>MQTT</a></li>
+<? if ($uiLevel >= 1) echo "<li><a href='settings-output.php'>Output</a></li>\n"; ?>
+                    <li><a href='settings-logs.php'>Logging</a></li>
+                    <li><a href='settings-system.php'>System</a></li>
+<? if ($uiLevel >= 3) echo "<li><a href='settings-developer.php'>Developer</a></li>\n"; ?>
                 </ul>
-
-                <div id='tab-playback'>
-                    <? include 'settings-playback.php'; ?>
-                </div>
-
-                <div id='tab-time'>
-                    <? include 'settings-time.php'; ?>
-                </div>
-
-                <div id='tab-ui'>
-                    <? include 'settings-ui.php'; ?>
-                </div>
-
-                <div id='tab-email'>
-                    <? include 'settings-email.php'; ?>
-                </div>
-
-                <div id='tab-mqtt'>
-                    <? include 'settings-mqtt.php'; ?>
-                </div>
-
-<? if ($uiLevel >= 1) { ?>
-                <div id='tab-output'>
-                    <? include 'settings-output.php'; ?>
-                </div>
-<? } ?>
-
-                <div id='tab-logs'>
-                    <? include 'settings-logs.php'; ?>
-                </div>
-
-                <div id='tab-system'>
-                    <? include 'settings-system.php'; ?>
-                </div>
-
-<? if ($uiLevel >= 3) { ?>
-                <div id='tab-developer'>
-                    <? include 'settings-developer.php'; ?>
-                </div>
-<? } ?>
             </div>
         </div>
 
@@ -152,6 +121,7 @@ else
     print "0";
 ?>;
 
+var currentLoadingTab = 0;
 $("#tabs").tabs( {
     cache: true,
     active: activeTabNumber,
@@ -162,11 +132,26 @@ $("#tabs").tabs( {
     },
     activate: function(event, ui) {
         $('.ui-tooltip').hide();
-        if (ui.newTab.index() == 1) {
+        if (ui.newTab.find("a").attr("href") == 'settings-time.php') {
             UpdateCurrentTime();
         } else if (statusTimeout != null) {
             clearTimeout(statusTimeout);
             statusTimeout = null;
+        }
+    },
+    beforeLoad: function(event, ui) {
+        if ($(ui.panel).html()) {
+            event.preventDefault(); // don't reload
+        }
+    },
+    load: function(event, ui) {
+        UpdateChildSettingsVisibility();
+        InitializeTimeInputs();
+        InitializeDateInputs();
+
+        currentLoadingTab++;
+        if (currentLoadingTab < $('#tabs').find('li').length) {
+            $('#tabs').tabs('load', currentLoadingTab);
         }
     }
 });
