@@ -23,6 +23,6 @@ function ViewLatLon()
 PrintSettingGroup('system');
 PrintSettingGroup('BBBLeds');
 
-$extraData = "<input type='button' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' value='Map Location' onClick='ViewLatLon();'>";
+$extraData = "<input type='button' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' value='Show On Map' onClick='ViewLatLon();'>";
 PrintSettingGroup('geolocation', $extraData);
 ?>
