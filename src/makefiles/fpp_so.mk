@@ -91,8 +91,7 @@ OBJECTS_fpp_so += \
 
 
 LIBS_fpp_so += \
-	-lboost_filesystem \
-	-lboost_system \
+	-lstdc++fs \
 	-lboost_date_time \
 	-lpthread -lrt \
     -lzstd -lz \

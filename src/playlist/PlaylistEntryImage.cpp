@@ -26,14 +26,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#include "boost/filesystem.hpp"
+#include <filesystem>
 
 #include "common.h"
 #include "log.h"
 #include "PlaylistEntryImage.h"
-
-using namespace boost::filesystem;
 
 void StartPrepLoopThread(PlaylistEntryImage *fb);
 
@@ -207,24 +204,19 @@ void PlaylistEntryImage::SetFileList(void)
 
 	m_files.clear();
 
-	if (is_regular_file(m_imagePath))
+    
+	if (std::filesystem::is_regular_file(m_imagePath))
 	{
 		m_files.push_back(m_imagePath);
 		return;
 	}
 
-	if (is_directory(m_imagePath))
+	if (std::filesystem::is_directory(m_imagePath))
 	{
-		namespace fs = boost::filesystem;
-
-		fs::path apk_path(m_imagePath);
-		fs::recursive_directory_iterator end;
-
-		for (fs::recursive_directory_iterator i(apk_path); i != end; ++i)
-		{
-			const fs::path cp = (*i);
-			m_files.push_back(cp.string());
-		}
+        for (auto &cp : std::filesystem::recursive_directory_iterator(m_imagePath)) {
+            std::string entry = cp.path().string();
+            m_files.push_back(entry);
+        }
 
 		LogDebug(VB_PLAYLIST, "%d images in directory\n", m_files.size());
 

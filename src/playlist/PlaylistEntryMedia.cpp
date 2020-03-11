@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <thread>
-#include "boost/filesystem.hpp"
+#include <filesystem>
 #include <sys/wait.h>
 
 #include "log.h"
@@ -401,14 +401,8 @@ int PlaylistEntryMedia::GetFileList(void)
     else if (m_fileMode == "randomAudio")
         dir = getMusicDirectory();
 
-    namespace fs = boost::filesystem;
-
-    fs::path apk_path(dir);
-    fs::recursive_directory_iterator end;
-
-    for (fs::recursive_directory_iterator i(apk_path); i != end; ++i) {
-        const fs::path cp = (*i);
-        std::string entry = cp.string();
+    for (auto &cp : std::filesystem::recursive_directory_iterator(dir)) {
+        std::string entry = cp.path().string();
         m_files.push_back(entry);
     }
 
