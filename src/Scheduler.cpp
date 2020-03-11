@@ -30,8 +30,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "boost/date_time/gregorian/gregorian.hpp"
+#include <chrono>
 
 #include "command.h"
 #include "commands/Commands.h"
@@ -426,15 +425,14 @@ void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry)
 	}
 
 	// Some variables needed for odd/even day calculations
-	std::string FPPEpochStr("2013-07-15");
-	boost::gregorian::date FPPEpoch(boost::gregorian::from_simple_string(FPPEpochStr));
-	boost::gregorian::date today = boost::gregorian::day_clock::local_day();
-	boost::gregorian::days bDaysSince = today - FPPEpoch;
-	int daysSince = bDaysSince.days();
+    struct std::tm FPPEpoch = {0,0,0,15,6,113}; //2013-07-15
+    std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
+    std::time_t currTime = std::time(nullptr);
+    double difference = std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
+	int daysSince = difference;
 	int oddSunday = 0;
 	int i = 0;
 
-	time_t currTime = time(NULL);
 	struct tm now;
 	localtime_r(&currTime, &now);
 

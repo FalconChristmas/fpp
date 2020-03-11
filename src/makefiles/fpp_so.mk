@@ -92,7 +92,6 @@ OBJECTS_fpp_so += \
 
 LIBS_fpp_so += \
 	-lstdc++fs \
-	-lboost_date_time \
 	-lpthread -lrt \
     -lzstd -lz \
 	-lgpiod \
