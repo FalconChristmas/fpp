@@ -23,8 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/algorithm/string/replace.hpp>
-
+#include "common.h"
 #include "log.h"
 #include "PlaylistEntryBase.h"
 
@@ -240,7 +239,7 @@ std::string PlaylistEntryBase::ReplaceMatches(std::string in)
 
 	LogDebug(VB_PLAYLIST, "In: '%s'\n", in.c_str());
 
-	boost::replace_all(out, "%t", m_type);
+	replaceAll(out, "%t", m_type);
 
 	LogDebug(VB_PLAYLIST, "Out: '%s'\n", out.c_str());
 

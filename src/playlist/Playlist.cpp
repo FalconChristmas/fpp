@@ -38,7 +38,6 @@
 #include <sys/types.h>
 
 #include <jsoncpp/json/json.h>
-#include <boost/algorithm/string/replace.hpp>
 
 #include "common.h"
 #include "fpp.h"

@@ -755,6 +755,22 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
     }
 }
 
+bool replaceStart(std::string& str, const std::string& from, const std::string& to) {
+    if (!startsWith(str, from))
+        return false;
+
+    str.replace(0, from.size(), to);
+    return true;
+}
+
+bool replaceEnd(std::string& str, const std::string& from, const std::string& to) {
+    if (!endsWith(str, from))
+        return false;
+
+    str.replace(str.size()-from.size(), from.size(), to);
+    return true;
+}
+
 // URL Helpers
 size_t urlWriteData(void *buffer, size_t size, size_t nmemb, void *userp)
 {

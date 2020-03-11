@@ -27,8 +27,6 @@
 #include <sstream>
 #include <string>
 
-#include <boost/algorithm/string/replace.hpp>
-
 #include "common.h"
 #include "log.h"
 #include "PlaylistEntryBoth.h"

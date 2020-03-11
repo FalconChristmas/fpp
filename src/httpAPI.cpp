@@ -46,7 +46,6 @@
 #include <ctime>
 
 #include "stdlib.h"
-#include <boost/algorithm/string/replace.hpp>
 #include <jsoncpp/json/json.h>
 
 #include "mediaoutput/mediaoutput.h"
@@ -143,7 +142,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	Json::Value result;
 	std::string url = req.get_path();
 
-	boost::replace_first(url, "/fppd/", "");
+	replaceStart(url, "/fppd/", "");
 
 	LogDebug(VB_HTTP, "URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
@@ -254,7 +253,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	Json::Value result;
 	std::string url = req.get_path();
 
-	boost::replace_first(url, "/fppd/", "");
+	replaceStart(url, "/fppd/", "");
 
 	LogDebug(VB_HTTP, "POST URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
@@ -268,37 +267,29 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	}
 
 	// Keep IF statement in alphabetical order
-    if (startsWith(url, "effects/"))
+    if (replaceStart(url, "effects/"))
 	{
-		boost::replace_first(url, "effects/", "");
-
 		PostEffects(url, data, result);
 	}
-	else if (startsWith(url, "events/"))
+	else if (replaceStart(url, "events/"))
 	{
-		boost::replace_first(url, "events/", "");
-
 		PostEvents(url, data, result);
 	}
-	else if (startsWith(url, "falcon/hardware"))
+	else if (replaceStart(url, "falcon/hardware"))
 	{
 		PostFalconHardware(result);
 	}
-	else if (startsWith(url, "gpio/ext"))
+	else if (replaceStart(url, "gpio/ext"))
 	{
 		PostGPIOExt(data, result);
 	}
-	else if (startsWith(url, "log/level/"))
+	else if (replaceStart(url, "log/level/"))
 	{
-		boost::replace_first(url, "log/level/", "");
-
 		SetLogLevel(url.c_str());
 		SetOKResult(result, "Log Level set");
 	}
-	else if (startsWith(url, "log/mask/"))
+	else if (replaceStart(url, "log/mask/"))
 	{
-		boost::replace_first(url, "log/mask/", "");
-
 		SetLogMask(url.c_str());
 		SetOKResult(result, "Log Mask set");
 	}
@@ -310,10 +301,8 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	{
 		PostOutputsRemap(data, result);
 	}
-	else if (url.find("playlists/") == 0)
+	else if (replaceStart(url, "playlists/"))
 	{
-		boost::replace_first(url, "playlists/", "");
-
 		if (url == "stop")
 		{
 			// Stop all running playlists
@@ -322,22 +311,22 @@ const http_response PlayerResource::render_POST(const http_request &req)
 		else if (endsWith(url, "/start"))
 		{
 			// Start a playlist
-			boost::replace_last(url, "/start", "");
+			replaceEnd(url, "/start", "");
 			LogDebug(VB_HTTP, "API - Starting playlist '%s' w/ content '%s'\n", url.c_str(), req.get_content().c_str());
 		}
 		else if (endsWith(url, "/nextItem"))
 		{
-			boost::replace_last(url, "/nextItem", "");
+			replaceEnd(url, "/nextItem", "");
 			LogDebug(VB_HTTP, "API - Skipping to next entry in playlist '%s'\n", url.c_str());
 		}
 		else if (endsWith(url, "/restartItem"))
 		{
-			boost::replace_last(url, "/restartItem", "");
+			replaceEnd(url, "/restartItem", "");
 			LogDebug(VB_HTTP, "API - Restarting current item in playlist '%s'\n", url.c_str());
 		}
 		else if (endsWith(url, "/prevItem"))
 		{
-			boost::replace_last(url, "/prevItem", "");
+			replaceEnd(url, "/prevItem", "");
 			LogDebug(VB_HTTP, "API - Skipping to prev entry in playlist '%s'\n", url.c_str());
 		}
 		else if (url.find("/section/") != std::string::npos)
@@ -354,7 +343,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 		}
 		else if (endsWith(url, "/stop"))
 		{
-			boost::replace_last(url, "/stop", "");
+			replaceEnd(url, "/stop", "");
 			LogDebug(VB_HTTP, "API - Stopping playlist '%s' w/ content '%s'\n", url.c_str(), req.get_content().c_str());
 		}
 	}
@@ -371,21 +360,21 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	}
 	else if (url.find("sequences/") == 0)
 	{
-		boost::replace_first(url, "sequences/", "");
+		replaceStart(url, "sequences/", "");
 
 		if (endsWith(url, "/start"))
 		{
-			boost::replace_last(url, "/start", "");
+			replaceEnd(url, "/start", "");
 			LogDebug(VB_HTTP, "API - Starting sequence '%s'\n", url.c_str());
 		}
 		else if (endsWith(url, "/stop"))
 		{
-			boost::replace_last(url, "/stop", "");
+			replaceEnd(url, "/stop", "");
 			LogDebug(VB_HTTP, "API - Stopping sequence '%s'\n", url.c_str());
 		}
 		else if (endsWith(url, "/pause"))
 		{
-			boost::replace_last(url, "/pause", "");
+			replaceEnd(url, "/pause", "");
 			LogDebug(VB_HTTP, "API - (un)Pausing sequence '%s'\n", url.c_str());
 		}
 		else if (endsWith(url, "/pause/0"))
@@ -398,12 +387,12 @@ const http_response PlayerResource::render_POST(const http_request &req)
 		}
 		else if (endsWith(url, "/step"))
 		{
-			boost::replace_last(url, "/step", "");
+			replaceEnd(url, "/step", "");
 			LogDebug(VB_HTTP, "API - Stepping sequence '%s' by 1 frame\n", url.c_str());
 		}
 		else if (endsWith(url, "/back"))
 		{
-			boost::replace_last(url, "/back", "");
+			replaceEnd(url, "/back", "");
 			LogDebug(VB_HTTP, "API - Stepping sequence '%s' BACK by 1 frame\n", url.c_str());
 		}
 		else if (url.find("/step/") != std::string::npos)
@@ -427,9 +416,8 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	{
 		LogDebug(VB_HTTP, "API - Reloading all settings\n");
 	}
-	else if (url.find("settings/reload/") == 0)
+	else if (replaceStart(url, "settings/reload/"))
 	{
-		boost::replace_first(url, "settings/reload/", "");
 		LogDebug(VB_HTTP, "API - Reloading setting: %s\n", url.c_str());
 	}
 	else if (url == "restart")
@@ -475,14 +463,13 @@ const http_response PlayerResource::render_DELETE(const http_request &req)
 	Json::Value result;
 	std::string url = req.get_path();
 
-	boost::replace_first(url, "/fppd/", "");
+	replaceStart(url, "/fppd/", "");
 
 	LogDebug(VB_HTTP, "DELETE URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-	if (url.find("event/") == 0)
+	if (replaceStart(url, "event/"))
 	{
-		boost::replace_first(url, "event/", "");
 		int id = atoi(url.c_str());
 		LogDebug(VB_HTTP, "API - Deleting event with running ID %d\n", id);
 	}
@@ -521,18 +508,16 @@ const http_response PlayerResource::render_PUT(const http_request &req)
 	Json::Value result;
 	std::string url = req.get_path();
 
-	boost::replace_first(url, "/fppd/", "");
+	replaceStart(url, "/fppd/", "");
 
 	LogDebug(VB_HTTP, "PUT URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-	if (url.find("playlists/") == 0)
+	if (replaceStart(url, "playlists/"))
 	{
-		boost::replace_first(url, "playlists/", "");
-
 		if (endsWith(url, "/settings"))
 		{
-			boost::replace_last(url, "/settings", "");
+			replaceEnd(url, "/settings", "");
 
 			LogDebug(VB_HTTP, "API - Updating runtime settings for playlist '%s'\n", url.c_str());
 		}

@@ -23,8 +23,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <boost/algorithm/string/replace.hpp>
-
 #include "log.h"
 #include "PlaylistEntryURL.h"
 #include "settings.h"

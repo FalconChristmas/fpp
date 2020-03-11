@@ -113,6 +113,8 @@ bool startsWith(const std::string &str, const std::string &prefix);
 bool endsWith(const std::string& str, const std::string& suffix);
 bool contains(const std::string &str, const std::string &v);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
+bool replaceStart(std::string& str, const std::string& from, const std::string& to = "");
+bool replaceEnd(std::string& str, const std::string& from, const std::string& to = "");
 
 // URL Helpers
 bool urlGet(const std::string url, std::string &resp);
