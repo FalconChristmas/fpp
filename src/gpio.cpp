@@ -192,14 +192,14 @@ void GPIOManager::Cleanup() {
     }
 }
 
-const httpserver::http_response GPIOManager::render_GET(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const httpserver::http_request &req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "gpio") {
         if (plen <= 1) {
             std::vector<std::string> pins = PinCapabilities::getPinNames();
             if (pins.empty()) {
-                return httpserver::http_response_builder("[]", 200, "application/json").string_response();
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("[]", 200, "application/json"));
             }
             Json::Value result;
             for (auto & a : pins) {
@@ -207,10 +207,10 @@ const httpserver::http_response GPIOManager::render_GET(const httpserver::http_r
             }
             std::string resultStr = SaveJsonToString(result);
             
-            return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
         }
     }
-    return httpserver::http_response_builder("Not Found", 404, "text/plain").string_response();
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
 void GPIOManager::ConvertOldSettings() {

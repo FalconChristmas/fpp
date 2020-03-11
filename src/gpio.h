@@ -38,7 +38,7 @@ class GPIOManager : public httpserver::http_resource {
 public:
     static GPIOManager INSTANCE;
     
-    virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
+    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request &req) override;
     
     static void ConvertOldSettings();
     

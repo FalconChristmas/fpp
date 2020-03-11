@@ -55,7 +55,7 @@
 SCRIPTVER="4.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
 FPPIMAGEVER="4.0-alpha"
-FPPCFGVER="59"
+FPPCFGVER="60"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -378,8 +378,6 @@ case "${OSVER}" in
                       samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
                       mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
                       php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
-                      libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
-                      libboost-atomic-dev libboost-math-dev libboost-signals-dev \
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
@@ -400,8 +398,8 @@ case "${OSVER}" in
         apt-get -y clean
 
 
-		echo "FPP - Installing libhttpserver SHA bd08772"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout bd08772 && ./bootstrap && mkdir build && cd build && CXXFLAGS=-std=c++98 ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		echo "FPP - Installing libhttpserver 0.17.5"
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.17.5 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox

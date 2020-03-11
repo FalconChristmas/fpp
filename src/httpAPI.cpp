@@ -135,7 +135,7 @@ void LogResponse(const http_request &req, int responseCode, const std::string &c
 /*
  *
  */
-const http_response PlayerResource::render_GET(const http_request &req)
+const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(const http_request &req)
 {
 	LogRequest(req);
 
@@ -203,7 +203,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
         }
         if (req.get_arg("simple") == "true") {
             std::string v = std::to_string(getVolume());
-            return http_response_builder(v, 200, "text/plain");
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(v, 200, "text/plain"));
         }
 		result["volume"] = getVolume();
 		SetOKResult(result, "");
@@ -239,13 +239,13 @@ const http_response PlayerResource::render_GET(const http_request &req)
 	std::string resultStr = SaveJsonToString(result);
 	LogResponse(req, responseCode, resultStr);
 
-	return http_response_builder(resultStr, responseCode, "application/json");
+	return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, responseCode, "application/json"));
 }
 
 /*
  *
  */
-const http_response PlayerResource::render_POST(const http_request &req)
+const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(const http_request &req)
 {
 	LogRequest(req);
 
@@ -262,7 +262,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 		if (!LoadJsonFromString(req.get_content(), data))
 		{
 			LogErr(VB_CHANNELOUT, "Error parsing POST content\n");
-			return http_response_builder("Error parsing POST content", 400).string_response();
+			return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Error parsing POST content", 400));
 		}
 	}
 
@@ -449,14 +449,14 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	std::string resultStr = SaveJsonToString(result);
 	LogResponse(req, result["respCode"].asInt(), resultStr);
 
-    return http_response_builder(resultStr.c_str(), result["respCode"].asInt(), "application/json").string_response();
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr.c_str(), result["respCode"].asInt(), "application/json"));
 }
 
 
 /*
  *
  */
-const http_response PlayerResource::render_DELETE(const http_request &req)
+const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(const http_request &req)
 {
 	LogRequest(req);
 
@@ -494,14 +494,14 @@ const http_response PlayerResource::render_DELETE(const http_request &req)
 
 	LogResponse(req, result["respCode"].asInt(), resultStr);
 
-	return http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();
+	return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr.c_str(), result["respCode"].asInt()));
 }
 
 
 /*
  *
  */
-const http_response PlayerResource::render_PUT(const http_request &req)
+const std::shared_ptr<httpserver::http_response> PlayerResource::render_PUT(const http_request &req)
 {
 	LogRequest(req);
 
@@ -544,7 +544,7 @@ const http_response PlayerResource::render_PUT(const http_request &req)
 
 	LogResponse(req, result["respCode"].asInt(), resultStr);
 
-	return http_response_builder(resultStr.c_str(), result["respCode"].asInt()).string_response();;
+	return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr.c_str(), result["respCode"].asInt()));
 }
 
 /*

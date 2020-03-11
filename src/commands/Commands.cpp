@@ -176,7 +176,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value &cmd) {
 }
 
 
-const httpserver::http_response CommandManager::render_GET(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request &req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "commands") {
@@ -185,13 +185,13 @@ const httpserver::http_response CommandManager::render_GET(const httpserver::htt
             auto f = commands.find(command);
             if (f != commands.end()) {
                 Json::Value result = f->second->getDescription();
-                std::string resultStr = SaveJsonToString(result);
-                return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
+                std::string resultStr = SaveJsonToString(result, "  ");
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
             }
         } else {
             Json::Value result = getDescriptions();
-            std::string resultStr = SaveJsonToString(result);
-            return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
+            std::string resultStr = SaveJsonToString(result, "  ");
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
         }
     } else if (p1 == "command" && plen > 1) {
         std::string command = req.get_path_pieces()[1];
@@ -210,19 +210,19 @@ const httpserver::http_response CommandManager::render_GET(const httpserver::htt
             }
             if (r->isDone()) {
                 if (r->isError()) {
-                    return httpserver::http_response_builder(r->get(), 500, "text/plain");
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, "text/plain"));
                 }
-                return httpserver::http_response_builder(r->get(), 200, "text/plain");
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 200, "text/plain"));
             } else {
-                return httpserver::http_response_builder("Timeout running command", 500, "text/plain");
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Timeout running command", 500, "text/plain"));
             }
         }
-        return httpserver::http_response_builder("Not Found", 404, "text/plain");
+        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
     }
-    return httpserver::http_response_builder("Not Found", 404, "text/plain").string_response();
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
 }
 
-const httpserver::http_response CommandManager::render_POST(const httpserver::http_request &req) {
+const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(const httpserver::http_request &req) {
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "command") {
         if (req.get_path_pieces().size() > 1) {
@@ -243,11 +243,11 @@ const httpserver::http_response CommandManager::render_POST(const httpserver::ht
                 }
                 if (r->isDone()) {
                     if (r->isError()) {
-                        return httpserver::http_response_builder(r->get(), 500, r->contentType());
+                        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, r->contentType()));
                     }
-                    return httpserver::http_response_builder(r->get(), 200, r->contentType());
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 200, r->contentType()));
                 } else {
-                    return httpserver::http_response_builder("Timeout running command", 500, "text/plain");
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Timeout running command", 500, "text/plain"));
                 }
             }
         } else {
@@ -260,15 +260,15 @@ const httpserver::http_response CommandManager::render_POST(const httpserver::ht
             }
             if (r->isDone()) {
                 if (r->isError()) {
-                    return httpserver::http_response_builder(r->get(), 500, r->contentType());
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 500, r->contentType()));
                 }
-                return httpserver::http_response_builder(r->get(), 200, r->contentType());
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(r->get(), 200, r->contentType()));
             } else {
-                return httpserver::http_response_builder("Timeout running command", 500, "text/plain");
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Timeout running command", 500, "text/plain"));
             }
         }
-        return httpserver::http_response_builder("Not Found", 404, "text/plain");
+        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
     }
-    return httpserver::http_response_builder("Not Found", 404, "text/plain").string_response();
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
     
 }

@@ -34,9 +34,9 @@ class PixelOverlayManager : public httpserver::http_resource {
 public:
     static PixelOverlayManager INSTANCE;
 
-    virtual const httpserver::http_response render_GET(const httpserver::http_request &req) override;
-    virtual const httpserver::http_response render_POST(const httpserver::http_request &req) override;
-    virtual const httpserver::http_response render_PUT(const httpserver::http_request &req) override;
+    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request &req) override;
+    virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request &req) override;
+    virtual const std::shared_ptr<httpserver::http_response> render_PUT(const httpserver::http_request &req) override;
 
     void OverlayMemoryMap(char *channelData);
     int UsingMemoryMapInput();

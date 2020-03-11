@@ -12,11 +12,9 @@ RUN apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg:
     samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
     mp3info mailutils dhcp-helper parprouted bridge-utils libiio-utils \
     php php-cli php-common php-curl php-pear php-sqlite3 php-zip php-xml \
-    libboost-filesystem-dev libboost-system-dev libboost-iostreams-dev libboost-date-time-dev \
-    libboost-atomic-dev libboost-math-dev libboost-signals-dev \
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
-    libmosquitto-dev mosquitto-clients libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
+    libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
     python-daemon python-smbus wget ; apt-get clean
 
 # similar to above, do this once and Docker can cache the intermediary
