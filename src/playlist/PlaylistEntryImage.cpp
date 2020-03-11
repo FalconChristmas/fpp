@@ -27,8 +27,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/predicate.hpp>
 #include "boost/filesystem.hpp"
 
 #include "common.h"
@@ -225,13 +223,7 @@ void PlaylistEntryImage::SetFileList(void)
 		for (fs::recursive_directory_iterator i(apk_path); i != end; ++i)
 		{
 			const fs::path cp = (*i);
-			std::string entry = cp.string();
-			if ((boost::iends_with(entry, ".gif")) ||
-				(boost::iends_with(entry, ".bmp")) ||
-				(boost::iends_with(entry, ".jpeg")) ||
-				(boost::iends_with(entry, ".jpg")) ||
-				(boost::iends_with(entry, ".png")))
-				m_files.push_back(entry);
+			m_files.push_back(cp.string());
 		}
 
 		LogDebug(VB_PLAYLIST, "%d images in directory\n", m_files.size());

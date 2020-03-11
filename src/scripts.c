@@ -33,8 +33,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <boost/algorithm/string/predicate.hpp>
-
 #include "common.h"
 #include "log.h"
 #include "scripts.h"
@@ -94,13 +92,13 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 		{
 			if (tmpPart == "")
 			{
-				if (boost::starts_with(parts[p], "\""))
+				if (startsWith(parts[p], "\""))
 				{
 					quote = "\"";
 
 					tmpPart = parts[p].substr(1);
 				}
-				else if (boost::starts_with(parts[p], "'"))
+				else if (startsWith(parts[p], "'"))
 				{
 					quote = "'";
 					tmpPart = parts[p].substr(1);
@@ -111,7 +109,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 					i++;
 				}
 
-				if ((tmpPart != "") && (quote != "") && (boost::ends_with(tmpPart, quote)))
+				if ((tmpPart != "") && (quote != "") && (endsWith(tmpPart, quote)))
 				{
 					args[i] = strdup(tmpPart.c_str());
 
@@ -129,7 +127,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 				tmpPart += " ";
 				tmpPart += parts[p];
 
-				if (boost::ends_with(parts[p], quote))
+				if (endsWith(parts[p], quote))
 				{
 					args[i] = strdup(tmpPart.c_str());
 

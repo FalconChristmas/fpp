@@ -35,9 +35,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/algorithm/string/predicate.hpp>
-
 #include <Magick++.h>
 #include <magick/type.h>
 
@@ -325,7 +322,7 @@ int VirtualDisplayOutput::InitializePixelMap(void)
 				vpc = kVPC_Blue;
 			else if (colorPart == "White")
 				vpc = kVPC_White;
-			else if (boost::starts_with(colorPart, "#"))
+			else if (startsWith(colorPart, "#"))
 			{
 				std::string tmpColor;
 

@@ -328,7 +328,7 @@ void PluginManager::init()
                 mPlugins.push_back(spl);
             } else {
                 for (auto &a : spl->getOtherTypes()) {
-                    if (boost::starts_with(a, "c++")) {
+                    if (startsWith(a, "c++")) {
                         std::string shlibName = std::string(getPluginDirectory()) + "/" + ep->d_name + "/lib" + ep->d_name + ".so";
                         if (a[3] == ':') {
                             shlibName = std::string(getPluginDirectory()) + "/" + ep->d_name + "/" + a.substr(4);
