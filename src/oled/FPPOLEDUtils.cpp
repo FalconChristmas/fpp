@@ -157,14 +157,8 @@ bool FPPOLEDUtils::checkStatusAbility() {
     }
     std::string file = "/home/fpp/media/tmp/cape-info.json";
     if (FileExists(file)) {
-        std::ifstream t(file);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
         Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
+        if (LoadJsonFromFile(file, root)) {
             if (root["id"].asString() == "Unsupported") {
                 return false;
             }
@@ -178,14 +172,8 @@ bool FPPOLEDUtils::checkStatusAbility() {
 
 bool FPPOLEDUtils::setupControlPin(const std::string &file) {
     if (FileExists(file)) {
-        std::ifstream t(file);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
         Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
+        if (LoadJsonFromFile(file, root)) {
             if (root.isMember("controls")
                 && root["controls"].isMember("I2CEnable")) {
                 controlPin = root["controls"]["I2CEnable"].asString();
@@ -246,14 +234,8 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string &file) {
     char vbuffer[256];
     bool needsPolling = false;
     if (FileExists(file)) {
-        std::ifstream t(file);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
         Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
+        if (LoadJsonFromFile(file, root)) {
             for (int x = 0; x < root.size(); x++) {
                 if (!root[x]["enabled"].asBool()) {
                     continue;
@@ -298,14 +280,8 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
     char vbuffer[256];
     bool needsPolling = false;
     if (FileExists(file)) {
-        std::ifstream t(file);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
         Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
+        if (LoadJsonFromFile(file, root)) {
             for (int x = 0; x < root["inputs"].size(); x++) {
                 InputAction *action = new InputAction();
                 action->pin = root["inputs"][x]["pin"].asString();

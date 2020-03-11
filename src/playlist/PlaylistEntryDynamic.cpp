@@ -358,7 +358,6 @@ int PlaylistEntryDynamic::ReadFromURL(std::string url)
 int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 {
 	Json::Value root;
-	Json::Reader reader;
 	PlaylistEntryBase *playlistEntry = NULL;
 
 	LogDebug(VB_PLAYLIST, "ReadFromString(): String:\n%s\n", jsonStr.c_str());
@@ -369,8 +368,7 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 		return 0;
 	}
 
-	bool success = reader.parse(jsonStr, root);
-	if (!success)
+	if (!LoadJsonFromString(jsonStr, root))
 	{
 		LogErr(VB_PLAYLIST, "Error parsing JSON: %s\n", jsonStr.c_str());
 		return 0;

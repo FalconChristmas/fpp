@@ -127,16 +127,7 @@ void LoadInputUniversesFromFile(void)
 	}
 
 	Json::Value root;
-    Json::Reader reader;
-	std::ifstream t(filename);
-	std::stringstream buffer;
-
-	buffer << t.rdbuf();
-
-	std::string config = buffer.str();
-
-	bool success = reader.parse(buffer.str(), root);
-    if (!success) {
+    if (!LoadJsonFromFile(filename, root)) {
 		LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename);
 		return;
 	}

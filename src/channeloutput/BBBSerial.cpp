@@ -190,7 +190,6 @@ int BBBSerialOutput::Init(Json::Value config)
     if (config["pinoutVersion"].asString() == "3.x") {
         verPostf = "-v3";
     }
-    Json::Reader reader;
     Json::Value root;
     char filename[256];
     std::string device = config["device"].asString();
@@ -201,8 +200,7 @@ int BBBSerialOutput::Init(Json::Value config)
     int maxOut = 8;
     int countOut = 0;
     if (FileExists(filename)) {
-        std::ifstream t(filename);
-        if (!reader.parse(t, root)) {
+        if (!LoadJsonFromFile(filename, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", device.c_str(), verPostf.c_str());
             return 0;
         }

@@ -424,11 +424,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     remove(filename);
     strcpy(filename, getMediaDirectory());
     strcat(filename, "/config/model-overlays.json");
-    Json::StyledWriter writer;
-    std::string resultStr = writer.write(result);
-    fp = fopen(filename, "w");
-    fwrite(resultStr.c_str(), resultStr.length(), 1, fp);
-    fclose(fp);
+    SaveJsonToFile(result, filename);
 }
 
 /*
@@ -818,8 +814,7 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
         if (empty && plen == 1) {
             return httpserver::http_response_builder("[]", 200, "application/json").string_response();
         } else {
-            Json::FastWriter fastWriter;
-            std::string resultStr = fastWriter.write(result);
+            std::string resultStr = SaveJsonToString(result, "");
             return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
         }
     } else if (p1 == "overlays") {
@@ -869,8 +864,7 @@ const httpserver::http_response PixelOverlayManager::render_GET(const httpserver
                 }
             }
         }
-        Json::FastWriter fastWriter;
-        std::string resultStr = fastWriter.write(result);
+        std::string resultStr = SaveJsonToString(result, "");
         return httpserver::http_response_builder(resultStr, 200, "application/json")
             .string_response();
     }
@@ -927,8 +921,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
             if (m) {
                 if (p4 == "state") {
                     Json::Value root;
-                    Json::Reader reader;
-                    if (reader.parse(req.get_content(), root)) {
+                    if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("State")) {
                             m->setState(PixelOverlayState(root["State"].asInt()));
                             return httpserver::http_response_builder("OK", 200);
@@ -940,8 +933,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                     }
                 } else if (p4 == "fill") {
                     Json::Value root;
-                    Json::Reader reader;
-                    if (reader.parse(req.get_content(), root)) {
+                    if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("RGB")) {
                             m->fill(root["RGB"][0].asInt(),
                                     root["RGB"][1].asInt(),
@@ -951,8 +943,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                     }
                 } else if (p4 == "pixel") {
                     Json::Value root;
-                    Json::Reader reader;
-                    if (reader.parse(req.get_content(), root)) {
+                    if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("RGB")) {
                             m->setPixelValue(root["X"].asInt(),
                                              root["Y"].asInt(),
@@ -965,8 +956,7 @@ const httpserver::http_response PixelOverlayManager::render_PUT(const httpserver
                 } else if (p4 == "text") {
                     loadFonts();
                     Json::Value root;
-                    Json::Reader reader;
-                    if (reader.parse(req.get_content(), root)) {
+                    if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("Message")) {
                             std::string color = root["Color"].asString();
                             unsigned int x = mapColor(color);

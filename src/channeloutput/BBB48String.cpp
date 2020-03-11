@@ -245,21 +245,14 @@ static int getMaxChannelsPerPort() {
     if (model == "TI AM335x PocketBeagle") {
         return 999999;
     }
-    std::string file = "/home/fpp/media/tmp/cape-info.json";
-    if (FileExists(file)) {
-        std::ifstream t(file);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
-        Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
-            if (root["id"].asString() == "Unsupported") {
-                return 600;
-            }
+
+    Json::Value root;
+    if (LoadJsonFromFile("/home/fpp/media/tmp/cape-info.json", root)) {
+        if (root["id"].asString() == "Unsupported") {
+            return 600;
         }
     }
+
     return 999999;
 }
 
@@ -332,7 +325,6 @@ int BBB48StringOutput::Init(Json::Value config)
     if (config.isMember("serialInUse")) {
         hasSerial = config["serialInUse"].asBool();
     }
-    Json::Reader reader;
     Json::Value root;
     char filename[256];
     sprintf(filename, "/home/fpp/media/tmp/strings/%s%s.json", m_subType.c_str(), verPostf.c_str());
@@ -343,8 +335,7 @@ int BBB48StringOutput::Init(Json::Value config)
     int maxGPIO13 = 0;
     
     if (FileExists(filename)) {
-        std::ifstream t(filename);
-        if (!reader.parse(t, root)) {
+        if (!LoadJsonFromFile(filename, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s%s\n", m_subType.c_str(), verPostf.c_str());
             return 0;
         }

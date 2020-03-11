@@ -434,7 +434,6 @@ void MediaCallback::run(const Json::Value &playlist, const MediaDetails &mediaDe
 
 		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
 		Json::Value root;
-		Json::FastWriter writer;
 
 		root["type"] = playlist["currentEntry"]["type"];
 
@@ -482,8 +481,9 @@ void MediaCallback::run(const Json::Value &playlist, const MediaDetails &mediaDe
 			root["channels"] = std::to_string(mediaDetails.channels);
 		}
 
-		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
-		execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", writer.write(root).c_str(), NULL);
+		std::string pluginData = SaveJsonToString(root);
+		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", pluginData.c_str());
+		execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", pluginData.c_str(), NULL);
 
 		LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
 		exit(EXIT_FAILURE);
@@ -515,12 +515,12 @@ void EventCallback::run(const char *id, const char *impetus)
 		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
 		FPPEvent *event = LoadEvent(id);
 		Json::Value root = event->toJsonValue();
-		Json::FastWriter writer;
 
 		root["caller"] = std::string(impetus);
 
-		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", writer.write(root).c_str());
-		execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", writer.write(root).c_str(), NULL);
+		std::string pluginData = SaveJsonToString(root);
+		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", pluginData.c_str());
+		execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", pluginData.c_str(), NULL);
 
 		LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
 		exit(EXIT_FAILURE);
@@ -552,10 +552,9 @@ void PlaylistCallback::run(const Json::Value &playlist, const std::string &actio
         root["Section"] = section;
         root["Item"] = idx;
         
-        Json::FastWriter writer;
-        
-        LogDebug(VB_PLUGIN, "Playlist plugin data: %s\n", writer.write(root).c_str());
-        execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "playlist", "--data", writer.write(root).c_str(), NULL);
+        std::string pluginData = SaveJsonToString(root);
+        LogDebug(VB_PLUGIN, "Playlist plugin data: %s\n", pluginData.c_str());
+        execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "playlist", "--data", pluginData.c_str(), NULL);
         
         LogErr(VB_PLUGIN, "We failed to exec our playlist callback!\n");
         exit(EXIT_FAILURE);

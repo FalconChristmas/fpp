@@ -233,10 +233,9 @@ Json::Value Playlist::LoadJSON(const char *filename)
 	LogDebug(VB_PLAYLIST, "Playlist::LoadJSON(%s)\n", filename);
 
 	Json::Value root;
-	Json::Reader reader;
 
-	if (!FileExists(filename)) {
-		LogErr(VB_PLAYLIST, "Playlist %s does not exist\n", filename);
+	if (!LoadJsonFromFile(filename, root)) {
+		LogErr(VB_PLAYLIST, "Error loading %s\n", filename);
 		return root;
 	}
 
@@ -249,20 +248,6 @@ Json::Value Playlist::LoadJSON(const char *filename)
 
 		m_fileTime = attr.st_mtime;
 	}
-
-	std::string sFilename = filename;
-	std::ifstream t(sFilename);
-	std::stringstream buffer;
-
-	buffer << t.rdbuf();
-
-	bool success = reader.parse(buffer.str(), root);
-	if (!success) {
-		LogErr(VB_PLAYLIST, "Error parsing %s\n", filename);
-		return root;
-	}
-
-	LogDebug(VB_PLAYLIST, "Playlist: \n%s\n", buffer.str().c_str());
 
 	return root;
 }
@@ -1256,10 +1241,7 @@ std::string Playlist::GetConfigStr(void)
 {
 	std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
-	Json::FastWriter fastWriter;
-	Json::Value result = GetConfig();
-
-	return fastWriter.write(result);
+	return SaveJsonToString(GetConfig());
 }
 
 /*

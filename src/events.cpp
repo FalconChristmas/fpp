@@ -159,11 +159,7 @@ void FPPEvent::Load(const std::string &id) {
     }
 }
 void FPPEvent::save() {
-    std::string filename = getEventFileName();
-    std::ofstream ostream(filename);
-    Json::StyledWriter writer;
-    ostream << writer.write(event);
-    ostream.close();
+    SaveJsonToFile(toJsonValue(), getEventFileName(), "\t");
 }
 
 

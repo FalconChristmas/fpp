@@ -6,6 +6,7 @@
 #include "../fppversion.h"
 #include "SSD1306_OLED.h"
 
+#include "common.h"
 #include "FPPStatusOLEDPage.h"
 #include "settings.h"
 #include <jsoncpp/json/json.h>
@@ -105,9 +106,7 @@ public:
     virtual bool doIteration(bool &displayOn) override {
         std::string d = doCurlGet("http://localhost:32322/fppd/e131stats", 10000);
         Json::Value result;
-        Json::Reader reader;
-        bool success = reader.parse(d, result);
-        if (success) {
+        if (LoadJsonFromString(d, result)) {
             items.clear();
             items.push_back("Univ    Pckts  Err");
             for (int x = 0; x < result["universes"].size(); x++) {
@@ -280,9 +279,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
     } else if (item == "Start Playlist") {
         std::string d = doCurlGet("http://localhost/api/playlists", 10000);
         Json::Value result;
-        Json::Reader reader;
-        bool success = reader.parse(d, result);
-        if (success) {
+        if (LoadJsonFromString(d, result)) {
             std::vector<std::string> playlists;
             playlists.push_back("-Stop Now-");
             playlists.push_back("-Stop Gracefully-");

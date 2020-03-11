@@ -206,7 +206,6 @@ static std::map<std::string, std::string> OUTPUT_REMAPS = {
  */
 int InitializeChannelOutputs(void) {
 	Json::Value root;
-	Json::Reader reader;
 	int i = 0;
 
 	channelOutputFrame = 0;
@@ -263,15 +262,7 @@ int InitializeChannelOutputs(void) {
 
 		if (FileExists(filename))
 		{
-			std::ifstream t(filename);
-			std::stringstream buffer;
-
-			buffer << t.rdbuf();
-
-			std::string config = buffer.str();
-
-			bool success = reader.parse(buffer.str(), root);
-			if (!success)
+			if (!LoadJsonFromFile(filename, root))
 			{
 				LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
 				return 0;
@@ -528,7 +519,6 @@ void CloseChannelOutputs(void) {
 int LoadOutputProcessors(void) {
 	char filename[1024];
 	Json::Value root;
-	Json::Reader reader;
 
 	strcpy(filename, getMediaDirectory());
 	strcat(filename, "/config/outputprocessors.json");
@@ -538,15 +528,7 @@ int LoadOutputProcessors(void) {
 
 	LogDebug(VB_CHANNELOUT, "Loading Output Processors.\n");
 
-	std::ifstream t(filename);
-	std::stringstream buffer;
-
-	buffer << t.rdbuf();
-
-	std::string config = buffer.str();
-
-	bool success = reader.parse(buffer.str(), root);
-	if (!success)
+	if (!LoadJsonFromFile(filename, root))
 	{
 		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
 		return 0;

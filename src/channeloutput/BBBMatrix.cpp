@@ -591,7 +591,6 @@ int BBBMatrix::Init(Json::Value config)
     if (config["wiringPinout"] == "v3") {
         name += "-v3";
     }
-    Json::Reader reader;
     Json::Value root;
     char filename[256];
     int minPort[4] = {99, 99, 99, 99};
@@ -605,8 +604,7 @@ int BBBMatrix::Init(Json::Value config)
         LogErr(VB_CHANNELOUT, "No output pin configuration for %s - %s\n", name.c_str(), filename);
         return 0;
     } else {
-        std::ifstream t(filename);
-        if (!reader.parse(t, root)) {
+        if (!LoadJsonFromFile(filename, root)) {
             LogErr(VB_CHANNELOUT, "Could not read pin configuration for %s - %s\n", name.c_str(), filename);
             return 0;
         }

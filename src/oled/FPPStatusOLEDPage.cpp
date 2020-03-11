@@ -308,9 +308,7 @@ bool FPPStatusOLEDPage::getCurrentStatus(Json::Value &result) {
     buffer.clear();
     bool gotStatus = false;
     if (curl_easy_perform(curl) == CURLE_OK) {
-        Json::Reader reader;
-        bool success = reader.parse(buffer, result);
-        if (success) {
+        if (LoadJsonFromString(buffer, result)) {
             std::string status = result["status_name"].asString();
             return true;
         } else if (debug) {
@@ -569,8 +567,7 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
         return;
     }
     
-    Json::FastWriter writer;
-    std::string data = writer.write(val);
+    std::string data = SaveJsonToString(val);
     
     buffer.clear();
     CURL *curl = curl_easy_init();

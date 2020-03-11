@@ -140,8 +140,7 @@ std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::str
     uargs.push_back(url);
     uargs.push_back("POST");
     
-    Json::FastWriter fastWriter;
-    std::string config = fastWriter.write(j);
+    std::string config = SaveJsonToString(j);
     
     uargs.push_back(config);
     return run("URL", uargs);
@@ -186,14 +185,12 @@ const httpserver::http_response CommandManager::render_GET(const httpserver::htt
             auto f = commands.find(command);
             if (f != commands.end()) {
                 Json::Value result = f->second->getDescription();
-                Json::StyledWriter fastWriter;
-                std::string resultStr = fastWriter.write(result);
+                std::string resultStr = SaveJsonToString(result);
                 return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
             }
         } else {
             Json::Value result = getDescriptions();
-            Json::StyledWriter fastWriter;
-            std::string resultStr = fastWriter.write(result);
+            std::string resultStr = SaveJsonToString(result);
             return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
         }
     } else if (p1 == "command" && plen > 1) {

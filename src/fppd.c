@@ -321,30 +321,14 @@ inline void WriteRuntimeInfoFile(Json::Value v) {
     Json::Value local = systems[0];
     local.removeMember("address");
     local["addresses"] = addresses;
-    
-    Json::FastWriter fastWriter;
-    std::string resultStr = fastWriter.write(local);
-    FILE *file = fopen("/home/fpp/media/fpp-info.json", "w");
-    if (file)
-    {
-        fprintf(file, "%s\n", resultStr.c_str());
-        fclose(file);
-        
-        struct passwd *pwd = getpwnam("fpp");
-        chown("/home/fpp/media/fpp-info.json", pwd->pw_uid, pwd->pw_gid);
-    }
+
+    SaveJsonToFile(local, "/home/fpp/media/fpp-info.json");
 }
 
 static void initCapeFromFile(const char *f) {
     if (FileExists(f)) {
-        std::ifstream t(f);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
         Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
+        if (LoadJsonFromFile(f, root)) {
             Sensors::INSTANCE.addSensors(root["sensors"]);
         }
     }

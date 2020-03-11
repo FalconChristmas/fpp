@@ -82,14 +82,10 @@ int ChannelTester::SetupTest(std::string configStr)
     LogDebug(VB_CHANNELOUT, "     %s\n", configStr.c_str());
 
 	Json::Value config;
-	Json::Reader reader;
 	int result = 0;
 	std::string patternName;
 
-	m_configStr = "";
-
-	bool success = reader.parse(configStr, config);
-	if (!success)
+	if (!LoadJsonFromString(configStr, config))
 	{
 		LogErr(VB_CHANNELOUT,
 			"Error parsing Test Pattern config string: '%s'\n",

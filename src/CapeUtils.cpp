@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <array>
@@ -460,11 +461,20 @@ bool fpp_detectCape() {
     // if the cape-info has default settings and those settings are not already set, set them
     // also put the serialNumber into the cape-info for display
     if (file_exists("/home/fpp/media/tmp/cape-info.json")) {
+        // We would prefer to use LoadJsonFromFile() here, but we want to
+        // keep fppcapedetect small and using the helper would mean pulling
+        // in common.o and other dependencies.
         Json::Value result;
-        Json::Reader reader;
+        Json::CharReaderBuilder builder;
+        Json::CharReader *reader = builder.newCharReader();
+        std::string errors;
         std::ifstream istream("/home/fpp/media/tmp/cape-info.json");
-        bool success = reader.parse(istream, result);
+        std::stringstream buffer;
+        buffer << istream.rdbuf();
         istream.close();
+
+        std::string str = buffer.str();
+        bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &result, &errors);
         if (success) {
             for (auto kv : extras) {
                 result[kv.first] = kv.second;

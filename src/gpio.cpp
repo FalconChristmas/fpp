@@ -205,8 +205,7 @@ const httpserver::http_response GPIOManager::render_GET(const httpserver::http_r
             for (auto & a : pins) {
                 result.append(PinCapabilities::getPinByName(a).toJSON());
             }
-            Json::StyledWriter fastWriter;
-            std::string resultStr = fastWriter.write(result);
+            std::string resultStr = SaveJsonToString(result);
             
             return httpserver::http_response_builder(resultStr, 200, "application/json").string_response();
         }
@@ -325,12 +324,7 @@ void GPIOManager::ConvertOldSettings() {
     }
     
     if (found) {
-        Json::StyledStreamWriter fastWriter;
-        std::ofstream outputFileStream("/home/fpp/media/config/gpio.json");
-        fastWriter.write(outputFileStream, val);
-        
-        struct passwd *pwd = getpwnam("fpp");
-        chown("/home/fpp/media/config/gpio.json", pwd->pw_uid, pwd->pw_gid);
+        SaveJsonToFile(val, "/home/fpp/media/config/gpio.json");
         
         file = fopen("/home/fpp/media/settings", "w");
         for (auto l : lines) {
@@ -352,14 +346,8 @@ void GPIOManager::SetupGPIOInput(std::map<int, std::function<bool(int)>> &callba
     
     std::string file = "/home/fpp/media/config/gpio.json";
     if (FileExists(file)) {
-        std::ifstream t(file);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        std::string config = buffer.str();
         Json::Value root;
-        Json::Reader reader;
-        bool success = reader.parse(buffer.str(), root);
-        if (success) {
+        if (LoadJsonFromFile(file, root)) {
             for (int x = 0; x < root.size(); x++) {
                 Json::Value v = root[x];
                 if (!v["enabled"].asBool()) {

@@ -66,10 +66,7 @@ TestPatternBase::~TestPatternBase()
 int TestPatternBase::Init(std::string configStr)
 {
 	Json::Value config;
-	Json::Reader reader;
-
-	bool success = reader.parse(configStr, config);
-	if (!success)
+	if (!LoadJsonFromString(configStr, config))
 	{
 		LogErr(VB_CHANNELOUT,
 			"Error parsing Test Pattern config string: '%s'\n",

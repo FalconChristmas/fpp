@@ -238,8 +238,7 @@ const http_response PlayerResource::render_GET(const http_request &req)
         responseCode = result["respCode"].asInt();
     }
 
-	Json::FastWriter fastWriter;
-	std::string resultStr = fastWriter.write(result);
+	std::string resultStr = SaveJsonToString(result);
 	LogResponse(req, responseCode, resultStr);
 
 	return http_response_builder(resultStr, responseCode, "application/json");
@@ -253,7 +252,6 @@ const http_response PlayerResource::render_POST(const http_request &req)
 	LogRequest(req);
 
 	Json::Value data;
-	Json::Reader reader;
 	Json::Value result;
 	std::string url = req.get_path();
 
@@ -263,8 +261,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 
 	if (req.get_content() != "")
 	{
-		bool success = reader.parse(req.get_content(), data);
-		if (!success)
+		if (!LoadJsonFromString(req.get_content(), data))
 		{
 			LogErr(VB_CHANNELOUT, "Error parsing POST content\n");
 			return http_response_builder("Error parsing POST content", 400).string_response();
@@ -462,8 +459,7 @@ const http_response PlayerResource::render_POST(const http_request &req)
 		result["message"] = "POST endpoint helper did not set result JSON";
 	}
 
-	Json::FastWriter fastWriter;
-	std::string resultStr = fastWriter.write(result);
+	std::string resultStr = SaveJsonToString(result);
 	LogResponse(req, result["respCode"].asInt(), resultStr);
 
     return http_response_builder(resultStr.c_str(), result["respCode"].asInt(), "application/json").string_response();
@@ -508,8 +504,7 @@ const http_response PlayerResource::render_DELETE(const http_request &req)
 		result["message"] = "DELETE endpoint helper did not set result JSON";
 	}
 
-	Json::FastWriter fastWriter;
-	std::string resultStr = fastWriter.write(result);
+	std::string resultStr = SaveJsonToString(result);
 
 	LogResponse(req, result["respCode"].asInt(), resultStr);
 
@@ -561,8 +556,7 @@ const http_response PlayerResource::render_PUT(const http_request &req)
 		result["message"] = "PUT endpoint helper did not set result JSON";
 	}
 
-	Json::FastWriter fastWriter;
-	std::string resultStr = fastWriter.write(result);
+	std::string resultStr = SaveJsonToString(result);
 
 	LogResponse(req, result["respCode"].asInt(), resultStr);
 
@@ -982,8 +976,7 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value &result)
  */
 void PlayerResource::PostTesting(const Json::Value data, Json::Value &result)
 {
-	Json::FastWriter fastWriter;
-	std::string config = fastWriter.write(data);
+	std::string config = SaveJsonToString(data);
 
 	if (ChannelTester::INSTANCE.SetupTest(config))
 	{

@@ -1,4 +1,5 @@
 OBJECTS_fsequtils = \
+	common.o \
 	fppversion.o \
     log.o \
 	Warnings.o \
@@ -6,6 +7,8 @@ OBJECTS_fsequtils = \
     fseq/FSEQFile.o
 
 LIBS_fsequtils = \
+	-lcurl \
+	-ljsoncpp \
     -lzstd -lz \
 	-lpthread
 
