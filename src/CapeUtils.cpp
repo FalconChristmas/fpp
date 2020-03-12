@@ -30,6 +30,7 @@
 
 #include <fstream>
 
+#include <pwd.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -96,6 +97,12 @@ static void put_file_contents(const std::string &path, const uint8_t *data, int 
     FILE *f = fopen(path.c_str(), "wb");
     fwrite(data, 1, len, f);
     fclose(f);
+
+    struct passwd *pwd = getpwnam("fpp");
+    chown(path.c_str(), pwd->pw_uid, pwd->pw_gid);
+
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    chmod(path.c_str(), mode);
 }
 static uint8_t *get_file_contents(const std::string &path, int &len) {
     FILE *fp = fopen(path.c_str(), "wb");
@@ -548,10 +555,9 @@ bool fpp_detectCape() {
                 writeSettingsFile(lines);
             }
 
-            std::ofstream ostream("/home/fpp/media/tmp/cape-info.json");
-            Json::StyledWriter writer;
-            ostream << writer.write(result);
-            ostream.close();
+            Json::StreamWriterBuilder wbuilder;
+            std::string resultStr = Json::writeString(wbuilder, result);
+            put_file_contents("/home/fpp/media/tmp/cape-info.json", (const uint8_t*)resultStr.c_str(), resultStr.size());
         } else {
             printf("Failed to parse cape-info.json\n");
         }
