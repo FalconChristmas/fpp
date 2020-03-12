@@ -110,28 +110,37 @@ int USBRelayOutput::Init(Json::Value config)
 	if (m_subType == RELAY_DVC_ICSTATION) {
 		// Send Initialization Sequence
 		char c_init = 0x50;
-		char c_reply;
+		char c_reply = 0x00;
 		char c_open = 0x51;
 
 		sleep(1);
 		write(m_fd, &c_init, 1);
 		usleep(500000);
 
-		// Read the response byte which indicates the model number
-		read(m_fd, &c_reply, 1);
-		if (c_reply == 0xAB)
+		bool foundICS = false;
+		int res = 0;
+		res = read(m_fd, &c_reply, 1);
+		if (res == 0) {
+			LogWarn(VB_CHANNELOUT, "Did not receive a response byte from ICstation relay, unable to confirm number of relays.  Using configuration value from UI\n");
+		} else if (c_reply == 0xAB) {
+			LogInfo(VB_CHANNELOUT, "Found a 4-channel ICStation relay module\n");
 			m_relayCount = 4;
-		else if (c_reply == 0xAC)
+			foundICS = true;
+		} else if (c_reply == 0xAC) {
+			LogInfo(VB_CHANNELOUT, "Found a 8-channel ICStation relay module\n");
 			m_relayCount = 8;
-		else if (c_reply == 0xAD)
+			foundICS = true;
+		} else if (c_reply == 0xAD) {
+			LogInfo(VB_CHANNELOUT, "Found a 2-channel ICStation relay module\n");
 			m_relayCount = 2;
-		else
-		{
+			foundICS = true;
+		} else {
 			LogWarn(VB_CHANNELOUT, "Warning: ICStation USB Relay response of 0x%02x doesn't match "
 				"known values.  Unable to detect number of relays.\n", c_reply);
 		}
 
-		write(m_fd, &c_open, 1);
+		if (foundICS)
+			write(m_fd, &c_open, 1);
 	}
 
 	return ChannelOutputBase::Init(config);
@@ -175,7 +184,7 @@ int USBRelayOutput::SendData(unsigned char *channelData)
 	}
 
 	// Write out any unwritten bits
-	if (m_relayCount)
+	if (shiftBits)
 		write(m_fd, &out, 1);
 
 	return m_relayCount;
