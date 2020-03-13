@@ -1129,7 +1129,7 @@ function get_server_cpu_usage(){
     if (!file_exists("/tmp/cpustats.txt")) {
         $ostats = get_cpu_stats();
         $vs = sprintf("%d %d %d %d %d %d %d", $ostats[0],$ostats[1], $ostats[2], $ostats[3], $ostats[4], $ostats[5], $ostats[6]);
-        @file_put_contents("/tmp/cpustats.txtt", $vs);
+        @file_put_contents("/tmp/cpustats.txt", $vs);
         usleep(10000);
     } else {
         $statLine = @file_get_contents("/tmp/cpustats.txt");
