@@ -3,6 +3,7 @@
 <?php
 require_once('config.php');
 require_once('common.php');
+require_once('fppdefines.php');
 
 function PrintSequenceOptions()
 {
@@ -649,7 +650,7 @@ $(document).ready(function(){
 				<b>Channel Range to Test</b><br>
 				<table border=0 cellspacing='2' cellpadding='2'>
 				<tr><td>Start Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='1' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-8388608)</td>
+						<td><input type='text' size='6' maxlength='6' value='1' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 <!--
 						<td>Universe Size:</td>
 						<td><input type='text' size=4 maxlength=4 value='512' id='testUniverseSize'></td>
@@ -658,7 +659,7 @@ $(document).ready(function(){
 						<td>Model Name:</td>
 						<td>
 							<select onChange='UpdateStartEndFromModel();' id='modelName'>
-								<option value='1,8388608'>-- All Channels --</option>
+								<option value='1,<? echo FPPD_MAX_CHANNELS; ?>'>-- All Channels --</option>
 <?
 
 if (file_exists($settings['model-overlays'])) {
@@ -675,7 +676,7 @@ if (file_exists($settings['model-overlays'])) {
 							</td>
 						</tr>
 				<tr><td>End Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='8388608' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-8388608)</td>
+						<td><input type='text' size='6' maxlength='6' value='<? echo FPPD_MAX_CHANNELS; ?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 <!--
 						<td>Universe #:</td>
 						<td><input type='text' size=5 maxlength=5 value='1' id='testUniverseNumber'></td>

@@ -29,6 +29,8 @@ include ${SRCDIR}/makefiles/platform/*.mk
 # now include all the targets
 include ${SRCDIR}/makefiles/*.mk
 
+TARGETS_PHP := ../www/fppversion.php ../www/fppdefines.php
+
 PWD := $(shell pwd)
 
 .PHONY: all
@@ -61,6 +63,8 @@ debug: all
 
 fppversion.c: fppversion.sh
 	sh $(SRCDIR)fppversion.sh $(PWD)
+	php fppdefines.php > ../www/fppdefines.php
+	chmod 664 ../www/fppdefines.php
 
 fppversion_defines.h: fppversion.c
 
@@ -71,10 +75,10 @@ fppversion_defines.h: fppversion.c
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $< -o $@
 
 cleanfpp:
-	rm -f fppversion.c fppversion_defines.h ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
 
 clean::
-	rm -f fppversion.c fppversion_defines.h ../www/fppversion.php $(OBJECTS_ALL) $(TARGETS)
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
 	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
 	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi

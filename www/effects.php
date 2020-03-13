@@ -3,6 +3,7 @@
 <head>
 <?php
 require_once('config.php');
+require_once('fppdefines.php');
 include 'common/menuHead.inc';
 ?>
 <script>
@@ -113,7 +114,7 @@ function StartSelectedEffect() {
                     <td width='20px'></td>
                     <td>Run in Background:</td><td><input type='checkbox' id='backgroundEffect'></td>
                     </tr>
-                <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="8388608" /></td></tr>
+                <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></td></tr>
                 <tr><td><input id= "btnStartEffect" type="button" class ="disableButtons" value="Start Effect" onClick="StartSelectedEffect();"></td>
                 </tr>
               </table>

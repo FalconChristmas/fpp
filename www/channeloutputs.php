@@ -5,6 +5,7 @@
 require_once("common.php");
 require_once('config.php');
 require_once('universeentry.php');
+require_once('fppdefines.php');
 include 'common/menuHead.inc';
 
 //$settings['Platform'] = "Raspberry Pi"; // Uncomment for testing

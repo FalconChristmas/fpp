@@ -994,9 +994,9 @@ function SaveOtherChannelOutputs() {
 		}
 
 		var endChannel = parseInt(startChannel) + parseInt(channelCount) - 1;
-		if (endChannel > 1048576) {
+		if (endChannel > FPPD_MAX_CHANNELS) {
 			DialogError("Save Channel Outputs",
-				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds 1048576 on row " + rowNumber);
+				"Start Channel '" + startChannel + "' plus Channel Count '" + channelCount + "' exceeds " + FPPD_MAX_CHANNELS + " on row " + rowNumber);
 			dataError = 1;
 			return;
 		}
@@ -1062,7 +1062,7 @@ function SaveOtherChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid Virtual Display Config");
 				return;
 			}
-			maxChannels = 1048576;
+			maxChannels = FPPD_MAX_CHANNELS;
 		} else if (type == "HTTPVirtualDisplay") {
 			config = GetHTTPVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1070,7 +1070,7 @@ function SaveOtherChannelOutputs() {
 				DialogError("Save Channel Outputs", "Invalid HTTPVirtual Display Config");
 				return;
 			}
-			maxChannels = 1048576;
+			maxChannels = FPPD_MAX_CHANNELS;
 		} else if (type == "MAX7219Matrix") {
 			config = GetMAX7219MatrixConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1169,11 +1169,11 @@ function AddOtherTypeOptions(row, type) {
 		row.find("td input.count").val("8");
 	} else if (type == "VirtualDisplay") {
 		config += NewVirtualDisplayConfig();
-		row.find("td input.count").val("1048576");
+		row.find("td input.count").val(FPPD_MAX_CHANNELS);
 		row.find("td input.count").prop('disabled', true);
     } else if (type == "HTTPVirtualDisplay") {
         config += NewHTTPVirtualDisplayConfig();
-        row.find("td input.count").val("1048576");
+        row.find("td input.count").val(FPPD_MAX_CHANNELS);
         row.find("td input.count").prop('disabled', true);
 	} else if (type == "MAX7219Matrix") {
 		config += NewMAX7219MatrixConfig();

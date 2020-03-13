@@ -332,7 +332,7 @@ class PCA9685Output extends I2COutput {
 // Generic SPI Output
 class GenericSPIDevice extends OtherBaseDevice {
     
-    constructor(name="GenericSPI", friendlyName="Generic SPI", maxChannels=1048576, fixedChans=false, devices=SPIDevices, config={speed: 50}) {
+    constructor(name="GenericSPI", friendlyName="Generic SPI", maxChannels=FPPD_MAX_CHANNELS, fixedChans=false, devices=SPIDevices, config={speed: 50}) {
         super(name, friendlyName, maxChannels, fixedChans, devices, config);
     }
 
