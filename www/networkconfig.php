@@ -614,8 +614,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
         (OSX/Linux) or 192.168.7.2 (Windows).
 <? } ?>
 <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-    On the Pi Zero, Pi Zero W, and the Pi 3A devices, USB tethering is available if using an appropriate USB cable plugged 
-into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
+    On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate USB cable plugged into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
 <? } ?>
 
             </fieldset>
