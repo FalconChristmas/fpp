@@ -612,6 +612,9 @@ case "${FPPPLATFORM}" in
 		echo "dtoverlay=pi3-miniuart-bt" >> /boot/config.txt
 		echo >> /boot/config.txt
 
+        echo "dtoverlay=dwc2" >> /boot/config.txt
+        echo >> /boot/config.txt
+
 		echo "# GPU memory set to 128 to deal with error in omxplayer with hi-def videos" >> /boot/config.txt
         echo "[pi4]" >> /boot/config.txt
         echo "gpu_mem=128" >> /boot/config.txt
@@ -624,8 +627,6 @@ case "${FPPPLATFORM}" in
         echo "[pi2]" >> /boot/config.txt
         echo "gpu_mem=64" >> /boot/config.txt
 		echo >> /boot/config.txt
-        echo "dtoverlay=dwc2" >> /boot/config.txt
-        echo >> /boot/config.txt
 
 		echo "FPP - Freeing up more space by removing unnecessary packages"
 		apt-get -y purge wolfram-engine sonic-pi minecraft-pi
