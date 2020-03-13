@@ -5,10 +5,13 @@ Requires=network.target
 DefaultDependencies=no
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/opt/fpp/scripts/fppd_boot
+Type=simple
+ExecStart=/opt/fpp/src/fppd -f
 ExecStop=/opt/fpp/scripts/fppd_stop
+ExecStartPre=-/opt/fpp/scripts/fppd_boot_pre
+ExecStartPost=-/opt/fpp/scripts/fppd_boot_post
+ExecReload=/opt/fpp/src/fpp -r
+Restart=always
 
 
 [Install]
