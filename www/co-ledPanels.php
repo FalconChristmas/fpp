@@ -133,7 +133,7 @@ function printLEDPanelInterleaveSelect($platform, $interleave)
 {
     $values = array();
 
-    if ($settings['Platform'] == "BeagleBone Black") {
+    if ($platform == "BeagleBone Black") {
         $values["Off"] = "0";
         $values["4 Pixels"] = "4";
         $values["8 Pixels"] = "8";
