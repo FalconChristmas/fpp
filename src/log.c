@@ -42,6 +42,7 @@ int logLevel = LOG_INFO;
 int logMask  = VB_MOST;
 
 char logFileName[1024] = "";
+bool logToStdOut = true;
 char logLevelStr[16];
 char logMaskStr[1024];
 
@@ -73,64 +74,58 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
     gettimeofday(&tv, nullptr);
     
 	struct tm tm;
-	char timeStr[32];
+	char timeStr[256];
 
 	localtime_r(&tv.tv_sec, &tm);
     int ms = tv.tv_usec / 1000;
     
-	sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d",
+	int size = snprintf(timeStr, sizeof(timeStr),
+                    "%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d (%ld) %s:%d: %s",
 					1900+tm.tm_year,
 					tm.tm_mon+1,
 					tm.tm_mday,
 					tm.tm_hour,
 					tm.tm_min,
 					tm.tm_sec,
-                    ms);
+                    ms,
+                    syscall(SYS_gettid), file, line, format);
 
-	if (logFileName[0])
-	{
+	if (logFileName[0]) {
 		FILE *logFile;
 
-		if (!strcmp(logFileName, "stderr"))
-		{
+		if (!strcmp(logFileName, "stderr")) {
 			logFile = stderr;
-		}
-		else if (!strcmp(logFileName, "stdout"))
-		{
+		} else if (!strcmp(logFileName, "stdout")) {
 			logFile = stdout;
-		}
-		else
-		{
+        } else {
 			logFile = fopen(logFileName, "a");
-			if ( ! logFile )
-			{
+			if ( ! logFile ) {
 				fprintf(stderr, "Error: Unable to open log file for writing!\n");
-				fprintf(stderr, "%s (%ld) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 				va_start(arg, format);
-				vfprintf(stderr, format, arg);
+				vfprintf(stderr, timeStr, arg);
 				va_end(arg);
 				return;
 			}
 		}
 
-		fprintf(logFile, "%s (%ld) %s:%d:",timeStr, syscall(SYS_gettid), file, line);
 		va_start(arg, format);
-		vfprintf(logFile, format, arg);
+		vfprintf(logFile, timeStr, arg);
 		va_end(arg);
 
 		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
 			fclose(logFile);
-	} else {
-		fprintf(stdout, "%s (%ld) %s:%d:", timeStr, syscall(SYS_gettid), file, line);
+	}
+    if (strcmp(logFileName, "stdout") && logToStdOut) {
 		va_start(arg, format);
-		vfprintf(stdout, format, arg);
+		vfprintf(stdout, timeStr, arg);
 		va_end(arg);
 	}
 }
 
-void SetLogFile(const char *filename)
+void SetLogFile(const char *filename, bool toStdOut)
 {
 	strcpy(logFileName, filename);
+    logToStdOut = toStdOut;
 }
 
 int SetLogLevel(const char *newLevel)

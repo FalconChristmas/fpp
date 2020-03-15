@@ -658,7 +658,7 @@ bool LoadJsonFromString(const std::string &str, Json::Value &root)
 bool LoadJsonFromFile(const std::string &filename, Json::Value &root)
 {
     if (!FileExists(filename)) {
-        LogErr(VB_GENERAL, "JSON File %s does not exist\n", filename);
+        LogErr(VB_GENERAL, "JSON File %s does not exist\n", filename.c_str());
         return false;
     }
 

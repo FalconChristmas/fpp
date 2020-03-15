@@ -78,7 +78,7 @@ extern char logMaskStr[1024];
 void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...);
 bool WillLog(int level, int facility);
 
-void SetLogFile(const char *filename);
+void SetLogFile(const char *filename, bool toStdOut = true);
 int SetLogLevel(const char *newLevel);
 int SetLogMask(const char *newMask);
 int loggingToFile(void);

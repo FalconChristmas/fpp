@@ -555,11 +555,7 @@ int parseArguments(int argc, char **argv)
 		}
 	}
 
-	if (getDaemonize())
-		SetLogFile(getLogFile());
-	else
-		SetLogFile("");
-
+    SetLogFile(getLogFile(), !getDaemonize());
 	return 0;
 }
 

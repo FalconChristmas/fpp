@@ -482,11 +482,7 @@ int loadSettings(const char *filename)
 		return -1;
 	}
 
-	if (getDaemonize())
-		SetLogFile(getLogFile());
-	else
-		SetLogFile("");
-
+    SetLogFile(getLogFile(), !getDaemonize());
 	return 0;
 }
 
