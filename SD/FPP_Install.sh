@@ -78,7 +78,7 @@ checkTimeAgainstUSNO () {
 
 		# allow clocks to differ by 24 hours to handle time zone differences
 		THRESHOLD=86400
-		USNOSECS=$(wget -q -O - http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
+		USNOSECS=$(wget --timeout=10 --tries=1 -q -O - http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//")
 
         if [ "x${USNOSECS}" != "x" ]
         then
