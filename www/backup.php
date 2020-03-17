@@ -1327,6 +1327,9 @@ ksort($backupHosts);
 
         foreach ($settings as $key => $value) {
             if (!is_array($value)) {
+                if (preg_match('/\n/', $value))
+                    continue;
+
                 printf("	settings['%s'] = \"%s\";\n", $key, $value);
             } else {
                 $js_array = json_encode($value);
@@ -1462,7 +1465,21 @@ function GetBackupDevices() {
         ).done(function(data) {
             var options = "";
             for (var i = 0; i < data.length; i++) {
-                options += "<option value='" + data[i].name + "'>" + data[i].name + ' - ' + data[i].size + "GB</option>";
+                var desc = data[i].name;
+                if (data[i].vendor != '')
+                    desc += ' - ' + data[i].vendor;
+
+                if (data[i].model != '') {
+                    if (data[i].vendor != '')
+                        desc += ' ';
+                    else
+                        desc += ' - ';
+                    
+                    desc += data[i].model;
+                }
+
+                desc += ' - ' + data[i].size + 'GB';
+                options += "<option value='" + data[i].name + "'>" + desc + "</option>";
             }
             $('#backup\\.USBDevice').html(options);
 

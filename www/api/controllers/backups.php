@@ -39,22 +39,47 @@ function GetAvailableBackups() {
     return json(GetAvailableBackupsFromDir('/home/fpp/media/backups/'));
 }
 
+function CheckIfDeviceIsUsable($deviceName) {
+    global $SUDO;
+
+    // Check if in use / Mount / List / Unmount
+    $mountPoint = exec($SUDO . " lsblk /dev/$deviceName");
+    $mountPoint = preg_replace('/.*disk ?/', '', $mountPoint);
+    $mountPoint = preg_replace('/.*part ?/', '', $mountPoint);
+    if (preg_match('/[a-z0-9\/]/', $mountPoint))
+        return "ERROR: Partition is mounted on: $mountPoint";
+
+    $isSwap = exec("grep /dev/$deviceName /proc/swaps");
+    if ($isSwap != "")
+        return "ERROR: $deviceName is a swap partition";
+
+    return "";
+}
+
 function GetAvailableBackupsDevices() {
     global $SUDO;
     $devices = Array();
 
-    foreach(scandir("/dev/") as $fileName) {
-        if (preg_match("/^sd[a-z][0-9]/", $fileName)) {
-            exec($SUDO . " sfdisk -s /dev/$fileName", $output, $return_val);
+    foreach(scandir("/dev/") as $deviceName) {
+        if (preg_match("/^sd[a-z][0-9]/", $deviceName)) {
+            exec($SUDO . " sfdisk -s /dev/$deviceName", $output, $return_val);
             $GB = round(intval($output[0]) / 1024.0 / 1024.0, 1);
             unset($output);
 
             if ($GB <= 0.1)
                 continue;
 
+            $unusable = CheckIfDeviceIsUsable($deviceName);
+            if ($unusable != '')
+                continue;
+
+            $baseDevice = preg_replace('/[0-9]*$/', '', $deviceName);
+
             $device = Array();
-            $device['name'] = $fileName;
+            $device['name'] = $deviceName;
             $device['size'] = $GB;
+            $device['model'] = exec("cat /sys/block/$baseDevice/device/model");
+            $device['vendor'] = exec("cat /sys/block/$baseDevice/device/vendor");
 
             array_push($devices, $device);
         }
@@ -71,13 +96,9 @@ function GetAvailableBackupsOnDevice() {
     // unmount just in case
     exec($SUDO . ' umount /mnt/tmp');
 
-    // Check if in use / Mount / List / Unmount
-    $mountPoint = exec($SUDO . " lsblk /dev/$deviceName");
-    $mountPoint = preg_replace('/.*disk ?/', '', $mountPoint);
-    $mountPoint = preg_replace('/.*part ?/', '', $mountPoint);
-    if (preg_match('/[a-z0-9]/', $mountPoint))
-    {
-        array_push($dirs, "ERROR: Partition is mounted on: $mountPoint");
+    $unusable = CheckIfDeviceIsUsable($deviceName);
+    if ($unusable != '') {
+        array_push($dirs, $unusable);
         return json($dirs);
     }
 
