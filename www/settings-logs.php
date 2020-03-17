@@ -112,10 +112,16 @@ $('#LogLevel').val(logLevel);
 
 var logMasks = Array('most');
 
-if (typeof settings['LogMask'] !== 'undefined')
+if (typeof settings['LogMask'] === 'undefined') {
+    logMasks = [ 'most' ];
+    $('#LogMask input').prop('checked', false);
+    $('#LogMask input.mask_most').prop('checked', true);
+} else {
     logMasks = settings['LogMask'].split(",");
 
-for (var i = 0; i < logMasks.length; i++) {
-    $('#mask_' + logMasks[i]).prop('checked', true);
+    for (var i = 0; i < logMasks.length; i++) {
+        $('#mask_' + logMasks[i]).prop('checked', true);
+    }
 }
+
 </script>
