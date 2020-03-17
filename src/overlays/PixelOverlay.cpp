@@ -842,13 +842,16 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
                     Json::Value data;
                     m->getDataJson(data);
                     result["data"] = data;
-                    result["isLocked"] = m->isLocked();
+                    result["isLocked"] = m->getRunningEffect() != nullptr; //compatibility
+                    result["effectRunning"] = m->getRunningEffect() != nullptr;
                 } else if (p4 == "clear") {
                     m->clear();
                     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
                 } else {
                     m->toJson(result);
                     result["isActive"] = (int)m->getState().getState();
+                    result["isLocked"] = m->getRunningEffect() != nullptr; //compatibility
+                    result["effectRunning"] = m->getRunningEffect() != nullptr;
                 }
             }
         } else if (p2 == "effects") {
@@ -976,16 +979,20 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                                 f = font;
                             }
                             
-                            m->doText(msg,
-                                      (x >> 16) & 0xFF,
-                                      (x >> 8) & 0xFF,
-                                      x & 0xFF,
-                                      f,
-                                      fontSize,
-                                      aa,
-                                      position,
-                                      pps,
-                                      autoEnable);
+                            std::vector<std::string> args;
+                            args.push_back(p3);
+                            args.push_back(autoEnable ? "true" : "false");
+                            args.push_back("Text");
+                            args.push_back(color);
+                            args.push_back(font);
+                            args.push_back(std::to_string(fontSize));
+                            args.push_back(aa ? "true" : "false");
+                            args.push_back(position);
+                            args.push_back(std::to_string(pps));
+                            args.push_back("0");
+                            args.push_back(msg);
+                            lock.unlock();
+                            CommandManager::INSTANCE.run("Overlay Model Effect", args);
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
                         }
                     }
@@ -1106,58 +1113,28 @@ public:
         args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
     }
     
-    const std::string mapPosition(const std::string &p) {
-        if (p == "Center") {
-            return p;
-        } else if (p == "Right to Left") {
-            return "R2L";
-        } else if (p == "Left to Right") {
-            return "L2R";
-        } else if (p == "Bottom to Top") {
-            return "B2T";
-        } else if (p == "Top to Bottom") {
-            return "T2B";
-        }
-        return "Center";
-    }
-    
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() < 8) {
             return std::make_unique<Command::ErrorResult>("Command needs 9 arguments, found " + std::to_string(args.size()));
         }
-        std::unique_lock<std::mutex> lock(getLock());
-        auto m = manager->getModel(args[0]);
-        if (m) {
-            std::string color = args[1];
-            unsigned int cint = PixelOverlayManager::mapColor(color);
-            std::string font = manager->mapFont(args[2]);
-            int fontSize = std::atoi(args[3].c_str());
-            if (fontSize < 4) {
-                fontSize = 12;
-            }
-            bool aa = args[4] == "true" || args[4] == "1";
-            std::string position = mapPosition(args[5]);
-            int pps = std::atoi(args[6].c_str());
-            
-            std::string msg = args[7];
-            bool autoEnable = false;
-            if (args.size() == 9) {
-                autoEnable = (msg == "true" || msg == "1");
-                msg = args[8];
-            }
-            
-            m->doText(msg,
-                      (cint >> 16) & 0xFF,
-                      (cint >> 8) & 0xFF,
-                      cint & 0xFF,
-                      font,
-                      fontSize,
-                      aa,
-                      position,
-                      pps,
-                      autoEnable);
+        std::vector<std::string> newArgs;
+        newArgs.push_back(args[0]); //model
+        if (args.size() == 9) {
+            newArgs.push_back(args[7]);
+        } else {
+            newArgs.push_back("true");
         }
-        return std::make_unique<Command::Result>("Model Filled");
+        newArgs.push_back("Text");
+        for (int x = 1; x < 7; x++) {
+            newArgs.push_back(args[x]);
+        }
+        newArgs.push_back("0"); //duration
+        if (args.size() == 9) {
+            newArgs.push_back(args[8]);
+        } else {
+            newArgs.push_back(args[7]);
+        }
+        return CommandManager::INSTANCE.run("Overlay Model Effect", args);
     }
 };
 

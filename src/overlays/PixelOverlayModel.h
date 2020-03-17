@@ -75,25 +75,12 @@ public:
     PixelOverlayState getState() const;
     void setState(const PixelOverlayState &state);
     
-    bool isLocked();
-    void lock(bool lock = true);
-    void unlock() { lock(false); }
-
     void setData(const uint8_t *data);
     void clear() { fill(0, 0, 0); }
     void fill(int r, int g, int b);
 
     void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
-    void setPixelValue(int x, int y, int r, int g, int b);
-    void doText(const std::string &msg,
-                int r, int g, int b,
-                const std::string &font,
-                int fontSize,
-                bool antialias,
-                const std::string &position,
-                int pixelsPerSecond,
-                bool autoEnable);
-    
+    void setPixelValue(int x, int y, int r, int g, int b);    
     
     int getStartChannel() const;
     int getChannelCount() const;

@@ -38,6 +38,8 @@ public:
         return 0;
     }
     
+    virtual const std::string &name() const = 0;
+    
     PixelOverlayModel *model;
 };
 
@@ -51,9 +53,7 @@ public:
         return std::make_unique<Command::Result>("Ignored");
     };
     
-    
     virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) = 0;
-
     
     static PixelOverlayEffect* GetPixelOverlayEffect(const std::string &name);
     static const std::vector<std::string>& GetPixelOverlayEffects();
