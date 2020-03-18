@@ -1,0 +1,917 @@
+{
+    "endpoints" : [
+        {
+            "endpoint": "help",
+            "methods": {
+                "GET": {
+                    "desc": "This help page"
+                }
+            }
+        },
+        {
+            "endpoint": "commands",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets a JSON description of the FPP Commands",
+                    "output": [
+                        {
+                            "name": "Next Playlist Item"
+                        },
+                        {
+                            "name": "Start Playlist",
+                            "args": [
+                                {
+                                    "description": "Playlist Name",
+                                    "type" : "string"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "command/:CommandName(/:Args)",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Runs the given command with arguments separated by a slash /",
+                    "output": "(dependent on Command run)"
+                },
+                "POST": {
+                    "desc": "Runs the given command with arguments provided in POST data instead of URL",
+                    "input": "(JSON data dependent on command being run)",
+                    "output": "(dependent on Command run)"
+                }
+            }
+        },
+        {
+            "endpoint": "configfile(/:SubDir)",
+            "methods": {
+                "GET": {
+                    "desc": "Get list of config files in /home/fpp/media/config(/:SubDir)",
+                    "output": {
+                        "Path": ":SubDir",
+                        "ConfigFiles": [
+                            "File1",
+                            "File2",
+                            "File3"
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "configfile(/:SubDir)/:FileName",
+            "methods": {
+                "GET": {
+                    "desc": "Get contents of config file /home/fpp/media/config(/:SubDir)/:FileName",
+                    "output": "(Raw config file contents)"
+                },
+                "POST": {
+                    "desc": "Upload contents of config file /home/fpp/media/config(/:SubDir)/:FileName",
+                    "input": "(Raw config file contents)",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                },
+                "DELETE": {
+                    "desc": "Delete config file /home/fpp/media/config(/:SubDir)/:FileName",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "email/configure",
+            "methods": {
+                "POST": {
+                    "desc": "Configure outbound email using existing settings",
+                    "output": { "Status": "OK", "Message": "" }
+                }
+            }
+        },
+        {
+            "endpoint": "email/test",
+            "methods": {
+                "POST": {
+                    "desc": "Send test email using existing settings",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "files/:DirName",
+            "methods": {
+                "GET": {
+                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
+                    "output": [
+                        "PlayIntro.sh",
+                        "TestScript-02.sh",
+                        "TestScript.sh",
+                        "UserCallbackHook.sh",
+                        "fppdWatcher.sh",
+                        "fppdWatcherStart.sh"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/e131stats",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current bridge mode input statistics"
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/log",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current log level and mask",
+                    "output": {
+                        "log": {
+                            "level": "info",
+                            "mask":" channelout,command,control,e131bridge"
+                        },
+                        "Status":"OK",
+                        "Message":""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/multiSyncSystems",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the list of known FPP instances",
+                    "output": [
+                        {
+                            "address": "192.168.1.10",
+                            "channelRanges": "0-7712",
+                            "fppMode": 2,
+                            "fppModeString": "player",
+                            "hostname": "roof",
+                            "lastSeen": 1584566432,
+                            "lastSeenStr": "2020-03-18 14:20:32",
+                            "majorVersion": 4,
+                            "minorVersion": 1000,
+                            "model": "TI AM335x BeagleBone Green",
+                            "type": "BeagleBone Black",
+                            "version": "4.x-master-186-g58f6a91-dirty"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/testing",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current test mode configuration",
+                    "output": {
+                        "config": {
+                            "enabled": 1,
+                            "channelSet": "1-1048576",
+                            "channelSetType": "channelRange",
+                            "colorPattern": "FF000000FF000000FF",
+                            "cycleMS": 1000,
+                            "mode": "RGBChase",
+                            "subMode": "RGBChase-RGB"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/version",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current FPP version",
+                    "output": {
+                        "branch": "master",
+                        "fppdAPI": "v1",
+                        "version": "2.x-292-g83816a39-dirty"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/volume",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current output volume",
+                    "output": {
+                        "volume": 72
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/status",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current status of the FPPD daemon",
+                    "output": {
+                        "current_playlist": {
+                            "count": "0",
+                            "index": "0",
+                            "playlist": "",
+                            "type": ""
+                        },
+                        "current_sequence": "",
+                        "current_song": "",
+                        "fppd": "running",
+                        "mode": 2,
+                        "mode_name": "player",
+                        "next_playlist": {
+                            "playlist": "No playlist scheduled.",
+                            "start_time": ""
+                        },
+                        "repeat_mode": "0",
+                        "seconds_played": "0",
+                        "seconds_remaining": "0",
+                        "status": 0,
+                        "status_name": "idle",
+                        "time": "Tue Apr 02 08:06:34 EDT 2019",
+                        "time_elapsed": "00:00",
+                        "time_remaining": "00:00",
+                        "volume": 0
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "media",
+            "methods": {
+                "GET": {
+                    "desc": "Get list of media files (includes both music and video files).",
+                    "output": [
+                        "Frosty.mp4",
+                        "Jingle_Bells.mp3"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "media/:MediaName/duration",
+            "methods": {
+                "GET": {
+                    "desc": "Get duration of a media item",
+                    "output": {
+                        "1min_720p29_2014-10-01.mp4": {
+                            "duration": 60.010666666667
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "media/:MediaName/meta",
+            "methods": {
+                "GET": {
+                    "desc": "Get meta data for a specific media file",
+                    "output": {
+                        "programs": [],
+                        "streams": [
+                            {
+                                "index": 0,
+                                "codec_name": "h264",
+                                "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+                                "profile": "High",
+                                "codec_type": "video",
+                                "codec_time_base": "500/29971",
+                                "width": 480,
+                                "height": 640,
+                                "display_aspect_ratio": "3:4",
+                                "pix_fmt": "yuv420p"
+                            },
+                            {
+                                "index": 1,
+                                "codec_name": "aac",
+                                "codec_long_name": "AAC (Advanced Audio Coding)",
+                                "codec_type": "audio",
+                                "codec_time_base": "1/44100",
+                                "codec_tag_string": "mp4a"
+                            }
+                        ],
+                        "chapters": [],
+                        "format": {
+                            "filename": "/home/fpp/media/videos/Frosty.mp4",
+                            "nb_streams": 2,
+                            "nb_programs": 0,
+                            "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+                            "format_long_name": "QuickTime / MOV",
+                            "start_time": "0.000000",
+                            "duration": "37.914000",
+                            "size": "12177878",
+                            "bit_rate": "2569579",
+                            "probe_score": 100,
+                            "tags": {
+                                "major_brand": "isom",
+                                "minor_version": "512",
+                                "compatible_brands": "isomiso2avc1mp41",
+                                "creation_time": "1970-01-01 00:00:00",
+                                "title": "img_0872.mp4",
+                                "artist": "Avidemux",
+                                "encoder": "Lavf52.61.0"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "models",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets info on all of the Pixel Overlay Models",
+                    "output": [
+                        {
+                            "ChannelCount": 6144,
+                            "Name": "Matrix",
+                            "Orientation": "horizontal",
+                            "StartChannel": 1,
+                            "StartCorner": "TL",
+                            "StrandsPerString": 1,
+                            "StringCount": 32
+                        },
+                        {
+                            "ChannelCount": 6144,
+                            "Name": "Matrix2",
+                            "Orientation": "horizontal",
+                            "StartChannel": 6145,
+                            "StartCorner": "BL",
+                            "StrandsPerString": 1,
+                            "StringCount": 16 
+                        }
+                    ]
+                },
+                "POST": {
+                    "desc": "Uploads a new model-overlays.json file",
+                    "input": {
+                        "models": [
+                            {
+                                "ChannelCount": 6144,
+                                "Name": "Matrix",
+                                "Orientation": "horizontal",
+                                "StartChannel": 1,
+                                "StartCorner": "TL",
+                                "StrandsPerString": 1,
+                                "StringCount": 32
+                            }
+                        ]
+                    },
+                    "output": "OK"
+                }
+            }
+        },
+        {
+            "endpoint": "models/:ModelName",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets a single Pixel Overlay Model",
+                    "output": [
+                        {
+                            "ChannelCount": 6144,
+                            "Name": "Matrix",
+                            "Orientation": "horizontal",
+                            "StartChannel": 1,
+                            "StartCorner": "TL",
+                            "StrandsPerString": 1,
+                            "StringCount": 32
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/fonts",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets a list of fonts that can be used on the overlay models",
+                    "output": [
+                        "Courier",
+                        "Courier-Bold",
+                        "Courier-BoldOblique",
+                        "Helvetica",
+                        "Helvetica-Bold",
+                        "Times-Roman",
+                        "Times-Bold",
+                        "Times-Italic",
+                        "Times-BoldItalic",
+                        "Symbol"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/models",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets a list of the Pixel Overlay Models and their state",
+                    "output": [
+                        {
+                            "ChannelCount": 6144,
+                            "Name": "Matrix",
+                            "Orientation": "horizontal",
+                            "StartChannel": 1,
+                            "StartCorner": "TL",
+                            "StrandsPerString": 1,
+                            "StringCount": 32,
+                            "isActive": 0
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the given overlay model and it's state",
+                    "output": {
+                        "ChannelCount": 6144,
+                        "Name": "Matrix",
+                        "Orientation": "horizontal",
+                        "StartChannel": 1,
+                        "StartCorner": "TL",
+                        "StrandsPerString": 1,
+                        "StringCount": 32,
+                        "isActive": 0
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/clear",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Clears the given model",
+                    "output": "OK"
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/data",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current channel data for the model",
+                    "output": { 
+                        "data": [0,0,0,0,0,0],
+                        "isLocked": false
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/state",
+            "fppd": true,
+            "methods": {
+                "PUT": {
+                    "desc": "Sets the state of the overlay model",
+                    "input": {
+                        "State": 1
+                    },
+                    "output": "OK"
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/fill",
+            "fppd": true,
+            "methods": {
+                "PUT": {
+                    "desc": "Fills the entire overlay with the given color",
+                    "input": {
+                        "RGB": [ 255, 0, 0 ]
+                    },
+                    "output": "OK"
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/pixel",
+            "fppd": true,
+            "methods": {
+                "PUT": {
+                    "desc": "Sets a specific pixel in the model to the given color",
+                    "input": {
+                        "X": 10,
+                        "Y": 12,
+                        "RGB": [ 255, 0, 0 ]
+                    },
+                    "output": "OK"
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/text",
+            "fppd": true,
+            "methods": {
+                "PUT": {
+                    "desc": "Displays text on the overlay model",
+                    "input": {
+                        "Message": "Hello",
+                        "Position": "L2R",
+                        "Font": "Helvetica",
+                        "FontSize": 12,
+                        "AntiAlias": false,
+                        "PixelsPerSecond": 5,
+                        "Color": "#FF000",
+                        "AutoEnable": false
+                    },
+                    "output": "OK"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists",
+            "methods": {
+                "GET": {
+                    "desc": "Get list of playlist names",
+                    "output": [
+                        "Playlist_1",
+                        "Playlist_2",
+                        "Playlist_3"
+                    ]
+                },
+                "POST": {
+                    "desc": "Insert a new playlist",
+                    "input": {
+                        "name": "UploadTest",
+                        "mainPlaylist": [
+                            {
+                                "type": "pause",
+                                "enabled": 1,
+                                "playOnce": 0,
+                                "duration": 8
+                            }
+                        ],
+                        "playlistInfo": {
+                            "total_duration": 8,
+                            "total_items": 1
+                        }
+                    },
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stop",
+            "methods": {
+                "GET": {
+                    "desc": "Immediately stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stopgracefully",
+            "methods": {
+                "GET": {
+                    "desc": "Gracefully stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName",
+            "methods": {
+                "GET": {
+                    "desc": "Get Playlist named :PlaylistName.  Returns a normal FPP playlist in JSON format.",
+                    "output": {
+                        "name": "UploadTest",
+                        "mainPlaylist": [
+                            {
+                                "type": "pause",
+                                "enabled": 1,
+                                "playOnce": 0,
+                                "duration": 8
+                            }
+                        ],
+                        "playlistInfo": {
+                            "total_duration": 8,
+                            "total_items": 1
+                        }
+                    }
+                },
+                "POST": {
+                    "desc": "Update/Insert the Playlist named :PlaylistName.",
+                    "input": {
+                        "name": "UploadTest",
+                        "mainPlaylist": [
+                            {
+                                "type": "pause",
+                                "enabled": 1,
+                                "playOnce": 0,
+                                "duration": 8
+                            }
+                        ],
+                        "playlistInfo": {
+                            "total_duration": 8,
+                            "total_items": 1
+                        }
+                    },
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                },
+                "DELETE": {
+                    "desc": "Delete the Playlist named :PlaylistName.",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName/start",
+            "methods": {
+                "GET": {
+                    "desc": "Start the playlist named :PlaylistName."
+                }
+            }
+        },
+        {
+            "endpoint": "playlist/:PlaylistName/:SectionName/item",
+            "methods": {
+                "POST": {
+                    "desc": "Insert an item into the :SectionName section of the playlist :PlaylistName",
+                    "input" : {
+                        "type": "pause",
+                        "enabled": 1,
+                        "playOnce": 0,
+                        "duration": 8
+                    },
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "plugin",
+            "methods": {
+                "GET": {
+                    "desc": "Get list of installed plugins",
+                    "output": [
+                        "fpp-brightness",
+                        "fpp-matrixtools",
+                        "fpp-vastfmt"
+                    ]
+                },
+                "POST": {
+                    "desc": "Install a new plugin.  The data passed in is a pluginInfo JSON structure with branch and sha values added to the top level to indicate which branch and sha to install.",
+                    "input": {
+                        "repoName": "fpp-matrixtools",
+                        "name": "MatrixTools",
+                        "author": "Chris Pinkham (CaptainMurdoch)",
+                        "description": "MatrixTools description here.",
+                        "homeURL": "https://github.com/cpinkham/fpp-matrixtools",
+                        "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git",
+                        "bugURL": "https://github.com/cpinkham/fpp-matrixtools/issues",
+                        "branch": "master",
+                        "sha": "",
+                        "versions": [
+                            {
+                                "minFPPVersion": 0,
+                                "maxFPPVersion": 0,
+                                "branch": "master",
+                                "sha": ""
+                            }
+                        ]
+                    },
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "plugin/:PluginRepoName",
+            "methods": {
+                "GET": {
+                    "desc": "Get pluginInfo.json for installed plugin PluginRepoName.  An additional 'updatesAvailable' field is added to indicate whether the plugin has any updates available that have been fetched but not merged.",
+                    "output": {
+                        "repoName": "fpp-matrixtools",
+                        "name": "MatrixTools",
+                        "author": "Chris Pinkham (CaptainMurdoch)",
+                        "description": "MatrixTools description here.",
+                        "homeURL": "https://github.com/cpinkham/fpp-matrixtools",
+                        "srcURL": "https://github.com/cpinkham/fpp-matrixtools.git",
+                        "bugURL": "https://github.com/cpinkham/fpp-matrixtools/issues",
+                        "updatesAvailable": 0,
+                        "versions": [
+                            {
+                                "minFPPVersion": 0,
+                                "maxFPPVersion": 0,
+                                "branch": "master",
+                                "sha": ""
+                            }
+                        ]
+                    }
+                },
+                "DELETE": {
+                    "desc": "Uninstall plugin PluginRepoName",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "plugin/:PluginRepoName/updates",
+            "methods": {
+                "POST": {
+                    "desc": "Check plugin PluginRepoName for available updates.  this works by running a 'git fetch' in the plugin directory and checking for any non-merged updates.",
+                    "output": {
+                        "Status": "OK",
+                        "Message": "",
+                        "updatesAvailable": 1
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "plugin/:PluginRepoName/upgrade",
+            "methods": {
+                "POST": {
+                    "desc": "Pull in git updates for plugin PluginRepoName",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "sequence",
+            "methods": {
+                "GET": {
+                    "desc": "Get a list of all FSEQ files",
+                    "output": [
+                        "GreatestShow",
+                        "StPatricksDay",
+                        "Valentine"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "sequence/:SequenceName",
+            "methods": {
+                "GET": {
+                    "desc": "Get the FSEQ file for the named sequence",
+                    "output": "(Raw FSEQ file data)"
+                },
+                "POST": {
+                    "desc": "Upload a new FSEQ file",
+                    "input": "(Raw FSEQ file data)",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                },
+                "DELETE": {
+                    "desc": "Delete the named FSEQ file",
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "sequence/:SequenceName/meta",
+            "methods": {
+                "GET": {
+                    "desc": "Get metadata from the FSEQ file for the named sequence",
+                    "output": {
+                        "Name": "GreatestShow.fseq",
+                        "Version": "2.0",
+                        "ID": "1553194098754908",
+                        "StepTime": 25,
+                        "NumFrames": 10750,
+                        "MaxChannel": 84992,
+                        "ChannelCount":84992
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "settings",
+            "methods": {
+                "GET": {
+                    "desc": "Get JSON list of settings",
+                    "output": {
+                        "settingGroups": {
+                            "BBBLeds": {
+                                "description": "BeagleBone LEDs",
+                                "platforms": [
+                                    "BeagleBone Black"
+                                ],
+                                "settings": [
+                                    "BBBLeds0",
+                                    "BBBLeds1",
+                                    "BBBLeds2",
+                                    "BBBLeds3",
+                                    "BBBLedPWR"
+                                ]
+                            }
+                        },
+                        "settings": {
+                            "alwaysTransmit": {
+                                "name": "alwaysTransmit",
+                                "description": "Always transmit channel data",
+                                "tip": "Always transmit channel output data even when no sequence or effect is playing.  Some controllers may need constant data coming in to prevent them from going into a built in test mode.",
+                                "level": 1,
+                                "fppModes": [
+                                    "master",
+                                    "player",
+                                    "remote"
+                                ],
+                                "restart": 2,
+                                "reboot": 0,
+                                "checkedValue": "1",
+                                "uncheckedValue": "0",
+                                "default": "0",
+                                "type": "checkbox"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "settings/:SettingName",
+            "methods": {
+                "GET": {
+                    "desc": "Get info about a for a particular setting.",
+                    "output": {
+                        "name": "AudioFormat",
+                        "description": "Audio Output Format",
+                        "tip": "The Audio Format generated by the decoder can be changed to work with certain audio devices that can not work with multiple formats. Leaving this setting at 'Default' is recommended unless you are experiencing issues",
+                        "level": 1,
+                        "restart": 2,
+                        "default": 0,
+                        "type": "select",
+                        "options": {
+                            "Default": 0,
+                            "44100/S16": 1,
+                            "44100/S32": 2,
+                            "44100/FLT": 3,
+                            "48000/S16": 4,
+                            "48000/S32": 5,
+                            "48000/FLT": 6,
+                            "96000/S16": 7,
+                            "96000/S32": 8,
+                            "96000/FLT": 9
+                        },
+                        "value": "0"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "settings/:SettingName/options",
+            "methods": {
+                "GET": {
+                    "desc": "Get array of options for a particular setting.  This is currently only valid for options requiring a list of valid items and only for some of those which are used in the settings and playlist User Interfaces.",
+                    "output": {
+                        "HDMI": "HDMI",
+                        "Disabled": "Disabled",
+                        "Matrix": "Matrix"
+                    }
+                }
+            }
+        }
+    ]
+}

@@ -846,7 +846,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
                     result["effectRunning"] = m->getRunningEffect() != nullptr;
                 } else if (p4 == "clear") {
                     m->clear();
-                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                 } else {
                     m->toJson(result);
                     result["isActive"] = (int)m->getState().getState();
@@ -890,7 +890,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             close(fp);
             std::unique_lock<std::mutex> lock(modelsLock);
             loadModelMap();
-            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         } else if (req.get_path_pieces().size() == 1) {
             char filename[512];
             strcpy(filename, getMediaDirectory());
@@ -905,7 +905,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             close(fp);
             std::unique_lock<std::mutex> lock(modelsLock);
             loadModelMap();
-            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         }
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("POST Not found " + req.get_path(), 404));
@@ -925,7 +925,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                     if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("State")) {
                             m->setState(PixelOverlayState(root["State"].asInt()));
-                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         } else {
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Invalid request " + req.get_content(), 500));
                         }
@@ -939,7 +939,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             m->fill(root["RGB"][0].asInt(),
                                     root["RGB"][1].asInt(),
                                     root["RGB"][2].asInt());
-                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
                 } else if (p4 == "pixel") {
@@ -951,7 +951,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                                              root["RGB"][0].asInt(),
                                              root["RGB"][1].asInt(),
                                              root["RGB"][2].asInt());
-                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
                 } else if (p4 == "text") {
@@ -993,7 +993,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             args.push_back(msg);
                             lock.unlock();
                             CommandManager::INSTANCE.run("Overlay Model Effect", args);
-                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("OK", 200));
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
                 }

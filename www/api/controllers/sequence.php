@@ -74,7 +74,12 @@ function PostSequence() {
     }
     fclose($fp);
     fclose($putdata);
-    return 0;
+
+    $resp = Array();
+    $resp['Status'] = 'OK';
+    $resp['Message'] = '';
+
+    return json($resp);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -89,7 +94,12 @@ function DeleteSequences() {
     if (file_exists($file)) {
         unlink($file);
     }
-    return 0;
+
+    $resp = Array();
+    $resp['Status'] = 'OK';
+    $resp['Message'] = '';
+
+    return json($resp);
 }
 
 

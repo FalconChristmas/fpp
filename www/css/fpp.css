@@ -1222,9 +1222,9 @@ td.bgDarkOrange {
 	font-weight: bold;
 }
 
-.jsString { color: green; }
-.jsNumber { color: darkorange; }
-.jsBoolean { color: blue; }
+.jsString { color: blue; }
+.jsNumber { color: black; }
+.jsBoolean { color: darkorange; }
 .jsNull { color: magenta; }
 .jsKey { color: red; }
 

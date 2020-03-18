@@ -222,16 +222,16 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 	{
 		LogErr(VB_HTTP, "API - Error unknown GET request: %s\n", url.c_str());
 
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
+		result["Message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
     int responseCode = 200;
 	if (result.empty()) {
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "GET endpoint helper did not set result JSON";
+		result["Message"] = "GET endpoint helper did not set result JSON";
     } else if (result.isMember("respCode")) {
         responseCode = result["respCode"].asInt();
     }
@@ -433,17 +433,17 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
 	{
 		LogErr(VB_HTTP, "API - Error unknown POST request: %s\n", url.c_str());
 
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
+		result["Message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
 
 	if (!result.isMember("status"))
 	{
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "POST endpoint helper did not set result JSON";
+		result["Message"] = "POST endpoint helper did not set result JSON";
 	}
 
 	std::string resultStr = SaveJsonToString(result);
@@ -477,17 +477,17 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(c
 	{
 		LogErr(VB_HTTP, "API - Error unknown DELETE request: %s\n", url.c_str());
 
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
+		result["Message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
 
 	if (!result.isMember("status"))
 	{
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "DELETE endpoint helper did not set result JSON";
+		result["Message"] = "DELETE endpoint helper did not set result JSON";
 	}
 
 	std::string resultStr = SaveJsonToString(result);
@@ -526,18 +526,18 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_PUT(cons
 	{
 		LogErr(VB_HTTP, "API - Error unknown PUT request: %s\n", url.c_str());
 
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 404;
-		result["message"] = std::string("endpoint fppd/") + url + " does not exist";
+		result["Message"] = std::string("endpoint fppd/") + url + " does not exist";
 	}
 
 
 
 	if (!result.isMember("status"))
 	{
-		result["status"] = "ERROR";
+		result["Status"] = "ERROR";
 		result["respCode"] = 400;
-		result["message"] = "PUT endpoint helper did not set result JSON";
+		result["Message"] = "PUT endpoint helper did not set result JSON";
 	}
 
 	std::string resultStr = SaveJsonToString(result);
@@ -552,9 +552,9 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_PUT(cons
  */
 void PlayerResource::SetOKResult(Json::Value &result, const std::string &msg)
 {
-	result["status"] = "OK";
+	result["Status"] = "OK";
 	result["respCode"] = 200;
-	result["message"] = msg;
+	result["Message"] = msg;
 }
 
 /*
@@ -562,9 +562,9 @@ void PlayerResource::SetOKResult(Json::Value &result, const std::string &msg)
  */
 void PlayerResource::SetErrorResult(Json::Value &result, const int respCode, const std::string &msg)
 {
-	result["status"] = "ERROR";
+	result["Status"] = "ERROR";
 	result["respCode"] = respCode;
-	result["message"] = msg;
+	result["Message"] = msg;
 }
 
 /*
