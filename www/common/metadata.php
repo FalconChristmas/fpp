@@ -134,4 +134,24 @@ function GetSequenceInfo()
 	returnJSON($return_arr);
 }
 
+function GetMetaDataFromFFprobe($filename)
+{
+    global $settings;
+
+    if (file_exists($settings['musicDirectory'] . "/$filename")) {
+        $filename = $settings['musicDirectory'] . "/$filename";
+    } else if (file_exists($settings['videoDirectory'] . "/$filename")) {
+        $filename = $settings['videoDirectory'] . "/$filename";
+    } else {
+        $result = Array();
+        $result[$filename] = Array();
+        return $result;
+    }
+
+    exec('ffprobe -hide_banner -loglevel fatal -show_error -show_format -show_streams -show_programs -show_chapters -show_private_data -print_format json ' . $filename, $output);
+    $jsonStr = join(' ', $output);
+
+    return json_decode($jsonStr, true);
+}
+
 ?>

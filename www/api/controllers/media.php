@@ -25,6 +25,19 @@ function GetMedia() {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// GET /api/media/:MediaName/duration
+function GetMediaDuration() {
+    global $settings;
+    $resp = Array();
+
+    $file = params('MediaName');
+
+    $resp = getMediaDurationInfo($file, true);
+
+    return json($resp);
+}
+
+/////////////////////////////////////////////////////////////////////////////
 // GET /api/media/:MediaName/meta
 function GetMediaMetaData() {
     global $settings;
@@ -32,7 +45,7 @@ function GetMediaMetaData() {
 
     $file = params('MediaName');
 
-    $resp = getMediaDurationInfo($file, true);
+    $resp = GetMetaDataFromFFprobe($file);
 
     return json($resp);
 }

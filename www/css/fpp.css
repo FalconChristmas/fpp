@@ -32,6 +32,10 @@
 	height: 18px;
 }
 
+.smallButton {
+    width: 60px;
+}
+
 .buttons:hover
 {
 	background-color: #dddddd;
@@ -1217,6 +1221,12 @@ td.bgDarkOrange {
 	color: #FF0000;
 	font-weight: bold;
 }
+
+.jsString { color: green; }
+.jsNumber { color: darkorange; }
+.jsBoolean { color: blue; }
+.jsNull { color: magenta; }
+.jsKey { color: red; }
 
 @media screen and (max-width: 980px) {
     #bodyWrapper

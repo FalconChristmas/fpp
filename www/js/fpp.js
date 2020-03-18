@@ -829,7 +829,7 @@ function SetPlaylistItemMetaData(row) {
     if (((type == 'both') || (type == 'media')) &&
         (typeof file != 'undefined')) {
         file = $('<div/>').html(file).text(); // handle any & or other chars that got converted
-        $.get('/api/media/' + encodeURIComponent(file) + '/meta').success(function(mdata) {
+        $.get('/api/media/' + encodeURIComponent(file) + '/duration').success(function(mdata) {
             var duration = -1;
 
             if ((mdata.hasOwnProperty(file)) &&
@@ -3344,10 +3344,13 @@ function GetGitOriginLog()
 
 function GetVideoInfo(file)
 {
-	$('#fileText').html("Getting Video Info.");
-	$('#fileText').load("fppxml.php?command=getVideoInfo&filename=" + file);
-	$('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
-	$('#fileViewer').dialog( "moveToTop" );
+    $('#fileText').html("Getting Video Info.");
+
+    $.get("/api/media/" + file + "/meta", function(data) {
+        $('#fileText').html('<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>');
+        $('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
+        $('#fileViewer').dialog( "moveToTop" );
+    });
 }
 
 function PlayFileInBrowser(dir, file)
@@ -3548,6 +3551,26 @@ function handleVisibilityChange() {
     } else {
          GetFPPStatus();
     }
+}
+
+// syntaxHighlight() from https://stackoverflow.com/questions/4810841/pretty-print-json-using-javascript
+function syntaxHighlight(json) {
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\\\u[a-zA-Z0-9]{4}|\\\\[^u]|[^\\\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        var cls = 'jsNumber';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'jsKey';
+            } else {
+                cls = 'jsString';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'jsBoolean';
+        } else if (/null/.test(match)) {
+            cls = 'jsNull';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+    });
 }
 
 function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {

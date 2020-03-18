@@ -31,6 +31,7 @@ dispatch_get   ('/files/:DirName', 'GetFiles');
 dispatch_get   ('/help', 'help_help');
 
 dispatch_get   ('/media', 'GetMedia');
+dispatch_get   ('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
 
 dispatch_get   ('/options/:SettingName', 'GetOptions');

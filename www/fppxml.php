@@ -15,7 +15,6 @@ $nonXML = Array(
 	"getFile" => 1,
 	"getGitOriginLog" => 1,
 	"gitStatus" => 1,
-	"getVideoInfo" => 1,
 	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
@@ -75,7 +74,6 @@ $command_array = Array(
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
 	"getFile" => 'GetFile',
-	"getVideoInfo" => 'GetVideoInfo',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setupExtGPIO" => 'SetupExtGPIO',
@@ -1611,21 +1609,6 @@ function universe_cmp($a, $b)
         return 0;
     }
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
-}
-
-function GetVideoInfo()
-{
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	header('Content-type: text/plain');
-
-	global $settings;
-	$videoInfo = "";
-	exec("omxplayer -i '" . $settings['videoDirectory'] . "/" . $filename . "' 2>&1", $info);
-	$videoInfo .= implode("\n", $info);
-
-	echo $videoInfo;
 }
 
 function GetFile()
