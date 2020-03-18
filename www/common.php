@@ -1231,7 +1231,7 @@ function get_git_branch(){
 function get_local_git_version(){
 	$git_version = "Unknown";
 	$cachefile_name = "local_git_version";
-	$cache_age = 90;
+	$cache_age = 20;
 
 	$cached_data = file_cache($cachefile_name,NULL,$cache_age);
 	if ($cached_data == NULL) {
