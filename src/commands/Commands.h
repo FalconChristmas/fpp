@@ -29,7 +29,7 @@ public:
     virtual ~Command();
     
     virtual Json::Value getDescription();
-    
+    virtual bool hidden() const { return false; }
     
     class Result {
     public:

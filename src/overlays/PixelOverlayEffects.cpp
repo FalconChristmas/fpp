@@ -42,6 +42,31 @@ static uint32_t applyColorPct(uint32_t c, float pct) {
     return (r << 16) + (g << 8) + b;
 }
 
+class StopRunningEffect : public RunningEffect {
+public:
+    StopRunningEffect(PixelOverlayModel *m, const std::string &n, bool ad)
+        : RunningEffect(m), effectName(n), autoDisable(ad) {
+    }
+    const std::string &name() const override {
+        return effectName;
+    }
+    virtual int32_t update() {
+        model->clearOverlayBuffer();
+        model->flushOverlayBuffer();
+        if (stopped) {
+            if (autoDisable) {
+                model->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+            }
+            return EFFECT_DONE;
+        }
+        stopped = true;
+        return EFFECT_AFTER_NEXT_OUTPUT;
+    }
+    bool stopped = false;
+    std::string effectName;
+    bool autoDisable;
+};
+
 class ColorFadeEffect : public PixelOverlayEffect {
 public:
     ColorFadeEffect() : PixelOverlayEffect("Color Fade") {
@@ -437,13 +462,14 @@ public:
 
     void doText(PixelOverlayModel *m,
                 const std::string &msg,
-               int r, int g, int b,
-               const std::string &font,
-               int fontSize,
-               bool antialias,
-               const std::string &position,
-               int pixelsPerSecond,
-               bool autoEnable) {
+                int r, int g, int b,
+                const std::string &font,
+                int fontSize,
+                bool antialias,
+                const std::string &position,
+                int pixelsPerSecond,
+                bool autoEnable,
+                int duration) {
 
         Magick::Image image(Magick::Geometry(m->getWidth(),m->getHeight()), Magick::Color("black"));
         image.quiet(true);
@@ -506,8 +532,13 @@ public:
             
             m->setData((uint8_t*)blob.data());
 
-            if (disableWhenDone)
-                m->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
+            if (disableWhenDone) {
+                int nd = 25;
+                if (duration > 0) {
+                    nd = duration * 1000;
+                }
+                m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), duration);
+            }
         } else {
             //movement
             double rr = r;
@@ -615,7 +646,8 @@ public:
                   aa,
                   position,
                   pps,
-                  autoEnable);
+                  autoEnable,
+                  duration);
         return true;
     }
 };
@@ -625,35 +657,8 @@ class StopEffect : public PixelOverlayEffect {
 public:
     StopEffect() : PixelOverlayEffect("Stop Effects") {
     }
-    class StopEffects : public ImageMovementEffect {
-    public:
-        StopEffects(PixelOverlayModel *m) : ImageMovementEffect(m) {
-        }
-        
-        const std::string &name() const override {
-            static std::string NAME = "Stop Effects";
-            return NAME;
-        }
-        virtual int32_t update() {
-            model->clearOverlayBuffer();
-            model->flushOverlayBuffer();
-            if (stopped) {
-                model->setState(PixelOverlayState(PixelOverlayState::PixelState::Disabled));
-                return 0;
-            }
-            stopped = true;
-            return -1;
-        }
-        bool stopped = false;
-    };
-
-    
     virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) override {
-        if (autoEnable) {
-            model->setRunningEffect(new StopEffects(model), 25);
-        } else {
-            model->setRunningEffect(nullptr, 25);
-        }
+        model->setRunningEffect(new StopRunningEffect(model, "Stop Effects", autoEnable), 25);
         return true;
     }
 };

@@ -1112,7 +1112,8 @@ public:
         // sent in the payload
         args.push_back(CommandArg("Text", "string", "Text").setAdjustable());
     }
-    
+    virtual bool hidden() const override { return true; }
+
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() < 8) {
             return std::make_unique<Command::ErrorResult>("Command needs 9 arguments, found " + std::to_string(args.size()));

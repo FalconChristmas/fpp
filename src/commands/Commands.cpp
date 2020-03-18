@@ -108,7 +108,9 @@ void CommandManager::removeCommand(Command *cmd) {
 Json::Value CommandManager::getDescriptions() {
     Json::Value  ret;
     for (auto &a : commands) {
-        ret.append(a.second->getDescription());
+        if (!a.second->hidden()) {
+            ret.append(a.second->getDescription());
+        }
     }
     return ret;
 }
