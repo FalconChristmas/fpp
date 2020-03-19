@@ -492,6 +492,7 @@ function GetLEDPanelConfig()
 	UpdatePanelSize();
 
 	config.enabled = 0;
+	config.cfgVersion = 2;
 	config.startChannel = parseInt($('#LEDPanelsStartChannel').val());
    	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();

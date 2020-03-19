@@ -83,6 +83,7 @@
 #include "Warnings.h"
 #include "ColorLight-5a-75.h"
 #include "log.h"
+#include "settings.h"
 
 
 extern "C" {
@@ -112,7 +113,8 @@ ColorLight5a75Output::ColorLight5a75Output(unsigned int startChannel, unsigned i
 	m_invertedData(0),
 	m_matrix(NULL),
 	m_panelMatrix(NULL),
-    m_slowCount(0)
+	m_slowCount(0),
+	m_flippedLayout(0)
 {
 	LogDebug(VB_CHANNELOUT, "ColorLight5a75Output::ColorLight5a75Output(%u, %u)\n",
 		startChannel, channelCount);
@@ -167,6 +169,12 @@ int ColorLight5a75Output::Init(Json::Value config)
 		return 0;
 	}
 
+	if (config.isMember("cfgVersion")) {
+		m_flippedLayout = config["cfgVersion"].asInt() >= 2 ? 0 : 1;
+	} else {
+		m_flippedLayout = 1;
+	}
+
 	for (int i = 0; i < config["panels"].size(); i++) {
 		Json::Value p = config["panels"][i];
 		char orientation = 'N';
@@ -174,6 +182,20 @@ int ColorLight5a75Output::Init(Json::Value config)
 
 		if (o && *o)
 			orientation = o[0];
+
+		if (m_flippedLayout) {
+			switch (orientation)
+			{
+				case 'N': orientation = 'U';
+						  break;
+				case 'U': orientation = 'N';
+						  break;
+				case 'R': orientation = 'L';
+						  break;
+				case 'L': orientation = 'R';
+						  break;
+			}
+		}
 
 		if (p["colorOrder"].asString() == "")
 			p["colorOrder"] = ColorOrderToString(m_colorOrder);
@@ -414,7 +436,10 @@ void ColorLight5a75Output::PrepData(unsigned char *channelData)
 
 		for (int i = 0; i < panelsOnOutput; i++) {
 			int panel = m_panelMatrix->m_outputPanels[output][i];
-			int chain = (panelsOnOutput - 1) - m_panelMatrix->m_panels[panel].chain;
+			int chain = (m_longestChain - 1) - m_panelMatrix->m_panels[panel].chain;
+
+			if (m_flippedLayout)
+				chain = m_panelMatrix->m_panels[panel].chain;
 
 			for (int y = 0; y < m_panelHeight; y++) {
 				int px = chain * m_panelWidth;

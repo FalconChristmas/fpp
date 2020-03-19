@@ -96,6 +96,7 @@ class ColorLight5a75Output : public ChannelOutputBase {
 	Matrix      *m_matrix;
 	PanelMatrix *m_panelMatrix;
     uint8_t      m_gammaCurve[256];
+    int          m_flippedLayout;
 
 };
 
