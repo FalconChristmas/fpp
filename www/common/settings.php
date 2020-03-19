@@ -102,25 +102,21 @@ function EnableUIPassword($value)
     } else if ($value == '1') {
         $password = ReadSettingFromFile('password');
 
-        if ($password == '')
-            $password = 'falcon';
-
-        shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd admin " . $password);
-        shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $password);
-
+        SetUIPassword($password);
         SetupHtaccess(1);
     }
 }
 
 function SetUIPassword($value)
 {
-    global $settings; // for default .htaccess contents
+    global $settings;
 
     if ($value == '')
         $value = 'falcon';
 
+    // First clear file and set admin, then without clear for adding fpp user
     shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd admin " . $value);
-    shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $value);
+    shell_exec("sudo htpasswd -bd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $value);
 }
 
 /////////////////////////////////////////////////////////////////////////////
