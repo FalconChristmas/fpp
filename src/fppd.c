@@ -582,8 +582,6 @@ int main(int argc, char *argv[])
 	if (loggingToFile())
 		logVersionInfo();
 
-	printVersionInfo();
-
 	// Start functioning
     if (getDaemonize()) {
 		CreateDaemon();
