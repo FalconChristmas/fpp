@@ -3483,6 +3483,18 @@ function SetupSelectableTableRow(info)
 			SetButtonState('#' + info.disableButtons[i], "disable");
 		}
 	});
+
+    if (info.hasOwnProperty('sortable') && info.sortable) {
+        $('#' + info.tableName + ' > tbody').sortable({
+            update: function(event, ui) {
+                if ((info.hasOwnProperty('sortableCallback')) &&
+                    (info.sortableCallback != '')) {
+                    window[info.sortableCallback]();
+                }
+            },
+            scroll: true
+        }).disableSelection();
+    }
 }
 
 function DialogOK(title, message)

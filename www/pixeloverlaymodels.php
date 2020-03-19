@@ -53,28 +53,32 @@ function GetStartingCornerInput(currentValue) {
 function PopulateChannelMemMapTable(data) {
 	$('#channelMemMaps tbody').html("");
     
-	for (var i = 0; i < data["models"].length; i++) {
+	for (var i = 0; i < data.length; i++) {
 		$('#channelMemMaps tbody').append("<tr id='row'" + i + " class='fppTableRow'>" +
-			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data["models"][i].Name + "'></td>" +
-			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data["models"][i].StartChannel + "'></td>" +
-			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data["models"][i].ChannelCount + "'></td>" +
-			"<td>" + GetOrientationInput(data["models"][i].Orientation) + "</td>" +
-			"<td>" + GetStartingCornerInput(data["models"][i].StartCorner) + "</td>" +
-			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data["models"][i].StringCount + "'></td>" +
-			"<td><input class='strands' type='text' size='2' maxlength='2' value='" + data["models"][i].StrandsPerString + "'></td>" +
+			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'></td>" +
+			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
+			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
+			"<td>" + GetOrientationInput(data[i].Orientation) + "</td>" +
+			"<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
+			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
+			"<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td>" +
 			"</tr>");
 	}
 }
 
 function GetChannelMemMaps() {
-	$.getJSON("fppjson.php?command=getChannelMemMaps", function(data) {
+	$.get("/api/models", function(data) {
 		PopulateChannelMemMapTable(data);
+	}).fail(function() {
+		DialogError("Load Pixel Overlay Models", "Load Failed, is fppd running?");
 	});
 }
 
 function SetChannelMemMaps() {
     var postData = "";
 	var dataError = 0;
+	var data = {};
+	var models = [];
 
 	$('#channelMemMaps tbody tr').each(function() {
 		$this = $(this);
@@ -95,12 +99,7 @@ function SetChannelMemMaps() {
 			(memmap.StringCount > 0) &&
 			(memmap.StrandsPerString > 0))
 		{
-			if (postData != "") {
-				postData += ", ";
-            } else {
-                postData = "{ \"models\": [";
-            }
-			postData += JSON.stringify(memmap);
+			models.push(memmap);
 		} else {
 			dataError = 1;
 			// FIXME, put in some more info here, highlight bad field, etc.
@@ -112,20 +111,19 @@ function SetChannelMemMaps() {
 	if (dataError != 0)
 		return;
 
-    postData += "]}";
-	postData = "command=setChannelMemMaps&data=[ " + postData + " ]";
+	data.models = models;
+	postData = JSON.stringify(data, null, 2);
 
-	$.post("fppjson.php", postData).done(function(data) {
+	$.post("/api/models", postData).done(function(data) {
 		$.jGrowl("Pixel Overlay Models saved.");
-		PopulateChannelMemMapTable(data);
 		SetRestartFlag(2);
 	}).fail(function() {
-		DialogError("Save Pixel Overlay Models", "Save Failed!");
+		DialogError("Save Pixel Overlay Models", "Save Failed, is fppd running?");
 	});
 }
 
 function AddNewMemMap() {
-	var currentRows = $("#channelMemMaps > tbody > tr").length
+	var currentRows = $("#channelMemMaps > tbody > tr").length;
 
 	$('#channelMemMaps tbody').append(
 		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
@@ -143,7 +141,8 @@ var tableInfo = {
 	tableName: "channelMemMaps",
 	selected:  -1,
 	enableButtons: [ "btnDelete" ],
-	disableButtons: []
+	disableButtons: [],
+    sortable: 1
 	};
 
 function DeleteSelectedMemMap() {
@@ -200,12 +199,6 @@ $(document).tooltip();
                         </table>
                     </div>
 				</div>
-				<br>
-				<font size=-1>
-					The Real-Time Pixel Overlay system and Pixel Overlay Models
-					allow overlaying user-provided data onto outoing channel
-					data via a special interface.
-				</font>
 			</fieldset>
 		</div>
 

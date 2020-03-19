@@ -18,8 +18,6 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"getChannelMemMaps"   => 'GetChannelMemMaps',
-	"setChannelMemMaps"   => 'SetChannelMemMaps',
 	"getOutputProcessors" => 'GetOutputProcessors',
 	"setOutputProcessors" => 'SetOutputProcessors',
 	"getChannelOutputs"   => 'GetChannelOutputs',
@@ -884,35 +882,6 @@ function SetAudioOutput($card)
         }
     }
 	return $card;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-function GetChannelMemMaps()
-{
-    global $settings;
-    
-    $jsonStr = "";
-    
-    if (file_exists($settings['model-overlays'])) {
-        $jsonStr = file_get_contents($settings['model-overlays']);
-    }
-    
-    returnJSONStr($jsonStr);
-}
-
-function SetChannelMemMaps()
-{
-	global $args;
-	global $settings;
-
-    $data = stripslashes($args['data']);
-    $data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
-    
-    file_put_contents($settings['model-overlays'], $data);
-
-
-	GetChannelMemMaps();
 }
 
 /////////////////////////////////////////////////////////////////////////////
