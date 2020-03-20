@@ -96,7 +96,7 @@ void ForceChannelOutputNow(void) {
 
 static inline bool forceOutput() {
     return IsEffectRunning() ||
-        PixelOverlayManager::INSTANCE.UsingMemoryMapInput() ||
+        PixelOverlayManager::INSTANCE.hasActiveOverlays() ||
         ChannelTester::INSTANCE.Testing() ||
         getAlwaysTransmit();
 }

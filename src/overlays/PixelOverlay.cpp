@@ -23,10 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <Magick++.h>
@@ -40,7 +38,6 @@
 #include "mqtt.h"
 #include "common.h"
 #include "settings.h"
-#include "Sequence.h"
 #include "log.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -48,6 +45,15 @@
 #include "commands/Commands.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
+
+class OverlayRange {
+public:
+    OverlayRange(int s, int e, int v) : start(s), end(e), value(v) {}
+    
+    int start = 0;
+    int end = 0;
+    int value = 0;
+};
 
 uint32_t PixelOverlayManager::mapColor(const std::string &c) {
     if (c[0] == '#') {
@@ -78,7 +84,7 @@ uint32_t PixelOverlayManager::mapColor(const std::string &c) {
 }
 
 
-PixelOverlayManager::PixelOverlayManager() {
+PixelOverlayManager::PixelOverlayManager() : numActive(0) {
 }
 PixelOverlayManager::~PixelOverlayManager() {
     if (updateThread != nullptr) {
@@ -94,180 +100,13 @@ PixelOverlayManager::~PixelOverlayManager() {
         delete a.second;
     }
     models.clear();
-    if (chanDataMap) {
-        munmap(chanDataMap, FPPD_MAX_CHANNELS);
-    }
-    if (ctrlMap) {
-        munmap(ctrlMap, FPPCHANNELMEMORYMAPSIZE);
-    }
-    if (pixelMap) {
-        munmap(pixelMap, FPPD_MAX_CHANNELS * sizeof(uint32_t));
-    }
 }
 void PixelOverlayManager::Initialize() {
-    if (!createChannelDataMap()) {
-        return;
-    }
-    if (!createControlMap()) {
-        return;
-    }
-    if (!createPixelMap()) {
-        return;
-    }
     loadModelMap();
-    symlink(FPPCHANNELMEMORYMAPDATAFILE, FPPCHANNELMEMORYMAPDATAFILE_OLD);
-    symlink(FPPCHANNELMEMORYMAPCTRLFILE, FPPCHANNELMEMORYMAPCTRLFILE_OLD);
-    symlink(FPPCHANNELMEMORYMAPPIXELFILE, FPPCHANNELMEMORYMAPPIXELFILE_OLD);
-
     RegisterCommands();
-
-    if (ctrlHeader->totalBlocks && !getRestarted()) {
-        StartChannelOutputThread();
-    }
-
     if (getSettingInt("MQTTHADiscovery", 0))
         SendHomeAssistantDiscoveryConfig();
 }
-
-bool PixelOverlayManager::createChannelDataMap() {
-    LogDebug(VB_CHANNELOUT, "PixelOverlayManager::createChannelDataMap()\n");
-    
-    mkdir(FPPCHANNELMEMORYMAPPATH, 0777);
-    chmod(FPPCHANNELMEMORYMAPPATH, 0777);
-    // Block of of raw channel data used to overlay data
-    int chanDataMapFD = open(FPPCHANNELMEMORYMAPDATAFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
-    if (chanDataMapFD < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
-        return false;
-    }
-    chmod(FPPCHANNELMEMORYMAPDATAFILE, 0666);
-    uint8_t * tmpData = (uint8_t*)calloc(1, FPPD_MAX_CHANNELS);
-    if (write(chanDataMapFD, (void *)tmpData, FPPD_MAX_CHANNELS) != FPPD_MAX_CHANNELS) {
-        LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
-        free(tmpData);
-        close(chanDataMapFD);
-        return false;
-    }
-    free(tmpData);
-    
-    chanDataMap = (char *)mmap(0, FPPD_MAX_CHANNELS, PROT_READ|PROT_WRITE, MAP_SHARED, chanDataMapFD, 0);
-    close(chanDataMapFD);
-    if (!chanDataMap) {
-        LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPDATAFILE, strerror(errno));
-        return false;
-    }
-    
-    return true;
-}
-
-bool PixelOverlayManager::createControlMap() {
-    // Control file to turn on/off blocks and get block info
-    int ctrlFD = open(FPPCHANNELMEMORYMAPCTRLFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
-    if (ctrlFD < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPCTRLFILE, strerror(errno));
-        close(ctrlFD);
-        return false;
-    }
-    chmod(FPPCHANNELMEMORYMAPCTRLFILE, 0666);
-    
-    uint8_t* tmpData = (uint8_t*)calloc(1, FPPCHANNELMEMORYMAPSIZE);
-    if (write(ctrlFD, (void *)tmpData, FPPCHANNELMEMORYMAPSIZE) != FPPCHANNELMEMORYMAPSIZE) {
-        LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPCTRLFILE, strerror(errno));
-        close(ctrlFD);
-        free(tmpData);
-        return false;
-    }
-    free(tmpData);
-    
-    ctrlMap = (char *)mmap(0, FPPCHANNELMEMORYMAPSIZE, PROT_READ|PROT_WRITE, MAP_SHARED, ctrlFD, 0);
-    close(ctrlFD);
-    if (!ctrlMap) {
-        LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPCTRLFILE, strerror(errno));
-        return false;
-    }
-    ctrlHeader = (FPPChannelMemoryMapControlHeader *)ctrlMap;
-    ctrlHeader->majorVersion = FPPCHANNELMEMORYMAPMAJORVER;
-    ctrlHeader->minorVersion = FPPCHANNELMEMORYMAPMINORVER;
-    ctrlHeader->totalBlocks  = 0;
-    ctrlHeader->testMode     = 0;
-
-    return true;
-}
-
-bool PixelOverlayManager::createPixelMap() {
-    // Pixel Map to map channels to matrix positions
-    int pixelFD =
-        open(FPPCHANNELMEMORYMAPPIXELFILE, O_CREAT | O_TRUNC | O_RDWR, 0666);
-    
-    if (pixelFD < 0) {
-        LogErr(VB_CHANNELOUT, "Error opening %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
-        return false;
-    }
-    
-    chmod(FPPCHANNELMEMORYMAPPIXELFILE, 0666);
-    uint8_t* tmpData = (uint8_t*)calloc(FPPD_MAX_CHANNELS, sizeof(uint32_t));
-    if (write(pixelFD, (void *)tmpData,
-              FPPD_MAX_CHANNELS * sizeof(uint32_t)) != (FPPD_MAX_CHANNELS * sizeof(uint32_t))) {
-        LogErr(VB_CHANNELOUT, "Error populating %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
-        close(pixelFD);
-        free(tmpData);
-        return false;
-    }
-    free(tmpData);
-    
-    pixelMap = (uint32_t *)mmap(0, FPPD_MAX_CHANNELS * sizeof(uint32_t), PROT_READ|PROT_WRITE, MAP_SHARED, pixelFD, 0);
-    close(pixelFD);
-    if (!pixelMap) {
-        LogErr(VB_CHANNELOUT, "Error mapping %s memory map file: %s\n",
-               FPPCHANNELMEMORYMAPPIXELFILE, strerror(errno));
-        return false;
-    }
-    for (int i = 0; i < FPPD_MAX_CHANNELS; i++) {
-        pixelMap[i] = i;
-    }
-    return true;
-}
-
-
-/*
- * Display list of defined memory mapped channel blocks
- */
-static void PrintChannelMapBlocks(FPPChannelMemoryMapControlHeader *ctrlHeader) {
-    if (!ctrlHeader) {
-        return;
-    }
-    
-    int i = 0;
-    char * ctrlMap = (char *)ctrlHeader;
-    FPPChannelMemoryMapControlBlock *cb =
-    (FPPChannelMemoryMapControlBlock*)(ctrlMap +
-                                       sizeof(FPPChannelMemoryMapControlHeader));
-    
-    LogInfo(VB_CHANNELOUT, "Channel Memory Map Blocks\n");
-    LogInfo(VB_CHANNELOUT, "Control File Version: %d.%d\n",
-            (int)ctrlHeader->majorVersion, (int)ctrlHeader->minorVersion);
-    LogInfo(VB_CHANNELOUT, "Total Blocks Defined: %d\n",
-            ctrlHeader->totalBlocks);
-    
-    for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-        LogExcess(VB_CHANNELOUT, "Block %3d Name         : %s\n", i, cb->blockName);
-        LogExcess(VB_CHANNELOUT, "Block %3d Start Channel: %d\n", i, cb->startChannel);
-        LogExcess(VB_CHANNELOUT, "Block %3d Channel Count: %d\n", i, cb->channelCount);
-        LogExcess(VB_CHANNELOUT, "Block %3d Orientation  : %c\n", i, cb->orientation);
-        LogExcess(VB_CHANNELOUT, "Block %3d Start Corner : %s\n", i, cb->startCorner);
-        LogExcess(VB_CHANNELOUT, "Block %3d String Count : %d\n", i, cb->stringCount);
-        LogExcess(VB_CHANNELOUT, "Block %3d Strand Count : %d\n", i, cb->strandsPerString);
-    }
-}
-
 
 void PixelOverlayManager::loadModelMap() {
     LogDebug(VB_CHANNELOUT, "PixelOverlayManager::loadModelMap()\n");
@@ -286,13 +125,7 @@ void PixelOverlayManager::loadModelMap() {
     }
     models.clear();
     ConvertCMMFileToJSON();
-    
-    if (!ctrlMap) {
-        LogErr(VB_CHANNELOUT, "Error, trying to load memory map data when "
-               "memory map is not configured.");
-        return;
-    }
-    
+
     char filename[1024];
     strcpy(filename, getMediaDirectory());
     strcat(filename, "/config/model-overlays.json");
@@ -305,35 +138,9 @@ void PixelOverlayManager::loadModelMap() {
         }
 
         const Json::Value models = root["models"];
-        FPPChannelMemoryMapControlBlock *cb = NULL;
-        cb = (FPPChannelMemoryMapControlBlock*)(ctrlMap +
-                                                sizeof(FPPChannelMemoryMapControlHeader));
         for (int c = 0; c < models.size(); c++) {
-            std::string modelName = models[c]["Name"].asString();
-            strncpy(cb->blockName, modelName.c_str(), 32);
-            cb->startChannel = models[c]["StartChannel"].asInt();
-            cb->channelCount = models[c]["ChannelCount"].asInt();;
-            if (models[c]["Orientation"].asString() == "vertical") {
-                cb->orientation = 'V';
-            } else {
-                cb->orientation = 'H';
-            }
-            strncpy(cb->startCorner, models[c]["StartCorner"].asString().c_str(), 2);
-            cb->stringCount = models[c]["StringCount"].asInt();
-            cb->strandsPerString = models[c]["StrandsPerString"].asInt();
-            
-            SetupPixelMapForBlock(cb);
-            
-            PixelOverlayModel *pmodel = new PixelOverlayModel(cb, modelName, chanDataMap, pixelMap);
-            this->models[modelName] = pmodel;
-            
-            cb++;
-            ctrlHeader->totalBlocks++;
-
-        }
-        if ((logLevel >= LOG_INFO) &&
-            (logMask & VB_CHANNELOUT)) {
-            PrintChannelMapBlocks(ctrlHeader);
+            PixelOverlayModel *pmodel = new PixelOverlayModel(models[c]);
+            this->models[pmodel->getName()] = pmodel;
         }
     }
 }
@@ -380,8 +187,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         s = strtok(NULL, ",");
         if (!s)  continue;
         startChannel = strtol(s, NULL, 10);
-        if ((startChannel <= 0) ||
-            (startChannel > FPPD_MAX_CHANNELS)) {
+        if (startChannel <= 0) {
             continue;
         }
         model["StartChannel"] = startChannel;
@@ -390,8 +196,7 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         s=strtok(NULL,",");
         if (!s) continue;
         channelCount = strtol(s, NULL, 10);
-        if ((channelCount <= 0) ||
-            ((startChannel + channelCount) > FPPD_MAX_CHANNELS)) {
+        if (channelCount <= 0) {
             continue;
         }
         model["ChannelCount"] = channelCount;
@@ -426,173 +231,41 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
     SaveJsonToFile(result, filename);
 }
 
-/*
- * Setup the pixel map for this channel block
- */
-void PixelOverlayManager::SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *cb) {
-    LogInfo(VB_CHANNELOUT, "Initializing Channel Memory Map Pixel Map '%s'\n", cb->blockName);
-    
-    if ((!cb->channelCount) ||
-        (!cb->strandsPerString) ||
-        (!cb->stringCount)) {
-        LogErr(VB_CHANNELOUT, "Invalid config for '%s' Memory Map Block\n",
-               cb->blockName);
-        return;
-    }
-    
-    if ((cb->channelCount % 3) != 0) {
-        //        LogInfo(VB_CHANNELOUT, "Memory Map Block '%s' channel count is not divisible by 3\n", cb->blockName);
-        //        LogInfo(VB_CHANNELOUT, "unable to configure pixel map array.\n");
-        return;
-    }
-    
-    int TtoB = (cb->startCorner[0] == 'T') ? 1 : 0;
-    int LtoR = (cb->startCorner[1] == 'L') ? 1 : 0;
-    
-    int channelsPerNode = 3;
-    if (cb->channelCount == cb->stringCount) {
-        //single channel model.. we really don't support this, but let's not crash
-        channelsPerNode = 1;
-    }
-    int stringSize = cb->channelCount / channelsPerNode / cb->stringCount;
-    if (stringSize < 1) {
-        stringSize = 1;
-    }
-    int width = 0;
-    int height = 0;
-    
-    if (cb->orientation == 'H') {
-        // Horizontal Orientation
-        width = stringSize / cb->strandsPerString;
-        if (width == 0) {
-            width = 1;
-        }
-        height = cb->channelCount / channelsPerNode / width;
-        
-        int y = 0;
-        for (y = 0; y < height; y++) {
-            int segment = y % cb->strandsPerString;
-            int x = 0;
-            for (x = 0; x < width; x++) {
-                // Pixel Position in a TL Horizontal wrapping layout
-                // 0 1 2
-                // 3 4 6
-                // 7 8 9
-                int ppos = y * width + x;
-                // Relative Input Pixel 'R' channel
-                int inCh = (cb->startChannel - 1) + (ppos * 3);
-                
-                // X position in output
-                int outX = (LtoR == (segment % 2)) ? width - x - 1 : x;
-                // Y position in output
-                int outY = (TtoB) ? y : height - y - 1;
-                
-                // Relative Mapped Output Pixel 'R' channel
-                int mpos = outY * width + outX;
-                int outCh = (cb->startChannel - 1) + (mpos * 3);
-                
-                // Map the pixel's triplet
-                pixelMap[inCh    ] = outCh;
-                pixelMap[inCh + 1] = outCh + 1;
-                pixelMap[inCh + 2] = outCh + 2;
-            }
-        }
-    } else {
-        // Vertical Orientation
-        height = stringSize / cb->strandsPerString;
-        if (height == 0) {
-            height = 1;
-        }
-        width = cb->channelCount / channelsPerNode / height;
-        
-        int x = 0;
-        for (x = 0; x < width; x++) {
-            int segment = x % cb->strandsPerString;
-            int y = 0;
-            for (y = 0; y < height; y++) {
-                // Pixel Position in a TL Horizontal wrapping layout
-                // 0 1 2
-                // 3 4 6
-                // 7 8 9
-                int ppos = y * width + x;
-                // Relative Input Pixel 'R' channel
-                int inCh = (cb->startChannel - 1) + (ppos * 3);
-                
-                // X position in output
-                int outX = (LtoR) ? x : width - x - 1;
-                // Y position in output
-                int outY = (TtoB == (segment % 2)) ? height - y - 1 : y;
-                
-                // Relative Mapped Output Pixel 'R' channel
-                int mpos = outX * height + outY;
-                int outCh = (cb->startChannel - 1) + (mpos * 3);
-                
-                // Map the pixel's triplet
-                pixelMap[inCh    ] = outCh;
-                pixelMap[inCh + 1] = outCh + 1;
-                pixelMap[inCh + 2] = outCh + 2;
-            }
-        }
-    }
-    LogInfo(VB_CHANNELOUT, "Initialization complete for block '%s'\n", cb->blockName);
+bool PixelOverlayManager::hasActiveOverlays() {
+    return numActive > 0;
 }
 
+void PixelOverlayManager::modelStateChanged(PixelOverlayModel *m, const PixelOverlayState &old, const PixelOverlayState &state) {
+    if (old.getState() == 0) {
+        //enabling, add
+        std::unique_lock<std::mutex> lock(activeModelsLock);
+        activeModels.push_back(m);
+        numActive++;
+    } else if (state.getState() == 0) {
+        //disabling, remove
+        std::unique_lock<std::mutex> lock(activeModelsLock);
+        activeModels.remove(m);
+        numActive--;
+    }
+    if (numActive > 0) {
+        StartChannelOutputThread();
+    }
+}
 
-void PixelOverlayManager::OverlayMemoryMap(char *chanData) {
-    if ((!ctrlHeader) ||
-        (!ctrlHeader->totalBlocks && !ctrlHeader->testMode)) {
+void PixelOverlayManager::doOverlays(uint8_t *channels) {
+    if (numActive == 0) {
         return;
     }
-    
-    int i = 0;
-    FPPChannelMemoryMapControlBlock *cb =
-    (FPPChannelMemoryMapControlBlock*)(ctrlMap +
-                                       sizeof(FPPChannelMemoryMapControlHeader));
-    
-    if (ctrlHeader->testMode) {
-        memcpy(chanData, chanDataMap, FPPD_MAX_CHANNELS);
-    } else {
-        for (i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-            int active = cb->isActive;
-
-            if (((active == 2) || (active == 3)) &&
-                (!IsEffectRunning()) &&
-                (!sequence->IsSequenceRunning())) {
-                active = 1;
-            }
-
-            if (active == 1) { // Active - Opaque
-                memcpy(chanData + cb->startChannel - 1,
-                       chanDataMap + cb->startChannel - 1, cb->channelCount);
-            } else if (active == 2) { // Active - Transparent
-                char *src = chanDataMap + cb->startChannel - 1;
-                char *dst = chanData + cb->startChannel - 1;
-                
-                int j = 0;
-                for (j = 0; j < cb->channelCount; j++) {
-                    if (*src)
-                    *dst = *src;
-                    src++;
-                    dst++;
-                }
-            } else if (active == 3) { // Active - Transparent RGB
-                char *src = chanDataMap + cb->startChannel - 1;
-                char *dst = chanData + cb->startChannel - 1;
-                
-                int j = 0;
-                for (j = 0; j < cb->channelCount; j += 3) {
-                    if (src[0] || src[1] || src[2])
-                    {
-                        dst[0] = src[0];
-                        dst[1] = src[1];
-                        dst[2] = src[2];
-                    }
-                    src += 3;
-                    dst += 3;
-                }
-            }
+    std::unique_lock<std::mutex> lock(activeModelsLock);
+    for (auto m : activeModels) {
+        m->doOverlay(channels);
+    }
+    for (auto &m: activeRanges) {
+        for (int s = m.start; s <= m.end; s++) {
+            channels[s] = m.value;
         }
     }
+    lock.unlock();
     std::unique_lock<std::mutex> l(threadLock);
     while (!afterOverlayModels.empty()) {
         PixelOverlayModel *m = afterOverlayModels.front();
@@ -603,25 +276,6 @@ void PixelOverlayManager::OverlayMemoryMap(char *chanData) {
     }
 }
 
-
-int PixelOverlayManager::UsingMemoryMapInput() {
-    if (!ctrlHeader) {
-        return 0;
-    }
-    if (ctrlHeader->testMode) {
-        return 1;
-    }
-    FPPChannelMemoryMapControlBlock *cb =
-        (FPPChannelMemoryMapControlBlock*)(ctrlMap +
-                                       sizeof(FPPChannelMemoryMapControlHeader));
-
-    for (int i = 0; i < ctrlHeader->totalBlocks; i++, cb++) {
-        if (cb->isActive) { // Active
-            return 1;
-        }
-    }
-    return false;
-}
 PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
     auto a = models.find(name);
     if (a == models.end()) {
@@ -629,7 +283,6 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
     }
     return a->second;
 }
-
 
 void PixelOverlayManager::SendHomeAssistantDiscoveryConfig() {
     std::unique_lock<std::mutex> lock(modelsLock);
@@ -667,7 +320,7 @@ void PixelOverlayManager::LightMessageHandler(const std::string &topic, const st
         std::string newState = toUpperCopy(s["state"].asString());
 
         if (newState == "OFF") {
-            m->fill(0, 0, 0);
+            m->clear();
             std::this_thread::sleep_for(std::chrono::milliseconds(250));
             m->setState(PixelOverlayState("Disabled"));
 
@@ -703,7 +356,8 @@ void PixelOverlayManager::LightMessageHandler(const std::string &topic, const st
             int g = (int)(1.0 * s["color"]["g"].asInt() * brightness / 255);
             int b = (int)(1.0 * s["color"]["b"].asInt() * brightness / 255);
 
-            m->fill(r, g, b);
+            m->fillOverlayBuffer(r, g, b);
+            m->flushOverlayBuffer();
 
             m->setState(PixelOverlayState("Enabled"));
         }
@@ -723,7 +377,6 @@ void PixelOverlayManager::LightMessageHandler(const std::string &topic, const st
         mqtt->Publish(topic, state);
     }
 }
-
 
 static bool isTTF(const std::string &mainStr)
 {
@@ -774,6 +427,13 @@ void PixelOverlayManager::loadFonts() {
         free(mlfonts);
         fontsLoaded = true;
     }
+}
+ 
+const std::string &PixelOverlayManager::mapFont(const std::string &f) {
+    if (fonts[f] != "") {
+        return fonts[f];
+    }
+    return f;
 }
 
 const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET(const httpserver::http_request &req) {
@@ -850,8 +510,16 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
                 } else {
                     m->toJson(result);
                     result["isActive"] = (int)m->getState().getState();
-                    result["isLocked"] = m->getRunningEffect() != nullptr; //compatibility
-                    result["effectRunning"] = m->getRunningEffect() != nullptr;
+                    if (m->getRunningEffect()) {
+                        result["effectName"] = m->getRunningEffect()->name();
+                        result["isLocked"] = true;
+                        result["effectRunning"] = true;
+                    } else {
+                        result["isLocked"] = false; //compatibility
+                        result["effectRunning"] = false;
+                    }
+                    result["width"] = m->getWidth();
+                    result["height"] = m->getHeight();
                 }
             }
         } else if (p2 == "effects") {
@@ -936,9 +604,16 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                     Json::Value root;
                     if (LoadJsonFromString(req.get_content(), root)) {
                         if (root.isMember("RGB")) {
-                            m->fill(root["RGB"][0].asInt(),
-                                    root["RGB"][1].asInt(),
-                                    root["RGB"][2].asInt());
+                            m->fillOverlayBuffer(root["RGB"][0].asInt(),
+                                                 root["RGB"][1].asInt(),
+                                                 root["RGB"][2].asInt());
+                            m->flushOverlayBuffer();
+                            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
+                        } else if (root.isMember("Value")) {
+                            m->fillOverlayBuffer(root["Value"].asInt(),
+                                                 root["Value"].asInt(),
+                                                 root["Value"].asInt());
+                            m->flushOverlayBuffer();
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
@@ -996,18 +671,92 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_PUT
                             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
                         }
                     }
+                } else {
+                    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Model Command Not found " + p4, 404));
+                }
+            } else {
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Model Not found " + p3, 404));
+            }
+        } else if (p2 == "range") {
+            int val = -1;
+            bool deleteAll = false;
+            if (p4 == "") {
+                Json::Value root;
+                if (LoadJsonFromString(req.get_content(), root)) {
+                    if (root.isMember("delete") && root["delete"].asBool()) {
+                        val = -1;
+                    } else if (root.isMember("deleteAll") && root["deleteAll"].asBool()) {
+                        std::unique_lock<std::mutex> lock(activeModelsLock);
+                        int sz = activeRanges.size();
+                        activeRanges.clear();
+                        numActive -= sz;
+                        lock.unlock();
+                        if (numActive == 0) {
+                            numActive++;
+                            std::this_thread::sleep_for(std::chrono::milliseconds(125));
+                            numActive--;
+                        }
+                        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
+                    } else if (root.isMember("Value")) {
+                        val = root["Value"].asInt();
+                    }
+                }
+            } else if (p4 != "delete") {
+                val = std::stoi(p4, nullptr, 10);
+            }
+
+            while (p3.size()) {
+                std::size_t pos = 0;
+                int start = std::stoi(p3, &pos, 10);
+                int end = start;
+                p3 = p3.substr(pos);
+                if (p3.size() && p3[0] == '-') {
+                    p3 = p3.substr(1);
+                    end = std::stoi(p3, &pos, 10);
+                    p3 = p3.substr(pos);
+                }
+                int startActive = numActive;
+                if (start > 0 && end >= start) {
+                    end--;
+                    start--;
+                    std::unique_lock<std::mutex> lock(activeModelsLock);
+                    auto it = activeRanges.begin();
+                    bool found = false;
+                    while (it != activeRanges.end()) {
+                        if (it->start == start && it->end == end) {
+                            found = true;
+                            if (val >= 0) {
+                                it->value = val;
+                                it++;
+                            } else {
+                                activeRanges.erase(it);
+                                it = activeRanges.begin();
+                                numActive--;
+                            }
+                        } else {
+                            it++;
+                        }
+                    }
+                    if (!found) {
+                        activeRanges.push_back(OverlayRange(start, end, val));
+                        numActive++;
+                    }
+                }
+                //skip the ','
+                if (p3.size()) {
+                    p3 = p3.substr(1);
+                }
+                if (numActive == 0 && startActive) {
+                    //removed some, may need to wait to make sure the new values are output
+                    numActive++;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(125));
+                    numActive--;
                 }
             }
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         }
     }
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("PUT Not found " + req.get_path(), 404));
-}
-
-const std::string &PixelOverlayManager::mapFont(const std::string &f) {
-    if (fonts[f] != "") {
-        return fonts[f];
-    }
-    return f;
 }
 
 
@@ -1087,9 +836,10 @@ public:
                 m->setState(PixelOverlayState(state));
             }
             unsigned int x = PixelOverlayManager::mapColor(color);
-            m->fill((x >> 16) & 0xFF,
-                    (x >> 8) & 0xFF,
-                    x & 0xFF);
+            m->fillOverlayBuffer((x >> 16) & 0xFF,
+                                 (x >> 8) & 0xFF,
+                                 x & 0xFF);
+            m->flushOverlayBuffer();
             return std::make_unique<Command::Result>("Model Filled");
         }
         return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
@@ -1171,7 +921,6 @@ void PixelOverlayManager::RegisterCommands() {
     if (models.empty()) {
         return;
     }
-    
     CommandManager::INSTANCE.addCommand(new EnableOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new FillOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new TextOverlayCommand(this));
@@ -1238,3 +987,4 @@ void PixelOverlayManager::addPeriodicUpdate(int32_t initialDelayMS, PixelOverlay
     l.unlock();
     threadCV.notify_all();
 }
+

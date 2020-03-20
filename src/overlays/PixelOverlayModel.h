@@ -20,7 +20,7 @@
 
 #include <thread>
 #include <mutex>
-#include "PixelOverlayControl.h"
+#include <jsoncpp/json/json.h>
 
 class RunningEffect;
 
@@ -33,7 +33,7 @@ public:
         TransparentRGB
     };
 
-    PixelOverlayState() = default;
+    PixelOverlayState() : state(PixelState::Disabled) {}
     constexpr PixelOverlayState(PixelState v) : state(v) {}
     constexpr PixelOverlayState(int v) : state((PixelState)v) {}
     PixelOverlayState(const std::string &v) {
@@ -60,10 +60,7 @@ private:
 
 class PixelOverlayModel {
 public:
-    PixelOverlayModel(FPPChannelMemoryMapControlBlock *block,
-                      const std::string &name,
-                      char         *chanDataMap,
-                      uint32_t     *pixelMap);
+    PixelOverlayModel(const Json::Value &config);
     ~PixelOverlayModel();
 
     const std::string &getName() const {return name;};
@@ -75,19 +72,14 @@ public:
     PixelOverlayState getState() const;
     void setState(const PixelOverlayState &state);
     
-    void setData(const uint8_t *data);
-    void clear() { fill(0, 0, 0); }
-    void fill(int r, int g, int b);
+    void doOverlay(uint8_t *channels);
+    
+    void setData(const uint8_t *data); // full RGB data, width*height*3
 
-    void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
-    void setPixelValue(int x, int y, int r, int g, int b);    
     
     int getStartChannel() const;
     int getChannelCount() const;
-    bool isHorizontal() const;
-    int getNumStrings() const;
-    int getStrandsPerString() const;
-    std::string getStartCorner() const;
+
     
     void toJson(Json::Value &v);
     void getDataJson(Json::Value &v);
@@ -95,10 +87,17 @@ public:
     
     uint8_t *getOverlayBuffer();
     void clearOverlayBuffer();
+    void fillOverlayBuffer(int r, int g, int b);
     void setOverlayPixelValue(int x, int y, int r, int g, int b);
     void flushOverlayBuffer();
 
-    FPPChannelMemoryMapControlBlock *getBlock() { return block; }
+    void clear() { clearOverlayBuffer(); flushOverlayBuffer(); }
+    void fill(int r, int g, int b) {
+        fillOverlayBuffer(r, g, b);
+        flushOverlayBuffer();
+    }
+    void setPixelValue(int x, int y, int r, int g, int b);
+
     
     bool applyEffect(bool autoEnable, const std::string &effect, const std::vector<std::string> &args);
     void setRunningEffect(RunningEffect *r, int32_t firstUpdateMS);
@@ -107,12 +106,27 @@ public:
     int32_t updateRunningEffects();
 
 private:
+    void setValue(uint8_t v, int startChannel = -1, int endChannel = -1);
+
+    
+    
+    Json::Value config;
     std::string name;
     int width, height;
-    FPPChannelMemoryMapControlBlock *block;
-    char         *chanDataMap;
-    uint32_t     *pixelMap;
-    uint8_t *overlayBuffer;
+    PixelOverlayState state;
+    int startChannel;
+    int channelCount;
+    
+    std::vector<uint32_t> channelMap;
+    uint8_t      *channelData;
+    
+    struct OverlayBufferData {
+        uint32_t width;
+        uint32_t height;
+        uint32_t flags;
+        uint8_t  data[4];
+    } __attribute__((__packed__));
+    OverlayBufferData *overlayBufferData;
 
     std::mutex   effectLock;
     RunningEffect *runningEffect;

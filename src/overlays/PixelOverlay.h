@@ -24,11 +24,12 @@
 #include <map>
 #include <mutex>
 #include <thread>
+#include <atomic>
 #include <condition_variable>
 
-#include "PixelOverlayControl.h"
-
+class PixelOverlayState;
 class PixelOverlayModel;
+class OverlayRange;
 
 class PixelOverlayManager : public httpserver::http_resource {
 public:
@@ -38,8 +39,9 @@ public:
     virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request &req) override;
     virtual const std::shared_ptr<httpserver::http_response> render_PUT(const httpserver::http_request &req) override;
 
-    void OverlayMemoryMap(char *channelData);
-    int UsingMemoryMapInput();
+    bool hasActiveOverlays();
+    void doOverlays(uint8_t *channels);
+    void modelStateChanged(PixelOverlayModel *, const PixelOverlayState &old, const PixelOverlayState &state);
     
     PixelOverlayModel* getModel(const std::string &name);
     
@@ -57,22 +59,21 @@ private:
     PixelOverlayManager();
     ~PixelOverlayManager();
     
-    bool createChannelDataMap();
-    bool createControlMap();
-    bool createPixelMap();
-    void loadModelMap();
-    void SetupPixelMapForBlock(FPPChannelMemoryMapControlBlock *b);
     void ConvertCMMFileToJSON();
+    void loadModelMap();
     void RegisterCommands();
+    
+    std::atomic_int numActive;
+    std::list<PixelOverlayModel*> activeModels;
+    std::list<OverlayRange> activeRanges;
+    std::mutex activeModelsLock;
+
+    
     
     std::map<std::string, PixelOverlayModel*> models;
     std::map<std::string, std::string> fonts;
     bool fontsLoaded = false;
     std::mutex   modelsLock;
-    char         *ctrlMap = nullptr;
-    char         *chanDataMap = nullptr;
-    uint32_t     *pixelMap = nullptr;
-    
     
     void doOverlayModelEffects();
     std::thread *updateThread = nullptr;
@@ -81,9 +82,7 @@ private:
     std::condition_variable threadCV;
     std::map<uint64_t, std::list<PixelOverlayModel*>> updates;
     std::list<PixelOverlayModel*> afterOverlayModels;
-    
-    FPPChannelMemoryMapControlHeader *ctrlHeader = nullptr;
-    
+        
     void loadFonts();
     
     friend class OverlayCommand;

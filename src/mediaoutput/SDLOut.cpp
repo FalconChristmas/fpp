@@ -1081,7 +1081,8 @@ int SDLOutput::Stop(void)
         if (data->video_stream_idx >= 0) {
             data->video_stream_idx = -1;
             if (data->videoOverlayModel) {
-                data->videoOverlayModel->clear();
+                data->videoOverlayModel->clearOverlayBuffer();
+                data->videoOverlayModel->flushOverlayBuffer();
                 data->videoOverlayModel->setState(PixelOverlayState::Disabled);
             }
         }

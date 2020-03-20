@@ -775,7 +775,7 @@ void MainLoop(void)
 		// Check to see if we need to start up the output thread.
 		if ((getFPPmode() != BRIDGE_MODE) &&
             (!ChannelOutputThreadIsRunning()) &&
-            ((PixelOverlayManager::INSTANCE.UsingMemoryMapInput()) ||
+            ((PixelOverlayManager::INSTANCE.hasActiveOverlays()) ||
              (ChannelTester::INSTANCE.Testing()) ||
 			 (getAlwaysTransmit()))) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
