@@ -26,7 +26,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <thread>
-#include <filesystem>
+
+#if __GNUC__ >= 8
+#  include <filesystem>
+using namespace std::filesystem;
+#else
+#  include <experimental/filesystem>
+using namespace std::experimental::filesystem;
+#endif
+
 #include <sys/wait.h>
 
 #include "log.h"
@@ -401,7 +409,7 @@ int PlaylistEntryMedia::GetFileList(void)
     else if (m_fileMode == "randomAudio")
         dir = getMusicDirectory();
 
-    for (auto &cp : std::filesystem::recursive_directory_iterator(dir)) {
+    for (auto &cp : recursive_directory_iterator(dir)) {
         std::string entry = cp.path().string();
         m_files.push_back(entry);
     }

@@ -26,7 +26,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <filesystem>
+
+#if __GNUC__ >= 8
+#  include <filesystem>
+using namespace std::filesystem;
+#else
+#  include <experimental/filesystem>
+using namespace std::experimental::filesystem;
+#endif
 
 #include "common.h"
 #include "log.h"
@@ -204,16 +211,15 @@ void PlaylistEntryImage::SetFileList(void)
 
 	m_files.clear();
 
-    
-	if (std::filesystem::is_regular_file(m_imagePath))
+	if (is_regular_file(m_imagePath))
 	{
 		m_files.push_back(m_imagePath);
 		return;
 	}
 
-	if (std::filesystem::is_directory(m_imagePath))
+	if (is_directory(m_imagePath))
 	{
-        for (auto &cp : std::filesystem::recursive_directory_iterator(m_imagePath)) {
+        for (auto &cp : recursive_directory_iterator(m_imagePath)) {
             std::string entry = cp.path().string();
             m_files.push_back(entry);
         }
