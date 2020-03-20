@@ -24,14 +24,14 @@ endif
 $(shell echo "Building FPP on '$(ARCH)' platform" 1>&2)
 
 
-GCCVERSIONGTEQ4:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 8)
+GCCVERSIONGTEQ8:=$(shell expr `gcc -dumpversion | cut -f1 -d.` \>= 8)
 
 ifeq '$(SRCDIR)' '' 
     SRCDIR=/opt/fpp/src
 endif
 
 # Common CFLAGS
-ifeq "$(GCCVERSIONGTEQ4)" "1"
+ifeq "$(GCCVERSIONGTEQ8)" "1"
 OPTIMIZE_FLAGS=-O3 -Wno-psabi
 debug: OPTIMIZE_FLAGS=-g -Wno-psabi
 CXXFLAGS += -std=gnu++2a
