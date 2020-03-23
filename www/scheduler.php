@@ -135,7 +135,7 @@ function getSchedule()
 
 function ReloadSchedule()
 {
-    getSchedule();
+    reloadPage();
 }
 
 
