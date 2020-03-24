@@ -9,7 +9,6 @@
 BINDIR=$(cd $(dirname $0) && pwd)
 
 . ${BINDIR}/common
-. ${BINDIR}/functions
 
 
 RTCDEVICE="/dev/rtc0"
@@ -78,8 +77,9 @@ setupRTC () {
     esac
 }
 
-setupRTC
-
+if [ ! -e ${RTCDEVICE} ]; then
+    setupRTC
+fi
 
 if [ -e ${RTCDEVICE} ]; then
     if [[ $1 == "set" ]]

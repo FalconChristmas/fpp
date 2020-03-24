@@ -105,7 +105,7 @@ static void put_file_contents(const std::string &path, const uint8_t *data, int 
     chmod(path.c_str(), mode);
 }
 static uint8_t *get_file_contents(const std::string &path, int &len) {
-    FILE *fp = fopen(path.c_str(), "wb");
+    FILE *fp = fopen(path.c_str(), "rb");
     fseek(fp, 0L, SEEK_END);
     len = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
@@ -247,10 +247,12 @@ static void processBootConfig(Json::Value &bootConfig) {
         for (int x = 0; x < bootConfig["append"].size(); x++) {
             std::string v = bootConfig["append"][x].asString();
             size_t pos = current.find(v);
-            while (pos == std::string::npos) {
+            if (pos == std::string::npos) {
                 // If not  found then append it
+                printf("Adding config option: %s\n", v.c_str());
                 current += "\n";
                 current += v;
+                current += "\n";
             }
         }
     }
@@ -516,6 +518,12 @@ bool fpp_detectCape() {
                     }
                 }
             }
+            if (result.isMember("bootConfig")) {
+                //if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
+                //we need to process them and see if we have to apply the changes and reboot or not
+                processBootConfig(result["bootConfig"]);
+            }
+
             if (result.isMember("removeSettings")) {
                 if (lines.empty()) {
                     readSettingsFile(lines);
@@ -532,23 +540,27 @@ bool fpp_detectCape() {
                     }
                 }
             }
-            if (result.isMember("i2cModules")) {
-                //if the cape has i2c devices on it that need a module loaded, load them at this
+            if (result.isMember("i2cDevices")) {
+                //if the cape has i2c devices on it that need to be registered, load them at this
                 //time so they will be available later
-                for (auto &key : result["i2cModules"].getMemberNames()) {
-                    std::string v = result["i2cModules"][key].asString();
+                for (int x = 0; x < result["i2cDevices"].size(); x++) {
                     
+                    std::string v = result["i2cDevices"][x].asString();
+
                     std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
                     int f = open(newDevFile.c_str(), O_WRONLY);
-                    std::string newv = string_sprintf("%s %s", v.c_str(), key.c_str());
+                    std::string newv = string_sprintf("%s", v.c_str());
                     write(f, newv.c_str(), newv.size());
                     close(f);
                 }
             }
-            if (result.isMember("bootConfig")) {
-                //if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
-                //we need to process them and see if we have to apply the changes and reboot or not
-                processBootConfig(result["bootConfig"]);
+            if (result.isMember("modules")) {
+                //if the cape requires kernel modules, load them at this
+                //time so they will be available later
+                for (int x = 0; x < result["modules"].size(); x++) {                    
+                    std::string v = "/sbin/modprobe " + result["modules"][x].asString();
+                    system(v.c_str());
+                }
             }
 
             if (settingsChanged) {
