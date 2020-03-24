@@ -540,7 +540,7 @@ bool fpp_detectCape() {
                     
                     std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
                     int f = open(newDevFile.c_str(), O_WRONLY);
-                    std::string newv = string_sprintf("%s %s", v.c_str(), v.c_str());
+                    std::string newv = string_sprintf("%s %s", v.c_str(), key.c_str());
                     write(f, newv.c_str(), newv.size());
                     close(f);
                 }
