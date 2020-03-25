@@ -170,14 +170,16 @@ foreach($gpiojson as $gpio) {
 <?
 if ($gpio['supportsPullUp'] || $gpio['supportsPullDown']) {
 ?>
-        <td>
+            <td>
             <select id='gpio_<?= $pinNameClean ?>_PullUpDown' <? if (!$gpio['supportsPullUp'] && !$gpio['supportsPullDown']) echo "style='display:none;'"; ?> >
             <option value='gpio'>None/External</option>
             <? if ($gpio['supportsPullUp']) echo "<option value='gpio_pu'>Pull Up</option>\n"; ?>
             <? if ($gpio['supportsPullDown']) echo "<option value='gpio_pd'>Pull Down</option>\n"; ?>
         </select>
-        </td>
+    </td>
 <?
+} else if ($pCount > 0) {
+    echo "<td></td>";
 }
 ?>
         <td>

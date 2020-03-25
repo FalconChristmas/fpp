@@ -477,11 +477,16 @@ function populatePixelStringOutputs(data) {
                 var expansions = [];
                 var expansionType = 0;
                 var inExpansion = false;
+                var sourceOutputCount = output.outputCount;
+                if (output.outputs != null) {
+                    sourceOutputCount = output.outputs.length;
+                }
+                
                 for (var o = 0; o < outputCount; o++)
                 {
                     var port = {"differentialType" : 0, "expansionType" : 0};
                     var loops = 1;
-                    if (o < output.outputCount) {
+                    if (o < sourceOutputCount) {
                         port = output.outputs[o];
                     }
                     if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
@@ -543,7 +548,7 @@ function populatePixelStringOutputs(data) {
                             }
                             for (var sr = 0; sr < 4; sr++) {
                                 var o2 = o + sr;
-                                if (o2 < output.outputCount) {
+                                if (o2 < sourceOutputCount) {
                                     var port = output.outputs[o2];
                                     var strings = port.virtualStrings;
                                     if (l == 1) {
@@ -572,7 +577,7 @@ function populatePixelStringOutputs(data) {
                         }
                         o+= 3;
                     } else {
-                        if (o < output.outputCount) {
+                        if (o < sourceOutputCount && output.outputs[o].virtualStrings != null) {
                             var port = output.outputs[o];
                             for (var v = 0; v < port.virtualStrings.length; v++) {
                                 var vs = port.virtualStrings[v];

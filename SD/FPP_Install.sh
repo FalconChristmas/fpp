@@ -1025,9 +1025,6 @@ a2enmod headers
 # Fix name of Apache default error log so it gets rotated by our logrotate config
 sed -i -e "s/error\.log/apache2-base-error.log/" /etc/apache2/apache2.conf
 
-# Disable private /tmp directory
-sed -i -e "s/PrivateTmp=true/PrivateTmp=false/" /lib/systemd/system/apache2.service
-
 # Disable default access logs
 rm /etc/apache2/conf-enabled/other-vhosts-access-log.conf
 
@@ -1080,6 +1077,11 @@ apt-get clean
 #######################################
 echo "FPP - Configuring FPP startup"
 cp /opt/fpp/etc/systemd/*.service /lib/systemd/system/
+if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
+    # Beagles don't have hdmi/video out so no need to wait for getty before starting up
+    sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
+fi
+
 systemctl daemon-reload
 systemctl enable fppinit.service
 systemctl enable fppcapedetect.service

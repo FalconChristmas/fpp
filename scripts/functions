@@ -365,15 +365,19 @@ populateCCACHE() {
     FPPBASEVERSION=$(</etc/fpp/rfs_version)
     MAJVER=${FPPBASEVERSION:1:1}
     MINVER=${FPPBASEVERSION:3:2}
-    if [[ ${MAJVER} -ge 3 && ${MINVER} -ge 3 ]]; then
+    if [[ $MINVER == *"-" ]]; then
+        MINVER=${FPPBASEVERSION:3:1}
+    fi
+    if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
+        PLAT=Pi
+    elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
+        PLAT=BBB
+    else
+        return 0
+    fi
+    if [[ ${MAJVER} -gt 3 || ${MAJVER} -eq 3 && ${MINVER} -ge 3 ]]; then
         #at least v3.3
         BRANCH=$(git branch --list | grep \* | colrm 1 2)
-        if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-            PLAT=Pi
-        elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
-            PLAT=BBB
-        fi
-        
         
         FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
         echo $FILETOGET

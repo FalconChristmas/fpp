@@ -212,6 +212,46 @@ static void getFileList(const std::string &basepath, const std::string &path, st
         files.push_back(path);
     }
 }
+
+static void disableOutputs(Json::Value &disables) {
+    for (int x = 0; x < disables.size(); x++) {
+        std::string file = disables[x]["file"].asString();
+        std::string type = disables[x]["type"].asString();
+        
+        std::string fullFile = "/home/fpp/media/" + file;
+        if (file_exists(fullFile)) {
+            Json::Value result;
+            Json::CharReaderBuilder builder;
+            Json::CharReader *reader = builder.newCharReader();
+            std::string errors;
+            std::ifstream istream(fullFile);
+            std::stringstream buffer;
+            buffer << istream.rdbuf();
+            istream.close();
+            
+            std::string str = buffer.str();
+            bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &result, &errors);
+            if (success) {
+                bool changed = false;
+                if (result.isMember("channelOutputs")) {
+                    for (int co = 0; co < result["channelOutputs"].size(); co++) {
+                        if (result["channelOutputs"][co]["type"].asString() == type) {
+                            if (result["channelOutputs"][co]["enabled"].asInt() == 1) {
+                                result["channelOutputs"][co]["enabled"] = 0;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                if (changed) {
+                    Json::StreamWriterBuilder wbuilder;
+                    std::string resultStr = Json::writeString(wbuilder, result);
+                    put_file_contents(fullFile, (const uint8_t*)resultStr.c_str(), resultStr.size());
+                }
+            }
+        }
+    }
+}
 static void processBootConfig(Json::Value &bootConfig) {
 #if defined(PLATFORM_PI)
     const std::string fileName = "/boot/config.txt";
@@ -271,11 +311,7 @@ static void processBootConfig(Json::Value &bootConfig) {
         remove("/.fppcapereboot");
     }
 }
-
-static void copyIfNotExist(const std::string &src, const std::string &target) {
-    if (file_exists(target)) {
-        return;
-    }
+static void copyFile(const std::string &src, const std::string &target) {
     int s, t;
     s = open(src.c_str(), O_RDONLY);
     if (s == -1) {
@@ -304,7 +340,12 @@ static void copyIfNotExist(const std::string &src, const std::string &target) {
         write(t, buf, l);
     }
 }
-
+static void copyIfNotExist(const std::string &src, const std::string &target) {
+    if (file_exists(target)) {
+        return;
+    }
+    copyFile(src, target);
+}
 bool fpp_detectCape() {
     int bus = I2C_DEV;
     waitForI2CBus(bus);
@@ -406,7 +447,8 @@ bool fpp_detectCape() {
             switch (flag) {
                 case 0:
                 case 1:
-                case 2: {
+                case 2:
+                case 3: {
                     int l = fread(buffer, 1, flen, file);
                     put_file_contents(path, buffer, flen);
                     char *s1 = strdup(path.c_str());
@@ -418,6 +460,10 @@ bool fpp_detectCape() {
                         unlink(path.c_str());
                     } else if (flag == 2) {
                         std::string cmd = "cd " + dir + "; tar -xzf " + path + " 2>&1";
+                        exec(cmd);
+                        unlink(path.c_str());
+                    } else if (flag == 3) {
+                        std::string cmd = "cd " + dir + "; tar -xjf " + path + " 2>&1";
                         exec(cmd);
                         unlink(path.c_str());
                     }
@@ -540,6 +586,28 @@ bool fpp_detectCape() {
                     }
                 }
             }
+            if (result.isMember("modules")) {
+                //if the cape requires kernel modules, load them at this
+                //time so they will be available later
+                for (int x = 0; x < result["modules"].size(); x++) {
+                    std::string v = "/sbin/modprobe " + result["modules"][x].asString();
+                    exec(v.c_str());
+                }
+            }
+            if (result.isMember("copyFiles")) {
+                //if the cape requires certain files copied into place (asoundrc for example)
+                for (auto src : result["copyFiles"].getMemberNames()) {
+                    std::string target = result["copyFiles"][src].asString();
+                    
+                    if (src[0] != '/') {
+                        src = "/home/fpp/media/" + src;
+                    }
+                    if (target[0] != '/') {
+                        target = "/home/fpp/media/" + target;
+                    }
+                    copyFile(src, target);
+                }
+            }
             if (result.isMember("i2cDevices")) {
                 //if the cape has i2c devices on it that need to be registered, load them at this
                 //time so they will be available later
@@ -554,15 +622,9 @@ bool fpp_detectCape() {
                     close(f);
                 }
             }
-            if (result.isMember("modules")) {
-                //if the cape requires kernel modules, load them at this
-                //time so they will be available later
-                for (int x = 0; x < result["modules"].size(); x++) {                    
-                    std::string v = "/sbin/modprobe " + result["modules"][x].asString();
-                    system(v.c_str());
-                }
+            if (result.isMember("disableOutputs")) {
+                disableOutputs(result["disableOutputs"]);
             }
-
             if (settingsChanged) {
                 writeSettingsFile(lines);
             }

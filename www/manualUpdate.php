@@ -40,6 +40,7 @@ if (file_exists("/.dockerenv")) {
 } else {
     exec($SUDO . " systemctl restart fppd");
 }
+exec($SUDO . " rm -f /tmp/cache_*.cache");
 ?>
 ==========================================================================
 Update Complete.
