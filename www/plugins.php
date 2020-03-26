@@ -206,7 +206,9 @@ function LoadPlugin(data, insert = false) {
 	{
 		if ((CompareFPPVersions(data.versions[i].minFPPVersion, getFPPVersionTriplet()) <= 0) &&
 			((data.versions[i].maxFPPVersion == "0") || (data.versions[i].maxFPPVersion == "0.0") ||
-			 (CompareFPPVersions(data.versions[i].maxFPPVersion, getFPPVersionTriplet()) > 0)))
+			 (CompareFPPVersions(data.versions[i].maxFPPVersion, getFPPVersionTriplet()) > 0)) &&
+            ((!data.versions[i].hasOwnProperty('platforms')) ||
+             (data.versions[i].platforms.includes(settings['Platform']))))
 		{
 			compatibleVersion = i;
 		}
@@ -271,7 +273,22 @@ function LoadPlugin(data, insert = false) {
 				html += ' &gt; v' + data.versions[i].minFPPVersion;
 			else if (data.versions[i].maxFPPVersion > 0)
 				html += ' &lt; v' + data.versions[i].maxFPPVersion;
-        
+
+            if (data.versions[i].hasOwnProperty('platforms')) {
+                var platforms = data.versions[i].platforms;
+                html += " ";
+                for (var p = 0; p < platforms.length; p++) {
+                    if (p != 0)
+                        html += "/";
+                    if (platforms[p] == 'Raspberry Pi') {
+                        html += "Pi";
+                    } else if (platforms[p] == 'BeagleBone Black') {
+                        html += "BBB";
+                    } else {
+                        html += platforms[p];
+                    }
+                }
+            }
 		}
 	}
 
@@ -289,7 +306,7 @@ function LoadPlugin(data, insert = false) {
 		$('#installedPlugins').append(html);
 
 		if (compatibleVersion == -1)
-			$('#installedPlugins').append('<tr><td colspan="7" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version.</td></tr>');
+			$('#installedPlugins').append('<tr><td colspan="7" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version or platform.</td></tr>');
 	}
 	else if (data.repoName == 'fpp-plugin-Template')
 	{
