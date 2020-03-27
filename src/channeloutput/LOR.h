@@ -31,7 +31,6 @@ class LOROutput : public ChannelOutputBase {
     virtual ~LOROutput();
     
     virtual int Init(Json::Value config) override;
-    virtual int Init(char *configStr) override;
     
     virtual int Close(void) override;
     

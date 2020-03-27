@@ -344,97 +344,6 @@ function GetUSBRelayOutputConfig(result, cell) {
 	return result;
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// GPIO-attached 74HC595 Shift Register Output
-
-function GPIO595PrintOptionSelect(label, clss, options, currentValue) {
-    var result = "";
-    result += label;
-    result += ": <select class='" + clss + "'>";
-    var i = 0;
-    for (i = 0; i < options.length; i++) {
-        var tmp = options[i].split(":");
-        var opt = tmp[0];
-        var val = tmp[1];
-        
-        result += "<option value='" + val + "'";
-        if (currentValue == val)
-            result += " selected";
-        result += ">" + opt + "</option>";
-    }
-    
-    result += "</select>";
-    return result;
-}
-
-function GPIO595GPIOSelect(currentValue) {
-	var result = "";
-
-    var vals = currentValue;
-    if (Number.isInteger(vals)) {
-        vals = (currentValue.toString() + "-0-0").split("-");
-    } else {
-        vals = currentValue.split("-");
-    }
-    if (vals.length < 3) {
-        vals = "0-0-0".split("-");
-    }
-    var options;
-    <?
-    if ($settings['Platform'] == "Raspberry Pi") {
-    ?>
-        options = "17:17,18:18,22:22,23:23,24:24,27:27".split(",");
-        result += "BCM GPIO Outputs&nbsp;&nbsp;"
-    <?
-    } else if ($settings['Platform'] == "BeagleBone Black") {
-    ?>
-        options = BeagleBoneHeaderPins;
-    <?
-    }
-    ?>
-
-    result += GPIO595PrintOptionSelect("Clock", "clock", options, vals[0]);
-    result += "&nbsp;&nbsp;";
-    result += GPIO595PrintOptionSelect("Data", "data", options, vals[1]);
-    result += "&nbsp;&nbsp;";
-    result += GPIO595PrintOptionSelect("Latch", "latch", options, vals[2]);
-
-	return result;
-}
-
-function NewGPIO595Config() {
-	var config = {};
-
-	config.gpio = "";
-
-	return GPIO595DeviceConfig(config);
-}
-
-function GPIO595DeviceConfig(config) {
-	var result = "";
-
-	result += GPIO595GPIOSelect(config.gpio);
-
-	return result;
-}
-
-function GetGPIO595OutputConfig(result, cell) {
-	$cell = $(cell);
-
-    var clock = $cell.find("select.clock").val();
-    if (clock == "")
-        return "";
-    var data = $cell.find("select.data").val();
-    if (data == "")
-        return "";
-    var latch = $cell.find("select.latch").val();
-    if (latch == "")
-        return "";
-
-    result.gpio = clock + "-" + data + "-" + latch;
-
-	return result;
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // VirtualDisplay (Display Preview on HDMI Output)
@@ -918,8 +827,6 @@ function PopulateChannelOutputTable(data) {
                 newRow += LOROutputConfig(output);
             } else if (type == "SPI-nRF24L01") {
                 newRow += SPInRFDeviceConfig(output);
-            } else if (type == "GPIO-595") {
-                newRow += GPIO595DeviceConfig(output);
             } else if (type == "VirtualDisplay") {
                 newRow += VirtualDisplayConfig(output);
             } else if (type == "HTTPVirtualDisplay") {
@@ -1047,14 +954,6 @@ function SaveOtherChannelOutputs() {
 				return;
 			}
 			maxChannels = 512;
-		} else if (type == "GPIO-595") {
-			config = GetGPIO595OutputConfig(config, $this.find("td:nth-child(6)"));
-			if (config == "") {
-				dataError = 1;
-				DialogError("Save Channel Outputs", "Invalid GPIO-595 Config");
-				return;
-			}
-			maxChannels = 128;
 		} else if (type == "VirtualDisplay") {
 			config = GetVirtualDisplayConfig(config, $this.find("td:nth-child(6)"));
 			if (config == "") {
@@ -1164,9 +1063,6 @@ function AddOtherTypeOptions(row, type) {
 	} else if (type == "SPI-nRF24L01") {
 		config += NewnRFSPIConfig();
 		row.find("td input.count").val("512");
-	} else if (type == "GPIO-595") {
-		config += NewGPIO595Config();
-		row.find("td input.count").val("8");
 	} else if (type == "VirtualDisplay") {
 		config += NewVirtualDisplayConfig();
 		row.find("td input.count").val(FPPD_MAX_CHANNELS);
@@ -1256,12 +1152,6 @@ function AddOtherOutput() {
                 "<option value='Renard'>Renard</option>";
     }
 <?
-	if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
-	{
-?>
-        newRow += "<option value='GPIO-595'>GPIO-595</option>";
-<?
-	}
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
 ?>

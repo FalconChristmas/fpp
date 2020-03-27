@@ -35,7 +35,6 @@ class GPIO595Output : public ThreadedChannelOutputBase {
 	virtual ~GPIO595Output();
 
     virtual int Init(Json::Value config) override;
-	virtual int Init(char *configStr) override;
 
 	virtual int Close(void) override;
 

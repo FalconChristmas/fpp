@@ -359,7 +359,7 @@ class GenericSPIDevice extends OtherBaseDevice {
 // Generic UDP Output
 class GenericUDPDevice extends OtherBase {
     
-    constructor(name="GenericUDP", friendlyName="Generic UDP", maxChannels=300, fixedChans=false, config={address: "", port:8080, tokens:""}) {
+    constructor(name="GenericUDP", friendlyName="Generic UDP", maxChannels=1400, fixedChans=false, config={address: "", port:8080, tokens:""}) {
         super(name, friendlyName, maxChannels, fixedChans, config);
     }
 
@@ -459,6 +459,43 @@ class GPIOOutputDevice extends OtherBase {
     }
 }
 
+class GPIO595OutputDevice extends OtherBase {
+    constructor(name="GPIO-595", friendlyName="GPIO-595", maxChannels=128, fixedChans=false, config={}) {
+        super(name, friendlyName, maxChannels, fixedChans, config);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        var clock = GPIOPins[0];
+        var data = GPIOPins[0];
+        var latch = GPIOPins[0];
+        if (config.clockPin != undefined) {
+            clock = config.clockPin;
+        }
+        if (config.dataPin != undefined) {
+            data = config.dataPin;
+        }
+        if (config.latchPin != undefined) {
+            latch = config.latchPin;
+        }
+
+        result += CreateSelect(GPIOPins, clock, "Clock", "", "clock", "");
+        result += "&nbsp;";
+        result += CreateSelect(GPIOPins, data, "Data", "", "data", "");
+        result += "&nbsp;";
+        result += CreateSelect(GPIOPins, latch, "Latch", "", "latch", "");
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        result.clockPin = parseInt(cell.find("select.clock").val());
+        result.dataPin = parseInt(cell.find("select.data").val());
+        result.latchPin = parseInt(cell.find("select.latch").val());
+        return result;
+    }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //populate the output devices
@@ -468,6 +505,7 @@ var output_modules = [];
 
 if (GPIOPins.size > 0) {
     output_modules.push(new GPIOOutputDevice());
+    output_modules.push(new GPIO595OutputDevice());
 }
 
 

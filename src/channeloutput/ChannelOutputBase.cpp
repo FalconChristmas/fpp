@@ -47,39 +47,15 @@ ChannelOutputBase::~ChannelOutputBase()
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::~ChannelOutputBase()\n");
 }
 
-int ChannelOutputBase::Init(void)
-{
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init()\n");
-
-	if (m_channelCount == -1)
-		m_channelCount = 0;
-
-	DumpConfig();
-	return 1;
-}
-
 int ChannelOutputBase::Init(Json::Value config)
 {
 	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init(JSON)\n");
 	m_outputType = config["type"].asString();
-	return Init();
-}
+    if (m_channelCount == -1)
+        m_channelCount = 0;
 
-int ChannelOutputBase::Init(char *configStr)
-{
-	LogDebug(VB_CHANNELOUT, "ChannelOutputBase::Init('%s')\n", configStr);
-
-	std::vector<std::string> configElems = split(configStr, ';');
-
-	for (int i = 0; i < configElems.size(); i++) {
-		std::vector<std::string> elem = split(configElems[i], '=');
-		if (elem.size() < 2)
-			continue;
-
-		if (elem[0] == "type")
-			m_outputType = elem[1];
-	}
-	return Init();
+    DumpConfig();
+    return 1;
 }
 
 int ChannelOutputBase::Close(void)

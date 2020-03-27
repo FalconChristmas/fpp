@@ -92,46 +92,29 @@ GenericSPIOutput::~GenericSPIOutput()
  */
 
 int GenericSPIOutput::Init(Json::Value config) {
-    char configStr[2048];
-    ConvertToCSV(config, configStr);
-    return Init(configStr);
-}
+	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Init()\n");
 
-int GenericSPIOutput::Init(char *configStr)
-{
-	LogDebug(VB_CHANNELOUT, "GenericSPIOutput::Init('%s')\n", configStr);
-
-	std::vector<std::string> configElems = split(configStr, ';');
-
-	for (int i = 0; i < configElems.size(); i++) {
-		std::vector<std::string> elem = split(configElems[i], '=');
-		if (elem.size() < 2)
-			continue;
-
-		if (elem[0] == "device") {
-			LogDebug(VB_CHANNELOUT, "Using %s for SPI output\n",
-				elem[1].c_str());
-
-			if (elem[1] == "spidev0.0")
-				m_port = 0;
-			else if (elem[1] == "spidev0.1")
-				m_port = 1;
-		} 
-		else if (elem[0] == "speed")
-		{
-			//input page ask for speed in khz
-			int config_speed = 1000*std::atoi(elem[1].c_str());
-			if (config_speed < MIN_SPI_SPEED_HZ)
-				m_speed_hz = MIN_SPI_SPEED_HZ;
-			else if (config_speed > MAX_SPI_SPEED_HZ)
-				m_speed_hz = MAX_SPI_SPEED_HZ;
-			else
-				m_speed_hz = config_speed;
-		}
-	}
+    if (config.isMember("device")) {
+        std::string device = config["device"].asString();
+        if (device == "spidev0.0")
+            m_port = 0;
+        else if (device == "spidev0.1")
+            m_port = 1;
+    }
+    if (config.isMember("speed")) {
+        //input page ask for speed in khz
+        std::string speedStr = config["speed"].asString();
+        int config_speed = 1000*std::atoi(speedStr.c_str());
+        if (config_speed < MIN_SPI_SPEED_HZ)
+            m_speed_hz = MIN_SPI_SPEED_HZ;
+        else if (config_speed > MAX_SPI_SPEED_HZ)
+            m_speed_hz = MAX_SPI_SPEED_HZ;
+        else
+            m_speed_hz = config_speed;
+    }
 
 	if (m_port == -1) {
-		LogErr(VB_CHANNELOUT, "Invalid Config String: %s\n", configStr);
+		LogErr(VB_CHANNELOUT, "Invalid Config for SPI.  Invalid port.\n");
 		return 0;
 	}
 
@@ -145,7 +128,7 @@ int GenericSPIOutput::Init(char *configStr)
 		return 0;
 	}
 
-	return ThreadedChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 

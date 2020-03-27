@@ -43,7 +43,6 @@ class ThreadedChannelOutputBase : public ChannelOutputBase {
 
 
 	virtual int   Init(Json::Value config) override;
-	virtual int   Init(char *configStr) override;
 	virtual int   Close(void) override;
 
     virtual int   SendData(unsigned char *channelData) override;
@@ -56,10 +55,12 @@ class ThreadedChannelOutputBase : public ChannelOutputBase {
   protected:
 	virtual void  DumpConfig(void) override;
 	virtual int   RawSendData(unsigned char *channelData) = 0;
+    virtual void  WaitTimedOut() {}
 	int           StartOutputThread(void);
 	int           StopOutputThread(void);
 	int           SendOutputBuffer(void);
 
+    unsigned int     m_maxWait;
 	unsigned int     m_threadIsRunning;
 	unsigned int     m_runThread;
 	volatile unsigned int     m_dataWaiting;

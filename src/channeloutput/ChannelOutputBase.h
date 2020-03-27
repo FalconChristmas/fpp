@@ -43,7 +43,6 @@ class ChannelOutputBase {
 	unsigned int  StartChannel(void) { return m_startChannel; }
 
     virtual int   Init(Json::Value config);
-    virtual int   Init(char *configStr);
     virtual int   Close(void);
     
     virtual void  PrepData(unsigned char *channelData) {}
@@ -51,8 +50,6 @@ class ChannelOutputBase {
 
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) = 0;
-  private:
-	int   Init(void);
 
   protected:
 	virtual void  DumpConfig(void);

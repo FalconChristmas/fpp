@@ -73,46 +73,27 @@ GPIO595Output::~GPIO595Output()
 	LogDebug(VB_CHANNELOUT, "GPIO595Output::~GPIO595Output()\n");
 }
 int GPIO595Output::Init(Json::Value config) {
-    char configStr[2048];
-    ConvertToCSV(config, configStr);
-    return Init(configStr);
-}
-/*
- *
- */
-int GPIO595Output::Init(char *configStr)
-{
-	LogDebug(VB_CHANNELOUT, "GPIO595Output::Init('%s')\n", configStr);
 
-	std::vector<std::string> configElems = split(configStr, ';');
+	LogDebug(VB_CHANNELOUT, "GPIO595Output::Init()\n");
 
-	for (int i = 0; i < configElems.size(); i++)
-	{
-		std::vector<std::string> elem = split(configElems[i], '=');
-		if (elem.size() < 2)
-			continue;
-
-		if (elem[0] == "gpio")
-		{
-			LogDebug(VB_CHANNELOUT, "Using GPIO %s for output\n",
-				elem[1].c_str());
-
-			std::vector<std::string> gpios = split(elem[1], '-');
-			if ((elem[1].length() == 8) &&
-				(gpios.size() == 3))
-			{
-                m_clockPin = PinCapabilities::getPinByGPIO(atoi(gpios[0].c_str())).ptr();
-				m_dataPin  = PinCapabilities::getPinByGPIO(atoi(gpios[1].c_str())).ptr();
-				m_latchPin = PinCapabilities::getPinByGPIO(atoi(gpios[2].c_str())).ptr();
-			}
-		}
-	}
+    if (config.isMember("clockPin")) {
+        int p = config["clockPin"].asInt();
+        m_clockPin = PinCapabilities::getPinByGPIO(p).ptr();
+    }
+    if (config.isMember("dataPin")) {
+        int p = config["dataPin"].asInt();
+        m_dataPin = PinCapabilities::getPinByGPIO(p).ptr();
+    }
+    if (config.isMember("latchPin")) {
+        int p = config["latchPin"].asInt();
+        m_latchPin = PinCapabilities::getPinByGPIO(p).ptr();
+    }
 
 	if ((m_clockPin == nullptr) ||
 		(m_dataPin == nullptr) ||
 		(m_latchPin == nullptr))
 	{
-		LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
+		LogErr(VB_CHANNELOUT, "GPIO595 Invalid Config\n");
 		return 0;
 	}
 
@@ -124,7 +105,7 @@ int GPIO595Output::Init(char *configStr)
     m_dataPin->setValue(0);
     m_latchPin->setValue(1);
 
-	return ThreadedChannelOutputBase::Init(configStr);
+	return ThreadedChannelOutputBase::Init(config);
 }
 
 /*

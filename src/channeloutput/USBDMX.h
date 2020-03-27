@@ -36,19 +36,17 @@ class USBDMXOutput : public ThreadedChannelOutputBase {
 	virtual ~USBDMXOutput();
 
     virtual int Init(Json::Value config) override;
-	virtual int Init(char *configStr) override;
 
 	virtual int Close(void) override;
 
 	virtual int RawSendData(unsigned char *channelData) override;
+    virtual void WaitTimedOut() override;
 
 	virtual void DumpConfig(void) override;
 
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
-	int RawSendDataOpen(unsigned char *channelData);
-	int RawSendDataPro(unsigned char *channelData);
 
     enum DongleType {
 		DMX_DVC_UNKNOWN,
@@ -60,9 +58,9 @@ class USBDMXOutput : public ThreadedChannelOutputBase {
 
 	std::string m_deviceName;
 	int         m_fd;
-	char        m_outputData[513];
-	char        m_dmxHeader[5];
-	char        m_dmxFooter[1];
+	char        m_outputData[513 + 6];
+    int         m_dataOffset;
+    int         m_dataLen;
 };
 
 #endif /* #ifdef _USBDMX_H */

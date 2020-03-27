@@ -45,7 +45,7 @@
 
 class LOROutputData {
 public:
-    LOROutputData() : fd(-1), speed(0), controllerOffset(0), lastHeartbeat(0) {
+    LOROutputData() : fd(-1), speed(19200), controllerOffset(0), lastHeartbeat(0) {
         filename[0] = 0;
         memset(lastValue, 0, LOR_MAX_CHANNELS);
         memset(intensityData, 0, LOR_INTENSITY_SIZE);
@@ -86,13 +86,6 @@ void LOROutput::GetRequiredChannelRanges(const std::function<void(int, int)> &ad
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 
-int LOROutput::Init(Json::Value config) {
-    char configStr[2048];
-    ConvertToCSV(config, configStr);
-    return Init(configStr);
-}
-
-
 static void LOR_SetupIntensityMap(LOROutputData *privData) {
     int t = 0;
     int i = 0;
@@ -130,62 +123,31 @@ void LOROutput::DumpConfig(void) {
         LogDebug(VB_CHANNELOUT, "    controllerOffset: %d\n", data->controllerOffset);
     }
 }
-
-
-int LOROutput::Init(char *configStr) {
-    LogDebug(VB_CHANNELOUT, "LOROutput::Init('%s')\n", configStr);
+int LOROutput::Init(Json::Value config) {
+    LogDebug(VB_CHANNELOUT, "LOROutput::Init()\n");
     data = new LOROutputData();
 
-	char deviceName[32];
-	char cfg[1025];
+    
+    std::string deviceName = "UNKNOWN";
+    if (config.isMember("device")) {
+        deviceName = config["device"].asString();
+        LogDebug(VB_CHANNELOUT, "Using %s for LOR output\n", deviceName.c_str());
+    }
+    if (config.isMember("speed")) {
+        data->speed = config["speed"].asInt();
+    }
+    if (config.isMember("firstControllerId")) {
+        data->controllerOffset = config["firstControllerId"].asInt();
+    }
 
-	strncpy(cfg, configStr, 1024);
-	char *s = strtok(cfg, ",;");
 
-	strcpy(deviceName, "UNKNOWN");
-
-	while (s) {
-		char tmp[128];
-		char *div = NULL;
-
-		strcpy(tmp, s);
-		div = strchr(tmp, '=');
-
-		if (div) {
-			*div = '\0';
-			div++;
-
-			if (!strcmp(tmp, "device")) {
-				LogDebug(VB_CHANNELOUT, "Using %s for DMX output\n", div);
-				strcpy(deviceName, div);
-			} else if (!strcmp(tmp, "speed")) {
-				data->speed = strtoll(div, NULL, 10);
-				if (!data->speed) {
-                    LogErr(VB_CHANNELOUT, "Invalid speed: %s\n", tmp);
-					return 0;
-				}
-            } else if (!strcmp(tmp, "firstControllerId")) {
-                data->controllerOffset = strtoll(div, NULL, 10) - 1;
-                if (data->controllerOffset < 0) {
-                    data->controllerOffset = 0;
-                }
-			}
-		}
-		s = strtok(NULL, ",;");
-	}
-
-	if (!strcmp(deviceName, "UNKNOWN")) {
-		LogErr(VB_CHANNELOUT, "Missing Device Name: %s\n", configStr);
-		return 0;
-	}
-
-	if (!data->speed) {
-		LogErr(VB_CHANNELOUT, "Missing Port Speed: %s\n", configStr);
+	if (deviceName == "UNKNOWN") {
+		LogErr(VB_CHANNELOUT, "Missing Device Name\n");
 		return 0;
 	}
 
 	strcpy(data->filename, "/dev/");
-	strcat(data->filename, deviceName);
+    strcat(data->filename, deviceName.c_str());
 
 	data->fd = SerialOpen(data->filename, data->speed, "8N1");
 	if (data->fd < 0) {
@@ -210,7 +172,7 @@ int LOROutput::Init(char *configStr) {
 	data->heartbeatData[3] = 0x56;
 	data->heartbeatData[4] = 0x00;
 
-    return ChannelOutputBase::Init(configStr);
+    return ChannelOutputBase::Init(config);
 }
 
 /*

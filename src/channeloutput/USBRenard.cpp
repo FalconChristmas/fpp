@@ -113,64 +113,35 @@ void USBRenardOutput::GetRequiredChannelRanges(const std::function<void(int, int
     addRange(m_startChannel, m_startChannel + m_channelCount - 1);
 }
 int USBRenardOutput::Init(Json::Value config) {
-    char configStr[2048];
-    ConvertToCSV(config, configStr);
-    return Init(configStr);
-}
-int USBRenardOutput::Init(char *configStr) {
-    LogDebug(VB_CHANNELOUT, "USBRenard_Open('%s')\n", configStr);
+    LogDebug(VB_CHANNELOUT, "USBRenard_Open()\n");
     
     data = new USBRenardOutputData();
-    
-    char deviceName[32];
-    char cfg[1025];
-    
-    strncpy(cfg, configStr, 1024);
-    char *s = strtok(cfg, ",;");
-    
-    strcpy(deviceName, "UNKNOWN");
+    std::string deviceName = "UNKNOWN";
     strcpy(data->parm, "8N1");
-    
-    while (s) {
-        char tmp[128];
-        char *div = NULL;
-        
-        strcpy(tmp, s);
-        div = strchr(tmp, '=');
-        
-        if (div) {
-            *div = '\0';
-            div++;
-            
-            if (!strcmp(tmp, "device")) {
-                LogDebug(VB_CHANNELOUT, "Using %s for Renard output\n", div);
-                strcpy(deviceName, div);
-            } else if (!strcmp(tmp, "renardspeed")) {
-                data->speed = strtoll(div, NULL, 10);
-                if (data->speed) {
-                    LogDebug(VB_CHANNELOUT, "Sending Renard at %d speed\n", data->speed);
-                } else {
-                    data->speed = 57600;
-                    LogWarn(VB_CHANNELOUT,
-                            "Unable to parse Renard speed, falling back to %d\n", data->speed);
-                }
-            } else if (!strcmp(tmp, "renardparm")) {
-                if (strlen(div) == 3)
-                    strcpy(data->parm, div);
-                else
-                    LogWarn(VB_CHANNELOUT, "Invalid length on serial parameters: %s\n", div);
-            }
+    if (config.isMember("device")) {
+        deviceName = config["device"].asString();
+        LogDebug(VB_CHANNELOUT, "Using %s for Renard output\n", deviceName.c_str());
+    }
+    if (config.isMember("renardspeed")) {
+        data->speed = config["renardspeed"].asInt();
+        LogDebug(VB_CHANNELOUT, "Sending Renard at %d speed\n", data->speed);
+    }
+    if (config.isMember("renardparm")) {
+        std::string parm = config["renardparm"].asString();
+        if (parm.length() != 3) {
+            LogWarn(VB_CHANNELOUT, "Invalid length on serial parameters: %s\n", parm.c_str());
+        } else {
+            strcpy(data->parm, parm.c_str());
         }
-        s = strtok(NULL, ",;");
     }
     
-    if (!strcmp(deviceName, "UNKNOWN")) {
-        LogErr(VB_CHANNELOUT, "Invalid Config Str: %s\n", configStr);
+    if (deviceName == "UNKNOWN") {
+        LogErr(VB_CHANNELOUT, "Invalid Config: %s\n", deviceName.c_str());
         return 0;
     }
     
     strcpy(data->filename, "/dev/");
-    strcat(data->filename, deviceName);
+    strcat(data->filename, deviceName.c_str());
     
     LogInfo(VB_CHANNELOUT, "Opening %s for Renard output\n",
             data->filename);
@@ -193,7 +164,7 @@ int USBRenardOutput::Init(char *configStr) {
     }
     bzero(data->outputData, data->maxChannels);
     
-    return ChannelOutputBase::Init(configStr);
+    return ChannelOutputBase::Init(config);
 }
 
 int USBRenardOutput::Close(void) {

@@ -112,62 +112,31 @@ SPInRF24L01Output::~SPInRF24L01Output() {
 }
 
 int SPInRF24L01Output::Init(Json::Value config) {
-    char configStr[2048];
-    ConvertToCSV(config, configStr);
-    return Init(configStr);
-}
-int SPInRF24L01Output::Init(char *configStr) {
-    
-    char speed[2] = {0};
-    char channel[4] = {0};
-    char cfg[1025];
-    
-    strncpy(cfg, configStr, 1024);
-    char *s = strtok(cfg, ",;");
-    
-    while (s) {
-        char tmp[128];
-        char *div = NULL;
-        
-        
-        strcpy(tmp, s);
-        div = strchr(tmp, '=');
-        
-        if (div) {
-            *div = '\0';
-            div++;
-            
-            if (!strcmp(tmp, "speed")) {
-                LogDebug(VB_CHANNELOUT, "Using %s for nRF speed\n", div);
-                strcpy(speed, div);
-            } else if (!strcmp(tmp, "channel")) {
-                LogDebug(VB_CHANNELOUT, "Using %s for nRF channel\n", div);
-                strcpy(channel, div);
-            }
-        }
-        s = strtok(NULL, ",;");
-    }
+    int chanNum = -1;
     rf24_datarate_e ss = RF24_250KBPS;
-    if (!strcmp(speed, "0")) {
-        ss = RF24_250KBPS;
-    } else if (!strcmp(speed, "1")) {
-        ss = RF24_1MBPS;
-    } else if (!strcmp(speed, "2")) {
-        ss = RF24_2MBPS;
-    } else {
-        LogErr(VB_CHANNELOUT, "Invalid speed '%s' parsed from config string: %s\n",
-               speed, configStr);
-        return 0;
+    if (config.isMember("speed")) {
+        int i = config["speed"].asInt();
+        if (i == 0) {
+            ss = RF24_250KBPS;
+        } else if (i == 1) {
+            ss = RF24_1MBPS;
+        } else if (i == 2) {
+            ss = RF24_2MBPS;
+        } else {
+            LogErr(VB_CHANNELOUT, "Invalid speed '%s' from config\n", i);
+            return 0;
+        }
     }
-    int chanNum = atoi(channel);
+    if (config.isMember("channel")) {
+        chanNum = config["channel"].asInt();
+    }
     
     if (chanNum > 83 && chanNum < 101) {
         LogWarn(VB_CHANNELOUT, "FCC RESTRICTED FREQUENCY RANGE OF %dMHz\n", 2400 + chanNum);
     }
     
     if (chanNum < 0 || chanNum > 125) {
-        LogErr(VB_CHANNELOUT, "Invalid channel '%d' parsed from config string: %s\n",
-               chanNum, configStr);
+        LogErr(VB_CHANNELOUT, "Invalid channel '%d'\n", chanNum);
         return 0;
     }
 
@@ -215,7 +184,7 @@ int SPInRF24L01Output::Init(char *configStr) {
         data->radio->printDetails();
     }
     
-    return ChannelOutputBase::Init(configStr);
+    return ChannelOutputBase::Init(config);
 }
 
 int SPInRF24L01Output::Close(void) {
