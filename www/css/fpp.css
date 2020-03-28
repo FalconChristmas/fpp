@@ -604,7 +604,7 @@ fieldset
 }
 
 #playlistDetailsContents{
-	height:250px;
+//	height:250px;
 	min-height:250px;
 //	max-height:220px;
 	overflow: auto;
@@ -940,6 +940,7 @@ fieldset
     border-color:#333;
     border-spacing: 0px;
     border-collapse: collapse;
+    margin: 0px !important;
     width: 100%;
 }
 
@@ -956,6 +957,7 @@ fieldset
     vertical-align: bottom;
     text-align: center;
     color: #000000;
+    border-top: thin solid #888888;
     border-left: thin solid #888888;
     border-right: thin solid #888888;
     border-bottom: thin solid #888888;
@@ -966,8 +968,8 @@ fieldset
 
 .fppTableContents > table > tbody > tr > td {
     font-size: 12pt;
-    padding-left: 1px;
-    padding-right: 5px;
+    padding-left: 2px;
+    padding-right: 2px;
     padding-top: 1px;
     padding-bottom: 1px;
 }
@@ -1182,8 +1184,8 @@ td.bgDarkOrange {
 #fppMenu li ul li a {
 	font-weight: normal; }
 
-#hostnameColumn{
-	max-width: 50px;
+.hostnameColumn{
+	max-width: 100px;
 }
 
 .hostDescriptionSM{
@@ -1194,27 +1196,18 @@ td.bgDarkOrange {
 	font-size: 0.8em;
 }
 
+.tablesorter thead .disabled {
+    display: none;
+}
 
 .multiSyncadvancedView{
 	float: right;
 	font-weight: bold;
 }
 
-.advancedViewHeaderSpacer{
-	min-width: 20px;
-}
-
 .advancedViewHeader {
 	color: #fff;
 	background-color: #414141;
-}
-
-.advancedViewRow{
-	font-size: 0.8em;
-	color: #fff;
-	background-color: #414141;
-	text-align: center;
-	min-width: 90px;
 }
 
 .updateAvailable {
