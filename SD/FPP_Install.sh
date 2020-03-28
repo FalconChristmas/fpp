@@ -1082,6 +1082,7 @@ if [ "$FPPPLATFORM" == "BeagleBone Black" ]; then
     sed -i -e "s/getty.target//g" /lib/systemd/system/fppd.service
 fi
 
+systemctl disable mosquitto
 systemctl daemon-reload
 systemctl enable fppinit.service
 systemctl enable fppcapedetect.service
