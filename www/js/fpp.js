@@ -856,13 +856,24 @@ function SetPlaylistItemMetaData(row) {
         });
     } else if (type == 'sequence') {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
-    } else {
-        var humanDuration = SecondsToHuman(0);
+    } else if (type == 'playlist') {
+        $.ajax({
+            url: "/api/playlist/" + row.find('.field_name').html(),
+            type: 'GET',
+            async: false,
+            dataType: 'json',
+            success: function(data) {
+                if (data.hasOwnProperty('playlistInfo')) {
+                    var duration = data.playlistInfo.total_duration;
+                    var humanDuration = SecondsToHuman(duration);
 
-        row.find('.psiDurationSeconds').html(0);
-        row.find('.humanDuration').html('<b>Length: ??:??</b>');
+                    row.find('.psiDurationSeconds').html(duration);
+                    row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
 
-        UpdatePlaylistDurations();
+                    UpdatePlaylistDurations();
+                }
+            }
+        });
     }
 }
 
@@ -875,9 +886,7 @@ function PopulatePlaylistItemDuration(row, editMode) {
             return;
     }
 
-    if ((type == 'media') || (type == 'sequence') || (type == 'both')) {
-        SetPlaylistItemMetaData(row);
-    }
+    SetPlaylistItemMetaData(row);
 
     if (type == 'pause') {
         var duration = parseFloat(row.find('.field_duration').html());
