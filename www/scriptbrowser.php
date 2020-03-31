@@ -3,7 +3,6 @@
 <head>
 <?php
 require_once("config.php");
-require_once("fppversion.php");
 include 'common/menuHead.inc';
 
 function normalize_version($version)

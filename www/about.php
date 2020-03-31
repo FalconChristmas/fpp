@@ -7,11 +7,8 @@ require_once('config.php');
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
-$fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-if ( $return_val != 0 )
-	$fpp_version = "Unknown";
-unset($output);
-
+$fpp_version = "v" . getFPPVersion();
+    
 $serialNumber = exec("sed -n 's/^Serial.*: //p' /proc/cpuinfo", $output, $return_val);
 if ( $return_val != 0 )
     unset($serialNumber);
@@ -91,25 +88,6 @@ function getFileList($dir, $ext)
       }
   }
   return $i;
-}
-
-function PrintGitBranchOptions()
-{
-  $branches = Array();
-  exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list", $branches);
-  foreach($branches as $branch)
-  {
-    if (preg_match('/^\\*/', $branch))
-    {
-       $branch = preg_replace('/^\\* */', '', $branch);
-       echo "<option value='$branch' selected>$branch</option>";
-    }
-    else
-    {
-       $branch = preg_replace('/^ */', '', $branch);
-       echo "<option value='$branch'>$branch</option>";
-    }
-  }
 }
 ?>
 

@@ -9,6 +9,12 @@ $settingsFile = $fppHome . "/media/settings";
 
 if (file_exists("/etc/fpp/rfs_version"))
 	$fppRfsVersion = trim(file_get_contents("/etc/fpp/rfs_version"));
+    
+if (file_exists("/opt/fpp/www/fppversion.php")) {
+    include_once "/opt/fpp/www/fppversion.php";
+} else {
+    include_once "/opt/fpp/www/fppunknown_versions.php";
+}
 
 // Allow overrides that we'll ignore from the git repository to make it
 // easier to develop on machines configured differently than our current

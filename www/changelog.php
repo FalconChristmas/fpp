@@ -6,10 +6,7 @@ require_once('config.php');
 //ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 
-$fpp_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-if ( $return_val != 0 )
-	$fpp_version = "Unknown";
-unset($output);
+$fpp_version = "v" . getFPPVersion();
 
 $git_log = "";
 $cmd = "git --git-dir=".dirname(dirname(__FILE__))."/.git/ log --pretty=format:'%h - %an, %ar : %s' | cut -c1-100";

@@ -7,15 +7,8 @@ require_once('common.php');
 
 $kernel_version = exec("uname -r");
 
-$fpp_head_version = "v" . exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ describe --tags", $output, $return_val);
-if ( $return_val != 0 )
-    $fpp_head_version = "Unknown";
-unset($output);
-
-$git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
-if ( $return_val != 0 )
-    $git_branch = "Unknown";
-unset($output);
+$fpp_head_version = "v" . getFPPVersion();
+$git_branch = getFPPBranch();
 
 if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
     $fpp_head_version .= " ($git_branch branch)";

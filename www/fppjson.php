@@ -6,7 +6,6 @@ require_once('common/metadata.php');
 require_once('common/settings.php');
 require_once('commandsocket.php');
 require_once('universeentry.php');
-require_once('fppversion.php');
 
 
 $a = session_id();

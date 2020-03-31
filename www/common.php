@@ -1187,7 +1187,7 @@ function get_fpp_head_version(){
 
 	$cached_data = file_cache($cachefile_name, NULL, $cache_age);
 	if ($cached_data == NULL) {
-		$fpp_head_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ describe --tags", $output, $return_val);
+		$fpp_head_version = exec("git --git-dir=" . dirname(dirname(__FILE__)) . "/.git/ describe", $output, $return_val);
 		if ($return_val != 0)
 			$fpp_head_version = "Unknown";
 		unset($output);
