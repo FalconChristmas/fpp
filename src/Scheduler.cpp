@@ -764,7 +764,7 @@ void Scheduler::ConvertScheduleFile(void)
 
 void Scheduler::LoadScheduleFromFile(void)
 {
-  LogInfo(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
+  LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
 
   m_loadSchedule = false;
   m_lastLoadDate = GetCurrentDateInt();
