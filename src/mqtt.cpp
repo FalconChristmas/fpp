@@ -26,7 +26,6 @@
 
 #include "events.h"
 #include "effects.h"
-#include "overlays/PixelOverlay.h"
 #include "playlist/Playlist.h"
 
 #define FALCON_TOPIC "falcon/player"
@@ -144,11 +143,6 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
     };
     AddCallback("/set/command", f);
     AddCallback("/set/command/#", f);
-
-    std::function<void(const std::string &, const std::string &)> lf = [] (const std::string &topic, const std::string &payload) {
-        PixelOverlayManager::INSTANCE.LightMessageHandler(topic, payload);
-    };
-    AddCallback("/light/#", lf);
 }
 /*
  *
@@ -343,7 +337,6 @@ void MosquittoClient::HandleConnect() {
 	m_isConnected = true;
 	std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
-    subscribe_topics.push_back(m_baseTopic + "/light/#");
     subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
@@ -498,88 +491,5 @@ void *RunMqttPublishThread(void *data) {
 		sleep(frequency);
 		me->PublishStatus();
 	}
-}
-
-void MosquittoClient::AddHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id, Json::Value &config)
-{
-    LogDebug(VB_CONTROL, "Adding Home Assistant discovery config for %s/%s\n", component.c_str(), id.c_str());
-    std::string cfgTopic = getSetting("MQTTHADiscoveryPrefix");
-
-    if (cfgTopic.empty())
-        cfgTopic = "homeassistant";
-
-    cfgTopic += "/";
-    cfgTopic += component;
-    cfgTopic += "/";
-    cfgTopic += getSetting("HostName");
-    cfgTopic += "/";
-    cfgTopic += id;
-    cfgTopic += "/config";
-
-    std::string cmdTopic = mqtt->GetBaseTopic();
-    cmdTopic += "/";
-    cmdTopic += component;
-    cmdTopic += "/";
-    cmdTopic += id;
-
-    std::string stateTopic = cmdTopic;
-    stateTopic += "/state";
-    cmdTopic += "/cmd";
-
-    if (getSettingInt("MQTTHADiscoveryAddHost", 0)) {
-        std::string name = getSetting("HostName");
-        name += "_";
-        name += id;
-        config["name"] = name;
-    } else {
-        config["name"] = id;
-    }
-
-    config["state_topic"] = stateTopic;
-    config["command_topic"] = cmdTopic;
-
-    Json::StreamWriterBuilder wbuilder;
-    wbuilder["indentation"] = "";
-    std::string configStr = Json::writeString(wbuilder, config);
-    //std::string configStr = SaveJsonToString(config);
-    PublishRaw(cfgTopic, configStr);
-
-    // Store a copy of this so we can detect when we remove models
-    cfgTopic = component;
-    cfgTopic += "/";
-    cfgTopic += id;
-    cfgTopic += "/config";
-    Publish(cfgTopic, configStr);
-}
-
-void MosquittoClient::RemoveHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id)
-{
-    LogDebug(VB_CONTROL, "Removing Home Assistant discovery config for %s/%s\n", component.c_str(), id.c_str());
-    std::string cfgTopic = getSetting("MQTTHADiscoveryPrefix");
-    if (cfgTopic.empty())
-        cfgTopic = "homeassistant";
-
-    cfgTopic += "/";
-    cfgTopic += component;
-    cfgTopic += "/";
-    cfgTopic += getSetting("HostName");
-    cfgTopic += "/";
-    cfgTopic += id;
-    cfgTopic += "/config";
-
-    std::string emptyStr;
-    PublishRaw(cfgTopic, emptyStr);
-
-    // Clear our cache copy and any state message
-    cfgTopic = component;
-    cfgTopic += "/";
-    cfgTopic += id;
-
-    std::string stateTopic = cfgTopic;
-    stateTopic += "/state";
-    cfgTopic += "/config";
-
-    Publish(cfgTopic, emptyStr);
-    Publish(stateTopic, emptyStr);
 }
 

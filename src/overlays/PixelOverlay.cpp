@@ -98,8 +98,6 @@ PixelOverlayManager::~PixelOverlayManager() {
 void PixelOverlayManager::Initialize() {
     loadModelMap();
     RegisterCommands();
-    if (getSettingInt("MQTTHADiscovery", 0))
-        SendHomeAssistantDiscoveryConfig();
 }
 
 void PixelOverlayManager::loadModelMap() {
@@ -276,100 +274,6 @@ PixelOverlayModel* PixelOverlayManager::getModel(const std::string &name) {
         return nullptr;
     }
     return a->second;
-}
-
-void PixelOverlayManager::SendHomeAssistantDiscoveryConfig() {
-    std::unique_lock<std::mutex> lock(modelsLock);
-    for (auto & m : models) {
-        Json::Value s;
-
-        s["schema"] = "json";
-        s["qos"] = 0;
-        s["brightness"] = true;
-        s["rgb"] = true;
-        s["effect"] = false;
-
-        mqtt->AddHomeAssistantDiscoveryConfig("light", m.second->getName(), s);
-    }
-}
-
-void PixelOverlayManager::LightMessageHandler(const std::string &topic, const std::string &payload) {
-    static Json::Value cache;
-    std::vector<std::string> parts = split(topic, '/'); // "/light/ModelName/cmd"
-
-    std::string model = parts[2];
-    auto m = getModel(model);
-
-    if ((parts[3] == "config") && (!m) && (!payload.empty())) {
-        mqtt->RemoveHomeAssistantDiscoveryConfig("light", model);
-        return;
-    }
-
-    if (parts[3] != "cmd")
-        return;
-
-    Json::Value s = LoadJsonFromString(payload);
-    if (m) {
-        std::unique_lock<std::mutex> lock(modelsLock);
-        std::string newState = toUpperCopy(s["state"].asString());
-
-        if (newState == "OFF") {
-            m->clear();
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            m->setState(PixelOverlayState("Disabled"));
-
-            if (cache.isMember(model)) {
-                s = cache[model];
-                s["state"] = "OFF";
-            }
-        } else if (newState != "ON") {
-            return;
-        } else {
-            if (!s.isMember("color")) {
-                if (cache.isMember(model)) {
-                    s["color"] = cache[model]["color"];
-                } else {
-                    Json::Value c;
-                    c["r"] = 255;
-                    c["g"] = 255;
-                    c["b"] = 255;
-                    s["color"] = c;
-                }
-            }
-
-            if (!s.isMember("brightness")) {
-                if (cache.isMember(model)) {
-                    s["brightness"] = cache[model]["brightness"];
-                } else {
-                    s["brightness"] = 255;
-                }
-            }
-
-            int brightness = s["brightness"].asInt();
-            int r = (int)(1.0 * s["color"]["r"].asInt() * brightness / 255);
-            int g = (int)(1.0 * s["color"]["g"].asInt() * brightness / 255);
-            int b = (int)(1.0 * s["color"]["b"].asInt() * brightness / 255);
-
-            m->fillOverlayBuffer(r, g, b);
-            m->flushOverlayBuffer();
-
-            m->setState(PixelOverlayState("Enabled"));
-        }
-
-        cache[model] = s;
-
-        lock.unlock();
-
-        Json::StreamWriterBuilder wbuilder;
-        wbuilder["indentation"] = "";
-        std::string state = Json::writeString(wbuilder, s);
-        //std::string state = SaveJsonToString(js);
-
-        std::string topic = "light/";
-        topic += model;
-        topic += "/state";
-        mqtt->Publish(topic, state);
-    }
 }
 
 static bool isTTF(const std::string &mainStr)

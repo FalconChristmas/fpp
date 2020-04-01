@@ -60,9 +60,6 @@ class MosquittoClient {
 
 	std::string GetBaseTopic() { return m_baseTopic; }
 
-	void AddHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id, Json::Value &config);
-    void RemoveHomeAssistantDiscoveryConfig(const std::string &component, const std::string &id);
-
   private:
 	bool        m_canProcessMessages;
 	bool        m_isConnected;

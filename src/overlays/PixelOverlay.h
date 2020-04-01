@@ -47,9 +47,6 @@ public:
     
     void Initialize();
     
-    void SendHomeAssistantDiscoveryConfig();
-    void LightMessageHandler(const std::string &topic, const std::string &payload);
-    
     const std::string &mapFont(const std::string &f);
     static uint32_t mapColor(const std::string &c);
     
