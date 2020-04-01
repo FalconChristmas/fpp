@@ -22,12 +22,9 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <stdlib.h>
-
-#include "common.h"
 #include "GPIO.h"
-#include "log.h"
 
 extern "C" {
     GPIOOutput *createGPIOOutput(unsigned int startChannel,

@@ -1,3 +1,5 @@
+#include "fpp-pch.h"
+
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -10,13 +12,8 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netdb.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdint.h>
-#include <iostream>
 #include "ping.h"
 
 using namespace std;

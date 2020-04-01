@@ -23,13 +23,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <strings.h>
-#include <stdlib.h>
+#include "fpp-pch.h"
 
 #include "TestPatternBase.h"
-#include "common.h"
-#include "log.h"
 
 /*
  *

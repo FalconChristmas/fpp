@@ -23,16 +23,11 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <termios.h>
-#include <unistd.h>
+#include "fpp-pch.h"
 
-#include "common.h"
-#include "log.h"
-#include "settings.h"
+#include <fcntl.h>
+#include <termios.h>
+
 #include "serialutil.h"
 #include "GenericSerial.h"
 

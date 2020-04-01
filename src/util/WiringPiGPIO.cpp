@@ -1,8 +1,8 @@
+#include "fpp-pch.h"
+
 #include <fcntl.h>
-#include <unistd.h>
 #include <stropts.h>
 
-#include <vector>
 #include <wiringPi.h>
 #include <piFace.h>
 #include <softPwm.h>

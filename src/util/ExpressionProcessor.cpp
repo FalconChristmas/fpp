@@ -14,13 +14,9 @@
 *   You should have received a copy of the GNU General Public License
 *   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
+#include "fpp-pch.h"
 
 #include "ExpressionProcessor.h"
-
-#include <map>
-#include <vector>
-#include <list>
-#include <string.h>
 
 #include "tinyexpr.h"
 

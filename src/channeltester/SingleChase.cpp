@@ -23,12 +23,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <strings.h>
+#include "fpp-pch.h"
 
 #include "SingleChase.h"
-#include "common.h"
-#include "log.h"
 
 /*
  *

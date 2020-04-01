@@ -1,3 +1,5 @@
+#include "fpp-pch.h"
+
 #include "PlaylistCommands.h"
 #include "playlist/Playlist.h"
 

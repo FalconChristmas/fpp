@@ -1,8 +1,7 @@
-#include <fcntl.h>
-#include <unistd.h>
-#include <stropts.h>
+#include "fpp-pch.h"
 
-#include <vector>
+#include <fcntl.h>
+#include <stropts.h>
 
 #include "SPIUtils.h"
 #include "MCP23x17Utils.h"

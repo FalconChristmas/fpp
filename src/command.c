@@ -22,17 +22,15 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include "falcon.h"
 #include "fpp.h"
 #include "fppd.h"
-#include "log.h"
 #include "command.h"
 #include "Scheduler.h"
 #include "e131bridge.h"
 #include "mediaoutput/mediaoutput.h"
-#include "settings.h"
-#include "Sequence.h"
 #include "effects.h"
 #include "playlist/Playlist.h"
 #include "Plugins.h"
@@ -44,17 +42,9 @@
 
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 #include <signal.h>
 #include <sys/select.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdlib.h>
 #include <sys/stat.h>
-
-#include <jsoncpp/json/json.h>
 
 
  int socket_fd = -1;

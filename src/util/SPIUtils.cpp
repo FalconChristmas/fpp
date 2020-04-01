@@ -1,7 +1,6 @@
-#include <cstring>
+#include "fpp-pch.h"
+
 #include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 

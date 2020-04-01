@@ -22,17 +22,10 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <string>
-#include <mutex>
-#include <array>
-#include <string.h>
 
-#include "common.h"
 #include "effects.h"
-#include "log.h"
-#include "Sequence.h"
-#include "settings.h"
 #include "channeloutput/channeloutputthread.h"
 #include "fseq/FSEQFile.h"
 

@@ -22,27 +22,19 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <linux/kd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include <Magick++.h>
 #include <magick/type.h>
 
-#include "common.h"
-#include "log.h"
 #include "VirtualDisplay.h"
-#include "Sequence.h"
-#include "settings.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:

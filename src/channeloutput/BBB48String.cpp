@@ -22,36 +22,19 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <unistd.h>
 #include <sys/wait.h>
-
-#include <ctime>
-#include <set>
-#include <thread>
-#include <chrono>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 
 #define BBB_PRU  1
 
 //  #define PRINT_STATS
 
-
 #include <pruss_intc_mapping.h>
 #include <prussdrv.h>
 
 // FPP includes
-#include "common.h"
-#include "log.h"
 #include "BBB48String.h"
-#include "settings.h"
-#include "Sequence.h"
-
 #include "util/BBBUtils.h"
 
 

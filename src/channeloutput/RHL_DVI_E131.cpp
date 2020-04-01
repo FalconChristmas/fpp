@@ -22,21 +22,12 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <fcntl.h>
+#include "fpp-pch.h"
 #include <linux/kd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <unistd.h>
 
-#include "common.h"
-#include "log.h"
 #include "RHL_DVI_E131.h"
-#include "Sequence.h"
-#include "settings.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:

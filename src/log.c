@@ -23,20 +23,14 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "fppversion.h"
-#include "log.h"
-#include "settings.h"
+#include "fpp-pch.h"
 
-#include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
-#include <string.h>
-#include <strings.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <time.h>
 #include <sys/time.h>
-#include <unistd.h>
 
 int logLevel = LOG_INFO;
 int logMask  = VB_MOST;

@@ -23,33 +23,23 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <linux/version.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <ifaddrs.h>
 
-#include <string>
-#include <vector>
-#include <set>
-#include <cstring>
-#include <algorithm>
-
 #include "MultiSync.h"
 
 #include "command.h"
-#include "common.h"
 #include "events.h"
 #include "falcon.h"
 #include "fppversion.h"
-#include "log.h"
 #include "Plugins.h"
 
-#include "Sequence.h"
-#include "settings.h"
 #include "mediaoutput/mediaoutput.h"
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"

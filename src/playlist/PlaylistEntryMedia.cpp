@@ -23,9 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <string.h>
-#include <thread>
+#include "fpp-pch.h"
 
 #if __GNUC__ >= 8
 #  include <filesystem>
@@ -37,14 +35,10 @@ using namespace std::experimental::filesystem;
 
 #include <sys/wait.h>
 
-#include "log.h"
 #include "mediadetails.h"
-#include "mqtt.h"
 #include "MultiSync.h"
 #include "PlaylistEntryMedia.h"
 #include "Plugins.h"
-#include "settings.h"
-#include "common.h"
 #include "Playlist.h"
 
 

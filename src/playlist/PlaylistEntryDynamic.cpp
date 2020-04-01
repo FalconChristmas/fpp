@@ -23,12 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
-#include <sstream>
-#include <string>
+#include "fpp-pch.h"
 
-#include "common.h"
-#include "log.h"
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryCommand.h"
 #include "PlaylistEntryEffect.h"
@@ -42,7 +38,6 @@
 #include "PlaylistEntryURL.h"
 #include "PlaylistEntryVolume.h"
 #include "PlaylistEntryDynamic.h"
-#include "settings.h"
 #include "Playlist.h"
 
 

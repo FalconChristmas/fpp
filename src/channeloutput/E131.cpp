@@ -18,6 +18,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -26,37 +28,21 @@
 #include <ctype.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
-#include <string.h>
 #include <math.h>
-#include <strings.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <netdb.h>
-#include <chrono>
-#include <vector>
-#include <list>
 
-#include <fstream>
-#include <sstream>
-#include <string>
-
-#include <jsoncpp/json/json.h>
 
 #include "channeloutput.h"
 #include "channeloutputthread.h"
-#include "common.h"
 #include "e131defs.h"
 #include "E131.h"
 #include "FPD.h"
 #include "fpp.h"
-#include "log.h"
-#include "settings.h"
 #include "Universe.h"
 #include "ping.h"
-#include "Warnings.h"
 
 const unsigned char E131header[] = {
 	0x00,0x10,0x00,0x00,0x41,0x53,0x43,0x2d,0x45,0x31,0x2e,0x31,0x37,0x00,0x00,0x00,

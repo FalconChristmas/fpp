@@ -1,10 +1,7 @@
-
-#include <string.h>
+#include "fpp-pch.h"
 
 #include "UDPOutput.h"
 #include "GenericUDPOutput.h"
-#include "log.h"
-#include "Warnings.h"
 
 extern "C" {
     GenericUDPOutput *createGenericUDPOutput(unsigned int startChannel,
@@ -128,7 +125,7 @@ public:
     }
 
     virtual void PrepareData(unsigned char *channelData,
-                             UDPOutputMessages &msgs) {
+                             UDPOutputMessages &msgs) override {
         if (valid && active && NeedToOutputFrame(channelData, startChannel - 1, 0 , channelCount)) {
             struct mmsghdr msg;
             memset(&msg, 0, sizeof(msg));

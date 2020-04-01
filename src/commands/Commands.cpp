@@ -1,8 +1,5 @@
-#include <thread>
+#include "fpp-pch.h"
 
-#include "Commands.h"
-#include "log.h"
-#include "common.h"
 
 #include "PlaylistCommands.h"
 #include "EventCommands.h"

@@ -22,28 +22,17 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
-#include <unistd.h>
 
-#include <map>
-#include <fstream>
-#include <iostream>
 #include <iomanip>
 #include <ctime>
-#include <sstream>
 
-#include "common.h"
 #include "fppversion_defines.h"
-#include "log.h"
 #include "HTTPVirtualDisplay.h"
-#include "Sequence.h"
-#include "settings.h"
 
 
 extern "C" {

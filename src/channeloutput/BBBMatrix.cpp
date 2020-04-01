@@ -17,20 +17,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <unistd.h>
+#include "fpp-pch.h"
 #include <sys/wait.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <string>
-#include <cmath>
-#include <iostream>
-#include <fstream>
-
-
 #include "BBBMatrix.h"
-#include "common.h"
-#include "log.h"
 
 #include "util/BBBUtils.h"
 

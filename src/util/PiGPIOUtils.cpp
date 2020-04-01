@@ -1,8 +1,7 @@
-#include <fcntl.h>
-#include <unistd.h>
-#include <stropts.h>
+#include "fpp-pch.h"
 
-#include <vector>
+#include <fcntl.h>
+#include <stropts.h>
 
 #include "bcm2835.h"
 #include "PiGPIOUtils.h"

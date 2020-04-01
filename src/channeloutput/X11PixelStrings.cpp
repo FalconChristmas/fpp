@@ -22,22 +22,13 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
-
-#include "common.h"
-#include "log.h"
 #include "X11PixelStrings.h"
-#include "Sequence.h" // for FPPD_MAX_CHANNELS
-#include "settings.h"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -164,8 +155,8 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 	m_pixmap = XCreatePixmap(m_display, XDefaultRootWindow(m_display), m_scaledWidth, m_scaledHeight, 24);
 
 	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
-	if (m_gc < 0)
-	{
+    int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
+    if (tgc < 0) {
 		LogErr(VB_PLAYLIST, "Unable to create GC\n");
 		return 0;
 	}

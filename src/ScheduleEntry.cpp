@@ -23,14 +23,10 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include <math.h>
-#include <stdlib.h>
-
-#include <vector>
-
-#include "common.h"
 #include "FPPLocale.h"
-#include "log.h"
 #include "ScheduleEntry.h"
 
 ScheduleEntry::ScheduleEntry()

@@ -22,8 +22,8 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -31,8 +31,6 @@
 #include <ctype.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <math.h>
@@ -41,21 +39,11 @@
 #include <net/if.h>
 #include <netdb.h>
 
-#include <fstream>
-#include <sstream>
-#include <string>
-
-#include <jsoncpp/json/json.h>
-
 #include "channeloutput.h"
 #include "channeloutputthread.h"
-#include "common.h"
 #include "ArtNet.h"
 #include "FPD.h"
 #include "fpp.h"
-#include "log.h"
-#include "settings.h"
-#include "Warnings.h"
 
 
 #define MAX_ARTNET_UNIVERSE_COUNT    512

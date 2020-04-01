@@ -22,28 +22,18 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include "common.h"
 #include "events.h"
-#include "log.h"
-#include "settings.h"
 #include "Plugins.h"
 
-#include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
-#include <string.h>
 #include <strings.h>
-#include <unistd.h>
-#include <vector>
-#include <fstream>
-#include <sstream>
-#include <sys/types.h>
 #include <pwd.h>
 #include <gpiod.h>
 
 #include "gpio.h"
-#include "commands/Commands.h"
 #include "util/GPIOUtils.h"
 
 #define GPIO_DEBOUNCE_TIME 100000

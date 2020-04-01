@@ -293,7 +293,7 @@ int OpenMediaOutput(const char *filename) {
     mediaOutput = CreateMediaOutput(tmpFile, vOut);
 	if (!mediaOutput) {
 		pthread_mutex_unlock(&mediaOutputLock);
-        LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile);
+        LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
 		return 0;
 	}
 

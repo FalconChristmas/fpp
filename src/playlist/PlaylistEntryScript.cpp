@@ -23,19 +23,13 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "fpp-pch.h"
+
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include "common.h"
-#include "log.h"
 #include "PlaylistEntryScript.h"
 #include "scripts.h"
-#include "settings.h"
 
 /*
  *

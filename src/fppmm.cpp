@@ -22,6 +22,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -37,8 +38,6 @@
 #include <unistd.h>
 
 #include "fppversion.h"
-#include "common.h"
-#include "Sequence.h"
 
 char *blockName     = NULL;
 char *inputFilename = NULL;
@@ -169,7 +168,7 @@ void CopyFileToMappedBlock(const std::string &blockName, char *inputFilename) {
     std::string url = "http://localhost:32322/overlays/model/" + blockName;
     std::string response;
     if (!urlGet(url, response)) {
-        printf( "ERROR: Could not find model %s\n", blockName);
+        printf( "ERROR: Could not find model %s\n", blockName.c_str());
         return;
     }
         
@@ -196,7 +195,7 @@ void CopyFileToMappedBlock(const std::string &blockName, char *inputFilename) {
     char data[channelCount];
     int r = read(fd, data, channelCount);
     if (r != channelCount) {
-        printf( "WARNING: Expected %lld bytes of data but only read %d.\n",
+        printf( "WARNING: Expected %d bytes of data but only read %d.\n",
             channelCount, r);
     } else {
         std::string overlayBuferName = "/FPP-Model-Overlay-Buffer-" + blockName;
@@ -232,7 +231,7 @@ void DumpMappedBlockInfo(const std::string &blockName) {
     std::string url = "http://localhost:32322/overlays/model/" + blockName;
     std::string response;
     if (!urlGet(url, response)) {
-        printf( "ERROR: Could not find model %s\n", blockName);
+        printf( "ERROR: Could not find model %s\n", blockName.c_str());
         return;
     }
         
@@ -261,11 +260,10 @@ void DumpMappedBlockInfo(const std::string &blockName) {
     }
 
     printf( "Effect running : ");
-    switch (v["effectRunning"].asBool()) {
-        case 0: printf("No\n");
-                break;
-        case 1: printf("Yes - %s\n", v["effectName"].asString().c_str());
-                break;
+    if (v["effectRunning"].asBool()) {
+        printf("Yes - %s\n", v["effectName"].asString().c_str());
+    } else {
+        printf("No\n");
     }
 }
 

@@ -23,20 +23,14 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include <fcntl.h>
 #include <linux/kd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <unistd.h>
 
-#include "common.h"
-#include "log.h"
 #include "FBVirtualDisplay.h"
-#include "Sequence.h"
-#include "settings.h"
 
 extern "C" {
     FBVirtualDisplayOutput *createOutputFBVirtualDisplay(unsigned int startChannel,

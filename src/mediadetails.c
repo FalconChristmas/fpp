@@ -1,11 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "fpp-pch.h"
+
 
 #include "mediadetails.h"
-#include "settings.h"
-#include "common.h"
-#include "log.h"
 
 #include <taglib/fileref.h>
 #include <taglib/tag.h>

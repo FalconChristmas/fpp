@@ -23,12 +23,10 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <string.h>
+#include "fpp-pch.h"
 
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/processors/RemapOutputProcessor.h"
-#include "log.h"
 #include "PlaylistEntryRemap.h"
 
 /*

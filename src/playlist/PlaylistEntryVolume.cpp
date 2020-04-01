@@ -23,9 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "log.h"
+#include "fpp-pch.h"
 #include "PlaylistEntryVolume.h"
-#include "settings.h"
 #include "mediaoutput/mediaoutput.h"
 
 /*

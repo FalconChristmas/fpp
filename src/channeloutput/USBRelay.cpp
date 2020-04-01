@@ -23,12 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-
-#include "common.h"
-#include "log.h"
+#include "fpp-pch.h"
 #include "serialutil.h"
 #include "USBRelay.h"
 
@@ -109,9 +104,9 @@ int USBRelayOutput::Init(Json::Value config)
 
 	if (m_subType == RELAY_DVC_ICSTATION) {
 		// Send Initialization Sequence
-		char c_init = 0x50;
-		char c_reply = 0x00;
-		char c_open = 0x51;
+		unsigned char c_init = 0x50;
+		unsigned char c_reply = 0x00;
+		unsigned char c_open = 0x51;
 
 		sleep(1);
 		write(m_fd, &c_init, 1);

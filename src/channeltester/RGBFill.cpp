@@ -22,14 +22,9 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
+#include "fpp-pch.h"
 
 #include "RGBFill.h"
-#include "common.h"
-#include "log.h"
 
 /*
  *

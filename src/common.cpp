@@ -23,6 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

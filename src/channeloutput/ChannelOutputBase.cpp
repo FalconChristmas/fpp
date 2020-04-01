@@ -23,16 +23,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <vector>
+#include "fpp-pch.h"
 
 #include <errno.h>
-#include <string.h>
 #include <sys/time.h>
-#include <unistd.h>
 
 #include "ChannelOutputBase.h"
-#include "common.h"
-#include "log.h"
 
 ChannelOutputBase::ChannelOutputBase(unsigned int startChannel,
 	 unsigned int channelCount)

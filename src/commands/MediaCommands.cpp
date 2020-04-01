@@ -1,7 +1,7 @@
-#include <thread>
+#include "fpp-pch.h"
+
 #include <curl/curl.h>
 
-#include "log.h"
 #include "MediaCommands.h"
 #include "mediaoutput/mediaoutput.h"
 

@@ -1,11 +1,10 @@
 
+#include "fpp-pch.h"
+
 #include "EventCommands.h"
 #include "events.h"
-#include "common.h"
-
 #include "effects.h"
 #include "scripts.h"
-#include "Sequence.h"
 
 std::unique_ptr<Command::Result> TriggerEventCommand::run(const std::vector<std::string> &args) {
     if (args.size() != 2) {

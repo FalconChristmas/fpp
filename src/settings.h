@@ -80,7 +80,6 @@ void usage(char *appname);
 
 
 // Action functions
-int parseArguments(int argc, char **argv);
 int loadSettings(const char *filename);
 void CreateSettingsFile(char * file);
 void CheckExistanceOfDirectoriesAndFiles(void);

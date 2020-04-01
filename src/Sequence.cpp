@@ -23,36 +23,27 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// This #define must be before any #include's
-#define _FILE_OFFSET_BITS 64
+#include "fpp-pch.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "common.h"
 #include "events.h"
 #include "effects.h"
 #include "fppd.h"
-#include "log.h"
 #include "MultiSync.h"
 #include "overlays/PixelOverlay.h"
 #include "Plugins.h"
-#include "Sequence.h"
-#include "Warnings.h"
-#include "settings.h"
 #include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
 #include "playlist/Playlist.h"
 #include "channeloutput/channeloutput.h"
-#include <chrono>
+
 using namespace std::literals;
 using namespace std::chrono_literals;
 using namespace std::literals::chrono_literals;

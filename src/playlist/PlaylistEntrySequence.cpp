@@ -23,10 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "log.h"
-#include "mqtt.h"
-//#include "Player.h"
-#include "Sequence.h"
+#include "fpp-pch.h"
 #include "PlaylistEntrySequence.h"
 
 PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)

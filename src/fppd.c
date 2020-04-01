@@ -23,50 +23,37 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
-#include "commands/Commands.h"
 #include "command.h"
-#include "common.h"
 #include "e131bridge.h"
 #include "effects.h"
 #include "events.h"
 #include "fppd.h"
-#include "fppversion.h"
 #include "fpp.h"
 #include "gpio.h"
 #include "httpAPI.h"
-#include "log.h"
 #include "MultiSync.h"
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
-#include "mqtt.h"
 #include "overlays/PixelOverlay.h"
 #include "playlist/Playlist.h"
 #include "Plugins.h"
 #include "Scheduler.h"
-#include "Sequence.h"
-#include "settings.h"
 
 #include <syscall.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <pwd.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <stdlib.h>
 #include <pthread.h>
-#include <string.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <execinfo.h>
-#include <fstream>
-#include <sstream>
 #include <sys/epoll.h>
 
 #include <Magick++.h>

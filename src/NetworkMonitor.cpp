@@ -17,15 +17,14 @@
 *   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "fpp-pch.h"
+
 #include <net/if.h>
 #include <netinet/in.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <sys/types.h>
-#include <unistd.h>
 
-#include "log.h"
-#include "common.h"
 
 #include "NetworkMonitor.h"
 

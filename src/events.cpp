@@ -15,13 +15,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
-#include <sstream>
+#include "fpp-pch.h"
 
 #include "events.h"
-#include "settings.h"
-#include "log.h"
-#include "common.h"
 
 #include "commands/Commands.h"
 #include "Plugins.h"
@@ -84,7 +80,7 @@ void FPPEvent::Load(const std::string &id) {
     std::string contents = GetFileContents(filename);
 
     if (contents.empty()) {
-        LogErr(VB_EVENT, "Unable to open Event file %s\n", filename);
+        LogErr(VB_EVENT, "Unable to open Event file %s\n", filename.c_str());
         return;
     }
     

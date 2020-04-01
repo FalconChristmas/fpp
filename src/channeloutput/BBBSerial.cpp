@@ -22,15 +22,9 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <unistd.h>
 #include <sys/wait.h>
-#include <fstream>
-#include <thread>
-#include <chrono>
 
 #define BBB_PRU  0
 //  #define USING_PRU_RAM
@@ -39,10 +33,7 @@
 #include <prussdrv.h>
 
 // FPP includes
-#include "common.h"
-#include "log.h"
 #include "BBBSerial.h"
-#include "settings.h"
 
 #include "util/BBBUtils.h"
 

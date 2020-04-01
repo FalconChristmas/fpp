@@ -23,15 +23,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "fpp-pch.h"
 
-#include "common.h"
-#include "log.h"
 #include "serialutil.h"
-#include "Sequence.h"
 #include "X11Matrix.h"
 
 
@@ -120,8 +114,8 @@ int X11MatrixOutput::Init(Json::Value config)
 		m_scaleWidth, m_scaleHeight, 24);
 
 	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
-	if (m_gc < 0)
-	{
+    int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
+	if (tgc < 0) {
 		LogDebug(VB_CHANNELOUT, "Unable to create GC\n");
 		return 0;
 	}

@@ -23,34 +23,22 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
-#include "common.h"
 #include "e131bridge.h"
 #include "fpp.h"
 #include "fppd.h"
-#include "fppversion.h"
 #include "httpAPI.h"
-#include "log.h"
 #include "MultiSync.h"
 #include "playlist/Playlist.h"
 #include "Scheduler.h"
-#include "Warnings.h"
-#include "settings.h"
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
 #include <iomanip>
-#include <ctime>
-
-#include "stdlib.h"
-#include <jsoncpp/json/json.h>
 
 #include "mediaoutput/mediaoutput.h"
 #include "sensors/Sensors.h"
-#include "commands/Commands.h"
 #include "overlays/PixelOverlay.h"
 #include "Plugins.h"
 #include "gpio.h"

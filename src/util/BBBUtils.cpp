@@ -1,14 +1,9 @@
 
+#include "fpp-pch.h"
+
 #include "BBBUtils.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <vector>
-#include <thread>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <errno.h>
 
 
 static BeagleBoneType BBB_TYPE = Unknown;

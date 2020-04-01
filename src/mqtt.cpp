@@ -22,22 +22,12 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include "log.h"
-#include "mqtt.h"
-#include "settings.h"
 #include "events.h"
 #include "effects.h"
 #include "overlays/PixelOverlay.h"
 #include "playlist/Playlist.h"
-
-#include <sstream>
-#include <string.h>
-#include <unistd.h>
-#include <vector>
-
-#include "commands/Commands.h"
-#include "common.h"
 
 #define FALCON_TOPIC "falcon/player"
 

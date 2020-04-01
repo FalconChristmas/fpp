@@ -880,8 +880,9 @@ sed -i -e "s/rotate .*/rotate 2/" /etc/logrotate.conf
 #######################################
 # Configure ccache
 echo "FPP - Configuring ccache"
-ccache -M 75M
+ccache -M 250M
 ccache --set-config=temporary_dir=/tmp
+ccache --set-config=sloppiness=pch_defines,time_macros
 
 #######################################
 echo "FPP - Configuring FTP server"

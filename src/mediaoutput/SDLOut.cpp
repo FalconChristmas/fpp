@@ -23,21 +23,13 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include "fpp-pch.h"
+
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <sys/types.h>
 #include <stdbool.h>
-#include <string.h>
-#include <unistd.h>
-#include <atomic>
 #include <cmath>
-#include <set>
-#include <thread>
-#include <list>
-#include <mutex>
 
 extern "C"
 {
@@ -50,15 +42,10 @@ extern "C"
 }
 
 
-#include "common.h"
-#include "log.h"
 #include "MultiSync.h"
 #include "SDLOut.h"
-#include "Sequence.h"
-#include "settings.h"
 #include "overlays/PixelOverlay.h"
 #include "overlays/PixelOverlayModel.h"
-#include "Warnings.h"
 #include "channeloutput/channeloutputthread.h"
 
 //Only keep 30 frames in buffer
@@ -544,7 +531,7 @@ void SDL::runDecode() {
             int countRead = 0;
             while (bufFull != 2 && count < 5) {
                 count++;
-                if (data->outBufferPos > data->minQueueSize > 2) {
+                if (data->outBufferPos > data->minQueueSize) {
                     //single packet
                     countRead += data->maybeFillBuffer(false);
                     bufFull = 2;

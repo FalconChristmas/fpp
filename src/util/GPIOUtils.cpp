@@ -1,9 +1,8 @@
+#include "fpp-pch.h"
+
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <errno.h>
-#include <unistd.h>
 #include <sys/types.h>
-#include <thread>
 
 #if __has_include(<gpiod.hpp>)
 #include <gpiod.hpp>

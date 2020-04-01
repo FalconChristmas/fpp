@@ -23,16 +23,10 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <vector>
-
-#include <errno.h>
-#include <string.h>
+#include "fpp-pch.h"
 #include <sys/time.h>
-#include <unistd.h>
 
 #include "ThreadedChannelOutputBase.h"
-#include "common.h"
-#include "log.h"
 
 ThreadedChannelOutputBase::ThreadedChannelOutputBase(unsigned int startChannel,
 	 unsigned int channelCount)

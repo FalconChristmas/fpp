@@ -23,23 +23,17 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include <ctype.h>
 #include <time.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <stdlib.h>
 #include <string.h>
-#include <chrono>
 
 #include "command.h"
-#include "commands/Commands.h"
-#include "common.h"
 #include "fpp.h"
-#include "log.h"
 #include "playlist/Playlist.h"
 #include "Scheduler.h"
-#include "settings.h"
 #include "SunSet.h"
 
 #define SCHEDULE_FILE     "/home/fpp/media/config/schedule.json"

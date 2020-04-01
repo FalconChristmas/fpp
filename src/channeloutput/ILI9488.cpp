@@ -22,18 +22,12 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
 #include <sys/mman.h>
-#include <unistd.h>
 
-#include "common.h"
 #include "ILI9488.h"
-#include "log.h"
 
 #define PAGE_SIZE (4*1024)
 #define BLOCK_SIZE (4*1024)

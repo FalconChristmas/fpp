@@ -17,30 +17,19 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <chrono>
-#include <set>
-#include <errno.h>
-#include <string.h>
+#include "fpp-pch.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <ifaddrs.h>
 
 #include <netdb.h>
 
 #include <curl/curl.h>
 
-
 #include "UDPOutput.h"
-#include "Warnings.h"
-#include "log.h"
 #include "ping.h"
 
-#include "common.h"
-#include "settings.h"
 #include "NetworkMonitor.h"
 
 #include "E131.h"

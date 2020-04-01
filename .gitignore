@@ -2,6 +2,7 @@
 .*.swp
 *.pyc
 .buildpath
+*.gch
 build/
 SD/*.xz
 lib/librgbmatrix.so

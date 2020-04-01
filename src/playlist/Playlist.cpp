@@ -22,31 +22,18 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include "string.h"
-#include <unistd.h>
 #include <sys/wait.h>
 
-#include <fstream>
-#include <sstream>
-#include <string>
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <jsoncpp/json/json.h>
 
-#include "common.h"
 #include "fpp.h"
-#include "log.h"
-#include "mqtt.h"
 #include "Plugins.h"
 #include "Playlist.h"
-#include "settings.h"
-#include "Sequence.h"
 
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryBranch.h"

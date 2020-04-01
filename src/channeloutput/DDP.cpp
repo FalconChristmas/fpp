@@ -90,6 +90,8 @@
  *
  */
 
+#include "fpp-pch.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -97,26 +99,11 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <netinet/in.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <netdb.h>
 
-#include "common.h"
 #include "DDP.h"
-#include "log.h"
-#include "Sequence.h"
-#include "settings.h"
-#include "Warnings.h"
 
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <cstring>
-
-#include <jsoncpp/json/json.h>
-#include <strings.h>
 
 
 #define DDP_HEADER_LEN 10

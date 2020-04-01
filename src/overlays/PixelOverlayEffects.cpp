@@ -14,6 +14,7 @@
 *   You should have received a copy of the GNU General Public License
 *   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
+#include "fpp-pch.h"
 
 #include <Magick++.h>
 #include <magick/type.h>
@@ -21,9 +22,6 @@
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
 #include "PixelOverlay.h"
-#include "log.h"
-#include "common.h"
-#include <map>
 
 static uint32_t applyColorPct(uint32_t c, float pct) {
     uint32_t r = (c >> 16) & 0xFF;
@@ -50,7 +48,7 @@ public:
     const std::string &name() const override {
         return effectName;
     }
-    virtual int32_t update() {
+    virtual int32_t update() override {
         model->clearOverlayBuffer();
         model->flushOverlayBuffer();
         if (stopped) {

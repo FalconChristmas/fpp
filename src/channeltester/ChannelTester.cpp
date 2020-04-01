@@ -23,15 +23,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <strings.h>
-#include <unistd.h>
-
-#include <jsoncpp/json/json.h>
+#include "fpp-pch.h"
 
 #include "ChannelTester.h"
-#include "common.h"
-#include "log.h"
 
 // Test Patterns
 #include "RGBChase.h"

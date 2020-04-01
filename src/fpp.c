@@ -22,22 +22,16 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
 #include "fpp.h"
 #include "fppversion.h"
-#include "log.h"
 #include "command.h"
 
-#include <errno.h>
-#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 int socket_fd;
 struct sockaddr_un server_address;

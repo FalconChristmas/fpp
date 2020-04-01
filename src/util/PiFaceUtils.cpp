@@ -1,7 +1,5 @@
-#include <unistd.h>
+#include "fpp-pch.h"
 #include <stropts.h>
-
-#include <vector>
 
 #include "SPIUtils.h"
 #include "PiFaceUtils.h"

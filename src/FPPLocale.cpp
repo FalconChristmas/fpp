@@ -1,6 +1,5 @@
-#include "common.h"
+#include "fpp-pch.h"
 #include "FPPLocale.h"
-#include "settings.h"
 
 Json::Value LocaleHolder::locale;
 std::mutex LocaleHolder::localeLock;

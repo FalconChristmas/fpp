@@ -23,8 +23,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <string.h>
+#include "fpp-pch.h"
+
 #include <sys/stat.h>
 
 #if __GNUC__ >= 8
@@ -35,8 +35,6 @@ using namespace std::filesystem;
 using namespace std::experimental::filesystem;
 #endif
 
-#include "common.h"
-#include "log.h"
 #include "PlaylistEntryImage.h"
 
 void StartPrepLoopThread(PlaylistEntryImage *fb);

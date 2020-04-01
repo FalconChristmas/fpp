@@ -44,13 +44,9 @@
  * }
  *
  */
+#include "fpp-pch.h"
 
-#include <stdlib.h>
-#include <unistd.h>
-
-#include "common.h"
 #include "MAX7219Matrix.h"
-#include "log.h"
 
 #define MAX7219_DECODE_MODE 0x09
 #define MAX7219_SHUTDOWN    0x0C

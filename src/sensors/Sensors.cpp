@@ -1,23 +1,13 @@
+#include "fpp-pch.h"
+
 #include "Sensors.h"
 
-
-#include <iomanip>
-#include <iostream>
-#include <fstream>
-
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <mutex>
 
 #include<sys/ioctl.h>
 #include<linux/i2c.h>
 #include<linux/i2c-dev.h>
-#include <thread>
-#include <chrono>
-
-#include "common.h"
 
 #include "util/I2CUtils.h"
 

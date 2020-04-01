@@ -1,10 +1,7 @@
+#include "fpp-pch.h"
+
 #include <fcntl.h>
-#include <unistd.h>
 
-#include <vector>
-
-#include "common.h"
-#include "log.h"
 #include "TmpFileGPIO.h"
 
 

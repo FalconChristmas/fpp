@@ -23,9 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common.h"
-#include "log.h"
-//#include "Player.h"
+#include "fpp-pch.h"
 #include "PlaylistEntryPlaylist.h"
 
 PlaylistEntryPlaylist::PlaylistEntryPlaylist(PlaylistEntryBase *parent)

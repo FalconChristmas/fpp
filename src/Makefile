@@ -68,19 +68,25 @@ fppversion.c: fppversion.sh
 
 fppversion_defines.h: fppversion.c
 
-%.o: %.cpp %.h fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
+ifeq '$(CXXCOMPILER)' 'g++'
+PCH_FILE=fpp-pch.h.gch
+fpp-pch.h.gch: fpp-pch.h fppversion_defines.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h
+	CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $< -o $@
+endif
+
+%.o: %.cpp %.h $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $< -o $@
 
-%.o: %.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
+%.o: %.c $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
 	$(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CFLAGS_$@) -c $< -o $@
 
 cleanfpp:
 	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
 
 clean::
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
-	@if [ -e ../external/RF24/.git ]; then make -C ../external/RF24 clean; fi
-	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then make -C ../external/rpi-rgb-led-matrix clean; fi
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE)
+	@if [ -e ../external/RF24/.git ]; then $(MAKE) -C ../external/RF24 clean; fi
+	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then $(MAKE) -C ../external/rpi-rgb-led-matrix clean; fi
 	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
 
 restart: fppd

@@ -23,11 +23,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <sys/types.h>
-
-#include "common.h"
-#include "log.h"
+#include "fpp-pch.h"
 #include "PanelMatrix.h"
 
 PanelMatrix::PanelMatrix(int panelWidth, int panelHeight, int invertedData)

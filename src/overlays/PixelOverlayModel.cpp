@@ -15,13 +15,11 @@
 *   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "fpp-pch.h"
 
-#include <stdio.h>
-#include <cstring>
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include <jsoncpp/json/json.h>
 #include "channeloutput/channeloutputthread.h"
 
 #include "PixelOverlayModel.h"

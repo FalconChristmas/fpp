@@ -23,25 +23,15 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
 
-#include "settings.h"
-#include "fppversion.h"
-#include "log.h"
 #include "fpp.h"
 
-#include <errno.h>
 #include <libgen.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
 #include <getopt.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <ctype.h>
 #include <pwd.h>
-#include "common.h"
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
 

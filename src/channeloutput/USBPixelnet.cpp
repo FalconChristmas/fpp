@@ -22,13 +22,8 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-
-#include "common.h"
-#include "log.h"
 #include "serialutil.h"
 #include "USBPixelnet.h"
 

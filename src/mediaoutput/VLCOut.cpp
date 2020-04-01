@@ -14,16 +14,12 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "fpp-pch.h"
 #include <vlc/vlc.h>
-#include <cmath>
-#include <array>
 
 #include "VLCOut.h"
 
-#include "common.h"
-#include "log.h"
 #include "MultiSync.h"
-#include "Sequence.h"
 #include "channeloutput/channeloutputthread.h"
 
 class VLCInternalData {

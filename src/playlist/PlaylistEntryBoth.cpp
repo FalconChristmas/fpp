@@ -23,12 +23,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "log.h"
+#include "fpp-pch.h"
 #include "PlaylistEntryBoth.h"
 #include "mediadetails.h"
-#include "Sequence.h"
-#include "settings.h"
-#include "common.h"
 
 PlaylistEntryBoth::PlaylistEntryBoth(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),

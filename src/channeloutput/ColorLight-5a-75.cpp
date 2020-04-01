@@ -65,25 +65,17 @@
  *     55 00 00 00 00 00 80 08 88 (128 pixel wide display)
  *
  */
+#include "fpp-pch.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
 #include <linux/if_packet.h>
 #include <net/if.h>
 #include <netinet/ether.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <unistd.h>
-#include <cmath>
 
-#include "common.h"
-#include "Warnings.h"
 #include "ColorLight-5a-75.h"
-#include "log.h"
-#include "settings.h"
 
 
 extern "C" {

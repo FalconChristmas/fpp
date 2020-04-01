@@ -23,18 +23,13 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <vector>
+#include "fpp-pch.h"
 
 #include <errno.h>
-#include <string.h>
 #include <sys/time.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include "MediaOutputBase.h"
-#include "common.h"
-#include "log.h"
 
 MediaOutputBase::MediaOutputBase(void)
   : m_isPlaying(0),

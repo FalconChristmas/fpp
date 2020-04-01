@@ -1,3 +1,5 @@
+#include "fpp-pch.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <libgen.h>
@@ -228,7 +230,7 @@ void PluginManager::init()
 
 	dp = opendir(getPluginDirectory());
 	if (dp != NULL) {
-		while (ep = readdir(dp)) {
+		while ((ep = readdir(dp))) {
 			int location = strstr(ep->d_name, ".") - ep->d_name;
 			// We're one of ".", "..", or hidden, so let's skip
             if (location == 0) {

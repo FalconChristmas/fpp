@@ -23,26 +23,20 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fcntl.h>
+#include "fpp-pch.h"
+
 #include <dirent.h>
 #include <sys/stat.h>
 
 #include <Magick++.h>
 #include <magick/type.h>
-#include <jsoncpp/json/json.h>
-
-#include <chrono>
 
 #include "effects.h"
 #include "channeloutput/channeloutputthread.h"
-#include "mqtt.h"
-#include "common.h"
-#include "settings.h"
-#include "log.h"
+
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
 #include "PixelOverlayModel.h"
-#include "commands/Commands.h"
 
 PixelOverlayManager PixelOverlayManager::INSTANCE;
 
@@ -388,7 +382,7 @@ static void findFonts(const std::string &dir, std::map<std::string, std::string>
     
     dp = opendir(dir.c_str());
     if (dp != NULL) {
-        while (ep = readdir(dp)) {
+        while ((ep = readdir(dp))) {
             int location = strstr(ep->d_name, ".") - ep->d_name;
             // We're one of ".", "..", or hidden, so let's skip
             if (location == 0) {

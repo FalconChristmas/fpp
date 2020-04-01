@@ -204,7 +204,7 @@ bool ListOLEDPage::doAction(const std::string &action) {
             curTop--;
         }
         display();
-    } else if (action == "Enter" || action == "Back" && parent) {
+    } else if (action == "Enter" || (action == "Back" && parent)) {
         SetCurrentPage(parent);
     }
     return true;

@@ -199,7 +199,7 @@ static void getFileList(const std::string &basepath, const std::string &path, st
     if (dir) {
         files.push_back(path + "/");
         struct dirent *ep;
-        while (ep = readdir(dir)) {
+        while ((ep = readdir(dir))) {
             std::string v = ep->d_name;
             if (v != "." && v != "..") {
                 std::string newBPath = basepath + "/" + v;

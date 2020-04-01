@@ -23,27 +23,20 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "fpp-pch.h"
+
 #include <errno.h>
 #include <pty.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/wait.h>
-#include <unistd.h>
 #include <stdio_ext.h>
 
-#include <sys/types.h>
 #include <sys/socket.h>
 
-#include "common.h"
-#include "settings.h"
-#include "log.h"
 #include "MultiSync.h"
 #include "omxplayer.h"
 #include "mediaoutput.h"
-#include "settings.h"
-#include "Sequence.h"
 #include "channeloutput/channeloutputthread.h"
 
 #define MAX_BYTES_OMX 4096

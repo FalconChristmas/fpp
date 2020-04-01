@@ -55,12 +55,9 @@
  * }
  *
  */
+#include "fpp-pch.h"
 
-#include <stdlib.h>
-
-#include "common.h"
 #include "MCP23017.h"
-#include "log.h"
 
 #define MCP23x17_IOCON      0x0A
 #define MCP23x17_IODIRA     0x00
