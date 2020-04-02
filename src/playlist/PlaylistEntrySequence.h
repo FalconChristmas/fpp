@@ -47,17 +47,15 @@ class PlaylistEntrySequence : public PlaylistEntryBase {
 	virtual Json::Value GetConfig(void) override;
 	virtual Json::Value GetMqttStatus(void) override;
 
+    virtual uint64_t GetLengthInMS() override;
+    virtual uint64_t GetElapsedMS() override;
 
 	std::string GetSequenceName(void) { return m_sequenceName; }
 
   private:
     bool                 m_prepared;
 	int                  m_duration;
-	long long            m_sequenceID;
-
 	std::string          m_sequenceName;
-	int                  m_priority;
-	int                  m_startSeconds;
 };
 
 #endif

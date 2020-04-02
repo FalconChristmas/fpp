@@ -654,8 +654,8 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         std::string mediaFilename;
         if (sequence->IsSequenceRunning()) {
             seqFilename = sequence->m_seqFilename;
-            secsElapsed = sequence->m_seqSecondsElapsed;
-            secsRemaining = sequence->m_seqSecondsRemaining;
+            secsElapsed = sequence->m_seqMSElapsed / 1000;
+            secsRemaining = sequence->m_seqMSRemaining / 1000;
         }
         if (mediaOutput) {
             mediaFilename = mediaOutput->m_mediaFilename;
@@ -726,8 +726,8 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
                 : pl["currentEntry"]["secondsRemaining"].asInt();
         } else if (pl["currentEntry"]["type"] == "sequence") {
             currentSeq = pl["currentEntry"]["sequenceName"].asString();
-            secsElapsed = sequence->m_seqSecondsElapsed;
-            secsRemaining = sequence->m_seqSecondsRemaining;
+            secsElapsed = sequence->m_seqMSElapsed / 1000;
+            secsRemaining = sequence->m_seqMSRemaining / 1000;
         } else if (pl["currentEntry"]["type"] == "script") {
             currentSeq = pl["currentEntry"]["scriptFilename"].asString();
             secsElapsed = pl["currentEntry"]["secondsElapsed"].asInt();

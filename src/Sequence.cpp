@@ -55,9 +55,8 @@ using namespace std::literals::chrono_literals;
 Sequence *sequence = NULL;
 Sequence::Sequence()
   :
-    m_seqDuration(0),
-    m_seqSecondsElapsed(0),
-    m_seqSecondsRemaining(0),
+    m_seqMSDuration(0),
+    m_seqMSElapsed(0),
     m_seqMSRemaining(0),
     m_seqFile(nullptr),
     m_seqStarting(0),
@@ -222,9 +221,9 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
     lock.unlock();
     
     m_seqPaused   = 0;
-    m_seqDuration = 0;
-    m_seqSecondsElapsed = 0;
-    m_seqSecondsRemaining = 0;
+    m_seqMSDuration = 0;
+    m_seqMSElapsed = 0;
+    m_seqMSRemaining = 0;
     SetChannelOutputFrameNumber(m_lastFrameRead + 1);
     if (m_readThread == nullptr) {
         m_readThread = new std::thread(ReadSequenceDataThread, this);
@@ -278,9 +277,8 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
     seqFile->prepareRead(GetOutputRanges(), startFrame < 0 ? 0 : startFrame);
     // Calculate duration
     m_seqMSRemaining = seqFile->getNumFrames() * seqFile->getStepTime();
-    m_seqDuration = m_seqMSRemaining;
-    m_seqDuration /= 1000;
-    m_seqSecondsRemaining = m_seqDuration;
+    m_seqMSDuration = m_seqMSRemaining;
+    m_seqMSElapsed = 0;
     SetChannelOutputRefreshRate(m_seqRefreshRate);
     
     
@@ -299,7 +297,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
 
     m_numSeek = 0;
     LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
-    LogDebug(VB_SEQUENCE, "seqDuration           : %d\n", m_seqDuration);
+    LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     return 1;
 }
@@ -468,14 +466,13 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             
             data->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
             SetChannelOutputFrameNumber(data->frame);
-            m_seqSecondsElapsed = data->frame * m_seqStepTime;
-            m_seqSecondsElapsed /= 1000;
-            m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
+            m_seqMSElapsed = data->frame * m_seqStepTime;
+            m_seqMSRemaining = m_seqMSDuration - m_seqMSElapsed;
             m_dataProcessed = false;
         } else if (m_doneRead) {
             lock.unlock();
-            m_seqSecondsElapsed = m_seqDuration;
-            m_seqSecondsRemaining = m_seqDuration - m_seqSecondsElapsed;
+            m_seqMSElapsed = m_seqMSDuration;
+            m_seqMSRemaining = 0;
             CloseSequenceFile();
         } else {
             if (m_lastFrameRead > 0) {

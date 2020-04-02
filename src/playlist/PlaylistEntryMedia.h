@@ -52,14 +52,10 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 
 	std::string GetMediaName(void) { return m_mediaFilename; }
 
+    virtual uint64_t GetLengthInMS() override;
+    virtual uint64_t GetElapsedMS() override;
+    
 	int   m_status;
-	int   m_secondsElapsed;
-	int   m_subSecondsElapsed;
-	int   m_secondsRemaining;
-	int   m_subSecondsRemaining;
-	int   m_minutesTotal;
-	int   m_secondsTotal;
-	float m_mediaSeconds;
 
     long long m_openTime;
     static int m_openStartDelay;
@@ -76,6 +72,8 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
     std::string        m_videoOutput;
 	MediaOutputBase   *m_mediaOutput;
 	pthread_mutex_t    m_mediaOutputLock;
+    
+    uint64_t           m_duration;
 
     std::string              m_fileMode;
     std::vector<std::string> m_files;

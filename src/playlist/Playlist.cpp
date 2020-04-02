@@ -1158,6 +1158,34 @@ Json::Value Playlist::GetCurrentEntry(void)
 	return result;
 }
 
+
+uint64_t Playlist::GetCurrentPosInMS() {
+    if (m_currentState == "idle" || m_currentSection == nullptr)
+        return 0;
+    uint64_t pos = 0;
+
+    for (int x = 0; x < m_sectionPosition; x++) {
+        pos += m_currentSection->at(x)->GetLengthInMS();
+    }
+    pos += m_currentSection->at(m_sectionPosition)->GetElapsedMS();
+    //if we aren't in the LeadIn, add the time of the LeadIn
+    if (m_currentSectionStr != "LeadIn") {
+        for (auto &a : m_leadIn) {
+            pos += a->GetLengthInMS();
+        }
+    } else {
+        return pos;
+    }
+    if (m_currentSectionStr != "MainPlaylist") {
+        // must be in the leadOut, add the main list length
+        for (auto &a : m_mainPlaylist) {
+            pos += a->GetLengthInMS();
+        }
+    }
+    return pos;
+}
+
+
 Json::Value Playlist::GetMqttStatusJSON(void){
     // this is called on background thread, need to lock
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);

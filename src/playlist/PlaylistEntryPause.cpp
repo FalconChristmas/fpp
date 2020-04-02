@@ -74,10 +74,10 @@ int PlaylistEntryPause::StartPlaying(void)
 	}
 
 	// Calculate end time as m_duation number of seconds from now
-	m_startTime = GetTime();
+	m_startTime = GetTimeMS();
     
     double tmp = m_duration;
-    tmp *= 1000000.0;
+    tmp *= 1000.0;
 	m_endTime = m_startTime + tmp;
 
 	return PlaylistEntryBase::StartPlaying();
@@ -92,9 +92,9 @@ int PlaylistEntryPause::Process(void)
 		return 0;
     }
 
-    long long now = GetTime();
+    long long now = GetTimeMS();
 	if (m_isStarted && m_isPlaying && (now >= m_endTime)) {
-		m_finishTime = GetTime();
+		m_finishTime = GetTimeMS();
 		FinishPlay();
 	}
 
@@ -108,11 +108,25 @@ int PlaylistEntryPause::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryPause::Stop()\n");
 
-	m_finishTime = GetTime();
+	m_finishTime = GetTimeMS();
 	FinishPlay();
 
 	return PlaylistEntryBase::Stop();
 }
+
+uint64_t PlaylistEntryPause::GetLengthInMS() {
+    float f = m_duration; //duration is in seconds
+    f *= 1000;
+    return f;
+}
+uint64_t PlaylistEntryPause::GetElapsedMS() {
+    long long now = GetTimeMS();
+    if (m_isStarted && m_isPlaying) {
+        return now - m_endTime;
+    }
+    return 0;
+}
+
 
 /*
  *
@@ -141,7 +155,7 @@ Json::Value PlaylistEntryPause::GetConfig(void)
 	result["finishTime"] = (Json::UInt64)m_finishTime;
 
 	if (m_isPlaying)
-		result["remaining"] = (Json::UInt64)((m_endTime - GetTime()) / 1000000);
+		result["remaining"] = (Json::UInt64)((m_endTime - GetTimeMS()) / 1000);
 	else
 		result["remaining"] = (Json::UInt64)0;
 

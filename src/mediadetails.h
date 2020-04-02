@@ -19,6 +19,7 @@ public:
 	int length;
 	int seconds;
 	int minutes;
+    int lengthMS;
 
 	int bitrate;
 	int sampleRate;

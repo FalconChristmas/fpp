@@ -40,6 +40,9 @@ class PlaylistEntryPause : public PlaylistEntryBase {
 	virtual int  StartPlaying(void) override;
 	virtual int  Process(void) override;
 	virtual int  Stop(void) override;
+    
+    virtual uint64_t GetLengthInMS() override;
+    virtual uint64_t GetElapsedMS() override;
 
 	virtual void Dump(void) override;
 

@@ -171,6 +171,25 @@ void PlaylistEntryBoth::Dump(void)
 	m_sequenceEntry->Dump();
 }
 
+uint64_t PlaylistEntryBoth::GetLengthInMS() {
+    uint64_t m = m_mediaEntry ? m_mediaEntry->GetLengthInMS() : 0;
+    uint64_t s = m_sequenceEntry ? m_sequenceEntry->GetLengthInMS() : 0;
+    if (m && m < s) {
+        //media drives it, when media completes, we stop
+        return m;
+    }
+    return s;
+}
+uint64_t PlaylistEntryBoth::GetElapsedMS() {
+    if (m_mediaEntry) {
+        return m_mediaEntry->GetElapsedMS();
+    }
+    if (m_sequenceEntry) {
+        return m_sequenceEntry->GetElapsedMS();
+    }
+    return 0;
+}
+
 /*
  *
  */
@@ -193,18 +212,19 @@ Json::Value PlaylistEntryBoth::GetConfig(void)
 Json::Value PlaylistEntryBoth::GetMqttStatus(void)
 {
 	Json::Value result = PlaylistEntryBase::GetMqttStatus();
-    	if (m_mediaEntry) {
-        	result["secondsRemaining"] = m_mediaEntry->m_secondsRemaining;
-        	result["secondsTotal"] = m_mediaEntry->m_secondsTotal;
-        	result["secondsElapsed"] = m_mediaEntry->m_secondsElapsed;
+    if (m_mediaEntry) {
+        uint64_t l = m_mediaEntry->GetLengthInMS();
+        uint64_t e = m_mediaEntry->GetElapsedMS();
+        result["secondsRemaining"] = (int)((l-e) / 1000);
+        result["secondsTotal"] = (int)(l / 1000);
+        result["secondsElapsed"] = (int)(e / 1000);
 		result["mediaName"] = m_mediaEntry->GetMediaName();
-
 	}
 	if (m_sequenceEntry) {
-		result["sequenceName"]     = m_sequenceEntry->GetSequenceName();
-        	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
-        	result["secondsTotal"] = sequence->m_seqDuration;
-        	result["secondsElapsed"] = sequence->m_seqSecondsElapsed;
+		result["sequenceName"] = m_sequenceEntry->GetSequenceName();
+       	result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
+       	result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
+       	result["secondsElapsed"] = sequence->m_seqMSElapsed / 1000;
 	}
 
     result["mediaTitle"] = MediaDetails::INSTANCE.title;

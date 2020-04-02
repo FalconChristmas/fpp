@@ -95,6 +95,9 @@ class Playlist {
 	uint64_t           GetFileTime(void) { return (Json::UInt64)m_fileTime; }
 	int                GetForceStop(void) { return m_forceStop; }
 	int                WasScheduled(void) { return m_scheduled; }
+    
+    uint64_t           GetCurrentPosInMS();
+    
 
 	int                MQTTHandler(std::string topic, std::string msg);
 

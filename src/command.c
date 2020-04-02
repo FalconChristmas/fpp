@@ -142,8 +142,8 @@ char *ProcessCommand(char *command, char *response)
 
                 if (sequence->IsSequenceRunning()) {
                     strcpy(seqFilename, sequence->m_seqFilename.c_str());
-                    secsElapsed = sequence->m_seqSecondsElapsed;
-                    secsRemaining = sequence->m_seqSecondsRemaining;
+                    secsElapsed = sequence->m_seqMSElapsed / 1000;
+                    secsRemaining = sequence->m_seqMSRemaining / 100;
                 } else {
                     strcpy(seqFilename, "");
                 }
@@ -165,8 +165,8 @@ char *ProcessCommand(char *command, char *response)
                         1,
                         getVolume(),
                         sequence->m_seqFilename.c_str(),
-                        sequence->m_seqSecondsElapsed,
-                        sequence->m_seqSecondsRemaining,
+                        sequence->m_seqMSElapsed / 1000,
+                        sequence->m_seqMSRemaining / 1000,
                         NextPlaylist,
                         NextScheduleStartText);
             } else {
@@ -212,8 +212,8 @@ char *ProcessCommand(char *command, char *response)
                     "",
                     playlist->GetPosition(),
                     pl["size"].asInt(),
-                    sequence->m_seqSecondsElapsed,
-                    sequence->m_seqSecondsRemaining,
+                    sequence->m_seqMSElapsed /1000,
+                    sequence->m_seqMSRemaining / 1000,
                     NextPlaylist,
                     NextScheduleStartText,
                     pl["repeat"].asInt());

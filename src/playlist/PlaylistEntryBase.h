@@ -57,6 +57,9 @@ class PlaylistEntryBase {
 	virtual Json::Value GetMqttStatus(void);
 
 	virtual std::string ReplaceMatches(std::string in);
+    
+    virtual uint64_t GetLengthInMS() { return 0; }
+    virtual uint64_t GetElapsedMS() { return 0; }
 
 	std::string  GetType(void) { return m_type; }
 	int          IsPrepped(void) { return m_isPrepped; }

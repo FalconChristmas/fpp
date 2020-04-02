@@ -71,9 +71,8 @@ class Sequence {
     bool  isDataProcessed() const { return m_dataProcessed; }
     void  setDataNotProcessed() { m_dataProcessed = false; }
 
-	int           m_seqDuration;
-	int           m_seqSecondsElapsed;
-	int           m_seqSecondsRemaining;
+	int           m_seqMSDuration;
+	int           m_seqMSElapsed;
 	int           m_seqMSRemaining;
 	char          m_seqData[FPPD_MAX_CHANNEL_NUM] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
     std::string   m_seqFilename;

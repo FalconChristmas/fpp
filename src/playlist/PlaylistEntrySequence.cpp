@@ -25,13 +25,11 @@
 
 #include "fpp-pch.h"
 #include "PlaylistEntrySequence.h"
+#include "fseq/FSEQFile.h"
 
 PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
 	m_duration(0),
-	m_sequenceID(0),
-	m_priority(0),
-	m_startSeconds(0),
     m_prepared(false)
 
 {
@@ -58,7 +56,6 @@ int PlaylistEntrySequence::Init(Json::Value &config)
 	}
 
 	m_sequenceName = config["sequenceName"].asString();
-
 	return PlaylistEntryBase::Init(config);
 }
 
@@ -69,6 +66,7 @@ int PlaylistEntrySequence::PreparePlay() {
         return 0;
     }
     m_prepared = true;
+    m_duration = sequence->m_seqMSDuration;
     return 1;
 }
 
@@ -89,15 +87,9 @@ int PlaylistEntrySequence::StartPlaying(void)
         PreparePlay();
     }
     
-// FIXME
-//	m_sequenceID = player->StartSequence(m_sequenceName, m_priority, m_startSeconds);
-
-//	if (!m_sequenceID)
-//		return 0;
-
     sequence->StartSequence();
 
-	LogDebug(VB_PLAYLIST, "Started Sequence, ID: %d\n", m_sequenceID);
+    LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
 
 	if (mqtt)
 		mqtt->Publish("playlist/sequence/status", m_sequenceName);
@@ -110,10 +102,6 @@ int PlaylistEntrySequence::StartPlaying(void)
  */
 int PlaylistEntrySequence::Process(void)
 {
-// FIXME
-//	if (!player->SequenceIsRunning(m_sequenceID))
-//		FinishPlay();
-
 	if (!sequence->IsSequenceRunning())
 	{
 		FinishPlay();
@@ -133,10 +121,6 @@ int PlaylistEntrySequence::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Stop()\n");
 
-// FIXME
-//	if (!player->StopSequence(m_sequenceName))
-//		return 0;
-
 	sequence->CloseSequenceFile();
     m_prepared = false;
 	if (mqtt)
@@ -144,6 +128,27 @@ int PlaylistEntrySequence::Stop(void)
 
 	return PlaylistEntryBase::Stop();
 }
+
+uint64_t PlaylistEntrySequence::GetLengthInMS() {
+    if (m_duration == 0) {
+        std::string n = getSequenceDirectory();
+        n += "/";
+        n += m_sequenceName;
+        if (FileExists(n)) {
+            FSEQFile* fs = FSEQFile::openFSEQFile(n);
+            m_duration = fs->getTotalTimeMS();
+            delete fs;
+        }
+    }
+    return m_duration;
+}
+uint64_t PlaylistEntrySequence::GetElapsedMS() {
+    if (m_prepared) {
+        return sequence->m_seqMSElapsed;
+    }
+    return 0;
+}
+
 
 /*
  *
@@ -163,17 +168,17 @@ Json::Value PlaylistEntrySequence::GetConfig(void)
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
 	result["sequenceName"]     = m_sequenceName;
-	result["secondsElapsed"]   = sequence->m_seqSecondsElapsed;
-	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
+	result["secondsElapsed"]   = sequence->m_seqMSElapsed / 1000;
+	result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
 
 	return result;
 }
 Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
 	Json::Value result = PlaylistEntryBase::GetMqttStatus();
 	result["sequenceName"]     = m_sequenceName;
-	result["secondsElapsed"]   = sequence->m_seqSecondsElapsed;
-	result["secondsRemaining"] = sequence->m_seqSecondsRemaining;
-	result["secondsTotal"] = sequence->m_seqDuration;
+	result["secondsElapsed"]   = sequence->m_seqMSElapsed / 1000;
+	result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
+	result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
 
 	return result;
 }

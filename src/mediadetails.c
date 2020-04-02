@@ -86,6 +86,7 @@ void MediaDetails::ParseMedia(const char *mediaFilename)
 	if (f.audioProperties()) {
 		TagLib::AudioProperties *properties = f.audioProperties();
 
+        lengthMS   = properties->lengthInMilliseconds();
 		length     = properties->length();
 		seconds    = properties->length() % 60;
 		minutes    = (properties->length() - seconds) / 60;

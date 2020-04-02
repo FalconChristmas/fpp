@@ -50,17 +50,11 @@ int PlaylistEntryMedia::m_openStartDelay = -1;
 PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
 	m_status(0),
-	m_secondsElapsed(0),
-	m_subSecondsElapsed(0),
-	m_secondsRemaining(0),
-	m_subSecondsRemaining(0),
-	m_minutesTotal(0),
-	m_secondsTotal(0),
-	m_mediaSeconds(0.0),
 	m_mediaOutput(NULL),
     m_videoOutput("--Default--"),
     m_openTime(0),
-    m_fileMode("single")
+    m_fileMode("single"),
+    m_duration(0)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PlaylistEntryMedia()\n");
     if (m_openStartDelay == -1) {
@@ -154,7 +148,6 @@ int PlaylistEntryMedia::PreparePlay() {
     return 1;
 }
 
-
 /*
  *
  */
@@ -178,7 +171,10 @@ int PlaylistEntryMedia::StartPlaying(void)
         return 0;
     }
 
-
+    float f = mediaOutputStatus.mediaSeconds * 1000;
+    if (f > m_duration) {
+        m_duration = f;
+    }
     pthread_mutex_lock(&m_mediaOutputLock);
 
     if (getFPPmode() == MASTER_MODE)
@@ -228,6 +224,28 @@ int PlaylistEntryMedia::Process(void)
 
 	return PlaylistEntryBase::Process();
 }
+
+uint64_t PlaylistEntryMedia::GetLengthInMS() {
+    if (m_duration == 0) {
+        MediaDetails details;
+        details.ParseMedia(m_mediaFilename.c_str());
+        m_duration = details.lengthMS;
+    }
+    return m_duration;
+}
+uint64_t PlaylistEntryMedia::GetElapsedMS() {
+    if (m_mediaOutput) {
+        float f = mediaOutputStatus.secondsElapsed * 1000;
+        f += mediaOutputStatus.subSecondsElapsed * 10;  // subSec is in 1/100th second
+        if (f > m_duration) {
+            m_duration = f;
+        }
+        return f;
+    }
+    return 0;
+}
+
+
 
 /*
  *
