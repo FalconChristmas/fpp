@@ -36,7 +36,7 @@
 
 	<script type="text/javascript">
 	$(function() {
-		$('#fppMenu').smartmenus({subMenusMinWidth: "100%", showOnClick: true,
+		$('#fppMenu').smartmenus({subMenusMinWidth: "50%", showOnClick: true,
 			showFunction: function($ul, complete) { $ul.slideDown(250, complete); },
 			hideFunction: function($ul, complete) { $ul.slideUp(250, complete); },
 		});

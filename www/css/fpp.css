@@ -1170,19 +1170,27 @@ td.bgDarkOrange {
 	border-radius: 0px;
 	-moz-border-radius:0;
 	-webkit-border-radius:0;
-	border: none; }
+	border: none;
+}
 
 #fppMenu li ul:before, #fppMenu li ul:after {
-	border: none; }
+	border: none;
+}
 
 #fppMenu li ul li {
-	border-bottom: 1px solid #888; }
+	border-bottom: 1px solid #888;
+    padding-left: 2em;
+    padding-right: 2em;
+    text-align: left !important;
+}
 
 #fppMenu li ul li:last-child {
-	border: none; }
+	border: none;
+}
 
 #fppMenu li ul li a {
-	font-weight: normal; }
+	font-weight: normal;
+}
 
 .hostnameColumn{
 	max-width: 100px;
