@@ -1317,7 +1317,7 @@ a[href="index.php"]:before{
    padding-right: 10px;
    font-weight: 900;
 }
-a[href="networkconfig.php"]:before{
+a[href="networkconfig.php"]:not(.headerLink):before{
    font-family: "Font Awesome 5 Free" !important;
    content: "\f6ff";
    display: inline-block;
@@ -1515,7 +1515,7 @@ a[href="troubleshooting.php"]:before{
    padding-right: 10px;
    font-weight: 900;
 }
-a[href="about.php"]:before{
+a[href="about.php"]:not(.headerLink):before{
    font-family: "Font Awesome 5 Free" !important;
    content: "\f05a";
    display: inline-block;
