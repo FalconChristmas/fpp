@@ -39,7 +39,6 @@
 #include "settings.h"
 #include "Sequence.h"
 #include "fppversion.h"
-#include "fppversion_defines.h"
 #include "log.h"
 #include "mqtt.h"
 #include "commands/Commands.h"
