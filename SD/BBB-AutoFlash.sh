@@ -45,6 +45,8 @@ fi
 
 mount ${DEVICE}p1 /tmp/rootfs
 sed -i '/.*AutoFlash\.sh/d' /tmp/rootfs/boot/uEnv.txt
+echo ""  >> /tmp/rootfs/boot/uEnv.txt
+echo "cmdline=coherent_pool=1M net.ifnames=0 lpj=1990656 rng_core.default_quality=100 quiet rootwait" >> /tmp/rootfs/boot/uEnv.txt
 umount /tmp/rootfs
 shutdown -h now
 
