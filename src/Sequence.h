@@ -77,6 +77,8 @@ class Sequence {
 	char          m_seqData[FPPD_MAX_CHANNEL_NUM] __attribute__ ((aligned (__BIGGEST_ALIGNMENT__)));
     std::string   m_seqFilename;
 
+    
+    int  GetSeqStepTime() const { return m_seqStepTime;}
   private:
 	void  BlankSequenceData(void);
 	char  NormalizeControlValue(char in);

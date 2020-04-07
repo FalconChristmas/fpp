@@ -97,6 +97,9 @@ class Playlist {
 	int                WasScheduled(void) { return m_scheduled; }
     
     uint64_t           GetCurrentPosInMS();
+    uint64_t           GetPosStartInMS(int pos);
+    int                FindPosForMS(uint64_t &ms); //ms will be updated with how far into Pos it would be
+    void               GetFilenamesForPos(int pos, std::string &seq, std::string &med);
     
 
 	int                MQTTHandler(std::string topic, std::string msg);

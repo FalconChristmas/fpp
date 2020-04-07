@@ -43,6 +43,7 @@
 #include "mediaoutput/mediaoutput.h"
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
+#include "playlist/Playlist.h"
 #include "commands/Commands.h"
 #include "NetworkMonitor.h"
 
@@ -1767,15 +1768,66 @@ void MultiSync::StartSyncedSequence(const char *filename)
     }
 }
 
-/*
- *
- */
 void MultiSync::StopSyncedSequence(const char *filename)
 {
 	LogDebug(VB_SYNC, "StopSyncedSequence(%s)\n", filename);
 
 	sequence->CloseIfOpen(filename);
 }
+
+void MultiSync::SyncPlaylistToMS(uint64_t ms, const std::string &pl, bool sendSyncPackets) {
+    if (playlist->GetPlaylistName() != pl) {
+        if (pl == "") {
+            return;
+        }
+        playlist->Load(pl.c_str());
+    }
+    float seconds = ms;
+    seconds /= 1000;
+
+    int desiredpos = playlist->FindPosForMS(ms);
+    if (desiredpos) {
+        if (m_controlSock < 0 && sendSyncPackets) {
+            OpenControlSockets();
+        }
+        
+        std::string seq, med;
+        playlist->GetFilenamesForPos(desiredpos, seq, med);
+        if (seq != "") {
+            if (!sequence->IsSequenceRunning(seq)) {
+                if (sequence->IsSequenceRunning()) {
+                    if (sendSyncPackets) SendSeqSyncStopPacket(sequence->m_seqFilename);
+                    sequence->CloseSequenceFile();
+                }
+                ResetMasterPosition();
+                sequence->OpenSequenceFile(seq.c_str());
+                if (sendSyncPackets) SendSeqOpenPacket(seq);
+                int frame = ms / sequence->GetSeqStepTime();
+                sequence->StartSequence(seq.c_str(), frame);
+                if (sendSyncPackets) SendSeqSyncStartPacket(seq);
+            } else {
+                int frame = ms / sequence->GetSeqStepTime();
+                SyncSyncedSequence(seq.c_str(), frame, seconds);
+                if (sendSyncPackets) SendSeqSyncPacket(seq, frame, seconds);
+            }
+        }
+        if (med != "") {
+            if (mediaOutput && !MatchesRunningMediaFilename(med.c_str())) {
+                StopSyncedMedia(med.c_str());
+                if (sendSyncPackets) SendMediaSyncStopPacket(med);
+            }
+            if (!mediaOutput) {
+                OpenSyncedMedia(med.c_str());
+                if (sendSyncPackets) SendMediaOpenPacket(med);
+                StartSyncedMedia(med.c_str());
+                if (sendSyncPackets) SendMediaSyncStartPacket(med);
+            }
+            UpdateMasterMediaPosition(med.c_str(), seconds);
+            if (sendSyncPackets) SendMediaSyncPacket(med, seconds);
+        }
+    }
+}
+
 
 /*
  *
@@ -2098,3 +2150,6 @@ void MultiSync::SendFPPCommandPacket(const std::string &host, const std::string 
     cpkt->extraDataLen   = pos - sizeof(SyncPkt);
     SendControlPacket(outBuf, pos);
 }
+
+
+

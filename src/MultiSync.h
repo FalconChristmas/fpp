@@ -239,6 +239,8 @@ class MultiSync {
     void StartSyncedMedia(const char *filename);
     void StopSyncedMedia(const char *filename);
     void SyncSyncedMedia(const char *filename, int frameNumber, float secondsElapsed);
+    
+    void SyncPlaylistToMS(uint64_t ms, const std::string &pl = "", bool sendSyncPackets = false);
 
     int OpenControlSockets();
 

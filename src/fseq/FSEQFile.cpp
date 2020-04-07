@@ -963,7 +963,7 @@ public:
         std::unique_lock<std::mutex> readerlock(m_readMutex);
         uint8_t *data = m_blockMap[block];
         while (data == nullptr) {
-            if (block > (m_firstBlock + 3)) {
+            if ((block > (m_firstBlock + 3)) && m_firstBlock) {
                 //if not one of the first few blocks and it's not already
                 //available, then something is really slow
                 AddSlowStorageWarning();

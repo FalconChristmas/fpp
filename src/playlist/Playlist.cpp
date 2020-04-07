@@ -1157,7 +1157,70 @@ Json::Value Playlist::GetCurrentEntry(void)
 
 	return result;
 }
+static void GetFilenames(PlaylistEntryBase *entry, std::string &seq, std::string &med) {
+    PlaylistEntrySequence *se = dynamic_cast<PlaylistEntrySequence*>(entry);
+    PlaylistEntryMedia *me = dynamic_cast<PlaylistEntryMedia*>(entry);
+    PlaylistEntryBoth *be = dynamic_cast<PlaylistEntryBoth*>(entry);
+    if (se) {
+        seq = se->GetSequenceName();
+    }
+    if (me) {
+        med = me->GetMediaName();
+    }
+    if (be) {
+        seq = se->GetSequenceName();
+        med = be->GetMediaName();
+    }
+}
 
+void Playlist::GetFilenamesForPos(int pos, std::string &seq, std::string &med) {
+    pos--;
+    if (pos < m_leadIn.size()) {
+        GetFilenames(m_leadIn[pos], seq, med);
+        return;
+    } else {
+        pos -= m_leadIn.size();
+    }
+    if (pos < m_mainPlaylist.size()) {
+        GetFilenames(m_mainPlaylist[pos], seq, med);
+        return;
+    } else {
+        pos -= m_mainPlaylist.size();
+    }
+    if (pos < m_leadOut.size()) {
+        GetFilenames(m_leadOut[pos], seq, med);
+    }
+}
+
+int Playlist::FindPosForMS(uint64_t &t) {
+    int cur = 1;
+    for (auto &a : m_leadIn) {
+        uint64_t i = a->GetLengthInMS();
+        if (t < i) {
+            return cur;
+        }
+        cur++;
+        t -= i;
+    }
+    for (auto &a : m_mainPlaylist) {
+        uint64_t i = a->GetLengthInMS();
+        if (t < i) {
+            return cur;
+        }
+        cur++;
+        t -= i;
+    }
+    for (auto &a : m_leadOut) {
+        uint64_t i = a->GetLengthInMS();
+        if (t < i) {
+            return cur;
+        }
+        cur++;
+        t -= i;
+    }
+    t = 0;
+    return 0;
+}
 
 uint64_t Playlist::GetCurrentPosInMS() {
     if (m_currentState == "idle" || m_currentSection == nullptr)
@@ -1184,6 +1247,28 @@ uint64_t Playlist::GetCurrentPosInMS() {
     }
     return pos;
 }
+uint64_t Playlist::GetPosStartInMS(int pos) {
+    uint64_t ms = 0;
+
+    pos--;
+    if (m_currentSectionStr != "LeadIn") {
+        for (auto &a : m_leadIn) {
+            ms += a->GetLengthInMS();
+            pos--;
+        }
+    }
+    if (m_currentSectionStr != "MainPlaylist") {
+        for (auto &a : m_mainPlaylist) {
+            ms += a->GetLengthInMS();
+            pos--;
+        }
+    }
+    for (int x = 0; x < pos; x++) {
+        ms += m_currentSection->at(x)->GetLengthInMS();
+    }
+    return ms;
+}
+
 
 
 Json::Value Playlist::GetMqttStatusJSON(void){
