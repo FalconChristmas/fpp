@@ -928,7 +928,6 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
             m_sectionPosition = 0;
             SetPosition(position);
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
-            m_currentState = "playing";
             Start();
             return 1;
         } else if (m_currentSection) {
@@ -958,12 +957,9 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 		SetRepeat(repeat);
 
 	m_status = FPP_STATUS_PLAYLIST_PLAYING;
-	m_currentState = "playing";
-
     if (hadToStop) {
 		Start();
     }
-
 	return 1;
 }
 
