@@ -281,7 +281,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Sequences');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Sequences');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Sequences', 'play');" class="disableButtons singleSequencesButton" type="button"  value="Play" />
             <input onclick="ButtonHandler('Sequences', 'playHere');" class="disableButtons singleSequencesButton" type="button"  value="Play Here" />
             <input onclick="ButtonHandler('Sequences', 'download');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Download" />
@@ -303,7 +303,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
             <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Download" />
             <input onclick="ButtonHandler('Music', 'rename');" id="btnRenameMusic" class="disableButtons singleMusicButton" type="button"  value="Rename" />
@@ -324,7 +324,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Videos');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Videos');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Videos', 'playInBrowser');" class="disableButtons singleVideosButton" type="button"  value="View" />
             <input onclick="ButtonHandler('Videos', 'videoInfo');" class="disableButtons singleVideosButton" type="button"  value="Video Info" />
             <input onclick="ButtonHandler('Videos', 'download');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Download" />
@@ -346,7 +346,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Images');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Images');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Images', 'viewImage');" class="disableButtons singleImagesButton" type="button"  value="View" />
             <input onclick="ButtonHandler('Images', 'download');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Download" />
             <input onclick="ButtonHandler('Images', 'delete');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Delete" />
@@ -366,7 +366,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Effects');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Effects');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Effects', 'download');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Download" />
             <input onclick="ButtonHandler('Effects', 'rename');" class="disableButtons singleEffectsButton" type="button"  value="Rename" />
             <input onclick="ButtonHandler('Effects', 'delete');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Delete" />
@@ -386,7 +386,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Scripts');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Scripts');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Scripts', 'viewFile');" class="disableButtons singleScriptsButton" type="button"  value="View" />
             <input onclick="ButtonHandler('Scripts', 'runScript');" class="disableButtons singleScriptsButton" type="button"  value="Run" />
             <input onclick="ButtonHandler('Scripts', 'editScript');" class="disableButtons singleScriptsButton" type="button"  value="Edit" />
@@ -410,7 +410,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Logs');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Logs');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="DownloadZip('Logs');" class="buttons" type="button" value="Zip" />
             <input onclick="ButtonHandler('Logs', 'viewFile');" class="disableButtons singleLogsButton" type="button"  value="View" />
             <input onclick="ButtonHandler('Logs', 'download');" class="disableButtons singleLogsButton multiLogsButton" type="button"  value="Download" />
@@ -431,7 +431,7 @@ h2 {
           </div>
           <hr />
           <div class='right'>
-            <input onclick="ClearSelections('Uploads');" class="buttons" type="button" value="Clear Selection" style="float: left;" />
+            <input onclick="ClearSelections('Uploads');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="ButtonHandler('Uploads', 'download');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Download" />
             <input onclick="ButtonHandler('Uploads', 'delete');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Delete" />
           </div>
