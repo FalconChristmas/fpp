@@ -286,6 +286,9 @@ void SetChannelOutputRefreshRate(int rate)
 	RefreshRate = rate;
 	DefaultLightDelay = 1000000 / RefreshRate;
 }
+int GetChannelOutputRefreshRate() {
+    return RefreshRate;
+}
 
 /*
  * Kick off the channel output thread
