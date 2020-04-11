@@ -56,7 +56,7 @@ if ($settings['Platform'] == "BeagleBone Black")
 }
 
 $maxLEDPanels = $LEDPanelOutputs * $LEDPanelPanelsPerOutput;
-$maxLEDPanels = 64; // Override to allow different panel configs using Linsn/ColorLight cards
+$maxLEDPanels = 96; // Override to allow different panel configs using Linsn/ColorLight cards
 
 if (isset($settings['LEDPanelsLayout']))
 {
@@ -70,22 +70,27 @@ if (isset($settings['LEDPanelsLayout']))
 
 function printLEDPanelLayoutSelect()
 {
-	global $maxLEDPanels;
-	$values = array();
+	global $maxLEDPanels, $LEDPanelCols, $LEDPanelRows;
 
-	for ($r = 1; $r <= $maxLEDPanels; $r++)
-	{
-		for ($c = 1; $c <= $maxLEDPanels; $c++)
-		{
-			if (($r * $c) <= $maxLEDPanels)
-			{
-				$value = sprintf("%dx%d", $r, $c);
-				$values[$value] = $value;
-			}
-		}
-	}
-
-	PrintSettingSelect("Panel Layout", "LEDPanelsLayout", 1, 0, "1x1", $values, "", "LEDPanelLayoutChanged");
+    echo "W: <select id='LEDPanelsLayoutCols' onChange='LEDPanelsLayoutChanged()'>\n";
+    for ($r = 1; $r <= $maxLEDPanels; $r++) {
+        if ($LEDPanelCols == $r) {
+            echo "<option value='" . $r . "' selected>" . $r . "</option>\n";
+        } else {
+            echo "<option value='" . $r . "'>" . $r . "</option>\n";
+        }
+    }
+    echo "</select>";
+    
+    echo "&nbsp; H:<select id='LEDPanelsLayoutRows' onChange='LEDPanelsLayoutChanged()'>\n";
+    for ($r = 1; $r <= $maxLEDPanels; $r++) {
+        if ($LEDPanelRows == $r) {
+            echo "<option value='" . $r . "' selected>" . $r . "</option>\n";
+        } else {
+            echo "<option value='" . $r . "'>" . $r . "</option>\n";
+        }
+    }
+    echo "</select>";
 }
 
 function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
@@ -250,10 +255,8 @@ function GetLEDPanelColorOrder(key, selectedItem)
 
 function UpdateLegacyLEDPanelLayout()
 {
-	var layout = $('#LEDPanelsLayout').val();
-	var parts = layout.split("x");
-	LEDPanelCols = parseInt(parts[0]);
-	LEDPanelRows = parseInt(parts[1]);
+	LEDPanelCols = parseInt($('#LEDPanelsLayoutCols').val());
+	LEDPanelRows = parseInt($('#LEDPanelsLayoutRows').val());
 
 	UpdatePanelSize();
     if ((LEDPanelScan * 2) == LEDPanelHeight) {
@@ -286,6 +289,23 @@ function LEDPanelLayoutChanged()
         UpdateMatrixSize();
     }
 }
+
+
+function LEDPanelsLayoutChanged() {
+    var value = $('#LEDPanelsLayoutCols').val() + "x" + $('#LEDPanelsLayoutRows').val();
+
+    $.get('fppjson.php?command=setSetting&plugin=&key=LEDPanelsLayout&value=' + value)
+        .done(function() {
+            $.jGrowl('Panel Layout saved');
+            settings['LEDPanelsLayout'] = value;
+            LEDPanelLayoutChanged();
+            SetRestartFlag(2);
+
+        }).fail(function() {
+            DialogError('Panel Layout', 'Failed to save Panel Layout');
+        });
+}
+
 
 function FrontBackViewToggled() {
     GetChannelOutputConfig(); // Refresh the in-memory config before redrawing
@@ -1179,7 +1199,7 @@ $(document).ready(function(){
 							<td width=20>&nbsp;</td>
 							<td>&nbsp;</td>
 						</tr>
-						<tr><td><span class='ledPanelSimpleUI'><b>Panel Layout (WxH):</b></span>
+						<tr><td><span class='ledPanelSimpleUI'><b>Panel Layout:</b></span>
 								<span class='ledPanelCanvasUI'><b>Matrix Size (WxH):</b></span>
                                 </td>
 							<td><span class='ledPanelSimpleUI'><? printLEDPanelLayoutSelect(); ?></span>
