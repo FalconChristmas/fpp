@@ -438,8 +438,8 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
 
 function populatePixelStringOutputs(data) {
     if (data) {
-        for (var i = 0; i < data.channelOutputs.length; i++) {
-            var output = data.channelOutputs[i];
+        for (var opi = 0; opi < data.channelOutputs.length; opi++) {
+            var output = data.channelOutputs[opi];
             var type = output.type;
             if (type == 'BBB48String') {
                 $('#BBB48String_enable').prop('checked', output.enabled);
