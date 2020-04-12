@@ -502,6 +502,9 @@ setupChannelOutputs() {
 				echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-bcm2835.conf > /dev/null
 				shutdown -r now
 			fi
+            # load the dummy sound driver so things that expect a sound device to be there will still work
+            modprobe snd-dummy
+            modprobe snd-seq-dummy
 		else
 			# Re-enable onboard sound if it is disabled
 			if [ -f /etc/modprobe.d/blacklist-bcm2835.conf ]
