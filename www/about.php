@@ -341,9 +341,28 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
         </div>
         </div>
         </fieldset>
+        
+        
     <?
     }
+
+    $eepromFile  = "/sys/bus/i2c/devices/1-0050/eeprom";
+    if ($settings['Platform'] == "BeagleBone Black") {
+        $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+    }
+    if (file_exists($eepromFile)) {
     ?>
+    <br>
+    <fieldset style="padding: 10px; border: 2px solid #000;">
+    <legend>Cape/Hat Firmware Upgrade</legend>
+        <form action="upgradeCapeFirmware.php" method="post"  enctype="multipart/form-data">
+        Firmware file: <input type="file" name="firmware" id="firmware"/>&nbsp;<input type="submit" name="submit" value="Submit"/>
+        </form>
+    </fieldset>
+        <?
+        }
+?>
+
     <div id='logViewer' title='Log Viewer' style="display: none">
       <pre>
         <div id='logText'>

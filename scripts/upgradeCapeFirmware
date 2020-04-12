@@ -1,0 +1,92 @@
+#!/usr/bin/php
+<?php
+
+
+$eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+if (!file_exists($eepromFile)) {
+    $eepromFile  = "/sys/bus/i2c/devices/1-0050/eeprom";
+}
+if (!file_exists($eepromFile)) {
+    echo "Could not find EEPROM.  Is Cape mounted and FPP rebooted?";
+    return 1;
+}
+
+//backup the old firmware
+//copy($eepromFile, "/home/fpp/media/upload/cape-firmware-old.bin");
+
+$newdata = fopen($argv[1], 'rb');
+$olddata = fopen($eepromFile, 'r+b');
+set_file_buffer($olddata, 32768);
+
+$oldheader = trim(fread($olddata, 6)); // should be FPP02 + null
+
+if ($oldheader != "FPP02") {
+    //first 4 bytes are 0xFF, assume blank eeprom and just write what we have
+    echo "Blank EEPROM, overwriting";
+    fclose($olddata);
+    fclose($newdata);
+    copy($argv[1], $eepromFile);
+    return 0;
+}
+
+$oldcape = trim(fread($olddata, 26)); // cape name + nulls
+$oldcapev = trim(fread($olddata, 10)); // cape version + nulls
+
+$newheader = trim(fread($newdata, 6)); // should be FPP02 + null
+$newcape = trim(fread($newdata, 26)); // cape name + nulls
+$newcapev = trim(fread($newdata, 10)); // cape version + nulls
+
+if ($oldcape != $newcape || $oldcapev != $newcapev) {
+    echo "Capes does not match new firmware.\n";
+    echo "Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
+    echo "Firmware: " . $newcape . "   Version: " . $newcapev . "\n";
+    return 1;
+}
+
+echo "Found Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
+
+//skip over the serial number
+$newcapesn = trim(fread($newdata, 16)); // cape serial# + nulls
+$oldcapesn = trim(fread($olddata, 16)); // cape serial# + nulls
+
+
+$flen = fread($olddata, 6); //length of the section
+$flen = intval($flen);
+while ($flen != 0) {
+    $flags = fread($olddata, 2);
+    if ($flags == 97) {
+        fread($olddata, $flen);
+        $flen = fread($olddata, 6); //length of the section
+        $flen = intval($flen);
+    } else {
+        fseek($olddata, -8, SEEK_CUR);
+        $flen = 0;
+    }
+}
+
+$flen = fread($newdata, 6); //length of the section
+$flen = intval($flen);
+while ($flen != 0) {
+    $flags = fread($newdata, 2);
+    if ($flags != 97) {
+        fwrite($olddata, pack("a6", $flen));
+        fwrite($olddata, pack("a2", $flags));
+        if ($flags < 50) {
+            $fname = fread($newdata, 64);
+            fwrite($olddata, $fname);
+        }
+
+        $data = fread($newdata, $flen);
+        fwrite($olddata, $data);
+    } else {
+        fread($newdata, $flen);
+    }
+    $flen = fread($newdata, 6); //length of the section
+    $flen = intval($flen);
+}
+fwrite($olddata, pack("a6", "0"));
+
+fclose($newdata);
+fclose($olddata);
+
+echo "Upgrade Complete\n";
