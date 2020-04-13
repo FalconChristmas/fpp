@@ -56,5 +56,8 @@ ifeq '$(ARCH)' 'Raspberry Pi'
 
 clean::
 	@if [ -e ../external/spixels/lib/libspixels.a ]; then $(MAKE) -C ../external/spixels/lib clean; fi
+	@if [ -e ../external/RF24/.git ]; then $(MAKE) -C ../external/RF24 clean; fi
+	@if [ -e ../external/rpi-rgb-led-matrix/.git ]; then $(MAKE) -C ../external/rpi-rgb-led-matrix clean; fi
+	@if [ -e ../external/rpi_ws281x/libws2811.a ]; then rm ../external/rpi_ws281x/*.o ../external/rpi_ws281x/*.a 2> /dev/null; fi
     
 endif
