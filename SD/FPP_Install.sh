@@ -35,9 +35,9 @@
 #             - pi/raspberry
 #
 #       BeagleBone Black
-#           - URL: https://rcn-ee.com/rootfs/bb.org/testing/2020-02-10/buster-console/
+#           - URL: https://debian.beagleboard.org/images/2020-04-06/buster-console/
 #           - Images
-#             - bone-debian-10.3-console-armhf-2020-02-10-1gb.img.xz
+#             - bone-debian-10.3-console-armhf-2020-04-06-1gb.img.xz
 #           - Login/Password
 #             - debian/temppwd
 #
@@ -54,7 +54,7 @@
 #############################################################################
 SCRIPTVER="4.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="4.0-alpha3"
+FPPIMAGEVER="4.0-alpha4"
 FPPCFGVER="61"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -1044,11 +1044,12 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     
     systemctl disable dev-hugepages.mount
 
-    echo "FPP - update BBB boot scripts"
+    echo "FPP - update BBB boot scripts for faster boot, don't force getty"
     cd /opt/scripts
     git reset --hard
     git pull
     sed -i 's/systemctl restart serial-getty/systemctl is-enabled serial-getty/g' boot/am335x_evm.sh
+    git commit -a -m "delay getty start" --author='fpp<fpp>'
     
     if [ ! -f "/opt/source/bb.org-overlays/Makefile" ]; then
         mkdir -p /opt/source

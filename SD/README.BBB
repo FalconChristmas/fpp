@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-10.3-console-armhf-2020-03-26-1gb.img.xz
-# from  https://rcn-ee.com/rootfs/bb.org/testing/2020-03-26/buster-console/
+# bone-debian-10.3-console-armhf-2020-04-06-1gb.img.xz
+# from  https://debian.beagleboard.org/images/2020-04-06/buster-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -135,6 +135,10 @@ wget -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/m
 chmod 700 ./FPP_Install.sh
 ./FPP_Install.sh
 
+# once FPP_Install is done, the wifi drivers and such are installed so the linux-headers
+# are no longer needed, remove them to save 150MB of space
+apt-get remove -y --purge --autoremove linux-headers-$(uname -r)
+apt-get clean
 
 # edit /etc/fstab and make sure it looks OK for tmpfs
 reboot
