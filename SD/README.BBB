@@ -41,13 +41,11 @@ apt-get update
 apt-get -y upgrade
 
 #need to install/generate the UTF-8 locales
-apt-get install -y locales
+apt-get install -y locales git
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 localectl set-locale LANG="en_US.utf8"
 
-
-apt-get install -y git
 cd /opt/scripts
 git pull
 cd /opt/scripts/tools
