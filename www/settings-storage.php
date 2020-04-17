@@ -3,9 +3,6 @@ $skipJSsettings = 1;
 require_once('common.php');
 ?>
 
-<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
-<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
-
 <script>
 function growSDCardFS() {
     $('#dialog-confirm')
@@ -44,7 +41,62 @@ function newSDCardPartition() {
             }
             }
             });
+}
+    
+function checkForStorageCopy() {
+    $.msgBox({
+             title: "Copy settings?",
+             content: "Would you like to copy all files to the new storage location?\nAll settings on the new storage will be overwritten.",
+             type: "info",
+             buttons: [{ value: "Yes" }, { value: "No" }],
+             success: function (result) {
+                 storageDeviceChanged();
+                 if (result == "Yes") {
+                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TO&path=/&flags=All";
+                 }
+            }
+        });
+}
 
+function checkFormatStorage()
+{
+    var value = $('#storageDevice').val();
+    
+    var e = document.getElementById("storageDevice");
+    var name = e.options[e.selectedIndex].text;
+    if (name.includes("Not Mounted")) {
+        var btitle = "Format Storage Location (" + value + ")" + name;
+        $.msgBox({ type: "prompt",
+                 title: btitle,
+                 inputs: [
+                     { header: "Don't Format", type: "radio", name: "formatType", checked:"", value: "none" },
+                     { header: "ext4 (Most stable)", type: "radio", name: "formatType", value: "ext4" },
+                     { header: "FAT (Compatible with Windows/OSX, unsupported, slow)", type: "radio", name: "formatType", value: "FAT"}
+                 ],
+                 buttons: [ { value: "OK" } ],
+                 opacity: 0.5,
+                 success: function (result, values) {
+                 var v = $('input[name=formatType]:checked').val();
+                 if (v != "none") {
+                    $.ajax({ url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
+                        async: false,
+                        success: function(data) {
+                           checkForStorageCopy();
+                        },
+                        failure: function(data) {
+                        DialogError("Formate Storage", "Error formatting storage.");
+                        }
+                        });
+                    } else {
+                        checkForStorageCopy();
+                    }
+                 }
+                 });
+    } else {
+        storageDeviceChanged();
+    }
+}
+    
 <?php
 if ($settings['Platform'] == "BeagleBone Black") {
 ?>
@@ -86,8 +138,10 @@ function flashEMMCBtrfs() {
 }
 <?php
 }
-    
-    
+?>
+</script>
+
+<?php
     
 function PrintStorageDeviceSelect($platform)
 {
@@ -194,69 +248,18 @@ function PrintStorageDeviceSelect($platform)
 }
     
 ?>
-function checkForStorageCopy() {
-    $.msgBox({
-             title: "Copy settings?",
-             content: "Would you like to copy all files to the new storage location?\nAll settings on the new storage will be overwritten.",
-             type: "info",
-             buttons: [{ value: "Yes" }, { value: "No" }],
-             success: function (result) {
-                 storageDeviceChanged();
-                 if (result == "Yes") {
-                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TO&path=/&flags=All";
-                 }
-            }
-        });
-}
 
-function checkFormatStorage()
-{
-    var value = $('#storageDevice').val();
     
-    var e = document.getElementById("storageDevice");
-    var name = e.options[e.selectedIndex].text;
-    if (name.includes("Not Mounted")) {
-        var btitle = "Format Storage Location (" + value + ")" + name;
-        $.msgBox({ type: "prompt",
-                 title: btitle,
-                 inputs: [
-                     { header: "Don't Format", type: "radio", name: "formatType", checked:"", value: "none" },
-                     { header: "ext4 (Most stable)", type: "radio", name: "formatType", value: "ext4" },
-                     { header: "FAT (Compatible with Windows/OSX, unsupported, slow)", type: "radio", name: "formatType", value: "FAT"}
-                 ],
-                 buttons: [ { value: "OK" } ],
-                 opacity: 0.5,
-                 success: function (result, values) {
-                 var v = $('input[name=formatType]:checked').val();
-                 if (v != "none") {
-                    $.ajax({ url: "formatstorage.php?fs=" + v + "&storageLocation=" + $('#storageDevice').val(),
-                        async: false,
-                        success: function(data) {
-                           checkForStorageCopy();
-                        },
-                        failure: function(data) {
-                        DialogError("Formate Storage", "Error formatting storage.");
-                        }
-                        });
-                    } else {
-                        checkForStorageCopy();
-                    }
-                 }
-                 });
-    } else {
-        storageDeviceChanged();
-    }
-}
-
-</script>
-<? if ($settings['SubPlatform'] != "Docker" ) { ?>
+<?php
+if ($settings['SubPlatform'] != "Docker" ) { ?>
     <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?><br>
 Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
 <p>
 In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
     
 <br>
-<? }
+<?
+}
 
 $addnewfsbutton = false;
 $addflashbutton = false;
