@@ -139,7 +139,7 @@ include 'common/menuHead.inc';
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
-<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="advancedsettings.php">Advanced Settings</a> to expand the file system or create a new storage partition.</div>
+<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the file system or create a new storage partition.</div>
 <br>
 <?php
     }

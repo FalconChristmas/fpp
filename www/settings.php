@@ -35,7 +35,7 @@ function handleSettingsVisibilityChange() {
 }
 
 function reloadSettingsPage() {
-    location.href = '/settings.php?tab=' + $('#tabs').tabs('option', 'active');
+    location.href = 'settings.php?tab=' + $('#tabs').tabs('option', 'active');
 }
 
 var hiddenChildren = {};
@@ -69,6 +69,13 @@ $(document).ready(function() {
 
 </head>
 
+<?php
+$tabId = "Playback";
+if (isset($_GET['tab'])) {
+    $tabId = $_GET['tab'];
+}
+?>
+
 <body>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
@@ -84,10 +91,11 @@ $(document).ready(function() {
                     <li><a href='settings-ui.php'>UI</a></li>
                     <li><a href='settings-email.php'>Email</a></li>
                     <li><a href='settings-mqtt.php'>MQTT</a></li>
-<? if ($uiLevel >= 1) echo "<li><a href='settings-output.php'>Output</a></li>\n"; ?>
+<? if ($uiLevel >= 1 || $tabId == "Output") echo "<li><a href='settings-output.php'>Output</a></li>\n"; ?>
                     <li><a href='settings-logs.php'>Logging</a></li>
+<? if ($uiLevel >= 1 || $tabId == "Storage") echo "<li><a href='settings-storage.php'>Storage</a></li>"; ?>
                     <li><a href='settings-system.php'>System</a></li>
-<? if ($uiLevel >= 3) echo "<li><a href='settings-developer.php'>Developer</a></li>\n"; ?>
+<? if ($uiLevel >= 3 || $tabId == "Developer") echo "<li><a href='settings-developer.php'>Developer</a></li>\n"; ?>
                 </ul>
             </div>
         </div>
@@ -103,11 +111,6 @@ $(document).ready(function() {
             <tr><th align='right'>***</th><th align='left'>- Developer Level Setting</th></tr>
 <? } ?>
         </table>
-
-<? if ($uiLevel >= 1) { ?>
-        <br>
-        <a href="advancedsettings.php">Advanced Settings</a>  NOTE: The Advanced Settings page is being deprecated with settings moved into appropriate tabs on this page and marked as Advanced settings.
-<? } ?>
     </div>
 
 <?php	include 'common/footer.inc'; ?>
@@ -115,10 +118,25 @@ $(document).ready(function() {
 <script>
 var activeTabNumber =
 <?php
-if (isset($_GET['tab']))
-    print $_GET['tab'];
-else
-    print "0";
+    $tabIDs = Array();
+    $id = 0;
+    $tabIDs["Playback"] = $id++;
+    $tabIDs["AV"] = $id++;
+    $tabIDs["Time"] = $id++;
+    $tabIDs["UI"] = $id++;
+    $tabIDs["Email"] = $id++;
+    $tabIDs["MQTT"] = $id++;
+    if ($uiLevel >= 1 || $tabId == "Output") $tabIDs["Output"] = $id++;
+    $tabIDs["Logging"] = $id++;
+    if ($uiLevel >= 1 || $tabId == "Storage") $tabIDs["Storage"] = $id++;
+    $tabIDs["System"] = $id++;
+    if ($uiLevel >= 3 || $tabId == "Developer") $tabIDs["Developer"] = $id++;
+    
+    if (!array_key_exists($tabId, $tabIDs)) {
+        print $tabId;
+    } else {
+        print $tabIDs[$tabId];
+    }
 ?>;
 
 var currentLoadingTab = 0;
