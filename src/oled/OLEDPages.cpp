@@ -8,7 +8,7 @@ OLEDPage::OLEDType OLEDPage::oledType = OLEDPage::OLEDType::SINGLE_COLOR;
 bool OLEDPage::oledFlipped = false;
 OLEDPage *OLEDPage::currentPage = nullptr;
 bool OLEDPage::oledForcedOff = false;
-
+bool OLEDPage::has4DirectionControls = false;
 
 void OLEDPage::SetCurrentPage(OLEDPage *p) {
     if (currentPage) {

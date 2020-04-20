@@ -229,6 +229,22 @@ FPPOLEDUtils::InputAction *FPPOLEDUtils::configureGPIOPin(const std::string &pin
     action->gpioChipLine = pin.gpio;
     return action;
 }
+void FPPOLEDUtils::setInputFlag(const std::string &action) {
+    if (action == "Up") {
+        inputFlags |= 0x01;
+    } else if (action == "Down") {
+        inputFlags |= 0x02;
+    } else if (action == "Back") {
+        inputFlags |= 0x04;
+    } else if (action == "Enter") {
+        inputFlags |= 0x08;
+    } else if (action == "Test") {
+        inputFlags |= 0x10;
+    } else if (action == "Test/Down") {
+        inputFlags |= 0x10;
+        inputFlags |= 0x02;
+    }
+}
 
 bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string &file) {
     char vbuffer[256];
@@ -249,6 +265,7 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string &file) {
                 if (root[x].isMember("falling") && root[x]["falling"]["command"].asString() == "OLED Navigation") {
                     edge = "falling";
                     fallingAction = root[x]["falling"]["args"][0].asString();
+                    setInputFlag(fallingAction);
                 }
                 if (root[x].isMember("rising") && root[x]["rising"]["command"].asString() == "OLED Navigation") {
                     if (edge == "falling") {
@@ -257,6 +274,7 @@ bool FPPOLEDUtils::parseInputActionFromGPIO(const std::string &file) {
                         edge = "rising";
                     }
                     risingAction = root[x]["rising"]["args"][0].asString();
+                    setInputFlag(risingAction);
                 }
                 if (edge != "") {
                     InputAction *action = configureGPIOPin(pinName, mode, edge);
@@ -344,6 +362,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
                                     
                                     printf("Configuring pin %s as input of type %s   (chip: %s, gpio: %d)\n", action->pin.c_str(), buttonaction.c_str(), label.c_str(), gpioline);
                                     int v = gpiod_line_get_value(l);
+                                    setInputFlag(buttonaction);
                                     action->actions.push_back(new GPIODExtenderAction(buttonaction, 0, 0, 100000, l));
                                 }
                             }
@@ -353,6 +372,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
                     } else {
                         printf("Configuring pin %s as input of type %s   (mode: %s, gpio: %d)\n", action->pin.c_str(), type.c_str(), action->mode.c_str(), pin.kernelGpio);
                         action->actions.push_back(new FPPOLEDUtils::InputAction::Action(type, actionValue, actionValue, 100000));
+                        setInputFlag(type);
                     }
                     actions.push_back(action);
                 } else if (action->mode == "ain") {
@@ -366,6 +386,7 @@ bool FPPOLEDUtils::parseInputActions(const std::string &file) {
                             int maxValue = root["inputs"][x]["actions"][a]["maxValue"].asInt();
                             printf("Configuring AIN input of type %s  with range %d-%d\n", buttonaction.c_str(), minValue, maxValue);
                             action->actions.push_back(new FPPOLEDUtils::InputAction::Action(buttonaction, minValue, maxValue, 250000));
+                            setInputFlag(buttonaction);
                         }
                         
                         actions.push_back(action);
@@ -419,6 +440,8 @@ void FPPOLEDUtils::run() {
     if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8 || _ledType == 10) {
         OLEDPage::SetOLEDOrientationFlipped(true);
     }
+    OLEDPage::SetHas4DirectionControls((inputFlags & 0x0F) == 0x0F);
+    
     statusPage = new FPPStatusOLEDPage();
     if (!checkStatusAbility()) {
         //statusPage->disableFullStatus();

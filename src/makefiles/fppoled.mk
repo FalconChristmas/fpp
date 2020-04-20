@@ -8,6 +8,7 @@ OBJECTS_fppoled += \
 	oled/FPPOLEDUtils.o \
 	oled/OLEDPages.o \
 	oled/FPPStatusOLEDPage.o \
+	oled/NetworkOLEDPage.o \
 	oled/FPPMainMenu.o \
     oled/fppoled.o \
     util/GPIOUtils.o \

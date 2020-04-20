@@ -77,6 +77,9 @@ private:
                                   const std::string &mode,
                                   const std::string &edge);
     bool checkStatusAbility();
+    
+    void setInputFlag(const std::string &action);
+    int inputFlags = 0;
 };
 
 #endif

@@ -15,6 +15,8 @@ public:
     };
     static void SetOLEDType(OLEDType tp) { oledType = tp; }
     static OLEDType GetOLEDType() { return oledType; }
+    static void SetHas4DirectionControls(bool b = true) { has4DirectionControls = b; }
+    static bool Has4DirectionControls() { return has4DirectionControls; }
     static void SetOLEDOrientationFlipped(bool b) { oledFlipped = b; }
     static OLEDPage *GetCurrentPage() { return currentPage; }
     static void SetCurrentPage(OLEDPage *p);
@@ -44,6 +46,7 @@ protected:
     static bool oledFlipped;
     static OLEDPage *currentPage;
     static bool oledForcedOff;
+    static bool has4DirectionControls;
     
     bool autoDeleteOnHide;
 };

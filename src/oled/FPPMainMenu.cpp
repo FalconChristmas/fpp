@@ -1,4 +1,4 @@
-
+#include <net/if.h>
 #include <unistd.h>
 #include <cstdlib>
 
@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "FPPStatusOLEDPage.h"
+#include "NetworkOLEDPage.h"
 #include "settings.h"
 #include <jsoncpp/json/json.h>
 
@@ -144,11 +145,34 @@ FPPMainMenu::~FPPMainMenu() {
 
 void FPPMainMenu::displaying() {
     std::string mode = statusPage->getCurrentMode();
+    items.clear();
     if (mode == "Bridge") {
-        items = {"Bridge Stats", "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"};
+        items.push_back("Bridge Stats");
     } else if (mode != "Remote") {
-        items = {"Start Playlist", "FPP Mode", "Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"};
+        items.push_back("Start Playlist");
     }
+    items.push_back("FPP Mode");
+    if (Has4DirectionControls()) {
+        bool hasEth0 = false;
+        struct if_nameindex *if_nidxs, *intf;
+
+        if_nidxs = if_nameindex();
+        if ( if_nidxs != NULL ) {
+           for (intf = if_nidxs; intf->if_index != 0 || intf->if_name != NULL; intf++) {
+               std::string n = intf->if_name;
+               if (n == "eth0") {
+                   hasEth0 = true;
+               }
+           }
+           if_freenameindex(if_nidxs);
+        }
+        if (hasEth0) {
+            items.push_back("Network");
+        }
+    }
+    std::vector<std::string> it = {"Tethering", "Testing", "Reboot", "Shutdown", "About", "Back"};
+    items.insert(std::end(items), std::begin(it), std::end(it));
+    
     MenuOLEDPage::displaying();
 }
 
@@ -173,6 +197,9 @@ void FPPMainMenu::itemSelected(const std::string &item) {
     } else if (item == "Shutdown") {
         ShutdownPromptPage *pg = new ShutdownPromptPage(this);
         pg->autoDelete();
+        SetCurrentPage(pg);
+    } else if (item == "Network") {
+        FPPNetworkOLEDPage *pg = new FPPNetworkOLEDPage(this);
         SetCurrentPage(pg);
     } else if (item == "Testing") {
         FPPStatusOLEDPage *sp = statusPage;
