@@ -203,6 +203,7 @@ function list_plugin_entries($menu)
   }
 ?>
   </div>
+  <div id='unsupportedBrowser'>FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
   <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot">
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
@@ -224,7 +225,21 @@ function handleKeypress(e) {
 	}
 };
 
+function CheckBrowser() {
+    var ua = window.navigator.userAgent;
+    var msie = ua.indexOf('MSIE '); // IE<11
+    var trident = ua.indexOf('Trident/'); // IE11
+    if (msie > 0 || trident > 0) {
+       // IE 10 or older => return version number
+        $('#unsupportedBrowser').show();
+    } else {
+        $('#unsupportedBrowser').hide();
+    }
+    
+}
+
 $(document).ready(function() {
+    CheckBrowser();
 	$(document).on('keydown', handleKeypress);
 
 	CheckRestartRebootFlags();

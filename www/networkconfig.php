@@ -1,11 +1,14 @@
-<?php require_once('common.php'); ?>
-<?php include 'common/menuHead.inc'; ?>
 <!DOCTYPE html>
 <html>
 <head>
+<?php require_once('common.php'); ?>
+<?php include 'common/menuHead.inc'; ?>
+
 <title><? echo $pageTitle; ?></title>
 </head>
 <body>
+
+
 <?php
     
 $wifiDrivers = Array();
