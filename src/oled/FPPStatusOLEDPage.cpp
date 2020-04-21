@@ -18,7 +18,6 @@
 #include <poll.h>
 
 #include "common.h"
-#include "SSD1306_OLED.h"
 
 
 #include <linux/wireless.h>
@@ -120,14 +119,13 @@ FPPStatusOLEDPage::~FPPStatusOLEDPage() {
 
 
 void FPPStatusOLEDPage::outputNetwork(int idx, int y) {
-    setCursor(0,y);
-    print_str(networks[idx].c_str());
+    printString(0, y, networks[idx]);
     if (signalStrength[idx]) {
         y = y + 7;
         int cur = 5;
         for (int x = 0; x < 7; x++) {
             if (signalStrength[idx] > cur) {
-                drawLine(127 - (x/2), y, 128, y, WHITE);
+                drawLine(127 - (x/2), y, 128, y);
             }
             y--;
             cur += 15;
@@ -263,11 +261,10 @@ int FPPStatusOLEDPage::getLinesPage1(std::vector<std::string> &lines,
     return 6;
 }
 int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
-    setCursor(0,startY);
     if (networks.size() > 1) {
         int idx = (count / 3) % networks.size();
-        int lines = LED_DISPLAY_HEIGHT >= 64 ? 2 : 1;
-        if (networks.size() <= 5 && LED_DISPLAY_HEIGHT > 65) {
+        int lines = GetLEDDisplayHeight() >= 64 ? 2 : 1;
+        if (networks.size() <= 5 && GetLEDDisplayHeight() > 65) {
             idx = 0;
             lines = networks.size() < 5 ? networks.size() : 5;
             if (lines < 2) lines = 2;
@@ -277,7 +274,7 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
         }        
         outputNetwork(idx, startY);
         startY += 8;
-        if (LED_DISPLAY_HEIGHT > 65) {
+        if (GetLEDDisplayHeight() > 65) {
             startY += 2; //little extra space
         }
         for (int x = 1; x < lines; x++) {
@@ -287,18 +284,18 @@ int FPPStatusOLEDPage::outputTopPart(int startY, int count) {
             }
             outputNetwork(idx, startY);
             startY += 8;
-            if (LED_DISPLAY_HEIGHT > 65) {
+            if (GetLEDDisplayHeight() > 65) {
                 startY += 2; //little extra space
             }
         }
     } else {
         if (count < 40) {
-            print_str("FPP Booting...");
+            printString(0, startY, "FPP Booting...");
         } else {
-            print_str("No Network");
+            printString(0, startY, "No Network");
         }
         startY += 8;
-        if (LED_DISPLAY_HEIGHT >= 64) {
+        if (GetLEDDisplayHeight() >= 64) {
             startY += 8;
         }
     }
@@ -323,73 +320,62 @@ bool FPPStatusOLEDPage::getCurrentStatus(Json::Value &result) {
 
 int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid, Json::Value &result) {
     if (statusValid) {
-        setTextSize(1);
-        setTextColor(WHITE);
-        
-        setCursor(0, startY);
         
         std::vector<std::string> lines;
         std::string line;
         int maxLines = 5;
         if (_curPage == 0) {
-            maxLines = getLinesPage0(lines, result, LED_DISPLAY_HEIGHT >= 64);
+            maxLines = getLinesPage0(lines, result, GetLEDDisplayHeight() >= 64);
         } else {
-            maxLines = getLinesPage1(lines, result, LED_DISPLAY_HEIGHT >= 64);
+            maxLines = getLinesPage1(lines, result, GetLEDDisplayHeight() >= 64);
         }
         if (maxLines > lines.size()) {
             maxLines = lines.size();
         }
-        if (LED_DISPLAY_HEIGHT >= 64) {
+        if (GetLEDDisplayHeight() >= 64) {
             for (int x = 0; x < maxLines; x++) {
-                setCursor(0, startY);
-                startY += 8;
-                if (LED_DISPLAY_HEIGHT > 65) {
-                    startY += 2;
-                }
                 line = lines[x];
                 if (line.length() > 21) {
                     line.resize(21);
                 }
-                print_str(line.c_str());
+                printString(0, startY, line);
+                startY += 8;
+                if (GetLEDDisplayHeight() > 65) {
+                    startY += 2;
+                }
             }
         } else {
-            setCursor(0, startY);
             int idx = count % maxLines;
             line = lines[idx];
             if (line.length() > 21) {
                 line.resize(21);
             }
-            print_str(line.c_str());
+            printString(0, startY, line);
             startY += 8;
             idx++;
             if (idx == maxLines) {
                 idx = 0;
             }
             if (maxLines > 1) {
-                setCursor(0, startY);
                 line = lines[idx];
                 if (line.length() > 21) {
                     line.resize(21);
                 }
-                print_str(line.c_str());
+                printString(0, startY, line);
             }
         }
     } else {
-        setTextSize(1);
-        setTextColor(WHITE);
-        setCursor(0, startY);
         if (count < 60) {
             //if less than 60 seconds since start, we'll assume we are booting up
-            setCursor(10, startY);
             std::string line = "Booting.";
             int idx = count % 8;
             for (int i = 0; i < idx; i++) {
                 line += ".";
             }
-            print_str(line.c_str());
+            printString(10, startY, line);
             startY += 8;
         } else {
-            print_str("FPPD is not running..");
+            printString(0, startY, "FPPD is not running..");
             startY += 8;
         }
         if (_imageWidth) {
@@ -397,11 +383,11 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
             if (oledType != OLEDType::TWO_COLOR) {
                 --y;
             }
-            if (LED_DISPLAY_HEIGHT > 65) {
+            if (GetLEDDisplayHeight() > 65) {
                 y += 4;
             }
 
-            drawBitmap(0, y, &_image[0], _imageWidth, _imageHeight, WHITE);
+            drawBitmap(0, y, &_image[0], _imageWidth, _imageHeight);
         }
     }
     return startY;
@@ -441,15 +427,13 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
     
     if (displayOn) {
         int startY = 0;
-        setTextSize(1);
-        setTextColor(WHITE);
         if (oledType != OLEDType::TWO_COLOR || !oledFlipped) {
             startY = outputTopPart(startY, _iterationCount);
             if (oledType != OLEDType::TWO_COLOR) {
                 // two color display doesn't need the separator line
-                drawLine(0, startY, 127, startY, WHITE);
+                drawLine(0, startY, 127, startY);
                 startY++;
-                if (LED_DISPLAY_HEIGHT > 65) {
+                if (GetLEDDisplayHeight() > 65) {
                     startY += 2;
                 }
             }

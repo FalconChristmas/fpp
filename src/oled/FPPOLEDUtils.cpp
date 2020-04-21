@@ -21,7 +21,6 @@
 
 #include "common.h"
 #include "I2C.h"
-#include "SSD1306_OLED.h"
 
 #include "FPPOLEDUtils.h"
 #include "util/BBBUtils.h"
@@ -67,9 +66,9 @@ FPPOLEDUtils::FPPOLEDUtils(int ledType)
         a = nullptr;
     }
     if (_ledType == 2 || _ledType == 4 || _ledType == 6 || _ledType == 8 || _ledType == 10) {
-        setRotation(2);
+        OLEDPage::setRotation(2);
     } else if (_ledType) {
-        setRotation(0);
+        OLEDPage::setRotation(0);
     }
     statusPage = nullptr;
 }
@@ -468,8 +467,8 @@ void FPPOLEDUtils::run() {
         } else if (!OLEDPage::IsForcedOff() && forcedOff) {
             if (currentStatus->displayOn) {
                 if (OLEDPage::GetOLEDType() != OLEDPage::OLEDType::NONE) {
-                    clearDisplay();
-                    Display();
+                    OLEDPage::clearDisplay();
+                    OLEDPage::Display();
                 }
             }
             if (controlPin != "") {

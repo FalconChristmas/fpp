@@ -1,9 +1,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "SSD1306_OLED.h"
-#include "RobotoFont-14.h"
-
 #include "NetworkOLEDPage.h"
 #include "common.h"
 
@@ -33,15 +30,11 @@ public:
         clearDisplay();
         int startY = displayTitle();
 
-        setTextSize(1);
-        setTextColor(WHITE);
-        
         int xPos = 9 + posIdx * 6;
         
-        
-        fillTriangle(xPos, startY + 7, xPos + 3, startY + 3, xPos + 6, startY + 7, WHITE);
+        fillTriangle(xPos, startY + 7, xPos + 3, startY + 3, xPos + 6, startY + 7);
         printString(10, startY + 10, ipAs3, true);
-        fillTriangle(xPos, startY + 20, xPos + 3, startY + 24, xPos + 6, startY + 20, WHITE);
+        fillTriangle(xPos, startY + 20, xPos + 3, startY + 24, xPos + 6, startY + 20);
 
         Display();
     }

@@ -10,6 +10,42 @@ OLEDPage *OLEDPage::currentPage = nullptr;
 bool OLEDPage::oledForcedOff = false;
 bool OLEDPage::has4DirectionControls = false;
 
+
+void OLEDPage::SetOLEDType(OLEDType tp) {
+    oledType = tp;
+    if (tp != OLEDType::NONE) {
+        setTextSize(1);
+    }
+}
+
+void OLEDPage::Display() {
+    ::Display();
+}
+void OLEDPage::clearDisplay() {
+    ::clearDisplay();
+}
+void OLEDPage::fillTriangle(short x0, short y0, short x1, short y1, short x2, short y2, bool white) {
+    ::fillTriangle(x0, y0, x1, y1, x2, y2, white ? WHITE : BLACK);
+}
+void OLEDPage::drawLine(short x0, short y0, short x1, short y1, bool white) {
+    ::drawLine(x1, y0, x1, y1, white ? WHITE : BLACK);
+}
+void OLEDPage::setRotation(int i) {
+    ::setRotation(i);
+}
+void OLEDPage::drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white) {
+    ::drawBitmap(x,y , bitmap, w, h, white ? WHITE : BLACK);
+}
+int OLEDPage::GetLEDDisplayWidth() {
+    return LED_DISPLAY_WIDTH;
+}
+int OLEDPage::GetLEDDisplayHeight() {
+    return LED_DISPLAY_HEIGHT;
+}
+
+OLEDPage::OLEDPage() : autoDeleteOnHide(false) {
+}
+
 void OLEDPage::SetCurrentPage(OLEDPage *p) {
     if (currentPage) {
         currentPage->hiding();
@@ -102,7 +138,6 @@ void PromptOLEDPage::display() {
     clearDisplay();
     int startY = displayTitle();
     int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
-    setTextSize(1);
     setTextColor(WHITE);
     
     if (numRows > 4) {
@@ -178,8 +213,6 @@ void ListOLEDPage::display() {
     int startY = displayTitle();
     displayScrollArrows(startY);
     int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
-    setTextSize(1);
-    setTextColor(WHITE);
     for (int x = curTop; (x < items.size()) && (x < (curTop + numRows)); ++x) {
         printString(6, startY, items[x]);
         startY += skipY;
@@ -231,7 +264,6 @@ void MenuOLEDPage::display() {
     displayScrollArrows(startY);
     int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
     int width = items.size() > numRows ? 110 : 120;
-    setTextSize(1);
     for (int x = curTop; (x < items.size()) && (x < (curTop + numRows)); ++x) {
         setCursor(6, startY);
         if (curSelected == x) {
@@ -280,7 +312,6 @@ void MenuOLEDPage::itemSelected(const std::string &item) {
     if (itemSelectedCallback) {
         itemSelectedCallback(item);
     }
-    
 }
 
 

@@ -13,7 +13,8 @@ public:
         SINGLE_COLOR,
         TWO_COLOR
     };
-    static void SetOLEDType(OLEDType tp) { oledType = tp; }
+
+    static void SetOLEDType(OLEDType tp);
     static OLEDType GetOLEDType() { return oledType; }
     static void SetHas4DirectionControls(bool b = true) { has4DirectionControls = b; }
     static bool Has4DirectionControls() { return has4DirectionControls; }
@@ -22,10 +23,11 @@ public:
     static void SetCurrentPage(OLEDPage *p);
     static void SetForcedOff(bool b) {oledForcedOff = b;};
     static bool IsForcedOff() { return oledForcedOff; }
-    
-    OLEDPage() : autoDeleteOnHide(false) {}
-    virtual ~OLEDPage() {}
+    static int GetLEDDisplayWidth();
+    static int GetLEDDisplayHeight();
 
+    OLEDPage();
+    virtual ~OLEDPage() {}
 
     OLEDPage(const OLEDPage &) = delete;
     void operator=(OLEDPage const &) = delete;
@@ -37,10 +39,16 @@ public:
     virtual bool doAction(const std::string &action) = 0;
 
     OLEDPage &autoDelete() { autoDeleteOnHide = true; return *this; }
+    
+    static void printString(int x, int y, const std::string &str, bool white = true);
+    static void printStringCentered(int y, const std::string &str, bool white = true);
+    static void fillTriangle(short x0, short y0, short x1, short y1, short x2, short y2, bool white = true);
+    static void drawLine(short x0, short y0, short x1, short y1, bool white = true);
+    static void drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white = true);
+    static void Display();
+    static void clearDisplay();
+    static void setRotation(int i);
 protected:
-    void printString(int x, int y, const std::string &str, bool white = true);
-    void printStringCentered(int y, const std::string &str, bool white = true);
-
     
     static OLEDType oledType;
     static bool oledFlipped;

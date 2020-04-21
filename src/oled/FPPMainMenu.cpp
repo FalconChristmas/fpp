@@ -4,7 +4,6 @@
 
 #include "FPPMainMenu.h"
 #include "../fppversion.h"
-#include "SSD1306_OLED.h"
 
 #include "common.h"
 #include "FPPStatusOLEDPage.h"
@@ -51,10 +50,7 @@ public:
         } else {
             SetCurrentPage(nullptr);
             clearDisplay();
-            setTextSize(1);
-            setTextColor(WHITE);
-            setCursor(4, 17);
-            print_str("Rebooting...");
+            printString(4, 17, "Rebooting...");
             Display();
             sync();
             system("/sbin/reboot");
@@ -80,10 +76,7 @@ class ShutdownPromptPage : public PromptOLEDPage {
         } else {
             SetCurrentPage(nullptr);
             clearDisplay();
-            setTextSize(1);
-            setTextColor(WHITE);
-            setCursor(4, 17);
-            print_str("Shutdown...");
+            printString(4, 17, "Shutdown...");
             Display();
             sync();
             system("/sbin/shutdown -h now");
