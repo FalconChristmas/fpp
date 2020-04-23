@@ -151,6 +151,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
     $s = $settingInfos[$setting];
     $level = isset($s['level']) ? $s['level'] : 0;
     $reloadUI = isset($s['reloadUI']) ? $s['reloadUI'] : 0;
+    $textOnRight = isset($s['textOnRight']) ? $s['textOnRight'] : 0;
 
     if (($callback == '') && ($reloadUI == 1))
         $callback = 'reloadSettingsPage';
@@ -178,7 +179,11 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
-        echo "<tr id='" . $setting . "Row'><th>" . $s['description'] . ":</th><td>";
+        if ($textOnRight)
+            echo "<tr id='" . $setting . "Row'><td>";
+        else
+            echo "<tr id='" . $setting . "Row'><th>" . $s['description'] . ":</th><td>";
+
         switch ($s['type']) {
             case 'select':
                 if (empty($options)) {
@@ -256,6 +261,9 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
         if ($suffix != '')
             echo $suffix . ' ';
 
+        if ($textOnRight)
+            echo "</td><th>" . $s['description'] . " ";
+
         PrintToolTip($setting);
 
         if ($level == 1)
@@ -265,11 +273,14 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
         else if ($level == 3)
             echo " <b>***</b>";
 
-        echo "</td></tr>\n";
+        if ($textOnRight)
+            echo "</th></tr>\n";
+        else
+            echo "</td></tr>\n";
     }
 }
 
-function printSettingGroup($group, $appendData = "", $prependData = "") {
+function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1) {
     global $settings;
     global $settingGroups;
 
@@ -291,7 +302,12 @@ function printSettingGroup($group, $appendData = "", $prependData = "") {
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
         echo "<b>" . $g['description'] . "</b>\n";
-        echo "<table class='settingsTable settingsGroupTable'>\n";
+        echo "<table class='settingsTable ";
+
+        if ($indent)
+            echo "settingsGroupTable'>\n";
+        else
+            echo "'>\n";
 
         if ($prependData != "") {
             if (preg_match("/<tr>/", $prependData))
@@ -313,6 +329,12 @@ function printSettingGroup($group, $appendData = "", $prependData = "") {
 
         echo "</table><br>\n";
     }
+}
+
+function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $indent = 1) {
+    echo "<table class='settingsTable'>\n";
+    PrintSettingGroup($group, $appendData, $prependData, $indent);
+    echo "</table>\n";
 }
 
 function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = Array())
@@ -1469,6 +1491,14 @@ function PrintToolTip($setting) {
         (isset($settingInfos[$setting]['tip']))) {
         echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $settingInfos[$setting]['tip'] . "</span>\n";
     }
+}
+
+function PrintAwesomeFree($code, $isLink = 0) {
+    echo "<span class='AwesomeFree";
+    if ($isLink)
+        echo " AwesomeFreeLink";
+
+    echo "'>&#x$code;</span>";
 }
 
 ?>

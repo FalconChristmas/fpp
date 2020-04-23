@@ -1223,6 +1223,18 @@ td.bgDarkOrange {
 	font-weight: bold;
 }
 
+.multiSyncVerboseTable {
+    border: 0px !important;
+	border-collapse: collapse;
+}
+
+.multiSyncVerboseTable > tbody > tr > td {
+    border: 0px;
+    padding: 0px;
+    background-color: unset;
+}
+
+
 .advancedViewHeader {
 	color: #fff;
 	background-color: #414141;
@@ -1327,6 +1339,13 @@ td.bgDarkOrange {
     z-index: 9999 !important;
 }
 
+.AwesomeFree {
+   font-family: "Font Awesome 5 Free" !important;
+}
+
+.AwesomeFreeLink {
+    cursor: pointer;
+}
 
 a[href="index.php"]:before{
    content: "\f129";
@@ -1344,14 +1363,14 @@ a[href="networkconfig.php"]:not(.headerLink):before{
 }
 a[href="multisync.php"]:before{
    font-family: "Font Awesome 5 Free" !important;
-   content: "\f021";
+   content: "\f085";
    display: inline-block;
    padding-right: 10px;
    font-weight: 900;
 }
 a[href="settings.php"]:before{
    font-family: "Font Awesome 5 Free" !important;
-   content: "\f085";
+   content: "\f013";
    display: inline-block;
    padding-right: 10px;
    font-weight: 900;
@@ -1528,7 +1547,7 @@ a[href="cliHelp.php"]:before{
 }
 a[href="troubleshooting.php"]:before{
    font-family: "Font Awesome 5 Free" !important;
-   content: "\f71e";
+   content: "\f121";
    display: inline-block;
    padding-right: 10px;
    font-weight: 900;
