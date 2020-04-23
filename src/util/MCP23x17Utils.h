@@ -1,6 +1,4 @@
-
-#ifndef __FPP_MCP23x17_GPIO__
-#define __FPP_MCP23x17_GPIO__
+#pragma once
 
 #include "GPIOUtils.h"
 
@@ -32,5 +30,4 @@ public:
 
 };
 
-#endif
 

@@ -1,6 +1,4 @@
-#ifndef  __FPPOLEDMAINMENU__
-#define  __FPPOLEDMAINMENU__
-
+#pragma once
 
 #include "OLEDPages.h"
 
@@ -19,5 +17,3 @@ private:
     
     FPPStatusOLEDPage *statusPage;
 };
-
-#endif

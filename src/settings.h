@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Setting manager for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef __SETTINGS_H__
-#define __SETTINGS_H__
 
 #include <stdbool.h>
 #include <map>
@@ -113,5 +111,3 @@ char *getE131interface(void);
 unsigned int getControlMajor(void);
 unsigned int getControlMinor(void);
 
-
-#endif //__SETTINGS_H__

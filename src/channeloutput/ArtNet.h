@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ArtNet output handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _ARTNET_H
-#define _ARTNET_H
 
 #include <sys/uio.h>
 #include <netinet/in.h>
@@ -59,5 +57,3 @@ public:
     std::vector<struct iovec>  anIovecs;
     std::vector<unsigned char *> anHeaders;
 };
-
-#endif /* _ARTNET_H */

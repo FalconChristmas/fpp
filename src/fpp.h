@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Falcon Player (FPP) header file
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _FPP_H
-#define _FPP_H
 
 #define FPP_SOCKET_PATH    "/run/fppd"
 #define FPP_SERVER_SOCKET  "/run/fppd/FPPD"
@@ -33,4 +31,3 @@
 #define FPP_SERVER_SOCKET_OLD  "/tmp/FPPD"
 #define FPP_CLIENT_SOCKET_OLD  "/tmp/FPP"
 
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Channel Test Pattern RGB Chase class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _RGBCHASE_H
-#define _RGBCHASE_H
 
 #include <string>
 #include <vector>
@@ -54,5 +52,3 @@ class TestPatternRGBChase : public TestPatternBase {
 	int               m_lastTripletOffset;
 	int               m_lastPatternOffset;
 };
-
-#endif /* _RGBCHASE_H */

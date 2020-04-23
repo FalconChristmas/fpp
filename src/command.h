@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Command handler for Falcon Player (FPP)
  *

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      For additional credits and developers, see credits.php.
@@ -15,9 +16,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PCA9685_H
-#define _PCA9685_H
 
 #include "ChannelOutputBase.h"
 #include "util/I2CUtils.h"
@@ -61,4 +59,3 @@ class PCA9685Output : public ChannelOutputBase {
     PCA9685Port m_ports[16];
 };
 
-#endif

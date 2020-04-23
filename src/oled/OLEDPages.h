@@ -1,5 +1,4 @@
-#ifndef  __FPPOLEDPAGES__
-#define  __FPPOLEDPAGES__
+#pragma once
 
 #include <vector>
 #include <string>
@@ -126,5 +125,3 @@ protected:
     int curSelected;
     std::function<void (const std::string &)> itemSelectedCallback;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   E131 bridge for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _E131_BRIDGE_H
-#define _E131_BRIDGE_H
-
 #include <map>
 #include <functional>
 
@@ -36,5 +34,3 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
 void Bridge_Shutdown(void);
 void ResetBytesReceived();
 Json::Value GetE131UniverseBytesReceived();
-
-#endif

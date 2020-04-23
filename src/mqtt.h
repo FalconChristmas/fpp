@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Mosquitto Client for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MQTT_H
-#define _MQTT_H
 
 #include <pthread.h>
 #include <string>
@@ -78,5 +77,3 @@ class MosquittoClient {
 };
 
 extern MosquittoClient *mqtt;
-
-#endif

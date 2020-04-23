@@ -1,3 +1,4 @@
+#pragma once
 /*
  * MIT License
 
@@ -27,9 +28,6 @@ SOFTWARE.
  *  Author      : Vinay Divakar
  *  Website     : www.deeplyembedded.org
  */ 
-
-#ifndef I2C_H_
-#define I2C_H_
 
 #include<stdint.h>
 
@@ -65,5 +63,3 @@ extern int i2c_write_register(int fd, unsigned char reg_addr_or_cntrl, unsigned 
 
 /* Exposed I2C-x Specific Functions */
 extern int init_i2c_dev2(const char *i2cPath, unsigned char slave_address);
-
-#endif /* I2C_H_ */

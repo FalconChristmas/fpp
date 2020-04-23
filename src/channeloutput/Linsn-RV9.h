@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Linsn RV9 Channel Output driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _LINSNRV9_H
-#define _LINSNRV9_H
 
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
@@ -111,5 +109,3 @@ class LinsnRV9Output : public ChannelOutputBase {
 	unsigned char m_srcMAC[6];
 	unsigned char m_dstMAC[6];
 };
-
-#endif

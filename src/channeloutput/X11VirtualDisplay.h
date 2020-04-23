@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   X11VirtualDisplay Channel Output for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _X11VIRTUALDISPLAY_H
-#define _X11VIRTUALDISPLAY_H
 
 #include <X11/Xlib.h>
 #include <string>
@@ -52,5 +50,3 @@ class X11VirtualDisplayOutput : protected VirtualDisplayOutput {
 	Pixmap      m_pixmap;
 	XImage     *m_image;
 };
-
-#endif /* _X11VIRTUALDISPLAY_H */

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Log handler for Falcon Player (FPP)
  *
@@ -22,9 +23,7 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef __LOG_H__
-#define __LOG_H__
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // LogFacility is a mask allowing multiple log facilities on at the same time.
@@ -88,4 +87,3 @@ void logVersionInfo(void);
 #define LogMaskIsSet(x)  (logMask & x)
 #define LogLevelIsSet(x) (logLevel >= x)
 
-#endif //__LOG_H__

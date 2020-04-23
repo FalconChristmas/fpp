@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Events handler for Falcon Player (FPP)
  *
@@ -22,10 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-// events.h
-#ifndef EVENTS_H_
-#define EVENTS_H_
 
 #include <string>
 #include <vector>
@@ -58,4 +55,3 @@ int TriggerEvent(const char major, const char minor);
 int TriggerEventByID(const char *ID);
 FPPEvent* LoadEvent(const char *id);
 
-#endif

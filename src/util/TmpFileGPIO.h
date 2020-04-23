@@ -1,6 +1,4 @@
-
-#ifndef __FPP_TMPFILE_PI_GPIO__
-#define __FPP_TMPFILE_PI_GPIO__
+#pragma once
 
 #include "GPIOUtils.h"
 #include <vector>
@@ -36,4 +34,3 @@ public:
     std::string filename;
 };
 
-#endif

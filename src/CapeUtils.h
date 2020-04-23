@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Falcon Player (FPP) header file
  *

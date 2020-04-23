@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Volume Class for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYVOLUME_H
-#define _PLAYLISTENTRYVOLUME_H
-
 #include <string>
 
 #include "PlaylistEntryBase.h"
@@ -47,5 +45,3 @@ class PlaylistEntryVolume : public PlaylistEntryBase {
 	int                  m_volume;
     bool                 m_volAdjust;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   nRF24 SPI handler for Falcon Player (FPP)
  *
@@ -17,9 +18,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _SPINRF24L01_H
-#define _SPINRF24L01_H
 
 #include "ChannelOutputBase.h"
 
@@ -44,6 +42,3 @@ private:
     SPInRF24L01PrivData *data;
 };
 
-
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ILI9488 Channel Output driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _ILI9488_H
-#define _ILI9488_H
 
 #include "ThreadedChannelOutputBase.h"
 
@@ -69,5 +67,3 @@ class ILI9488Output : public ThreadedChannelOutputBase {
 	void SetRowRange(unsigned int y1, unsigned int y2);
 	void SetRegion(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
 };
-
-#endif

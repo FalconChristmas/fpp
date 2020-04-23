@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   libvlc player driver for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _VLCOUT_H
-#define _VLCOUT_H
 
 #include "MediaOutputBase.h"
 
@@ -41,7 +39,3 @@ class VLCOutput : public MediaOutputBase {
     VLCInternalData *data;
     bool m_allowSpeedAdjust;
 };
-
-
-#endif
-

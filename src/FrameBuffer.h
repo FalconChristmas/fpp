@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   FrameBuffer Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _FRAMEBUFFER_H
-#define _FRAMEBUFFER_H
 
 #include <mutex>
 #include <thread>
@@ -183,5 +181,3 @@ inline void FrameBuffer::SyncDisplay(void)
 	XUnlockDisplay(m_display);
 #endif
 }
-
-#endif

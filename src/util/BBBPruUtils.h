@@ -1,5 +1,4 @@
-#ifndef _bbb_pru_utils_h_
-#define _bbb_pru_utils_h_
+#pragma once
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -37,6 +36,3 @@ public:
     uintptr_t ddr_addr;   // PRU DMA address (in PRU space)
     size_t ddr_size;      // Size in bytes of the shared space
 };
-
-
-#endif

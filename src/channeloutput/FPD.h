@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   FPD output handler for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _FPD_H
-#define _FPD_H
-
 #include "channeloutput.h"
 
 /* Config routine exposed so we can re-load the config on demand */
@@ -36,5 +34,3 @@ void CreatePixelnetDMXfile(const char * file);
 
 /* Expose our interface */
 extern FPPChannelOutput FPDOutput;
-
-#endif /* #ifndef _FPD_H   */

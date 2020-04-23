@@ -1,5 +1,4 @@
-#ifndef __MEDIADETAILS_H__
-#define __MEDIADETAILS_H__
+#pragma once
 
 #include <string>
 
@@ -33,5 +32,3 @@ private:
     void clearPreviousMedia();
 
 };
-
-#endif //__MEDIADETAILS_H__

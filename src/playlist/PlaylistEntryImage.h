@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Image Class for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYIMAGE_H
-#define _PLAYLISTENTRYIMAGE_H
 
 #include <mutex>
 #include <thread>
@@ -99,5 +98,3 @@ class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
 
 	std::condition_variable m_prepSignal;
 };
-
-#endif

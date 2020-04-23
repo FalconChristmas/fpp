@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   omxplayer driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _OMXPLAYER_H
-#define _OMXPLAYER_H
 
 #include "MediaOutputBase.h"
 
@@ -55,5 +53,3 @@ class omxplayerOutput : public MediaOutputBase {
     int m_speedDelta;
     int m_speedDeltaCount;
 };
-
-#endif

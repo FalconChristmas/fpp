@@ -1,5 +1,4 @@
-#ifndef __SENSORS_h__
-#define __SENSORS_h__
+#pragma once
 
 
 #include <jsoncpp/json/json.h>
@@ -25,7 +24,3 @@ private:
     std::list<Sensor*> sensors;
 };
 
-
-
-
-#endif

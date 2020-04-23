@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Base Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYBASE_H
-#define _PLAYLISTENTRYBASE_H
 
 #include <pthread.h>
 
@@ -94,5 +92,3 @@ class PlaylistEntryBase {
 	Json::Value  m_config;
 	PlaylistEntryBase *m_parent;
 };
-
-#endif

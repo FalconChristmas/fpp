@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Pixelnet USB handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _USBPIXELNET_H
-#define _USBPIXELNET_H
 
 #include <string>
 
@@ -59,5 +57,3 @@ class USBPixelnetOutput : public ThreadedChannelOutputBase {
 	int            m_fd;
 	DongleType     m_dongleType;
 };
-
-#endif /* _USBPIXELNET_H */

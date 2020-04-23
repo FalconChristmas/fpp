@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   E131 output handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _E131_H
-#define _E131_H
 
 #include <sys/uio.h>
 #include <netinet/in.h>
@@ -55,5 +53,3 @@ public:
     std::vector<struct iovec>  e131Iovecs;
     std::vector<unsigned char *> e131Headers;
 };
-
-#endif

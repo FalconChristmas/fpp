@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   FBVirtualDisplay Channel Output for Falcon Player (FPP)
  *
@@ -22,10 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _FBVIRTUALDISPLAY_H
-#define _FBVIRTUALDISPLAY_H
-
 #include <linux/fb.h>
 
 #include "VirtualDisplay.h"
@@ -52,5 +49,3 @@ class FBVirtualDisplayOutput : protected VirtualDisplayOutput {
 	struct fb_var_screeninfo m_vInfoOrig;
 	struct fb_fix_screeninfo m_fInfo;
 };
-
-#endif /* _FBVIRTUALDISPLAY_H */

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Falcon Player daemon header file
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _FALCON_H
-#define _FALCON_H
 
 #include <netinet/in.h>
 
@@ -34,6 +32,3 @@ int DetectFalconHardware(int configureHardware);
 int FalconPassThroughData(int offset,char *inBuf, int size);
 void ProcessFalconPacket(int sock, struct sockaddr_in *srcAddr,
 	struct in_addr recvAddr, unsigned char *inBuf);
-
-
-#endif /* _CONTROLRECV_H */

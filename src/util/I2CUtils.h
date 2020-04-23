@@ -1,5 +1,4 @@
-#ifndef __FPP_I2C_UTILS__
-#define __FPP_I2C_UTILS__
+#pragma once
 
 #include <stdint.h>
 
@@ -30,5 +29,3 @@ private:
     int file;
     unsigned long funcs;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Raspberry Pi rpi_ws281x handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _RPI_WS281X_H
-#define _RPI_WS281X_H
 
 extern "C" {
 #include "../../external/rpi_ws281x/clk.h"
@@ -65,4 +63,3 @@ class RPIWS281xOutput : public ThreadedChannelOutputBase {
 	std::vector<PixelString*> m_strings;
 };
 
-#endif

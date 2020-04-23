@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Generic SPI handler for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _GENERICSPI_H
-#define _GENERICSPI_H
-
 #include "ThreadedChannelOutputBase.h"
 #include "util/SPIUtils.h"
 
@@ -49,5 +47,3 @@ class GenericSPIOutput : public ThreadedChannelOutputBase {
 	int            m_port;
 	int			   m_speed_hz;
 };
-
-#endif

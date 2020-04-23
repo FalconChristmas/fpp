@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Remap Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYREMAP_H
-#define _PLAYLISTENTRYREMAP_H
 
 #include <string>
 
@@ -54,5 +52,3 @@ class PlaylistEntryRemap : public PlaylistEntryBase {
 	int m_loops;
 	int m_reverse;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   USB DMX handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _USBDMX_H
-#define _USBDMX_H
 
 #include <string>
 
@@ -62,5 +60,3 @@ class USBDMXOutput : public ThreadedChannelOutputBase {
     int         m_dataOffset;
     int         m_dataLen;
 };
-
-#endif /* #ifdef _USBDMX_H */

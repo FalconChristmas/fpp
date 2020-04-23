@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Media handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _MEDIAOUTPUT_H
-#define _MEDIAOUTPUT_H
 
 #include <pthread.h>
 
@@ -55,5 +53,3 @@ bool IsExtensionAudio(const std::string &ext);
 //volume control
 void setVolume(int volume);
 int  getVolume(void);
-#endif /* _MEDIAOUTPUT_H */
-

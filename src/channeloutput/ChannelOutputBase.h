@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ChannelOutputBase class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _CHANNELOUTPUTBASE_H
-#define _CHANNELOUTPUTBASE_H
 
 #include <string>
 #include <vector>
@@ -59,5 +57,3 @@ class ChannelOutputBase {
 	unsigned int     m_startChannel;
 	unsigned int     m_channelCount;
 };
-
-#endif /* #ifndef _CHANNELOUTPUTBASE_H */

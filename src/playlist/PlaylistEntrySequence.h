@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Sequence Class for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYSEQUENCE_H
-#define _PLAYLISTENTRYSEQUENCE_H
 
 #include <string>
 
@@ -57,5 +56,3 @@ class PlaylistEntrySequence : public PlaylistEntryBase {
 	int                  m_duration;
 	std::string          m_sequenceName;
 };
-
-#endif

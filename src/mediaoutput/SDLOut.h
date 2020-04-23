@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   libav/SDL player driver for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SDLOUT_H
-#define _SDLOUT_H
-
 #include "MediaOutputBase.h"
 
 class SDLInternalData;
@@ -47,5 +45,3 @@ class SDLOutput : public MediaOutputBase {
   private:
     SDLInternalData *data;
 };
-
-#endif

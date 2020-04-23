@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Channel Test Pattern RGB Fill class for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _RGBFILL_H
-#define _RGBFILL_H
-
 #include <string>
 #include <vector>
 
@@ -48,5 +46,3 @@ class TestPatternRGBFill : public TestPatternBase {
 	char              m_color2;
 	char              m_color3;
 };
-
-#endif /* _RGBFILL_H */

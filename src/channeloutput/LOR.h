@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Light-O-Rama (LOR) channel output driver for Falcon Player (FPP)
  *
@@ -17,9 +18,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _LOR_H
-#define _LOR_H
 
 #include "ChannelOutputBase.h"
 
@@ -43,6 +41,3 @@ class LOROutput : public ChannelOutputBase {
     private:
     LOROutputData *data;
 };
-
-
-#endif /* _LOR_H */

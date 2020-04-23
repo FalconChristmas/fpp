@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   OutputProcessor class for Falcon Player (FPP)
  *
@@ -15,8 +16,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _OUTPUTPROCESSOR_H
-#define _OUTPUTPROCESSOR_H
 
 #include <string>
 #include <list>
@@ -74,6 +73,3 @@ protected:
     mutable std::mutex processorsLock;
     std::list<OutputProcessor*> processors;
 };
-
-#endif /* #ifndef _OUTPUTPROCESSOR_H */
-

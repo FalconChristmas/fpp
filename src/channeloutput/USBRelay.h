@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   USB Relay handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _USBRELAY_H
-#define _USBRELAY_H
 
 #include <string>
 
@@ -56,5 +54,3 @@ class USBRelayOutput : public ChannelOutputBase {
 	RelayType    m_subType;
 	int          m_relayCount;
 };
-
-#endif /* _USBRELAY_H */

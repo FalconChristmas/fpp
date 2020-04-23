@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Effects handler for Falcon Player (FPP)
  *
@@ -24,9 +25,6 @@
  */
 
 // Effect Sequence file format and header definition
-#ifndef EFFECTS_H_
-#define EFFECTS_H_
-
 #include <string>
 
 int  GetRunningEffects(char *msg, char **result);
@@ -39,5 +37,3 @@ int  StopEffect(const std::string &effectName);
 int  StopEffect(int effectID);
 void StopAllEffects(void);
 int  OverlayEffects(char *channelData);
-
-#endif

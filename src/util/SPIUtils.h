@@ -1,5 +1,4 @@
-#ifndef __FPP_SPI_UTILS__
-#define __FPP_SPI_UTILS__
+#pragma once
 
 #include <stdint.h>
 
@@ -18,5 +17,3 @@ private:
     int speed;
     int bitsPerWord;
 };
-
-#endif

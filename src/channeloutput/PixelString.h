@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Pixel String Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PIXELSTRING_H
-#define _PIXELSTRING_H
 
 #include <jsoncpp/json/json.h>
 #include <cmath>
@@ -101,5 +99,3 @@ class PixelString {
     void AddVirtualString(const VirtualString &vs);
     void AddNullPixelString();
 };
-
-#endif /* _PIXELSTRING_H */

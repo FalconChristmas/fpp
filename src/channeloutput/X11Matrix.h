@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   X11 Matrix handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _X11MATRIX_H
-#define _X11MATRIX_H
 
 #include <X11/Xlib.h>
 
@@ -61,5 +59,3 @@ class X11MatrixOutput : public ThreadedChannelOutputBase {
 
 	std::string m_title;
 };
-
-#endif /* _X11MATRIX_H */

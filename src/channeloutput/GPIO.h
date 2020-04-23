@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   GPIO Pin Channel Output driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _GPIO_H
-#define _GPIO_H
 
 #include "ChannelOutputBase.h"
 #include "util/GPIOUtils.h"
@@ -51,5 +49,3 @@ class GPIOOutput : public ChannelOutputBase {
 	int m_pwm;
 
 };
-
-#endif

@@ -1,6 +1,4 @@
-
-#ifndef __FPPGPIOUTILS__
-#define __FPPGPIOUTILS__
+#pragma once
 
 #include <string>
 #include <vector>
@@ -94,5 +92,3 @@ public:
         return * (static_cast<T*>(this));
     }
 };
-
-#endif

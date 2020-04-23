@@ -1,6 +1,4 @@
-
-#ifndef __ROBOTOFONT_14__
-#define __ROBOTOFONT_14__
+#pragma once
 
 #include "gfxfont.h"
 
@@ -204,4 +202,3 @@ const GFXglyph Roboto_Medium_14Glyphs[] = {
 const GFXfont Roboto_Medium_14 = {
     (uint8_t  *)Roboto_Medium_14Bitmaps,(GFXglyph *)Roboto_Medium_14Glyphs,0x20, 0x7E, 15, 12};
 
-#endif

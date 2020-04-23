@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   IP Channel Output driver for Falcon Player (FPP)
  *
@@ -17,10 +18,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _IPOUTPUT_H
-#define _IPOUTPUT_H
-
 #include <list>
 #include <vector>
 #include <map>
@@ -156,5 +153,3 @@ private:
     std::condition_variable pingThreadCondition;
     CURLM *m_curlm;
 };
-
-#endif

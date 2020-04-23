@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Playlist Class for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYPLAYLIST_H
-#define _PLAYLISTENTRYPLAYLIST_H
-
 #include "Playlist.h"
 #include "PlaylistEntryBase.h"
 
@@ -48,5 +46,3 @@ class PlaylistEntryPlaylist : public PlaylistEntryBase {
 
 	Playlist      *m_playlist;
 };
-
-#endif

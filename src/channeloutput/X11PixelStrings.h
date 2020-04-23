@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   X11 Pixel Strings Test Channel Output for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _X11PIXELSTRINGS_H
-#define _X11PIXELSTRINGS_H
 
 #include <X11/Xlib.h>
 
@@ -83,5 +81,3 @@ inline void X11PixelStringsOutput::SyncDisplay(void)
     XFlush(m_display);
     XUnlockDisplay(m_display);
 }
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Generic Serial handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _GENERICSERIAL_H
-#define _GENERICSERIAL_H
 
 #include <string>
 
@@ -56,5 +54,3 @@ class GenericSerialOutput : public ThreadedChannelOutputBase {
 	int         m_packetSize;
 	char       *m_data;
 };
-
-#endif /* #ifdef _GENERICSERIAL_H */

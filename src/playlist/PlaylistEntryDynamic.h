@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   PlaylistEntryDynamic Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYDYNAMIC_H
-#define _PLAYLISTENTRYDYNAMIC_H
 
 #include <string>
 #include <vector>
@@ -83,4 +81,3 @@ class PlaylistEntryDynamic : public PlaylistEntryBase {
 	std::string            m_response;
 };
 
-#endif

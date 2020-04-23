@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Event Class for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYEVENT_H
-#define _PLAYLISTENTRYEVENT_H
-
 #include <string>
 
 #include "PlaylistEntryBase.h"
@@ -50,5 +48,3 @@ class PlaylistEntryEvent : public PlaylistEntryBase {
 	int  m_minorID;
 	int  m_blocking;
 };
-
-#endif

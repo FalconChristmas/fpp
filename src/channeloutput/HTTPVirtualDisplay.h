@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   HTTPVirtualDisplay Channel Output for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _HTTPVIRTUALDISPLAY_H
-#define _HTTPVIRTUALDISPLAY_H
 
 #include <thread>
 #include <vector>
@@ -66,5 +64,3 @@ class HTTPVirtualDisplayOutput : protected VirtualDisplayOutput {
 	std::mutex m_connListLock;
 	std::vector<int> m_connList;
 };
-
-#endif /* _HTTPVIRTUALDISPLAY_H */

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Matrix class for the Falcon Player Daemon 
  *   Falcon Player project (FPP) 
@@ -24,8 +25,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MATRIX_H
-#define _MATRIX_H
 
 #include <vector>
 
@@ -59,5 +58,3 @@ class Matrix {
 
 	std::vector<SubMatrix>  subMatrix;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   BeagleBone Black PRU Serial DMX/Pixelnet handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _BBBSERIAL_H
-#define _BBBSERIAL_H
 
 #include <string>
 #include <vector>
@@ -70,5 +68,3 @@ class BBBSerialOutput : public ThreadedChannelOutputBase {
     BBBPru             *m_pru;
     BBBSerialData      *m_serialData;
 };
-
-#endif /* _BBBSERIAL_H */

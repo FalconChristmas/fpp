@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Script functions for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _SCRIPTS_H
-#define _SCRIPTS_H
 
 #include <string>
 #include <utility>
@@ -32,5 +30,3 @@
 
 pid_t RunScript(std::string script, std::string scriptArgs);
 pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pair<std::string, std::string>> envVars);
-
-#endif

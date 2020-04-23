@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   BeagleBone Black PRU 48-string handler for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _BBB48STRING_H
-#define _BBB48STRING_H
 
 #include <string>
 #include <vector>
@@ -83,5 +82,3 @@ class BBB48StringOutput : public ChannelOutputBase {
     BBBPru             *m_pru0;
     BBB48StringData    *m_pru0Data;
 };
-
-#endif /* _BBB48STRING_H */

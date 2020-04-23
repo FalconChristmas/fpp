@@ -1,5 +1,4 @@
-#ifndef _GFXFONT_H_
-#define _GFXFONT_H_
+#pragma once
 
 typedef struct {                                 // Data stored PER GLYPH
 	unsigned short  bitmapOffset;                // Pointer into GFXfont->bitmap
@@ -16,4 +15,3 @@ typedef struct {                                 // Data stored for FONT AS A WH
     uint8_t         yMaxAscent;
 } GFXfont, *GFXfontPtr;
 
-#endif // _GFXFONT_H_

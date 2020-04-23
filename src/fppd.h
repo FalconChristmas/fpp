@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Falcon Player daemon header file
  *
@@ -23,13 +24,8 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _FPPD_H
-#define _FPPD_H
-
 #include "channeltester/ChannelTester.h"
 
 void CreateDaemon(void);
 void CheckExistanceOfDirectoriesAndFiles();
 void ShutdownFPPD(bool restart = false);
-
-#endif

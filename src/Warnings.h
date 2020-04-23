@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   The Falcon Player (FPP) is free software; you can redistribute it
  *   and/or modify it under the terms of the GNU General Public License
@@ -12,9 +13,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _FPP_WARNINGS_H
-#define _FPP_WARNINGS_H
 
 #include <map>
 #include <mutex>
@@ -34,6 +32,3 @@ private:
     static std::mutex warningsLock;
     static std::map<std::string, int> warnings;
 };
-
-#endif
-

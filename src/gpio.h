@@ -1,5 +1,6 @@
+#pragma once
 /*
-/Volumes/opt/fpp/src/makefiles/fpp_so.mk *   GPIO Input/Output handler for Falcon Player (FPP)
+ *   GPIO Input/Output handler for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
  *      Initial development by:
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef __GPIO_H__
-#define __GPIO_H__
 
 #include <map>
 #include <functional>
@@ -80,5 +79,3 @@ private:
 
 int SetupExtGPIO(int gpio, char *mode);
 int ExtGPIO(int gpio, char *mode, int value);
-
-#endif //__GPIO_H__

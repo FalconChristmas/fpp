@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Ron's Holiday Lights DVI to E1.31 Channel Output for Falcon Player (FPP)
  *
@@ -22,10 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _RHL_DVI_E131_H
-#define _RHL_DVI_E131_H
-
 #include <linux/fb.h>
 
 #include "ChannelOutputBase.h"
@@ -58,5 +55,3 @@ class RHLDVIE131Output : public ChannelOutputBase {
 	struct fb_var_screeninfo m_vInfoOrig;
 	struct fb_fix_screeninfo m_fInfo;
 };
-
-#endif /* _RHL_DVI_E131_H */

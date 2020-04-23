@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   VirtualDisplay Channel Output for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _VIRTUALDISPLAY_H
-#define _VIRTUALDISPLAY_H
 
 #include <linux/fb.h>
 #include <string>
@@ -186,5 +184,3 @@ inline void VirtualDisplayOutput::GetPixelRGB(VirtualDisplayPixel &pixel,
 		}
 	}
 }
-
-#endif /* _VIRTUALDISPLAY_H */

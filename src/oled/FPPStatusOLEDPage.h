@@ -1,5 +1,4 @@
-#ifndef  __FPPSTATUSOLEDPAGE__
-#define  __FPPSTATUSOLEDPAGE__
+#pragma once
 
 #include "OLEDPages.h"
 #include <jsoncpp/json/json.h>
@@ -69,6 +68,3 @@ private:
     MenuOLEDPage *mainMenu;
 };
 
-
-
-#endif

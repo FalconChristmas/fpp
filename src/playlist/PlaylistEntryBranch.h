@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Branch Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYBRANCH_H
-#define _PLAYLISTENTRYBRANCH_H
 
 #include <string>
 
@@ -87,5 +85,3 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
     std::string  m_nextSection;
     int          m_nextItem;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  * TINYEXPR - Tiny recursive descent parser and evaluation engine in C
  *
@@ -22,8 +23,6 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#ifndef __TINYEXPR_H__
-#define __TINYEXPR_H__
 
 
 #ifdef __cplusplus
@@ -83,4 +82,3 @@ void te_free(te_expr *n);
 }
 #endif
 
-#endif /*__TINYEXPR_H__*/

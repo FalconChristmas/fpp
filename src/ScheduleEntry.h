@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ScheduleEntry class for the Falcon Player (FPP) 
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _SCHEDULEENTRY_H
-#define _SCHEDULEENTRY_H
 
 #include <string>
 
@@ -67,5 +65,3 @@ class ScheduleEntry {
 	std::string  startDateStr;
 	std::string  endDateStr;
 };
-
-#endif /* _SCHEDULEENTRY_H */

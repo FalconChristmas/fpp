@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   serial port utility functions for Falcon Player (FPP)
  *
@@ -23,12 +24,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SERIALUTIL_H
-#define _SERIALUTIL_H
-
 int SerialOpen(const char *device, int baud, const char *mode, bool output = true);
 int SerialClose(int fd);
 int SerialSendBreak(int fd, int duration);
 int SerialResetRTS(int fd);
-
-#endif /* _SERIALUTIL_H */

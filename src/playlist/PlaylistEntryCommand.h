@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Command Class for Falcon Player (FPP)
  * *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYCOMMAND_H
-#define _PLAYLISTENTRYCOMMAND_H
 
 #include <string>
 #include <vector>
@@ -43,5 +41,3 @@ class PlaylistEntryCommand : public PlaylistEntryBase {
     Json::Value m_command;
     std::unique_ptr<Command::Result> m_result;
 };
-
-#endif

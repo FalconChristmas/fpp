@@ -1,3 +1,4 @@
+#pragma once
 /*
 *   Falcon Player Daemon
 *
@@ -16,9 +17,6 @@
 *   You should have received a copy of the GNU General Public License
 *   along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifndef __FPP_NETWORK_MONITOR__
-#define __FPP_NETWORK_MONITOR__
 
 #include <map>
 #include <list>
@@ -53,4 +51,4 @@ private:
     int curId;
 };
 
-#endif
+

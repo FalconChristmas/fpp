@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ChannelOutputBase class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _THREADEDCHANNELOUTPUTBASE_H
-#define _THREADEDCHANNELOUTPUTBASE_H
 
 #include <string>
 #include <vector>
@@ -75,5 +73,3 @@ class ThreadedChannelOutputBase : public ChannelOutputBase {
 	unsigned char   *m_outBuf;
 
 };
-
-#endif /* #ifndef _CHANNELOUTPUTBASE_H */

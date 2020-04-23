@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   RemapOutputProcessor class for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _HOLDVALUEOUTPUTPROCESSOR_H
-#define _HOLDVALUEOUTPUTPROCESSOR_H
 
 #include "OutputProcessor.h"
 
@@ -38,5 +36,3 @@ protected:
     int count;
     unsigned char *lastValues;
 };
-
-#endif

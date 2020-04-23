@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Common functions for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef _COMMON_H
-#define _COMMON_H
-
 #include <stdint.h>
 
 #include <vector>
@@ -127,5 +125,3 @@ bool urlPost(const std::string url, const std::string data, std::string &resp);
 bool urlPut(const std::string url, const std::string data, std::string &resp);
 bool urlDelete(const std::string url, const std::string data, std::string &resp);
 bool urlDelete(const std::string url, std::string &resp);
-
-#endif

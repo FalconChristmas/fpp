@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Plugin Class for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYPLUGIN_H
-#define _PLAYLISTENTRYPLUGIN_H
-
 #include <string>
 
 #include "PlaylistEntryBase.h"
@@ -38,5 +36,3 @@ class PlaylistEntryPlugin : public PlaylistEntryBase {
   private:
 	std::string m_plugin;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Channel Test Pattern base class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _TESTPATTERNBASE_H
-#define _TESTPATTERNBASE_H
 
 #include <string>
 #include <utility>
@@ -66,5 +64,3 @@ class TestPatternBase {
 
 	std::vector<std::pair<int,int> >  m_channelSet;
 };
-
-#endif /* _TESTPATTERNBASE_H */

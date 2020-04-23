@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Base Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLIST_H
-#define _PLAYLIST_H
 
 #include <mutex>
 #include <string>
@@ -160,4 +158,3 @@ class Playlist {
 // Temporary singleton during conversion
 extern Playlist * playlist;
 
-#endif

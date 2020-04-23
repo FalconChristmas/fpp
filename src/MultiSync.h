@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Falcon Player MultiSync header file  
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
- 
-#ifndef _MULTISYNC_H
-#define _MULTISYNC_H
 
 #include <mutex>
 #include <netinet/in.h>
@@ -318,5 +316,3 @@ class MultiSync {
 };
 
 extern MultiSync *multiSync;
-
-#endif /* _MULTISYNC_H */

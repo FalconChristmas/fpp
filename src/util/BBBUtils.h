@@ -1,5 +1,5 @@
-#ifndef __BBB_UTILS__
-#define __BBB_UTILS__
+#pragma once
+
 
 #include <string>
 #include <vector>
@@ -46,6 +46,3 @@ public:
 
     static std::vector<std::string> getPinNames();
 };
-
-
-#endif

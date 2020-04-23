@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Media Class for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYMEDIA_H
-#define _PLAYLISTENTRYMEDIA_H
 
 #include <string>
 
@@ -79,4 +78,3 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
     std::vector<std::string> m_files;
 };
 
-#endif

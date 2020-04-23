@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   DDP Channel Output driver for Falcon Player (FPP)
  *
@@ -17,9 +18,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _DDPOUTPUT_H
-#define _DDPOUTPUT_H
 
 #include <list>
 #include "UDPOutput.h"
@@ -49,6 +47,3 @@ public:
     struct iovec *ddpIovecs = nullptr;
     unsigned char **ddpBuffers = nullptr;
 };
-
-
-#endif

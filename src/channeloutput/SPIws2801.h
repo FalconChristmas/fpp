@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   WS2801 SPI handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _SPIWS2801_H
-#define _SPIWS2801_H
 
 #include "ThreadedChannelOutputBase.h"
 #include "util/SPIUtils.h"
@@ -51,5 +49,3 @@ class SPIws2801Output : public ThreadedChannelOutputBase {
 	unsigned char *m_pi36Data;
 	int            m_pi36DataSize;
 };
-
-#endif

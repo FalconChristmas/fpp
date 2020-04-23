@@ -1,6 +1,5 @@
+#pragma once
 
-#ifndef __FPP_PiGPIO_GPIO__
-#define __FPP_PiGPIO_GPIO__
 
 #include <vector>
 
@@ -33,5 +32,3 @@ public:
     static std::vector<std::string> getPinNames();
 
 };
-
-#endif

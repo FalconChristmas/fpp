@@ -1,5 +1,4 @@
-#ifndef __FSEQFILE_H_
-#define __FSEQFILE_H_
+#pragma once
 
 #include <stdio.h>
 #include <string>
@@ -189,6 +188,3 @@ private:
     V2Handler *m_handler;
     friend class V2Handler;
 };
-
-
-#endif

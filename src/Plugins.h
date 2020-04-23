@@ -1,5 +1,4 @@
-#ifndef __FPP_PLUGINS_H__
-#define __FPP_PLUGINS_H__
+#pragma once
 
 #include <vector>
 #include <string>
@@ -37,6 +36,3 @@ public:
 private:
     std::vector<FPPPlugin *> mPlugins;
 };
-
-
-#endif //__PLUGINS_H__

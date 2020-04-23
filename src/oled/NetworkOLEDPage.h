@@ -1,5 +1,4 @@
-#ifndef  __FPPNETWORKOLEDPAGE__
-#define  __FPPNETWORKOLEDPAGE__
+#pragma once
 
 #include "OLEDPages.h"
 
@@ -22,4 +21,3 @@ public:
     std::string dns2;
 };
 
-#endif

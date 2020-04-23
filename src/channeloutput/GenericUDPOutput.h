@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Generic Binary IP Channel Output driver for Falcon Player (FPP)
  *
@@ -15,10 +16,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _GENERIC_UDP_IPOUTPUT_H
-#define _GENERIC_UDP_IPOUTPUT_H
-
 #include "ChannelOutputBase.h"
 
 
@@ -35,5 +32,3 @@ public:
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 private:
 };
-#endif
-

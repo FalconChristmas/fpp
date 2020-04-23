@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry MQTT Class for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PLAYLISTENTRYMQTT_H
-#define _PLAYLISTENTRYMQTT_H
-
 #include <string>
 
 #include "PlaylistEntryBase.h"
@@ -47,5 +45,3 @@ class PlaylistEntryMQTT : public PlaylistEntryBase {
 	std::string m_topic;
 	std::string m_message;
 };
-
-#endif

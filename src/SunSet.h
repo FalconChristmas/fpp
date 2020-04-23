@@ -1,3 +1,4 @@
+#pragma once
 /*
 The MIT License (MIT)
 
@@ -22,8 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef __SUNPOSITION_H__
-#define __SUNPOSITION_H__
 
 #include <math.h>
 #include <time.h>
@@ -71,5 +70,3 @@ private:
   int m_day;
   int tzOffset;
 };
-
-#endif

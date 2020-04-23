@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   generic output channel handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _CHANNELOUTPUT_H
-#define _CHANNELOUTPUT_H
 
 #include <vector>
 #include <pthread.h>
@@ -75,5 +73,3 @@ void StartOutputThreads(void);
 void StopOutputThreads(void);
 
 const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges();
-
-#endif /* _CHANNELOUTPUT_H */

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Version string handler for Falcon Player (FPP)
  *
@@ -23,14 +24,9 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
  
-#ifndef __FPPVERSION_H__
-#define __FPPVERSION_H__
-
 const char *getFPPVersion(void);
 const char *getFPPMajorVersion(void);
 const char *getFPPMinorVersion(void);
 const char *getFPPBranch(void);
 void logVersionInfo(void);
 void printVersionInfo(void);
-
-#endif //__FPPVERSION_H__

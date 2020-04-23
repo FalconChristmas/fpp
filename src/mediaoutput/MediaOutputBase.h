@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   MediaOutputBase class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _MEDIAOUTPUTBASE_H
-#define _MEDIAOUTPUTBASE_H
 
 #include <string>
 #include <vector>
@@ -75,5 +73,3 @@ class MediaOutputBase {
 
 	pthread_mutex_t    m_outputLock;
 };
-
-#endif /* #ifndef _MEDIAOUTPUTBASE_H */

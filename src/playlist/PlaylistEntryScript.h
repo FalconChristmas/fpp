@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Script Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYSCRIPT_H
-#define _PLAYLISTENTRYSCRIPT_H
 
 #include <string>
 
@@ -56,5 +54,3 @@ class PlaylistEntryScript : public PlaylistEntryBase {
     int                 m_scriptProcess;
     long long           m_startTime;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   librgbmatrix handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _RGBMATRIX_H
-#define _RGBMATRIX_H
 
 #include <string>
 
@@ -78,5 +76,3 @@ class RGBMatrixOutput : public ChannelOutputBase {
     
     uint8_t      m_gammaCurve[256];
 };
-
-#endif /* _RGBMATRIX_H */

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ExpressionProcessor - wrapper around tinyexpr
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _EXPRESSIONPROCESSOR_H
-#define _EXPRESSIONPROCESSOR_H
 
 #include <string>
 
@@ -55,7 +53,3 @@ public:
 private:
     ExpressionProcessorData *data;
 };
-
-
-
-#endif

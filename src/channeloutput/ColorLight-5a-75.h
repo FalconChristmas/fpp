@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ColorLight 5a-75 Channel Output driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _COLORLIGHT5A75_H
-#define _COLORLIGHT5A75_H
 
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
@@ -99,5 +97,3 @@ class ColorLight5a75Output : public ChannelOutputBase {
     int          m_flippedLayout;
 
 };
-
-#endif

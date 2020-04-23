@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   GPIO attached 74HC595 Shift Register handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _GPIO595_H
-#define _GPIO595_H
 
 #include "ThreadedChannelOutputBase.h"
 #include "util/GPIOUtils.h"
@@ -52,4 +50,3 @@ class GPIO595Output : public ThreadedChannelOutputBase {
 	const PinCapabilities * m_latchPin;
 };
 
-#endif

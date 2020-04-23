@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   E1.31 Universe Entry for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _UniverseEntry_H
-#define _UniverseEntry_H
 
 typedef struct {
 	int           active;
@@ -36,4 +35,3 @@ typedef struct {
 	unsigned long bytesReceived;
 } Universe;
 
-#endif

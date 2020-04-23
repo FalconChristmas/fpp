@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   PlaylistEntryURL Class for Falcon Player (FPP)
  *
@@ -22,10 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYURL_H
-#define _PLAYLISTENTRYURL_H
-
 #include <string>
 
 #include <curl/curl.h>
@@ -61,5 +58,3 @@ class PlaylistEntryURL : public PlaylistEntryBase {
 
 	CURL                  *m_curl;
 };
-
-#endif

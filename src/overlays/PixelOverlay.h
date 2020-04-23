@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Pixel Overlay handler for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PIXELOVERLAY_H
-#define _PIXELOVERLAY_H
 
 #include <string>
 #include <httpserver.hpp>
@@ -84,6 +82,3 @@ private:
     
     friend class OverlayCommand;
 };
-
-
-#endif /* _PIXELOVERLAY_H */

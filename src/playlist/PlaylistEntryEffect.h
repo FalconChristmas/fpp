@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Effect Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYEFFECT_H
-#define _PLAYLISTENTRYEFFECT_H
 
 #include <string>
 
@@ -53,4 +51,3 @@ class PlaylistEntryEffect : public PlaylistEntryBase {
 	int         m_effectID;
 };
 
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Channel Test Pattern RGB Cycle class for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _RGBCYCLE_H
-#define _RGBCYCLE_H
 
 #include <string>
 #include <vector>
@@ -43,5 +41,3 @@ class TestPatternRGBCycle : public TestPatternBase {
 	int               m_colorPatternSize;
 	int               m_patternOffset;
 };
-
-#endif /* _RGBCHASE_H */

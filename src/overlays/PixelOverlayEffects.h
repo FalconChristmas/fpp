@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Pixel Overlay Effects for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PIXELOVERLAY_EFFECTS_H
-#define _PIXELOVERLAY_EFFECTS_H
 
 #include <vector>
 #include <string>
@@ -58,7 +56,3 @@ public:
     static PixelOverlayEffect* GetPixelOverlayEffect(const std::string &name);
     static const std::vector<std::string>& GetPixelOverlayEffects();
 };
-
-
-
-#endif

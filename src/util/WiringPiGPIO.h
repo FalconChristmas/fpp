@@ -1,6 +1,4 @@
-
-#ifndef __FPP_WIRING_PI_GPIO__
-#define __FPP_WIRING_PI_GPIO__
+#pragma once
 
 #include "GPIOUtils.h"
 #include <vector>
@@ -29,5 +27,3 @@ public:
 
     static std::vector<std::string> getPinNames() { return std::vector<std::string>(); }
 };
-
-#endif

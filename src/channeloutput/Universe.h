@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   E131 / ArtNet Universe structure definition for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _UNIVERSE_H
-#define _UNIVERSE_H
 
 #define E131_TYPE_MULTICAST   0
 #define E131_TYPE_UNICAST     1
@@ -44,5 +43,3 @@ typedef struct {
     int           lastSequenceNumber;
 	int           priority;
 } UniverseEntry;
-
-#endif /* _UNIVERSE_H */

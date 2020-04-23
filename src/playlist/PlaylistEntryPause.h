@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Pause Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYPAUSE_H
-#define _PLAYLISTENTRYPAUSE_H
 
 #include <string>
 
@@ -54,5 +52,3 @@ class PlaylistEntryPause : public PlaylistEntryBase {
 	long long            m_endTime;
 	long long            m_finishTime;
 };
-
-#endif

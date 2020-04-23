@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Pixel Overlay Model for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PIXELOVERLAY_MODEL_H
-#define _PIXELOVERLAY_MODEL_H
 
 #include <thread>
 #include <mutex>
@@ -131,5 +129,3 @@ private:
     std::mutex   effectLock;
     RunningEffect *runningEffect;
 };
-
-#endif

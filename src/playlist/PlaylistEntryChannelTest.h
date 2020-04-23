@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Playlist Entry Channel Test Class for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PLAYLISTENTRYCHANNELTEST_H
-#define _PLAYLISTENTRYCHANNELTEST_H
 
 #include <string>
 
@@ -52,5 +50,3 @@ class PlaylistEntryChannelTest : public PlaylistEntryBase {
 	long long            m_finishTime;
 	std::string          m_testConfig;
 };
-
-#endif

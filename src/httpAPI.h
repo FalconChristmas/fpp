@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   HTTP API for the Falcon Player Daemon 
  *   Falcon Player project (FPP) 
@@ -23,8 +24,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _HTTPAPI_H
 
 #include <httpserver.hpp>
 #include <jsoncpp/json/json.h>
@@ -80,5 +79,3 @@ class APIServer {
 	webserver         *m_ws;
 	PlayerResource    *m_pr;
 };
-
-#endif

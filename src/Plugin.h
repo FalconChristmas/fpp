@@ -1,5 +1,4 @@
-#ifndef __FPP_PLUGIN_H__
-#define __FPP_PLUGIN_H__
+#pragma once
 
 #include <string>
 #include <map>
@@ -36,5 +35,3 @@ protected:
     std::string name;
     std::map<std::string, std::string> settings;
 };
-
-#endif

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Media handler for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MEDIAOUTPUTSTATUS_H
-#define _MEDIAOUTPUTSTATUS_H
 
 typedef struct mediaOutputStatus {
 	int status; 
@@ -36,6 +35,3 @@ typedef struct mediaOutputStatus {
 	int secondsTotal;
 	float mediaSeconds;
 } MediaOutputStatus; 
-
-#endif /* _MEDIAOUTPUT_H */
-

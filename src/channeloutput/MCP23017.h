@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   MCP23017 Channel Output driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _MCP23017_H
-#define _MCP23017_H
 
 #include "ChannelOutputBase.h"
 #include "util/I2CUtils.h"
@@ -51,5 +49,3 @@ class MCP23017Output : public ChannelOutputBase {
 	I2CUtils *i2c;
 	int m_deviceID;
 };
-
-#endif

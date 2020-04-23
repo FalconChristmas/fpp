@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   spixels library Channel Output for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _SPIXELS_H
-#define _SPIXELS_H
 
 #include <vector>
 
@@ -56,5 +54,3 @@ class SpixelsOutput : public ThreadedChannelOutputBase {
 	std::vector<LEDStrip*>    m_strips;
 	std::vector<PixelString*> m_strings;
 };
-
-#endif

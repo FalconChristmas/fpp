@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   output channel thread for Falcon Player (FPP)
  *
@@ -23,9 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CHANNELOUTPUTTHREAD_H
-#define _CHANNELOUTPUTTHREAD_H
-
 void DisableChannelOutput(void);
 void EnableChannelOutput(void);
 void InitChannelOutputSyncVars(void);
@@ -40,5 +38,3 @@ int  StopChannelOutputThread(void);
 void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);
 void CalculateNewChannelOutputDelay(float mediaPosition);
-
-#endif

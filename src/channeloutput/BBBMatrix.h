@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   BeagleBone Black PRU Matrix handler for Falcon Player (FPP)
  *
@@ -16,9 +17,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _BBBMATRIX_H
-#define _BBBMATRIX_H
 
 #include <string>
 
@@ -126,5 +124,3 @@ class BBBMatrix : public ChannelOutputBase {
     std::vector<std::string> m_usedPins;
     
 };
-
-#endif

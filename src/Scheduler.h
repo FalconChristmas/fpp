@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Scheduler class for the Falcon Player (FPP) 
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _SCHEDULER_H
-#define _SCHEDULER_H
 
 #include <mutex>
 #include <vector>
@@ -150,6 +148,4 @@ class Scheduler {
 };
 
 extern Scheduler *scheduler;
-
-#endif /* _SCHEDULER_H */
 

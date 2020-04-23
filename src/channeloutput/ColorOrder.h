@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   ColorOrder definitions for Falcon Player (FPP)
  *
@@ -22,10 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _COLORORDER_H
-#define _COLORORDER_H
-
 #include <string>
 
 typedef enum FPPColorOrder
@@ -40,5 +37,3 @@ typedef enum FPPColorOrder
 
 FPPColorOrder ColorOrderFromString(const std::string &colorOrderStr);
 const std::string ColorOrderToString(FPPColorOrder colorOrder);
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef  __FPPOLEDUTILS__
-#define  __FPPOLEDUTILS__
+#pragma once
 
 #include <list>
 #include <vector>
@@ -82,4 +81,3 @@ private:
     int inputFlags = 0;
 };
 
-#endif

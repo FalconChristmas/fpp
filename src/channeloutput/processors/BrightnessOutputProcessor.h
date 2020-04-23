@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   RemapOutputProcessor class for Falcon Player (FPP)
  *
@@ -14,9 +15,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _BRIGHTNESSOUTPUTPROCESSOR_H
-#define _BRIGHTNESSOUTPUTPROCESSOR_H
 
 #include "OutputProcessor.h"
 
@@ -40,5 +38,3 @@ protected:
     float gamma;
     unsigned char table[256];
 };
-
-#endif

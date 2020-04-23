@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Panel Matrix handler for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _PANELMATRIX_H
-#define _PANELMATRIX_H
 
 #include <string>
 #include <vector>
@@ -85,5 +83,3 @@ class PanelMatrix {
 	int  m_invertedData;
 
 };
-
-#endif /* #ifdef _PANELMATRIX_H */

@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   MAX7219 Matrix Channel Output driver for Falcon Player (FPP)
  *
@@ -22,9 +23,6 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
-
-#ifndef _MAX7219MATRIX_H
-#define _MAX7219MATRIX_H
 
 #include "ChannelOutputBase.h"
 
@@ -55,4 +53,3 @@ class MAX7219MatrixOutput : public ChannelOutputBase {
     SPIUtils *m_spi;
 };
 
-#endif

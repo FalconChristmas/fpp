@@ -1,3 +1,4 @@
+#pragma once
 /*
  *   Sequence Class for Falcon Player (FPP)
  *
@@ -23,8 +24,6 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _SEQUENCE_H
-#define _SEQUENCE_H
 
 #include <stdio.h>
 #include <string>
@@ -118,4 +117,3 @@ class Sequence {
 
 extern Sequence *sequence;
 
-#endif /* _SEQUENCE_H */

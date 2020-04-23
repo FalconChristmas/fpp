@@ -1,6 +1,4 @@
-
-#ifndef __FPP_PIFACE_GPIO__
-#define __FPP_PIFACE_GPIO__
+#pragma once
 
 #include "GPIOUtils.h"
 
@@ -35,6 +33,3 @@ public:
     static const PinCapabilities &getPinByUART(const std::string &n);
 
 };
-
-#endif
-
