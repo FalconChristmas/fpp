@@ -225,7 +225,22 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
                 }
                 echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
             }
+    if ($settings['uiLevel'] > 0) {
+        $upgradeSources = Array();
+        $data = file_get_contents('http://localhost/api/remotes');
+        $arr = json_decode($data, true);
+        
+        $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
+
+        foreach ($arr as $host => $desc) {
+            if (!in_array($host, $IPs)) {
+                $upgradeSources[$desc] = $host;
+            }
+        }
+        $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
 ?>
+            <tr><td>Upgrade Source:</td><td><? PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?></td></tr>
+<? } ?>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
             <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
             <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
