@@ -19,12 +19,36 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 <title><? echo $pageTitle; ?></title>
 <script>
+    var rowSpans = [];
     var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
+
+    function rowSpanSet(rowID) {
+        $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpans[rowID]);
+    }
+
+    function rowSpanUp(rowID) {
+        if (!rowSpans.includes(rowID))
+            rowSpans[rowID] = 1;
+
+        rowSpans[rowID] += 1;
+        rowSpanSet(rowID);
+    }
+
+    function rowSpanDown(rowID) {
+        if (!rowSpans.includes(rowID))
+            rowSpans[rowID] = 1;
+
+        if (rowSpans[rowID] <= 1)
+            return;
+
+        rowSpans[rowID] -= 1;
+        rowSpanSet(rowID);
+    }
 
     function updateMultiSyncRemotes(verbose = false) {
 		var remotes = "";
 
-		$('input.remoteCheckbox').each(function() {
+		$('input.syncCheckbox').each(function() {
 			if ($(this).is(":checked")) {
 				if (remotes != "") {
 					remotes += ",";
@@ -154,9 +178,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 wHTML += "<font color='red'>" + data.warnings[i] + "</font><br>";
                }
                $('#' + rowID + '_warningCell').html(wHTML);
+               rowSpanUp(rowID);
             } else {
                var result_style = document.getElementById(rowID + '_warnings').style;
                result_style.display = 'none';
+               rowSpanDown(rowID);
             }
                
 			//Expert View Rows
@@ -209,6 +235,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
 	function parseFPPSystems(data) {
 		$('#fppSystems').empty();
+        rowSpans = [];
 
 		var remotes = [];
 		if (typeof settings['MultiSyncRemotes'] === 'string') {
@@ -258,14 +285,14 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
 			if (data[i].Local)
 			{
-				link = data[i].HostName;
+				link = data[i].HostName + ' <b>*</b>';
 				star = "*";
 			} else {
 				link = "<a href='http://" + data[i].IP + "/'>" + data[i].HostName + "</a>";
 				if ((settings['fppMode'] == 'master') &&
 						(data[i].fppMode == "remote"))
 				{
-					star = "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'";
+					star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].IP + "'";
                     if (typeof remotes[data[i].IP] !== 'undefined') {
 						star += " checked";
                         delete remotes[data[i].IP];
@@ -275,17 +302,19 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			}
 
 			var fppMode = 'Player';
-			if (data[i].fppMode == 'bridge')
+			if (data[i].fppMode == 'bridge') {
 				fppMode = 'Bridge';
-			else if (data[i].fppMode == 'master')
+			} else if (data[i].fppMode == 'master') {
 				fppMode = 'Master';
-			else if (data[i].fppMode == 'remote')
-				fppMode = 'Remote';
+			} else if (data[i].fppMode == 'remote') {
+				fppMode = 'Remote:';
+                fppMode += "<span class='syncCheckboxSpan'><br>Enable Sync: " + star + "</span>";
+            }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
+            rowSpans[rowID] = 1;
 
 			var newRow = "<tr id='" + rowID + "'>" +
-				"<td align='center'>" + star + "</td>" +
 				"<td class='hostnameColumn'>" + link + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
 				"<td>" + data[i].IP + "</td>" +
                 "<td id='" + rowID + "_platform'>" + data[i].Platform + "<br><small class='hostDescriptionSM'>" + data[i].model + "</small></td>" +
@@ -304,12 +333,21 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 newRow +=
                     "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
                     "<td id='advancedViewUtilization_" + rowID + "'></td>";
+
+//                newRow += "<td align='center'>";
+//                if (platformIsFPP(data[i].Platform))
+//                    newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
+
+//                newRow += "</td>";
             }
 
             newRow = newRow + "</tr>";
 			$('#fppSystems').append(newRow);
             
-            newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td></td><td></td><td colspan='6' id='" + rowID + "_warningCell'></td></tr>";
+            newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td></td><td></td><td colspan='7' id='" + rowID + "_warningCell'></td></tr>";
+            $('#fppSystems').append(newRow);
+
+            newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='7' id='" + rowID + "_logCell'></td></tr>";
             $('#fppSystems').append(newRow);
 
 			getFPPSystemStatus(ip, data[i].Platform);
@@ -342,24 +380,23 @@ if ($uiLevel >= 1) {
 
 		$.get("fppjson.php?command=getFPPSystems", function(data) {
             parseFPPSystems(data);
-            showHideRemoteCheckboxes();
+            showHideSyncCheckboxes();
 //        $.get('/api/fppd/multiSyncSystems', function(data) {
 //            parseFPPSystems(data.systems);
-//            showHideRemoteCheckboxes();
+//            showHideSyncCheckboxes();
 		});
 	}
 
-function showHideRemoteCheckboxes() {
+function showHideSyncCheckboxes() {
 	if (($('#MultiSyncMulticast').is(":checked")) ||
         ($('#MultiSyncBroadcast').is(":checked"))) {
-		$('input.remoteCheckbox').each(function() {
-			$(this).hide();
-			$(this).prop('checked', false);
+		$('input.syncCheckbox').each(function() {
+			$(this).prop('checked', false).trigger('change');
         });
+        $('span.syncCheckboxSpan').hide();
     } else {
-		$('input.remoteCheckbox').show();
+        $('span.syncCheckboxSpan').show();
     }
-    updateMultiSyncRemotes();
 }
 
 </script>
@@ -376,7 +413,6 @@ function showHideRemoteCheckboxes() {
 			<table id='fppSystemsTable' cellpadding='3'>
 				<thead>
 					<tr>
-						<th data-sorter='false' data-filter='false'><? if ($settings['fppMode'] == 'master') echo "Sync"; ?></th>
 						<th class="hostnameColumn">Hostname</th>
 						<th>IP Address</th>
 						<th>Platform</th>
@@ -390,6 +426,9 @@ function showHideRemoteCheckboxes() {
 							?>
                             <th>Git Versions</th>
                             <th>Utilization</th>
+                            <!--
+                            <th data-sorter='false' data-filter='false'>Select</th>
+                            -->
 							<?php
 						}
 						?>
@@ -403,8 +442,7 @@ function showHideRemoteCheckboxes() {
     </div>
     <font size=-1>
         <span id='legend'>
-			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'><br>
-            * - Local System
+			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
             <span class='masterOptions' style='display:none'><br>&#x2713; - Sync Remote FPP with this Master instance</span>
 		</span>
     </font>
@@ -412,8 +450,8 @@ function showHideRemoteCheckboxes() {
     <hr>
             <table class='settingsTable'>
 <?
-PrintSetting('MultiSyncMulticast', 'showHideRemoteCheckboxes');
-PrintSetting('MultiSyncBroadcast', 'showHideRemoteCheckboxes');
+PrintSetting('MultiSyncMulticast', 'showHideSyncCheckboxes');
+PrintSetting('MultiSyncBroadcast', 'showHideSyncCheckboxes');
 PrintSetting('MultiSyncExtraRemotes', 'updateMultiSyncRemotes');
 PrintSetting('MultiSyncHide10', 'getFPPSystems');
 PrintSetting('MultiSyncHide172', 'getFPPSystems');
@@ -449,7 +487,7 @@ if ($settings['fppMode'] == 'master')
 $(document).ready(function() {
     SetupToolTips();
 	getFPPSystems();
-    showHideRemoteCheckboxes();
+    showHideSyncCheckboxes();
 
     $('#fppSystemsTable').tablesorter({
         widthFixed: false,

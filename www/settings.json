@@ -641,7 +641,7 @@
             "description": "Send MultiSync to ALL remotes via Broadcast",
             "tip": "Use a network broadcast to send MultiSync messages to all remotes.",
             "type": "checkbox",
-            "reload": 2
+            "restart": 2
         },
         "MultiSyncCopyEffects": {
             "name": "MultiSyncCopyEffects",
@@ -712,7 +712,7 @@
             "description": "Send MultiSync to ALL remotes via Multicast (239.70.80.80)",
             "tip": "Send MultiCast to 239.70.80.80 to send MultiSync messages to all remotes.",
             "type": "checkbox",
-            "reload": 2,
+            "restart": 2,
             "default": 1
         },
         "MultiSyncRefreshStatus": {
