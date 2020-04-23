@@ -38,7 +38,6 @@
 
 
 #define FPP_CTRL_PORT 32320
-#define FPP_CTRL_CSV_PORT 32321
 
 #define CTRL_PKT_CMD    0
 #define CTRL_PKT_SYNC   1
@@ -264,9 +263,6 @@ class MultiSync {
     bool FillInInterfaces();
     bool RemoveInterface(const std::string &interface);
 
-	int  OpenCSVControlSockets(void);
-	void SendCSVControlPacket(void *outBuf, int len);
-
 	void InitControlPacket(ControlPkt *pkt);
 
 	int  OpenReceiveSocket(void);
@@ -290,7 +286,6 @@ class MultiSync {
     
 	int  m_broadcastSock;
 	int  m_controlSock;
-	int  m_controlCSVSock;
 	int  m_receiveSock;
 
     
@@ -310,10 +305,6 @@ class MultiSync {
     struct iovec m_destIovec;
     std::vector<struct mmsghdr> m_destMsgs;
 	std::vector<struct sockaddr_in> m_destAddr;
-    
-    struct iovec m_destIovecCSV;
-    std::vector<struct mmsghdr> m_destMsgsCSV;
-	std::vector<struct sockaddr_in> m_destAddrCSV;
     
     std::vector<MultiSyncPlugin *> m_plugins;
     

@@ -120,7 +120,6 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
 MultiSync::MultiSync()
   : m_broadcastSock(-1),
 	m_controlSock(-1),
-	m_controlCSVSock(-1),
 	m_receiveSock(-1),
     m_lastMediaHalfSecond(0),
 	m_remoteOffset(0.0),
@@ -158,9 +157,6 @@ int MultiSync::Init(void)
 
 	if (getFPPmode() == MASTER_MODE) {
 		if (!OpenControlSockets())
-			return 0;
-
-		if (!OpenCSVControlSockets())
 			return 0;
 	}
 
@@ -732,13 +728,6 @@ void MultiSync::SendSeqSyncStartPacket(const std::string &filename)
 	strcpy(spkt->filename, filename.c_str());
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
-
-	if (m_destAddrCSV.size() > 0) {
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
-			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_START, filename.c_str());
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
 }
 
 /*
@@ -777,13 +766,6 @@ void MultiSync::SendSeqSyncStopPacket(const std::string &filename)
 	strcpy(spkt->filename, filename.c_str());
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
-
-    if (m_destAddrCSV.size() > 0) {
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d,%d,%d,%s\n",
-			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_STOP, filename.c_str());
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
     
     m_lastFrame = -1;
     m_lastFrameSent = -1;
@@ -838,14 +820,6 @@ void MultiSync::SendSeqSyncPacket(const std::string &filename, int frames, float
 	strcpy(spkt->filename, filename.c_str());
 
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
-
-    if (m_destAddrCSV.size() > 0) {
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d,%d,%d,%s,%d,%d\n",
-			CTRL_PKT_SYNC, SYNC_FILE_SEQ, SYNC_PKT_SYNC, filename.c_str(),
-			(int)seconds, (int)(seconds * 1000) % 1000);
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
 }
 
 void MultiSync::SendMediaOpenPacket(const std::string &filename)
@@ -1099,12 +1073,6 @@ void MultiSync::SendBlankingDataPacket(void)
 	cpkt->extraDataLen   = 0;
 
 	SendControlPacket(outBuf, sizeof(ControlPkt));
-
-	if (m_controlCSVSock >= 0) {
-		// Now send the Broadcast CSV version
-		sprintf(outBuf, "FPP,%d\n", CTRL_PKT_BLANK);
-		SendCSVControlPacket(outBuf, strlen(outBuf));
-	}
 }
 
 /*
@@ -1127,11 +1095,6 @@ void MultiSync::ShutdownSync(void)
 	if (m_controlSock >= 0) {
 		close(m_controlSock);
 		m_controlSock = -1;
-	}
-
-	if (m_controlCSVSock >= 0) {
-		close(m_controlCSVSock);
-		m_controlCSVSock = -1;
 	}
 
 	if (m_receiveSock >= 0) {
@@ -1200,6 +1163,15 @@ int MultiSync::OpenControlSockets()
         remotesString += ",";
         remotesString += MULTISYNC_MULTICAST_ADDRESS;
     }
+
+    std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
+    if (extraRemotes != "") {
+        if (remotesString != "")
+            remotesString += ",";
+
+        remotesString += extraRemotes;
+    }
+
     std::vector<std::string> tokens = split(remotesString, ',');
     std::set<std::string> remotes;
     for (auto &token : tokens) {
@@ -1209,7 +1181,15 @@ int MultiSync::OpenControlSockets()
         }
     }
 
+    if (getSettingInt("MultiSyncBroadcast", 0))
+        m_sendBroadcast = true;
+
+    if (getSettingInt("MultiSyncMulticast", 1))
+        m_sendMulticast = true;
+
     for (auto &s : remotes) {
+        // FIXME, need to remove this code sometime after v4.0.  It is only
+        // left in for now so that old configs still work.
         if (s == "255.255.255.255") {
             m_sendBroadcast = true;
             continue;
@@ -1398,111 +1378,6 @@ bool MultiSync::RemoveInterface(const std::string &interface) {
         return true;
     }
     return false;
-}
-
-
-
-
-/*
- *
- */
-int MultiSync::OpenCSVControlSockets(void)
-{
-	LogDebug(VB_SYNC, "OpenCSVControlSockets()\n");
-
-	m_controlCSVSock = socket(AF_INET, SOCK_DGRAM, 0);
-
-	if (m_controlCSVSock < 0) {
-		LogErr(VB_SYNC, "Error opening Master/Remote CSV Sync socket; %s\n",
-			strerror(errno));
-		return 0;
-	}
-
-	char loopch = 0;
-	if(setsockopt(m_controlCSVSock, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&loopch, sizeof(loopch)) < 0) {
-		LogErr(VB_SYNC, "Error setting IP_MULTICAST_LOOP: \n",
-			strerror(errno));
-		return 0;
-	}
-
-	char *tmpRemotes = strdup(getSetting("MultiSyncCSVRemotes"));
-
-	if (!strcmp(tmpRemotes, "255.255.255.255")) {
-		int broadcast = 1;
-		if(setsockopt(m_controlCSVSock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0) {
-			LogErr(VB_SYNC, "Error setting SO_BROADCAST: \n", strerror(errno));
-			return 0;
-		}
-	}
-
-	char *s = strtok(tmpRemotes, ",");
-
-	while (s) {
-		LogDebug(VB_SYNC, "Setting up CSV Remote Sync for %s\n", s);
-		struct sockaddr_in newRemote;
-
-		newRemote.sin_family      = AF_INET;
-		newRemote.sin_port        = htons(FPP_CTRL_CSV_PORT);
-		newRemote.sin_addr.s_addr = inet_addr(s);
-
-		m_destAddrCSV.push_back(newRemote);
-
-		s = strtok(NULL, ",");
-	}
-    for (int x = 0; x < m_destAddrCSV.size(); x++) {
-        struct mmsghdr msg;
-        memset(&msg, 0, sizeof(msg));
-        
-        msg.msg_hdr.msg_name = &m_destAddrCSV[x];
-        msg.msg_hdr.msg_namelen = sizeof(sockaddr_in);
-        msg.msg_hdr.msg_iov = &m_destIovecCSV;
-        msg.msg_hdr.msg_iovlen = 1;
-        msg.msg_len = 0;
-        m_destMsgsCSV.push_back(msg);
-    }
-
-
-	LogDebug(VB_SYNC, "%d CSV Remote Sync systems configured\n",
-		m_destAddrCSV.size());
-
-	free(tmpRemotes);
-
-	return 1;
-}
-
-/*
- *
- */
-void MultiSync::SendCSVControlPacket(void *outBuf, int len)
-{
-	LogExcess(VB_SYNC, "SendCSVControlPacket: '%s'\n", (char *)outBuf);
-
-	if (m_controlCSVSock < 0) {
-		LogErr(VB_SYNC, "ERROR: Tried to send CSV Sync packet but CSV sync socket is not open.\n");
-		return;
-	}
-
-
-    m_destIovecCSV.iov_base = outBuf;
-    m_destIovecCSV.iov_len = len;
-    int msgCount = m_destMsgsCSV.size();
-    if (msgCount == 0) {
-        return;
-    }
-    
-    std::unique_lock<std::mutex> lock(m_socketLock);
-
-    int oc = sendmmsg(m_controlCSVSock, &m_destMsgsCSV[0], msgCount, 0);
-    int outputCount = oc;
-    while (oc > 0 && outputCount != msgCount) {
-        int oc = sendmmsg(m_controlCSVSock, &m_destMsgsCSV[outputCount], msgCount - outputCount, 0);
-        if (oc >= 0) {
-            outputCount += oc;
-        }
-    }
-    if (outputCount != msgCount) {
-        LogErr(VB_SYNC, "Error: Unable to send CSV multisync packet: %s\n", strerror(errno));
-    }
 }
 
 /*

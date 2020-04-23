@@ -7,65 +7,46 @@ require_once("common.php");
 include 'common/menuHead.inc';
 
 $advancedView = false;
-if (isset($_GET['advancedView'])) {
-	if ($_GET['advancedView'] == true || strtolower($_GET['advancedView'])  == "true") {
-		$advancedView = true;
-	} else {
-		$advancedView = false;
-	}
+if ((isset($settings['MultiSyncAdvancedView'])) &&
+    ($settings['MultiSyncAdvancedView'] == 1)) {
+	$advancedView = true;
 }
 ?>
+<script type="text/javascript" src="/jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
+<script type="text/javascript" src="/jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
+<script type="text/javascript" src="/jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+
+<link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 <title><? echo $pageTitle; ?></title>
 <script>
     var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
 
-    function updateMultiSyncRemotes(checkbox) {
+    function updateMultiSyncRemotes(verbose = false) {
 		var remotes = "";
 
-		if ($('#allRemotes').is(":checked")) {
-			remotes = "255.255.255.255";
-
-			$('input.remoteCheckbox').each(function() {
-				if (($(this).is(":checked")) &&
-						($(this).attr("name") != "255.255.255.255")) {
-					$(this).prop('checked', false);
-					if ($(checkbox).attr("name") != "255.255.255.255")
-						DialogError("WARNING", "'All Remotes' is already checked.  Uncheck 'All Remotes' if you want to select individual FPP instances.");
+		$('input.remoteCheckbox').each(function() {
+			if ($(this).is(":checked")) {
+				if (remotes != "") {
+					remotes += ",";
 				}
-			});
-        } else {
-			$('input.remoteCheckbox').each(function() {
-				if ($(this).is(":checked")) {
-					if (remotes != "") {
-						remotes += ",";
-					}
-					remotes += $(this).attr("name");
-				}
-			});
-		}
-        var inp = document.getElementById("extraMultiSyncRemotes");
-        if (inp && inp.value) {
-            if (remotes != "") {
-                remotes += ",";
-            }
-            var str = inp.value;
-            str = str.replace(/\s/g, '');
-            remotes += str;
-        }
-        
+				remotes += $(this).attr("name");
+			}
+		});
         
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
-            if (remotes == "") {
-                $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
-            } else {
-                $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
+            if (verbose) {
+                if (remotes == "") {
+                    $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
+                } else {
+                    $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
+                }
             }
 
             //Mark FPPD as needing restart
-            $.get('fppjson.php?command=setSetting&key=restartFlag&value=1');
-            settings['restartFlag'] = 1;
+            $.get('fppjson.php?command=setSetting&key=restartFlag&value=2');
+            settings['restartFlag'] = 2;
             //Get the resart banner showing
             CheckRestartRebootFlags();
         }).fail(function() {
@@ -73,44 +54,35 @@ if (isset($_GET['advancedView'])) {
 		});
 
 	}
-    function updateMultiSyncRemotesFromMulticast(checkbox) {
-        if ($('#allRemotesMulticast').is(":checked")) {
-            $('input.remoteCheckbox').each(function() {
-                if (($(this).is(":checked")) &&
-                    ($(this).attr("name") != "239.70.80.80")) {
-                    $(this).prop('checked', false);
-                }
-            });
-        }
-        updateMultiSyncRemotes(checkbox);
-    }
 
-
-	function getFPPSystemInfo(ip, platform) {
+    function platformIsFPP(platform) {
         if (platform && !platform.includes("FPP") &&
             (platform.toLowerCase().includes("unknown")
              || platform == "xSchedule"
              || platform == "xLights"
              || platform.includes("Falcon ")
              || platform == "ESPixelStick")) {
-            //eventually figure out what to do
-            return;
+            return false;
         }
+
+        return true;
+    }
+
+	function getFPPSystemInfo(ip, platform) {
+        //eventually figure out what to do
+        if (!platformIsFPP(platform))
+            return;
+
 		$.get("http://" + ip + "/fppjson.php?command=getHostNameInfo", function(data) {
 			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
 		});
 	}
 
 	function getFPPSystemStatus(ip, platform) {
-        if (platform && !platform.includes("FPP") &&
-            (platform.toLowerCase().includes("unknown")
-             || platform == "xSchedule"
-             || platform == "xLights"
-             || platform.includes("Falcon ")
-             || platform == "ESPixelStick")) {
-            //eventually figure out what to do
+        //eventually figure out what to do
+        if (!platformIsFPP(platform))
             return;
-        }
+
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
 			var status = 'Idle';
@@ -130,6 +102,9 @@ if (isset($_GET['advancedView'])) {
 				} else {
 					files += data.current_song;
 				}
+
+                if (files != "")
+                    status += ":<br>" + files;
 			} else if (data.status_name == 'updating') {
 				status = 'Updating';
 			} else if (data.status_name == 'stopped') {
@@ -157,6 +132,9 @@ if (isset($_GET['advancedView'])) {
 						} else {
 							files += data.media_filename;
 						}
+
+                        if (files != "")
+                            status += ":<br>" + files;
 					}
 				}
             } else {
@@ -164,11 +142,9 @@ if (isset($_GET['advancedView'])) {
             }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
-            var updatesAvailable = "";
 
 			$('#' + rowID + '_status').html(status);
 			$('#' + rowID + '_elapsed').html(elapsed);
-			$('#' + rowID + '_files').html(files);
                
             if (data.warnings != null && data.warnings.length > 0) {
                var result_style = document.getElementById(rowID + '_warnings').style;
@@ -186,23 +162,44 @@ if (isset($_GET['advancedView'])) {
 			//Expert View Rows
             if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'password') {
                 $('#' + rowID + '_platform').html(data.advancedView.Platform + "<br><small class='hostDescriptionSM'>" + data.advancedView.Variant + "</small>");
-                $('#advancedViewVersion_' + rowID).html(data.advancedView.Version);
-                //$('#advancedViewBranch_' + rowID).html(data.advancedView.Branch);
 
-                $('#advancedViewGitVersions_' + rowID).html("R: " + (typeof (data.advancedView.RemoteGitVersion) !== 'undefined' ? data.advancedView.RemoteGitVersion : 'Unknown') + "<br>L: " + (typeof (data.advancedView.LocalGitVersion) !== 'undefined' ? data.advancedView.LocalGitVersion : 'Unknown'));
-                //Work out if there is a Git version difference
-                if (((typeof (data.advancedView.RemoteGitVersion) !== 'undefined' && typeof (data.advancedView.LocalGitVersion) !== 'undefined')) && data.advancedView.RemoteGitVersion !== "Unknown") {
-                    if (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion) {
-                        updatesAvailable = '<a class="updateAvailable" href="http://' + ip + '/about.php" target="_blank">Update Available!</a>';
-                    }
+                var updatesAvailable = 0;
+                if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
+                    (typeof (data.advancedView.LocalGitVersion) !== 'undefined') &&
+                    (data.advancedView.RemoteGitVersion !== "Unknown") &&
+                    (data.advancedView.RemoteGitVersion !== "") &&
+                    (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
+                    updatesAvailable = 1;
                 }
-                $('#advancedViewUpdates_' + rowID).html(updatesAvailable);
 
-                $('#advancedViewUtilization_' + rowID).html("CPU: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.CPU) : 'Unk.') + "%" +
-                    "<br>" +
-                    "Mem: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.Memory) : 'Unk.') + "%" +
-                    "<br>" +
-                    "Uptime: " + (typeof (data.advancedView.Utilization) !== 'undefined' ? data.advancedView.Utilization.Uptime : 'Unk.'));
+                var u = "<table class='multiSyncVerboseTable'>" +
+                    "<tr><td>Local:</td><td>";
+                if (updatesAvailable) {
+                    u += "<a href='http://" + ip + "/about.php' target='_blank'><b><font color='red'>" +
+                        data.advancedView.LocalGitVersion + "</font></b></a>";
+                } else if (data.advancedView.RemoteGitVersion !== "") {
+                    u += "<font color='darkgreen'><b>" + data.advancedView.LocalGitVersion + "</b></font>";
+                } else {
+                    u += data.advancedView.LocalGitVersion;
+                }
+                u += "</td></tr>" +
+                    "<tr><td>Remote:</td><td>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
+                    "</table>";
+
+                $('#advancedViewGitVersions_' + rowID).html(u);
+
+                if (data.advancedView.OSVersion !== "") {
+                    $('#' + rowID + '_osversionRow').show();
+                    $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
+                }
+
+                var u = "<table class='multiSyncVerboseTable'>" +
+                    "<tr><td>CPU:</td><td>" + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.CPU) : 'Unk.') + "%</td></tr>" +
+                    "<tr><td>Mem:</td><td>" + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.Memory) : 'Unk.') + "%</td></tr>" +
+                    "<tr><td>Uptime:&nbsp;</td><td>" + (typeof (data.advancedView.Utilization) !== 'undefined' ? data.advancedView.Utilization.Uptime.replace(/ /, '&nbsp;') : 'Unk.') + "</td></tr>" +
+                    "</table>";
+
+                $('#advancedViewUtilization_' + rowID).html(u);
             }
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
@@ -211,7 +208,7 @@ if (isset($_GET['advancedView'])) {
 	}
 
 	function parseFPPSystems(data) {
-		$('#fppSystems tbody').empty();
+		$('#fppSystems').empty();
 
 		var remotes = [];
 		if (typeof settings['MultiSyncRemotes'] === 'string') {
@@ -222,39 +219,7 @@ if (isset($_GET['advancedView'])) {
 		}
 
 		if (settings['fppMode'] == 'master') {
-			$('#masterLegend').show();
-
-			var star = "<input id='allRemotes' type='checkbox' class='remoteCheckbox' name='255.255.255.255'";
-            if (typeof remotes["255.255.255.255"] !== 'undefined') {
-				star += " checked";
-                delete remotes["255.255.255.255"];
-            }
-			star += " onClick='updateMultiSyncRemotes(this);'>";
-
-			var newRow = "<tr>" +
-				"<td align='center'>" + star + "</td>" +
-				"<td>ALL Remotes Broadcast</td>" +
-				"<td>255.255.255.255</td>" +
-				"<td>ALL</td>" +
-				"<td>Remote</td>" +
-				"</tr>";
-			$('#fppSystems tbody').append(newRow);
-            
-            var star = "<input id='allRemotesMulticast' type='checkbox' class='remoteCheckbox' name='239.70.80.80'";
-            if (typeof remotes["239.70.80.80"] !== 'undefined') {
-                star += " checked";
-                delete remotes["239.70.80.80"];
-            }
-            star += " onClick='updateMultiSyncRemotesFromMulticast(this);'>";
-            
-            var newRow = "<tr>" +
-            "<td align='center'>" + star + "</td>" +
-            "<td>ALL Remotes Multicast</td>" +
-            "<td>239.70.80.80</td>" +
-            "<td>ALL</td>" +
-            "<td>Remote</td>" +
-            "</tr>";
-            $('#fppSystems tbody').append(newRow);
+			$('.masterOptions').show();
 		}
 
 		for (var i = 0; i < data.length; i++) {
@@ -262,6 +227,28 @@ if (isset($_GET['advancedView'])) {
 			var link = "";
 			var ip = data[i].IP;
             var hostDescription = data[i].HostDescription;
+
+            if ((settings.hasOwnProperty('MultiSyncHide10')) &&
+                (settings['MultiSyncHide10'] == '1') &&
+                (ip.indexOf('10.') == 0)) {
+                continue;
+            }
+
+            if ((settings.hasOwnProperty('MultiSyncHide172')) &&
+                (settings['MultiSyncHide172'] == '1') &&
+                (ip.indexOf('172.') == 0)) {
+                var parts = ip.split('.');
+                var second = parseInt(parts[1]);
+                if ((second >= 16) && (second <= 31)) {
+                    continue;
+                }
+            }
+
+            if ((settings.hasOwnProperty('MultiSyncHide192')) &&
+                (settings['MultiSyncHide192'] == '1') &&
+                (ip.indexOf('192.168.') == 0)) {
+                continue;
+            }
 
 			if (data[i].Local)
 			{
@@ -277,7 +264,7 @@ if (isset($_GET['advancedView'])) {
 						star += " checked";
                         delete remotes[data[i].IP];
                     }
-					star += " onClick='updateMultiSyncRemotes();'>";
+					star += " onClick='updateMultiSyncRemotes(true);'>";
 				}
 			}
 
@@ -293,28 +280,31 @@ if (isset($_GET['advancedView'])) {
 
 			var newRow = "<tr id='" + rowID + "'>" +
 				"<td align='center'>" + star + "</td>" +
-				"<td>" + link + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
+				"<td class='hostnameColumn'>" + link + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
 				"<td>" + data[i].IP + "</td>" +
-                "<td id='" + rowID + "_platform'>" + data[i].Platform + "</td>" +
+                "<td id='" + rowID + "_platform'>" + data[i].Platform + "<br><small class='hostDescriptionSM'>" + data[i].model + "</small></td>" +
 				"<td>" + fppMode + "</td>" +
-				"<td id='" + rowID + "_status' align='center'></td>" +
-				"<td id='" + rowID + "_elapsed'></td>" +
-				"<td id='" + rowID + "_files'></td>";
+				"<td id='" + rowID + "_status'></td>" +
+				"<td id='" + rowID + "_elapsed'></td>";
+
+            if ((advancedView === true) &&
+                (platformIsFPP(data[i].Platform))) {
+				newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
+            } else {
+				newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
+            }
 
             if (advancedView === true) {
-                newRow = newRow + "<td class='advancedViewRowSpacer'></td>" +
-                    "<td id='advancedViewVersion_" + rowID + "' class='advancedViewRow'></td>" +
-                    //"<td id='advancedViewBranch_" + rowID + "'  class='advancedViewRow'></td>" +
-                    "<td id='advancedViewGitVersions_" + rowID + "'  class='advancedViewRow'></td>" +
-                    "<td id='advancedViewUpdates_" + rowID + "' class='advancedViewRow'></td>" +
-                    "<td id='advancedViewUtilization_" + rowID + "'  class='advancedViewRow'></td>";
+                newRow +=
+                    "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
+                    "<td id='advancedViewUtilization_" + rowID + "'></td>";
             }
 
             newRow = newRow + "</tr>";
-			$('#fppSystems tbody').append(newRow);
+			$('#fppSystems').append(newRow);
             
-            newRow = "<tr id='" + rowID + "_warnings' style='display:none'><td></td><td></td><td colspan='6' id='" + rowID + "_warningCell'></td></tr>";
-            $('#fppSystems tbody').append(newRow);
+            newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td></td><td></td><td colspan='6' id='" + rowID + "_warningCell'></td></tr>";
+            $('#fppSystems').append(newRow);
 
 			getFPPSystemStatus(ip, data[i].Platform);
 			getFPPSystemInfo(ip, data[i].Platform);
@@ -326,47 +316,47 @@ if (isset($_GET['advancedView'])) {
             }
             extras += x;
         }
-        var inp = document.getElementById("extraMultiSyncRemotes");
-        if (inp) {
+<?php
+if ($uiLevel >= 1) {
+?>
+        var inp = document.getElementById("MultiSyncExtraRemotes");
+        if (inp && inp.value == '') {
             inp.value = extras;
         }
+<?
+}
+?>
+
+        $('#fppSystems').trigger('update', true);
 	}
 
 	function getFPPSystems() {
-		$('#masterLegend').hide();
-		$('#fppSystems tbody').html("<tr><td colspan=5 align='center'>Loading system list from fppd.</td></tr>");
+		$('.masterOptions').hide();
+		$('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
 
-		$.get("fppjson.php?command=getSetting&key=MultiSyncRemotes", function(data) {
-			settings['MultiSyncRemotes'] = data.MultiSyncRemotes;
-			$.get("fppjson.php?command=getFPPSystems", function(data) {
-				parseFPPSystems(data);
-			});
+		$.get("fppjson.php?command=getFPPSystems", function(data) {
+            parseFPPSystems(data);
+            showHideRemoteCheckboxes();
+//        $.get('/api/fppd/multiSyncSystems', function(data) {
+//            parseFPPSystems(data.systems);
+//            showHideRemoteCheckboxes();
 		});
 	}
 
-	function refreshFPPSystems() {
-		setTimeout(function() { getFPPSystems(); }, 1000);
-	}
+function showHideRemoteCheckboxes() {
+	if (($('#MultiSyncMulticast').is(":checked")) ||
+        ($('#MultiSyncBroadcast').is(":checked"))) {
+		$('input.remoteCheckbox').each(function() {
+			$(this).hide();
+			$(this).prop('checked', false);
+        });
+    } else {
+		$('input.remoteCheckbox').show();
+    }
+    updateMultiSyncRemotes();
+}
 
 </script>
-<style>
-#fppSystems{
-	border: 1px;
-}
-
-.masterHeader{
-	width: 15%;
-}
-
-.masterValue{
-	width: 40%;
-}
-
-.masterButton{
-	text-align: right;
-	width: 25%;
-}
-</style>
 </head>
 <body>
 <div id="bodyWrapper">
@@ -374,102 +364,71 @@ if (isset($_GET['advancedView'])) {
 	<br/>
 	<div id="uifppsystems" class="settings">
 		<fieldset>
-			<legend>Discovered FPP Systems</legend>
+			<legend>FPP MultiSync</legend>
             <div class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
                 <div class='fppTableContents'>
-			<table id='fppSystems' cellpadding='3'>
+			<table id='fppSystemsTable' cellpadding='3'>
 				<thead>
 					<tr>
-						<th>&nbsp;</th>
-						<th id="hostnameColumn">Hostname</th>
+						<th data-sorter='false' data-filter='false'><? if ($settings['fppMode'] == 'master') echo "Sync"; ?></th>
+						<th class="hostnameColumn">Hostname</th>
 						<th>IP Address</th>
 						<th>Platform</th>
 						<th>Mode</th>
 						<th>Status</th>
-						<th>Elapsed</th>
-						<th>File(s)</th>
+						<th data-sorter='false'>Elapsed</th>
+						<th>Version</th>
 						<?php
                         //Only show expert view is requested
 						if ($advancedView == true) {
 							?>
-                            <th class="advancedViewHeaderSpacer"></th>
-                            <th class="advancedViewHeader">Version</th>
-                            <!--<th class="advancedViewHeader">Branch</th> -->
-                            <th class="advancedViewHeader">Git Version(s)</th>
-                            <th class="advancedViewHeader">Updates</th>
-                            <th class="advancedViewHeader">Utilization</th>
+                            <th>Git Versions</th>
+                            <th>Utilization</th>
 							<?php
 						}
 						?>
                     </tr>
 				</thead>
-				<tbody>
-					<tr><td colspan=5 align='center'>Loading system list from fppd.</td></tr>
+				<tbody id='fppSystems'>
+					<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
 				</tbody>
 			</table>
-</div></div>
-			<hr>
-<?php
-if ($settings['fppMode'] == 'master')
-{
+        </div>
+    </div>
+    <font size=-1>
+        <span id='legend'>
+			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'><br>
+            * - Local System
+            <span class='masterOptions' style='display:none'><br>&#x2713; - Sync Remote FPP with this Master instance</span>
+		</span>
+    </font>
+    <br>
+    <hr>
+            <table class='settingsTable'>
+<?
+PrintSetting('MultiSyncMulticast', 'showHideRemoteCheckboxes');
+PrintSetting('MultiSyncBroadcast', 'showHideRemoteCheckboxes');
+PrintSetting('MultiSyncExtraRemotes', 'updateMultiSyncRemotes');
+PrintSetting('MultiSyncHide10', 'getFPPSystems');
+PrintSetting('MultiSyncHide172', 'getFPPSystems');
+PrintSetting('MultiSyncHide192', 'getFPPSystems');
+PrintSetting('MultiSyncRefreshStatus', 'getFPPSystems');
+PrintSetting('MultiSyncAdvancedView', 'reloadPage');
 ?>
-			Additional MultiSync Remote IPs (comma separated): (For non-discoverable remotes)
-            <input type="text" id="extraMultiSyncRemotes" maxlength="255" size="60" onchange='updateMultiSyncRemotes(null);' />
-
-<br>
-            CSV MultiSync Remote IP List (comma separated):
-            <?
-            $csvRemotes = "";
-            if (isset($settings["MultiSyncCSVRemotes"])) {
-                $csvRemotes = $settings["MultiSyncCSVRemotes"];
-            }
-            PrintSettingText("MultiSyncCSVRemotes", 1, 0, 255, 60, "", $csvRemotes); ?>
-<br><br>
-			<? PrintSettingCheckbox("Compress FSEQ files for transfer", "CompressMultiSyncTransfers", 0, 0, "1", "0"); ?> Compress FSEQ files during copy to Remotes to speed up file sync process<br>
-<?php
-}
-?>
-			<? PrintSettingCheckbox("Auto Refresh Systems Status", "MultiSyncRefreshStatus", 0, 0, "1", "0", "", "getFPPSystems"); ?> Auto Refresh status of FPP Systems<br>
-			<? PrintSettingCheckbox("Avahi discovery", "AvahiDiscovery", 0, 0, "1", "0", "", "getFPPSystems"); ?> Enable Legacy FPP Avahi Discovery<br>
+            </table>
             <?php
                 if ($advancedView ==true) {
 					?>
-                    <b style="color: #FF0000; font-size: 0.9em;">**Expert View Active - Auto Refresh is not recommended as it may cause slowdowns</b>
-                    <br>
-                    <b style="color: #FF0000; font-size: 0.9em;">**Git Versions : </b> <b style="color: #FF0000; font-size: 0.9em;">R: - Remote Git Version</b> | <b style="color: #FF0000; font-size: 0.9em;">L: - Local Git Version</b><br>
+                    <b style="color: #FF0000; font-size: 0.9em;">** Advanced View Active - Auto Refresh is not recommended as it may cause slowdowns</b>
 					<?php
 				}
             ?>
-			<hr>
-			<font size=-1>
-				<span id='legend'>
-				* - Local System
-				<span id='masterLegend' style='display:none'><br>&#x2713; - Sync Remote FPP with this Master instance</span>
-				</span>
-			</font>
-			<br>
-			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
-<?
-	if ($advancedView == true)
-		echo "<input type='button' class='buttons' value='Normal View' onclick=\"window.open('/multisync.php','_self')\">";
-	else
-		echo "<input type='button' class='buttons' value='Advanced View' onclick=\"window.open('/multisync.php?advancedView=true','_self')\">";
-?>
 <?php
 if ($settings['fppMode'] == 'master')
 {
+    echo "<hr><br>\n";
+    PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
 ?>
-			<hr>
-			<b>Copy Files from Master to Remotes</b><br>
-<?
-	if (!isset($settings['MultiSyncCopySequences']))
-		$settings['MultiSyncCopySequences'] = 1;
-?>
-			<? PrintSettingCheckbox("Copy Sequences", "MultiSyncCopySequences", 0, 0, "1", "0"); ?> Copy Sequences<br>
-			<? PrintSettingCheckbox("Copy Effects", "MultiSyncCopyEffects", 0, 0, "1", "0"); ?> Copy Effects<br>
-			<? PrintSettingCheckbox("Copy Videos", "MultiSyncCopyVideos", 0, 0, "1", "0"); ?> Copy Videos<br>
-			<? PrintSettingCheckbox("Copy Events", "MultiSyncCopyEvents", 0, 0, "1", "0"); ?> Copy Events<br>
-			<? PrintSettingCheckbox("Copy Scripts", "MultiSyncCopyScripts", 0, 0, "1", "0"); ?> Copy Scripts<br>
 			<input type='button' class='buttons' value='Copy Files' onClick='location.href="syncRemotes.php";'>
 <?php
 }
@@ -481,29 +440,23 @@ if ($settings['fppMode'] == 'master')
 
 <script>
 
-$('#MultiSyncCSVRemotes').on('change keydown paste input', function()
-	{
-		var key = 'MultiSyncCSVRemotes';
-		var desc = $('#' + key).val();
-		if (settings[key] != desc)
-		{
-			$.get('fppjson.php?command=setSetting&key=' + key + '&value=' + desc);
-			settings[key] = desc;
-
-            //Mark FPPD as needing restart
-            $.get('fppjson.php?command=setSetting&key=restartFlag&value=1');
-            settings['restartFlag'] = 1;
-            //Get the resart banner showing
-            CheckRestartRebootFlags();
-        }
-	});
-
 $(document).ready(function() {
+    SetupToolTips();
 	getFPPSystems();
+    showHideRemoteCheckboxes();
+
+    $('#fppSystemsTable').tablesorter({
+        widthFixed: false,
+        theme: 'blue',
+        cssInfoBlock: 'tablesorter-no-sort',
+        widgets: ['zebra', 'filter', 'staticRow'],
+        headers: {
+            2: { sorter: 'ipAddress' }
+        }
+    });
+
 });
 
 </script>
-
-
 </body>
 </html>

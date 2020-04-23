@@ -62,6 +62,17 @@
                 "MQTTFrequency"
             ]
         },
+        "multiSyncCopyFiles": {
+            "description": "Copy Files from Master to Remotes",
+            "settings": [
+                "MultiSyncCopySequences",
+                "MultiSyncCopyEffects",
+                "MultiSyncCopyVideos",
+                "MultiSyncCopyEvents",
+                "MultiSyncCopyScripts",
+                "CompressMultiSyncTransfers"
+            ]
+        },
         "omxplayer": {
             "description": "OMXPlayer (mp4 playback)",
             "platforms": [
@@ -323,6 +334,13 @@
             "type": "time",
             "alwaysReset": 1
         },
+        "CompressMultiSyncTransfers": {
+            "name": "CompressMultiSyncTransfers",
+            "description": "Compress FSEQ files during copy to Remotes to speed up file sync process",
+            "tip": "Compress FSEQ files during copy to speed up the sync process.  NOTE: Newer xLights versions already used a compressed FSEQ format, so this option will only slow down the transfer as FPP tries to recompress already-compressed data.",
+            "type": "checkbox",
+            "textOnRight": 1
+        },
         "disableIPAnnouncement": {
             "name": "disableIPAnnouncement",
             "description": "Disable IP announcement",
@@ -544,7 +562,7 @@
         "MQTTClientId": {
             "name": "MQTTClientId",
             "description": "Client ID",
-            "tip": "If not set, one will be genereated",
+            "tip": "If not set, one will be generated",
             "restart": 2,
             "type": "text",
             "size": 32,
@@ -611,6 +629,97 @@
                     "MQTTPassword"
                 ]
             }
+        },
+        "MultiSyncAdvancedView": {
+            "name": "MultiSyncAdvancedView",
+            "description": "Advanced View",
+            "tip": "Show additional information about each FPP system.",
+            "type": "checkbox"
+        },
+        "MultiSyncBroadcast": {
+            "name": "MultiSyncBroadcast",
+            "description": "Send MultiSync to ALL remotes via Broadcast",
+            "tip": "Use a network broadcast to send MultiSync messages to all remotes.",
+            "type": "checkbox",
+            "reload": 2
+        },
+        "MultiSyncCopyEffects": {
+            "name": "MultiSyncCopyEffects",
+            "description": "Copy Effects",
+            "tip": "Copy Effects from Master to Remote.",
+            "type": "checkbox",
+            "textOnRight": 1
+        },
+        "MultiSyncCopyEvents": {
+            "name": "MultiSyncCopyEvents",
+            "description": "Copy Events",
+            "tip": "Copy Events from Master to Remote.",
+            "type": "checkbox",
+            "textOnRight": 1
+        },
+        "MultiSyncCopyScripts": {
+            "name": "MultiSyncCopyScripts",
+            "description": "Copy Scripts",
+            "tip": "Copy Scripts from Master to Remote.",
+            "type": "checkbox",
+            "textOnRight": 1
+        },
+        "MultiSyncCopySequences": {
+            "name": "MultiSyncCopySequences",
+            "description": "Copy Sequences",
+            "tip": "Copy FSEQ sequence files from Master to Remote.  WARNING: Newer xLights versions create host-specific .fseq files which only contain the channels for each individual FPP instance.  If you are using these newer files, the .fseq on the FPP Master may not contain all the channel data needed to properly play on each FPP Remote instance",
+            "type": "checkbox",
+            "default": "1",
+            "textOnRight": 1
+        },
+        "MultiSyncCopyVideos": {
+            "name": "MultiSyncCopyVideos",
+            "description": "Copy Videos",
+            "tip": "Copy Videos from Master to Remote.",
+            "type": "checkbox",
+            "textOnRight": 1
+        },
+        "MultiSyncExtraRemotes": {
+            "name": "MultiSyncExtraRemotes",
+            "description": "Extra MultiSync Remote IPs (CSV list)",
+            "tip": "Comma Separated list of additional remote IPs to include when sending MultiSync commands",
+            "level": 1,
+            "restart": 2,
+            "size": 48,
+            "maxlength": 128,
+            "type": "text"
+        },
+        "MultiSyncHide10": {
+            "name": "MultiSyncHide10",
+            "description": "Hide 10.x.x.x/8 Subnets in systems list",
+            "tip": "Hide subnets in private 10.0.0.0/8 IP space.",
+            "type": "checkbox"
+        },
+        "MultiSyncHide172": {
+            "name": "MultiSyncHide172",
+            "description": "Hide 172.16.x.x/20 Subnets in systems list",
+            "tip": "Hide subnets in private 172.16.0.0/20 IP space.",
+            "type": "checkbox"
+        },
+        "MultiSyncHide192": {
+            "name": "MultiSyncHide192",
+            "description": "Hide 192.168.x.x/16 Subnets in systems list",
+            "tip": "Hide subnets in private 192.168.0.0/16 IP space.",
+            "type": "checkbox"
+        },
+        "MultiSyncMulticast": {
+            "name": "MultiSyncMulticast",
+            "description": "Send MultiSync to ALL remotes via Multicast (239.70.80.80)",
+            "tip": "Send MultiCast to 239.70.80.80 to send MultiSync messages to all remotes.",
+            "type": "checkbox",
+            "reload": 2,
+            "default": 1
+        },
+        "MultiSyncRefreshStatus": {
+            "name": "MultiSyncRefreshStatus",
+            "description": "Auto refresh status of FPP Systems",
+            "tip": "Auto refresh status of FPP Systems.  Not recommended when Advanced View mode is On.",
+            "type": "checkbox"
         },
         "ntp": {
             "name": "ntp",

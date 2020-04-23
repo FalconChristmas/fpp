@@ -1350,6 +1350,7 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     $result['Mode'] = $settings['fppMode'];
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
+    $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
     
     if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
         $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");
