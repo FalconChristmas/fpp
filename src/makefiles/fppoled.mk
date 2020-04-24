@@ -11,6 +11,8 @@ OBJECTS_fppoled += \
 	oled/NetworkOLEDPage.o \
 	oled/FPPMainMenu.o \
     oled/fppoled.o \
+    oled/SSD1306DisplayDriver.o \
+    oled/I2C1602_2004_DisplayDriver.o \
     util/GPIOUtils.o \
     $(OBJECTS_GPIO_ADDITIONS)
 

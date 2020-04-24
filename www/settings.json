@@ -439,8 +439,8 @@
         },
         "LEDDisplayType": {
             "name": "LEDDisplayType",
-            "description": "OLED Status Display",
-            "tip": "OLED Status Display type.  There are serveral OLED displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
+            "description": "Status Display",
+            "tip": "Status Display type.  There are serveral OLED/LCD displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
             "reboot": 1,
             "checkFile": [
                 "/dev/i2c-1",
@@ -458,7 +458,10 @@
                 "128x64 I2C (SH1106)": 5,
                 "128x64 Flipped I2C (SH1106)": 6,
                 "128x128 I2C (SSD1327)": 9,
-                "128x128 Flipped I2C (SSD1327)": 10
+                "128x128 Flipped I2C (SSD1327)": 10,
+                "Adafruit 16x2 LCD": 11,
+                "PCF8574 16x2 LCD": 12,
+                "PCF8574 20x4 LCD": 13
             }
         },
         "Locale": {

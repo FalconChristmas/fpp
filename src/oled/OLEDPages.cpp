@@ -1,8 +1,7 @@
-
+#include "fpp-pch.h"
 #include "OLEDPages.h"
-#include "SSD1306_OLED.h"
 
-#include "RobotoFont-14.h"
+static std::unique_ptr<DisplayDriver> displayDriver { nullptr };
 
 OLEDPage::OLEDType OLEDPage::oledType = OLEDPage::OLEDType::SINGLE_COLOR;
 bool OLEDPage::oledFlipped = false;
@@ -10,37 +9,124 @@ OLEDPage *OLEDPage::currentPage = nullptr;
 bool OLEDPage::oledForcedOff = false;
 bool OLEDPage::has4DirectionControls = false;
 
+static int DISPLAY_I2CBUS = 0;
+
+
+bool OLEDPage::InitializeDisplay(int ledType) {
+    if (ledType == 0) {
+        SetOLEDType(OLEDPage::OLEDType::NONE);
+        return false;
+    }
+    if (ledType <= 10) {
+        displayDriver = std::make_unique<SSD1306DisplayDriver>(ledType);
+        if (!displayDriver->initialize(DISPLAY_I2CBUS)) {
+            displayDriver.reset(nullptr);
+            SetOLEDType(OLEDPage::OLEDType::NONE);
+            return false;
+        }
+        
+        if (ledType == 3 || ledType == 4) {
+            SetOLEDType(OLEDPage::OLEDType::SMALL);
+        } else if (ledType == 7 || ledType == 8) {
+            SetOLEDType(OLEDPage::OLEDType::TWO_COLOR);
+        } else {
+            SetOLEDType(OLEDPage::OLEDType::SINGLE_COLOR);
+        }
+        if (ledType == 2 || ledType == 4 || ledType == 6 || ledType == 8 || ledType == 10) {
+            SetOLEDOrientationFlipped(true);
+        }
+        
+        return true;
+    } else if (ledType <= 20) {
+        displayDriver = std::make_unique<I2C1602_2004_DisplayDriver>(ledType);
+        if (!displayDriver->initialize(DISPLAY_I2CBUS)) {
+            displayDriver.reset(nullptr);
+            SetOLEDType(OLEDPage::OLEDType::NONE);
+            return false;
+        }
+        SetOLEDType(OLEDPage::OLEDType::TEXT_ONLY);
+    }
+    return false;
+}
+
+int OLEDPage::GetI2CBus() {
+    return DISPLAY_I2CBUS;
+}
 
 void OLEDPage::SetOLEDType(OLEDType tp) {
     oledType = tp;
-    if (tp != OLEDType::NONE) {
-        setTextSize(1);
+}
+
+void OLEDPage::flushDisplay() {
+    if (displayDriver) {
+        displayDriver->flushDisplay();
+    }
+}
+void OLEDPage::clearDisplay() {
+    if (displayDriver) {
+        displayDriver->clearDisplay();
+    }
+}
+void OLEDPage::fillTriangle(short x0, short y0, short x1, short y1, short x2, short y2, bool white) {
+    if (displayDriver) {
+        displayDriver->fillTriangle(x0, y0, x1, y1, x2, y2, white);
+    }
+}
+void OLEDPage::drawLine(short x0, short y0, short x1, short y1, bool white) {
+    if (displayDriver) {
+        displayDriver->drawLine(x0, y0, x1, y1, white);
+    }
+}
+void OLEDPage::drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white) {
+    if (displayDriver) {
+        displayDriver->drawBitmap(x, y, bitmap, w, h, white);
+    }
+}
+void OLEDPage::drawRect(short x0, short y0, short x1, short y1, bool white) {
+    if (displayDriver) {
+        displayDriver->drawRect(x0, y0, x1, y1, white);
+    }
+}
+void OLEDPage::fillRect(short x0, short y0, short x1, short y1, bool white) {
+    if (displayDriver) {
+        displayDriver->fillRect(x0, y0, x1, y1, white);
     }
 }
 
-void OLEDPage::Display() {
-    ::Display();
+void OLEDPage::printString(int x, int y, const std::string &str, bool white) {
+    if (oledForcedOff) return;
+    if (displayDriver) {
+        displayDriver->printString(x, y, str, white);
+    }
 }
-void OLEDPage::clearDisplay() {
-    ::clearDisplay();
-}
-void OLEDPage::fillTriangle(short x0, short y0, short x1, short y1, short x2, short y2, bool white) {
-    ::fillTriangle(x0, y0, x1, y1, x2, y2, white ? WHITE : BLACK);
-}
-void OLEDPage::drawLine(short x0, short y0, short x1, short y1, bool white) {
-    ::drawLine(x1, y0, x1, y1, white ? WHITE : BLACK);
-}
-void OLEDPage::setRotation(int i) {
-    ::setRotation(i);
-}
-void OLEDPage::drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white) {
-    ::drawBitmap(x,y , bitmap, w, h, white ? WHITE : BLACK);
+void OLEDPage::printStringCentered(int y, const std::string &str, bool white) {
+    if (oledForcedOff) return;
+    if (displayDriver) {
+        displayDriver->printStringCentered(y, str, white);
+    }
 }
 int OLEDPage::GetLEDDisplayWidth() {
-    return LED_DISPLAY_WIDTH;
+    if (displayDriver) {
+        return displayDriver->getWidth();
+    }
+    return 128;
 }
 int OLEDPage::GetLEDDisplayHeight() {
-    return LED_DISPLAY_HEIGHT;
+    if (displayDriver) {
+        return displayDriver->getHeight();
+    }
+    return 32;
+}
+void OLEDPage::displayOff() {
+    if (displayDriver) {
+        return displayDriver->displayOff();
+    }
+}
+int OLEDPage::getMinimumRefresh() {
+    if (displayDriver) {
+        return displayDriver->getMinimumRefresh();
+    }
+    return 1000;
 }
 
 OLEDPage::OLEDPage() : autoDeleteOnHide(false) {
@@ -59,32 +145,19 @@ void OLEDPage::SetCurrentPage(OLEDPage *p) {
     }
 }
 
-void OLEDPage::printString(int x, int y, const std::string &str, bool white) {
-    if (oledForcedOff) return;
-    setTextColor(white ? WHITE : BLACK);
-    setCursor(x, y);
-    print_str(str.c_str());
-}
-void OLEDPage::printStringCentered(int y, const std::string &str, bool white) {
-    if (oledForcedOff) return;
-    setTextColor(white ? WHITE : BLACK);
-    int len = getTextWidth(str.c_str());
-    len /= 2;
-    setCursor(64 - len, y);
-    print_str(str.c_str());
-}
 
 TitledOLEDPage::TitledOLEDPage(const std::string &t) : title(t) {
-    numRows = LED_DISPLAY_HEIGHT == 128 ? 11 : 5;
+    numRows = GetLEDDisplayHeight() == 128 ? 11 : 5;
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && oledFlipped) {
         numRows = 4;
     } else if (oledType == OLEDPage::OLEDType::SMALL) {
         numRows = 3;
+    } else if (oledType == OLEDPage::OLEDType::TEXT_ONLY) {
+        numRows = GetLEDDisplayHeight() / 8 - 1;
     }
 }
 int TitledOLEDPage::displayTitle() {
     if (oledForcedOff) return 0;
-    setTextColor(WHITE);
     
     int startY = 0;
     int maxY = 63;
@@ -95,19 +168,45 @@ int TitledOLEDPage::displayTitle() {
         case 3:
             maxY = 31;
             break;
+        case 2:
+            maxY = 23;
+            break;
+        case 1:
+            maxY = 15;
+            break;
         case 11:
             maxY = 127;
             break;
     }
     if (oledType == OLEDPage::OLEDType::TWO_COLOR && !oledFlipped) {
-        setTextFont(&Roboto_Medium_14);
-        printStringCentered(startY, title, WHITE);
-        setTextFont(nullptr);
+        if (displayDriver && displayDriver->setFont("Roboto_Medium_14")) {
+            printStringCentered(startY, title);
+            displayDriver->setFont("");
+        } else {
+            printStringCentered(startY + 4, title);
+        }
         startY += 16;
+    } else if (oledType == OLEDPage::OLEDType::TEXT_ONLY) {
+        int mw = GetLEDDisplayWidth() / 6;
+        mw -= title.length();
+        std::string s = title;
+        if (mw > 4) {
+            s = " " + s + " ";
+            mw -= 2;
+        }
+        for (int x = 0; x < mw; x += 2) {
+            if (x != (mw - 1)) {
+                s = "=" + s + "=";
+            } else {
+                s += "=";
+            }
+        }
+        printString(0, startY, s);
+        startY += 8;
     } else {
-        fillRect(0, 0, 128, 8, WHITE);
-        drawRect(0, 0, 128, maxY + 1, WHITE);
-        printStringCentered(startY, title, BLACK);
+        fillRect(0, 0, 128, 8);
+        drawRect(0, 0, 128, maxY + 1);
+        printStringCentered(startY, title, false);
         if (maxY > 50) {
             startY += 12;
         } else if (maxY > 32) {
@@ -137,29 +236,31 @@ void PromptOLEDPage::display() {
     if (oledForcedOff) return;
     clearDisplay();
     int startY = displayTitle();
-    int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
-    setTextColor(WHITE);
+    int skipY = numRows <= 3 ? 8 : (numRows == 4 ? 9 : 10);
     
     if (numRows > 4) {
         startY += skipY;
     }
-    printStringCentered(startY, msg1);
-    startY += skipY;
-    printStringCentered(startY, msg2);
-    startY += skipY;
+    if (numRows != 1) {
+        printStringCentered(startY, msg1);
+        startY += skipY;
+        if (numRows > 2) {
+            printStringCentered(startY, msg2);
+            startY += skipY;
+        }
+    }
 
     if (!items.empty()) {
         int skipX = 122 / items.size();
         for (int x = 0; x < items.size(); x++) {
             if (x == curSelected) {
-                fillRect(x * skipX + 4, startY, skipX, 8, WHITE);
+                fillRect(x * skipX + 4, startY, skipX, 8);
             }
             int l = items[x].length() * 6 / 2;
             printString(x * skipX + 4 + skipX / 2 - l, startY, items[x], x != curSelected);
         }
     }
-    
-    Display();
+    flushDisplay();
 }
 bool PromptOLEDPage::doAction(const std::string &action) {
     if (action == "Down" || action == "Test/Down") {
@@ -198,10 +299,10 @@ void ListOLEDPage::displayScrollArrows(int startY) {
     int maxY = numRows == 11 ? 127 : (numRows == 5 ? 63 : (numRows == 4 ? 47 : 31));
     if (items.size() > numRows) {
         if (curTop != 0) {
-            fillTriangle(116, startY + 8, 125, startY + 8, 120, startY, WHITE);
+            fillTriangle(116, startY + 8, 125, startY + 8, 120, startY);
         }
         if ((curTop + numRows) < items.size()) {
-            fillTriangle(116, maxY - 10, 125, maxY - 10, 120, maxY - 2, WHITE);
+            fillTriangle(116, maxY - 10, 125, maxY - 10, 120, maxY - 2);
         }
     }
 }
@@ -212,12 +313,16 @@ void ListOLEDPage::display() {
     clearDisplay();
     int startY = displayTitle();
     displayScrollArrows(startY);
-    int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
+    int skipY = numRows <= 3 ? 8 : (numRows == 4 ? 9 : 10);
+    int posX = 6;
+    if (oledType == OLEDPage::OLEDType::TEXT_ONLY) {
+        posX = 0;
+    }
     for (int x = curTop; (x < items.size()) && (x < (curTop + numRows)); ++x) {
-        printString(6, startY, items[x]);
+        printString(posX, startY, items[x]);
         startY += skipY;
     }
-    Display();
+    flushDisplay();
 }
 
 bool ListOLEDPage::doAction(const std::string &action) {
@@ -262,17 +367,20 @@ void MenuOLEDPage::display() {
     clearDisplay();
     int startY = displayTitle();
     displayScrollArrows(startY);
-    int skipY = numRows == 3 ? 8 : (numRows == 4 ? 9 : 10);
+    int skipY = numRows <= 3 ? 8 : (numRows == 4 ? 9 : 10);
     int width = items.size() > numRows ? 110 : 120;
+    int posX = 6;
+    if (oledType == OLEDPage::OLEDType::TEXT_ONLY) {
+        posX = 0;
+    }
     for (int x = curTop; (x < items.size()) && (x < (curTop + numRows)); ++x) {
-        setCursor(6, startY);
         if (curSelected == x) {
-            fillRect(4, startY, width, 8, WHITE);
+            fillRect(4, startY, width, 8);
         }
-        printString(6, startY, items[x], curSelected != x);
+        printString(posX, startY, items[x], curSelected != x);
         startY += skipY;
     }
-    Display();
+    flushDisplay();
 }
 bool MenuOLEDPage::doAction(const std::string &action) {
     //printf("In menu action %s\n", action.c_str());

@@ -4,11 +4,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
-#if __has_include(<gpiod.hpp>)
-#include <gpiod.hpp>
-#define HASGPIOD
-#endif
-
 #include "GPIOUtils.h"
 #include "commands/Commands.h"
 
@@ -141,81 +136,71 @@ static const std::set<std::string> PLATFORM_IGNORES {
     "gpio-96-127"
 };
 // No platform information on how to control pins
-class GPIODCapabilities : public PinCapabilitiesFluent<GPIODCapabilities> {
-public:
-    GPIODCapabilities(const std::string &n, uint32_t kg) : PinCapabilitiesFluent(n, kg)
-    {}
-    
-    
-#ifdef HASGPIOD
-    mutable gpiod::line line;
-    virtual int configPin(const std::string& mode = "gpio",
-                          bool directionOut = true) const override {
-        std::string n = std::to_string(gpioIdx);
-        line = gpiod::chip(n, gpiod::chip::OPEN_BY_NUMBER).get_line(gpio);
-        gpiod::line_request req;
-        req.consumer = "FPPD";
-        if (directionOut) {
-            req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
-        } else {
-            req.request_type = gpiod::line_request::DIRECTION_INPUT;
-        }
-        line.request(req, 0);
-        return 0;
-    }
-    virtual bool getValue() const override {
-        return line.get_value();
-    }
-    virtual void setValue(bool i) const override {
-        line.set_value(i ? 1 : 0);
-    }
-#endif
-    
-    
-    virtual bool supportsPullUp() const override { return false; }
-    virtual bool supportsPullDown() const override { return false; }
+static std::string PROCESS_NAME = "FPPD";
 
-    
-    
-    virtual bool setupPWM(int maxValueNS = 25500) const override {return false;}
-    virtual void setPWMValue(int valueNS) const override {}
-    
-    virtual int getPWMRegisterAddress() const override { return 0;};
-    virtual bool supportPWM() const override { return false; };
-    
-};
+int GPIODCapabilities::configPin(const std::string& mode,
+                      bool directionOut) const {
+#ifdef HASGPIOD
+    std::string n = std::to_string(gpioIdx);
+    line = gpiod::chip(n, gpiod::chip::OPEN_BY_NUMBER).get_line(gpio);
+    gpiod::line_request req;
+    req.consumer = PROCESS_NAME;
+    if (directionOut) {
+        req.request_type = gpiod::line_request::DIRECTION_OUTPUT;
+    } else {
+        req.request_type = gpiod::line_request::DIRECTION_INPUT;
+    }
+    line.request(req, 1);
+#endif
+    return 0;
+}
+bool GPIODCapabilities::getValue() const {
+#ifdef HASGPIOD
+        return line.get_value();
+#else
+    return 0;
+#endif
+}
+void GPIODCapabilities::setValue(bool i) const {
+#ifdef HASGPIOD
+    line.set_value(i ? 1 : 0);
+#endif
+}
 static std::vector<GPIODCapabilities> GPIOD_PINS;
 
 
-void PinCapabilities::InitGPIO() {
+void PinCapabilities::InitGPIO(const std::string &process) {
+    PROCESS_NAME = process;
 #ifdef HASGPIOD
     int chipCount = 0;
     int pinCount = 0;
     ::gpiod_chip* chip = gpiod_chip_open_by_number(0);
     if (chip != nullptr) {
         ::gpiod_chip_close(chip);
-        // has at least on chip
-        std::set<std::string> found;
-        for (auto &a : gpiod::make_chip_iter()) {
-            std::string name = a.name();
-            std::string label = a.label();
-            
-            if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
-                char i = 'b';
-                while (found.find(label) != found.end()) {
-                    label = a.label() + i;
-                    i++;
+        if (GPIOD_PINS.empty()) {
+            // has at least on chip
+            std::set<std::string> found;
+            for (auto &a : gpiod::make_chip_iter()) {
+                std::string name = a.name();
+                std::string label = a.label();
+                
+                if (PLATFORM_IGNORES.find(label) == PLATFORM_IGNORES.end()) {
+                    char i = 'b';
+                    while (found.find(label) != found.end()) {
+                        label = a.label() + i;
+                        i++;
+                    }
+                    found.insert(label);
+                    for (int x = 0; x < a.num_lines(); x++) {
+                        std::string n = label + "-" + std::to_string(x);
+                        GPIODCapabilities caps(n, pinCount + x);
+                        caps.setGPIO(chipCount, x);
+                        GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x).setGPIO(chipCount, x));
+                    }
                 }
-                found.insert(label);
-                for (int x = 0; x < a.num_lines(); x++) {
-                    std::string n = label + "-" + std::to_string(x);
-                    GPIODCapabilities caps(n, pinCount + x);
-                    caps.setGPIO(chipCount, x);
-                    GPIOD_PINS.push_back(GPIODCapabilities(n, pinCount + x).setGPIO(chipCount, x));
-                }
+                pinCount += a.num_lines();
+                chipCount++;
             }
-            pinCount += a.num_lines();
-            chipCount++;
         }
     }
 #endif

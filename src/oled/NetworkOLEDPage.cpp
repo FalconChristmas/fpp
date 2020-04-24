@@ -1,8 +1,6 @@
-#include <iostream>
-#include <fstream>
+#include "fpp-pch.h"
 
 #include "NetworkOLEDPage.h"
-#include "common.h"
 
 class EditIPOLEDPage : public TitledOLEDPage {
 public:
@@ -36,7 +34,7 @@ public:
         printString(10, startY + 10, ipAs3, true);
         fillTriangle(xPos, startY + 20, xPos + 3, startY + 24, xPos + 6, startY + 20);
 
-        Display();
+        flushDisplay();
     }
     
     bool doAction(const std::string &action) {

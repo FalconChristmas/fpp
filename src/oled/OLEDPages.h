@@ -4,13 +4,18 @@
 #include <string>
 #include <functional>
 
+#include "DisplayDriver.h"
+
 class OLEDPage {
 public:
+    static bool InitializeDisplay(int type);
+    
     enum class OLEDType {
         NONE,
         SMALL,
         SINGLE_COLOR,
-        TWO_COLOR
+        TWO_COLOR,
+        TEXT_ONLY
     };
 
     static void SetOLEDType(OLEDType tp);
@@ -24,6 +29,7 @@ public:
     static bool IsForcedOff() { return oledForcedOff; }
     static int GetLEDDisplayWidth();
     static int GetLEDDisplayHeight();
+    static int GetI2CBus();
 
     OLEDPage();
     virtual ~OLEDPage() {}
@@ -44,9 +50,13 @@ public:
     static void fillTriangle(short x0, short y0, short x1, short y1, short x2, short y2, bool white = true);
     static void drawLine(short x0, short y0, short x1, short y1, bool white = true);
     static void drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white = true);
-    static void Display();
+    static void drawRect(short x0, short y0, short x1, short y1, bool white = true);
+    static void fillRect(short x0, short y0, short x1, short y1, bool white = true);
+    static void flushDisplay();
     static void clearDisplay();
-    static void setRotation(int i);
+    static void displayOff();
+    
+    static int getMinimumRefresh();
 protected:
     
     static OLEDType oledType;

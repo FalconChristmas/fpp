@@ -1,15 +1,11 @@
+#include "fpp-pch.h"
 #include <net/if.h>
-#include <unistd.h>
-#include <cstdlib>
 
 #include "FPPMainMenu.h"
 #include "../fppversion.h"
 
-#include "common.h"
 #include "FPPStatusOLEDPage.h"
 #include "NetworkOLEDPage.h"
-#include "settings.h"
-#include <jsoncpp/json/json.h>
 
 
 static int curlBufferWriter(char *data, size_t size, size_t nmemb,
@@ -51,7 +47,7 @@ public:
             SetCurrentPage(nullptr);
             clearDisplay();
             printString(4, 17, "Rebooting...");
-            Display();
+            flushDisplay();
             sync();
             system("/sbin/reboot");
         }
@@ -77,7 +73,7 @@ class ShutdownPromptPage : public PromptOLEDPage {
             SetCurrentPage(nullptr);
             clearDisplay();
             printString(4, 17, "Shutdown...");
-            Display();
+            flushDisplay();
             sync();
             system("/sbin/shutdown -h now");
         }

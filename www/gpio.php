@@ -100,7 +100,7 @@ extraCommands = [
             "optional": false,
             "type": "string",
             "contents": [
-                "Up", "Down", "Back", "Enter", "Test/Down"
+                "Up", "Down", "Back", "Enter", "Test", "Test/Down"
             ]
         }
     ]

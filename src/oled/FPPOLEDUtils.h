@@ -50,7 +50,7 @@ public:
         int pollIndex = -1;
         std::list<Action *> actions;
         
-        const std::string &checkAction(int i, long long time);
+        virtual const std::string &checkAction(int i, long long time);
         
         struct gpiod_line *gpiodLine = nullptr;
         int gpioChipIdx = -1;

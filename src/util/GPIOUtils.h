@@ -5,9 +5,14 @@
 
 #include <jsoncpp/json/json.h>
 
+#if __has_include(<gpiod.hpp>)
+#include <gpiod.hpp>
+#define HASGPIOD
+#endif
+
 class PinCapabilities {
 public:
-    static void InitGPIO();
+    static void InitGPIO(const std::string &process = "FPPD");
     
     PinCapabilities(const std::string &n, uint32_t k)
         : name(n), kernelGpio(k), pru(-1), pruPin(-1), pwm(-1), subPwm(-1), i2cBus(-1), gpioIdx(0), gpio(k) {}
@@ -92,3 +97,27 @@ public:
         return * (static_cast<T*>(this));
     }
 };
+
+class GPIODCapabilities : public PinCapabilitiesFluent<GPIODCapabilities> {
+public:
+    GPIODCapabilities(const std::string &n, uint32_t kg) : PinCapabilitiesFluent(n, kg) {}
+    
+    virtual int configPin(const std::string& mode = "gpio",
+                          bool directionOut = true) const override;
+    virtual bool getValue() const override;
+    virtual void setValue(bool i) const override;
+        
+    virtual bool supportsPullUp() const override { return false; }
+    virtual bool supportsPullDown() const override { return false; }
+
+    virtual bool setupPWM(int maxValueNS = 25500) const override {return false;}
+    virtual void setPWMValue(int valueNS) const override {}
+    
+    virtual int getPWMRegisterAddress() const override { return 0;};
+    virtual bool supportPWM() const override { return false; };
+    
+#ifdef HASGPIOD
+    mutable gpiod::line line;
+#endif
+};
+

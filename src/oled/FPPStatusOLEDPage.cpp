@@ -1,28 +1,12 @@
+#include "fpp-pch.h"
 
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <linux/wireless.h>
+#include <sys/ioctl.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
 #include <ifaddrs.h>
-#include <string.h>
-#include <strings.h>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <algorithm>
 
-#include <fcntl.h>
-#include <poll.h>
-
-#include "common.h"
-
-
-#include <linux/wireless.h>
-#include <sys/ioctl.h>
-#include <jsoncpp/json/json.h>
 #include "FPPStatusOLEDPage.h"
 #include "FPPMainMenu.h"
 
@@ -320,7 +304,6 @@ bool FPPStatusOLEDPage::getCurrentStatus(Json::Value &result) {
 
 int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid, Json::Value &result) {
     if (statusValid) {
-        
         std::vector<std::string> lines;
         std::string line;
         int maxLines = 5;
@@ -345,7 +328,11 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
                 }
             }
         } else {
+            int numLines = (GetLEDDisplayHeight() - startY) / 8;
             int idx = count % maxLines;
+            if (numLines >= maxLines) {
+                idx = 0;
+            }
             line = lines[idx];
             if (line.length() > 21) {
                 line.resize(21);
@@ -378,7 +365,7 @@ int FPPStatusOLEDPage::outputBottomPart(int startY, int count, bool statusValid,
             printString(0, startY, "FPPD is not running..");
             startY += 8;
         }
-        if (_imageWidth) {
+        if (_imageWidth && oledType != OLEDType::TEXT_ONLY) {
             int y = startY;
             if (oledType != OLEDType::TWO_COLOR) {
                 --y;
@@ -412,7 +399,6 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
             displayOn = true;
         }
     }
-    clearDisplay();
     
     Json::Value result;
     bool statusValid = getCurrentStatus(result);
@@ -426,10 +412,11 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
     }
     
     if (displayOn) {
+        clearDisplay();
         int startY = 0;
         if (oledType != OLEDType::TWO_COLOR || !oledFlipped) {
             startY = outputTopPart(startY, _iterationCount);
-            if (oledType != OLEDType::TWO_COLOR) {
+            if (oledType != OLEDType::TWO_COLOR && oledType != OLEDType::TEXT_ONLY) {
                 // two color display doesn't need the separator line
                 drawLine(0, startY, 127, startY);
                 startY++;
@@ -444,8 +431,8 @@ bool FPPStatusOLEDPage::doIteration(bool &displayOn) {
             outputBottomPart(0, _iterationCount, statusValid, result);
             outputTopPart(48, _iterationCount);
         }
+        flushDisplay();
     }
-    Display();
     return retVal;
 }
 
@@ -467,6 +454,7 @@ void FPPStatusOLEDPage::fillInNetworks() {
     tmp = interfaces;
     char addressBuf[128];
     while (tmp) {
+        int max = OLEDPage::GetLEDDisplayWidth() / 6;
         if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET) {
             if (strncmp("usb", tmp->ifa_name, 3) != 0) {
                 //skip the usb* interfaces as we won't support multisync on those
@@ -475,6 +463,9 @@ void FPPStatusOLEDPage::fillInNetworks() {
                     hn = tmp->ifa_name;
                     hn += ":";
                     hn += addressBuf;
+                    if (hn.size() > max) {
+                        hn = addressBuf;
+                    }
                     networks.push_back(hn);
                     int i = getSignalStrength(tmp->ifa_name);
                     signalStrength.push_back(i);
