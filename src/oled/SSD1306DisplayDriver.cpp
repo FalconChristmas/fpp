@@ -7,6 +7,7 @@
 
 extern I2C_DeviceT I2C_DEV_2;
 #ifdef PLATFORM_BBB
+#include "util/BBBUtils.h"
 #define I2C_DEV_PATH I2C_DEV2_PATH
 #else
 #define I2C_DEV_PATH I2C_DEV1_PATH
