@@ -217,7 +217,10 @@ static void disableOutputs(Json::Value &disables) {
     for (int x = 0; x < disables.size(); x++) {
         std::string file = disables[x]["file"].asString();
         std::string type = disables[x]["type"].asString();
-        
+        std::string subType = "";
+        if (disables[x].isMember("subType")) {
+            subType = disables[x]["subType"].asString();
+        }
         std::string fullFile = "/home/fpp/media/" + file;
         if (file_exists(fullFile)) {
             Json::Value result;
@@ -235,7 +238,9 @@ static void disableOutputs(Json::Value &disables) {
                 bool changed = false;
                 if (result.isMember("channelOutputs")) {
                     for (int co = 0; co < result["channelOutputs"].size(); co++) {
-                        if (result["channelOutputs"][co]["type"].asString() == type) {
+                        if (result["channelOutputs"][co]["type"].asString() == type
+                            && (subType == ""
+                                || (result["channelOutputs"][co].isMember("subType") && result["channelOutputs"][co]["subType"].asString() == subType))) {
                             if (result["channelOutputs"][co]["enabled"].asInt() == 1) {
                                 result["channelOutputs"][co]["enabled"] = 0;
                                 changed = true;

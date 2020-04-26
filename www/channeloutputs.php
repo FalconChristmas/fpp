@@ -133,6 +133,7 @@ $channelOutputsJSON = "";
 if (file_exists($settings['channelOutputsJSON']))
 {
 	$channelOutputsJSON = file_get_contents($settings['channelOutputsJSON']);
+    $channelOutputs = json_decode($channelOutputsJSON, true);
 	$channelOutputsJSON = preg_replace("/\n|\r/", "", $channelOutputsJSON);
 	$channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
 }
@@ -234,6 +235,11 @@ $(document).ready(function(){
 <?
 
 include_once('co-universes.php');
+if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null ) {
+    if ($channelOutputs['channelOutputs'][0]['type'] == "LEDPanelMatrix" && $channelOutputs['channelOutputs'][0]['enabled'] == 1) {
+        $currentCapeInfo["provides"][] = 'strings';
+    }
+}
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
