@@ -217,10 +217,14 @@ void FPPMainMenu::itemSelected(const std::string &item) {
             " Automatic",
             " On",
             " Off",
+            " HostApd",
+            " ConnMan",
             " Back"
         };
         int tm = getSettingInt("EnableTethering");
+        int tt = getSettingInt("TetherTechnology");
         options[tm][0] = '*';
+        options[tt + 3][0] = '*';
         MenuOLEDPage *pg = new MenuOLEDPage("Tethering", options, [this, sp] (const std::string &item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
@@ -231,6 +235,10 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                     nv += "1";
                 } else if (nitem == "Off") {
                     nv += "2";
+                } else if (nitem == "HostApd") {
+                    nv = "http://localhost/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=0";
+                } else if (nitem == "ConnMan") {
+                    nv = "http://localhost/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=1";
                 } else {
                     nv += "0";
                 }

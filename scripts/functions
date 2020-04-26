@@ -264,7 +264,7 @@ MaybeEnableTethering() {
         TetherInterface="wlan0";
     fi
     if [ "$TetherEnabled" == "1" ]; then
-        for i in {1..10}
+        for i in {1..30}
         do
             if [ ! -e "/sys/class/net/${TetherInterface}" ]; then
                 echo "${TetherInterface} is not available, waiting..."
