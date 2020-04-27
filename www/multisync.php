@@ -573,7 +573,7 @@ function restartSelectedSystems() {
     <input type='button' class='buttons' value='Refresh List' onClick='getFPPSystems();' style='float: left;'>
     <div>
         Selected Systems:<br>
-    <input id='updateButton' type='button' class='buttons' value='Update' onClick='updateSelectedSystems();'>
+    <input id='updateButton' type='button' class='buttons' value='Upgrade FPP' onClick='updateSelectedSystems();'>
     <input id='restartButton' type='button' class='buttons' value='Restart FPPD' onClick='restartSelectedSystems();'>
     </div>
 </div>
