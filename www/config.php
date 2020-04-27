@@ -268,6 +268,9 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "Ubuntu") {
 	$settings['Logo'] = "ubuntu_logo.png";
 	$settings['LogoLink'] = "https://ubuntu.com/";
+} else if ($settings['Platform'] == "Fedora") {
+	$settings['Logo'] = "fedora_logo.png";
+	$settings['LogoLink'] = "https://getfedora.org/";
 } else if ($settings['Platform'] == "Linux") {
 	$settings['Logo'] = "tux_logo.png";
 	$settings['LogoLink'] = "http://www.linux.com/";

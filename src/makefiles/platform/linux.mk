@@ -5,6 +5,8 @@ else ifeq '$(ARCH)' 'Debian'
 ISLINUX=1
 else ifeq '$(ARCH)' 'Ubuntu'
 ISLINUX=1
+else ifeq '$(ARCH)' 'Fedora'
+ISLINUX=1
 else ifeq '$(ARCH)' 'Pine64'
 ISLINUX=1
 else ifeq '$(ARCH)' 'CHIP'
