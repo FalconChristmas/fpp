@@ -258,10 +258,12 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			for (var i = 0; i < tarr.length; i++) {
 				remotes[tarr[i]] = 1;
 
-                if (tarr[i] == "255.255.255.255")
+                if ((tarr[i] == "255.255.255.255") &&
+                    (!$('#MultiSyncBroadcast').is(":checked")))
                     $('#MultiSyncBroadcast').prop('checked', true).trigger('change');
 
-                if (tarr[i] == "239.70.80.80")
+                if ((tarr[i] == "239.70.80.80") &&
+                    (!$('#MultiSyncMulticast').is(":checked")))
                     $('#MultiSyncMulticast').prop('checked', true).trigger('change');
 			}
 		}
