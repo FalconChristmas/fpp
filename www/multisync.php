@@ -253,22 +253,22 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         rowSpans = [];
 
 		var remotes = [];
-		if (typeof settings['MultiSyncRemotes'] === 'string') {
-			var tarr = settings['MultiSyncRemotes'].split(',');
-			for (var i = 0; i < tarr.length; i++) {
-				remotes[tarr[i]] = 1;
-
-                if ((tarr[i] == "255.255.255.255") &&
-                    (!$('#MultiSyncBroadcast').is(":checked")))
-                    $('#MultiSyncBroadcast').prop('checked', true).trigger('change');
-
-                if ((tarr[i] == "239.70.80.80") &&
-                    (!$('#MultiSyncMulticast').is(":checked")))
-                    $('#MultiSyncMulticast').prop('checked', true).trigger('change');
-			}
-		}
-
 		if (settings['fppMode'] == 'master') {
+            if (typeof settings['MultiSyncRemotes'] === 'string') {
+                var tarr = settings['MultiSyncRemotes'].split(',');
+                for (var i = 0; i < tarr.length; i++) {
+                    remotes[tarr[i]] = 1;
+
+                    if ((tarr[i] == "255.255.255.255") &&
+                        (!$('#MultiSyncBroadcast').is(":checked")))
+                        $('#MultiSyncBroadcast').prop('checked', true).trigger('change');
+
+                    if ((tarr[i] == "239.70.80.80") &&
+                        (!$('#MultiSyncMulticast').is(":checked")))
+                        $('#MultiSyncMulticast').prop('checked', true).trigger('change');
+                }
+            }
+
 			$('.masterOptions').show();
 		}
 
@@ -324,8 +324,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			} else if (data[i].fppMode == 'master') {
 				fppMode = 'Master';
 			} else if (data[i].fppMode == 'remote') {
-				fppMode = 'Remote:';
-                fppMode += "<span class='syncCheckboxSpan'><br>Enable Sync: " + star + "</span>";
+				fppMode = 'Remote';
+                fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
             }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
