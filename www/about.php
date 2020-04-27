@@ -113,28 +113,51 @@ this.value = default_value;
 });
 });
 
+function CloseUpgradeDialog() {
+    $('#upgradePopup').dialog('close');
+}
+
+function UpdateVersionInfo() {
+    $.get('fppjson.php?command=getFPPstatus&advancedView=true', function(data) {
+        $('#fppVersion').html(data.advancedView.Version);
+        $('#osVersion').html(data.advancedView.OSVersion);
+        $('#osRelease').html(data.advancedView.OSRelease);
+        $('#localGitVersion').html(data.advancedView.LocalGitVersion);
+        $('#remoteGitVersion').html(data.advancedView.RemoteGitVersion);
+    });
+}
+
+function UpgradeDone() {
+    UpdateVersionInfo();
+    $('#closeDialogButton').show();
+}
+
 function UpgradeOS() {
     var os = $('#OSSelect').val();
     if (confirm('Upgrade the OS using ' + os + '?\nThis can take a long time.')) {
-        $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP OS Upgrade" });
+        $('#closeDialogButton').hide();
+        $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP OS Upgrade", dialogClass: 'no-close' });
         $('#upgradePopup').dialog( "moveToTop" );
         $('#upgradeText').html('');
 
-        StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText');
+        StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText', 'UpgradeDone');
     }
 }
 
 function UpgradeFPP() {
-    $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade" });
+    $('#closeDialogButton').hide();
+    $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade", dialogClass: 'no-close' });
     $('#upgradePopup').dialog( "moveToTop" );
     $('#upgradeText').html('');
 
-    StreamURL('manualUpdate.php?wrapped=1', 'upgradeText');
+    StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
 }
 
 </script>
 <title><? echo $pageTitle; ?></title>
 <style>
+.no-close .ui-dialog-titlebar-close {display: none }
+
 .clear {
   clear: both;
 }
@@ -196,19 +219,19 @@ a:visited {
         <div class='aboutLeft'>
           <table class='tblAbout'>
             <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
-            <tr><td>FPP Version:</td><td><? echo $fpp_version; ?></td></tr>
+            <tr><td>FPP Version:</td><td id='fppVersion'><? echo $fpp_version; ?></td></tr>
             <tr><td>Platform:</td><td><?
 echo $settings['Platform'];
 if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform']))
     echo " (" . $settings['Variant'] . ")";
 ?></td></tr>
-            <tr><td>FPP OS Build:</td><td><? echo $os_build; ?></td></tr>
-            <tr><td>OS Version:</td><td><? echo $os_version; ?></td></tr>
+            <tr><td>FPP OS Build:</td><td id='osVersion'><? echo $os_build; ?></td></tr>
+            <tr><td>OS Version:</td><td id='osRelease'><? echo $os_version; ?></td></tr>
 <? if (isset($serialNumber) && $serialNumber != "") { ?>
         <tr><td>Hardware Serial Number:</td><td><? echo $serialNumber; ?></td></tr>
 <? } ?>
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
-            <tr><td>Local Git Version:</td><td>
+            <tr><td>Local Git Version:</td><td id='localGitVersion'>
 <?
   echo $git_version;
   if (($git_remote_version != "") &&
@@ -218,7 +241,7 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
 	echo " <a href='changelog.php'>ChangeLog</a>";
 ?>
                 </td></tr>
-            <tr><td>Remote Git Version:</td><td>
+            <tr><td>Remote Git Version:</td><td id='remoteGitVersion'>
 <?
   echo $git_remote_version;
   if (($git_remote_version != "") &&
@@ -403,8 +426,9 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
   <?php include 'common/footer.inc'; ?>
 </div>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
-    <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'>
+    <textarea style='width: 99%; height: 94%;' disabled id='upgradeText'>
     </textarea>
+    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseUpgradeDialog();' style='display: none;'>
 </div>
 </body>
 </html>

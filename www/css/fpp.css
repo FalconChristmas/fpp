@@ -1228,6 +1228,10 @@ td.bgDarkOrange {
     display: none;
 }
 
+.tablesorter .tablesorter-filter-row .disabled {
+    display: none;
+}
+
 .multiSyncadvancedView{
 	float: right;
 	font-weight: bold;

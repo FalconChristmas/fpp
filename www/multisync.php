@@ -117,6 +117,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         if (!platformIsFPP(platform))
             return;
 
+//        console.log('getFPPSystemStatus("' + ip + '", "' + platform + '")');
+
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
 			var status = 'Idle';
@@ -244,7 +246,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             }
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked"))
-				setTimeout(function() {getFPPSystemStatus(ip);}, 1000);
+				setTimeout(function() {getFPPSystemStatus(ip, platform);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
 		});
 	}
 
@@ -354,7 +356,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     "<td id='advancedViewUtilization_" + rowID + "'></td>";
 
                 newRow += "<td align='center'>";
-                if (platformIsFPP(data[i].Platform))
+                if ((platformIsFPP(data[i].Platform)) &&
+                    (!data[i].version.startsWith("1")) &&
+                    (!data[i].version.startsWith("2")) &&
+                    (!data[i].version.startsWith("3")))
                     newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
 
                 newRow += "</td>";
@@ -597,13 +602,6 @@ PrintSetting('MultiSyncRefreshStatus', 'getFPPSystems');
 PrintSetting('MultiSyncAdvancedView', 'reloadPage');
 ?>
             </table>
-            <?php
-                if ($advancedView ==true) {
-					?>
-                    <b style="color: #FF0000; font-size: 0.9em;">** Advanced View Active - Auto Refresh is not recommended as it may cause slowdowns</b>
-					<?php
-				}
-            ?>
 <?php
 if ($settings['fppMode'] == 'master')
 {
@@ -629,6 +627,7 @@ $(document).ready(function() {
     var $table = $('#fppSystemsTable');
 
     $table
+<? if (0) { ?>
     .bind('filterInit', function() {
         $table.find('.tablesorter-filter').hide().each(function(){
             var w, $t = $(this);
@@ -641,6 +640,7 @@ $(document).ready(function() {
                 });
         });
     })
+<? } ?>
     .tablesorter({
         widthFixed: false,
         theme: 'blue',

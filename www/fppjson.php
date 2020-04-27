@@ -1351,6 +1351,16 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
     $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));
+
+    $os_release = "Unknown";
+    if (file_exists("/etc/os-release"))
+    {
+        $info = parse_ini_file("/etc/os-release");
+        if (isset($info["PRETTY_NAME"]))
+            $os_release = $info["PRETTY_NAME"];
+        unset($output);
+    }
+    $result['OSRelease'] = $os_release;
     
     if (file_exists($settings['mediaDirectory'] . "/fpp-info.json")) {
         $content = file_get_contents($settings['mediaDirectory'] . "/fpp-info.json");

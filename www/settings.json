@@ -730,7 +730,7 @@
         "MultiSyncRefreshStatus": {
             "name": "MultiSyncRefreshStatus",
             "description": "Auto refresh status of FPP Systems",
-            "tip": "Auto refresh status of FPP Systems.  Not recommended when Advanced View mode is On.",
+            "tip": "Auto refresh status of FPP Systems.  The Simple View refreshes every second and Advanced View refreshes every 5 seconds.",
             "type": "checkbox"
         },
         "ntp": {
