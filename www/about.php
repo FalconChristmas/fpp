@@ -403,8 +403,8 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
   <?php include 'common/footer.inc'; ?>
 </div>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
-    <pre id='upgradeText'>
-    </pre>
+    <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'>
+    </textarea>
 </div>
 </body>
 </html>
