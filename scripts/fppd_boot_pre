@@ -5,12 +5,6 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
-if [ ! -x ${FPPBINDIR}/fppd ]; then
-   echo "${FPPBINDIR}/fppd doesn't exist, try building it"
-   cleanCompiledBinaries
-   compileBinaries
-fi
-
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 

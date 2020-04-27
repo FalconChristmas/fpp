@@ -381,6 +381,16 @@ html
 	min-height: 30px;
 	width: 100%;
 }
+#compileFPPDBanner {
+	background-color: #AA0000;
+	color: #FFFFFF;
+	padding-top: 5px;
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	min-height: 30px;
+	width: 100%;
+}
 legend
 {
 	font-weight: bold;

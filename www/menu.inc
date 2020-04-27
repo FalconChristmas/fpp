@@ -203,6 +203,21 @@ function list_plugin_entries($menu)
   }
 ?>
   </div>
+<?  if (!file_exists("/opt/fpp/src/fppd")) { ?>
+<div id='rebuildPopup' title='FPP Upgrade' style="display: none">
+    <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
+    </textarea>
+</div>
+<script>
+function RebuildFPPD() {
+    $('#rebuildPopup').dialog({ height: 600, width: 900, title: "Rebuild FPP" });
+    $('#rebuildPopup').dialog( "moveToTop" );
+    $('#rebuildText').html('');
+    StreamURL('manualUpdate.php?wrapped=1', 'rebuildText');
+}
+</script>
+  <div id="compileFPPDBanner">FPPD not found. Rebuild required - <input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons" value="Rebuild"></div>
+<? } ?>
   <div id='unsupportedBrowser'>FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
   <div id='rebootFlag'>Base configuration has changed. Reboot Required - <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot">
 <?

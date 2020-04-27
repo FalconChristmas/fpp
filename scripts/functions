@@ -389,6 +389,11 @@ populateCCACHE() {
             rm -f "/tmp/$FILETOGET"
         fi
     fi
+    
+    # set the CCache sizes/flags that we need to be able to successfully compile
+    ccache -M 250M
+    ccache --set-config=temporary_dir=/tmp
+    ccache --set-config=sloppiness=pch_defines,time_macros
 }
 
 compileBinaries() {
