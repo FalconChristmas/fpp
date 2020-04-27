@@ -457,6 +457,9 @@ function updateSelectedSystems() {
 
             var ip = rowID.replace('fpp_', '').replace(/_/g, '.');
 
+            if ($('#' + rowID + '_logText').val() != '')
+                $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+
             StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'updateDone', 'updateFailed');
         }
     });
