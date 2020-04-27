@@ -325,7 +325,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 				fppMode = 'Master';
 			} else if (data[i].fppMode == 'remote') {
 				fppMode = 'Remote';
-                fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
+
+				if (settings['fppMode'] == 'master')
+                    fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
             }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
