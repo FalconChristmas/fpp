@@ -92,6 +92,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return true;
     }
 
+    function updateFPPVersionInfo(ip) {
+		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + '&advancedView=true').done(function(data) {
+            var rowID = "fpp_" + ip.replace(/\./g, '_');
+            $('#' + rowID + '_version').html(data.advancedView.Version);
+            $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
+            $('#' + rowID + '_localgitvers').html("<a href='http://" + ip + "/about.php' target='_blank'><b><font color='red'>" + data.advancedView.LocalGitVersion + "</a>");
+            $('#' + rowID + '_remotegitvers').html(data.advancedView.RemoteGitVersion);
+		});
+    }
+
 	function getFPPSystemInfo(ip, platform) {
         //eventually figure out what to do
         if (!platformIsFPP(platform))
@@ -204,7 +214,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 }
 
                 var u = "<table class='multiSyncVerboseTable'>" +
-                    "<tr><td>Local:</td><td>";
+                    "<tr><td>Local:</td><td id='" + rowID + "_localgitvers'>";
                 if (updatesAvailable) {
                     u += "<a href='http://" + ip + "/about.php' target='_blank'><b><font color='red'>" +
                         data.advancedView.LocalGitVersion + "</font></b></a>";
@@ -214,7 +224,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     u += data.advancedView.LocalGitVersion;
                 }
                 u += "</td></tr>" +
-                    "<tr><td>Remote:</td><td>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
+                    "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
                     "</table>";
 
                 $('#advancedViewGitVersions_' + rowID).html(u);
@@ -412,6 +422,12 @@ function rebootRemoteFPP(rowID, ip) {
     StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText');
 }
 
+function ipFromRowID(id) {
+    ip = id.replace('fpp_', '').replace(/_/g, '.').replace(/[^\.0-9]/g, '').replace(/\.$/, '');
+
+    return ip;
+}
+
 var streamCount = 0;
 function EnableDisableStreamButtons() {
     if (streamCount) {
@@ -428,11 +444,14 @@ function updateDone(id) {
     $('#' + id + '_doneButtons').show();
     streamCount--;
 
+    var ip = ipFromRowID(id);
+    updateFPPVersionInfo(ip);
+
     EnableDisableStreamButtons();
 }
 
 function updateFailed(id) {
-    var ip = id.replace('fpp_', '').replace('_logText', '');
+    var ip = ipFromRowID(id);
 
     alert('Update failed for FPP system at ' + ip);
     streamCount--;
@@ -455,7 +474,7 @@ function updateSelectedSystems() {
             $('#' + rowID + '_logs').show();
             rowSpanUp(rowID);
 
-            var ip = rowID.replace('fpp_', '').replace(/_/g, '.');
+            var ip = ipFromRowID(rowID);
 
             if ($('#' + rowID + '_logText').val() != '')
                 $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
@@ -468,11 +487,14 @@ function updateSelectedSystems() {
 function restartDone(id) {
     streamCount--;
 
+    var ip = ipFromRowID(id);
+    updateFPPVersionInfo(ip);
+
     EnableDisableStreamButtons();
 }
 
 function restartFailed(id) {
-    var ip = id.replace('fpp_', '').replace('_logText', '');
+    var ip = ipFromRowID(id);
 
     alert('Restart failed out for FPP system at ' + ip);
 
@@ -496,7 +518,7 @@ function restartSelectedSystems() {
             $('#' + rowID + '_logs').show();
             rowSpanUp(rowID);
 
-            var ip = rowID.replace('fpp_', '').replace(/_/g, '.');
+            var ip = ipFromRowID(rowID);
 
             if ($('#' + rowID + '_logText').val() != '')
                 $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
