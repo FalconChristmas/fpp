@@ -202,7 +202,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                
 			//Expert View Rows
             if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'password') {
-                $('#' + rowID + '_platform').html(data.advancedView.Platform + "<br><small class='hostDescriptionSM'>" + data.advancedView.Variant + "</small>");
+                $('#' + rowID + '_platform').html(data.advancedView.Platform);
 
                 var updatesAvailable = 0;
                 if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -336,7 +336,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			var newRow = "<tr id='" + rowID + "'>" +
 				"<td class='hostnameColumn'>" + link + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
 				"<td>" + data[i].IP + "</td>" +
-                "<td id='" + rowID + "_platform'>" + data[i].Platform + "<br><small class='hostDescriptionSM'>" + data[i].model + "</small></td>" +
+                "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
 				"<td>" + fppMode + "</td>" +
 				"<td id='" + rowID + "_status'></td>" +
 				"<td id='" + rowID + "_elapsed'></td>";
@@ -551,14 +551,14 @@ function restartSelectedSystems() {
 						<th>Platform</th>
 						<th>Mode</th>
 						<th>Status</th>
-						<th data-sorter='false'>Elapsed</th>
+						<th data-sorter='false' data-filter='false'>Elapsed</th>
 						<th>Version</th>
 						<?php
                         //Only show expert view is requested
 						if ($advancedView == true) {
 							?>
-                            <th>Git Versions</th>
-                            <th>Utilization</th>
+                            <th data-sorter='false' data-filter='false'>Git Versions</th>
+                            <th data-sorter='false' data-filter='false'>Utilization</th>
                             <th data-sorter='false' data-filter='false'>Select</th>
                         <?php
                     }
@@ -626,7 +626,22 @@ $(document).ready(function() {
 	getFPPSystems();
     showHideSyncCheckboxes();
 
-    $('#fppSystemsTable').tablesorter({
+    var $table = $('#fppSystemsTable');
+
+    $table
+    .bind('filterInit', function() {
+        $table.find('.tablesorter-filter').hide().each(function(){
+            var w, $t = $(this);
+            w = $t.closest('td').innerWidth();
+            $t
+                .show()
+                .css({
+                    'min-width': w,
+                    width: w // 'auto' makes it wide again
+                });
+        });
+    })
+    .tablesorter({
         widthFixed: false,
         theme: 'blue',
         cssInfoBlock: 'tablesorter-no-sort',

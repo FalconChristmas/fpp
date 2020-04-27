@@ -431,11 +431,11 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
                     values[key] = val;
                 }
             }
-            if (values["PRETTY_NAME"] != "") {
-                return "FPP (" + values["PRETTY_NAME"] + ")";
-            }
             if (values["NAME"] != "") {
                 return "FPP (" + values["NAME"] + ")";
+            }
+            if (values["PRETTY_NAME"] != "") {
+                return "FPP (" + values["PRETTY_NAME"] + ")";
             }
         }
         return "FPP (unknown hardware)";
