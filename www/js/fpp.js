@@ -167,6 +167,65 @@ function HandleTableRowMouseClick(event, row) {
     }
 }
 
+function StreamURL(url, id, doneCallback = '', errorCallback = '') {
+    var last_response_len = false;
+    var outputArea = document.getElementById(id);
+    var reAddLF = false;
+
+    $.ajax(url, {
+        xhrFields: {
+            onprogress: function(e)
+            {
+                var this_response, response = e.currentTarget.response;
+                if(last_response_len === false)
+                {
+                    this_response = response;
+                    last_response_len = response.length;
+                }
+                else
+                {
+                    this_response = response.substring(last_response_len);
+                    last_response_len = response.length;
+                }
+
+                if (reAddLF) {
+                    this_response = "\n" + this_response;
+                    reAddLF = false;
+                }
+
+                if (this_response.endsWith("\n")) {
+                    this_response = this_response.replace(/\n$/, "");
+                    reAddLF = true;
+                }
+
+                if ((outputArea.nodeName == "DIV") ||
+                    (outputArea.nodeName == "TD") ||
+                    (outputArea.nodeName == "PRE") ||
+                    (outputArea.nodeName == "SPAN")) {
+                    if (outputArea.nodename != "PRE") {
+                        this_response = this_response.replace(/(?:\r\n|\r|\n)/g, '<br>');
+                    }
+
+                    outputArea.innerHTML += this_response;
+                } else {
+                    outputArea.value += this_response;
+                }
+
+                outputArea.scrollTop = outputArea.scrollHeight;
+                outputArea.parentElement.scrollTop = outputArea.parentElement.scrollHeight;
+            }
+        }
+    }).done(function(data) {
+        if (doneCallback != '') {
+            window[doneCallback](id);
+        }
+    }).fail(function(data) {
+        if (errorCallback != '') {
+            window[errorCallback](id);
+        }
+    });
+}
+
 function Get(url, async) {
     var result = {};
 
@@ -1391,7 +1450,11 @@ function RemovePlaylistEntry()	{
 		{
 			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'))
 			{
-                location.href="upgradefpp.php?version=v" + newVersion;
+                $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade" });
+                $('#upgradePopup').dialog( "moveToTop" );
+                $('#upgradeText').html('');
+
+                StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeText');
 			}
 		}
 

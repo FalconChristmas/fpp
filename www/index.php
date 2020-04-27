@@ -320,5 +320,9 @@ include "playlistDetails.php";
 </div>
 <?php	include 'common/footer.inc'; ?>
 </div>
+<div id='upgradePopup' title='FPP Upgrade' style="display: none">
+    <pre id='upgradeText'>
+    </pre>
+</div>
 </body>
 </html>

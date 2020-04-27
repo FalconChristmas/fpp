@@ -116,8 +116,20 @@ this.value = default_value;
 function UpgradeOS() {
     var os = $('#OSSelect').val();
     if (confirm('Upgrade the OS using ' + os + '?\nThis can take a long time.')) {
-        location.href="upgradeOS.php?os=" + os;
+        $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP OS Upgrade" });
+        $('#upgradePopup').dialog( "moveToTop" );
+        $('#upgradeText').html('');
+
+        StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText');
     }
+}
+
+function UpgradeFPP() {
+    $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade" });
+    $('#upgradePopup').dialog( "moveToTop" );
+    $('#upgradeText').html('');
+
+    StreamURL('manualUpdate.php?wrapped=1', 'upgradeText');
 }
 
 </script>
@@ -215,16 +227,8 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
     echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
 ?>
                 </td></tr>
-            <tr><td>Update FPP:</td><td><input type='button' value='Update FPP' onClick='location.href="manualUpdate.php";' class='buttons' id='ManualUpdate'></td></tr>
+            <tr><td>Upgrade FPP:</td><td><input type='button' value='Upgrade FPP' onClick='UpgradeFPP();' class='buttons' id='ManualUpdate'></td></tr>
 <?
-            $osUpdateFiles = getFileList($uploadDirectory, "fppos");
-            if (count($osUpdateFiles) > 0) {
-                echo "<tr><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
-                foreach ($osUpdateFiles as $key => $value) {
-                    echo "<option value='" . $value . "'>" . $value . "</option>\n";
-                }
-                echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
-            }
     if ($settings['uiLevel'] > 0) {
         $upgradeSources = Array();
         $data = file_get_contents('http://localhost/api/remotes');
@@ -233,14 +237,25 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
         $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
 
         foreach ($arr as $host => $desc) {
-            if (!in_array($host, $IPs)) {
+            if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
                 $upgradeSources[$desc] = $host;
             }
         }
         $upgradeSources = array("github.com" => "github.com") + $upgradeSources;
 ?>
-            <tr><td>Upgrade Source:</td><td><? PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?></td></tr>
-<? } ?>
+            <tr><td>FPP Upgrade Source:</td><td><? PrintSettingSelect("Upgrade Source", "UpgradeSource", 0, 0, "github.com", $upgradeSources); ?></td></tr>
+<?
+    }
+
+    $osUpdateFiles = getFileList($uploadDirectory, "fppos");
+    if (count($osUpdateFiles) > 0) {
+        echo "<tr><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
+        foreach ($osUpdateFiles as $key => $value) {
+            echo "<option value='" . $value . "'>" . $value . "</option>\n";
+        }
+        echo "</select>&nbsp;<input type='button' value='Upgrade OS' onClick='UpgradeOS();' class='buttons' id='OSUpgrade'></td></tr>";
+    }
+?>
             <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
             <tr><td><b>System Utilization</b></td><td>&nbsp;</td></tr>
             <tr><td>CPU Usage:</td><td><? printf( "%.2f", get_server_cpu_usage()); ?>%</td></tr>
@@ -386,6 +401,10 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
     </div>
   </div>
   <?php include 'common/footer.inc'; ?>
+</div>
+<div id='upgradePopup' title='FPP Upgrade' style="display: none">
+    <pre id='upgradeText'>
+    </pre>
 </div>
 </body>
 </html>

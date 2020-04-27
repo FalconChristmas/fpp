@@ -173,6 +173,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             if (data.warnings != null && data.warnings.length > 0) {
                var result_style = document.getElementById(rowID + '_warnings').style;
                result_style.display = 'table-row';
+
+               // Handle tablesorter bug not assigning same color to child rows
+               if ($('#' + rowID).hasClass('odd'))
+                   $('#' + rowID + '_warnings').addClass('odd');
+
                var wHTML = "";
                for(var i = 0; i < data.warnings.length; i++) {
                 wHTML += "<font color='red'>" + data.warnings[i] + "</font><br>";
@@ -334,20 +339,22 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
                     "<td id='advancedViewUtilization_" + rowID + "'></td>";
 
-//                newRow += "<td align='center'>";
-//                if (platformIsFPP(data[i].Platform))
-//                    newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
+                newRow += "<td align='center'>";
+                if (platformIsFPP(data[i].Platform))
+                    newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
 
-//                newRow += "</td>";
+                newRow += "</td>";
             }
 
             newRow = newRow + "</tr>";
 			$('#fppSystems').append(newRow);
-            
-            newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td></td><td></td><td colspan='7' id='" + rowID + "_warningCell'></td></tr>";
+
+            var colspan = (advancedView === true) ? 9 : 7;
+
+            newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
             $('#fppSystems').append(newRow);
 
-            newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='7' id='" + rowID + "_logCell'></td></tr>";
+            newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr id='" + rowID + "_doneButtons' style='display: none;'><td></td><td><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");'></td></tr></table></td></tr>";
             $('#fppSystems').append(newRow);
 
 			getFPPSystemStatus(ip, data[i].Platform);
@@ -399,6 +406,103 @@ function showHideSyncCheckboxes() {
     }
 }
 
+function rebootRemoteFPP(rowID, ip) {
+    $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+
+    StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText');
+}
+
+var streamCount = 0;
+function EnableDisableStreamButtons() {
+    if (streamCount) {
+        $('#updateButton').attr("disabled", "disabled");
+        $('#restartButton').attr("disabled", "disabled");
+    } else {
+        $('#updateButton').removeAttr("disabled");
+        $('#restartButton').removeAttr("disabled");
+    }
+}
+
+function updateDone(id) {
+    id = id.replace('_logText', '');
+    $('#' + id + '_doneButtons').show();
+    streamCount--;
+
+    EnableDisableStreamButtons();
+}
+
+function updateFailed(id) {
+    var ip = id.replace('fpp_', '').replace('_logText', '');
+
+    alert('Update failed for FPP system at ' + ip);
+    streamCount--;
+
+    EnableDisableStreamButtons();
+}
+
+function updateSelectedSystems() {
+	$('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
+            streamCount++;
+            EnableDisableStreamButtons();
+
+            var rowID = $(this).closest('tr').attr('id');
+
+            // Handle tablesorter bug not assigning same color to child rows
+            if ($('#' + rowID).hasClass('odd'))
+                $('#' + rowID + '_logs').addClass('odd');
+
+            $('#' + rowID + '_logs').show();
+            rowSpanUp(rowID);
+
+            var ip = rowID.replace('fpp_', '').replace(/_/g, '.');
+
+            StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'updateDone', 'updateFailed');
+        }
+    });
+}
+
+function restartDone(id) {
+    streamCount--;
+
+    EnableDisableStreamButtons();
+}
+
+function restartFailed(id) {
+    var ip = id.replace('fpp_', '').replace('_logText', '');
+
+    alert('Restart failed out for FPP system at ' + ip);
+
+    streamCount--;
+
+    EnableDisableStreamButtons();
+}
+
+function restartSelectedSystems() {
+	$('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
+            streamCount++;
+            EnableDisableStreamButtons();
+
+            var rowID = $(this).closest('tr').attr('id');
+
+            // Handle tablesorter bug not assigning same color to child rows
+            if ($('#' + rowID).hasClass('odd'))
+                $('#' + rowID + '_logs').addClass('odd');
+
+            $('#' + rowID + '_logs').show();
+            rowSpanUp(rowID);
+
+            var ip = rowID.replace('fpp_', '').replace(/_/g, '.');
+
+            if ($('#' + rowID + '_logText').val() != '')
+                $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+
+            StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+        }
+    });
+}
+
 </script>
 </head>
 <body>
@@ -426,26 +530,26 @@ function showHideSyncCheckboxes() {
 							?>
                             <th>Git Versions</th>
                             <th>Utilization</th>
-                            <!--
                             <th data-sorter='false' data-filter='false'>Select</th>
-                            -->
-							<?php
-						}
-						?>
-                    </tr>
-				</thead>
-				<tbody id='fppSystems'>
-					<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
-				</tbody>
-			</table>
-        </div>
+                        <?php
+                    }
+                    ?>
+                </tr>
+            </thead>
+            <tbody id='fppSystems'>
+                <tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
+            </tbody>
+        </table>
     </div>
-    <font size=-1>
-        <span id='legend'>
-			<input type='button' class='buttons' value='Refresh' onClick='getFPPSystems();'>
-            <span class='masterOptions' style='display:none'><br>&#x2713; - Sync Remote FPP with this Master instance</span>
-		</span>
-    </font>
+</div>
+<div style='text-align: right;'>
+    <input type='button' class='buttons' value='Refresh List' onClick='getFPPSystems();' style='float: left;'>
+    <div>
+        Selected Systems:<br>
+    <input id='updateButton' type='button' class='buttons' value='Update' onClick='updateSelectedSystems();'>
+    <input id='restartButton' type='button' class='buttons' value='Restart FPPD' onClick='restartSelectedSystems();'>
+    </div>
+</div>
     <br>
     <hr>
             <table class='settingsTable'>

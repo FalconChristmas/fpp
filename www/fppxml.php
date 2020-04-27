@@ -121,6 +121,8 @@ function RebootPi()
 	global $SUDO;
 
 	$status=exec($SUDO . " shutdown -r now");
+
+    header( "Access-Control-Allow-Origin: *");
 	EchoStatusXML($status);
 }
 
@@ -730,6 +732,8 @@ function StartFPPD()
 
 function RestartFPPD()
 {
+    header( "Access-Control-Allow-Origin: *");
+
     if ((isset($_GET['quick'])) && ($_GET['quick'] == 1))
     {
         $status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
