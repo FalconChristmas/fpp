@@ -644,6 +644,9 @@
             "description": "Send MultiSync to ALL remotes via Broadcast",
             "tip": "Use a network broadcast to send MultiSync messages to all remotes.",
             "type": "checkbox",
+            "fppModes": [
+                "master"
+            ],
             "restart": 2
         },
         "MultiSyncCopyEffects": {
@@ -687,6 +690,9 @@
             "description": "Extra MultiSync Remote IPs (CSV list)",
             "tip": "Comma Separated list of additional remote IPs to include when sending MultiSync commands",
             "level": 1,
+            "fppModes": [
+                "master"
+            ],
             "restart": 2,
             "size": 48,
             "maxlength": 128,
@@ -715,6 +721,9 @@
             "description": "Send MultiSync to ALL remotes via Multicast (239.70.80.80)",
             "tip": "Send MultiCast to 239.70.80.80 to send MultiSync messages to all remotes.",
             "type": "checkbox",
+            "fppModes": [
+                "master"
+            ],
             "restart": 2,
             "default": 1
         },
