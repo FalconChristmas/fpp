@@ -129,11 +129,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 		});
     }
 
-	function getFPPSystemInfo(ip, platform) {
-        //eventually figure out what to do
-        if (!platformIsFPP(platform))
-            return;
-
+	function getFPPSystemInfo(ip) {
 		$.get("http://" + ip + "/fppjson.php?command=getHostNameInfo", function(data) {
 			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
 		});
@@ -148,11 +144,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         refreshTimers = new Object();
     }
 
-	function getFPPSystemStatus(ip, platform) {
-        //eventually figure out what to do
-        if (!platformIsFPP(platform))
-            return;
-
+	function getFPPSystemStatus(ip) {
         var refreshKey = ip.replace(/\./g, '_');
         if (refreshTimers.hasOwnProperty(refreshKey)) {
             clearTimeout(refreshTimers[refreshKey]);
@@ -279,7 +271,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             }
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked")) {
-				refreshTimers[refreshKey] = setTimeout(function() {getFPPSystemStatus(ip, platform);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
+				refreshTimers[refreshKey] = setTimeout(function() {getFPPSystemStatus(ip);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
             }
 		});
 	}
@@ -410,8 +402,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanDown(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
             $('#fppSystems').append(newRow);
 
-			getFPPSystemStatus(ip, data[i].Platform);
-			getFPPSystemInfo(ip, data[i].Platform);
+            if (platformIsFPP(data[i].Platform)) {
+                getFPPSystemStatus(ip);
+                getFPPSystemInfo(ip);
+            }
 		}
         var extras = "";
         for (var x in remotes) {
@@ -692,6 +686,7 @@ $(document).ready(function() {
         }
     });
 
+    $('.tablesorter-filter').attr('title', 'Filter the system list by entering search text.');
 });
 
 </script>
