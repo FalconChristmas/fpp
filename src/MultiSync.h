@@ -202,6 +202,7 @@ class MultiSync {
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
 
 	void Ping(int discover = 0, bool broadcast = true);
+    void PingSingleRemote(const char *address, int discover = 0);
 	void Discover(void) { Ping(1); }
     void PeriodicPing();
 
@@ -247,7 +248,7 @@ class MultiSync {
     bool isSupportedForMultisync(const char *address, const char *intface);
     
     void setupMulticastReceive();
-    void PingSingleRemote(MultiSyncSystem &sys);
+    void PingSingleRemote(MultiSyncSystem &sys, int discover = 0);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
 
 	MultiSyncSystemType ModelStringToType(std::string model);

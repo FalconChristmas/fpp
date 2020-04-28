@@ -687,12 +687,9 @@
         },
         "MultiSyncExtraRemotes": {
             "name": "MultiSyncExtraRemotes",
-            "description": "Extra MultiSync Remote IPs (CSV list)",
+            "description": "Additional FPP Instances (CSV list)",
             "tip": "Comma Separated list of additional remote IPs to include when sending MultiSync commands",
             "level": 1,
-            "fppModes": [
-                "master"
-            ],
             "restart": 2,
             "size": 48,
             "maxlength": 128,

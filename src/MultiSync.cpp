@@ -566,6 +566,20 @@ void MultiSync::Ping(int discover, bool broadcast)
         }
         lock.lock();
     }
+
+    if (discover) {
+        std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
+        if (extraRemotes != "") {
+            std::vector<std::string> tokens = split(extraRemotes, ',');
+            std::set<std::string> remotes;
+            for (auto &token : tokens) {
+                TrimWhiteSpace(token);
+                if (token != "") {
+                    PingSingleRemote(token.c_str(), 1);
+                }
+            }
+        }
+    }
 }
 void MultiSync::PeriodicPing() {
     time_t t = time(NULL);
@@ -601,7 +615,7 @@ void MultiSync::PeriodicPing() {
                 m_remoteSystems.erase(it);
             } else if (it->lastSeen < timeoutRePing) {
                 //do a ping
-                PingSingleRemote(*it);
+                PingSingleRemote(*it, 1);
                 ++it;
             } else {
                 ++it;
@@ -609,20 +623,40 @@ void MultiSync::PeriodicPing() {
         }
     }
 }
-void MultiSync::PingSingleRemote(MultiSyncSystem &sys) {
+
+void MultiSync::PingSingleRemote(const char *address, int discover) {
+    MultiSyncSystem sys;
+
+    sys.address = address;
+
+    PingSingleRemote(sys, discover);
+}
+
+void MultiSync::PingSingleRemote(MultiSyncSystem &sys, int discover) {
     if (m_localSystems.empty()) {
         return;
     }
     char           outBuf[512];
     memset(outBuf, 0, sizeof(outBuf));
-    int len = CreatePingPacket(m_localSystems[0], outBuf, 1);
+    int len = CreatePingPacket(m_localSystems[0], outBuf, discover);
     struct sockaddr_in dest_addr;
     memset(&dest_addr, 0, sizeof(dest_addr));
     dest_addr.sin_family = AF_INET;
     dest_addr.sin_addr.s_addr = inet_addr(sys.address.c_str());
     dest_addr.sin_port   = htons(FPP_CTRL_PORT);
     std::unique_lock<std::mutex> lock(m_socketLock);
-    sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    if (m_controlSock >= 0) {
+        sendto(m_controlSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+    } else {
+        int pingSock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (pingSock < 0) {
+            LogErr(VB_SYNC, "Error opening Ping socket\n");
+            return;
+        }
+
+        sendto(pingSock, outBuf, len, MSG_DONTWAIT, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+        close(pingSock);
+    }
 }
 int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int discover) {
     ControlPkt    *cpkt = (ControlPkt*)outBuf;
@@ -1950,6 +1984,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
         }
         lock.unlock();
         if ((hostname != m_hostname) && !isLocal) {
+            multiSync->PingSingleRemote(addrStr, 0);
             multiSync->Ping();
         }
     }
