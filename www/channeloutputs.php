@@ -138,6 +138,13 @@ if (file_exists($settings['channelOutputsJSON']))
 	$channelOutputsJSON = preg_replace("/\"/", "\\\"", $channelOutputsJSON);
 }
 
+// If led panels are enabled, make sure the page is displayed even if the cape is a string cape (could be a colorlight output)
+if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null ) {
+    if ($channelOutputs['channelOutputs'][0]['type'] == "LEDPanelMatrix" && $channelOutputs['channelOutputs'][0]['enabled'] == 1) {
+        $currentCapeInfo["provides"][] = 'panels';
+    }
+}
+
 ?>
 
 function handleCOKeypress(e)
@@ -223,7 +230,9 @@ $(document).ready(function(){
         ($settings['Platform'] == "Linux")) {
         echo "<li><a href='#tab-PixelStrings'>X11 Pixel Strings</a></li>\n";
     }
-    if (in_array('all', $currentCapeInfo["provides"]) || !in_array('strings', $currentCapeInfo["provides"])) {
+    if (in_array('all', $currentCapeInfo["provides"])
+	|| in_array('panels', $currentCapeInfo["provides"])
+	|| !in_array('strings', $currentCapeInfo["provides"])) {
         echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
     }
 ?>
@@ -235,11 +244,6 @@ $(document).ready(function(){
 <?
 
 include_once('co-universes.php');
-if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $channelOutputs['channelOutputs'][0] != null ) {
-    if ($channelOutputs['channelOutputs'][0]['type'] == "LEDPanelMatrix" && $channelOutputs['channelOutputs'][0]['enabled'] == 1) {
-        $currentCapeInfo["provides"][] = 'strings';
-    }
-}
 
 if ($settings['Platform'] == "Raspberry Pi")
 {
@@ -251,7 +255,9 @@ if ($settings['Platform'] == "Raspberry Pi")
     }
 }
 
-if (in_array('all', $currentCapeInfo["provides"]) || !in_array('strings', $currentCapeInfo["provides"])) {
+if (in_array('all', $currentCapeInfo["provides"]) 
+    || in_array('panels', $currentCapeInfo["provides"])
+    || !in_array('strings', $currentCapeInfo["provides"])) {
     include_once('co-ledPanels.php');
 }
 
