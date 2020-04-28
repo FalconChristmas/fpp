@@ -15,6 +15,20 @@ function check($var, $var_name = "", $function_name = "")
 		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
 }
 
+function getFileList($dir, $ext)
+{
+  $i = array();
+  if ($handle = opendir($dir)) {
+      while (($file = readdir($handle)) !== false) {
+          if (!in_array($file, array('.', '..')) && !is_dir($dir . $file) && strtolower(substr($file, strrpos($file, '.') + 1)) == $ext) {
+              array_push($i, $file);
+          }
+      }
+  }
+  return $i;
+}
+
+
 function ScrubFile($filename, $taboo = Array("emailgpass"))
 {
 	if ( !file_exists($filename) )

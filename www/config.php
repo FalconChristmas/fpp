@@ -163,6 +163,7 @@ if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
 
 $settings['Variant'] = $settings['Platform'];
 $settings['SubPlatform'] = "";
+$settings['OSImagePrefix'] = "";
 
 if ($settings['Platform'] == FALSE) {
 	$settings['Platform'] = exec("uname -s");
@@ -170,6 +171,7 @@ if ($settings['Platform'] == FALSE) {
 }
 
 if ($settings['Platform'] == "Raspberry Pi") {
+    $settings['OSImagePrefix'] = "Pi";
 	$settings['LogoLink'] = "http://raspberrypi.org/";
 	$settings['SubPlatform'] = trim(file_get_contents("/sys/firmware/devicetree/base/model"));
 
@@ -215,6 +217,7 @@ if ($settings['Platform'] == "Raspberry Pi") {
 		$settings['Logo'] = "Raspberry_Pi_Logo.png";
 	}
 } else if ($settings['Platform'] == "BeagleBone Black") {
+    $settings['OSImagePrefix'] = "BBB";
 	$settings['LogoLink'] = "http://beagleboard.org/";
 	$settings['BBB_Tethering'] = "1";
 	$settings['SubPlatform'] = trim(file_get_contents("/proc/device-tree/model"));

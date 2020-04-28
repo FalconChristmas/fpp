@@ -77,18 +77,6 @@ function getFileCount($dir)
   return $i;
 }
     
-function getFileList($dir, $ext)
-{
-  $i = array();
-  if ($handle = opendir($dir)) {
-      while (($file = readdir($handle)) !== false) {
-          if (!in_array($file, array('.', '..')) && !is_dir($dir . $file) && strtolower(substr($file, strrpos($file, '.') + 1)) == $ext) {
-              array_push($i, $file);
-          }
-      }
-  }
-  return $i;
-}
 ?>
 
 <head>
@@ -270,7 +258,7 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
 <?
     }
 
-    $osUpdateFiles = getFileList($uploadDirectory, "fppos");
+    $osUpdateFiles = preg_grep("/^" . $settings['OSImagePrefix'] . "-/", getFileList($uploadDirectory, "fppos"));
     if (count($osUpdateFiles) > 0) {
         echo "<tr><td>Upgrade OS:</td><td><select class='OSSelect' id='OSSelect'>\n";
         foreach ($osUpdateFiles as $key => $value) {
