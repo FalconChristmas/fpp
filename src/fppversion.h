@@ -28,5 +28,5 @@ const char *getFPPVersion(void);
 const char *getFPPMajorVersion(void);
 const char *getFPPMinorVersion(void);
 const char *getFPPBranch(void);
-void logVersionInfo(void);
+const char *getFPPVersionTriplet(void);
 void printVersionInfo(void);

@@ -61,7 +61,7 @@
 #include <curl/curl.h>
 
 #include "common.h"
-#include "fppversion_defines.h"
+#include "fppversion.h"
 #include "log.h"
 
 /*
@@ -805,7 +805,8 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 {
 	CURL *curl = curl_easy_init();
 	struct curl_slist *headers = NULL;
-	std::string userAgent = "FPP/" FPP_SOURCE_VERSION_STR;
+    std::string userAgent = "FPP/";
+    userAgent += getFPPVersionTriplet();
 
 	resp = "";
 

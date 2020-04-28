@@ -31,7 +31,6 @@
 #include <iomanip>
 #include <ctime>
 
-#include "fppversion_defines.h"
 #include "HTTPVirtualDisplay.h"
 
 
@@ -222,7 +221,9 @@ void HTTPVirtualDisplayOutput::ConnectionThread(void)
 			sseResp +=
 				"\r\n"
 				"Server: fppd\r\n"
-				"X-Powered-By: FPP/" FPP_SOURCE_VERSION_STR "\r\n"
+                "X-Powered-By: FPP/";
+            sseResp += getFPPVersion();
+            sseResp += "\r\n"
 				"Cache-Control: no-cache, private\r\n"
 				"Access-Control-Allow-Origin: *\r\n"
 				"Access-Control-Allow-Credentials: true\r\n"
