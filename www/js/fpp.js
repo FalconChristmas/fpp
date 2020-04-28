@@ -258,8 +258,18 @@ function SetupToolTips(delay = 100) {
         content: function() {
             $('.ui-tooltip').hide();
             var id = $(this).attr('id');
-            id = id.replace('_img', '_tip');
-            return $('#' + id).html();
+            if ((typeof id != "undefined") &&
+                (id.endsWith('_img'))) {
+                id = id.replace('_img', '_tip');
+                return $('#' + id).html();
+            }
+
+            var title = $(this).attr('title');
+            if (typeof title != "undefined") {
+                return title;
+            }
+
+            return "";
         },
         hide: { delay: delay }
     });
