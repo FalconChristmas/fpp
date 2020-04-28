@@ -3,6 +3,7 @@
 *.pyc
 .buildpath
 *.gch
+*.gch.sum
 build/
 SD/*.xz
 lib/librgbmatrix.so

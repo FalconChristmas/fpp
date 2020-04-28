@@ -393,7 +393,9 @@ populateCCACHE() {
     # set the CCache sizes/flags that we need to be able to successfully compile
     sudo ccache -M 250M
     sudo ccache --set-config=temporary_dir=/tmp
-    sudo ccache --set-config=sloppiness=pch_defines,time_macros
+    sudo ccache --set-config=sloppiness=pch_defines,time_macros,locale
+    sudo ccache --set-config=pch_external_checksum=true
+    sudo ccache --set-config=hard_link=true
 }
 
 compileBinaries() {

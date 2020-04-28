@@ -72,6 +72,7 @@ ifeq '$(CXXCOMPILER)' 'g++'
 PCH_FILE=fpp-pch.h.gch
 fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h
 	CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -DNO_ONCE_PRAGMA -c $< -o $@
+	sha1sum $(PCH_FILE) > $(PCH_FILE).sum
 endif
 
 %.o: %.cpp %.h $(PCH_FILE) fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
@@ -87,7 +88,7 @@ cleanfpp:
 	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP)
 
 clean::
-	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE)
+	rm -f fppversion.c fppversion_defines.h $(OBJECTS_ALL) $(TARGETS) $(TARGETS_PHP) $(PCH_FILE) $(PCH_FILE).sum
 
 restart: fppd
 	sudo ../scripts/fppd_stop
