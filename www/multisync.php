@@ -19,7 +19,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 <title><? echo $pageTitle; ?></title>
 <script>
-    var rowSpans = [];
+    var rowSpans = new Object();
     var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
 
     function rowSpanSet(rowID) {
@@ -27,7 +27,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
 
     function rowSpanUp(rowID) {
-        if (!rowSpans.includes(rowID))
+        if (!rowSpans.hasOwnProperty(rowID))
             rowSpans[rowID] = 1;
 
         rowSpans[rowID] += 1;
@@ -35,8 +35,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
 
     function rowSpanDown(rowID) {
-        if (!rowSpans.includes(rowID))
+        if (!rowSpans.hasOwnProperty(rowID)) {
             rowSpans[rowID] = 1;
+        }
 
         if (rowSpans[rowID] <= 1)
             return;
@@ -92,13 +93,39 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return true;
     }
 
+    function getLocalVersionLink(ip, data) {
+        var updatesAvailable = 0;
+        if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
+            (typeof (data.advancedView.LocalGitVersion) !== 'undefined') &&
+            (data.advancedView.RemoteGitVersion !== "Unknown") &&
+            (data.advancedView.RemoteGitVersion !== "") &&
+            (data.advancedView.RemoteGitVersion !== data.advancedView.LocalGitVersion)) {
+            updatesAvailable = 1;
+        }
+
+        var localVer = "<a href='http://" + ip + "/about.php' target='_blank'><b><font color='";
+        if (updatesAvailable) {
+            localVer += 'red';
+        } else if (data.advancedView.RemoteGitVersion !== "") {
+            localVer += 'darkgreen';
+        } else {
+            localVer += 'blue';
+        }
+        localVer += "'>" + data.advancedView.LocalGitVersion + "</font></b></a>";
+
+        return localVer;
+    }
+
     function updateFPPVersionInfo(ip) {
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + '&advancedView=true').done(function(data) {
             var rowID = "fpp_" + ip.replace(/\./g, '_');
             $('#' + rowID + '_version').html(data.advancedView.Version);
             $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
-            $('#' + rowID + '_localgitvers').html("<a href='http://" + ip + "/about.php' target='_blank'><b><font color='red'>" + data.advancedView.LocalGitVersion + "</a>");
             $('#' + rowID + '_remotegitvers').html(data.advancedView.RemoteGitVersion);
+
+            var localVer = getLocalVersionLink(ip, data);
+
+            $('#' + rowID + '_localgitvers').html(localVer);
 		});
     }
 
@@ -230,14 +257,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 var u = "<table class='multiSyncVerboseTable'>" +
                     "<tr><td>Local:</td><td id='" + rowID + "_localgitvers'>";
-                if (updatesAvailable) {
-                    u += "<a href='http://" + ip + "/about.php' target='_blank'><b><font color='red'>" +
-                        data.advancedView.LocalGitVersion + "</font></b></a>";
-                } else if (data.advancedView.RemoteGitVersion !== "") {
-                    u += "<font color='darkgreen'><b>" + data.advancedView.LocalGitVersion + "</b></font>";
-                } else {
-                    u += data.advancedView.LocalGitVersion;
-                }
+                u += getLocalVersionLink(ip, data);
                 u += "</td></tr>" +
                     "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
                     "</table>";
@@ -387,7 +407,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
             $('#fppSystems').append(newRow);
 
-            newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr id='" + rowID + "_doneButtons' style='display: none;'><td></td><td><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");'></td></tr></table></td></tr>";
+            newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanDown(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
             $('#fppSystems').append(newRow);
 
 			getFPPSystemStatus(ip, data[i].Platform);
@@ -462,7 +482,7 @@ function EnableDisableStreamButtons() {
     }
 }
 
-function updateDone(id) {
+function upgradeDone(id) {
     id = id.replace('_logText', '');
     $('#' + id + '_doneButtons').show();
     streamCount--;
@@ -473,7 +493,7 @@ function updateDone(id) {
     EnableDisableStreamButtons();
 }
 
-function updateFailed(id) {
+function upgradeFailed(id) {
     var ip = ipFromRowID(id);
 
     alert('Update failed for FPP system at ' + ip);
@@ -482,7 +502,7 @@ function updateFailed(id) {
     EnableDisableStreamButtons();
 }
 
-function updateSelectedSystems() {
+function upgradeSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
             streamCount++;
@@ -502,7 +522,7 @@ function updateSelectedSystems() {
             if ($('#' + rowID + '_logText').val() != '')
                 $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
 
-            StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'updateDone', 'updateFailed');
+            StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
         }
     });
 }
@@ -524,6 +544,13 @@ function restartFailed(id) {
     streamCount--;
 
     EnableDisableStreamButtons();
+}
+
+function restartSystem(rowID) {
+    $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+
+    var ip = ipFromRowID(rowID);
+    StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText');
 }
 
 function restartSelectedSystems() {
@@ -597,7 +624,7 @@ if ($advancedView) {
 ?>
     <div>
         Selected Systems:<br>
-    <input id='updateButton' type='button' class='buttons' value='Upgrade FPP' onClick='updateSelectedSystems();'>
+    <input id='updateButton' type='button' class='buttons' value='Upgrade FPP' onClick='upgradeSelectedSystems();'>
     <input id='restartButton' type='button' class='buttons' value='Restart FPPD' onClick='restartSelectedSystems();'>
     </div>
 <? } ?>
