@@ -112,12 +112,25 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 		});
 	}
 
+    var refreshTimers = new Object();
+    function clearRefreshTimers() {
+        for (var refreshKey in refreshTimers) {
+            clearTimeout(refreshTimers[refreshKey]);
+        }
+
+        refreshTimers = new Object();
+    }
+
 	function getFPPSystemStatus(ip, platform) {
         //eventually figure out what to do
         if (!platformIsFPP(platform))
             return;
 
-//        console.log('getFPPSystemStatus("' + ip + '", "' + platform + '")');
+        var refreshKey = ip.replace(/\./g, '_');
+        if (refreshTimers.hasOwnProperty(refreshKey)) {
+            clearTimeout(refreshTimers[refreshKey]);
+            delete refreshTimers[refreshKey];
+        }
 
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
@@ -245,8 +258,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 $('#advancedViewUtilization_' + rowID).html(u);
             }
 		}).always(function() {
-			if ($('#MultiSyncRefreshStatus').is(":checked"))
-				setTimeout(function() {getFPPSystemStatus(ip, platform);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
+			if ($('#MultiSyncRefreshStatus').is(":checked")) {
+				refreshTimers[refreshKey] = setTimeout(function() {getFPPSystemStatus(ip, platform);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
+            }
 		});
 	}
 
@@ -577,7 +591,7 @@ function restartSelectedSystems() {
     </div>
 </div>
 <div style='text-align: right;'>
-    <input type='button' class='buttons' value='Refresh List' onClick='getFPPSystems();' style='float: left;'>
+    <input type='button' class='buttons' value='Refresh List' onClick='clearRefreshTimers(); getFPPSystems();' style='float: left;'>
 <?
 if ($advancedView) {
 ?>
