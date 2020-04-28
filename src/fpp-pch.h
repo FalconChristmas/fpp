@@ -1,6 +1,5 @@
-#ifndef NO_ONCE_PRAGMA
-#pragma once
-#endif
+#ifndef __FPP_PCH__
+#define __FPP_PCH__
 
 // This #define must be before any #include's
 #define _FILE_OFFSET_BITS 64
@@ -45,3 +44,4 @@
 #include "commands/Commands.h"
 #include "Warnings.h"
 
+#endif

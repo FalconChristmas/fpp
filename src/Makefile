@@ -71,7 +71,7 @@ fppversion_defines.h: fppversion.c
 ifeq '$(CXXCOMPILER)' 'g++'
 PCH_FILE=fpp-pch.h.gch
 fpp-pch.h.gch: fpp-pch.h common.h settings.h Sequence.h fppversion.h log.h mqtt.h Warnings.h commands/Commands.h
-	CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -DNO_ONCE_PRAGMA -c $< -o $@
+	CCACHE_COMPRESS=true $(CCACHE) $(CXXCOMPILER) $(CFLAGS) $(CXXFLAGS) $(CXXFLAGS_$@) -c $< -o $@
 	sha1sum $(PCH_FILE) > $(PCH_FILE).sum
 endif
 
