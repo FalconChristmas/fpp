@@ -155,6 +155,9 @@ public:
 };
 
 static VLCManager vlcManager;
+static constexpr int RATE_AVERAGE_COUNT = 20;
+static std::list<float> lastRates;
+static float rateSum = 0;
 
 VLCOutput::VLCOutput(const std::string &mediaFilename, MediaOutputStatus *status, const std::string &videoOut) {
     LogDebug(VB_MEDIAOUT, "VLCOutput::VLCOutput(%s)\n",
@@ -315,9 +318,19 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             // close enough
             data->lastDiff = 0;
             if (data->currentRate != 1.0) {
-                LogDebug(VB_MEDIAOUT, "Diff: %d    Very close, setting rate to 1.0\n", rawdiff);
-                libvlc_media_player_set_rate(data->vlcPlayer, 1.0f);
-                data->currentRate = 1.0f;
+                LogDebug(VB_MEDIAOUT, "Diff: %d    Very close, using rate of 1.0\n", rawdiff);
+                
+                lastRates.push_back(1.0);
+                lastRates.push_back(1.0);
+                rateSum += 2.0;
+                while (lastRates.size() > RATE_AVERAGE_COUNT) {
+                    rateSum -= lastRates.front();
+                    lastRates.pop_front();
+                }
+                float rate = rateSum / lastRates.size();
+
+                libvlc_media_player_set_rate(data->vlcPlayer, rate);
+                data->currentRate = rate;
                 data->rateDiff = 0;
             }
             return 1;
@@ -382,6 +395,18 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         if (rate > 0.991 && rate < 1.009) {
             rate = 1.0;
         }
+        if (rate > 1.1) rate = 1.1;
+        if (rate < 0.9) rate = 0.9;
+        if (rate > 1.0 && data->currentRate < 1.0) rate = 1.0;
+        if (rate < 1.0 && data->currentRate > 1.0) rate = 1.0;
+        lastRates.push_back(rate);
+        rateSum += rate;
+        if (lastRates.size() > RATE_AVERAGE_COUNT) {
+            rateSum -= lastRates.front();
+            lastRates.pop_front();
+        }
+        rate = rateSum / lastRates.size();
+        
         LogDebug(VB_MEDIAOUT, "Diff: %d     RateDiff:  %0.3f / %d  New rate: %0.3f/%0.3f\n", rawdiff, rateDiff, data->rateDiff, rate, data->currentRate);
         libvlc_media_player_set_rate(data->vlcPlayer, rate);
         data->rateDiff = rateDiffI;

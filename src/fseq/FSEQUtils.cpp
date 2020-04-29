@@ -121,6 +121,21 @@ int parseArguments(int argc, char **argv) {
     return this_option_optind;
 }
 
+static char *escape(char *buf, const char *data) {
+    char *dest = buf;
+    while (*data) {
+        *dest = *data;
+        dest++;
+        if (*data == '\\') {
+            *dest = '\\';
+            *dest++;
+        }
+        data++;
+    }
+    *dest = 0;
+    return buf;
+}
+
 int main(int argc, char *argv[]) {
     int idx = parseArguments(argc, argv);
     if (verbose) {
@@ -137,10 +152,10 @@ int main(int argc, char *argv[]) {
              uint64_t      getUniqueId() const { return m_uniqueId; }
              const std::string& getFilename() const { return m_filename; }
              */
-            char buf[256];
+            char buf[512];
             strcpy(buf, src->getFilename().c_str());
             printf("{\"Name\": \"%s\", \"Version\": \"%d.%d\", \"ID\": \"%" PRIu64 "\", \"StepTime\": %d, \"NumFrames\": %d, \"MaxChannel\": %d, \"ChannelCount\": %d",
-                   basename(buf),
+                   escape(buf, basename(buf)),
                    src->getVersionMajor(), src->getVersionMinor(),
                    src->getUniqueId(),
                    src->getStepTime(),
@@ -167,7 +182,7 @@ int main(int argc, char *argv[]) {
                             } else {
                                 first = false;
                             }
-                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], &head.data[0]);
+                            printf("\"%c%c\": \"%s\"", head.code[0], head.code[1], escape(buf, (const char *)&head.data[0]));
                         }
                     }
                 }
