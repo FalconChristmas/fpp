@@ -41,7 +41,7 @@ apt-get update
 apt-get -y upgrade
 
 #need to install/generate the UTF-8 locales
-apt-get install -y locales git
+apt-get install -y locales git curl
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 localectl set-locale LANG="en_US.utf8"
@@ -57,10 +57,6 @@ cd /opt/scripts/tools
 export KERNEL_VERSION=4.19.106-bone49
 ./update_kernel.sh --lts-4_19 --bone-kernel  $KERNEL_VERSION
 apt-get install -y linux-headers-$KERNEL_VERSION
-
-
-#if the sancloud dtbs are missing in /boot/dtbs/$(uname -r)
-cp -a /boot/dtbs/$(uname -r)/am335x-sancloud-bbe-uboot*  /boot/dtbs/$KERNEL_VERSION/
 
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r)
 apt-get remove -y --purge --autoremove ti-temperature-modules-$(uname -r) ti-debugss-modules-$(uname -r)
@@ -78,10 +74,8 @@ sudo ./update_bootloader.sh
 
 cd /opt/backup/uboot
 export BOOTLOADERVER=v2019.04-r11
-wget https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
-wget https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
-mv -f MLO-am335x_evm-${BOOTLOADERVER} MLO
-mv -f u-boot-am335x_evm-${BOOTLOADERVER}.img u-boot.img
+curl --output MLO  https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
+curl --output u-boot.img https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
 echo "$BOOTLOADERVER" > version.txt
 
 
