@@ -1,1 +1,1 @@
-jquery-3.4.1.min.js
+jquery-latest.min.js
