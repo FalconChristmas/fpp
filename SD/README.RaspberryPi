@@ -72,12 +72,6 @@ up.
 	sudo shutdown -r now
 
 If you are installing to create a SD image zip, do the following:
-    If you did the above on a armv7 Pi, you will need to boot the new image up
-    on a armv6 device and armv7l device to compile the Wifi drivers for the other
-    architectures/kernel.  Boot up and then run:
-    cd /opt/fpp/SD
-    sudo ./FPP-Wifi-Drivers.sh
-
 
 	# Reboot to make sure things take
 	sudo shutdown -r now
