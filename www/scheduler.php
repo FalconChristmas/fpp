@@ -114,7 +114,7 @@ function getSchedule()
 {
     $('#tblScheduleBody').empty();
 
-    $.get('/api/schedule').success(function(data) {
+    $.get('/api/schedule', function(data) {
         GetPlaylistArray(false);
 
         var options = "";

@@ -898,7 +898,7 @@ function SetPlaylistItemMetaData(row) {
     if (((type == 'both') || (type == 'media')) &&
         (typeof file != 'undefined')) {
         file = $('<div/>').html(file).text(); // handle any & or other chars that got converted
-        $.get('/api/media/' + encodeURIComponent(file) + '/duration').success(function(mdata) {
+        $.get('/api/media/' + encodeURIComponent(file) + '/duration', function(mdata) {
             var duration = -1;
 
             if ((mdata.hasOwnProperty(file)) &&
@@ -2774,12 +2774,13 @@ function SetSetting(key, value, restart, reboot) {
     $.ajax({
         url: "fppjson.php?command=setSetting&key=" + key + "&value=" + value,
         timeout: 1000,
-        async: false
-    }).success(function() {
-        if ((key != 'restartFlag') && (key != 'rebootFlag'))
-            $.jGrowl(key + " setting saved.");
+        async: false,
+        success: function() {
+            if ((key != 'restartFlag') && (key != 'rebootFlag'))
+                $.jGrowl(key + " setting saved.");
 
-        CheckRestartRebootFlags();
+            CheckRestartRebootFlags();
+        }
     }).fail(function() {
         DialogError('Save Setting', "Failed to save " + key + " setting.");
         CheckRestartRebootFlags();
@@ -2871,18 +2872,16 @@ function RestartFPPD() {
                     $.ajax({
                             url: "fppxml.php?command=isFPPDrunning",
                             timeout: 1000,
-                            async: true
-                        }
-                    ).success(
-                        function () {
-                            poll_result = true;
-                            //FPP is up then
-                            clearInterval(retry_poll_interval_arr['restartFPPD']);
-                            //run original code for success
-                            $.jGrowl('FPPD Restarted');
-                            ClearRestartFlag();
-                        }
-                    ).fail(
+                            async: true,
+                            success: function () {
+                                poll_result = true;
+                                //FPP is up then
+                                clearInterval(retry_poll_interval_arr['restartFPPD']);
+                                //run original code for success
+                                $.jGrowl('FPPD Restarted');
+                                ClearRestartFlag();
+                            }
+                    }).fail(
                         function () {
                             poll_result = false;
                             retries++;
@@ -2960,7 +2959,7 @@ function PopulatePlaylists(sequencesAlso)
 
 function PlayPlaylist(Playlist, goToStatus = 0)
 {
-    $.get("/api/command/Start Playlist/" + Playlist + "/0").success(function() {
+    $.get("/api/command/Start Playlist/" + Playlist + "/0", function() {
         if (goToStatus)
 	        location.href="index.php";
         else
