@@ -18,7 +18,18 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
 <link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 <title><? echo $pageTitle; ?></title>
+<style>
+input.remoteCheckbox {
+    -ms-transform: scale(2); /* IE */
+    -moz-transform: scale(2); /* FF */
+    -webkit-transform: scale(2); /* Safari and Chrome */
+    -o-transform: scale(2); /* Opera */
+    transform: scale(2);
+    padding: 10px;
+}
+</style>
 <script>
+    var hostRows = new Object();
     var rowSpans = new Object();
     var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
 
@@ -210,6 +221,18 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
+            var hostRowKey = ip.replace(/\./g, '_');
+
+            rowID = hostRows[hostRowKey];
+
+            var curStatus = $('#' + rowID + '_status').html();
+            if (curStatus != "") {
+                // Don't replace an existing status via a different IP
+                return;
+            }
+
+            if ($('#' + rowID).attr('ip') != ip)
+                $('#' + rowID).attr('ip', ip);
 
 			$('#' + rowID + '_status').html(status);
 			$('#' + rowID + '_elapsed').html(elapsed);
@@ -252,6 +275,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 u += getLocalVersionLink(ip, data);
                 u += "</td></tr>" +
                     "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
+                    "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>" +
                     "</table>";
 
                 $('#advancedViewGitVersions_' + rowID).html(u);
@@ -276,9 +300,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 		});
 	}
 
+    function ipLink(ip) {
+        return "<a href='http://" + ip + "/'>" + ip + "</a>";
+    }
+
 	function parseFPPSystems(data) {
 		$('#fppSystems').empty();
         rowSpans = [];
+
+        var uniqueHosts = new Object();
 
 		var remotes = [];
 		if (settings['fppMode'] == 'master') {
@@ -302,7 +332,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
 		for (var i = 0; i < data.length; i++) {
 			var star = "";
-			var link = "";
 			var ip = data[i].IP;
             var hostDescription = data[i].HostDescription;
 
@@ -328,85 +357,109 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 continue;
             }
 
-			if (data[i].Local)
-			{
-				link = data[i].HostName + ' <b>*</b>';
-				star = "*";
-			} else {
-				link = "<a href='http://" + data[i].IP + "/'>" + data[i].HostName + "</a>";
-				if ((settings['fppMode'] == 'master') &&
-						(data[i].fppMode == "remote"))
-				{
-					star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].IP + "'";
-                    if (typeof remotes[data[i].IP] !== 'undefined') {
-						star += " checked";
-                        delete remotes[data[i].IP];
-                    }
-					star += " onClick='updateMultiSyncRemotes(true);'>";
-				}
-			}
-
-			var fppMode = 'Player';
-			if (data[i].fppMode == 'bridge') {
-				fppMode = 'Bridge';
-			} else if (data[i].fppMode == 'master') {
-				fppMode = 'Master';
-			} else if (data[i].fppMode == 'remote') {
-				fppMode = 'Remote';
-
-				if (settings['fppMode'] == 'master')
-                    fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
-            }
-
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
-            rowSpans[rowID] = 1;
+            var newHost = 1;
+            var hostRowKey = ip.replace(/\./g, '_');
 
-			var newRow = "<tr id='" + rowID + "'>" +
-				"<td class='hostnameColumn'>" + link + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
-				"<td>" + data[i].IP + "</td>" +
-                "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
-				"<td>" + fppMode + "</td>" +
-				"<td id='" + rowID + "_status'></td>" +
-				"<td id='" + rowID + "_elapsed'></td>";
+            var hostKey = data[i].HostName + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].lastSeen;
+            hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
 
-            if ((advancedView === true) &&
-                (platformIsFPP(data[i].Platform))) {
-				newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
+            hostRows[hostRowKey] = rowID;
+
+            if (uniqueHosts.hasOwnProperty(hostKey)) {
+                rowID = uniqueHosts[hostKey];
+                hostRows[hostRowKey] = rowID;
+
+                $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].IP));
+
+                if (platformIsFPP(data[i].Platform)) {
+                    getFPPSystemStatus(ip);
+                    getFPPSystemInfo(ip);
+                }
             } else {
-				newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
+                uniqueHosts[hostKey] = rowID;
+
+                var hostname = data[i].HostName;
+                if (data[i].Local)
+                {
+                    hostname += ' <b>*</b>';
+                    star = "*";
+                } else {
+                    if ((settings['fppMode'] == 'master') &&
+                            (data[i].fppMode == "remote"))
+                    {
+                        star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].IP + "'";
+                        if (typeof remotes[data[i].IP] !== 'undefined') {
+                            star += " checked";
+                            delete remotes[data[i].IP];
+                        }
+                        star += " onClick='updateMultiSyncRemotes(true);'>";
+                    }
+                }
+
+                var fppMode = 'Player';
+                if (data[i].fppMode == 'bridge') {
+                    fppMode = 'Bridge';
+                } else if (data[i].fppMode == 'master') {
+                    fppMode = 'Master';
+                } else if (data[i].fppMode == 'remote') {
+                    fppMode = 'Remote';
+
+                    if (settings['fppMode'] == 'master')
+                        fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
+                }
+
+                rowSpans[rowID] = 1;
+
+                var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
+                var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "'>" +
+                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
+                    "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
+                    "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
+                    "<td>" + fppMode + "</td>" +
+                    "<td id='" + rowID + "_status'></td>" +
+                    "<td id='" + rowID + "_elapsed'></td>";
+
+                if ((advancedView === true) &&
+                    (platformIsFPP(data[i].Platform))) {
+                    newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
+                } else {
+                    newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
+                }
+
+                if (advancedView === true) {
+                    newRow +=
+                        "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
+                        "<td id='advancedViewUtilization_" + rowID + "'></td>";
+
+                    newRow += "<td class='centerCenter'>";
+                    if ((platformIsFPP(data[i].Platform)) &&
+                        (!data[i].version.startsWith("1")) &&
+                        (!data[i].version.startsWith("2")) &&
+                        (!data[i].version.startsWith("3")))
+                        newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
+
+                    newRow += "</td>";
+                }
+
+                newRow = newRow + "</tr>";
+                $('#fppSystems').append(newRow);
+
+                var colspan = (advancedView === true) ? 9 : 7;
+
+                newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
+                $('#fppSystems').append(newRow);
+
+                newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanDown(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
+                $('#fppSystems').append(newRow);
+
+                if (platformIsFPP(data[i].Platform)) {
+                    getFPPSystemStatus(ip);
+                    getFPPSystemInfo(ip);
+                }
             }
+        }
 
-            if (advancedView === true) {
-                newRow +=
-                    "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
-                    "<td id='advancedViewUtilization_" + rowID + "'></td>";
-
-                newRow += "<td align='center'>";
-                if ((platformIsFPP(data[i].Platform)) &&
-                    (!data[i].version.startsWith("1")) &&
-                    (!data[i].version.startsWith("2")) &&
-                    (!data[i].version.startsWith("3")))
-                    newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
-
-                newRow += "</td>";
-            }
-
-            newRow = newRow + "</tr>";
-			$('#fppSystems').append(newRow);
-
-            var colspan = (advancedView === true) ? 9 : 7;
-
-            newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
-            $('#fppSystems').append(newRow);
-
-            newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanDown(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
-            $('#fppSystems').append(newRow);
-
-            if (platformIsFPP(data[i].Platform)) {
-                getFPPSystemStatus(ip);
-                getFPPSystemInfo(ip);
-            }
-		}
         var extras = "";
         for (var x in remotes) {
             if (extras != "") {
@@ -419,7 +472,7 @@ if ($uiLevel >= 1) {
 ?>
         var inp = document.getElementById("MultiSyncExtraRemotes");
         if (inp && inp.value == '') {
-            inp.value = extras;
+			$('#MultiSyncExtraRemotes').val(extras).trigger('change');
         }
 <?
 }
@@ -460,7 +513,7 @@ function rebootRemoteFPP(rowID, ip) {
 }
 
 function ipFromRowID(id) {
-    ip = id.replace('fpp_', '').replace(/_/g, '.').replace(/[^\.0-9]/g, '').replace(/\.$/, '');
+    ip = $('#' + id).attr('ip');
 
     return ip;
 }
@@ -468,11 +521,18 @@ function ipFromRowID(id) {
 var streamCount = 0;
 function EnableDisableStreamButtons() {
     if (streamCount) {
-        $('#updateButton').attr("disabled", "disabled");
-        $('#restartButton').attr("disabled", "disabled");
+        $('#performActionButton').prop("disabled", true);
+        $('#refreshButton').prop("disabled", true);
+
+        if (!$('#fppSystemsTableWrapper').hasClass('fppTableWrapperHighlighted')) {
+            $('#fppSystemsTableWrapper').addClass('fppTableWrapperHighlighted');
+            $('#exitWarning').show();
+        }
     } else {
-        $('#updateButton').removeAttr("disabled");
-        $('#restartButton').removeAttr("disabled");
+        $('#performActionButton').prop("disabled", false);
+        $('#refreshButton').prop("disabled", false);
+        $('#fppSystemsTableWrapper').removeClass('fppTableWrapperHighlighted');
+        $('#exitWarning').hide();
     }
 }
 
@@ -494,6 +554,9 @@ function upgradeFailed(id) {
     streamCount--;
 
     EnableDisableStreamButtons();
+
+    if (!$('#fppSystemsTableWrapper').hasClass('fppTableWrapperErrored'))
+        $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
 }
 
 function upgradeSelectedSystems() {
@@ -522,6 +585,8 @@ function upgradeSelectedSystems() {
 }
 
 function restartDone(id) {
+    id = id.replace('_logText', '');
+    $('#' + id + '_doneButtons').show();
     streamCount--;
 
     var ip = ipFromRowID(id);
@@ -572,6 +637,20 @@ function restartSelectedSystems() {
     });
 }
 
+function clearSelected() {
+	$('input.remoteCheckbox').prop('checked', false);
+}
+
+function performMultiAction() {
+    var action = $('#multiAction').val();
+
+    switch (action) {
+        case 'upgradeFPP':     upgradeSelectedSystems();      break;
+        case 'restartFPPD':    restartSelectedSystems();      break;
+        default:               alert('You must select an action first.'); break;
+    }
+}
+
 </script>
 </head>
 <body>
@@ -581,7 +660,7 @@ function restartSelectedSystems() {
 	<div id="uifppsystems" class="settings">
 		<fieldset>
 			<legend>FPP MultiSync</legend>
-            <div class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
+            <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
                 <div class='fppTableContents'>
 			<table id='fppSystemsTable' cellpadding='3'>
 				<thead>
@@ -612,18 +691,24 @@ function restartSelectedSystems() {
     </div>
 </div>
 <div style='text-align: right;'>
-    <input type='button' class='buttons' value='Refresh List' onClick='clearRefreshTimers(); getFPPSystems();' style='float: left;'>
+    <input id='refreshButton' type='button' class='buttons' value='Refresh List' onClick='clearRefreshTimers(); getFPPSystems();' style='float: left;'>
 <?
 if ($advancedView) {
 ?>
     <div>
-        Selected Systems:<br>
-    <input id='updateButton' type='button' class='buttons' value='Upgrade FPP' onClick='upgradeSelectedSystems();'>
-    <input id='restartButton' type='button' class='buttons' value='Restart FPPD' onClick='restartSelectedSystems();'>
+        Selected Systems:
+        <select id='multiAction'>
+            <option value='noop'>---- Select an Action ----</option>
+            <option value='upgradeFPP'>Upgrade FPP</option>
+            <option value='restartFPPD'>Restart FPPD</option>
+        </select>
+        <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
+        <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'><br>
     </div>
 <? } ?>
 </div>
     <br>
+    <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
     <hr>
             <table class='settingsTable'>
 <?

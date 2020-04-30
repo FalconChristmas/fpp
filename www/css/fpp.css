@@ -145,6 +145,12 @@
 	text-align: center;
 }
 
+.centerCenter
+{
+	text-align: center !important;
+	vertical-align: middle !important;
+}
+
 .ui-front
 {
 	z-index: 1001;
@@ -944,6 +950,16 @@ fieldset
     display: table;
 }
 
+.fppTableWrapperHighlighted {
+    border: solid 10px;
+    border-color: #BA4A00;
+}
+
+.fppTableWrapperErrored {
+    border: solid 10px;
+    border-color: #FF0000;
+}
+
 .fppTableWrapper input {
 	-moz-user-select: -moz-auto;
 	-khtml-user-select: auto;
@@ -1262,6 +1278,11 @@ td.bgDarkOrange {
 .updateAvailable {
 	color: #FF0000;
 	font-weight: bold;
+}
+
+.warning {
+    color: #FF0000;
+    font-weight: bold;
 }
 
 .jsString { color: blue; }
