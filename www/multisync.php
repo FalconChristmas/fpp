@@ -34,27 +34,15 @@ input.remoteCheckbox {
     var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
 
     function rowSpanSet(rowID) {
-        $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpans[rowID]);
-    }
+        var rowSpan = 1;
 
-    function rowSpanUp(rowID) {
-        if (!rowSpans.hasOwnProperty(rowID))
-            rowSpans[rowID] = 1;
+        if ($('#' + rowID + '_logs').is(':visible'))
+            rowSpan++;
 
-        rowSpans[rowID] += 1;
-        rowSpanSet(rowID);
-    }
+        if ($('#' + rowID + '_warnings').is(':visible'))
+            rowSpan++;
 
-    function rowSpanDown(rowID) {
-        if (!rowSpans.hasOwnProperty(rowID)) {
-            rowSpans[rowID] = 1;
-        }
-
-        if (rowSpans[rowID] <= 1)
-            return;
-
-        rowSpans[rowID] -= 1;
-        rowSpanSet(rowID);
+        $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpan);
     }
 
     function updateMultiSyncRemotes(verbose = false) {
@@ -250,12 +238,11 @@ input.remoteCheckbox {
                 wHTML += "<font color='red'>" + data.warnings[i] + "</font><br>";
                }
                $('#' + rowID + '_warningCell').html(wHTML);
-               rowSpanUp(rowID);
             } else {
                var result_style = document.getElementById(rowID + '_warnings').style;
                result_style.display = 'none';
-               rowSpanDown(rowID);
             }
+            rowSpanSet(rowID);
                
 			//Expert View Rows
             if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'password') {
@@ -450,7 +437,7 @@ input.remoteCheckbox {
                 newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
                 $('#fppSystems').append(newRow);
 
-                newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanDown(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
+                newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanSet(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
                 $('#fppSystems').append(newRow);
 
                 if (platformIsFPP(data[i].Platform)) {
@@ -572,7 +559,7 @@ function upgradeSelectedSystems() {
                 $('#' + rowID + '_logs').addClass('odd');
 
             $('#' + rowID + '_logs').show();
-            rowSpanUp(rowID);
+            rowSpanSet(rowID);
 
             var ip = ipFromRowID(rowID);
 
@@ -625,7 +612,7 @@ function restartSelectedSystems() {
                 $('#' + rowID + '_logs').addClass('odd');
 
             $('#' + rowID + '_logs').show();
-            rowSpanUp(rowID);
+            rowSpanSet(rowID);
 
             var ip = ipFromRowID(rowID);
 
