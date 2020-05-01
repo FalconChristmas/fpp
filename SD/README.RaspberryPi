@@ -72,6 +72,8 @@ up.
 	sudo shutdown -r now
 
 If you are installing to create a SD image zip, do the following:
+    apt-get remove -y --purge --autoremove raspberrypi-kernel-headers
+    apt-get clean
 
 	# Reboot to make sure things take
 	sudo shutdown -r now

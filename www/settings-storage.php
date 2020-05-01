@@ -290,7 +290,7 @@ if ($addflashbutton) {
 <br><br>
 <b>eMMC Actions:</b><br>
 
-    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'>&nbsp;This will copy FPP to the internal eMMC.<br>,
+    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'>&nbsp;This will copy FPP to the internal eMMC.<br>
     <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.<br>
     
 <?php

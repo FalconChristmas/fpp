@@ -95,7 +95,7 @@ void SSD1306DisplayDriver::fillTriangle(short x0, short y0, short x1, short y1, 
     ::fillTriangle(x0, y0, x1, y1, x2, y2, white ? WHITE : BLACK);
 }
 void SSD1306DisplayDriver::drawLine(short x0, short y0, short x1, short y1, bool white) {
-    ::drawLine(x1, y0, x1, y1, white ? WHITE : BLACK);
+    ::drawLine(x0, y0, x1, y1, white ? WHITE : BLACK);
 }
 void SSD1306DisplayDriver::drawBitmap(short x, short y, const unsigned char bitmap[], short w, short h, bool white) {
     ::drawBitmap(x,y , bitmap, w, h, white ? WHITE : BLACK);
