@@ -16,6 +16,7 @@ mount -o bind / /mnt/mnt
 mount -o bind /boot /mnt/mnt/boot
 mount -t tmpfs tmpfs /mnt/tmp
 mount -o bind /dev /mnt/dev
+mount -o bind /proc /mnt/proc
 
 chroot /mnt /mnt/opt/fpp/SD/upgradeOS-part2.sh
 
