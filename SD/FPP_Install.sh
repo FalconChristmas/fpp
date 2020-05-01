@@ -836,6 +836,7 @@ sed -i -e 's/root::/root:*:/' /etc/shadow
 
 echo "FPP - Setting up ssh to disallow root login"
 sed -i -e "s/#PermitRootLogin .*/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
+sed -i -e "s/#\?Banner .*/Banner \/etc\/issue.net/g" /etc/ssh/sshd_config
 
 echo "FPP - Cleaning up /root/.cpanm to save space on the SD image"
 rm -rf /root/.cpanm
