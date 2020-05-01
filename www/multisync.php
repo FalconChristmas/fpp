@@ -471,7 +471,7 @@ input.remoteCheckbox {
 if ($uiLevel >= 1) {
 ?>
         var inp = document.getElementById("MultiSyncExtraRemotes");
-        if (inp && inp.value != extras) {
+        if (extras != '' && inp && inp.value != extras) {
 			$('#MultiSyncExtraRemotes').val(extras).trigger('change');
         }
 <?
