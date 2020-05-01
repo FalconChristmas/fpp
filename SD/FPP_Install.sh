@@ -1108,7 +1108,7 @@ make clean ; make optimized
 if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
     echo "FPP - Compiling WIFI drivers"
     cd /opt/fpp/SD
-    sh ./FPP-Wifi-Drivers.sh
+    bash ./FPP-Wifi-Drivers.sh
     rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf
     
     sed -i 's/ExecStart.*/ExecStart=\/usr\/sbin\/connmand -n --nodnsproxy/g' /lib/systemd/system/connman.service
