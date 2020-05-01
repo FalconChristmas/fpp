@@ -1311,6 +1311,16 @@ function get_remote_git_version($git_branch){
 				if ($return_val != 0)
 					$git_remote_version = "Unknown";
 				unset($output);
+
+				// If we get back a blank version, this clone may be setup to
+				// use ssh to access github, so fallback and check for a
+				// 'github' origin which can be setup to use https://
+				if ($git_remote_version == "") {
+					$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h github $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+					if ($return_val != 0)
+						$git_remote_version = "Unknown";
+					unset($output);
+				}
 			}else{
 				//Google DNS Ping fail - return unknown
 				$git_remote_version = "Unknown";
