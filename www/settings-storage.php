@@ -3,6 +3,9 @@ $skipJSsettings = 1;
 require_once('common.php');
 ?>
 
+<script type="text/javascript" src="jquery/jQuery.msgBox/scripts/jquery.msgBox.js"></script>
+<link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
+
 <script>
 function growSDCardFS() {
     $('#dialog-confirm')
@@ -50,9 +53,8 @@ function checkForStorageCopy() {
              type: "info",
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
-                 storageDeviceChanged();
                  if (result == "Yes") {
-                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TO&path=/&flags=All";
+                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All";
                  }
             }
         });
@@ -71,7 +73,7 @@ function checkFormatStorage()
                  inputs: [
                      { header: "Don't Format", type: "radio", name: "formatType", checked:"", value: "none" },
                      { header: "ext4 (Most stable)", type: "radio", name: "formatType", value: "ext4" },
-                     { header: "FAT (Compatible with Windows/OSX, unsupported, slow)", type: "radio", name: "formatType", value: "FAT"}
+                     { header: "FAT (Compatible with Windows/OSX, unsupported, slow, not recommended)", type: "radio", name: "formatType", value: "FAT"}
                  ],
                  buttons: [ { value: "OK" } ],
                  opacity: 0.5,
@@ -92,8 +94,6 @@ function checkFormatStorage()
                     }
                  }
                  });
-    } else {
-        storageDeviceChanged();
     }
 }
     
@@ -244,7 +244,7 @@ function PrintStorageDeviceSelect($platform)
         $storageDevice = $rootDevice;
     }
 
-	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "", "checkFormatStorage");
+	PrintSettingSelect('StorageDevice', 'storageDevice', 0, 1, $storageDevice, $values, "", "checkFormatStorage");
 }
     
 ?>
@@ -280,8 +280,10 @@ if ($addnewfsbutton) {
 <br><br>
 <b>SD Card Actions:</b><br>
     <input style='width:13em;' type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>&nbsp;This will grow the file system on the SD card to use the entire size of the SD card.<br>
-    <input style='width:13em;' type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'>&nbsp;This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.<br>
-    
+<? if ($uiLevel >= 1) { ?>
+    <input style='width:13em;' type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'><b>*</b>&nbsp;This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.<br>
+<? } ?>
+
     
 <?php
 }
@@ -290,10 +292,11 @@ if ($addflashbutton) {
 <br><br>
 <b>eMMC Actions:</b><br>
 
-    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'>&nbsp;This will copy FPP to the internal eMMC.<br>
-    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.<br>
-    
+    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'><b>*</b>&nbsp;This will copy FPP to the internal eMMC.<br>
+<? if ($uiLevel >= 1) { ?>
+    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'><b>*</b>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.<br>
 <?php
+   }
 }
 ?>
 
