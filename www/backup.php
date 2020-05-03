@@ -1730,7 +1730,7 @@ GetBackupDevices();
                 <fieldset>
                     <legend>Restore Configuration</legend>
                     <center>
-                        <span style="color: #AA0000"><b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x system.</b><br><br></span>
+                        <span style="color: #AA0000"><b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b><br><br></span>
                     </center>
                     Select settings to restore and then choose backup file containing backup data.
                     <br/>
