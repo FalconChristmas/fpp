@@ -469,6 +469,11 @@ if ($uiLevel >= 1) {
 	}
 
 	function getFPPSystems() {
+		if (streamCount) {
+			alert("FPP Systems are being udpated, you will need to manually refresh once these updates are complete.");
+			return;
+		}
+
 		$('.masterOptions').hide();
 		$('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
 
