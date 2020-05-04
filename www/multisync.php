@@ -486,6 +486,12 @@ if ($uiLevel >= 1) {
 		});
 	}
 
+function autoRefreshToggled() {
+	if ($('#MultiSyncRefreshStatus').is(":checked")) {
+		getFPPSystems();
+	}
+}
+
 function reloadMultiSyncPage() {
 	if (streamCount) {
 		alert("FPP Systems are being udpated, you will need to manually refresh once these updates are complete.");
@@ -719,7 +725,7 @@ PrintSetting('MultiSyncExtraRemotes', 'updateMultiSyncRemotes');
 PrintSetting('MultiSyncHide10', 'getFPPSystems');
 PrintSetting('MultiSyncHide172', 'getFPPSystems');
 PrintSetting('MultiSyncHide192', 'getFPPSystems');
-PrintSetting('MultiSyncRefreshStatus', 'getFPPSystems');
+PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');
 PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
 ?>
             </table>
