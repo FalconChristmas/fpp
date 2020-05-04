@@ -162,7 +162,7 @@
                 "name": "pluginName",
                 "description": "Plugin",
                 "type": "string",
-                "contentListUrl": "/api/plugin",
+                "contentListUrl": "api/plugin",
                 "optional": true,
                 "simpleUI": true
             },
@@ -170,7 +170,7 @@
                 "name": "pluginHost",
                 "description": "Plugin Host",
                 "type": "string",
-                "contentListUrl": "/api/remotes",
+                "contentListUrl": "api/remotes",
                 "optional": true
             },
             "url": {
@@ -279,7 +279,7 @@
             "outputDevice": {
                 "name": "outputDevice",
                 "description": "Output Device",
-                "contentListUrl": "/api/options/FrameBuffer",
+                "contentListUrl": "api/options/FrameBuffer",
                 "type": "string",
                 "optional": false
             }

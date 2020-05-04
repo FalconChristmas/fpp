@@ -764,7 +764,7 @@ function PlaylistNameOK(name) {
 }
 
 function LoadPlaylistDetails(name) {
-    $.get('/api/playlist/' + name
+    $.get('api/playlist/' + name
     ).done(function(data) {
         PopulatePlaylistDetails(data, 1);
         RenumberPlaylistEditorEntries();
@@ -868,7 +868,7 @@ function GetSequenceDuration(sequence, updateUI, row) {
     var durationInSeconds = 0;
     var file = sequence.replace(/.fseq$/, '');
     $.ajax({
-        url: "/api/sequence/" + encodeURIComponent(file) + '/meta',
+        url: "api/sequence/" + encodeURIComponent(file) + '/meta',
         type: 'GET',
         async: updateUI,
         dataType: 'json',
@@ -898,7 +898,7 @@ function SetPlaylistItemMetaData(row) {
     if (((type == 'both') || (type == 'media')) &&
         (typeof file != 'undefined')) {
         file = $('<div/>').html(file).text(); // handle any & or other chars that got converted
-        $.get('/api/media/' + encodeURIComponent(file) + '/duration', function(mdata) {
+        $.get('api/media/' + encodeURIComponent(file) + '/duration', function(mdata) {
             var duration = -1;
 
             if ((mdata.hasOwnProperty(file)) &&
@@ -927,7 +927,7 @@ function SetPlaylistItemMetaData(row) {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
     } else if (type == 'playlist') {
         $.ajax({
-            url: "/api/playlist/" + row.find('.field_name').html(),
+            url: "api/playlist/" + row.find('.field_name').html(),
             type: 'GET',
             async: false,
             dataType: 'json',
@@ -1170,7 +1170,7 @@ function SavePlaylistAs(name, filter, callback) {
 
     var str = JSON.stringify(pl, true);
     $.ajax({
-        url: "/api/playlist/" + name,
+        url: "api/playlist/" + name,
         type: 'POST',
         contentType: 'application/json',
         data: str,
@@ -2959,7 +2959,7 @@ function PopulatePlaylists(sequencesAlso)
 
 function PlayPlaylist(Playlist, goToStatus = 0)
 {
-    $.get("/api/command/Start Playlist/" + Playlist + "/0", function() {
+    $.get("api/command/Start Playlist/" + Playlist + "/0", function() {
         if (goToStatus)
 	        location.href="index.php";
         else
@@ -3076,7 +3076,7 @@ function GetRunningEffects()
 function UpgradePlaylist(data, editMode)
 {
     var sections = ['leadIn', 'mainPlaylist', 'leadOut'];
-    var events = GetSync('/api/events');
+    var events = GetSync('api/events');
     var error = "";
 
     for (var s = 0; s < sections.length; s++) {
@@ -3427,7 +3427,7 @@ function GetVideoInfo(file)
 {
     $('#fileText').html("Getting Video Info.");
 
-    $.get("/api/media/" + file + "/meta", function(data) {
+    $.get("api/media/" + file + "/meta", function(data) {
         $('#fileText').html('<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>');
         $('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
         $('#fileViewer').dialog( "moveToTop" );

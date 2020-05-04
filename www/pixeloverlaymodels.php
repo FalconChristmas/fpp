@@ -67,7 +67,7 @@ function PopulateChannelMemMapTable(data) {
 }
 
 function GetChannelMemMaps() {
-	$.get("/api/models", function(data) {
+	$.get("api/models", function(data) {
 		PopulateChannelMemMapTable(data);
 	}).fail(function() {
 		DialogError("Load Pixel Overlay Models", "Load Failed, is fppd running?");
@@ -114,7 +114,7 @@ function SetChannelMemMaps() {
 	data.models = models;
 	postData = JSON.stringify(data, null, 2);
 
-	$.post("/api/models", postData).done(function(data) {
+	$.post("api/models", postData).done(function(data) {
 		$.jGrowl("Pixel Overlay Models saved.");
 		SetRestartFlag(2);
 	}).fail(function() {

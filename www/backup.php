@@ -1461,7 +1461,7 @@ function PerformCopy() {
 
 function GetBackupDevices() {
     $('#backup\\.USBDevice').html('<option>Loading...</option>');
-    $.get("/api/backups/devices"
+    $.get("api/backups/devices"
         ).done(function(data) {
             var options = "";
             for (var i = 0; i < data.length; i++) {
@@ -1500,7 +1500,7 @@ function GetBackupDeviceDirectories() {
     }
 
     $('#backup\\.PathSelect').html('<option>Loading...</option>');
-    $.get("/api/backups/list/" + dev
+    $.get("api/backups/list/" + dev
         ).done(function(data) {
             PopulateBackupDirs(data);
         }).fail(function() {

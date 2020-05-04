@@ -167,7 +167,7 @@
             "restart": 2,
             "default": "PCM",
             "type": "select",
-            "optionsURL": "/api/settings/AudioMixerDevice/options"
+            "optionsURL": "api/settings/AudioMixerDevice/options"
         },
         "AudioOutput": {
             "name": "AudioOutput",
@@ -176,7 +176,7 @@
             "restart": 2,
             "default": "0",
             "type": "select",
-            "optionsURL": "/api/settings/AudioOutput/options"
+            "optionsURL": "api/settings/AudioOutput/options"
         },
         "backgroundColor": {
             "name": "backgroundColor",
@@ -471,7 +471,7 @@
             "restart": 2,
             "default": "global",
             "type": "select",
-            "optionsURL": "/api/settings/Locale/options"
+            "optionsURL": "api/settings/Locale/options"
         },
         "LogLevel": {
             "name": "LogLevel",
@@ -834,7 +834,7 @@
             "tip": "The Real Time Clock (RTC) is a hardware clock used by FPP to track time when the Pi or BeagleBone is powered off.  At boot time, the operating system reads the RTC to set the system time.",
             "reboot": 1,
             "type": "select",
-            "optionsURL": "/api/settings/RTC/options"
+            "optionsURL": "api/settings/RTC/options"
         },
         "remoteIgnoreSync": {
             "name": "remoteIgnoreSync",
@@ -930,7 +930,7 @@
             "description": "Default Video Output Device",
             "tip": "The Default Video Output device to be used when playing a video.  On all FPP systems, video played in a playlist can be displayed on a Pixel Overlay model.  On the Raspberry Pi, video can also be played on the HDMI/Composite video outputs.",
             "type": "select",
-            "optionsURL": "/api/settings/VideoOutput/options"
+            "optionsURL": "api/settings/VideoOutput/options"
         },
         "TimeZone": {
             "name": "TimeZone",
@@ -939,7 +939,7 @@
             "restart": 2,
             "default": "America/New_York",
             "type": "select",
-            "optionsURL": "/api/settings/TimeZone/options"
+            "optionsURL": "api/settings/TimeZone/options"
         }
     }
 }

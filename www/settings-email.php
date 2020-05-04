@@ -6,7 +6,7 @@ require_once('common.php');
 <script>
 function ConfigureEmail() {
     $.ajax({
-        url: '/api/email/configure',
+        url: 'api/email/configure',
         type: 'POST',
         async: true,
         success: function(data) {
@@ -20,7 +20,7 @@ function ConfigureEmail() {
 
 function SendTestEmail() {
     $.ajax({
-        url: '/api/email/test',
+        url: 'api/email/test',
         type: 'POST',
         async: true,
         success: function(data) {

@@ -53,7 +53,7 @@ function UpdateChildSettingsVisibility() {
 
 var statusTimeout = null;
 function UpdateCurrentTime(once = false) {
-    $.get('/api/time', function(data) {
+    $.get('api/time', function(data) {
         $('#currentTime').html(data.time);
         if (!once)
             statusTimeout = setTimeout(UpdateCurrentTime, 1000);

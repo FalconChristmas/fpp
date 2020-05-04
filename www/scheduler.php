@@ -114,7 +114,7 @@ function getSchedule()
 {
     $('#tblScheduleBody').empty();
 
-    $.get('/api/schedule', function(data) {
+    $.get('api/schedule', function(data) {
         GetPlaylistArray(false);
 
         var options = "";
@@ -296,7 +296,7 @@ function SaveSchedule() {
     dataStr = JSON.stringify(data, null, 4);
 
     $.ajax({
-        url: '/api/schedule',
+        url: 'api/schedule',
         type: 'post',
         dataType: 'json',
         contentType: 'application/json',
@@ -304,7 +304,7 @@ function SaveSchedule() {
         success: function (response) {
             $.jGrowl('Schedule saved');
             $.ajax({
-                url: '/api/schedule/reload',
+                url: 'api/schedule/reload',
                 type: 'post',
                 contentType: 'application/json',
                 success: function(response) {

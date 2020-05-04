@@ -49,9 +49,9 @@ function StartSelectedEffect() {
 
     var url = '';
     if (EffectSelectedType == 'ESEQ') {
-        url = '/api/command/Effect Start/' + EffectSelectedName + '/' + startChannel + '/' + loop + '/' + background;
+        url = 'api/command/Effect Start/' + EffectSelectedName + '/' + startChannel + '/' + loop + '/' + background;
     } else {
-        url = '/api/command/FSEQ Effect Start/' + EffectSelectedName + '/' + loop + '/' + background;
+        url = 'api/command/FSEQ Effect Start/' + EffectSelectedName + '/' + loop + '/' + background;
     }
 
     $.get(url
