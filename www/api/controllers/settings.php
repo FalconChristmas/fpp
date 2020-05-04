@@ -25,9 +25,9 @@ function GetSetting() {
     if (isset($sInfo['optionsURL'])) {
         $json = "";
         if (preg_match('/^\//', $sInfo['optionsURL'])) {
-            $json = file_get_contents("http://" . $_SERVER['SERVER_ADDR'] . $sInfo['optionsURL']);
-        } else {
             $json = file_get_contents($sInfo['optionsURL']);
+        } else {
+            $json = file_get_contents("http://" . $_SERVER['SERVER_ADDR'] . "/" . $sInfo['optionsURL']);
         }
 
         $sInfo['options'] = json_decode($json, true);

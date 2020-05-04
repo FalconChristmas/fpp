@@ -203,11 +203,11 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 if (empty($options)) {
                     if (isset($s['optionsURL'])) {
                         $json = "";
-                        if (preg_match('/^\//', $s['optionsURL'])) {
-                            $json = file_get_contents("http://127.0.0.1" . $s['optionsURL']);
-                        } else {
-                            $json = file_get_contents($s['optionsURL']);
+                        $url = $s['optionsURL'];
+                        if (!preg_match('/^\//', $s['optionsURL'])) {
+                            $url = "http://127.0.0.1/" . $s['optionsURL'];
                         }
+                        $json = file_get_contents($url);
                         $options = json_decode($json, true);
                         if (!(array_keys($options) !== range(0, count($options) - 1))) {
                             $tmp = $options;
