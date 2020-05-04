@@ -143,7 +143,7 @@ input.remoteCheckbox {
         refreshTimers = new Object();
     }
 
-	function getFPPSystemStatus(ip) {
+	function getFPPSystemStatus(ip, refreshing = false) {
         var refreshKey = ip.replace(/\./g, '_');
         if (refreshTimers.hasOwnProperty(refreshKey)) {
             clearTimeout(refreshTimers[refreshKey]);
@@ -214,7 +214,7 @@ input.remoteCheckbox {
             rowID = hostRows[hostRowKey];
 
             var curStatus = $('#' + rowID + '_status').html();
-            if (curStatus != "") {
+            if ((curStatus != "") && !refreshing) {
                 // Don't replace an existing status via a different IP
                 return;
             }
@@ -282,7 +282,7 @@ input.remoteCheckbox {
             }
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked")) {
-				refreshTimers[refreshKey] = setTimeout(function() {getFPPSystemStatus(ip);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
+				refreshTimers[refreshKey] = setTimeout(function() {getFPPSystemStatus(ip, true);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
             }
 		});
 	}
@@ -360,7 +360,7 @@ input.remoteCheckbox {
                 $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].IP));
 
                 if (platformIsFPP(data[i].Platform)) {
-                    getFPPSystemStatus(ip);
+                    getFPPSystemStatus(ip, false);
                     getFPPSystemInfo(ip);
                 }
             } else {
@@ -441,7 +441,7 @@ input.remoteCheckbox {
                 $('#fppSystems').append(newRow);
 
                 if (platformIsFPP(data[i].Platform)) {
-                    getFPPSystemStatus(ip);
+                    getFPPSystemStatus(ip, false);
                     getFPPSystemInfo(ip);
                 }
             }
