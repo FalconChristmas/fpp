@@ -486,6 +486,15 @@ if ($uiLevel >= 1) {
 		});
 	}
 
+function reloadMultiSyncPage() {
+	if (streamCount) {
+		alert("FPP Systems are being udpated, you will need to manually refresh once these updates are complete.");
+		return;
+	}
+
+	reloadPage();
+}
+
 function showHideSyncCheckboxes() {
 	if (($('#MultiSyncMulticast').is(":checked")) ||
         ($('#MultiSyncBroadcast').is(":checked"))) {
@@ -711,7 +720,7 @@ PrintSetting('MultiSyncHide10', 'getFPPSystems');
 PrintSetting('MultiSyncHide172', 'getFPPSystems');
 PrintSetting('MultiSyncHide192', 'getFPPSystems');
 PrintSetting('MultiSyncRefreshStatus', 'getFPPSystems');
-PrintSetting('MultiSyncAdvancedView', 'reloadPage');
+PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
 ?>
             </table>
 <?php
