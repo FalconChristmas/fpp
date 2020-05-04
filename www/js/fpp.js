@@ -2787,6 +2787,38 @@ function SetSetting(key, value, restart, reboot) {
     });
 }
 
+function ReloadSettingOptions(settingName) {
+    $.get('settings.json', function(sdata) {
+        $.get(sdata.settings[settingName].optionsURL, function(data) {
+            var options = "";
+            if (typeof data != 'object') {
+                for (var i = 0; i < data.length; i++) {
+                    options += "<option value='" + data[i] + "'";
+
+                    if ((settings.hasOwnProperty(settingName)) &&
+                        (settings[settingName] == data[i]))
+                        options += " selected";
+
+                    options += ">" + data[i] + "</option>";
+                }
+            } else {
+                var keys = Object.keys(data);
+                for (var i = 0; i < keys.length; i++) {
+                    options += "<option value='" + data[keys[i]] + "'";
+
+                    if ((settings.hasOwnProperty(settingName)) &&
+                        (settings[settingName] == data[keys[i]]))
+                        options += " selected";
+
+                    options += ">" + keys[i] + "</option>";
+                }
+            }
+
+            $('#' + settingName).html(options);
+        });
+    });
+}
+
 	function ClearRestartFlag() {
 		settings['restartFlag'] = 0;
 		SetSetting('restartFlag', 0, 0, 0);

@@ -523,6 +523,16 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
         echo "}\n\n";
     }
 
+    if (isset($sData['reloadOther'])) {
+        echo "function ReloadOther$setting" . "() {
+";
+        foreach ( $sData['reloadOther'] as $sname) {
+            echo "    ReloadSettingOptions('$sname');\n";
+        }
+
+        echo "}\n\n";
+    }
+
 	echo "
 function " . $changedFunction . "() {
 	var value = $('#$escSetting').val();
@@ -541,6 +551,10 @@ if ($reboot)
 
 if (isset($sData['children'])) {
     echo "Update$setting" . "Children(0);\n";
+}
+
+if (isset($sData['reloadOther'])) {
+    echo "ReloadOther$setting" . "();\n";
 }
 
 echo "
