@@ -403,9 +403,12 @@ input.remoteCheckbox {
                     "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
                     "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
-                    "<td>" + fppMode + "</td>" +
+                    "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
                     "<td id='" + rowID + "_status'></td>" +
                     "<td id='" + rowID + "_elapsed'></td>";
+
+                var versionParts = data[i].version.split('.');
+                var majorVersion = parseInt(versionParts[0]);
 
                 if ((advancedView === true) &&
                     (platformIsFPP(data[i].Platform))) {
@@ -421,9 +424,7 @@ input.remoteCheckbox {
 
                     newRow += "<td class='centerCenter'>";
                     if ((platformIsFPP(data[i].Platform)) &&
-                        (!data[i].version.startsWith("1")) &&
-                        (!data[i].version.startsWith("2")) &&
-                        (!data[i].version.startsWith("3")))
+                        (majorVersion >= 4))
                         newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
 
                     newRow += "</td>";
@@ -443,6 +444,10 @@ input.remoteCheckbox {
                 if (platformIsFPP(data[i].Platform)) {
                     getFPPSystemStatus(ip, false);
                     getFPPSystemInfo(ip);
+                } else if ((data[i].Platform == 'ESPixelStick') &&
+                    (data[i].fppMode == 'bridge') &&
+                    (majorVersion >= 3)) {
+                    getESPixelStickBridgeStatus(ip);
                 }
             }
         }
@@ -486,9 +491,115 @@ if ($uiLevel >= 1) {
 		});
 	}
 
+var ESPSockets = {};
+function parseESPixelStickConfig(ip, data) {
+    var s = JSON.parse(data);
+    var ips = ip.replace(/\./g, '_');
+
+    $('#fpp_' + ips + '_desc').html(s.device.id);
+}
+
+function parseESPixelStickStatus(ip, data) {
+    var s = JSON.parse(data);
+    var ips = ip.replace(/\./g, '_');
+
+    var rssi = +s.system.rssi;
+    var quality = 2 * (rssi + 100);
+
+    if (rssi <= -100)
+        quality = 0;
+    else if (rssi >= -50)
+        quality = 100;
+
+    var date = new Date(+s.system.uptime);
+    var uptime = '';
+
+    uptime += Math.floor(date.getTime()/86400000) + " days, ";
+    uptime += ("0" + date.getUTCHours()).slice(-2) + ":";
+    uptime += ("0" + date.getUTCMinutes()).slice(-2) + ":";
+    uptime += ("0" + date.getUTCSeconds()).slice(-2);
+
+    var u = "<table class='multiSyncVerboseTable'>";
+    u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
+    u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+    u += "</table>";
+
+    $('#advancedViewUtilization_fpp_' + ips).html(u);
+
+    var mode = $('#fpp_' + ips + '_mode').html();
+
+    if (mode == 'Bridge') {
+        var st = "<table class='multiSyncVerboseTable'>";
+        st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
+        st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
+        st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
+        st += "</table>";
+
+        $('#fpp_' + ips + '_status').html(st);
+    }
+
+    if ($('#MultiSyncRefreshStatus').is(":checked")) {
+        setTimeout(function() {ESPSockets[ips].send("XJ");}, 1000);
+    }
+}
+
+function getESPixelStickBridgeStatus(ip) {
+    var ips = ip.replace(/\./g, '_');
+
+    if (ESPSockets.hasOwnProperty(ips)) {
+        ESPSockets[ips].send("XJ");
+    } else {
+        var ws = new WebSocket("ws://" + ip + "/ws");
+        ESPSockets[ips] = ws;
+
+        ws.binaryType = "arraybuffer";
+        ws.onopen = function() {
+            ws.send("G1");
+            ws.send("XJ");
+        };
+
+        ws.onmessage = function(e) {
+            if ("string" == typeof e.data) {
+                var t = e.data.substr(0, 2)
+                  , n = e.data.substr(2);
+                switch (t) {
+                    case "G1":
+                        parseESPixelStickConfig(ip, n);
+                        break;
+                    case "XJ":
+                        parseESPixelStickStatus(ip, n);
+                        break;
+                }
+            }
+        };
+
+        ws.onclose = function() {
+            delete ESPSockets[ips];
+        };
+    }
+}
+
+function RefreshStats() {
+    var keys = Object.keys(hostRows);
+    for (var i = 0; i < keys.length; i++) {
+        var rowID = hostRows[keys[i]];
+        var ip = ipFromRowID(rowID);
+        var platform = $('#' + rowID + '_platform').html();
+        var mode = $('#' + rowID + '_mode').html();
+
+        if (platformIsFPP(platform)) {
+            getFPPSystemStatus(ip, true);
+            getFPPSystemInfo(ip);
+        } else if ((platform == 'ESPixelStick') &&
+            (mode == 'Bridge')) {
+            getESPixelStickBridgeStatus(ip);
+        }
+    }
+}
+
 function autoRefreshToggled() {
 	if ($('#MultiSyncRefreshStatus').is(":checked")) {
-		getFPPSystems();
+        RefreshStats();
 	}
 }
 
@@ -697,11 +808,13 @@ function performMultiAction() {
         </table>
     </div>
 </div>
-<div style='text-align: right;'>
-    <input id='refreshButton' type='button' class='buttons' value='Refresh List' onClick='clearRefreshTimers(); getFPPSystems();' style='float: left;'>
 <?
 if ($advancedView) {
 ?>
+<div style='text-align: right;'>
+    <div style='float: left;'>
+        <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
+    </div>
     <div>
         Selected Systems:
         <select id='multiAction'>
@@ -710,13 +823,14 @@ if ($advancedView) {
             <option value='restartFPPD'>Restart FPPD</option>
         </select>
         <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
-        <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'><br>
+        <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
     </div>
-<? } ?>
 </div>
-    <br>
+<div style='width: 100%; text-align: center;'>
     <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
-    <hr>
+</div>
+<hr>
+<? } ?>
             <table class='settingsTable'>
 <?
 PrintSetting('MultiSyncMulticast', 'showHideSyncCheckboxes');
