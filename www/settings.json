@@ -37,6 +37,7 @@
                 "AudioFormat",
                 "VideoOutput",
                 "mediaOffset",
+                "remoteIgnoreSync",
                 "disableIPAnnouncement"
             ]
         },
@@ -79,8 +80,7 @@
                 "Raspberry Pi"
             ],
             "settings": [
-                "OMXPlayerAudioOutput",
-                "remoteIgnoreSync"
+                "OMXPlayerAudioOutput"
             ]
         },
         "output": {
@@ -842,7 +842,7 @@
         "remoteIgnoreSync": {
             "name": "remoteIgnoreSync",
             "description": "Ignore Media Sync Packets",
-            "tip": "When enabled, videos played with omxplayer on the remote will be started and stopped when the master sends the start/stop events, but no attempt will be made to keep the video in sync with the master during playback.  The video will run smoother, but may get out of sync with the master.",
+            "tip": "When enabled, videos/music played on the remote will be started and stopped when the master sends the start/stop events, but no attempt will be made to keep the media in sync with the master during playback.  The media will run smoother, but may get out of sync with the master.",
             "level": 1,
             "restart": 2,
             "fppModes": [
