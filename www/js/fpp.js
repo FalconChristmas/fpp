@@ -2815,6 +2815,13 @@ function ReloadSettingOptions(settingName) {
             }
 
             $('#' + settingName).html(options);
+            // if the current setting doesn't match any value in the new list,
+            // then invoke the change so the currently displayed value is
+            // the actual correct value
+            if ($('#' + settingName).val() != settings[settingName]) {
+                $('#' + settingName).trigger('change');
+                settings[settingName] = $('#' + settingName).val();
+            }
         });
     });
 }

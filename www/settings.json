@@ -176,6 +176,9 @@
             "restart": 2,
             "default": "0",
             "type": "select",
+            "reloadOther": [
+                "AudioMixerDevice"
+            ],
             "optionsURL": "api/settings/AudioOutput/options"
         },
         "backgroundColor": {
