@@ -57,6 +57,7 @@ pthread_t ChannelOutputThreadID;
 volatile int     RunThread = 0;
 volatile int     ThreadIsRunning = 0;
 volatile int     ThreadIsExiting = 0;
+volatile int     outputForced = 0;
 
 std::mutex outputThreadLock;
 std::mutex outputThreadStatusLock;
@@ -98,7 +99,8 @@ static inline bool forceOutput() {
     return IsEffectRunning() ||
         PixelOverlayManager::INSTANCE.hasActiveOverlays() ||
         ChannelTester::INSTANCE.Testing() ||
-        getAlwaysTransmit();
+        getAlwaysTransmit() ||
+        outputForced;
 }
 
 /*
@@ -376,6 +378,22 @@ int StopChannelOutputThread(void)
     
 	return 0;
 }
+
+void StartForcingChannelOutput(void)
+{
+    outputForced++;
+
+    StartChannelOutputThread();
+}
+
+void StopForcingChannelOutput(void)
+{
+    outputForced--;
+
+    if (outputForced < 0)
+        outputForced = 0;
+}
+
 
 /*
  * Reset the master frames played position
