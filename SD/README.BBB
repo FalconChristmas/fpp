@@ -51,16 +51,13 @@ git pull
 cd /opt/scripts/tools
 
 #check
-# ./update_kernel.sh --lts-4_19 --bone-kernel
-# and see what is the latest kernel version and put it here
-
-export KERNEL_VERSION=4.19.106-bone49
-./update_kernel.sh --lts-4_19 --bone-kernel  $KERNEL_VERSION
-apt-get install -y linux-headers-$KERNEL_VERSION
+cd /root
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-4.19.94fpp_4.19.94fpp-1_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-4.19.94fpp_4.19.94fpp-1_armhf.deb
+dpkg -i *.deb
+rm -f *.deb
 
 apt-get remove -y --purge --autoremove linux-image-$(uname -r) linux-headers-$(uname -r)
-apt-get remove -y --purge --autoremove ti-temperature-modules-$(uname -r) ti-debugss-modules-$(uname -r)
-
 
 # delete old kernels and modules in /boot and /lib/modules
 # and in /boot/dtbs and any initrd's

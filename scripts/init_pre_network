@@ -109,10 +109,14 @@ then
     # need to disable the slower idle state as it takes 130ns to get 
     # out of that state which can disrupt the ws2811 timing enough
     # to get extra strobing
-    cpupower idle-set -d 1 
+    if [[ -f /usr/bin/cpupower ]]; then
+        cpupower idle-set -d 1
+    fi
     # Also need to use the performance governor or USB is very slow
-    echo "GOVERNOR=\"performance\"" > /etc/default/cpufrequtils
-    cpufreq-set -g performance
+    if [[ -f /usr/bin/cpufreq-set ]]; then
+        echo "GOVERNOR=\"performance\"" > /etc/default/cpufrequtils
+        cpufreq-set -g performance
+    fi
 
     # Make sure uio_pruss is loaded early so it's completely initialized
     # by the time FPPD needs it

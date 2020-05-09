@@ -54,7 +54,7 @@
 #############################################################################
 SCRIPTVER="4.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="4.0-beta1"
+FPPIMAGEVER="4.0-beta2"
 FPPCFGVER="61"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -372,7 +372,7 @@ case "${OSVER}" in
         PACKAGE_LIST="alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
                       apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
                       bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
-                      fbi fbset file flite linux-cpupower cpufrequtils ca-certificates lshw \
+                      fbi fbset file flite ca-certificates lshw \
                       build-essential ffmpeg gcc g++ gdb ccache vim vim-common bison flex device-tree-compiler dh-autoreconf \
                       git git-core hdparm i2c-tools ifplugd less sysstat tcpdump time usbutils usb-modeswitch \
                       samba rsync connman sudo shellinabox dnsmasq hostapd vsftpd ntp sqlite3 at haveged samba samba-common-bin \
@@ -386,7 +386,6 @@ case "${OSVER}" in
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity"
         fi
-
 
         if $skip_apt_install; then
             PACKAGE_LIST=""
