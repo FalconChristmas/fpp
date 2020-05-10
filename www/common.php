@@ -1303,8 +1303,13 @@ function get_local_git_version(){
  * @return string
  */
 function get_remote_git_version($git_branch){
+    global $settings;
+
 	$git_remote_version = "Unknown";
 
+    $origin = "github.com";
+    if (isset($settings['UpgradeSource']))
+        $origin = $settings['UpgradeSource'];
 
 	if (!empty($git_branch) || strtolower($git_branch) != "unknown") {
 		$cachefile_name = "git_" . $git_branch;
@@ -1316,12 +1321,15 @@ function get_remote_git_version($git_branch){
 		if ($cached_data == NULL) {
 			//if for some reason name resolution fails ping will take roughly 10 seconds to return (Default DNS Timeout 5 seconds x 2 retries)
 			//to try work around this ping the google public DNS @ 8.8.8.8 (to skip DNS) waiting for a reply for max 1 second, if that's ok we have a route to the internet, then it's highly likely DNS will also work
-			$google_dns_ping = exec("ping -q -c 1 -W 1 8.8.8.8 > /dev/null", $output, $return_val);
-			unset($output);
+            $return_val = 0;
+            if ($origin == 'github.com') {
+                $google_dns_ping = exec("ping -q -c 1 -W 1 8.8.8.8 > /dev/null", $output, $return_val);
+                unset($output);
+            }
 			if ($return_val == 0){
 				//Google DNS Ping success
 				// this can take a couple seconds to complete so we'll cache it
-				$git_remote_version = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
+				$git_remote_version = exec("ping -q -c 1 $origin > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
 				if ($return_val != 0)
 					$git_remote_version = "Unknown";
 				unset($output);
@@ -1346,21 +1354,6 @@ function get_remote_git_version($git_branch){
 			//return the cached version
 			$git_remote_version = $cached_data;
 		}
-
-//        if( ! file_exists( $file )  ||  ( time() - filemtime( $file ) > $time)) {
-//            // this can take a couple seconds to complete so we'll cache it
-//            $ver = exec("ping -q -c 1 github.com > /dev/null && (git --git-dir=/opt/fpp/.git/ ls-remote -q -h origin $git_branch | awk '$1 > 0 { print substr($1,1,7)}')", $output, $return_val);
-//            if ( $return_val != 0 )
-//                $ver = "Unknown";
-//            unset($output);
-//
-//            exec("echo \"$ver\" | sudo tee $file", $output, $return_val);
-//            unset($output);
-//        } else {
-//            $handle = fopen($file, 'r');
-//            $ver = trim(fread($handle,filesize($file)));
-//            fclose($handle);
-//        }
 	}
 
 	return $git_remote_version;
