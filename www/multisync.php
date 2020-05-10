@@ -105,27 +105,16 @@ input.remoteCheckbox {
         var localVer = "<a href='http://" + ip + "/about.php' target='_blank'><b><font color='";
         if (updatesAvailable) {
             localVer += 'red';
-        } else if (data.advancedView.RemoteGitVersion !== "") {
+        } else if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
+                   (data.advancedView.RemoteGitVersion == data.advancedView.LocalGitVersion)) {
             localVer += 'darkgreen';
         } else {
+            // Unknown or can't tell if up to date or not for some reason
             localVer += 'blue';
         }
         localVer += "'>" + data.advancedView.LocalGitVersion + "</font></b></a>";
 
         return localVer;
-    }
-
-    function updateFPPVersionInfo(ip) {
-		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + '&advancedView=true').done(function(data) {
-            var rowID = "fpp_" + ip.replace(/\./g, '_');
-            $('#' + rowID + '_version').html(data.advancedView.Version);
-            $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
-            $('#' + rowID + '_remotegitvers').html(data.advancedView.RemoteGitVersion);
-
-            var localVer = getLocalVersionLink(ip, data);
-
-            $('#' + rowID + '_localgitvers').html(localVer);
-		});
     }
 
 	function getFPPSystemInfo(ip) {
@@ -660,7 +649,7 @@ function upgradeDone(id) {
     streamCount--;
 
     var ip = ipFromRowID(id);
-    updateFPPVersionInfo(ip);
+    getFPPSystemStatus(ip, true);
 
     EnableDisableStreamButtons();
 }
@@ -708,7 +697,7 @@ function restartDone(id) {
     streamCount--;
 
     var ip = ipFromRowID(id);
-    updateFPPVersionInfo(ip);
+    getFPPSystemStatus(ip, true);
 
     EnableDisableStreamButtons();
 }
@@ -724,33 +713,29 @@ function restartFailed(id) {
 }
 
 function restartSystem(rowID) {
-    $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    // Handle tablesorter bug not assigning same color to child rows
+    if ($('#' + rowID).hasClass('odd'))
+        $('#' + rowID + '_logs').addClass('odd');
+
+    $('#' + rowID + '_logs').show();
+    rowSpanSet(rowID);
+
+    if ($('#' + rowID + '_logText').val() != '')
+        $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
 
     var ip = ipFromRowID(rowID);
-    StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText');
+    StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
 }
 
 function restartSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
-            streamCount++;
-            EnableDisableStreamButtons();
-
             var rowID = $(this).closest('tr').attr('id');
 
-            // Handle tablesorter bug not assigning same color to child rows
-            if ($('#' + rowID).hasClass('odd'))
-                $('#' + rowID + '_logs').addClass('odd');
-
-            $('#' + rowID + '_logs').show();
-            rowSpanSet(rowID);
-
-            var ip = ipFromRowID(rowID);
-
-            if ($('#' + rowID + '_logText').val() != '')
-                $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
-
-            StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+            restartSystem(rowID);
         }
     });
 }
