@@ -1381,7 +1381,12 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['Kernel'] = get_kernel_version();
         $result['LocalGitVersion'] = get_local_git_version();
         $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
-        $result['UpgradeSource'] = $settings['UpgradeSource'];
+
+        if (isset($settings['UpgradeSource']))
+            $result['UpgradeSource'] = $settings['UpgradeSource'];
+        else
+            $result['UpgradeSource'] = 'github.com';
+
         $result['IPs'] = $IPs;
     }
 
