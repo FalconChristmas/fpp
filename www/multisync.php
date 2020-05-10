@@ -251,8 +251,13 @@ input.remoteCheckbox {
                 u += getLocalVersionLink(ip, data);
                 u += "</td></tr>" +
                     "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
-                    "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>" +
-                    "</table>";
+                    "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
+
+                if ((typeof(data.advancedView.UpgradeSource) !== 'undefined') &&
+                    (data.advancedView.UpgradeSource != 'github.com'))
+                    u += "<tr><td>Origin:</td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
+
+                u += "</table>";
 
                 $('#advancedViewGitVersions_' + rowID).html(u);
 
