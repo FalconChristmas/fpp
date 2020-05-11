@@ -113,7 +113,7 @@ then
         cpupower idle-set -d 1
     fi
     # Also need to use the performance governor or USB is very slow
-    if [[ -f /usr/bin/cpufreq-set ]]; then
+    if [[ -f /sys/devices/system/cpu/cpufreq/policy0/scaling_governor ]]; then
         echo "GOVERNOR=\"performance\"" > /etc/default/cpufrequtils
         cpufreq-set -g performance
     fi
