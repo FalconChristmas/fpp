@@ -40,17 +40,29 @@
 
 // defines are slightly lower as
 // there is overhead in resetting the clocks
-#define T0_TIME    230
-#define T1_TIME   650
-#define LOW_TIME  650
+#define T0_TIME   200
+#define T1_TIME   600
+#define LOW_TIME  1150
+//if LOW_TIME needs to be more than 1250, you need to do:
+// #define SLOW_WAITNS
+
+
 
 // GPIO0 sometimes takes a while to come out of sleep or
 // something so use an lower "low" time
-#define T0_TIME_GPIO0      180
+#define T0_TIME_GPIO0      165
 #define T1_TIME_GPIO0     T1_TIME
 #define LOW_TIME_GPIO0    LOW_TIME
 
-#ifndef RUNNING_ON_PRU0
+// writing to GPIO's isn't exact so may have some jitter
+// we can tollerate much larger jitter between bits
+// than can be tollerated for the hi/low time, hi can be a bit longer
+#define BETWEEN_BIT_ALLOWANCE 1500
+#define LOW_BIT_ALLOWANCE   60
+#define HI_BIT_ALLOWANCE   100
+
+
+#if !defined(RUNNING_ON_PRU0) && !defined(RUNNING_ON_PRU1)
 #define RUNNING_ON_PRU1
 #endif
 
@@ -545,7 +557,7 @@ _LOOP:
 #endif
 
             //wait for the full cycle to complete
-            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, 500, r8, r9, WORD_LOOP_DONE
+            WAIT_AND_CHECK_TIMEOUT  LOW_TIME_PASS1, BETWEEN_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -578,7 +590,7 @@ _LOOP:
 #endif
 
 			// wait for the length of the zero bits
-            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, 50, r8, r9, WORD_LOOP_DONE
+            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, LOW_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
@@ -596,7 +608,7 @@ _LOOP:
 #endif
 
 			// Wait until the length of the one bits
-			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, 50, r8, r9, WORD_LOOP_DONE
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, HI_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
@@ -613,8 +625,6 @@ _LOOP:
 #if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
             CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
 #endif
-            //start the clock for the LOW time
-            RESET_PRU_CLOCK r8, r9
 
 			QBNE	BIT_LOOP, bit_num, 0
 
@@ -680,7 +690,7 @@ _LOOP:
             DO_OUTPUT_GPIO0
 
             //wait for the full cycle to complete
-            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, 500, r8, r9, WORD_LOOP_DONE_PASS2
+            WAIT_AND_CHECK_TIMEOUT    LOW_TIME_GPIO0, BETWEEN_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
 
             //start the clock
             RESET_PRU_CLOCK r8, r9
@@ -689,22 +699,19 @@ _LOOP:
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 
 			// wait for the length of the zero bits
-            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, 50, r8, r9, WORD_LOOP_DONE_PASS2
+            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, LO_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
-			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, 50, r8, r9, WORD_LOOP_DONE_PASS2
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, HI_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
             // already shut off, don't output
             CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, gpio0_zeros
-
-            //start the clock for the LOW time
-            RESET_PRU_CLOCK r8, r9
 
 			QBNE	BIT_LOOP_PASS2, bit_num, 0
 

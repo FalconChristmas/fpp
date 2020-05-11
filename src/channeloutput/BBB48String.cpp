@@ -290,8 +290,10 @@ int BBB48StringOutput::Init(Json::Value config)
     
     std::vector<std::string> args;
     std::vector<std::string> split0args;
-    split0args.push_back("-DRUNNING_ON_PRU0");
+    split0args.push_back("-DRUNNING_ON_PRU" + std::to_string(BBB_PRU ? 0 : 1));
     std::vector<std::string> split1args;
+    split1args.push_back("-DRUNNING_ON_PRU" + std::to_string(BBB_PRU ? 1 : 0));
+
     std::string dirname = "bbb";
     std::string verPostf = "";
     if (getBeagleBoneType() == PocketBeagle) {

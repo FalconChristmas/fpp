@@ -38,10 +38,19 @@
    Based on the clock.   User RESET_PRU_CLOCK to set to 0 first. */
 .macro WAITNS
 .mparam ns, treg1, treg2
+#ifdef SLOW_WAITNS
+waitloop:
+    MOV treg1, PRU_CONTROL_REG
+    LBBO treg2, treg1, 0xC, 4 // read the cycle counter
+    MOV treg1, (ns)/5
+    QBGT waitloop, treg2, treg1
+#else
     MOV treg1, PRU_CONTROL_REG
 waitloop:
     LBBO treg2, treg1, 0xC, 4 // read the cycle counter
+    //MOV treg1, (ns)/5
     QBGT waitloop, treg2, (ns)/5
+#endif
 .endm
 
 /* Busy sleep for the given number of ns */
