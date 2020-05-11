@@ -629,6 +629,38 @@ $(document).ready(function(){
 	GetTestMode();
 });
 
+
+<?
+$testStartChannel = 1;
+$testEndChannel = FPPD_MAX_CHANNELS;
+if (file_exists("/home/fpp/media/fpp-info.json")) {
+    $content = file_get_contents("/home/fpp/media/fpp-info.json");
+    $json = json_decode($content, true);
+    $channelRanges = $json['channelRanges'];
+    if ($channelRanges != "") {
+        $testStartChannel = FPPD_MAX_CHANNELS;
+        $testEndChannel = 1;
+        $ranges = explode(',', $channelRanges);
+        foreach ($ranges as $range) {
+            $minmax = explode('-', $channelRanges);
+            
+            if ($minmax[0] < $testStartChannel) {
+                $testStartChannel = $minmax[0] + 1;
+            }
+            if ($minmax[1] > $testEndChannel) {
+                $testEndChannel = $minmax[1] + 1;
+            }
+        }
+        
+        if ($testEndChannel < $testStartChannel) {
+            $tmp = $testEndChannel;
+            $testEndChannel = $testStartChannel;
+            $testStartChannel = $tmp;
+        }
+    }
+}
+?>
+
 </script>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
@@ -650,7 +682,7 @@ $(document).ready(function(){
 				<b>Channel Range to Test</b><br>
 				<table border=0 cellspacing='2' cellpadding='2'>
 				<tr><td>Start Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='1' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+						<td><input type='text' size='6' maxlength='6' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 <!--
 						<td>Universe Size:</td>
 						<td><input type='text' size=4 maxlength=4 value='512' id='testUniverseSize'></td>
@@ -659,7 +691,7 @@ $(document).ready(function(){
 						<td>Model Name:</td>
 						<td>
 							<select onChange='UpdateStartEndFromModel();' id='modelName'>
-								<option value='1,<? echo FPPD_MAX_CHANNELS; ?>'>-- All Channels --</option>
+								<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
 <?
 
 if (file_exists($settings['model-overlays'])) {
@@ -676,7 +708,7 @@ if (file_exists($settings['model-overlays'])) {
 							</td>
 						</tr>
 				<tr><td>End Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='<? echo FPPD_MAX_CHANNELS; ?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+						<td><input type='text' size='6' maxlength='6' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 <!--
 						<td>Universe #:</td>
 						<td><input type='text' size=5 maxlength=5 value='1' id='testUniverseNumber'></td>
