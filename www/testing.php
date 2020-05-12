@@ -239,9 +239,13 @@ function GetTestMode()
 				$('#testModeEnabled').prop('checked', true);
 				lastEnabledState = 1;
 
-				$("#testModeCycleMSText").html(data.cycleMS);
-				$("#testModeCycleMS").slider("value", data.cycleMS);
-
+                if (data.hasOwnProperty('cycleMS')) {
+                    $("#testModeCycleMSText").html(data.cycleMS);
+                    $("#testModeCycleMS").slider("value", data.cycleMS);
+                } else {
+                    $("#testModeCycleMSText").html(1000);
+                    $("#testModeCycleMS").slider("value", 1000);
+                }
 				if (data.mode == "SingleChase")
 				{
 					$("input[name=testModeMode][value=SingleChase]").prop('checked', true);
