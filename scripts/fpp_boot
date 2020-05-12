@@ -31,6 +31,14 @@ checkAudioConfig
 aplay -l 2>&1 | grep -q "no soundcards"
 HASSOUND=$?
 echo "FPP - Configuring Audio: ${HASSOUND}"
+if [ ${HASSOUND} -eq 0 ]; then
+    modprobe -q snd-dummy
+    aplay -l 2>&1 | grep -q "no soundcards"
+    HASSOUND=$?
+    if [ ${HASSOUND} -eq 1 ]; then
+        echo "    Loaded snd-dummy"
+    fi
+fi
 if [ ${HASSOUND} -eq 1 ]; then
     CARDID=0
     if [ -e /root/.asoundrc ]; then

@@ -19,9 +19,14 @@ function SetHWClock()
     global $settings;
 
     $rtcDevice = "/dev/rtc0";
-    if ($settings['Platform'] == "BeagleBone Black")
-        $rtcDevice = "/dev/rtc1";
-
+    if ($settings['Platform'] == "BeagleBone Black") {
+        if (file_exists("/sys/class/rtc/rtc0/name")) {
+            $rtcname = file_get_contents("/sys/class/rtc/rtc0/name");
+            if (strpos($rtcname, "omap_rtc") !== false) {
+                $rtcDevice = "/dev/rtc1";
+            }
+        }
+    }
     exec("sudo hwclock -w -f $rtcDevice");
 }
 

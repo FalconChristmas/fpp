@@ -686,11 +686,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 				<b>Channel Range to Test</b><br>
 				<table border=0 cellspacing='2' cellpadding='2'>
 				<tr><td>Start Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
-<!--
-						<td>Universe Size:</td>
-						<td><input type='text' size=4 maxlength=4 value='512' id='testUniverseSize'></td>
--->
+						<td><input type='text' size='7' maxlength='7' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 						<td width=40>&nbsp;</td>
 						<td>Model Name:</td>
 						<td>
@@ -712,11 +708,7 @@ if (file_exists($settings['model-overlays'])) {
 							</td>
 						</tr>
 				<tr><td>End Channel:</td>
-						<td><input type='text' size='6' maxlength='6' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
-<!--
-						<td>Universe #:</td>
-						<td><input type='text' size=5 maxlength=5 value='1' id='testUniverseNumber'></td>
--->
+						<td><input type='text' size='7' maxlength='7' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 						</tr>
 				</table>
 				<br>
