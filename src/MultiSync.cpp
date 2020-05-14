@@ -457,8 +457,12 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
         case kSysTypeFPPRaspberryPi4:         return "Raspberry Pi 4";
 		case kSysTypeFalconController:        return "Falcon Controller";
         case kSysTypeFalconF16v2:             return "Falcon F16v2";
+        case kSysTypeFalconF4v2_64Mb:         return "Falcon F4v2_64Mb";
+        case kSysTypeFalconF16v2R:            return "Falcon F16v2R";
+        case kSysTypeFalconF4v2:              return "Falcon F4v2";
+        case kSysTypeFalconF4v3:              return "Falcon F4v3";
         case kSysTypeFalconF16v3:             return "Falcon F16v3";
-        case kSysTypeFalconF48v1:             return "Falcon F48v1";
+        case kSysTypeFalconF48:               return "Falcon F48";
 		case kSysTypeOtherSystem:             return "Other Unknown System";
         case kSysTypeFPPBeagleBoneBlack:      return "BeagleBone Black";
         case kSysTypeFPPBeagleBoneBlackWireless: return "BeagleBone Black Wireless";
