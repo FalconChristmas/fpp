@@ -1,0 +1,33 @@
+/dts-v1/;
+/plugin/;
+/* Reserve 4M DDR memory for the pixel buffers */
+/ {
+
+    compatible = "ti,beaglebone", "ti,beaglebone-black", "ti,beaglebone-green";
+
+    // identification
+    part-number = "AM335X-FPP-RESERVED-MEMORY";
+    version = "00A0";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			reserved-memory {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+				fpp_reserved: fpp_reserved@8f000000 {
+					reg = <0x8f000000 0x00400000>;
+					no-map;
+					status = "okay"; 
+				};      
+			};
+   
+            fpp: fpp@8f000000 {
+                memory-region = <&fpp_reserved>;
+                status = "okay";
+            };
+		};
+	};
+    
+};

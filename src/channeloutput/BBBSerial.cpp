@@ -29,8 +29,6 @@
 #define BBB_PRU  0
 //  #define USING_PRU_RAM
 
-#include <pruss_intc_mapping.h>
-#include <prussdrv.h>
 
 // FPP includes
 #include "BBBSerial.h"

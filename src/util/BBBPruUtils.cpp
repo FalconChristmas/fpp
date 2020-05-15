@@ -41,10 +41,13 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) : pru_num(pru) {
                         );
 
     const int mem_fd = open("/dev/mem", O_RDWR);
-    const uintptr_t ddr_addr = proc_read("/sys/class/uio/uio0/maps/map1/addr");
-    const uintptr_t ddr_sizeb = proc_read("/sys/class/uio/uio0/maps/map1/size");
-    
-    
+    uintptr_t ddr_addr = 0x8f000000;
+    uintptr_t ddr_sizeb = 0x00400000;
+
+    if (FileExists("/sys/class/uio/uio0/maps/map1/addr")) {
+        ddr_addr = proc_read("/sys/class/uio/uio0/maps/map1/addr");
+        ddr_sizeb = proc_read("/sys/class/uio/uio0/maps/map1/size");
+    }
     if (ddr_mem_loc == nullptr) {
         ddr_filelen = ddr_sizeb;
         ddr_mem_loc = (uint8_t*)mmap(0,
@@ -55,14 +58,14 @@ BBBPru::BBBPru(int pru, bool mapShared, bool mapOther) : pru_num(pru) {
                                      ddr_addr
                                      );
     }
-    
+
     close(mem_fd);
     this->ddr_addr = ddr_addr;
     this->data_ram = (uint8_t*)pru_data_mem;
     this->data_ram_size = 8192;
     this->ddr = ddr_mem_loc;
     this->ddr_size = ddr_sizeb;
-    
+
     if (mapShared) {
         prussdrv_map_prumem(PRUSS0_SHARED_DATARAM,
                             (void**)&this->shared_ram);
@@ -85,7 +88,6 @@ BBBPru::~BBBPru() {
     prussUseCount--;
     if (prussUseCount == 0) {
         prussdrv_exit();
-        
         if (ddr_mem_loc) {
             munmap(ddr_mem_loc, ddr_filelen);
             ddr_mem_loc = nullptr;

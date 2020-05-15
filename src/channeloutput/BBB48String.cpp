@@ -30,9 +30,6 @@
 
 //  #define PRINT_STATS
 
-#include <pruss_intc_mapping.h>
-#include <prussdrv.h>
-
 // FPP includes
 #include "BBB48String.h"
 #include "util/BBBUtils.h"
