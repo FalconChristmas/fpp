@@ -640,6 +640,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
     // base data returned by all the other modes
     result["current_playlist"]["playlist"] = "";
+    result["current_playlist"]["description"] = "";
     result["current_playlist"]["type"] = "";
     result["current_playlist"]["index"] = "0";
     result["current_playlist"]["count"] = "0";
@@ -707,6 +708,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
             plname = plname.substr(0, plname.find_last_of("."));
 
         result["current_playlist"]["playlist"] = plname;
+        result["current_playlist"]["description"] = pl["desc"];
         result["current_playlist"]["index"] = std::to_string(playlist->GetPosition());
         result["current_playlist"]["count"] = std::to_string(pl["size"].asInt());
         result["current_playlist"]["type"] = pl["currentEntry"]["type"].asString();

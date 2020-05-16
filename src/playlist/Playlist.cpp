@@ -1304,6 +1304,7 @@ Json::Value Playlist::GetInfo(void)
 
 	if (m_currentState == "idle") {
 		result["name"] = "";
+		result["desc"] = "";
 		result["repeat"] = 0;
 		result["loop"] = 0;
 		result["loopCount"] = 0;
@@ -1490,4 +1491,5 @@ std::string Playlist::ReplaceMatches(std::string in)
 
 	return out;
 }
+
 
