@@ -1424,6 +1424,8 @@ function RemovePlaylistEntry()	{
 
 				$('#helpText').html("Pinging " + ip + "<br><br>This will take a few seconds to load");
 				$('#dialog-help').dialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
+			        // Workaround for bug: https://bugs.jqueryui.com/ticket/8741
+				$('#dialog-help').dialog("option", "position", { my: 'center', of: window});
 //				$('#dialog-help').dialog( "moveToTop" );
 
 				$.get("ping.php?ip=" + ip + "&count=" + count
