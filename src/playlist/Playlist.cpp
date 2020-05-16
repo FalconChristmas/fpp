@@ -1284,6 +1284,7 @@ Json::Value Playlist::GetMqttStatusJSON(void){
 
 		playlist["name"] = m_name;
 		playlist["repeat"] = m_repeat;
+		playlist["description"] = m_desc;
 		playlist["currentItems"] = entryArray;
 		playlistArray.append(playlist);
 	}

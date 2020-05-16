@@ -40,7 +40,8 @@ entries in a Playlist are allowed, only one will be displayed in real life.
    "status" : "playing",    // playing or idle
    "activePlaylist" : [  
       {  
-         "playlistName" : "Name of current playlist",
+         "name" : "Name of current playlist",
+         "desc" : "Description of the PlayList",
          "repeat" : 1,     // 0 if playist is not repating, 1 if repeating
          "currentItems" : [
             {

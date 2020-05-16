@@ -204,6 +204,8 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
             <div style="float:left; margin-right: 50px;">
                 <b>Playlist Name:</b><br>
                 <input type="text" id="txtPlaylistName" class="pl_title" disabled />
+                <br><b>Playlist Description:</b><br>
+                <input type="text" id="txtPlaylistDesc" class="pl_description" />
                 <br />
                 <input type="button" value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons playlistEditButton" />
                 <input type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />

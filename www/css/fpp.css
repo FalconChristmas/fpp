@@ -851,10 +851,16 @@ fieldset
 }
 
 .pl_title {
-	font-size: larger;
+    font-size: larger;
     text-align: center;
     min-width: 300px;
 }
+
+.pl_description {
+    font-size: larger;
+    min-width: 300px;
+}
+
 
 .title {
 	font-size: larger;

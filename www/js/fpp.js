@@ -1141,6 +1141,7 @@ function SavePlaylistAs(name, filter, callback) {
     pl.version = 3;   // v1 == CSV, v2 == JSON, v3 == deprecated some things
     pl.repeat = 0;    // currently unused by player
     pl.loopCount = 0; // currently unused by player
+    pl.desc = $('#txtPlaylistDesc').val()
 
     var leadIn = [];
     $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
@@ -3273,7 +3274,11 @@ function PopulatePlaylistDetails(data, editMode)
         gblCurrentLoadedPlaylistCount = entries;
         UpdatePlaylistDurations();
     }
-
+    var desc = "";
+    if ("desc" in data) {
+        desc = data.desc
+    }
+    $("#txtPlaylistDesc").val(desc)
     SetPlaylistName(data.name);
 }
 
