@@ -171,6 +171,10 @@ include 'common/menuHead.inc';
                         <th>FPP Time:</th>
                         <td id="fppTime"></td>
                     </tr>
+                    <tr id="mqttRow">
+                        <th>MQTT:</th>
+                        <td id="mqttStatus"></td>
+                    </tr>
                     <tr id="warningsRow"><td colspan="4" id="warningsTd"><div id="warningsDiv"></div></td>
                     </tr>
                 </table>

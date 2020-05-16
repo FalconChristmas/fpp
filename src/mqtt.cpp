@@ -292,6 +292,10 @@ void MosquittoClient::LogCallback(void *userdata, int level, const char *str)
 	}
 }
 
+bool MosquittoClient::IsConnected() {
+    return m_isConnected;
+}
+
 void MosquittoClient::AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback) {
     callbacks[topic] = callback;
     if (m_canProcessMessages && m_isConnected) {

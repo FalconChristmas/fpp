@@ -53,6 +53,7 @@ class MosquittoClient {
 	void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
 	void HandleDisconnect();
 	void HandleConnect();
+	bool IsConnected();
 
 	void PublishStatus();
 	void SetReady();

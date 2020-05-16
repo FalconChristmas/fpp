@@ -2328,6 +2328,7 @@ function GetSequenceArray()
 						$('#schedulerStatus').html("");
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
+                                                $('#mqttRow').hide()
 					
 					} else if(response.status_name == 'updating') {
 
@@ -2342,6 +2343,7 @@ function GetSequenceArray()
 						$('#schedulerStatus').html("");
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
+                                                $('#mqttRow').hide()
 
 					} else {
 
@@ -2387,6 +2389,18 @@ function GetSequenceArray()
 		SetSpeakerIndicator(Volume);
 
         AdjustFPPDModeFromStatus(fppMode);
+	if (jsonStatus.hasOwnProperty('MQTT')) {
+	   if (jsonStatus.MQTT.configured) {
+              $('#mqttRow').show()
+	      var mqttConnected = jsonStatus.MQTT.connected ? "Connected" : "Disconnected";
+	      $('#mqttStatus').html(mqttConnected);
+	   } else {
+              $('#mqttRow').hide()
+	   }
+	} else {
+           $('#mqttRow').hide()
+	}
+
         
         if (jsonStatus.hasOwnProperty('warnings')) {
             var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";

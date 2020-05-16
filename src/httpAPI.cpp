@@ -630,6 +630,14 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         return;
     }
 
+    // MQTT
+    result["MQTT"]["configured"] = false;
+    result["MQTT"]["connected"] = false;
+    if (mqtt) {
+        result["MQTT"]["configured"] = true;
+        result["MQTT"]["connected"] = mqtt->IsConnected();
+    }
+
     // base data returned by all the other modes
     result["current_playlist"]["playlist"] = "";
     result["current_playlist"]["type"] = "";
