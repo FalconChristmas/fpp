@@ -211,7 +211,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 
 	LogDebug(VB_CONTROL, "About to call MQTT Connect (%s, %d, %d)\n", m_host.c_str(), m_port, m_keepalive);
 
-	int result = mosquitto_connect(m_mosq, m_host.c_str(), m_port, m_keepalive);
+	int result = mosquitto_connect_async(m_mosq, m_host.c_str(), m_port, m_keepalive);
 
 	if (result) {
 		LogErr(VB_CONTROL, "Error, unable to connect to Mosquitto Broker at %s: %d\n",
@@ -225,7 +225,6 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
         LogErr(VB_CONTROL, "Error, unable to start Mosquitto loop: %d\n", loop);
         return 0;
     }
-    LogInfo(VB_CONTROL, "MQTT Sucessfully Connected\n");
     
     CommandManager::INSTANCE.addCommand(new MQTTCommand());
 
@@ -309,8 +308,8 @@ void MosquittoClient::AddCallback(const std::string &topic, std::function<void(c
 }
 
 void MosquittoClient::SetReady() {
+   LogInfo(VB_CONTROL, "Mosquitto SetReady()\n");
     if (!m_canProcessMessages) {
-	LogDebug(VB_CONTROL, "Mosquitto SetReady()\n");
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
 
@@ -324,17 +323,12 @@ void MosquittoClient::SetReady() {
             }
         }
     }
-    // Register topics
-    HandleConnect();
 }
         
 void MosquittoClient::HandleConnect() {
-	if (! m_canProcessMessages) {
-		// Abort registrying if ReadyNotSet
-		return;
-	}
-	LogInfo(VB_CONTROL, "Mosquitto Connecting.... Will Subscribe to Topics\n");
+
 	m_isConnected = true;
+	LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
 	std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
     subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
@@ -362,6 +356,7 @@ void MosquittoClient::HandleDisconnect()
 {
 	LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
 	m_isConnected = false;
+
 }
 
 /*
@@ -479,7 +474,7 @@ void *RunMqttPublishThread(void *data) {
 	if (frequency < 0) {
 		frequency = 0;
 	} 
-	LogWarn(VB_CONTROL, "Starting Publish Thread with Frequency: %d\n", frequency);
+	LogInfo(VB_CONTROL, "Starting Publish Thread with Frequency: %d\n", frequency);
 	if (frequency == 0) {
 		// kill thread
 		LogInfo(VB_CONTROL, "Stopping MQWTT Publish Thread as frequency is zero.\nc");
