@@ -5,7 +5,7 @@
 #define SETOUTPUT1MASK
 #define DOOUTPUT1
 #else
-#define SETOUTPUT1MASK    SET GPIO_MASK(o1_gpio), o1_pin
+#define SETOUTPUT1MASK    SET GPIO_MASK(o1_gpio), GPIO_MASK(o1_gpio), o1_pin
 #define DOOUTPUT1         OUTPUT_STRIP(1)
 #if o1_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -22,7 +22,7 @@
 #define SETOUTPUT2MASK
 #define DOOUTPUT2
 #else
-#define SETOUTPUT2MASK    SET GPIO_MASK(o2_gpio), o2_pin
+#define SETOUTPUT2MASK    SET GPIO_MASK(o2_gpio), GPIO_MASK(o2_gpio), o2_pin
 #define DOOUTPUT2         OUTPUT_STRIP(2)
 #if o2_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -39,7 +39,7 @@
 #define SETOUTPUT3MASK
 #define DOOUTPUT3
 #else
-#define SETOUTPUT3MASK    SET GPIO_MASK(o3_gpio), o3_pin
+#define SETOUTPUT3MASK    SET GPIO_MASK(o3_gpio), GPIO_MASK(o3_gpio), o3_pin
 #define DOOUTPUT3         OUTPUT_STRIP(3)
 #if o3_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -56,7 +56,7 @@
 #define SETOUTPUT4MASK
 #define DOOUTPUT4
 #else
-#define SETOUTPUT4MASK    SET GPIO_MASK(o4_gpio), o4_pin
+#define SETOUTPUT4MASK    SET GPIO_MASK(o4_gpio), GPIO_MASK(o4_gpio), o4_pin
 #define DOOUTPUT4         OUTPUT_STRIP(4)
 #if o4_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -73,7 +73,7 @@
 #define SETOUTPUT5MASK
 #define DOOUTPUT5
 #else
-#define SETOUTPUT5MASK    SET GPIO_MASK(o5_gpio), o5_pin
+#define SETOUTPUT5MASK    SET GPIO_MASK(o5_gpio), GPIO_MASK(o5_gpio), o5_pin
 #define DOOUTPUT5         OUTPUT_STRIP(5)
 #if o5_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -91,7 +91,7 @@
 #define SETOUTPUT6MASK
 #define DOOUTPUT6
 #else
-#define SETOUTPUT6MASK    SET GPIO_MASK(o6_gpio), o6_pin
+#define SETOUTPUT6MASK    SET GPIO_MASK(o6_gpio), GPIO_MASK(o6_gpio), o6_pin
 #define DOOUTPUT6         OUTPUT_STRIP(6)
 #if o6_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -108,7 +108,7 @@
 #define SETOUTPUT7MASK
 #define DOOUTPUT7
 #else
-#define SETOUTPUT7MASK    SET GPIO_MASK(o7_gpio), o7_pin
+#define SETOUTPUT7MASK    SET GPIO_MASK(o7_gpio), GPIO_MASK(o7_gpio), o7_pin
 #define DOOUTPUT7         OUTPUT_STRIP(7)
 #if o7_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -125,7 +125,7 @@
 #define SETOUTPUT8MASK
 #define DOOUTPUT8
 #else
-#define SETOUTPUT8MASK    SET GPIO_MASK(o8_gpio), o8_pin
+#define SETOUTPUT8MASK    SET GPIO_MASK(o8_gpio), GPIO_MASK(o8_gpio), o8_pin
 #define DOOUTPUT8         OUTPUT_STRIP(8)
 #if o8_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -143,7 +143,7 @@
 #define SETOUTPUT9MASK
 #define DOOUTPUT9
 #else
-#define SETOUTPUT9MASK    SET GPIO_MASK(o9_gpio), o9_pin
+#define SETOUTPUT9MASK    SET GPIO_MASK(o9_gpio), GPIO_MASK(o9_gpio), o9_pin
 #define DOOUTPUT9         OUTPUT_STRIP(9)
 #if o9_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -160,7 +160,7 @@
 #define SETOUTPUT10MASK
 #define DOOUTPUT10
 #else
-#define SETOUTPUT10MASK    SET GPIO_MASK(o10_gpio), o10_pin
+#define SETOUTPUT10MASK    SET GPIO_MASK(o10_gpio), GPIO_MASK(o10_gpio), o10_pin
 #define DOOUTPUT10         OUTPUT_STRIP(10)
 #if o10_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -177,7 +177,7 @@
 #define SETOUTPUT11MASK
 #define DOOUTPUT11
 #else
-#define SETOUTPUT11MASK    SET GPIO_MASK(o11_gpio), o11_pin
+#define SETOUTPUT11MASK    SET GPIO_MASK(o11_gpio), GPIO_MASK(o11_gpio), o11_pin
 #define DOOUTPUT11         OUTPUT_STRIP(11)
 #if o11_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -194,7 +194,7 @@
 #define SETOUTPUT12MASK
 #define DOOUTPUT12
 #else
-#define SETOUTPUT12MASK    SET GPIO_MASK(o12_gpio), o12_pin
+#define SETOUTPUT12MASK    SET GPIO_MASK(o12_gpio), GPIO_MASK(o12_gpio), o12_pin
 #define DOOUTPUT12         OUTPUT_STRIP(12)
 #if o12_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -211,7 +211,7 @@
 #define SETOUTPUT13MASK
 #define DOOUTPUT13
 #else
-#define SETOUTPUT13MASK    SET GPIO_MASK(o13_gpio), o13_pin
+#define SETOUTPUT13MASK    SET GPIO_MASK(o13_gpio), GPIO_MASK(o13_gpio), o13_pin
 #define DOOUTPUT13         OUTPUT_STRIP(13)
 #if o13_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -228,7 +228,7 @@
 #define SETOUTPUT14MASK
 #define DOOUTPUT14
 #else
-#define SETOUTPUT14MASK    SET GPIO_MASK(o14_gpio), o14_pin
+#define SETOUTPUT14MASK    SET GPIO_MASK(o14_gpio), GPIO_MASK(o14_gpio), o14_pin
 #define DOOUTPUT14         OUTPUT_STRIP(14)
 #if o14_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -245,7 +245,7 @@
 #define SETOUTPUT15MASK
 #define DOOUTPUT15
 #else
-#define SETOUTPUT15MASK    SET GPIO_MASK(o15_gpio), o15_pin
+#define SETOUTPUT15MASK    SET GPIO_MASK(o15_gpio), GPIO_MASK(o15_gpio), o15_pin
 #define DOOUTPUT15         OUTPUT_STRIP(15)
 #if o15_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -262,7 +262,7 @@
 #define SETOUTPUT16MASK
 #define DOOUTPUT16
 #else
-#define SETOUTPUT16MASK    SET GPIO_MASK(o16_gpio), o16_pin
+#define SETOUTPUT16MASK    SET GPIO_MASK(o16_gpio), GPIO_MASK(o16_gpio), o16_pin
 #define DOOUTPUT16         OUTPUT_STRIP(16)
 #if o16_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -279,7 +279,7 @@
 #define SETOUTPUT17MASK
 #define DOOUTPUT17
 #else
-#define SETOUTPUT17MASK    SET GPIO_MASK(o17_gpio), o17_pin
+#define SETOUTPUT17MASK    SET GPIO_MASK(o17_gpio), GPIO_MASK(o17_gpio), o17_pin
 #define DOOUTPUT17         OUTPUT_STRIP(17)
 #if o17_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -296,7 +296,7 @@
 #define SETOUTPUT18MASK
 #define DOOUTPUT18
 #else
-#define SETOUTPUT18MASK    SET GPIO_MASK(o18_gpio), o18_pin
+#define SETOUTPUT18MASK    SET GPIO_MASK(o18_gpio), GPIO_MASK(o18_gpio), o18_pin
 #define DOOUTPUT18         OUTPUT_STRIP(18)
 #if o18_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -314,7 +314,7 @@
 #define SETOUTPUT19MASK
 #define DOOUTPUT19
 #else
-#define SETOUTPUT19MASK    SET GPIO_MASK(o19_gpio), o19_pin
+#define SETOUTPUT19MASK    SET GPIO_MASK(o19_gpio), GPIO_MASK(o19_gpio), o19_pin
 #define DOOUTPUT19         OUTPUT_STRIP(19)
 #if o19_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -331,7 +331,7 @@
 #define SETOUTPUT20MASK
 #define DOOUTPUT20
 #else
-#define SETOUTPUT20MASK    SET GPIO_MASK(o20_gpio), o20_pin
+#define SETOUTPUT20MASK    SET GPIO_MASK(o20_gpio), GPIO_MASK(o20_gpio), o20_pin
 #define DOOUTPUT20         OUTPUT_STRIP(20)
 #if o20_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -348,7 +348,7 @@
 #define SETOUTPUT21MASK
 #define DOOUTPUT21
 #else
-#define SETOUTPUT21MASK    SET GPIO_MASK(o21_gpio), o21_pin
+#define SETOUTPUT21MASK    SET GPIO_MASK(o21_gpio), GPIO_MASK(o21_gpio), o21_pin
 #define DOOUTPUT21         OUTPUT_STRIP(21)
 #if o21_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -365,7 +365,7 @@
 #define SETOUTPUT22MASK
 #define DOOUTPUT22
 #else
-#define SETOUTPUT22MASK    SET GPIO_MASK(o22_gpio), o22_pin
+#define SETOUTPUT22MASK    SET GPIO_MASK(o22_gpio), GPIO_MASK(o22_gpio), o22_pin
 #define DOOUTPUT22         OUTPUT_STRIP(22)
 #if o22_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -382,7 +382,7 @@
 #define SETOUTPUT23MASK
 #define DOOUTPUT23
 #else
-#define SETOUTPUT23MASK    SET GPIO_MASK(o23_gpio), o23_pin
+#define SETOUTPUT23MASK    SET GPIO_MASK(o23_gpio), GPIO_MASK(o23_gpio), o23_pin
 #define DOOUTPUT23         OUTPUT_STRIP(23)
 #if o23_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -399,7 +399,7 @@
 #define SETOUTPUT24MASK
 #define DOOUTPUT24
 #else
-#define SETOUTPUT24MASK    SET GPIO_MASK(o24_gpio), o24_pin
+#define SETOUTPUT24MASK    SET GPIO_MASK(o24_gpio), GPIO_MASK(o24_gpio), o24_pin
 #define DOOUTPUT24         OUTPUT_STRIP(24)
 #if o24_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -416,7 +416,7 @@
 #define SETOUTPUT25MASK
 #define DOOUTPUT25
 #else
-#define SETOUTPUT25MASK    SET GPIO_MASK(o25_gpio), o25_pin
+#define SETOUTPUT25MASK    SET GPIO_MASK(o25_gpio), GPIO_MASK(o25_gpio), o25_pin
 #define DOOUTPUT25         OUTPUT_STRIP(25)
 #if o25_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -433,7 +433,7 @@
 #define SETOUTPUT26MASK
 #define DOOUTPUT26
 #else
-#define SETOUTPUT26MASK    SET GPIO_MASK(o26_gpio), o26_pin
+#define SETOUTPUT26MASK    SET GPIO_MASK(o26_gpio), GPIO_MASK(o26_gpio), o26_pin
 #define DOOUTPUT26         OUTPUT_STRIP(26)
 #if o26_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -450,7 +450,7 @@
 #define SETOUTPUT27MASK
 #define DOOUTPUT27
 #else
-#define SETOUTPUT27MASK    SET GPIO_MASK(o27_gpio), o27_pin
+#define SETOUTPUT27MASK    SET GPIO_MASK(o27_gpio), GPIO_MASK(o27_gpio), o27_pin
 #define DOOUTPUT27         OUTPUT_STRIP(27)
 #if o27_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -467,7 +467,7 @@
 #define SETOUTPUT28MASK
 #define DOOUTPUT28
 #else
-#define SETOUTPUT28MASK    SET GPIO_MASK(o28_gpio), o28_pin
+#define SETOUTPUT28MASK    SET GPIO_MASK(o28_gpio), GPIO_MASK(o28_gpio), o28_pin
 #define DOOUTPUT28         OUTPUT_STRIP(28)
 #if o28_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -484,7 +484,7 @@
 #define SETOUTPUT29MASK
 #define DOOUTPUT29
 #else
-#define SETOUTPUT29MASK    SET GPIO_MASK(o29_gpio), o29_pin
+#define SETOUTPUT29MASK    SET GPIO_MASK(o29_gpio), GPIO_MASK(o29_gpio), o29_pin
 #define DOOUTPUT29         OUTPUT_STRIP(29)
 #if o29_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -501,7 +501,7 @@
 #define SETOUTPUT30MASK
 #define DOOUTPUT30
 #else
-#define SETOUTPUT30MASK    SET GPIO_MASK(o30_gpio), o30_pin
+#define SETOUTPUT30MASK    SET GPIO_MASK(o30_gpio), GPIO_MASK(o30_gpio), o30_pin
 #define DOOUTPUT30         OUTPUT_STRIP(30)
 #if o30_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -518,7 +518,7 @@
 #define SETOUTPUT31MASK
 #define DOOUTPUT31
 #else
-#define SETOUTPUT31MASK    SET GPIO_MASK(o31_gpio), o31_pin
+#define SETOUTPUT31MASK    SET GPIO_MASK(o31_gpio), GPIO_MASK(o31_gpio), o31_pin
 #define DOOUTPUT31         OUTPUT_STRIP(31)
 #if o31_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -535,7 +535,7 @@
 #define SETOUTPUT32MASK
 #define DOOUTPUT32
 #else
-#define SETOUTPUT32MASK    SET GPIO_MASK(o32_gpio), o32_pin
+#define SETOUTPUT32MASK    SET GPIO_MASK(o32_gpio), GPIO_MASK(o32_gpio), o32_pin
 #define DOOUTPUT32         OUTPUT_STRIP(32)
 #if o32_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -552,7 +552,7 @@
 #define SETOUTPUT33MASK
 #define DOOUTPUT33
 #else
-#define SETOUTPUT33MASK    SET GPIO_MASK(o33_gpio), o33_pin
+#define SETOUTPUT33MASK    SET GPIO_MASK(o33_gpio), GPIO_MASK(o33_gpio), o33_pin
 #define DOOUTPUT33         OUTPUT_STRIP(33)
 #if o33_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -569,7 +569,7 @@
 #define SETOUTPUT34MASK
 #define DOOUTPUT34
 #else
-#define SETOUTPUT34MASK    SET GPIO_MASK(o34_gpio), o34_pin
+#define SETOUTPUT34MASK    SET GPIO_MASK(o34_gpio), GPIO_MASK(o34_gpio), o34_pin
 #define DOOUTPUT34         OUTPUT_STRIP(34)
 #if o34_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -586,7 +586,7 @@
 #define SETOUTPUT35MASK
 #define DOOUTPUT35
 #else
-#define SETOUTPUT35MASK    SET GPIO_MASK(o35_gpio), o35_pin
+#define SETOUTPUT35MASK    SET GPIO_MASK(o35_gpio), GPIO_MASK(o35_gpio), o35_pin
 #define DOOUTPUT35         OUTPUT_STRIP(35)
 #if o35_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -603,7 +603,7 @@
 #define SETOUTPUT36MASK
 #define DOOUTPUT36
 #else
-#define SETOUTPUT36MASK    SET GPIO_MASK(o36_gpio), o36_pin
+#define SETOUTPUT36MASK    SET GPIO_MASK(o36_gpio), GPIO_MASK(o36_gpio), o36_pin
 #define DOOUTPUT36         OUTPUT_STRIP(36)
 #if o36_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -620,7 +620,7 @@
 #define SETOUTPUT37MASK
 #define DOOUTPUT37
 #else
-#define SETOUTPUT37MASK    SET GPIO_MASK(o37_gpio), o37_pin
+#define SETOUTPUT37MASK    SET GPIO_MASK(o37_gpio), GPIO_MASK(o37_gpio), o37_pin
 #define DOOUTPUT37         OUTPUT_STRIP(37)
 #if o37_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -637,7 +637,7 @@
 #define SETOUTPUT38MASK
 #define DOOUTPUT38
 #else
-#define SETOUTPUT38MASK    SET GPIO_MASK(o38_gpio), o38_pin
+#define SETOUTPUT38MASK    SET GPIO_MASK(o38_gpio), GPIO_MASK(o38_gpio), o38_pin
 #define DOOUTPUT38         OUTPUT_STRIP(38)
 #if o38_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -654,7 +654,7 @@
 #define SETOUTPUT39MASK
 #define DOOUTPUT39
 #else
-#define SETOUTPUT39MASK    SET GPIO_MASK(o39_gpio), o39_pin
+#define SETOUTPUT39MASK    SET GPIO_MASK(o39_gpio), GPIO_MASK(o39_gpio), o39_pin
 #define DOOUTPUT39         OUTPUT_STRIP(39)
 #if o39_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -671,7 +671,7 @@
 #define SETOUTPUT40MASK
 #define DOOUTPUT40
 #else
-#define SETOUTPUT40MASK    SET GPIO_MASK(o40_gpio), o40_pin
+#define SETOUTPUT40MASK    SET GPIO_MASK(o40_gpio), GPIO_MASK(o40_gpio), o40_pin
 #define DOOUTPUT40         OUTPUT_STRIP(40)
 #if o40_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -688,7 +688,7 @@
 #define SETOUTPUT41MASK
 #define DOOUTPUT41
 #else
-#define SETOUTPUT41MASK    SET GPIO_MASK(o41_gpio), o41_pin
+#define SETOUTPUT41MASK    SET GPIO_MASK(o41_gpio), GPIO_MASK(o41_gpio), o41_pin
 #define DOOUTPUT41         OUTPUT_STRIP(41)
 #if o41_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -705,7 +705,7 @@
 #define SETOUTPUT42MASK
 #define DOOUTPUT42
 #else
-#define SETOUTPUT42MASK    SET GPIO_MASK(o42_gpio), o42_pin
+#define SETOUTPUT42MASK    SET GPIO_MASK(o42_gpio), GPIO_MASK(o42_gpio), o42_pin
 #define DOOUTPUT42         OUTPUT_STRIP(42)
 #if o42_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -722,7 +722,7 @@
 #define SETOUTPUT43MASK
 #define DOOUTPUT43
 #else
-#define SETOUTPUT43MASK    SET GPIO_MASK(o43_gpio), o43_pin
+#define SETOUTPUT43MASK    SET GPIO_MASK(o43_gpio), GPIO_MASK(o43_gpio), o43_pin
 #define DOOUTPUT43         OUTPUT_STRIP(43)
 #if o43_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -739,7 +739,7 @@
 #define SETOUTPUT44MASK
 #define DOOUTPUT44
 #else
-#define SETOUTPUT44MASK    SET GPIO_MASK(o44_gpio), o44_pin
+#define SETOUTPUT44MASK    SET GPIO_MASK(o44_gpio), GPIO_MASK(o44_gpio), o44_pin
 #define DOOUTPUT44         OUTPUT_STRIP(44)
 #if o44_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -756,7 +756,7 @@
 #define SETOUTPUT45MASK
 #define DOOUTPUT45
 #else
-#define SETOUTPUT45MASK    SET GPIO_MASK(o45_gpio), o45_pin
+#define SETOUTPUT45MASK    SET GPIO_MASK(o45_gpio), GPIO_MASK(o45_gpio), o45_pin
 #define DOOUTPUT45         OUTPUT_STRIP(45)
 #if o45_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -773,7 +773,7 @@
 #define SETOUTPUT46MASK
 #define DOOUTPUT46
 #else
-#define SETOUTPUT46MASK    SET GPIO_MASK(o46_gpio), o46_pin
+#define SETOUTPUT46MASK    SET GPIO_MASK(o46_gpio), GPIO_MASK(o46_gpio), o46_pin
 #define DOOUTPUT46         OUTPUT_STRIP(46)
 #if o46_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -790,7 +790,7 @@
 #define SETOUTPUT47MASK
 #define DOOUTPUT47
 #else
-#define SETOUTPUT47MASK    SET GPIO_MASK(o47_gpio), o47_pin
+#define SETOUTPUT47MASK    SET GPIO_MASK(o47_gpio), GPIO_MASK(o47_gpio), o47_pin
 #define DOOUTPUT47         OUTPUT_STRIP(47)
 #if o47_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -807,7 +807,7 @@
 #define SETOUTPUT48MASK
 #define DOOUTPUT48
 #else
-#define SETOUTPUT48MASK    SET GPIO_MASK(o48_gpio), o48_pin
+#define SETOUTPUT48MASK    SET GPIO_MASK(o48_gpio), GPIO_MASK(o48_gpio), o48_pin
 #define DOOUTPUT48         OUTPUT_STRIP(48)
 #if o48_gpio == 0 && !defined(USES_GPIO0)
 #define USES_GPIO0
@@ -830,28 +830,19 @@
 // Output the current bit for a LED strip output
 // Parameters:
 // N: Output group to consider (11, 12, 21, ... 82)
-//
-// Parameters from the environment:
-// bit_num: current bit we're reading from
-// #define OUTPUT_STRIP(N)        \
-// QBBC    skip_o##N, o##N##_dreg, bit_num;    \
-// CLR     GPIO(o##N##_gpio), o##N##_pin;    \
-// skip_o##N:
-
 #define OUTPUT_STRIP(N) OUTPUT_STRIP_NUM o##N##_dreg, GPIO(o##N##_gpio), o##N##_pin
 
 // Parameters from the environment:
 // bit_num: current bit we're reading from
-.macro OUTPUT_STRIP_NUM
-.mparam a, b, c
-    QBBC    skip_pix, a, bit_num;
+OUTPUT_STRIP_NUM .macro a, b, c
+    .newblock
+    QBBC    skip_o?, a, bit_num;
     CLR     b, b, c;
-skip_pix:
-.endm
+skip_o?:
+    .endm
 
 
-
-.macro DO_OUTPUT_GPIO0
+DO_OUTPUT_GPIO0 .macro
 #if o1_gpio == 0
     DOOUTPUT1
 #endif
@@ -996,10 +987,10 @@ skip_pix:
 #if o48_gpio == 0
     DOOUTPUT48
 #endif
-.endm
+    .endm
 
 
-.macro DO_OUTPUT_GPIO1
+DO_OUTPUT_GPIO1 .macro
 #if o1_gpio == 1
     DOOUTPUT1
 #endif
@@ -1144,9 +1135,9 @@ skip_pix:
 #if o48_gpio == 1
     DOOUTPUT48
 #endif
-.endm
+    .endm
 
-.macro DO_OUTPUT_GPIO2
+DO_OUTPUT_GPIO2 .macro
 #if o1_gpio == 2
     DOOUTPUT1
 #endif
@@ -1291,9 +1282,9 @@ skip_pix:
 #if o48_gpio == 2
     DOOUTPUT48
 #endif
-.endm
+    .endm
 
-.macro DO_OUTPUT_GPIO3
+DO_OUTPUT_GPIO3 .macro
 #if o1_gpio == 3
     DOOUTPUT1
 #endif
@@ -1438,7 +1429,7 @@ skip_pix:
 #if o48_gpio == 3
     DOOUTPUT48
 #endif
-.endm
+    .endm
 
 
 #endif

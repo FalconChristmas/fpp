@@ -69,7 +69,7 @@
 #if __has_include("/tmp/PinConfiguration.hp")
 # include "/tmp/PinConfiguration.hp"
 #endif
-#include "FalconUtils.hp"
+#include "FalconUtils.asm"
 
 //register allocations for data
 #define o1_dreg  r10.b0
@@ -122,9 +122,6 @@
 #define o48_dreg  r21.b3
 
 
-.origin 0
-.entrypoint START
-
 #include "FalconPRUDefs.hp"
 
 
@@ -156,7 +153,7 @@
 #define gpio3_led_mask	r29
 
 
-#include "FalconWS281xOutputs.hp"
+#include "FalconWS281xOutputs.asm"
 
 #ifdef RUNNING_ON_PRU1
 #define SCRATCH_PAD 11
@@ -175,216 +172,222 @@
 #endif
 
 
-.macro SETUP_GPIO0_REGS
+SETUP_GPIO0_REGS .macro
 #ifdef USES_GPIO0
     // also need to turn off the GPIO0 idle and wakeup domain stuff
-    MOV r12, GPIO0
-    MOV r13, 0x100
+    LDI32 r12, GPIO0
+    LDI r13, 0x100
     SUB r12, r12, r13
-    LBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
-    CLR r10, 0     //AUTOIDLE
-    CLR r10, 2     //ENAWAKEUP
-    SET r10, 3     //No-Idle
-    CLR r10, 4     //
-    SBBO r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
+    LBBO &r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
+    CLR r10,r10, 0     //AUTOIDLE
+    CLR r10,r10, 2     //ENAWAKEUP
+    SET r10,r10, 3     //No-Idle
+    CLR r10,r10, 4     //
+    SBBO &r10, r12, 0x10, 4    //0x10 is the GPIO_SYSCONFIG register
 
 
-    MOV r9, 0x44E00500
+    LDI32 r9, 0x44E00500
     LDI r10, 2
-    SBBO r10, r9, 0x3c, 4     //use the accurate clock
+    SBBO &r10, r9, 0x3c, 4     //use the accurate clock
 
-    MOV r9, 0x44E00400        //CM_WKUP registers
-    LBBO r10, r13, 0x08, 4    //0x08 is the CM_WKUP_GPIO0_CLKCTRL register
-    SET r10, 1     //ENABLE
-    CLR r10, 0     //ENABLE
-    CLR r10, 16     //IDLEST
-    CLR r10, 17     //IDLEST
-    SET r10, 18
-    SBBO r10, r13, 0x08, 4
+    LDI32 r9, 0x44E00400        //CM_WKUP registers
+    LBBO &r10, r13, 0x08, 4    //0x08 is the CM_WKUP_GPIO0_CLKCTRL register
+    SET r10, r10, 1     //ENABLE
+    CLR r10, r10, 0     //ENABLE
+    CLR r10, r10, 16     //IDLEST
+    CLR r10, r10, 17     //IDLEST
+    SET r10, r10, 18
+    SBBO &r10, r13, 0x08, 4
     
-    LBBO r10, r13, 0x00, 4    //0x00 is the CM_WKUP_CLKSTCTRL register
-    CLR r10, 0
-    CLR r10, 1
-    SET r10, 2
-    SET r10, 8
-    SBBO r10, r13, 0x00, 4
+    LBBO &r10, r13, 0x00, 4    //0x00 is the CM_WKUP_CLKSTCTRL register
+    CLR r10, r10, 0
+    CLR r10, r10, 1
+    SET r10, r10, 2
+    SET r10, r10, 8
+    SBBO &r10, r13, 0x00, 4
     
-    LBBO r10, r13, 0x04, 4    //0x04 is the CM_WKUP_CONTROL_CLKCTRL register
-    CLR r10, 17
-    CLR r10, 16
-    SET r10, 1
-    CLR r10, 0
-    SBBO r10, r13, 0x04, 4
+    LBBO &r10, r13, 0x04, 4    //0x04 is the CM_WKUP_CONTROL_CLKCTRL register
+    CLR r10, r10, 17
+    CLR r10, r10, 16
+    SET r10, r10, 1
+    CLR r10, r10, 0
+    SBBO &r10, r13, 0x04, 4
 
-    LBBO r10, r13, 0x0C, 4    //0x04 is the CM_WKUP_L4WKUP_CLKCTRL register
-    CLR r10, 17
-    CLR r10, 16
-    SET r10, 1
-    CLR r10, 0
-    SBBO r10, r13, 0x0C, 4    //0x10 is the SYSCONFIG register
+    LBBO &r10, r13, 0x0C, 4    //0x04 is the CM_WKUP_L4WKUP_CLKCTRL register
+    CLR r10, r10, 17
+    CLR r10, r10, 16
+    SET r10, r10, 1
+    CLR r10, r10, 0
+    SBBO &r10, r13, 0x0C, 4    //0x10 is the SYSCONFIG register
     
-    MOV r9, 0x44E00400        //CM_MPU registers
-    LBBO r10, r13, 0x00, 8    //0x00 is the CM_MPU_CLKSTCTRL register
-    CLR r10, 0
-    CLR r10, 1
-    CLR r11, 0
-    SET r11, 1
-    SBBO r10, r13, 0x00, 8
+    LDI32 r9, 0x44E00400        //CM_MPU registers
+    LBBO &r10, r13, 0x00, 8    //0x00 is the CM_MPU_CLKSTCTRL register
+    CLR r10, r10, 0
+    CLR r10, r10, 1
+    CLR r11, r11, 0
+    SET r11, r11, 1
+    SBBO &r10, r13, 0x00, 8
 
-    MOV r9, 0x44E00000        //CM_PER registers
-    LBBO r10, r13, 0x00, 8    //0x00 is the CM_PER_L4LS_CLKSTCTRL register
-    CLR r10, 0
-    CLR r10, 1
-    CLR r11, 0
-    CLR r11, 1
-    SBBO r10, r13, 0x00, 8
-    LBBO r10, r13, 0x0C, 4    //0x0C is the CM_PER_L3_CLKSTCTRL register
-    CLR r10, 0
-    CLR r10, 1
-    CLR r11, 0
-    CLR r11, 1
-    SBBO r10, r13, 0x00, 4
+    LDI32 r9, 0x44E00000        //CM_PER registers
+    LBBO &r10, r13, 0x00, 8    //0x00 is the CM_PER_L4LS_CLKSTCTRL register
+    CLR r10, r10, 0
+    CLR r10, r10, 1
+    CLR r11, r11, 0
+    CLR r11, r11, 1
+    SBBO &r10, r13, 0x00, 8
+    LBBO &r10, r13, 0x0C, 4    //0x0C is the CM_PER_L3_CLKSTCTRL register
+    CLR r10, r10, 0
+    CLR r10, r10, 1
+    CLR r11, r11, 0
+    CLR r11, r11, 1
+    SBBO &r10, r13, 0x00, 4
 
     
 
-    MOV r13, 0x50000000       //GPMC registers
-    LBBO r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
-    CLR r10, 0     //AUTOIDLE
-    CLR r10, 2     //ENAWAKEUP
-    SET r10, 3     //No-Idle
-    CLR r10, 4     //
-    SBBO r10, r13, 0x10, 4
+    LDI32 r13, 0x50000000       //GPMC registers
+    LBBO &r10, r13, 0x10, 4    //0x10 is the SYSCONFIG register
+    CLR r10, r10, 0     //AUTOIDLE
+    CLR r10, r10, 2     //ENAWAKEUP
+    SET r10, r10, 3     //No-Idle
+    CLR r10, r10, 4     //
+    SBBO &r10, r13, 0x10, 4
     
-    MOV r13, 0x44E10608       //CONTROL_MODULE registers
+    LDI32 r13, 0x44E10608       //CONTROL_MODULE registers
     //            0x608       //0x608 is the INITPRIORITY register
     //LBBO r10, r13, r12, 8
     LDI r10, 0
     LDI r11, 0
-    SET r10, 0
-    SET r10, 4
-    SET r10, 5
-    SET r10, 6
-    SBBO r10, r13, r12, 8
+    SET r10, r10, 0
+    SET r10, r10, 4
+    SET r10, r10, 5
+    SET r10, r10, 6
+    SBBO &r10, r13, r12, 8
     
-    MOV r13, 0x44E10670       //CONTROL_MODULE registers
+    LDI32 r13, 0x44E10670       //CONTROL_MODULE registers
     //            0x670       //0x670 is the mreqprio register
-    LBBO r10, r13, 0, 4
-    CLR r10, 8
-    CLR r10, 9
-    CLR r10, 10
-    SBBO r10, r13, 0, 4
+    LBBO &r10, r13, 0, 4
+    CLR r10, r10, 8
+    CLR r10, r10, 9
+    CLR r10, r10, 10
+    SBBO &r10, r13, 0, 4
 #endif
-.endm
+    .endm
 
 
-.macro DISABLE_GPIO_PIN_INTERRUPTS
-.mparam ledMask, gpio
+DISABLE_GPIO_PIN_INTERRUPTS .macro ledMask, gpio
     MOV r10, ledMask
     MOV r11, ledMask
-    MOV r12, gpio
-    MOV r13, 0x100
+    LDI32 r12, gpio
+    LDI r13, 0x100
     SUB r12, r12, r13
-    SBBO r10, r12, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
+    SBBO &r10, r12, 0x3C, 8    //0x3c is the GPIO_IRQSTATUS_CLR_0 register
     // by doing 8 and using both r10 and r11, we can clear
     // both the 0 and 1 IRQ status
-    MOV r10, 0
+    LDI r10, 0
     ADD r12, r12, r13         // set clock to highest speed
-    SBBO r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
-.endm
-.macro DISABLE_PIN_INTERRUPTS
+    SBBO &r10, r12, 0x30, 4    //0x30 is the GPIO_CTRL register
+    .endm
+DISABLE_PIN_INTERRUPTS .macro
     DISABLE_GPIO_PIN_INTERRUPTS gpio0_led_mask, GPIO0
     DISABLE_GPIO_PIN_INTERRUPTS gpio1_led_mask, GPIO1
     DISABLE_GPIO_PIN_INTERRUPTS gpio2_led_mask, GPIO2
     DISABLE_GPIO_PIN_INTERRUPTS gpio3_led_mask, GPIO3
     SETUP_GPIO0_REGS
-.endm
+    .endm
 
-.macro CLEAR_IF_NOT_EQUAL
-.mparam  val, gpioAdd, equ
-QBEQ skip, val, equ
-    SBBO    val, gpioAdd, GPIO_CLRDATAOUT, 4
-skip:
-.endm
+CLEAR_IF_NOT_EQUAL .macro  val, gpioAdd, equ
+    .newblock
+    QBEQ skip?, val, equ
+    SBBO &val, gpioAdd, GPIO_CLRDATAOUT, 4
+skip?:
+    .endm
 
-.macro SET_IF_NOT_EQUAL
-.mparam  val, gpioAdd, equ
-QBEQ skip, val, equ
-SBBO    val, gpioAdd, GPIO_SETDATAOUT, 4
-skip:
-.endm
+SET_IF_NOT_EQUAL .macro val, gpioAdd, equ
+    .newblock
+    QBEQ skip?, val, equ
+    SBBO &val, gpioAdd, GPIO_SETDATAOUT, 4
+skip?:
+    .endm
 
 
-.macro READ_DATA
+READ_DATA .macro
+    .newblock
     // Load OUTPUTS bytes of data, starting at r10
     // one byte for each of the outputs
-    QBBS USEDDR, bit_flags.t3
-    QBBS USESHAREDRAM,  bit_flags.t2
+    QBBS USEDDR?, bit_flags, 3
+    QBBS USESHAREDRAM?,  bit_flags, 2
 
-    QBBS USERAM2, bit_flags.t1
+    QBBS USERAM2?, bit_flags, 1
 #ifdef RUNNING_ON_PRU1
-        LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_PRUDRAM, sram_offset, OUTPUTS
 #else
-        LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
 #endif
         ADD     sram_offset, sram_offset, OUTPUTS
-        MOV     r8, 8142 //8k - 50
-        QBLT DATALOADED, r8, sram_offset
+        LDI     r8, 8142 //8k - 50
+        QBLT DATALOADED?, r8, sram_offset
             //reached the end of what we have in our sram, flip to other SRAM
-            MOV r8, 7628
+            LDI r8, 7628
             SUB sram_offset, sram_offset, r8
-            SET bit_flags.t1
-            QBA DATALOADED
-    USERAM2:
+            SET bit_flags, bit_flags, 1
+            QBA DATALOADED?
+USERAM2?:
 #ifdef RUNNING_ON_PRU1
-        LBCO    r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
 #else
-        LBCO    r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_PRUDRAM, sram_offset, OUTPUTS
 #endif
 
         ADD     sram_offset, sram_offset, OUTPUTS
-        MOV     r8, 8142 //8k - 50
-        QBLT    DATALOADED, r8, sram_offset
+        LDI     r8, 8142 //8k - 50
+        QBLT    DATALOADED?, r8, sram_offset
             //reached the end of what we have in other sram, flip to sharedram
-            MOV r8, (7628 + 512)
+            LDI r8, (7628 + 512)
             SUB sram_offset, sram_offset, r8
-            SET bit_flags.t2
-        QBA     DATALOADED
-    USESHAREDRAM:
-        MOV     r9, 0x00010000
-        LBBO    r10, r9, sram_offset, OUTPUTS
+            SET bit_flags, bit_flags, 2
+        QBA     DATALOADED?
+USESHAREDRAM?:
+        LDI32   r9, 0x00010000
+        LBBO    &r10, r9, sram_offset, OUTPUTS
         ADD     sram_offset, sram_offset, OUTPUTS
-        MOV     r8, 12188
-        QBLT DATALOADED, r8, sram_offset
+        LDI     r8, 12188
+        QBLT DATALOADED?, r8, sram_offset
             //reached the end of what we have in other sram, flip to DDR
-            SET bit_flags.t3
-            QBA     DATALOADED
-    USEDDR:
-        LBBO    r10, data_addr, 0, OUTPUTS
-    DATALOADED:
+            SET  bit_flags, bit_flags, 3
+            QBA  DATALOADED?
+USEDDR?:
+        LBBO    &r10, data_addr, 0, OUTPUTS
+DATALOADED?:
     ADD data_addr, data_addr, OUTPUTS
-.endm
+    .endm
 
-.macro WAIT_AND_CHECK_TIMEOUT
-.mparam TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
+WAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
     // need to subtract 2 clock cycles (10ns) for the MOVE/QBGT atfer the WAITNS
     WAITNS    (TIMEOUT - 10), reg1, reg2
-    MOV reg1, ((TIMEOUT+ALLOW)/5)
+    LDI  reg1, ((TIMEOUT+ALLOW)/5)
     QBGT timeoutLabel, reg1, reg2
-.endm
+    .endm
 
 
 #if !defined(FIRST_CHECK)
 #define FIRST_CHECK NO_PIXELS_CHECK
 #endif
 
-START:
+;*****************************************************************************
+;                                  Main Loop
+;*****************************************************************************
+    .sect    ".text:main"
+    .clink
+    .global    ||main||
+
+||main||:
 	// Enable OCP master port
 	// clear the STANDBY_INIT bit in the SYSCFG register,
 	// otherwise the PRU will not be able to write outside the
 	// PRU memory space and to the BeagleBon's pins.
-	LBCO	r0, C4, 4, 4
-	CLR	r0, r0, 4
-	SBCO	r0, C4, 4, 4
+	LBCO	&r0, C4, 4, 4
+	CLR	    r0, r0, 4
+	SBCO	&r0, C4, 4, 4
 
 	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
@@ -396,18 +399,18 @@ START:
 	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
-	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1 + PRU_MEMORY_OFFSET
+	LDI32	r0, 0x00100000
+	LDI32	r1, CTPPR_1 + PRU_MEMORY_OFFSET
     SBBO    &r0, r1, 0x00, 4
 
 	// Write a 0x1 into the response field so that they know we have started
-	MOV	r2, #0x1
-	SBCO	r2, CONST_PRUDRAM, 8, 4
+	LDI 	r2, 0x1
+	SBCO	&r2, CONST_PRUDRAM, 8, 4
 
-    MOV gpio0_address, GPIO0
-    MOV gpio1_address, GPIO1
-    MOV gpio2_address, GPIO2
-    MOV gpio3_address, GPIO3
+    LDI32 gpio0_address, GPIO0
+    LDI32 gpio1_address, GPIO1
+    LDI32 gpio2_address, GPIO2
+    LDI32 gpio3_address, GPIO3
 
     LDI gpio0_led_mask, 0
     LDI gpio1_led_mask, 0
@@ -464,7 +467,7 @@ START:
     SETOUTPUT48MASK
 
     // save the led masks to the scratch pad as we'll modify these during output
-    XOUT SCRATCH_PAD, gpio0_led_mask, 16
+    XOUT SCRATCH_PAD, &gpio0_led_mask, 16
 
     DISABLE_PIN_INTERRUPTS
 
@@ -478,33 +481,33 @@ _LOOP:
 
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
 	// start command into r1
-	LBCO	data_addr, CONST_PRUDRAM, 0, 8
+	LBCO	&data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, r1, #0
+	QBEQ	_LOOP, r1, 0
 
 	// Command of 0xFF is the signal to exit
-	QBEQ	EXIT, r1, #0xFF
+	QBEQ	EXIT, r1, 0xFF
 
     // store the address and such
-    XOUT    SCRATCH_PAD, data_addr, 12
+    XOUT    SCRATCH_PAD, &data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
 
-	MOV	data_len, DATA_LEN
+	LDI	data_len, DATA_LEN
 
-    MOV sram_offset, 512
+    LDI sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    LDI next_check, #FIRST_CHECK
+    LDI next_check, FIRST_CHECK
 
     //restore the led masks
-    XIN SCRATCH_PAD, gpio0_led_mask, 16
+    XIN SCRATCH_PAD, &gpio0_led_mask, 16
 
     // reset command to 0 so ARM side will send more data
     LDI     r2, 0
-    MOV     r3, 1
-    SBCO    r2, CONST_PRUDRAM, 4, 8
+    LDI     r3, 1
+    SBCO    &r2, CONST_PRUDRAM, 4, 8
 
 #if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
     SETUP_GPIO0_REGS
@@ -513,17 +516,17 @@ _LOOP:
     //start the clock
     RESET_PRU_CLOCK r8, r9
 
-	WORD_LOOP:
+WORD_LOOP:
     LOOP WORD_LOOP_DONE, data_len
         READ_DATA
 
 		// for bit in 8 to 0; one color at a time
-		MOV	bit_num, 8
+		LDI	bit_num, 8
 #ifdef RECORD_STATS
         LDI stats_time, 0
 #endif
 
-		BIT_LOOP:
+BIT_LOOP:
 			SUB     bit_num, bit_num, 1
 			// The idle period is 650 ns, but this is where
 			// we do all of our work to read the RGB data and
@@ -546,12 +549,12 @@ _LOOP:
 #ifdef RECORD_STATS
 
     QBLT NOTMORE, data_len, 128
-    GET_PRU_CLOCK r8, r9
+    GET_PRU_CLOCK r8, r9, 4
     QBLT NOTMORE, stats_time, r8
         MOV stats_time, r8
         ADD r8, data_len, data_len
         ADD r8, r8, 12
-        SBCO stats_time, CONST_PRUDRAM, r8, 2
+        SBCO &stats_time, CONST_PRUDRAM, r8, 2
 
     NOTMORE:
 #endif
@@ -631,12 +634,12 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        CALL    next_check
+        JAL     r1, next_check
 #ifdef RECORD_STATS
         SUB        data_len, data_len, 1
 #endif
-		//  QBNE	WORD_LOOP, data_len, #0
-    WORD_LOOP_DONE:
+		//  QBNE	WORD_LOOP, data_len, 0
+WORD_LOOP_DONE:
     
     
     // Turn all the bits off
@@ -659,26 +662,26 @@ _LOOP:
     SETUP_GPIO0_REGS
 
     // restore the address and such
-    XIN    SCRATCH_PAD, data_addr, 12
+    XIN    SCRATCH_PAD, &data_addr, 12
 
     RESET_PRU_CLOCK r8, r9
-	MOV	data_len, DATA_LEN
+	LDI	data_len, DATA_LEN
 
-    MOV sram_offset, 512
+    LDI sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    LDI next_check, #FIRST_CHECK
+    LDI next_check, FIRST_CHECK
 
     //restore the led masks
-    XIN SCRATCH_PAD, gpio0_led_mask, 16
+    XIN SCRATCH_PAD, &gpio0_led_mask, 16
 
-	WORD_LOOP_PASS2:
+WORD_LOOP_PASS2:
     LOOP WORD_LOOP_DONE_PASS2, data_len
         READ_DATA
 
 		// for bit in 8 to 0; one color at a time
-		MOV	bit_num, 8
-		BIT_LOOP_PASS2:
+		LDI	bit_num, 8
+BIT_LOOP_PASS2:
 			SUB     bit_num, bit_num, 1
 			// The idle period is 650 ns, but this is where
 			// we do all of our work to read the RGB data and
@@ -718,16 +721,16 @@ _LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        CALL    next_check
-		//  QBNE	WORD_LOOP_PASS2, data_len, #0
-    WORD_LOOP_DONE_PASS2:
+        JAL     r1, next_check
+		//  QBNE	WORD_LOOP_PASS2, data_len, 0
+WORD_LOOP_DONE_PASS2:
     CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
 
 #endif   // GPIO0 second pass
 
 	// Delay at least 300 usec; this is the required reset
 	// time for the LED strip to update with the new pixels.
-	SLEEPNS	300000, r8
+	SLEEPNS	300000, r8, 0
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
@@ -741,19 +744,15 @@ _LOOP:
 
 EXIT:
 	// Write a 0xFFFF into the response field so that they know we're done
-	MOV r2, #0xFFFF
-	SBCO r2, CONST_PRUDRAM, 8, 4
+	LDI r2, 0xFFFF
+	SBCO &r2, CONST_PRUDRAM, 8, 4
 
-#ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU_ARM_INTERRUPT+16
-#else
-	MOV R31.b0, PRU_ARM_INTERRUPT
-#endif
-
+	LDI R31.b0, PRU_ARM_INTERRUPT+16
 	HALT
 
 
+#define RET jmp r1
 
 NO_PIXELS_CHECK:
     RET

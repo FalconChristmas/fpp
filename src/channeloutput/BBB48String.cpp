@@ -177,7 +177,11 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
                 << std::to_string(min)
                 << "\n";
             } else {
-                outputFile << "    LDI r8, " << std::to_string(min) << "\n";
+                if (min <= 0xFFFF) {
+                    outputFile << "    LDI r8, " << std::to_string(min) << "\n";
+                } else {
+                    outputFile << "    LDI32 r8, " << std::to_string(min) << "\n";
+                }
                 outputFile << "    QBNE skip_"
                 << std::to_string(min)
                 << ", cur_data, r8\n";
@@ -187,15 +191,15 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
                 int y = cmd.port;
                 std::string o = std::to_string(y + 1);
                 if (cmd.type) {
-                    outputFile << "        SET GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
+                    outputFile << "        SET GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
                 } else {
-                    outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
+                    outputFile << "        CLR GPIO_MASK(o" << o << "_gpio), GPIO_MASK(o" << o << "_gpio), o" << o << "_pin\n";
                 }
             }
             i++;
             int next = i->first;
-            outputFile << "        LDI next_check, #CHECK_" << std::to_string(next) << "\n";
-            outputFile << "    skip_" << std::to_string(min) << ":\n        RET\n";
+            outputFile << "        LDI next_check, CHECK_" << std::to_string(next) << "\n";
+            outputFile << "skip_" << std::to_string(min) << ":\n        RET\n";
             
         } else {
             outputFile << "    RET\n\n";

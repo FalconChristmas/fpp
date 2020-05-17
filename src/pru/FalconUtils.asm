@@ -40,7 +40,7 @@ WAITNS .macro   ns, treg1, treg2
 waitloop?:
     LDI32 treg1, PRU_CONTROL_REG
     LBBO &treg2, treg1, 0xC, 4 // read the cycle counter
-    MOV treg1, (ns)/5
+    LDI treg1, (ns)/5
     QBGT waitloop?, treg2, treg1
 #else
     LDI32 treg1, PRU_CONTROL_REG
