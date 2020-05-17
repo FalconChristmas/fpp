@@ -62,6 +62,8 @@ class ScheduleEntry {
 	int          endDate;   // YYYYMMDD format as an integer
 	int          stopType;
 
+    int          startTimeOffset;
+    int          endTimeOffset;
 	std::string  startDateStr;
 	std::string  endDateStr;
 };

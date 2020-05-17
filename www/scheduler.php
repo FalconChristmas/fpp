@@ -48,6 +48,8 @@ function AddScheduleEntry(data = {}) {
         data.startDate = '' + MINYEAR + '-01-01';
         data.endDate = '' + MAXYEAR + '-12-31';
         data.stopType = 0;
+        data.endTimeOffset = 0;
+        data.startTimeOffset = 0;
     }
 
     var row = AddTableRowFromTemplate('tblScheduleBody');
@@ -99,6 +101,10 @@ function AddScheduleEntry(data = {}) {
         row.find('.schEndTime').val('SunSet');
     else
         row.find('.schEndTime').val(data.endTime);
+    
+    if (data.endTimeOffset != null) row.find('.schEndTimeOffset').val(data.endTimeOffset);
+    if (data.startTimeOffset != null) row.find('.schStartTimeOffset').val(data.startTimeOffset);
+
 
     if (data.repeat == 1)
         row.find('.schRepeat').prop('checked', true);
@@ -160,6 +166,19 @@ function SetScheduleRowInputNames(row, id) {
         row.find('.schEndDate').hide();
         row.find('.holEndDate').show();
     }
+    
+    var startTime = row.find('.schStartTime').val();
+    if (startTime == 'SunSet' || startTime == 'SunRise') {
+        row.find('.startOffset').show();
+    } else {
+        row.find('.startOffset').hide();
+    }
+    var endTime = row.find('.schEndTime').val();
+    if (endTime == 'SunSet' || endTime == 'SunRise') {
+        row.find('.endOffset').show();
+    } else {
+        row.find('.endOffset').hide();
+    }
 }
 
 function SetScheduleInputNames() {
@@ -216,6 +235,14 @@ function SetScheduleInputNames() {
         }
     });
 }
+function TimeChanged(item)
+{
+    if ($(item).val() == 'SunSet' || $(item).val() == 'SunRise') {
+        $(item).parent().find('.offset').show();
+    } else {
+        $(item).parent().find('.offset').hide();
+    }
+}
 
 function HolidaySelected(item)
 {
@@ -257,7 +284,9 @@ function SaveSchedule() {
         e.playlist = $(this).find('.schPlaylist').val();
         e.day = parseInt($(this).find('.schDay').val());
         e.startTime = $(this).find('.schStartTime').val();
+        e.startTimeOffset = $(this).find('.schStartTimeOffset').val();
         e.endTime = $(this).find('.schEndTime').val();
+        e.endTimeOffset = $(this).find('.schEndTimeOffset').val();
         e.repeat = $(this).find('.schRepeat').is(':checked') ? 1 : 0;
         e.startDate = $(this).find('.schStartDate').val();
         e.endDate = $(this).find('.schEndDate').val();
@@ -279,17 +308,6 @@ function SaveSchedule() {
             if ($(this).find('.maskSaturday').is(':checked'))
                 e.day |= 0x0100;
         }
-
-        if (e.startTime == 'SunRise')
-            e.startTime = '25:00:00';
-        else if (e.startTime == 'SunSet')
-            e.startTime = '26:00:00';
-
-        if (e.endTime == 'SunRise')
-            e.endTime = '25:00:00';
-        else if (e.endTime == 'SunSet')
-            e.endTime = '26:00:00';
-
         data.push(e);
     });
 
@@ -479,8 +497,10 @@ a:visited {
                         </td>
                         <td><select class='schPlaylist'>
                             </select></td>
-                        <td><input class='time center schStartTime' type='text' size='8' /></td>
-                        <td><input class='time center schEndTime' type='text' size='8' /></td>
+                        <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
+<span class='offset startOffset'>&nbsp;Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+                        <td><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
+<span class='offset endOffset'>&nbsp;Offset: <input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <td class='center' ><input class='schRepeat' type='checkbox' /></td>
                         <td class='center' >
                             <select class='schStopType'>

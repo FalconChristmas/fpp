@@ -313,7 +313,7 @@ void Scheduler::LoadNextScheduleInfo(void)
     }
 }
 
-void Scheduler::GetSunInfo(int set, int &hour, int &minute, int &second)
+void Scheduler::GetSunInfo(int set, int moffset, int &hour, int &minute, int &second)
 {
 	std::string latStr = getSetting("Latitude");
 	std::string lonStr = getSetting("Longitude");
@@ -348,6 +348,8 @@ void Scheduler::GetSunInfo(int set, int &hour, int &minute, int &second)
 		sunOffset = sun.calcSunset();
 	else
 		sunOffset = sun.calcSunrise();
+    
+    sunOffset += moffset;
 
 	LogDebug(VB_SCHEDULE, "SunRise/Set Time Offset: %.2f minutes\n", sunOffset);
 	hour = (int)sunOffset / 60;
@@ -780,22 +782,26 @@ void Scheduler::LoadScheduleFromFile(void)
 	// Check for sunrise/sunset flags
 	if (scheduleEntry.startHour == 25)
 		GetSunInfo( 0,
+                    scheduleEntry.startTimeOffset,
 					scheduleEntry.startHour,
 					scheduleEntry.startMinute,
 					scheduleEntry.startSecond);
 	else if (scheduleEntry.startHour == 26)
 		GetSunInfo( 1,
+                    scheduleEntry.startTimeOffset,
 					scheduleEntry.startHour,
 					scheduleEntry.startMinute,
 					scheduleEntry.startSecond);
 
 	if (scheduleEntry.endHour == 25)
 		GetSunInfo( 0,
+                    scheduleEntry.endTimeOffset,
 					scheduleEntry.endHour,
 					scheduleEntry.endMinute,
 					scheduleEntry.endSecond);
 	else if (scheduleEntry.endHour == 26)
 		GetSunInfo( 1,
+                    scheduleEntry.endTimeOffset,
 					scheduleEntry.endHour,
 					scheduleEntry.endMinute,
 					scheduleEntry.endSecond);

@@ -43,7 +43,9 @@ ScheduleEntry::ScheduleEntry()
 	endSecond(0),
 	startDate(0),
 	endDate(0),
-	stopType(0)
+	stopType(0),
+    startTimeOffset(0),
+    endTimeOffset(0)
 {
 	for (int i = 0; i < DAYS_PER_WEEK; i++) {
 		weeklyStartSeconds[i] = 0;
@@ -265,23 +267,37 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 	return 1;
 }
 
+static void mapTimeString(const std::string &tm, int &h, int &m, int &s) {
+    if (tm == "SunSet") {
+        h = 26;
+        m = 0;
+        s = 0;
+    } else if (tm == "SunRise") {
+        h = 25;
+        m = 0;
+        s = 0;
+    } else {
+        std::vector<std::string> sparts = split(tm, ':');
+        h = atoi(sparts[0].c_str());
+        m = atoi(sparts[1].c_str());
+        s = atoi(sparts[2].c_str());
+    }
+}
 int ScheduleEntry::LoadFromJson(Json::Value &entry)
 {
     enabled            = entry["enabled"].asInt();
     playlist           = entry["playlist"].asString();
     dayIndex           = entry["day"].asInt();
-
-    std::vector<std::string> sparts = split(entry["startTime"].asString(), ':');
-    startHour          = atoi(sparts[0].c_str());
-    startMinute        = atoi(sparts[1].c_str());
-    startSecond        = atoi(sparts[2].c_str());
-
-    std::vector<std::string> eparts = split(entry["endTime"].asString(), ':');
-    endHour            = atoi(eparts[0].c_str());
-    endMinute          = atoi(eparts[1].c_str());
-    endSecond          = atoi(eparts[2].c_str());
-
     repeat             = entry["repeat"].asInt();
+
+    mapTimeString(entry["startTime"].asString(), startHour, startMinute, startSecond);
+    mapTimeString(entry["endTime"].asString(), endHour, endMinute, endSecond);
+    if (entry.isMember("startTimeOffset")) {
+        startTimeOffset = atoi(entry["startTimeOffset"].asString().c_str());
+    }
+    if (entry.isMember("endTimeOffset")) {
+        endTimeOffset = atoi(entry["endTimeOffset"].asString().c_str());
+    }
 
     startDateStr = entry["startDate"].asString();
     std::string tempStr = CheckHoliday(startDateStr);
