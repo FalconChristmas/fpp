@@ -327,6 +327,9 @@ void MosquittoClient::SetReady() {
             }
         }
     }
+
+    // Register topics which were set since we originally connected
+    HandleConnect();
 }
         
 void MosquittoClient::HandleConnect() {
