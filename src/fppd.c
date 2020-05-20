@@ -599,6 +599,13 @@ int main(int argc, char *argv[])
     Sensors::INSTANCE.Init();
     initCape();
 
+    if (FileExists("/home/fpp/media/config/sensors.json")) {
+        Json::Value root;
+        if (LoadJsonFromFile("/home/fpp/media/config/sensors.json", root)) {
+            Sensors::INSTANCE.addSensors(root["sensors"]);
+        }
+    }
+
 	PluginManager::INSTANCE.init();
 
 	CheckExistanceOfDirectoriesAndFiles();
