@@ -40,7 +40,7 @@ public:
             postfix = s["postfix"].asString();
         }
         if (s.isMember("precision")) {
-            postfix = s["precision"].asInt();
+            precision = s["precision"].asInt();
         }
         if (s.isMember("valueType")) {
             valueType = s["valueType"].asString();
