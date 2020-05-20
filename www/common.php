@@ -114,6 +114,25 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 	}
 	file_put_contents($filename, $settingsStr);
 }
+    
+function DeleteSettingFromFile($settingName, $plugin = "")
+{
+	global $settingsFile;
+	global $settings;
+	$filename = $settingsFile;
+
+	if ($plugin != "") {
+		$filename = $settings['configDirectory'] . "/plugin." . $plugin;
+	}
+
+	$settingsStr = "";
+	$tmpSettings = parse_ini_file($filename);
+    unset($tmpSettings[$settingName]);
+	foreach ($tmpSettings as $key => $value) {
+		$settingsStr .= $key . " = \"" . $value . "\"\n";
+	}
+	file_put_contents($filename, $settingsStr);
+}
 
 function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaultValue = "")
 {

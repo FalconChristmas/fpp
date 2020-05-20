@@ -55,6 +55,11 @@ sed -e "s#FPPDIR#${FPPDIR}#g" -e "s#FPPHOME#${FPPHOME}#g" < ${FPPDIR}/etc/apache
 # need to make samba log dir or samba may not start
 mkdir -p /var/log/samba
 
+BOOTACTIONS=$(getSetting BootActions)
+if [ "x${BOOTACTIONS}" != "x" ]; then
+    /opt/fpp/scripts/handle_boot_actions
+fi
+
 # Configure Network and DNS
 #echo "FPP - Configuring Network"
 SKIPNETWORKRESET=$(getSetting SkipNetworkReset)

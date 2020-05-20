@@ -1,0 +1,52 @@
+#!/usr/bin/php
+<?php
+
+$skipJSsettings = true;
+
+require_once('/opt/fpp/www/config.php');
+require_once('/opt/fpp/www/common.php');
+require_once('/opt/fpp/www/common/settings.php');
+
+
+function HandleSettings() {
+    global $settings;
+    if (array_key_exists("TimeZone", $settings)) ApplySetting("TimeZone", $settings["TimeZone"]);
+    if (array_key_exists("ntp", $settings)) ApplySetting("ntp", $settings["ntp"]);
+    if (array_key_exists("ntpServer", $settings)) ApplySetting("ntpServer", $settings["ntpServer"]);
+}
+
+function HandleExpandFS() {
+    global $settings;
+    if ($settings['Platform'] == "BeagleBone Black") {
+        $command = "sudo /opt/fpp/SD/BBB-grow_partition.sh 2>&1";
+    } else if ($settings['Platform'] == "Raspberry Pi") {
+        $command = "sudo /usr/bin/raspi-config --expand-rootfs";
+    }
+    system($command);
+    system("/sbin/reboot -f");
+    exit(0);
+}
+
+
+$actions = explode(",", $settings["BootActions"]);
+$action = array_shift($actions);
+
+while ($action != NULL) {
+    echo "Performing boot action: " . $action . "\n";
+    
+    // save the actions we haven't handled yet back out to settings in case
+    // we reboot or something we can keep processing
+    $newactions = implode(",", $actions);
+    if ($newactions == "") {
+        DeleteSettingFromFile("BootActions");
+    } else {
+        WriteSettingToFile("BootActions", $newactions);
+    }
+    
+    if ($action == "settings") {
+        HandleSettings();
+    } else if ($action == "expandfs") {
+        HandleExpandFS();
+    }
+    $action = array_shift($actions);
+}

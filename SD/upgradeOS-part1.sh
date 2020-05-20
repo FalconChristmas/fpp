@@ -1,7 +1,7 @@
 #!/bin/bash
 
-mount $1 /mnt
 
+mount $1 /mnt
 
 ORIGTYPE=$(</etc/fpp/platform)
 NEWTYPE=$(</mnt/etc/fpp/platform)
@@ -11,6 +11,9 @@ if [ $ORIGTYPE != $NEWTYPE ]; then
     umount /mnt
     exit 1;
 fi
+
+#make sure settings are re-applied after boot
+echo "BootActions = \"settings\"" >> /home/fpp/media/settings
 
 mount -o bind / /mnt/mnt
 mount -o bind /boot /mnt/mnt/boot
@@ -29,11 +32,10 @@ umount /mnt/mnt
 
 sync
 
-echo "</pre>"
-echo "<b>Rebooting.... please wait for FPP to reboot.</b><br>"
-echo "<a href='index.php'>Go to FPP Main Status Page</a><br>"
-echo "<a href='about.php'>Go back to FPP About page</a><br>"
-echo "</body>"
-echo "</html>"
+echo "Rebooting...."
 
-reboot -f -f
+exec 0>&- # close stdin
+exec 1>&- # close stdout
+exec 2>&- # close stderr
+sleep 1
+nohup reboot -f -f &
