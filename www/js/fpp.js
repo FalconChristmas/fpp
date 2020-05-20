@@ -2796,6 +2796,12 @@ function SetSetting(key, value, restart, reboot) {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
                 $.jGrowl(key + " setting saved.");
 
+            if (restart > 0 && restart != settings['restartFlag']) {
+                SetRestartFlag(restart);
+            }
+            if (reboot > 0 && reboot != settings['rebootFlag']) {
+                SetRebootFlag(restart);
+            }
             CheckRestartRebootFlags();
         }
     }).fail(function() {

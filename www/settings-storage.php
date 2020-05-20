@@ -7,6 +7,13 @@ require_once('common.php');
 <link href="jquery/jQuery.msgBox/styles/msgBoxLight.css" rel="stylesheet" type="text/css">
 
 <script>
+function StorageDialogDone() {
+    $('#closeDialogButton').show();
+}
+function CloseExpandStorageDialog() {
+    $('#storageSettingsProgressPopup').dialog('close');
+    SetSetting("LastBlock", "0", 0, 1);
+}
 function growSDCardFS() {
     $('#dialog-confirm')
         .dialog({
@@ -17,8 +24,10 @@ function growSDCardFS() {
             buttons: {
             "Yes" : function() {
                 $(this).dialog("close");
-                window.location.href="growsd.php";
-                SetRebootFlag();
+                $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                document.getElementById('storageText').value = '';
+                StreamURL('growsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
             },
             "No" : function() {
                 $(this).dialog("close");
@@ -35,15 +44,17 @@ function newSDCardPartition() {
             modal: true,
             buttons: {
             "Yes" : function() {
-            $(this).dialog("close");
-            window.location.href="newpartitionsd.php";
-            SetRebootFlag();
+                $(this).dialog("close");
+                $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "New Partition", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                document.getElementById('storageText').value = '';
+                StreamURL('newpartitionsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
             },
             "No" : function() {
-            $(this).dialog("close");
+                $(this).dialog("close");
             }
             }
-            });
+        });
 }
     
 function checkForStorageCopy() {
@@ -54,7 +65,10 @@ function checkForStorageCopy() {
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
                  if (result == "Yes") {
-                    window.location.href="copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All";
+                    $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "Copy Settings", dialogClass: 'no-close' });
+                    $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                    document.getElementById('storageText').value = '';
+                    StreamURL("copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
                  }
             }
         });
@@ -310,4 +324,11 @@ if ($addflashbutton) {
 </div>
 <div id="dialog-confirm-newpartition" style="display: none">
 <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating a new partition in the unused space will require a reboot to take effect.  Do you wish to proceed?</p>
+</div>
+
+
+<div id='storageSettingsProgressPopup' title='FPP Storage' style="display: none">
+    <textarea style='width: 99%; height: 94%;' disabled id='storageText'>
+    </textarea>
+    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseExpandStorageDialog();' style='display: none;'>
 </div>
