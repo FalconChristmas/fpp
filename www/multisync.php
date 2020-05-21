@@ -344,7 +344,7 @@ input.remoteCheckbox {
             var newHost = 1;
             var hostRowKey = ip.replace(/\./g, '_');
 
-            var hostKey = data[i].HostName + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].lastSeen;
+            var hostKey = data[i].HostName + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].lastSeenStr + '_' + data[i].channelRanges;
             hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
 
             hostRows[hostRowKey] = rowID;
@@ -672,6 +672,7 @@ function upgradeFailed(id) {
 function upgradeSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
+	        $(this).prop('checked', false);
             streamCount++;
             EnableDisableStreamButtons();
 
@@ -736,6 +737,7 @@ function restartSystem(rowID) {
 function restartSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
+	        $(this).prop('checked', false);
             var rowID = $(this).closest('tr').attr('id');
 
             restartSystem(rowID);
