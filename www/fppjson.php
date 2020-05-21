@@ -774,6 +774,8 @@ function GetFPPSystems()
         $elem['minorVersion'] = $system['minorVersion'];
         $elem['model'] = $system['model'];
         $elem['version'] = $system['version'];
+        $elem['lastSeen'] = $system['lastSeen'];
+        $elem['lastSeenStr'] = $system['lastSeenStr'];
         $elem['channelRanges'] = !empty($system['channelRanges']) ? $system['channelRanges'] : "";
         $matches = preg_grep("/^" . $elem['IP'] . "$/", $localIPs);
         if (count($matches))

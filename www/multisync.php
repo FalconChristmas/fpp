@@ -203,7 +203,9 @@ input.remoteCheckbox {
             rowID = hostRows[hostRowKey];
 
             var curStatus = $('#' + rowID + '_status').html();
-            if ((curStatus != "") && !refreshing) {
+            if ((curStatus.substr(0, 9) != "Last Seen") &&
+                (curStatus != '') &&
+                (!refreshing)) {
                 // Don't replace an existing status via a different IP
                 return;
             }
@@ -398,7 +400,7 @@ input.remoteCheckbox {
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
                     "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
                     "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
-                    "<td id='" + rowID + "_status'></td>" +
+                    "<td id='" + rowID + "_status'>Last Seen:<br>" + data[i].lastSeenStr + "</td>" +
                     "<td id='" + rowID + "_elapsed'></td>";
 
                 var versionParts = data[i].version.split('.');
