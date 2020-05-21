@@ -439,7 +439,7 @@ function setHostName() {
 		+ $('#hostName').val()
 	).done(function() {
 		$.jGrowl("HostName Saved");
-		refreshFPPSystems();
+        SetRebootFlag();
 	}).fail(function() {
 		DialogError("Save HostName", "Save Failed");
 	});
@@ -450,6 +450,7 @@ function setHostDescription() {
         + $('#hostDescription').val()
     ).done(function() {
         $.jGrowl("HostDescription Saved");
+        SetRestartFlag(2);
     }).fail(function() {
         DialogError("Save HostDescription", "Save Failed");
     });
