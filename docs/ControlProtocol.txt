@@ -2,6 +2,7 @@
 FPPD Control Protocol Information
 
 Control Port: UDP 32320
+Multicast address: 239.70.80.80  (239.F.P.P)
 
 Packet Types:
 0x00 - Legacy Command
@@ -22,7 +23,7 @@ buf[4]     = PacketType
 buf[5-6]   = ExtraDataLen (may be 0x00 such as for the Send Blanking Data packet)
 buf[7+]    = ExtraData
 
-=====================================
+=============================================================================
 Command Packet Format:
 
 buf[0]     = 'F'
@@ -33,17 +34,38 @@ buf[4]     = PacketType (0x00 for Command packet)
 buf[5-6]   = ExtraDataLen
 buf[7+] = Null Terminated string containing command to run.  NULL byte included in ExtraDataLen
 
-=====================================
+=============================================================================
 MultiSync Packet Format:
 
-FIXME, fill in this info.
+buf[0]     = 'F'
+buf[1]     = 'P'
+buf[2]     = 'P'
+buf[3]     = 'D'
+buf[4]     = PacketType (0x01 for Sync packet)
+buf[5-6]   = 10 + filename length + 1 (for null)
+buf[7]     = Sync Action:
+   - 0x00  Start
+   - 0x01  Stop
+   - 0x02  Sync
+   - 0x03  Open
+buf[8]     = Sync Type:
+   - 0x00  FSEQ
+   - 0x01  Media
+buf[9-12]  = frame number
+buf[13-16] = seconds elapsed as float
+buf[17+]   = Null Terminated string containing the filename
 
-=====================================
+=============================================================================
 Event Packet Format:
+buf[0]     = 'F'
+buf[1]     = 'P'
+buf[2]     = 'P'
+buf[3]     = 'D'
+buf[4]     = PacketType (0x02 for Event packet)
+buf[5-6]   = 6
+buf[7-12]  = Null Terminated string containing the event name ("MA:MI")
 
-FIXME, fill in this info.
-
-=====================================
+=============================================================================
 Send Blanking Data Packet Format:
 
 buf[0]     = 'F'
@@ -53,7 +75,7 @@ buf[3]     = 'D'
 buf[4]     = PacketType (0x03 for Send Blanking Data)
 buf[5-6]   = ExtraDataLen (0x00 for Send Blanking Data)
 
-=====================================
+=============================================================================
 Ping Packet: (Implemented in FPP v?.??, F16v3/F48 firmware v?.??)
 
 buf[0]   = 'F'
@@ -61,10 +83,9 @@ buf[1]   = 'P'
 buf[2]   = 'P'
 buf[3]   = 'D'
 buf[4]   = PacketType (0x04 for Ping)
-buf[5-6] = ExtraDataLen (98 for version 0x01 ping packet)
-buf[7]   = Ping packet version number (0x01 for initial version with 98 bytes of extra data as bytes 7-104)
+buf[5-6] = ExtraDataLen (98 for version 0x01 ping packet, 294 for v3 ping)
+buf[7]   = Ping packet version number (0x01 for initial version with 98 bytes of extra data as bytes 7-104, 0x03 for current)
 buf[8]   = SubType
-
            - 0x00 - Ping (unsolicited ping or as a response to a discover)
            - 0x01 - Discover (signals all remotes to ping back with a 'ping' subtype packet)
                     NOTE: Discover includes same info as Ping so Remotes know what the master is running)
@@ -108,12 +129,15 @@ buf[14] = (FPP) Operating Mode
           - 0x03 - Remote
 
 buf[15-18] = IP address (MSB-LSB) (192, 168, 1, 21) (IP address on the network ping was received from)
+          For a discovery Ping packet sent from a Non-FPP instance that should not be recorded by every
+          FPP instance, set the IP address to 0.0.0.0.
 buf[19-83] = Hostname (NULL terminated, up to 64 byte hostname plus one byte for NULL)
 buf[84-124] = Version (NULL terminated, up to 40 bytes plus NULL: "1.10", "1.x-master-487-gfa3896", "2018.4")
+Ping type 2 and 3 fields:
 buf[125-165] = Hardware Type String (NULL terminated, up to 40 bytes plus NULL: "Raspberry Pi 2 Model B Rev 1.1", "Raspberry Pi 2 Model B Rev 1.2")
-Ping type 2 fields:
+Ping type 2:
 buf[166-206] = Comma separated list of channel ranges (zero based) ("0-455,512-1024") that this FPP instances is outputing  (40 bytes + NULL)
-Ping type 3 fields:
+Ping type 3:
 buf[166-286] = Comma separated list of channel ranges (zero based) ("0-455,512-1024") that this FPP instances is outputing  (120 bytes + NULL)
 
 <<<< End of Ping version 0x02 information
@@ -130,6 +154,7 @@ buf[7+] = Null Terminated string containing plugin name
 buf[x+] = Data sent by plugin 
 
 
+=============================================================================
 FPP Command
 buf[0]     = 'F'
 buf[1]     = 'P'
