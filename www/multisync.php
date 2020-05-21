@@ -363,11 +363,7 @@ input.remoteCheckbox {
                 uniqueHosts[hostKey] = rowID;
 
                 var hostname = data[i].HostName;
-                if (data[i].Local)
-                {
-                    hostname += ' <b>*</b>';
-                    star = "*";
-                } else {
+                if (!data[i].Local) {
                     if ((settings['fppMode'] == 'master') &&
                             (data[i].fppMode == "remote"))
                     {
@@ -846,6 +842,11 @@ if ($settings['fppMode'] == 'master')
 }
 ?>
 		</fieldset>
+<?
+if ($uiLevel > 0) {
+    echo "<b>* - Advanced Level Setting</b>\n";
+}
+?>
 	</div>
 	<?php include 'common/footer.inc'; ?>
 </div>
