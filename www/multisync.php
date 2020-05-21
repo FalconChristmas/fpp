@@ -652,7 +652,7 @@ function upgradeDone(id) {
     streamCount--;
 
     var ip = ipFromRowID(id);
-    getFPPSystemStatus(ip, true);
+    setTimeout(function() { getFPPSystemStatus(ip, true); }, 1500);
 
     EnableDisableStreamButtons();
 }
@@ -701,7 +701,8 @@ function restartDone(id) {
     streamCount--;
 
     var ip = ipFromRowID(id);
-    getFPPSystemStatus(ip, true);
+
+    setTimeout(function() { getFPPSystemStatus(ip, true); }, 1500);
 
     EnableDisableStreamButtons();
 }
