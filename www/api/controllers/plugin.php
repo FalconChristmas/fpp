@@ -29,7 +29,7 @@ function GetInstalledPlugins()
 // POST /api/plugin
 function InstallPlugin()
 {
-	global $settings, $fppDir, $SUDO;
+	global $settings, $fppDir, $SUDO, $_REQUEST;
 	$result = Array();
 
 	$pluginInfoJSON = "";
@@ -47,10 +47,18 @@ function InstallPlugin()
 	$sha = $pluginInfo['sha'];
 	$infoURL = $pluginInfo['infoURL'];
 
+    $stream = $_REQUEST['stream'];
+    
 	if (!file_exists($settings['pluginDirectory'] . '/' . $plugin))
 	{
-		exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] . "\"; $fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"", $output, $return_val);
-		unset($output);
+        $return_val = 0;
+        if (isset($stream) && $stream != "false") {
+            DisableOutputBuffering();
+            system("$fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"", $return_val);
+        } else {
+            exec("export SUDO=\"" . $SUDO . "\"; export PLUGINDIR=\"" . $settings['pluginDirectory'] . "\"; $fppDir/scripts/install_plugin $plugin \"$srcURL\" \"$branch\" \"$sha\"", $output, $return_val);
+            unset($output);
+        }
 
 		if ($return_val == 0)
 		{
@@ -71,6 +79,9 @@ function InstallPlugin()
 				}
 			}
 
+            if (isset($stream) && $stream != "false") {
+                return "\nDone\n";
+            }
 			$result['Status'] = 'OK';
 			$result['Message'] = '';
 		}
@@ -193,18 +204,44 @@ function CheckForPluginUpdates()
 
 /////////////////////////////////////////////////////////////////////////////
 // POST /api/plugin/:RepoName/upgrade
+// GET /api/plugin/:RepoName/upgrade
 function UpgradePlugin()
 {
-	global $settings, $SUDO;
+	global $settings, $SUDO, $_REQUEST;
 	$result = Array();
 
 	$plugin = params('RepoName');
+    $stream = $_REQUEST['stream'];
 
+    if (isset($stream) && $stream != "false") {
+        DisableOutputBuffering();
+        $cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git pull)';
+        system($cmd, $return_val);
+        if ($return_val != 0) {
+            $cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git clean -fd && ' . $SUDO . ' git pull)';
+            system($cmd, $return_val);
+        }
+        $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_install.sh';
+        if (!file_exists($install_script)) {
+            $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
+        }
+        if (file_exists($install_script)) {
+            system("sudo " . $install_script, $return_val);
+        }
+        return "\nDone\n";
+    }
     $cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git pull)';
 	exec($cmd, $output, $return_val);
     if ($return_val != 0) {
         $cmd = '(cd ' . $settings['pluginDirectory'] . '/' . $plugin . ' && ' . $SUDO . ' git clean -fd && ' . $SUDO . ' git pull)';
         exec($cmd, $output, $return_val);
+    }
+    $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/scripts/fpp_install.sh';
+    if (!file_exists($install_script)) {
+        $install_script = $settings['pluginDirectory'] . '/' . $plugin . '/fpp_install.sh';
+    }
+    if (file_exists($install_script)) {
+        exec("sudo " . $install_script, $return_val);
     }
 
 	if ($return_val == 0) {

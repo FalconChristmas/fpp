@@ -11,7 +11,7 @@ then
 	exit 1
 fi
 
-logOutput
+teeOutput
 
 echo "Installing plugin $1"
 cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2 $1
@@ -19,6 +19,7 @@ if [ "x$4" != "x" ]
 then
 	(cd $1 && $SUDO git reset --hard $4)
 fi
+
 
 $SUDO chown -R fpp.fpp $1
 

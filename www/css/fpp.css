@@ -1381,6 +1381,8 @@ td.bgDarkOrange {
     display: none;
 }
 
+.no-close .ui-dialog-titlebar-close {display: none }
+
 .ui-datepicker {
     z-index: 9999 !important;
 }

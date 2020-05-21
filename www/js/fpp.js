@@ -167,12 +167,15 @@ function HandleTableRowMouseClick(event, row) {
     }
 }
 
-function StreamURL(url, id, doneCallback = '', errorCallback = '') {
+function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null) {
     var last_response_len = false;
     var outputArea = document.getElementById(id);
     var reAddLF = false;
 
     $.ajax(url, {
+        type: reqType,
+        contentType: postContentType,
+        data: postData,
         xhrFields: {
             onprogress: function(e)
             {
@@ -225,7 +228,6 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '') {
         }
     });
 }
-
 function Get(url, async) {
     var result = {};
 

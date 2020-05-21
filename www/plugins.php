@@ -25,6 +25,14 @@ function PluginIsInstalled(plugin) {
 	return 0;
 }
 
+function PluginProgressDialogDone() {
+    $('#closeDialogButton').show();
+}
+function ClosePluginProgressDialog() {
+    $('#pluginsProgressPopup').dialog('close');
+    location.reload(true);
+}
+
 function GetInstalledPlugins() {
 	var url = 'api/plugin';
 	$.ajax({
@@ -83,34 +91,21 @@ function CheckPluginForUpdates(plugin) {
 	});
 }
 
-function UpgradePlugin(plugin) {
-	var url = 'api/plugin/' + plugin + '/upgrade';
 
-	$('html,body').css('cursor','wait');
-	$.ajax({
-		url: url,
-		type: 'POST',
-		dataType: 'json',
-		success: function(data) {
-			$('html,body').css('cursor','auto');
-			if (data.Status == 'OK')
-				$('#row-' + plugin).find('.updatesAvailable').hide();
-			else
-				alert('ERROR: ' + data.Message);
-		},
-		error: function() {
-			$('html,body').css('cursor','auto');
-			alert('Error, API call failed when upgrading plugin');
-		}
-	});
+function UpgradePlugin(plugin) {
+	var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
+    
+    $('#pluginsProgressPopup').dialog({ height: 600, width: 900, title: "Upgrade Plugin", dialogClass: 'no-close' });
+    $('#pluginsProgressPopup').dialog( "moveToTop" );
+    document.getElementById('pluginsText').value = '';
+    StreamURL(url, 'pluginsText', 'PluginProgressDialogDone', 'PluginProgressDialogDone');
 }
 
 function InstallPlugin(plugin, branch, sha) {
-	var url = 'api/plugin';
+	var url = 'api/plugin?stream=true';
 	var i = FindPluginInfo(plugin);
 
-	if (i < -1)
-	{
+	if (i < -1) {
 		alert('Could not find plugin ' + plugin + ' in pluginInfo cache.');
 		return;
 	}
@@ -121,25 +116,11 @@ function InstallPlugin(plugin, branch, sha) {
 	pluginInfo['infoURL'] = pluginInfoURLs[plugin];
 
 	var postData = JSON.stringify(pluginInfo);
-	$('html,body').css('cursor','wait');
-	$.ajax({
-		url: url,
-		type: 'POST',
-		contentType: 'application/json',
-		data: postData,
-		dataType: 'json',
-		success: function(data) {
-			$('html,body').css('cursor','auto');
-			if (data.Status == 'OK')
-				location.reload(true);
-			else
-				alert('ERROR: ' + data.Message);
-		},
-		error: function() {
-			$('html,body').css('cursor','auto');
-			alert('Error, API call to install plugin failed');
-		}
-	});
+    
+    $('#pluginsProgressPopup').dialog({ height: 600, width: 900, title: "Install Plugin", dialogClass: 'no-close' });
+    $('#pluginsProgressPopup').dialog( "moveToTop" );
+    document.getElementById('pluginsText').value = '';
+    StreamURL(url, 'pluginsText', 'PluginProgressDialogDone', 'PluginProgressDialogDone', 'POST', postData, 'application/json');
 }
 
 function UninstallPlugin(plugin) {
@@ -476,5 +457,15 @@ pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
 
 <?php	include 'common/footer.inc'; ?>
 </div>
+
+
+<div id='pluginsProgressPopup' title='FPP Plugins' style="display: none">
+    <textarea style='width: 99%; height: 94%;' disabled id='pluginsText'>
+    </textarea>
+    <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='ClosePluginProgressDialog();' style='display: none;'>
+</div>
 </body>
 </html>
+
+
+

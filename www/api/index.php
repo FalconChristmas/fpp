@@ -50,6 +50,7 @@ dispatch_post  ('/plugin', 'InstallPlugin');
 dispatch_get   ('/plugin/:RepoName', 'GetPluginInfo');
 dispatch_delete('/plugin/:RepoName', 'UninstallPlugin');
 dispatch_post  ('/plugin/:RepoName/updates', 'CheckForPluginUpdates');
+dispatch_get   ('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 dispatch_post  ('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 
 dispatch_get   ('/proxies', 'GetProxies');
