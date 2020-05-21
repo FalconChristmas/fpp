@@ -351,6 +351,20 @@ void Scheduler::GetSunInfo(int set, int moffset, int &hour, int &minute, int &se
     
     sunOffset += moffset;
 
+    if (sunOffset < 0) {
+        LogDebug(VB_SCHEDULE, "Sunrise calculated as before midnight last night, using 8AM.  Check your time zone to make sure it is valid.\n");
+        hour = 8;
+        minute = 0;
+        second = 0;
+        return;
+    } else if (sunOffset >= (24 * 60 * 60)) {
+        LogDebug(VB_SCHEDULE, "Sunrise calculated as after midnight tomorrow, using 8PM.  Check your time zone to make sure it is valid.\n");
+        hour = 20;
+        minute = 0;
+        second = 0;
+        return;
+    }
+
 	LogDebug(VB_SCHEDULE, "SunRise/Set Time Offset: %.2f minutes\n", sunOffset);
 	hour = (int)sunOffset / 60;
 	minute = (int)sunOffset % 60;
