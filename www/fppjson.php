@@ -136,7 +136,7 @@ function SetSetting()
 			$newValue = preg_replace("/,/", ";", $value);
 		SendCommand("LogMask,$newValue,");
 	} else if ($setting == "HostName") {
-		$value = preg_replace("/[^a-zA-Z0-9]/", "", $value);
+		$value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
 		exec(	$SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
 			$SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
 			$SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
