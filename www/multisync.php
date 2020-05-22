@@ -256,8 +256,11 @@ input.remoteCheckbox {
                     "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
 
                 if ((typeof(data.advancedView.UpgradeSource) !== 'undefined') &&
-                    (data.advancedView.UpgradeSource != 'github.com'))
+                    (data.advancedView.UpgradeSource != 'github.com')) {
                     u += "<tr><td>Origin:</td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
+                } else {
+                    u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
+                }
 
                 u += "</table>";
 
@@ -654,6 +657,13 @@ function upgradeDone(id) {
     var ip = ipFromRowID(id);
     setTimeout(function() { getFPPSystemStatus(ip, true); }, 1500);
 
+    if (origins.hasOwnProperty(ip)) {
+        for (var i = 0; i < origins[ip].length; i++) {
+			var rowID = "fpp_" + origins[ip][i].replace(/\./g, '_');
+            upgradeSystem(rowID);
+        }
+    }
+
     EnableDisableStreamButtons();
 }
 
@@ -669,28 +679,72 @@ function upgradeFailed(id) {
         $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
 }
 
+function showLogsRow(rowID) {
+    // Handle tablesorter bug not assigning same color to child rows
+    if ($('#' + rowID).hasClass('odd'))
+        $('#' + rowID + '_logs').addClass('odd');
+
+    $('#' + rowID + '_logs').show();
+    rowSpanSet(rowID);
+}
+
+function addLogsDivider(rowID) {
+    if ($('#' + rowID + '_logText').val() != '')
+        $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+}
+
+function upgradeSystem(rowID) {
+    $('#' + rowID).find('input.remoteCheckbox').prop('checked', false);
+
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = ipFromRowID(rowID);
+    StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
+}
+
+function showWaitingOnOriginUpdate(rowID, origin) {
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    $('#' + rowID + '_logText').append("Waiting for origin (" + origin + ") to finish updating...");
+}
+
+var origins = {};
 function upgradeSelectedSystems() {
+    $origins = {};
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
-	        $(this).prop('checked', false);
-            streamCount++;
-            EnableDisableStreamButtons();
+            var rowID = $(this).closest('tr').attr('id');
+            var origin = $('#' + rowID + '_origin').html();
+            var originRowID = "fpp_" + origin.replace(/\./g, '_');
+            if ((origin != '') &&
+                (origin != 'github.com') &&
+                ($('#' + originRowID).find('input.remoteCheckbox').is(':checked'))) {
+                if (!origins.hasOwnProperty(origin)) {
+                    origins[origin] = [];
+                }
+                origins[origin].push(ipFromRowID(rowID));
+            }
+        }
+    });
 
+	$('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
 
-            // Handle tablesorter bug not assigning same color to child rows
-            if ($('#' + rowID).hasClass('odd'))
-                $('#' + rowID + '_logs').addClass('odd');
-
-            $('#' + rowID + '_logs').show();
-            rowSpanSet(rowID);
-
-            var ip = ipFromRowID(rowID);
-
-            if ($('#' + rowID + '_logText').val() != '')
-                $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
-
-            StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
+            var origin = $('#' + rowID + '_origin').html();
+            var originRowID = "fpp_" + origin.replace(/\./g, '_');
+            if ((origin == '') ||
+                (origin == 'github.com') ||
+                (!$('#' + originRowID).find('input.remoteCheckbox').is(':checked'))) {
+                upgradeSystem(rowID);
+            } else {
+                showWaitingOnOriginUpdate(rowID, origin);
+            }
         }
     });
 }
@@ -721,15 +775,8 @@ function restartSystem(rowID) {
     streamCount++;
     EnableDisableStreamButtons();
 
-    // Handle tablesorter bug not assigning same color to child rows
-    if ($('#' + rowID).hasClass('odd'))
-        $('#' + rowID + '_logs').addClass('odd');
-
-    $('#' + rowID + '_logs').show();
-    rowSpanSet(rowID);
-
-    if ($('#' + rowID + '_logText').val() != '')
-        $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
     StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
