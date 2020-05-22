@@ -940,7 +940,7 @@
             "description": "Time Zone",
             "tip": "The Time Zone is used to set the local time zone of this FPP instance.",
             "restart": 2,
-            "default": "America/New_York",
+            "default": "Europe/London",
             "type": "select",
             "optionsURL": "api/settings/TimeZone/options"
         }
