@@ -64,7 +64,7 @@
             ]
         },
         "multiSyncCopyFiles": {
-            "description": "Copy Files from Master to Remotes",
+            "description": "Copy Files",
             "settings": [
                 "MultiSyncCopySequences",
                 "MultiSyncCopyEffects",
@@ -339,8 +339,8 @@
         },
         "CompressMultiSyncTransfers": {
             "name": "CompressMultiSyncTransfers",
-            "description": "Compress FSEQ files during copy to Remotes to speed up file sync process",
-            "tip": "Compress FSEQ files during copy to speed up the sync process.  NOTE: Newer xLights versions already used a compressed FSEQ format, so this option will only slow down the transfer as FPP tries to recompress already-compressed data.",
+            "description": "Compress files during copy to Remotes to speed up file sync process",
+            "tip": "Compress files during copy to speed up the sync process.  NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data.",
             "type": "checkbox",
             "textOnRight": 1
         },

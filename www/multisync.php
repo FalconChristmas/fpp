@@ -27,6 +27,10 @@ input.remoteCheckbox {
     transform: scale(2);
     padding: 10px;
 }
+
+.actionOptions {
+    display: none;
+}
 </style>
 <script>
     var hostRows = new Object();
@@ -366,7 +370,9 @@ input.remoteCheckbox {
                 uniqueHosts[hostKey] = rowID;
 
                 var hostname = data[i].HostName;
-                if (!data[i].Local) {
+                if (data[i].Local) {
+                    hostname = "<b>" + hostname + "</b>";
+                } else {
                     if ((settings['fppMode'] == 'master') &&
                             (data[i].fppMode == "remote"))
                     {
@@ -732,6 +738,18 @@ function upgradeSelectedSystems() {
         }
     });
 
+    var originsUpdating = {};
+	$('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            var ip = ipFromRowID(rowID);
+
+            if (origins.hasOwnProperty(ip)) {
+                originsUpdating[ip] = 1;
+            }
+        }
+    });
+
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
@@ -740,7 +758,7 @@ function upgradeSelectedSystems() {
             var originRowID = "fpp_" + origin.replace(/\./g, '_');
             if ((origin == '') ||
                 (origin == 'github.com') ||
-                (!$('#' + originRowID).find('input.remoteCheckbox').is(':checked'))) {
+                (!originsUpdating.hasOwnProperty(origin))) {
                 upgradeSystem(rowID);
             } else {
                 showWaitingOnOriginUpdate(rowID, origin);
@@ -793,6 +811,48 @@ function restartSelectedSystems() {
     });
 }
 
+function copyFilesToSystem(rowID) {
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = ipFromRowID(rowID);
+    StreamURL('copyFilesToRemote.php?ip=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
+}
+
+function copyFilesToSelectedSystems() {
+	$('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
+	        $(this).prop('checked', false);
+            var rowID = $(this).closest('tr').attr('id');
+
+            copyFilesToSystem(rowID);
+        }
+    });
+}
+
+function copyDone(id) {
+    id = id.replace('_logText', '');
+    $('#' + id + '_doneButtons').show();
+    streamCount--;
+
+    EnableDisableStreamButtons();
+}
+
+function copyFailed(id) {
+    var ip = ipFromRowID(id);
+
+    alert('File Copy failed for FPP system at ' + ip);
+    streamCount--;
+
+    EnableDisableStreamButtons();
+
+    if (!$('#fppSystemsTableWrapper').hasClass('fppTableWrapperErrored'))
+        $('#fppSystemsTableWrapper').addClass('fppTableWrapperErrored');
+}
+
 function clearSelected() {
 	$('input.remoteCheckbox').prop('checked', false);
 }
@@ -803,7 +863,18 @@ function performMultiAction() {
     switch (action) {
         case 'upgradeFPP':     upgradeSelectedSystems();      break;
         case 'restartFPPD':    restartSelectedSystems();      break;
+        case 'copyFiles':      copyFilesToSelectedSystems();  break;
         default:               alert('You must select an action first.'); break;
+    }
+}
+
+function multiActionChanged() {
+    var action = $('#multiAction').val();
+
+    $('.actionOptions').hide();
+    
+    switch (action) {
+        case 'copyFiles':      $('#copyOptions').show();      break;
     }
 }
 
@@ -854,15 +925,24 @@ if ($advancedView) {
         <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
     </div>
     <div>
-        Selected Systems:
-        <select id='multiAction'>
+        <b>Action for selected systems:</b>
+        <select id='multiAction' onChange='multiActionChanged();'>
             <option value='noop'>---- Select an Action ----</option>
             <option value='upgradeFPP'>Upgrade FPP</option>
             <option value='restartFPPD'>Restart FPPD</option>
+            <option value='copyFiles'>Copy Files</option>
         </select>
         <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
         <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
     </div>
+</div>
+<div style='text-align: left;'>
+    <span class='actionOptions' id='copyOptions'>
+        <br>
+<?php
+PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
+?>
+    </span>
 </div>
 <div style='width: 100%; text-align: center;'>
     <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
@@ -881,16 +961,6 @@ PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');
 PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
 ?>
             </table>
-<?php
-if ($settings['fppMode'] == 'master')
-{
-    echo "<hr><br>\n";
-    PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
-?>
-			<input type='button' class='buttons' value='Copy Files' onClick='location.href="syncRemotes.php";'>
-<?php
-}
-?>
 		</fieldset>
 <?
 if ($uiLevel > 0) {
