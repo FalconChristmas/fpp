@@ -15,6 +15,10 @@ fi
 #make sure settings are re-applied after boot
 echo "BootActions = \"settings\"" >> /home/fpp/media/settings
 
+#remove files where the binary may not have changed (so rsync won't recopy)
+#but the caps (getcap) might be different
+rm -f /bin/ping
+
 mount -o bind / /mnt/mnt
 mount -o bind /boot /mnt/mnt/boot
 mount -t tmpfs tmpfs /mnt/tmp
