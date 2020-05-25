@@ -311,18 +311,26 @@ EOF
 
 cat > /etc/hostapd/hostapd.conf <<-EOF
 interface=${TetherInterface}
-# driver=nl80211
+driver=nl80211
 wpa_passphrase=${TetherPSK}
 ssid=${TetherSSID}
+country_code=US
 hw_mode=g
 channel=11
-wmm_enabled=1
 macaddr_acl=0
 auth_algs=3
 wpa=2
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=TKIP
 rsn_pairwise=CCMP
+wmm_enabled=0
+ignore_broadcast_ssid=0
+reassociation_deadline=3000
+pmk_r1_push=1
+ft_over_ds=0
+bss_transition=1
+wpa_group_rekey=3600
+wpa_gmk_rekey=86400
 EOF
 
             /sbin/ifconfig ${TetherInterface} 192.168.8.1 netmask 255.255.255.0
