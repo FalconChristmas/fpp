@@ -17,6 +17,15 @@ static int curlBufferWriter(char *data, size_t size, size_t nmemb,
     return size * nmemb;
 }
 
+static std::string escapeURL(const std::string &url) {
+    CURL *curl = curl_easy_init();
+    char *output = curl_easy_escape(curl, url.c_str(), url.length());
+    std::string ret = output;
+    curl_free(output);
+    curl_easy_cleanup(curl);
+    return ret;
+}
+
 static std::string doCurlGet(const std::string &url, int timeout = 250) {
     const std::string buffer;
     CURL *curl = curl_easy_init();
@@ -321,7 +330,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                     doCurlGet(url, 1000);
                 } else if (item != "Back") {
                     std::string url = "http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playEntry=0&section=&playList=";
-                    url += item;
+                    url += escapeURL(item);
                     doCurlGet(url, 1000);
                 }
                 SetCurrentPage(sp);
