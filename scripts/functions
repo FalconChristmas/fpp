@@ -11,16 +11,19 @@ AttemptCreateSoftAP() {
     TetherInterfaceNum=$(echo $TetherInterface | colrm 1 4)
     if [ ! -e "/sys/class/net/SoftAp0" ]; then
         if [ -e "/sys/class/net/$TetherInterface" ]; then
-            iw phy "phy${TetherInterfaceNum}" interface add "SoftAp0" type __ap
+            COMBINATIONS=$(iw "phy${TetherInterfaceNum}" info | grep "interface combinations are not supported")
+            if [ "x${COMBINATIONS}" == "x"]; then
+                iw phy "phy${TetherInterfaceNum}" interface add "SoftAp0" type __ap
+            fi
         fi
     fi
 
     if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
-	modprobe g_ether iManufacturer="FPP-Tether" iProduct="FPP-Tether"
-	ls /sys/class/net/
-	if [ -e "/sys/class/net/usb0" ]; then
+        modprobe g_ether iManufacturer="FPP-Tether" iProduct="FPP-Tether"
+        ls /sys/class/net/
+        if [ -e "/sys/class/net/usb0" ]; then
             ifconfig usb0 192.168.7.2 netmask 255.255.255.0
-	fi
+        fi
     fi
 }
 
