@@ -64,6 +64,9 @@ int PlaylistEntryBoth::Init(Json::Value &config)
     }
     m_mediaName = m_mediaEntry->GetMediaName();
 
+    // the media will drive the timing, not the fseq
+    m_sequenceEntry->disableAdjustTiming();
+    
 	if (!m_sequenceEntry->Init(config))
 		return 0;
 

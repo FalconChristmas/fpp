@@ -48,10 +48,14 @@ class PlaylistEntrySequence : public PlaylistEntryBase {
 
     virtual uint64_t GetLengthInMS() override;
     virtual uint64_t GetElapsedMS() override;
+    
+    void disableAdjustTiming() { m_adjustTiming = false; }
 
 	std::string GetSequenceName(void) { return m_sequenceName; }
 
   private:
+    long long            m_startTme;
+    bool                 m_adjustTiming;
     bool                 m_prepared;
 	int                  m_duration;
 	std::string          m_sequenceName;

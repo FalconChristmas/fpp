@@ -27,11 +27,13 @@
 #include "PlaylistEntrySequence.h"
 #include "fseq/FSEQFile.h"
 
+#include "channeloutput/channeloutputthread.h"
+
 PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
 	m_duration(0),
-    m_prepared(false)
-
+    m_prepared(false),
+    m_adjustTiming(true)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::PlaylistEntrySequence()\n");
 
@@ -88,7 +90,7 @@ int PlaylistEntrySequence::StartPlaying(void)
     }
     
     sequence->StartSequence();
-
+    m_startTme = GetTimeMS();
     LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
 
 	if (mqtt)
@@ -102,14 +104,18 @@ int PlaylistEntrySequence::StartPlaying(void)
  */
 int PlaylistEntrySequence::Process(void)
 {
-	if (!sequence->IsSequenceRunning())
-	{
+	if (!sequence->IsSequenceRunning()) {
 		FinishPlay();
         m_prepared = false;
 
 		if (mqtt)
 			mqtt->Publish("playlist/sequence/status", "");
-	}
+    } else if (m_adjustTiming) {
+        long long now = GetTimeMS();
+        int total = (now - m_startTme);
+        int frame = total / sequence->GetSeqStepTime();
+        CalculateNewChannelOutputDelayForFrame(frame);
+    }
 
 	return PlaylistEntryBase::Process();
 }
@@ -120,7 +126,7 @@ int PlaylistEntrySequence::Process(void)
 int PlaylistEntrySequence::Stop(void)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::Stop()\n");
-
+    
 	sequence->CloseSequenceFile();
     m_prepared = false;
 	if (mqtt)

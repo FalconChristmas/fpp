@@ -40,3 +40,4 @@ void StopForcingChannelOutput(void);
 void ResetMasterPosition(void);
 void UpdateMasterPosition(int frameNumber);
 void CalculateNewChannelOutputDelay(float mediaPosition);
+void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent);
