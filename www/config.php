@@ -425,6 +425,7 @@ $settings['co-bbbStrings'] = $mediaDirectory . "/config/co-bbbStrings.json";
 $settings['universeOutputs'] = $mediaDirectory . "/config/co-universes.json";
 $settings['universeInputs'] = $mediaDirectory . "/config/ci-universes.json";
 $settings['model-overlays'] = $mediaDirectory . "/config/model-overlays.json";
+$settings['scheduleJsonFile'] = $mediaDirectory . "/config/schedule.json";
 $settings['scriptDirectory'] = $scriptDirectory;
 $settings['sequenceDirectory'] = $sequenceDirectory;
 $settings['musicDirectory'] = $musicDirectory;

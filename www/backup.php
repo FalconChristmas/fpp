@@ -36,7 +36,7 @@ $system_config_areas = array(
             'file' => array(
                 'events' => array('type' => 'dir', 'location' => $eventDirectory),
                 'playlist' => array('type' => 'dir', 'location' => $playlistDirectory),
-                'schedule' => array('type' => 'file', 'location' => $scheduleFile),
+                'schedule' => array('type' => 'file', 'location' => $settings['scheduleJsonFile']),
                 'scripts' => array('type' => 'dir', 'location' => $scriptDirectory),
             ),
             'special' => true
@@ -48,7 +48,7 @@ $system_config_areas = array(
                 'system_settings' => array('type' => 'file', 'location' => $settingsFile),
                 'proxies' => array('type' => 'file', 'location' => "$mediaDirectory/config/proxies"),
                 'email' => array('type' => 'file', 'location' => false),
-                'timezone' => array('type' => 'file', 'location' => $timezoneFile)
+				'timezone' => array('type' => 'function', 'location' => array('backup' => 'ReadTimeZone', 'restore' => '')) //We'll handle restore ourselves
             ),
             'special' => true
         ),
@@ -68,9 +68,11 @@ $system_config_areas = array(
 );
 
 //FPP Backup version
-$fpp_backup_version = "2";
+$fpp_backup_version = "3";
 //FPP Backup files directory
 $fpp_backup_location = $settings['configDirectory'] . "/backups";
+//Hold any backup error messages here
+$backup_errors = array();
 
 //Array of plugins
 $system_active_plugins = array();
@@ -149,6 +151,7 @@ if (isset($_POST['btnDownloadConfig'])) {
                 foreach ($tmp_config_areas as $config_key => $config_data) {
                     $setting_file_to_backup = $config_data['file'];
                     $file_data = array();
+					$backup_file_data = '';
                     //if setting file value is an array then there are one or more setting files related to this backup
                     if (is_array($setting_file_to_backup)) {
 //                    if (array_key_exists('special', $setting_file)) {
@@ -296,6 +299,9 @@ if (isset($_POST['btnDownloadConfig'])) {
             //DO IT!
             if (!empty($tmp_settings_data)) {
                 doBackupDownload($tmp_settings_data, $area);
+            }else{
+				$backup_error_string = "BACKUP: Something went wrong while generating backup file for " . ucwords(str_replace("_", " ", $area)) . ", no data was supplied. Have these settings been configured?";
+				$backup_errors[] = $backup_error_string;
             }
         }
     }
@@ -355,22 +361,33 @@ if (isset($_POST['btnDownloadConfig'])) {
                     //work out of backup file is version 2 or not
                     //if it's not a version 2 file, then we can only really restore settings
                     //email can be restored because it's contained in the settings
-                    $is_version_2_backup = false;
-                    if (array_key_exists('fpp_backup_version', $file_contents_decoded) && ($file_contents_decoded['fpp_backup_version'] == $fpp_backup_version)) {
-                        $is_version_2_backup = true;
-                    }
+
+                    //Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
+					//Version 3 backups need to restore the schedule to a different file
+					$is_version_2_backup = false;
+					$is_version_3_backup = false;
+                    //Check backup version
+					if (array_key_exists('fpp_backup_version', $file_contents_decoded)) {
+						$_fpp_backup_version = $file_contents_decoded['fpp_backup_version']; //Minimum version is 2
+
+						if ($file_contents_decoded['fpp_backup_version'] == 2) {
+							$is_version_2_backup = true;
+						} else if ($file_contents_decoded['fpp_backup_version'] = $fpp_backup_version) {
+							$is_version_3_backup = true;
+						}
+					}
 
                     //Remove the platform key as it's not used for anything yet
                     unset($file_contents_decoded['platform']);
                     unset($file_contents_decoded['fpp_backup_version']);
 
                     //Restore all areas
-                    if (strtolower($restore_area) == "all" && $is_version_2_backup) {
+                    if (strtolower($restore_area) == "all" && ($is_version_2_backup || $is_version_3_backup)) {
                         // ALL SETTING RESTORE
                         //read each area and process it
                         foreach ($file_contents_decoded as $restore_area_key => $area_data) {
                             //Pass the restore area and data to the restore function
-                            $restore_done = process_restore_data($restore_area_key, $area_data);
+                            $restore_done = process_restore_data($restore_area_key, $area_data, $_fpp_backup_version);
                         }
 
 //                    } else if (strtolower($restore_area) == "email" && $is_version_2_backup) {
@@ -403,14 +420,16 @@ if (isset($_POST['btnDownloadConfig'])) {
                             }
 
                             //Pass the restore area and data to the restore function
-                            $restore_done = process_restore_data($restore_area, $area_data);
+                            $restore_done = process_restore_data($restore_area, $area_data, $_fpp_backup_version);
                         }
                     }
 
                     //All processed
 //                    $restore_done = true;
                 } else {
-                    error_log("The backup " . $rstfname . " data could not be decoded properly. Is it a valid backup file?");
+					$backup_error_string = "RESTORE: The backup " . $rstfname . " data could not be decoded properly. Is it a valid backup file?";
+					$backup_errors[] = $backup_error_string;
+                    error_log($backup_error_string);
                 }
             }
         }
@@ -486,11 +505,12 @@ function read_directory_files($directory, $return_data = true)
  * Function to look after backup restorations
  * @param $restore_area String  Area to restore
  * @param $restore_area_data array  Area data as an array
+ * @param $backup_version boolean Version of the backup
  * @return boolean Save result
  */
-function process_restore_data($restore_area, $restore_area_data)
+function process_restore_data($restore_area, $restore_area_data, $backup_version)
 {
-    global $SUDO, $settings, $mediaDirectory, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored,
+    global $SUDO, $settings, $mediaDirectory, $scheduleFile, $system_config_areas, $keepMasterSlaveSettings, $keepNetworkSettings, $uploadDataProtected, $settings_restored,
            $network_settings_restored, $network_settings_restored_post_apply, $network_settings_restored_applied_ips,
            $known_ini_config_files, $known_json_config_files;
     global $args;
@@ -519,11 +539,15 @@ function process_restore_data($restore_area, $restore_area_data)
         $restore_area_data = $restore_area_data['area_data'];
     }
 
-//    $is_empty = is_array_empty($restore_area_data);
+    //Should probably skip restoring data if the restore data is actually empty (maybe no config existed when the backup was made)
+    //this is also avoid false negatives of restore failures for areas where there wasn't any data to restore
+	$restore_data_is_empty = (empty($restore_area_data) || is_null($restore_area_data)) ? true : false;
 
+	//////////////////////////////////
+	//// Handle processing of each restore area
     //////////////////////////////////
     //OutputProcessors - OutputProcessors
-    if ($restore_area_key == "outputProcessors") {
+    if ($restore_area_key == "outputProcessors" && !$restore_data_is_empty) {
         //Just overwrite the Output processors file
 		$settings_restored[$restore_area_key]['ATTEMPT'] = true;
 		$channel_remaps_json_filepath = $system_config_areas['outputProcessors']['file'];
@@ -542,7 +566,7 @@ function process_restore_data($restore_area, $restore_area_data)
     }
 
     //CHANNEL MEMORY MAPS - PIXEL OVERLAYS
-    if ($restore_area_key == "channelmemorymaps") {
+    if ($restore_area_key == "channelmemorymaps" && !$restore_data_is_empty) {
         //Overwrite channel outputs JSON
         $channelmemorymaps_filepath = $system_config_areas['channelmemorymaps']['file'];
 		$settings_restored[$restore_area_key]['ATTEMPT'] = true;
@@ -571,7 +595,7 @@ function process_restore_data($restore_area, $restore_area_data)
     }
 
     //CHANNEL INPUTS - E1.31 BRIDGE
-	if ($restore_area_key == "channelInputs") {
+	if ($restore_area_key == "channelInputs" && !$restore_data_is_empty) {
 		//Just overwrite the channeInputs file
 		$channelInputs_filepath = $system_config_areas['channelInputs']['file'];
 
@@ -588,7 +612,7 @@ function process_restore_data($restore_area, $restore_area_data)
 	}
 
     //SHOW SETUP & CHANNEL OUTPUT RESTORATION
-    if ($restore_area_key == "show_setup" || $restore_area_key == "channelOutputs") {
+    if (($restore_area_key == "show_setup" || $restore_area_key == "channelOutputs") && !$restore_data_is_empty) {
         $settings_restored[$restore_area_key] = array();
 
         $script_filenames = array();
@@ -661,6 +685,20 @@ function process_restore_data($restore_area, $restore_area_data)
                                     }
                                 }
 
+								//if restore sub-area is the schedule, determine how to restore it based on the $backup_version
+								//Version 2 backups need to restore the schedule file to the old locations (auto converted on FPPD restart)
+								//Version 3 backups need to restore the schedule to it's new json location
+								if (strtolower($restore_areas_idx) == "schedule") {
+									if ($backup_version == 2)
+									{
+										//Override the restore location so we write to the old schedule file, FPPD will convert this to the new json file
+										$restore_location = $scheduleFile;
+									}
+//									else if ($backup_version == 3){
+//										//restore it to the new json file - don't adjust the path it'll go to configured path
+//									}
+								}
+
                                 //If we have data then write to where it needs to go
                                 if (!empty($final_file_restore_data) && ($restore_type == "dir" || $restore_type == "file")) {
 									$settings_restored[$restore_area_key][$restore_area_data_index]['ATTEMPT'] = true;
@@ -710,7 +748,7 @@ function process_restore_data($restore_area, $restore_area_data)
     }
 
     //PLUGIN SETTING RESTORATION
-    if ($restore_area_key == "plugins") {
+    if ($restore_area_key == "plugins"  && !$restore_data_is_empty) {
         if (is_array($restore_area_data)) {
             //Just overwrite the universes file
             $plugin_settings_path_base = $settings['configDirectory'];
@@ -831,21 +869,30 @@ function process_restore_data($restore_area, $restore_area_data)
                 }
 
                 //TIMEZONE RESTORATION
-                if ($restore_areas_idx == "timezone") {
-                    //get data out of nested array
-                    $restore_data = $restore_area_data['timezone'][0];
+				if ($restore_areas_idx == "timezone") {
+					//get data out of nested array
+					$restore_data = $restore_area_data['timezone'][0];
 
-                    //Make sure we have an array, there will be 2 indexes, 0 the timezone and 1 a linebreak
-                    if (is_array($restore_data)) {
-                        $data = $restore_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
-                        if (!empty($data)) {
+					//Make sure we have an array, there will be 2 indexes, 0 the timezone and 1 a linebreak
+					if (is_array($restore_data) || !is_null($restore_data) ) {
+						//Version 2 backups need to locate the TimeZone data slightly differently due to how it was stored back then
+						if ($backup_version == 2) {
+							$data = $restore_data[0];//first index has the timezone, index 1 is empty to due carriage return in file when its backed up
+						} else {
+							//Version 3 backups - TimeZone data is located at the first index
+							$data = $restore_data;
+						}
+
+						if (!empty($data)) {
 							$settings_restored[$restore_area_key][$restore_areas_idx]['ATTEMPT'] = true;
-
+							//Timezone isn't stored in a seperate file anymore, it's now a setting
+							WriteSettingToFile('TimeZone', $data);
+							//Update the timezone on the system
 							SetTimezone($data);
-                            $save_result = true;
-                        }
-                    }
-                }
+							$save_result = true;
+						}
+					}
+				}
 
 				//PROXY CONFIG RESTORATION
 				if ($restore_areas_idx == "proxies") {
@@ -869,7 +916,7 @@ function process_restore_data($restore_area, $restore_area_data)
     }
 
 	//Network Settings (Wired and WiFi)
-	if ($restore_area_key == "network") {//If the user doesn't want to keep the existing network settings, we can overwrite them
+	if ($restore_area_key == "network"  && !$restore_data_is_empty) {//If the user doesn't want to keep the existing network settings, we can overwrite them
 		if ($keepNetworkSettings == false) {
 			//Overwrite existing network settings
 			$network_config_filepath = $system_config_areas['network']['file'];
@@ -928,6 +975,8 @@ function process_restore_data($restore_area, $restore_area_data)
 			}
 		} else {
 			error_log("RESTORE: Failed to restore " . $restore_area_key . " - 'Keep Existing Network Settings' selected - NOT OVERWRITING: ");
+			//no attempt was made so remove the key for tracking attempts
+			unset($settings_restored[$restore_area_key]);
 		}
 
 //		$settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
@@ -952,13 +1001,18 @@ function process_restore_data($restore_area, $restore_area_data)
 //        $settings_restored[$restore_area_key] = $save_result;
 //    }
 
+	//finally if there was no data for the restore area remove it's key for tracking attemps, this is fine here as the seperate restore area tests above will avoid restore areas with no data
+	if ($restore_data_is_empty) {
+		unset($settings_restored[$restore_area_key]);
+	}
+
     //wrote message out
     if (!$save_result) {
         error_log("RESTORE: Failed to restore " . $restore_area . " - " . json_encode($settings_restored));
     }
 
     //Return save result
-    return $save_result;
+    return true;
 }
 
 /**
@@ -1026,6 +1080,16 @@ function SetAudioOutput($card)
 		}
 	}
 	return $card;
+}
+
+/**
+ * Helper function to read the TimeZone setting for backups (no longer stored in the TimeZone file
+ *
+ * @return string
+ */
+function ReadTimeZone(){
+    $TimeZone_setting = ReadSettingFromFile('TimeZone');
+    return $TimeZone_setting;
 }
 
 /**
@@ -1143,8 +1207,7 @@ function SavePixelnetDMXFile_FPDv1($restore_data)
  */
 function doBackupDownload($settings_data, $area)
 {
-    global $settings, $protectSensitiveData, $fpp_backup_version, $fpp_backup_location;
-
+    global $settings, $protectSensitiveData, $fpp_backup_version, $fpp_backup_location, $backup_errors;
     if (!empty($settings_data)) {
         //is sensitive data removed (selectively used on restore to skip some processes)
         $settings_data['protected'] = $protectSensitiveData;
@@ -1163,30 +1226,47 @@ function doBackupDownload($settings_data, $area)
         $backup_fname .= date("YmdHis") . ".json";
 
         //check to see fi the backup directory exists
-        if (!file_exists($fpp_backup_location)) {
-            mkdir($fpp_backup_location);
-        }
-
+		if (!file_exists($fpp_backup_location)) {
+			if (mkdir($fpp_backup_location) == FALSE) {
+			    $backup_error_string = "BACKUP: Something went wrong creating the backup file directory '" . $fpp_backup_location . "' , backup file can't be created (permissions error?) and backup download will fail.";
+				$backup_errors[] = $backup_error_string;
+				error_log($backup_error_string);
+			}
+		} else {
+			//Backup location exists, test if writable
+			if (is_writable($fpp_backup_location) == FALSE) {
+				$backup_error_string = "BACKUP: Something went wrong, '" . $fpp_backup_location . "'  is not writable.";
+				$backup_errors[] = $backup_error_string;
+				error_log($backup_error_string);
+			}
+		}
 
         //Write a copy locally as well
         $backup_local_fpath = $fpp_backup_location . '/' . $backup_fname;
         $json = json_encode($settings_data);
-        
-        //Write data into backup file
-        file_put_contents($backup_local_fpath, $json);
 
-        ///Generate the headers to prompt browser to start download
-        header("Content-Disposition: attachment; filename=\"" . $backup_fname . "\"");
-        header("Content-Type: application/json");
-        header("Content-Length: " . filesize($backup_local_fpath));
-        header("Connection: close");
-        //Output the file
-        readfile($backup_local_fpath);
-        //die
-        exit;
+        //Write data into backup file
+		if (file_put_contents($backup_local_fpath, $json) !== FALSE) {
+			///Generate the headers to prompt browser to start download
+			header("Content-Disposition: attachment; filename=\"" . basename($backup_fname) . "\"");
+			header("Content-Type: application/json");
+			header("Content-Length: " . filesize($backup_local_fpath));
+			header("Connection: close");
+			//Output the file
+			readfile($backup_local_fpath);
+			//die
+			exit;
+		} else {
+			$backup_error_string = "BACKUP: Something went wrong while writing the backup file to '" . $backup_local_fpath . "', JSON backup file unable to be downloaded.";
+			$backup_errors[] = $backup_error_string;
+			error_log($backup_error_string);
+		}
+
     } else {
         //no data supplied
-        error_log("BACKUP: Something went wrong while generating backup file for " . $area . ", no data was supplied.");
+		$backup_error_string = "BACKUP: Something went wrong while generating backup file for " .  ucwords(str_replace("_", " ", $area)) . ", no data was supplied. Have these settings been configured?";
+		$backup_errors[] = $backup_error_string;
+        error_log($backup_error_string);
     }
 }
 
@@ -1615,6 +1695,22 @@ GetBackupDevices();
                 </ul>
             <div id='tab-jsonBackup'>
                 <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
+                    <?php
+                    //Spit out the backup errors if the backup_errors array isn't empty
+					if (!is_array_empty($backup_errors)) {
+						?>
+                        <div id="rebootFlag" style="display: block; margin-right: auto; margin-left: auto; width: 60%;">Backup failed: <br>
+                            <ul>
+								<?php
+								foreach ($backup_errors as $backup_error) {
+									echo "<li>$backup_error</li>";
+								}
+								?>
+                            </ul>
+                        </div>
+						<?php
+					}
+                    ?>
                 <?php if ($restore_done == true) {
                     ?>
                     <div id="rebootFlag" style="display: block;">Backup Restored, FPPD Restart or Reboot may be required.
