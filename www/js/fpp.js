@@ -3472,7 +3472,7 @@ function DisplayHelp()
 	if ((helpPage == 'help/settings.php') && $('#tabs').length) {
 		var tab = $("#tabs li.ui-tabs-active a").attr('href').replace('#tab-', '');
         if (tab != '') {
-            tmpHelpPage = helpPage.replace('.php', '-' + tab + '.php');
+            tmpHelpPage = "help/" + tab;
         }
 	}
 
