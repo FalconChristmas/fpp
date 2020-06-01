@@ -94,10 +94,10 @@
         AND out_set, data, mask
         XOR out_clr, out_set, mask
         SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
-        JMP DONEOUTPUTGPIO
+        QBA DONEOUTPUTGPIO
     SETALL:
         SBBO data, gpio_base, GPIO_SETDATAOUT, 4
-        JMP DONEOUTPUTGPIO
+        QBA DONEOUTPUTGPIO
     CLEARALL:
         SBBO mask, gpio_base, GPIO_CLRDATAOUT, 4
     DONEOUTPUTGPIO:
@@ -115,10 +115,10 @@
         AND out_set, data, mask
         XOR out_clr, out_set, mask
         SBBO out_clr, gpio_base, GPIO_CLRDATAOUT, 8
-        JMP DONEOUTPUTGPIO
+        QBA DONEOUTPUTGPIO
     CLEARALL:
         SBBO mask, gpio_base, GPIO_CLRDATAOUT, 4
-        JMP DONEOUTPUTGPIO
+        QBA DONEOUTPUTGPIO
     CLEARNONDATA:
         AND out_set, data, mask
         XOR out_clr, out_set, mask
@@ -219,63 +219,63 @@
     MOV tmp_reg1, BRIGHTNESS1
     MOV tmp_reg2, DELAY1
 
-    JMP DONETIMES
+    QBA DONETIMES
 #ifdef BRIGHTNESS12
     DO12:
         MOV tmp_reg1, BRIGHTNESS12
         MOV tmp_reg2, DELAY12
-        JMP DONETIMES
+        QBA DONETIMES
 #endif
 #ifdef BRIGHTNESS11
     DO11:
         MOV tmp_reg1, BRIGHTNESS11
         MOV tmp_reg2, DELAY11
-        JMP DONETIMES
+        QBA DONETIMES
 #endif
 #ifdef BRIGHTNESS10
     DO10:
         MOV tmp_reg1, BRIGHTNESS10
         MOV tmp_reg2, DELAY10
-        JMP DONETIMES
+        QBA DONETIMES
 #endif
 #ifdef BRIGHTNESS9
     DO9:
         MOV tmp_reg1, BRIGHTNESS9
         MOV tmp_reg2, DELAY9
-        JMP DONETIMES
+        QBA DONETIMES
 #endif
 #ifdef BRIGHTNESS8
     DO8:
         MOV tmp_reg1, BRIGHTNESS8
         MOV tmp_reg2, DELAY8
-        JMP DONETIMES
+        QBA DONETIMES
 #endif
 #ifdef BRIGHTNESS7
     DO7:
         MOV tmp_reg1, BRIGHTNESS7
         MOV tmp_reg2, DELAY7
-        JMP DONETIMES
+        QBA DONETIMES
 #endif
     DO6:
         MOV tmp_reg1, BRIGHTNESS6
         MOV tmp_reg2, DELAY6
-        JMP DONETIMES
+        QBA DONETIMES
     DO5:
         MOV tmp_reg1, BRIGHTNESS5
         MOV tmp_reg2, DELAY5
-        JMP DONETIMES
+        QBA DONETIMES
     DO4:
         MOV tmp_reg1, BRIGHTNESS4
         MOV tmp_reg2, DELAY4
-        JMP DONETIMES
+        QBA DONETIMES
     DO3:
         MOV tmp_reg1, BRIGHTNESS3
         MOV tmp_reg2, DELAY3
-        JMP DONETIMES
+        QBA DONETIMES
     DO2:
         MOV tmp_reg1, BRIGHTNESS2
         MOV tmp_reg2, DELAY2
-        JMP DONETIMES
+        QBA DONETIMES
 
     DONETIMES:
 #endif
@@ -296,14 +296,14 @@ START:
     // 0x00012000 (PRU shared RAM).
     MOV		r0, 0x00000120
     MOV		r1, CTPPR_0 + PRU_MEMORY_OFFSET
-    ST32	r0, r1
+    SBBO    &r0, r1, 0x00, 4
 
     // Configure the programmable pointer register for PRU0 by setting
     // c31_pointer[15:0] field to 0x0010.  This will make C31 point to
     // 0x80001000 (DDR memory).
     MOV		r0, 0x00100000
     MOV		r1, CTPPR_1 + PRU_MEMORY_OFFSET
-    ST32	r0, r1
+    SBBO    &r0, r1, 0x00, 4
 
     // Write a 0x1 into the response field so that they know we have started
     MOV r2, #0x1
@@ -412,7 +412,7 @@ READ_LOOP:
 
     // Command of 0xFF is the signal to exit
     QBNE NO_EXIT, r2, #0xFF
-        JMP EXIT
+        QBA EXIT
 NO_EXIT:
 
     MOV row, 0

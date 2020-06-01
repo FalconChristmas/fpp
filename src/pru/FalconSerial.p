@@ -212,14 +212,14 @@ START:
 	// 0x00012000 (PRU shared RAM).
 	MOV	r0, 0x00000120
 	MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
-	ST32	r0, r1
+    SBBO    &r0, r1, 0x00, 4
 
 	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
 	MOV	r0, 0x00100000
 	MOV	r1, CTPPR_1 + PRU_MEMORY_OFFSET
-	ST32	r0, r1
+    SBBO    &r0, r1, 0x00, 4
 
 	// Write a 0x1 into the response field so that they know we have started
 	MOV	r2, #0x1

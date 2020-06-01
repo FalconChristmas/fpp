@@ -664,6 +664,8 @@ int BBBMatrix::Init(Json::Value config)
     char buf[200];
     sprintf(buf, "-DRUNNING_ON_PRU%d", pru);
     compileArgs.push_back(buf);
+    sprintf(buf, "-DRUNNING_ON_PRU=%d", pru);
+    compileArgs.push_back(buf);
     sprintf(buf, "-DOUTPUTS=%d", m_outputs);
     compileArgs.push_back(buf);
     sprintf(buf, "-DROWS=%d", m_panelScan);

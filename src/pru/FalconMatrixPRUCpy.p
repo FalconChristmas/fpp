@@ -38,14 +38,14 @@ START:
     // 0x00012000 (PRU shared RAM).
     MOV		r0, 0x00000120
     MOV		r1, CTPPR_0 + PRU_MEMORY_OFFSET
-    ST32	r0, r1
+    SBBO    &r0, r1, 0x00, 4
 
     // Configure the programmable pointer register for PRU0 by setting
     // c31_pointer[15:0] field to 0x0010.  This will make C31 point to
     // 0x80001000 (DDR memory).
     MOV		r0, 0x00100000
     MOV		r1, CTPPR_1 + PRU_MEMORY_OFFSET
-    ST32	r0, r1
+    SBBO    &r0, r1, 0x00, 4
 
     LDI r3, 1
     SBCO r3, C24, 0, 4
@@ -63,15 +63,12 @@ READ_LOOP:
     // Command of 0xFFFFFFF is the signal to exit
     QBEQ EXIT, data_addr, endVal
 
-    QBNE DO_DATA, lastData, data_addr
-    //nothing changed
-    JMP READ_LOOP
+    QBEQ READ_LOOP, lastData, data_addr
 
-    DO_DATA:
-        LBBO pixel_data, data_addr, 0, 32
-        MOV lastData, data_addr
-        XOUT 11, lastData, (32 + 4)
-        JMP READ_LOOP
+    LBBO pixel_data, data_addr, 0, 32
+    MOV lastData, data_addr
+    XOUT 11, lastData, (32 + 4)
+    QBA READ_LOOP
 
 EXIT:
     #ifdef AM33XX
