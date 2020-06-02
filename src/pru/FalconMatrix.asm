@@ -1,6 +1,8 @@
 /*
  *PRU based LED Matrix driver.
  */
+ #include "ResourceTable.asm"
+ 
 #ifndef OUTPUTS
 #define OUTPUTS 8
 #endif

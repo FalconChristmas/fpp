@@ -54,7 +54,7 @@ waitloop?:
 /* Busy sleep for the given number of ns */
 SLEEPNS .macro  ns, treg, extra
        .newblock
-       LDI32 treg, (ns/10) - 1 - extra
+       LDI treg, (ns/10) - 1 - extra
 sleeploop?:
        SUB treg, treg, 1
        QBNE sleeploop?, treg, 0

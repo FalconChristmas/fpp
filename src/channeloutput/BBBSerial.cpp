@@ -159,7 +159,7 @@ int BBBSerialOutput::Init(Json::Value config)
 
     int pruNumber = BBB_PRU;
 
-    string pru_program = "/tmp/FalconSerial.bin";
+    string pru_program = "/tmp/FalconSerial.out";
 
     const char *mode = BBB_PRU ? "gpio" : "pruout";
     if (BBB_PRU) {
@@ -292,12 +292,14 @@ int BBBSerialOutput::Close(void)
         
         __asm__ __volatile__("":::"memory");
         int cnt = 0;
-        while (wait && cnt < 25 && m_serialData->response != 0xFFFF) {
+        while (wait && cnt < 50 && m_serialData->response != 0xFFFF) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            __asm__ __volatile__("":::"memory");
             cnt++;
         }
-        m_pru->stop(m_serialData->response != 0xFFFF ? 0 : 1);
-        
+        m_pru->stop();
+        m_serialData->command = 0;
+
         delete m_pru;
         m_pru = NULL;
     }

@@ -1,7 +1,16 @@
 #!/bin/sh
 
 echo $0 $@
-/bin/rm -f /opt/fpp/lib/FalconSerial.bin
-/usr/bin/cpp $@ /opt/fpp/src/pru/FalconSerial.p | perl -p -e 's/^#.*//; s/;/\n/g; s/BYTE\((\d+)\)/t\1/g' > /tmp/FalconPRUSerial.i
-/usr/local/bin/pasm -V3 -b /tmp/FalconPRUSerial.i /tmp/FalconSerial
-#    /bin/rm /tmp/FalconPRU.i
+cd /tmp
+/bin/rm -f /opt/fpp/lib/FalconSerial.*
+
+#/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconSerial.p > /tmp/FalconPRUSerial.i
+#/usr/local/bin/pasm -V3 -b /tmp/FalconPRUSerial.i /tmp/FalconSerial
+
+
+# clpru versions
+/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconSerial.asm > /tmp/FalconSerial.asm
+clpru -v3 -o $@ /tmp/FalconSerial.asm
+clpru -v3 -z --entry_point main  /opt/fpp/src/pru/AM335x_PRU.cmd  -o FalconSerial.out FalconSerial.obj
+#objdump -h FalconSerial.out | grep .text |  awk '{print "dd if='FalconSerial.out' of='FalconSerial.bin' bs=1 count=$[0x" $3 "] skip=$[0x" $6 "]"}'  | bash
+

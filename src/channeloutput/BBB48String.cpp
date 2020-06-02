@@ -198,7 +198,8 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
             }
             i++;
             int next = i->first;
-            outputFile << "        LDI next_check, CHECK_" << std::to_string(next) << "\n";
+            outputFile << "        LDI next_check, $CODE(CHECK_" << std::to_string(next) << ")\n";
+            //outputFile << "        LDI next_check, CHECK_" << std::to_string(next) << "\n";
             outputFile << "skip_" << std::to_string(min) << ":\n        RET\n";
             
         } else {
@@ -403,14 +404,14 @@ int BBB48StringOutput::StartPRU(bool both)
     m_pruData = (BBB48StringData*)m_pru->data_ram;
     m_pruData->command = 0;
     m_pruData->address_dma = m_pru->ddr_addr;
-    m_pru->run("/tmp/FalconWS281x.bin");
+    m_pru->run("/tmp/FalconWS281x.out");
     
     if (both) {
         m_pru0 = new BBBPru(!pruNumber, true, true);
         m_pru0Data = (BBB48StringData*)m_pru0->data_ram;
         m_pru0Data->command = 0;
         m_pru0Data->address_dma = m_pru0->ddr_addr;
-        m_pru0->run("/tmp/FalconWS281x_gpio0.bin");
+        m_pru0->run("/tmp/FalconWS281x_gpio0.out");
     }
     
     return 1;
@@ -431,7 +432,7 @@ void BBB48StringOutput::StopPRU(bool wait)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         cnt++;
     }
-    m_pru->stop(m_pruData->response != 0xFFFF ? !wait : 1);
+    m_pru->stop();
     delete m_pru;
     
     if (m_pru0) {
@@ -440,7 +441,7 @@ void BBB48StringOutput::StopPRU(bool wait)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             cnt++;
         }
-        m_pru0->stop(m_pru0Data->response != 0xFFFF ? !wait : 1);
+        m_pru0->stop();
         delete m_pru0;
     }
     m_pru = NULL;

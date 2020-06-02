@@ -8,25 +8,22 @@
  * 
  */
 
+#include "ResourceTable.asm"
 #include "/tmp/SerialPinConfiguration.hp"
 
-
-.origin 0
-.entrypoint START
-
 #include "FalconPRUDefs.hp"
-#include "FalconUtils.hp"
+#include "FalconUtils.asm"
 
 #ifdef PIXELNET
 //PixelNet
 #define DELAYCOUNT 990
-#define DATALEN    #4102
+#define DATALEN    4102
 
 #else
 #define DELAYCOUNT 3900
 
 #ifndef DATALEN
-#define DATALEN    #513
+#define DATALEN    513
 #endif
 
 // DMX has to send SOMETHING out at least every 250ms (we'll do slightly faster) or
@@ -48,19 +45,19 @@
 
 // r10 - r22 are used for temp storage and bitmap processing
 
-.macro RESET_COUNTER
+RESET_COUNTER .macro
     // Disable the counter and clear it, then re-enable it
-    MOV r6, PRU_CONTROL_REG // control register
-    LBBO r9, r6, 0, 4
+    LDI32 r6, PRU_CONTROL_REG // control register
+    LBBO &r9, r6, 0, 4
     CLR r9, r9, 3 // disable counter bit
-    SBBO r9, r6, 0, 4 // write it back
+    SBBO &r9, r6, 0, 4 // write it back
 
-    MOV r8, 0
-    SBBO r8, r6, 0xC, 4 // clear the timer
+    LDI r8, 0
+    SBBO &r8, r6, 0xC, 4 // clear the timer
 
     SET r9, r9, 3 // enable counter bit
-    SBBO r9, r6, 0, 4 // write it back
-.endm
+    SBBO &r9, r6, 0, 4 // write it back
+    .endm
 
 #ifdef RUNNING_ON_PRU1
 #define USE_SLOW_GPIO
@@ -74,121 +71,120 @@
 #define setDataOffset         r14
 #define gpio3_serial_mask     r26
 
-.macro CLEAR_ALL_BITS
-    SBBO    gpio3_serial_mask, clearDataOffset, 0, 4
-.endm
-.macro SET_ALL_BITS
-    SBBO    gpio3_serial_mask, setDataOffset, 0, 4
-.endm
-.macro BEFORE_SET_BITS
-    MOV gpio3_ones, #0       // Set all bit data low to start with
-.endm
-.macro AFTER_SET_BITS
+CLEAR_ALL_BITS .macro
+    SBBO    &gpio3_serial_mask, clearDataOffset, 0, 4
+    .endm
+SET_ALL_BITS .macro
+    SBBO    &gpio3_serial_mask, setDataOffset, 0, 4
+    .endm
+BEFORE_SET_BITS .macro
+    LDI gpio3_ones, 0       // Set all bit data low to start with
+    .endm
+AFTER_SET_BITS .macro
     XOR gpio3_zeros, gpio3_ones, gpio3_serial_mask   // create the 0 bits
-.endm
-.macro WAIT_BEFORE_SET_BITS
-.endm
-.macro WAIT_AFTER_SET_BITS
+    .endm
+WAIT_BEFORE_SET_BITS .macro
+    .endm
+WAIT_AFTER_SET_BITS .macro
     SLEEPNS DELAYCOUNT, sleep_counter, 20
-.endm
-.macro OUTPUT_GPIO_BITS
+    .endm
+OUTPUT_GPIO_BITS .macro
     // Output bits, write both 0's and 1's
-    SBBO	gpio3_zeros, clearDataOffset, 0, 8
-.endm
-.macro OUTPUT_START_BIT
+    SBBO	&gpio3_zeros, clearDataOffset, 0, 8
+    .endm
+OUTPUT_START_BIT .macro
     MOV	gpio3_zeros, gpio3_serial_mask
-    MOV	gpio3_ones, #0
-.endm
-.macro OUTPUT_STOP_BIT
-    MOV	gpio3_zeros, #0
+    LDI	gpio3_ones, 0
+    .endm
+OUTPUT_STOP_BIT .macro
+    LDI	gpio3_zeros, 0
     MOV	gpio3_ones, gpio3_serial_mask
-.endm
-.macro DO_SET_BIT
-.mparam pin, reg, bit
-    QBBC NOT_SET, reg, bit
+    .endm
+DO_SET_BIT .macro pin, reg, bit
+    .newblock
+    QBBC NOT_SET?, reg, bit
     SET gpio3_ones, #pin
-    NOT_SET:
-.endm
+NOT_SET?:
+    .endm
 #define SET_BIT(out, reg, bit)  DO_SET_BIT ser##out##_pin, reg, bit
 #else
 
-.macro CLEAR_ALL_BITS
-    CLR r30, ser1_pru30
+CLEAR_ALL_BITS .macro
+    CLR r30, r30, ser1_pru30
 #if NUMOUT > 1
-    CLR r30, ser2_pru30
+    CLR r30, r30, ser2_pru30
 #endif
 #if NUMOUT > 2
-    CLR r30, ser3_pru30
+    CLR r30, r30, ser3_pru30
 #endif
 #if NUMOUT > 3
-    CLR r30, ser4_pru30
+    CLR r30, r30, ser4_pru30
 #endif
 #if NUMOUT > 4
-    CLR r30, ser5_pru30
+    CLR r30, r30, ser5_pru30
 #endif
 #if NUMOUT > 5
-    CLR r30, ser6_pru30
+    CLR r30, r30, ser6_pru30
 #endif
 #if NUMOUT > 6
-    CLR r30, ser7_pru30
+    CLR r30, r30, ser7_pru30
 #endif
 #if NUMOUT > 7
-    CLR r30, ser8_pru30
+    CLR r30, r30, ser8_pru30
 #endif
-.endm
-.macro SET_ALL_BITS
-    SET r30, ser1_pru30
+    .endm
+SET_ALL_BITS .macro
+    SET r30, r30, ser1_pru30
 #if NUMOUT > 1
-    SET r30, ser2_pru30
+    SET r30, r30, ser2_pru30
 #endif
 #if NUMOUT > 2
-    SET r30, ser3_pru30
+    SET r30, r30, ser3_pru30
 #endif
 #if NUMOUT > 3
-    SET r30, ser4_pru30
+    SET r30, r30, ser4_pru30
 #endif
 #if NUMOUT > 4
-    SET r30, ser5_pru30
+    SET r30, r30, ser5_pru30
 #endif
 #if NUMOUT > 5
-    SET r30, ser6_pru30
+    SET r30, r30, ser6_pru30
 #endif
 #if NUMOUT > 6
-    SET r30, ser7_pru30
+    SET r30, r30, ser7_pru30
 #endif
 #if NUMOUT > 7
-    SET r30, ser8_pru30
+    SET r30, r30, ser8_pru30
 #endif
-.endm
-.macro BEFORE_SET_BITS
-.endm
-.macro AFTER_SET_BITS
-.endm
-.macro WAIT_BEFORE_SET_BITS
+    .endm
+BEFORE_SET_BITS .macro
+    .endm
+AFTER_SET_BITS .macro
+    .endm
+WAIT_BEFORE_SET_BITS .macro
     SLEEPNS DELAYCOUNT, sleep_counter, 20
-.endm
-.macro WAIT_AFTER_SET_BITS
-.endm
-.macro OUTPUT_GPIO_BITS
-.endm
-.macro OUTPUT_START_BIT
+    .endm
+WAIT_AFTER_SET_BITS .macro
+    .endm
+OUTPUT_GPIO_BITS .macro
+    .endm
+OUTPUT_START_BIT .macro
     CLEAR_ALL_BITS
-.endm
-.macro OUTPUT_STOP_BIT
+    .endm
+OUTPUT_STOP_BIT .macro
     SET_ALL_BITS
-.endm
+    .endm
 
-.macro DO_SET_BIT
-.mparam pin, reg, bit
-    QBBC NOT_SET, reg, bit
-        SET r30, #pin
-        QBA DONE
-    NOT_SET:
-        CLR r30, #pin
-    DONE:
-.endm
+DO_SET_BIT .macro pin, reg, bit
+    .newblock
+    QBBC NOT_SET?, reg, bit
+        SET r30, r30, pin
+        QBA DONE?
+NOT_SET?:
+        CLR r30, r30, pin
+DONE?:
+    .endm
 #define SET_BIT(out, reg, bit)  DO_SET_BIT ser##out##_pru30, reg, bit
-
 
 #endif
 
@@ -198,32 +194,39 @@
 #define GPIO_MASK(X) CAT3(gpio,X,_serial_mask)
 #define GPIO(R)	CAT3(gpio,R,_zeros)			\
 
-START:
+;*****************************************************************************
+;                                  Main Loop
+;*****************************************************************************
+    .sect    ".text:main"
+    .clink
+    .global    ||main||
+
+||main||:
 	// Enable OCP master port
 	// clear the STANDBY_INIT bit in the SYSCFG register,
 	// otherwise the PRU will not be able to write outside the
 	// PRU memory space and to the BeagleBon's pins.
-	LBCO	r0, C4, 4, 4
-	CLR	r0, r0, 4
-	SBCO	r0, C4, 4, 4
+	LBCO	&r0, C4, 4, 4
+	CLR	    r0, r0, 4
+	SBCO	&r0, C4, 4, 4
 
 	// Configure the programmable pointer register for PRU by setting
 	// c28_pointer[15:0] field to 0x0120.  This will make C28 point to
 	// 0x00012000 (PRU shared RAM).
-	MOV	r0, 0x00000120
-	MOV	r1, CTPPR_0 + PRU_MEMORY_OFFSET
+	LDI	r0, 0x0120
+	LDI32	r1, CTPPR_0 + PRU_MEMORY_OFFSET
     SBBO    &r0, r1, 0x00, 4
 
 	// Configure the programmable pointer register for PRU by setting
 	// c31_pointer[15:0] field to 0x0010.  This will make C31 point to
 	// 0x80001000 (DDR memory).
-	MOV	r0, 0x00100000
-	MOV	r1, CTPPR_1 + PRU_MEMORY_OFFSET
+	LDI32	r0, 0x00100000
+	LDI32	r1, CTPPR_1 + PRU_MEMORY_OFFSET
     SBBO    &r0, r1, 0x00, 4
 
 	// Write a 0x1 into the response field so that they know we have started
-	MOV	r2, #0x1
-	SBCO	r2, CONST_PRUDRAM, 8, 4
+	LDI 	r2, 0x1
+	SBCO	&r2, CONST_PRUDRAM, 8, 4
 
 #ifdef USE_SLOW_GPIO
     LDI gpio3_serial_mask, 0
@@ -250,12 +253,12 @@ START:
 	SET	GPIO_MASK(ser8_gpio), ser8_pin
 #endif
 
-    MOV clearDataOffset, GPIO3 | GPIO_CLEARDATAOUT
-    MOV setDataOffset, GPIO3 | GPIO_SETDATAOUT
+    LDI32 clearDataOffset, GPIO3 | GPIO_CLEARDATAOUT
+    LDI32 setDataOffset, GPIO3 | GPIO_SETDATAOUT
 #endif
 
 #ifdef CONST_MAX_BETWEEN_FRAME
-    MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
+    LDI32 sleep_counter, CONST_MAX_BETWEEN_FRAME
 #endif
 
 	// Wait for the start condition from the main program to indicate
@@ -267,27 +270,27 @@ _LOOP:
     // more than 200ms since last out, need to re-output or signal
     // will be lost
     SUB     sleep_counter, sleep_counter, 1
-    QBEQ    _OUTPUTANYWAY, sleep_counter, #0
+    QBEQ    _OUTPUTANYWAY, sleep_counter, 0
 #endif
 
 	// Load the pointer to the buffer from PRU DRAM into r0 and the
 	// start command into r1
-	LBCO	data_addr, CONST_PRUDRAM, 0, 8
+	LBCO	&data_addr, CONST_PRUDRAM, 0, 8
 
 	// Wait for a non-zero command
-	QBEQ	_LOOP, r1, #0
+	QBEQ	_LOOP, r1, 0
 
 _OUTPUTANYWAY:
 
 	// Zero out the start command so that they know we have received it
 	// This allows maximum speed frame drawing since they know that they
 	// can now swap the frame buffer pointer and write a new start command.
-	MOV	r3, 0
-	SBCO	r3, CONST_PRUDRAM, 4, 4
+	LDI	r3, 0
+	SBCO	&r3, CONST_PRUDRAM, 4, 4
 
 	// Command of 0xFF is the signal to exit
-	QBEQ	EXIT, r1, #0xFF
-    MOV data_len, DATALEN
+	QBEQ	EXIT, r1, 0xFF
+    LDI data_len, DATALEN
 
 #ifndef PIXELNET
     //DMX needs to sent a long 0
@@ -303,27 +306,27 @@ _OUTPUTANYWAY:
 
     //DMX will use pru ram and not DDR
 #ifdef USING_PRU_RAM
-    MOV data_addr, 512
+    LDI data_addr, 512
 #endif
 #endif
   
- WORD_LOOP:
+WORD_LOOP:
 	// 11 bits (1 start, 8 data, 2 stop)
-	MOV	bit_num, 11
+	LDI	bit_num, 11
     // Load 8 bytes of data, starting at r10
 	// one byte for each of the outputs
 
 #ifdef USING_PRU_RAM
-    LBCO    r10, CONST_PRUDRAM, data_addr, NUMOUT
+    LBCO    &r10, CONST_PRUDRAM, data_addr, NUMOUT
 #else
-    LBBO    r10, data_addr, 0, NUMOUT
+    LBBO    &r10, data_addr, 0, NUMOUT
 #endif
     RESET_COUNTER
-    BIT_LOOP:
+BIT_LOOP:
         WAIT_BEFORE_SET_BITS
-        QBEQ IS_START_BIT, bit_num, #11     // bit_num = 0 or 1 (Start bit)
-        QBGT IS_STOP_BIT, bit_num, #3       // bit_num = 1 or 2 (Stop bits)
-        MOV r12,#10
+        QBEQ IS_START_BIT, bit_num, 11     // bit_num = 0 or 1 (Start bit)
+        QBGT IS_STOP_BIT, bit_num, 3       // bit_num = 1 or 2 (Stop bits)
+        LDI r12, 10
         SUB r12,r12,bit_num
 
         BEFORE_SET_BITS
@@ -354,13 +357,13 @@ _OUTPUTANYWAY:
         AFTER_SET_BITS
 
         QBA WAIT_BIT
-      IS_START_BIT:
+IS_START_BIT:
         OUTPUT_START_BIT
         QBA WAIT_BIT
-      IS_STOP_BIT:
+IS_STOP_BIT:
         OUTPUT_STOP_BIT
         QBA WAIT_BIT
-      WAIT_BIT:
+WAIT_BIT:
         WAIT_AFTER_SET_BITS
         RESET_COUNTER
 
@@ -371,30 +374,25 @@ _OUTPUTANYWAY:
 
     ADD     data_addr, data_addr, 8
     SUB     data_len, data_len, 1
-    QBNE    WORD_LOOP, data_len, #0
+    QBNE    WORD_LOOP, data_len, 0
 
 	// Write out that we are done!
 	// Store a non-zero response in the buffer so that they know that we are done
-	MOV     r8, PRU_CONTROL_REG // control register
-	LBBO	r2, r8, 0xC, 4
-	SBCO	r2, CONST_PRUDRAM, 8, 4
+	LDI32     r8, PRU_CONTROL_REG // control register
+	LBBO	&r2, r8, 0xC, 4
+	SBCO	&r2, CONST_PRUDRAM, 8, 4
 
 	// Go back to waiting for the next frame buffer
 #ifdef CONST_MAX_BETWEEN_FRAME
-    MOV sleep_counter, CONST_MAX_BETWEEN_FRAME
+    LDI32 sleep_counter, CONST_MAX_BETWEEN_FRAME
 #endif
 	QBA	_LOOP
 
 EXIT:
 	// Write a 0xFFFF into the response field so that they know we're done
-	MOV r2, #0xFFFF
-	SBCO r2, CONST_PRUDRAM, 8, 4
+	LDI r2, 0xFFFF
+	SBCO &r2, CONST_PRUDRAM, 8, 4
 
-#ifdef AM33XX
 	// Send notification to Host for program completion
-	MOV R31.b0, PRU_ARM_INTERRUPT+16
-#else
-	MOV R31.b0, PRU_ARM_INTERRUPT
-#endif
-
+	LDI R31.b0, PRU_ARM_INTERRUPT+16
 	HALT

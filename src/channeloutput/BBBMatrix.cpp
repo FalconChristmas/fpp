@@ -705,7 +705,7 @@ int BBBMatrix::Init(Json::Value config)
         compileArgs.push_back("-DOUTPUTBYDEPTH");
     }
     compilePRUMatrixCode(compileArgs);
-    std::string pru_program = "/tmp/FalconMatrix.bin";
+    std::string pru_program = "/tmp/FalconMatrix.out";
 
     m_pruCopy = new BBBPru(pru ? 0 : 1);
     memset(m_pruCopy->data_ram, 0, 24);
@@ -725,7 +725,7 @@ int BBBMatrix::Init(Json::Value config)
         m_pruData->stats[x * 3 + 1] = 0;
         m_pruData->stats[x * 3 + 1] = 0;
     }
-    m_pruCopy->run("/tmp/FalconMatrixPRUCpy.bin");
+    m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out");
     m_pru->run(pru_program);
     
     if (m_interleave && ((m_panelScan * 2) != m_panelHeight)) {
@@ -834,13 +834,13 @@ int BBBMatrix::Close(void)
     // Send the stop command
     m_pruData->command = 0xFF;
     if (m_pru) {
-        m_pru->stop(true);
+        m_pru->stop();
         delete m_pru;
         m_pru = nullptr;
     }
     
     if (m_pruCopy) {
-        m_pruCopy->stop(true);
+        m_pruCopy->stop();
         delete m_pruCopy;
         m_pruCopy = nullptr;
     }

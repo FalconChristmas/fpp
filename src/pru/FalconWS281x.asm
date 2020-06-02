@@ -14,6 +14,8 @@
  *  Reset is 300 usec
  */
 
+#include "ResourceTable.asm"
+
 
 // while len > 0:
 // for bit# = 24 down to 0:
@@ -377,7 +379,6 @@ WAIT_AND_CHECK_TIMEOUT .macro TIMEOUT, ALLOW, reg1, reg2, timeoutLabel
 ;                                  Main Loop
 ;*****************************************************************************
     .sect    ".text:main"
-    .clink
     .global    ||main||
 
 ||main||:
@@ -499,7 +500,7 @@ _LOOP:
     LDI sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    LDI next_check, FIRST_CHECK
+    LDI next_check,  $CODE(FIRST_CHECK)
 
     //restore the led masks
     XIN SCRATCH_PAD, &gpio0_led_mask, 16
@@ -634,7 +635,7 @@ BIT_LOOP:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        JAL     r1, next_check
+        JAL     r30.w0, next_check
 #ifdef RECORD_STATS
         SUB        data_len, data_len, 1
 #endif
@@ -670,7 +671,7 @@ WORD_LOOP_DONE:
     LDI sram_offset, 512
     LDI bit_flags, 0
     LDI cur_data, 0
-    LDI next_check, FIRST_CHECK
+    LDI next_check,  $CODE(FIRST_CHECK)
 
     //restore the led masks
     XIN SCRATCH_PAD, &gpio0_led_mask, 16
@@ -721,7 +722,7 @@ BIT_LOOP_PASS2:
 		// The RGB streams have been clocked out
 		// Move to the next color component for each pixel
         ADD     cur_data, cur_data, 1
-        JAL     r1, next_check
+        JAL     r30.w0, next_check
 		//  QBNE	WORD_LOOP_PASS2, data_len, 0
 WORD_LOOP_DONE_PASS2:
     CLEAR_IF_NOT_EQUAL gpio0_led_mask, gpio0_address, 0
@@ -752,7 +753,7 @@ EXIT:
 	HALT
 
 
-#define RET jmp r1
+#define RET jmp r30.w0
 
 NO_PIXELS_CHECK:
     RET
