@@ -1,4 +1,4 @@
-#include "ResourceTable.asm"
+	.include ResourceTable.asm
 
 ;*****************************************************************************
 ;  Define storage registers
