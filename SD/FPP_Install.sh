@@ -469,14 +469,6 @@ case "${FPPPLATFORM}" in
         echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
-        cd /opt
-        git clone https://github.com/beagleboard/am335x_pru_package
-        cd am335x_pru_package
-        make
-        make install
-        make clean
-        ldconfig
-
 		;;
 
 	'Raspberry Pi')
@@ -1070,6 +1062,17 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
 
     #Set colored prompt
     sed -i -e "s/#force_color_prompt=yes/force_color_prompt=yes/" /home/fpp/.bashrc
+    
+    #adjust a bunch of settings in /boot/uEnv.txt
+    sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_addr0=\(.*\)+uboot_overlay_addr0=/lib/firmware/bbb-fpp-reserve-memory.dtbo+g"  /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_addr4=\(.*\)+uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo+g"  /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_addr5=\(.*\)+uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo+g"  /boot/uEnv.txt
+    sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
+    sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
+    echo "bootdelay=0" >> /boot/uEnv.txt
+    echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
 fi
 
 rm -rf /usr/share/doc/*

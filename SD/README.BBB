@@ -76,17 +76,6 @@ curl --output u-boot.img https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-a
 echo "$BOOTLOADERVER" > version.txt
 
 
-#adjust a bunch of settings in /boot/uEnv.txt
-sed -i -e "s+^#disable_uboot_overlay_video=\(.*\)+disable_uboot_overlay_video=1+g"  /boot/uEnv.txt
-sed -i -e "s+#uboot_overlay_addr4=\(.*\)+uboot_overlay_addr4=/lib/firmware/AM335X-I2C2-400-00A0.dtbo+g"  /boot/uEnv.txt
-sed -i -e "s+#uboot_overlay_addr5=\(.*\)+uboot_overlay_addr5=/lib/firmware/AM335X-I2C1-400-00A0.dtbo+g"  /boot/uEnv.txt
-sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
-sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
-echo "uboot_overlay_pru=/lib/firmware/AM335X-PRU-UIO-00A0.dtbo" >> /boot/uEnv.txt
-echo "bootdelay=0" >> /boot/uEnv.txt
-echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
-
-
 # remove a bunch of source that is not needed, free's up space
 rm -f /etc/modules-load.d/roboticscape_modules.conf
 rm -rf /usr/local/lib/node_modules

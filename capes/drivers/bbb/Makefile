@@ -14,7 +14,7 @@ clean:
 	rm -f pcm5102a.c pcm512x.h pcm512x.c pcm512x-i2c.c BBB-AUDIO-PCM5012A-00A0.dtbo  bbb-fpp-reserve-memory.dtbo
 
 install:
-	sudo mkdir /lib/modules/$(shell uname -r)/extra/
+	sudo mkdir -p /lib/modules/$(shell uname -r)/extra/
 	sudo cp *.ko /lib/modules/$(shell uname -r)/extra/
 	sudo depmod -a
 	cp BBB-AUDIO-PCM5012A-00A0.dtbo /lib/firmware
