@@ -114,6 +114,7 @@ private:
     PixelOverlayState state;
     int startChannel;
     int channelCount;
+    int channelsPerNode;
     
     std::vector<uint32_t> channelMap;
     uint8_t      *channelData;

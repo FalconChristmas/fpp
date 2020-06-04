@@ -9,12 +9,20 @@ require_once("common.php");
 <script language="Javascript">
 
 function GetOrientationInput(currentValue) {
+
 	var options = {
 		horizontal: "Horizontal",
 		vertical:   "Vertical"
 		};
-	var str = "<select class='orientation'>";
-
+    var str = "";
+    if (currentValue == "custom") {
+        str = "<b>Custom</b>";
+    }
+	str += "<select class='orientation'";
+    if (currentValue == "custom") {
+        str += " style='visibility: hidden;'><option value='custom' selected>Custom</option";
+    }
+    str += ">";
 	for (var key in options) {
 		str += "<option value='" + key + "'";
 		if (currentValue == key)
@@ -22,7 +30,7 @@ function GetOrientationInput(currentValue) {
 
 		str += ">" + options[key] + "</option>";
 	}
-
+    
 	str += "</select>";
 
 	return str;
@@ -54,15 +62,26 @@ function PopulateChannelMemMapTable(data) {
 	$('#channelMemMaps tbody').html("");
     
 	for (var i = 0; i < data.length; i++) {
-		$('#channelMemMaps tbody').append("<tr id='row'" + i + " class='fppTableRow'>" +
+        var ChannelCountPerNode = data[i].ChannelCountPerNode;
+        if (ChannelCountPerNode == undefined) {
+            ChannelCountPerNode = 3;
+        }
+		postr = "<tr id='row'" + i + " class='fppTableRow'>" +
 			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'></td>" +
 			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
-			"<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
-			"<td>" + GetOrientationInput(data[i].Orientation) + "</td>" +
-			"<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
-			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
-			"<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td>" +
-			"</tr>");
+            "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
+            "<td><input class='cpn' type='number' min='1' max='4' value='" + ChannelCountPerNode + "'></td>" +
+            "<td>" + GetOrientationInput(data[i].Orientation) + "</td>";
+        if (data[i].Orientation != "custom") {
+            postr += "<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
+		    "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
+            "<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td>";
+        } else {
+            postr += "<td><input class='corner' type='hidden' value='" + data[i].StartCorner + "'><input class='data' type='hidden' value='" + data[i].data + "'></td>" +
+                "<td><input class='strcnt' type='hidden' value='" + data[i].StringCount + "'></td>" +
+                "<td><input class='strands' type='hidden' value='" + data[i].StrandsPerString + "'></td>";
+        }
+		$('#channelMemMaps tbody').append(postr + "</tr>");
 	}
 }
 
@@ -90,22 +109,32 @@ function SetChannelMemMaps() {
 			Orientation: $this.find("select.orientation").val(),
 			StartCorner: $this.find("select.corner").val(),
 			StringCount: parseInt($this.find("input.strcnt").val()),
-			StrandsPerString: parseInt($this.find("input.strands").val())
+			StrandsPerString: parseInt($this.find("input.strands").val()),
+            ChannelCountPerNode: parseInt($this.find("input.cpn").val())
 			};
 
-		if ((memmap.Name != "") &&
-			(memmap.StartChannel > 0) &&
-			(memmap.ChannelCount > 0) &&
-			(memmap.StringCount > 0) &&
-			(memmap.StrandsPerString > 0))
-		{
-			models.push(memmap);
-		} else {
-			dataError = 1;
-			// FIXME, put in some more info here, highlight bad field, etc.
-			alert("MemMap '" + memmap.BlockName + "' starting at channel '" + memmap.StartChannel + "' containing '" + memmap.ChannelCount + "' channel(s) is not valid.");
-			return;
-		}
+        if ((memmap.Name != "") &&
+            (memmap.StartChannel > 0) &&
+            (memmap.ChannelCount > 0)) {
+            if (memmap.Orientation == "custom") {
+                memmap.data = $this.find("input.data").val();
+                memmap.StartCorner = $this.find("input.corner").val();
+                models.push(memmap);
+            } else if ((memmap.StringCount > 0) &&
+                       (memmap.StrandsPerString > 0)) {
+                models.push(memmap);
+            } else {
+                dataError = 1;
+                // FIXME, put in some more info here, highlight bad field, etc.
+			    alert("MemMap '" + memmap.BlockName + "' starting at channel '" + memmap.StartChannel + "' containing '" + memmap.ChannelCount + "' channel(s) is not valid.");
+			    return;
+            }
+        } else {
+            dataError = 1;
+            // FIXME, put in some more info here, highlight bad field, etc.
+            alert("MemMap '" + memmap.BlockName + "' starting at channel '" + memmap.StartChannel + "' containing '" + memmap.ChannelCount + "' channel(s) is not valid.");
+		    return;
+        }
 	});
 
 	if (dataError != 0)
@@ -128,8 +157,9 @@ function AddNewMemMap() {
 	$('#channelMemMaps tbody').append(
 		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
 			"<td><input class='blk' type='text' size='31' maxlength='31' value=''></td>" +
-			"<td><input class='start' type='text' size='6' maxlength='6' value=''></td>" +
+			"<td><input class='start' type='text' size='7' maxlength='7' value=''></td>" +
 			"<td><input class='cnt' type='text' size='6' maxlength='6' value=''></td>" +
+            "<td><input class='cpn' type='number' min='1' max='4' value='3'></td>" +
 			"<td>" + GetOrientationInput('') + "</td>" +
 			"<td>" + GetStartingCornerInput('') + "</td>" +
 			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='1'></td>" +
@@ -188,6 +218,7 @@ $(document).tooltip();
                                     <th title='Name of Model'>Model Name</td>
                                     <th title='Start Channel'>Start Ch.</td>
                                     <th title='Channel Count'>Ch. Count</td>
+                                    <th title='Chan Per Node'>Ch./Node</td>
                                     <th title='String Orientation'>Orientation</td>
                                     <th title='Starting Corner'>Start Corner</td>
                                     <th title='Number of Strings'>Strings</td>

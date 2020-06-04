@@ -27,6 +27,16 @@
 #include "PixelOverlayEffects.h"
 
 
+static uint8_t* createChannelDataMemory(const std::string &dataName, uint32_t size) {
+    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+    int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
+    ftruncate(f, size);
+    uint8_t *channelData = (uint8_t*)mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, f, 0);
+    memset(channelData, 0, size);
+    close(f);
+    return channelData;
+}
+
 PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     : config(c), overlayBufferData(nullptr), channelData(nullptr), runningEffect(nullptr)
 {
@@ -43,9 +53,9 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     bool TtoB = (startCorner[0] == 'T');
     bool LtoR = (startCorner[1] == 'L');
 
-    int channelsPerNode = 3;
-    if (config.isMember("ChannelsPerNode")) {
-        channelsPerNode = config["ChannelsPerNode"].asInt();
+    channelsPerNode = 3;
+    if (config.isMember("ChannelCountPerNode")) {
+        channelsPerNode = config["ChannelCountPerNode"].asInt();
     }
 
     height = strings * sps;
@@ -59,15 +69,11 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     }
     
     std::string dataName = "/FPP-Model-Data-" + name;
-    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
-    int f = shm_open(dataName.c_str(), O_RDWR | O_CREAT, mode);
-    ftruncate(f, channelCount);
-    channelData = (uint8_t*)mmap(0, channelCount, PROT_READ|PROT_WRITE, MAP_SHARED, f, 0);
-    memset(channelData, 0, channelCount);
-    close(f);
-    
-    channelMap.resize(width*height*3);
+    channelData = createChannelDataMemory(dataName, channelCount);
+
     if (orientation == "V" || orientation == "vertical") {
+        channelMap.resize(width*height*3);
+
         std::swap(width, height);
         for (int x = 0; x < width; x++) {
             int segment = x % sps;
@@ -84,15 +90,62 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
                 
                 // Relative Mapped Output Pixel 'R' channel
                 int mpos = outX * height + outY;
-                int outCh = (mpos * 3);
+                int outCh = (mpos * channelsPerNode);
                 
                 // Map the pixel's triplet
-                channelMap[inCh    ] = outCh;
-                channelMap[inCh + 1] = outCh + 1;
-                channelMap[inCh + 2] = outCh + 2;
+                for (int cho = 0; cho < 3; cho++) {
+                    if (cho < channelsPerNode) {
+                        channelMap[inCh + cho] = outCh + cho;
+                    } else {
+                        channelMap[inCh + cho] = FPPD_OFF_CHANNEL;
+                    }
+                }
+            }
+        }
+    } else if (orientation == "C" || orientation == "custom") {
+        std::string customData = ",;,";
+        if (config.isMember("data")) {
+            customData = config["data"].asString();
+        }
+        std::vector<std::string> lines = split(customData, ';');
+        std::vector<std::vector<std::string>> allData;
+        for (auto &l : lines) {
+            allData.push_back(split(l, ','));
+        }
+        lines.clear();
+        width = 1;
+        height = allData.size();
+        for (auto &l : allData) {
+            width = std::max(width, (int)l.size());
+        }
+        if (height < 1) {
+            height = 1;
+        }
+        channelMap.resize(width*height*3);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int node = -1;
+                if (y < allData.size() && x < allData[y].size()) {
+                    std::string &s = allData[y][x];
+                    if (s == "") {
+                        node = -1;
+                    } else {
+                        node = std::stoi(s);
+                    }
+                }
+                int inChan = node * channelsPerNode;
+                
+                for (int cho = 0; cho < 3; cho++) {
+                    if (node != -1 && cho < channelsPerNode) {
+                        channelMap[y*3 + x + cho] = node * channelsPerNode + cho;
+                    } else {
+                        channelMap[y*3 + x + cho] = FPPD_OFF_CHANNEL;
+                    }
+                }
             }
         }
     } else {
+        channelMap.resize(width*height*3);
         for (int y = 0; y < height; y++) {
             int segment = y % sps;
             for (int x = 0; x < width; x++) {
@@ -108,11 +161,16 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
                 
                 // Relative Mapped Output Pixel 'R' channel
                 int mpos = outY * width + outX;
-                int outCh = (mpos * 3);
+                int outCh = (mpos * channelsPerNode);
+                
                 // Map the pixel's triplet
-                channelMap[inCh    ] = outCh;
-                channelMap[inCh + 1] = outCh + 1;
-                channelMap[inCh + 2] = outCh + 2;
+                for (int cho = 0; cho < 3; cho++) {
+                    if (cho < channelsPerNode) {
+                        channelMap[inCh + cho] = outCh + cho;
+                    } else {
+                        channelMap[inCh + cho] = FPPD_OFF_CHANNEL;
+                    }
+                }
             }
         }
     }
@@ -173,7 +231,9 @@ void PixelOverlayModel::doOverlay(uint8_t *channels) {
 
 void PixelOverlayModel::setData(const uint8_t *data) {
     for (int c = 0; c < (width*height*3); c++) {
-        channelData[channelMap[c]] = data[c];
+        if (channelMap[c] != FPPD_OFF_CHANNEL) {
+            channelData[channelMap[c]] = data[c];
+        }
     }
 }
 
@@ -194,18 +254,29 @@ void PixelOverlayModel::setValue(uint8_t value, int startChannel, int endChannel
         end = channelCount - 1;
     }
     for (int c = start; c <= end; c++) {
-        channelData[channelMap[c]] = value;
+        if (channelMap[c] != FPPD_OFF_CHANNEL) {
+            channelData[channelMap[c]] = value;
+        }
     }
 }
 void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
     int c = (y*getWidth()*3) + x*3;
-    channelData[channelMap[c++]] = r;
-    channelData[channelMap[c++]] = g;
-    channelData[channelMap[c++]] = b;
+    if (channelMap[c] != FPPD_OFF_CHANNEL) {
+        channelData[channelMap[c++]] = r;
+    }
+    if (channelsPerNode > 1 && channelMap[c] != FPPD_OFF_CHANNEL) {
+        channelData[channelMap[c++]] = g;
+    }
+    if (channelsPerNode > 2 && channelMap[c] != FPPD_OFF_CHANNEL) {
+        channelData[channelMap[c++]] = b;
+    }
 }
 void PixelOverlayModel::getDataJson(Json::Value &v) {
     for (int c = 0; c < height*width*3; c++) {
-        unsigned char i = channelData[channelMap[c]];
+        unsigned char i = 0;
+        if (channelMap[c] != FPPD_OFF_CHANNEL) {
+            i = channelData[channelMap[c]];
+        }
         v.append(i);
     }
 }
