@@ -5,13 +5,6 @@ cd /tmp
 /bin/rm -f /opt/fpp/lib/FalconMatrix.*
 /bin/rm -f /opt/fpp/lib/FalconMatrixPRUCpy.*
 
-# pasm versions...
-#/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconMatrix.p > /tmp/FalconMatrix.i
-#/usr/local/bin/pasm -V3 -b /tmp/FalconMatrix.i /tmp/FalconMatrix
-#/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconMatrixPRUCpy.p > /tmp/FalconMatrixPRUCpy.i
-#/usr/local/bin/pasm -V3 -b /tmp/FalconMatrixPRUCpy.i /tmp/FalconMatrixPRUCpy
-
-
 # clpru versions
 /usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconMatrix.asm > /tmp/FalconMatrix.asm
 clpru -v3 -o $@ /tmp/FalconMatrix.asm

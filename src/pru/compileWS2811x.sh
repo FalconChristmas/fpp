@@ -4,10 +4,6 @@ echo $0 $@
 cd /tmp
 /bin/rm -f /opt/fpp/lib/FalconWS281x.*
 
-# pasm version
-#/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconWS281x.p  > /tmp/FalconPRU.i
-#/usr/local/bin/pasm -V3 -b /tmp/FalconPRU.i /tmp/FalconWS281x
-
 # clpru versions
 /usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconWS281x.asm > /tmp/FalconWS281x.asm
 clpru -v3 -o  $@ /tmp/FalconWS281x.asm

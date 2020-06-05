@@ -4,10 +4,6 @@ echo $0 $@
 cd /tmp
 /bin/rm -f /opt/fpp/lib/FalconWS281x_gpio0.*
 
-# pasm version
-#/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconWS281x.p > /tmp/FalconPRU_gpio0.i
-#/usr/local/bin/pasm -V3 -b /tmp/FalconPRU_gpio0.i /tmp/FalconWS281x_gpio0
-
 # clpru versions
 /usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconWS281x.asm > /tmp/FalconWS281x_gpio0.asm
 clpru -v3 -o $@ /tmp/FalconWS281x_gpio0.asm

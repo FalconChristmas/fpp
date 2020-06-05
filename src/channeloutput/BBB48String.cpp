@@ -199,7 +199,6 @@ static void createOutputLengths(std::vector<PixelString*> &m_strings,
             i++;
             int next = i->first;
             outputFile << "        LDI next_check, $CODE(CHECK_" << std::to_string(next) << ")\n";
-            //outputFile << "        LDI next_check, CHECK_" << std::to_string(next) << "\n";
             outputFile << "skip_" << std::to_string(min) << ":\n        RET\n";
             
         } else {

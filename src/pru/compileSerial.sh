@@ -4,10 +4,6 @@ echo $0 $@
 cd /tmp
 /bin/rm -f /opt/fpp/lib/FalconSerial.*
 
-#/usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconSerial.p > /tmp/FalconPRUSerial.i
-#/usr/local/bin/pasm -V3 -b /tmp/FalconPRUSerial.i /tmp/FalconSerial
-
-
 # clpru versions
 /usr/bin/cpp -P $@ /opt/fpp/src/pru/FalconSerial.asm > /tmp/FalconSerial.asm
 clpru -v3 -o $@ /tmp/FalconSerial.asm
