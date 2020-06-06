@@ -21,7 +21,7 @@
 #include <fcntl.h>
 
 #include "channeloutput/channeloutputthread.h"
-
+#include "effects.h"
 #include "PixelOverlayModel.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -204,9 +204,18 @@ void PixelOverlayModel::doOverlay(uint8_t *channels) {
         //overlay buffer is dirty and needs to be flushed
         flushOverlayBuffer();
     }
+    
+    int st = state.getState();
+    if (((st == 2) || (st == 3)) &&
+        (!IsEffectRunning()) &&
+        (!sequence->IsSequenceRunning())) {
+        //there is nothing running that we would be overlaying so do a straight copy
+        st = 1;
+    }
+    
     uint8_t *src = channelData;
     uint8_t *dst = &channels[startChannel];
-    switch (state.getState()) {
+    switch (st) {
         case 1: //Active - Opaque
             memcpy(dst, src, channelCount);
             break;
