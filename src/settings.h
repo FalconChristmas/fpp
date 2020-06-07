@@ -31,6 +31,7 @@
 #define MAXBUF 1024
 
 typedef enum fppMode {
+	UNKNOWN_MODE = 0x00,
 	BRIDGE_MODE = 0x01,
 	PLAYER_MODE = 0x02,
 	/* Skip 0x04 since MASTER_MODE is a bitmask of player 0x02 & master 0x04 */
@@ -74,6 +75,7 @@ public:
 void initSettings(int argc, char **argv);
 char *trimwhitespace(const char *str, int quotesAlso = 1);
 char *modeToString(int mode);
+const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
 void usage(char *appname);
 
 

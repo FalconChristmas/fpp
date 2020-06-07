@@ -522,6 +522,23 @@ FPPMode getFPPmode(void)
 	return settings.fppMode;
 }
 
+const std::string getFPPmodeStr(FPPMode mode)
+{
+    if (mode == UNKNOWN_MODE)
+        mode = settings.fppMode;
+
+    std::string result;
+    char *modePtr = modeToString((int)mode);
+    if (modePtr) {
+        result = modePtr;
+        free(modePtr);
+    } else {
+        result = "unknown";
+    }
+
+    return result;
+}
+
 #ifndef __GNUG__
 inline
 #endif
