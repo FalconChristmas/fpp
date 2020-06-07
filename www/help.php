@@ -31,7 +31,6 @@ $helpPages = array(
 					<li><a href='javascript:void(0);' onClick="helpPage='help/outputprocessors.php'; DisplayHelp();">Output Processors</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/scheduler.php'; DisplayHelp();">Scheduler</a></li>
 					<li><a href='javascript:void(0);' onClick="helpPage='help/scriptbrowser.php'; DisplayHelp();">Script Repository Browser</a></li>
-					<li><a href='javascript:void(0);' onClick="helpPage='help/settings.php'; DisplayHelp();">Settings</a></li>
 				</ul>
       </div>
     </fieldset>
