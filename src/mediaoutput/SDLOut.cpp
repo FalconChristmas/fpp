@@ -205,7 +205,7 @@ public:
         }
         ++videoFrameCount;
     }
-
+    
     int buffersFull(bool flushaudio) {
         int retVal = -1;
         if (video_stream_idx != -1) {
@@ -429,13 +429,51 @@ public:
     static void decodeThreadEntry(SDL *sdl) {
         sdl->runDecode();
     }
-    bool Start(SDLInternalData *d) {
+    bool Start(SDLInternalData *d, int msTime) {
         if (!initSDL()) {
             return false;
         }
         if (!openAudio()) {
             return false;
         }
+        d->curPos = 0;
+        if (msTime > 0) {
+            float f = msTime * 2 * d->bytesPerSample;
+            f /= 1000;
+            f *= d->currentRate;
+            int samplesRequired = f;
+
+            while (d->curPos < samplesRequired) {
+                int c = samplesRequired - d->curPos;
+                if (c < d->outBufferPos) {
+                    d->curPos += c;
+                    memcpy(d->outBuffer, &d->outBuffer[c], d->outBufferPos-c);
+                    d->outBufferPos -= c;
+                    d->maybeFillBuffer(false);
+                    
+                    while (d->firstVideoFrame && d->firstVideoFrame->timestamp < msTime) {
+                        VideoFrame *t = d->firstVideoFrame;
+                        d->firstVideoFrame = t->next;
+                        delete t;
+                    }
+                    d->curVideoFrame = d->firstVideoFrame;
+                    d->maybeFillBuffer(false);
+                } else {
+                    //need to skip the entire chunk, just wipe it out
+                    d->curPos += d->outBufferPos;
+                    d->outBufferPos = 0;
+                    while (d->firstVideoFrame) {
+                        VideoFrame *t = d->firstVideoFrame;
+                        d->firstVideoFrame = t->next;
+                        delete t;
+                    }
+                    d->curVideoFrame = nullptr;
+                    d->maybeFillBuffer(false);
+                }
+            }
+        }
+        
+        
         if (!decodeThread) {
             decodeThread = new std::thread(decodeThreadEntry, this);
         }
@@ -445,7 +483,7 @@ public:
                 data->curPosLock.lock();
                 SDL_ClearQueuedAudio(audioDev);
                 SDL_QueueAudio(audioDev, data->outBuffer, data->outBufferPos);
-                data->curPos = data->outBufferPos;
+                data->curPos += data->outBufferPos;
                 data->outBufferPos = 0;
                 data->curPosLock.unlock();
                 SDL_PauseAudioDevice(audioDev, 0);
@@ -906,18 +944,19 @@ SDLOutput::~SDLOutput()
     Close();
     if (data) {
         delete data;
+        data = nullptr;
     }
 }
 
 /*
  *
  */
-int SDLOutput::Start(void)
+int SDLOutput::Start(int msTime)
 {
 	LogDebug(VB_MEDIAOUT, "SDLOutput::Start() %X\n", data);
     if (data) {
         SetChannelOutputFrameNumber(0);
-        if (!sdlManager.Start(data)) {
+        if (!sdlManager.Start(data, msTime)) {
             if (noDeviceWarning) {
                 WarningHolder::AddWarning(noDeviceError);
             }

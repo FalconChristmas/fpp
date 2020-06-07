@@ -32,8 +32,8 @@
     }
 
 
-$LEDPanelOutputs = 12;
-$LEDPanelPanelsPerOutput = 16;
+$LEDPanelOutputs = 16;
+$LEDPanelPanelsPerOutput = 24;
 $LEDPanelRows = 1;
 $LEDPanelCols = 1;
 $LEDPanelWidth = 32;

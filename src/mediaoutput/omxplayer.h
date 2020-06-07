@@ -31,7 +31,7 @@ class omxplayerOutput : public MediaOutputBase {
 	omxplayerOutput(std::string mediaFilename, MediaOutputStatus *status);
 	virtual ~omxplayerOutput();
 
-	virtual int  Start(void) override;
+	virtual int  Start(int msTime = 0) override;
 	virtual int  Stop(void) override;
 	virtual int  Process(void) override;
     virtual int  IsPlaying(void) override;

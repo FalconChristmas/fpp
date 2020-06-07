@@ -53,6 +53,10 @@ class PlaylistEntryBoth : public PlaylistEntryBase {
     virtual uint64_t GetElapsedMS() override;
 
     
+    virtual void Pause() override;
+    virtual bool IsPaused() override;
+    virtual void Resume() override;
+    
   private:
 	int                  m_duration;
 
@@ -61,4 +65,6 @@ class PlaylistEntryBoth : public PlaylistEntryBase {
 
 	PlaylistEntryMedia     *m_mediaEntry;
 	PlaylistEntrySequence  *m_sequenceEntry;
+    
+    std::recursive_mutex   m_mutex;
 };

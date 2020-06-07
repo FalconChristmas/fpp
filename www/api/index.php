@@ -36,8 +36,12 @@ dispatch_get   ('/options/:SettingName', 'GetOptions');
 
 dispatch_get   ('/playlists', 'playlist_list');
 dispatch_post  ('/playlists', 'playlist_insert');
+dispatch_get   ('/playlists/playable', 'playlist_playable');
 dispatch_get   ('/playlists/stop', 'playlist_stop');
+dispatch_get   ('/playlists/pause', 'playlist_pause');
+dispatch_get   ('/playlists/resume', 'playlist_resume');
 dispatch_get   ('/playlists/stopgracefully', 'playlist_stopgracefully');
+dispatch_get   ('/playlists/stopgracefullyafterloop', 'playlist_stopgracefullyafterloop');
 dispatch_get   ('/playlist/:PlaylistName', 'playlist_get');
 dispatch_get   ('/playlist/:PlaylistName/start', 'playlist_start');
 dispatch_get   ('/playlist/:PlaylistName/start/:Repeat', 'playlist_start_repeat');

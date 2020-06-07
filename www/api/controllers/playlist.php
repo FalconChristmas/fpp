@@ -5,9 +5,7 @@ function playlist_list()
 {
 	global $settings;
 	$playlists = array();
-
-	if ($d = opendir($settings['playlistDirectory']))
-	{
+	if ($d = opendir($settings['playlistDirectory'])) {
 		while (($file = readdir($d)) !== false)
 		{
 			if (preg_match('/\.json$/', $file))
@@ -18,11 +16,41 @@ function playlist_list()
 		}
 		closedir($d);
 	}
-
 	sort($playlists);
-
 	return json($playlists);
 }
+function playlist_playable()
+{
+    global $settings;
+    $playlists = array();
+    if ($d = opendir($settings['playlistDirectory'])) {
+        while (($file = readdir($d)) !== false)
+        {
+            if (preg_match('/\.json$/', $file))
+            {
+                $file = preg_replace('/\.json$/', '', $file);
+                array_push($playlists, $file);
+            }
+        }
+        closedir($d);
+    }
+    sort($playlists);
+    
+    $sequences = array();
+    if ($d = opendir($settings['sequenceDirectory'])) {
+        while (($file = readdir($d)) !== false) {
+            if (preg_match('/\.fseq$/', $file)) {
+                array_push($sequences, $file);
+            }
+        }
+        closedir($d);
+    }
+    sort($sequences);
+    $playlists = array_merge($playlists, $sequences);
+    
+    return json($playlists);
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 function playlist_insert()
@@ -173,7 +201,6 @@ function PlaylistSectionInsertItem()
 	return json($resp);
 }
 
-
 function playlist_stop()
 {
     global $settings;
@@ -191,6 +218,18 @@ function playlist_stopgracefully()
     global $settings;
 
     $curl = curl_init('http://localhost:32322/command/Stop Gracefully');
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    return $request_content;
+}
+function playlist_stopgracefullyafterloop()
+{
+    global $settings;
+
+    $curl = curl_init('http://localhost:32322/command/Stop Gracefully/true');
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -227,5 +266,30 @@ function playlist_start_repeat()
     $request_content = curl_exec($curl);
     return $request_content;
 }
+function playlist_pause()
+{
+    global $settings;
+
+    $curl = curl_init('http://localhost:32322/command/Pause Playlist');
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    return $request_content;
+}
+function playlist_resume()
+{
+    global $settings;
+
+    $curl = curl_init('http://localhost:32322/command/Resume Playlist');
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    return $request_content;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 ?>

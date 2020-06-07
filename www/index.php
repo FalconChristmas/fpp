@@ -111,19 +111,17 @@ include 'common/menuHead.inc';
 
     function PreviousPlaylistEntry()
     {
-        var xmlhttp=new XMLHttpRequest();
-        var url = "fppxml.php?command=playlistPrevEntry";
-        xmlhttp.open("GET",url,true);
-        xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-        xmlhttp.send();
+        var url = 'api/command/Prev Playlist Item';
+        $.get(url)
+            .done(function() {})
+            .fail(function() {});
     }
     function NextPlaylistEntry()
     {
-        var xmlhttp=new XMLHttpRequest();
-        var url = "fppxml.php?command=playlistNextEntry";
-        xmlhttp.open("GET",url,true);
-        xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-        xmlhttp.send();
+        var url = 'api/command/Next Playlist Item';
+        $.get(url)
+            .done(function() {})
+            .fail(function() {});
     }
 
 	</script>

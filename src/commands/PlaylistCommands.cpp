@@ -9,7 +9,11 @@ std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std:
     return std::make_unique<Command::Result>("Stopped");
 }
 std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::vector<std::string> &args) {
-    playlist->StopGracefully();
+    bool loop = false;
+    if (args.size() > 1) {
+        loop = args[1] == "true" || args[1] == "1";
+    }
+    playlist->StopGracefully(loop, loop);
     return std::make_unique<Command::Result>("Stopping");
 }
 std::unique_ptr<Command::Result> RestartPlaylistCommand::run(const std::vector<std::string> &args) {
@@ -55,5 +59,21 @@ std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::ve
 
 std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string> &args) {
     playlist->InsertPlaylistAsNext(args[0]);
+    return std::make_unique<Command::Result>("Playlist Inserted");
+}
+
+
+std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<std::string> &args) {
+    playlist->InsertPlaylistImmediate(args[0]);
+    return std::make_unique<Command::Result>("Playlist Inserted");
+}
+
+
+std::unique_ptr<Command::Result> PlaylistPauseCommand::run(const std::vector<std::string> &args) {
+    playlist->Pause();
+    return std::make_unique<Command::Result>("Playlist Inserted");
+}
+std::unique_ptr<Command::Result> PlaylistResumeCommand::run(const std::vector<std::string> &args) {
+    playlist->Resume();
     return std::make_unique<Command::Result>("Playlist Inserted");
 }

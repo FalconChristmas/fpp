@@ -67,7 +67,7 @@ omxplayerOutput::~omxplayerOutput()
 /*
  *
  */
-int omxplayerOutput::Start(void)
+int omxplayerOutput::Start(int msTime)
 {
 	std::string fullVideoPath;
     m_beforeFirstTick = true;

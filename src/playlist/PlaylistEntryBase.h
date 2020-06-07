@@ -45,6 +45,10 @@ class PlaylistEntryBase {
 	virtual int  Prep(void);
 	virtual int  Process(void);
 	virtual int  Stop(void);
+    
+    virtual void Pause() {}
+    virtual bool IsPaused() { return false; }
+    virtual void Resume() {}
 
 	virtual int  HandleSigChild(pid_t pid);
 

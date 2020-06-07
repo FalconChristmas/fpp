@@ -23,7 +23,9 @@ public:
 };
 class StopGracefullyPlaylistCommand : public Command {
 public:
-    StopGracefullyPlaylistCommand() : Command("Stop Gracefully") {}
+    StopGracefullyPlaylistCommand() : Command("Stop Gracefully") {
+        args.push_back(CommandArg("loop", "bool", "After Loop", false));
+    }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
@@ -49,7 +51,7 @@ class StartPlaylistCommand : public Command {
 public:
     StartPlaylistCommand() : Command("Start Playlist") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
-                        .setContentListUrl("api/playlists"));
+                        .setContentListUrl("api/playlists/playable"));
         args.push_back(CommandArg("repeat", "bool", "Repeat", true));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
@@ -79,7 +81,28 @@ class InsertPlaylistCommand : public Command {
 public:
     InsertPlaylistCommand() : Command("Insert Playlist After Current") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
-                        .setContentListUrl("api/playlists"));
+                        .setContentListUrl("api/playlists/playable"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+
+class InsertPlaylistImmediate : public Command {
+public:
+    InsertPlaylistImmediate() : Command("Insert Playlist Immediate") {
+        args.push_back(CommandArg("name", "string", "Playlist Name")
+                        .setContentListUrl("api/playlists/playable"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class PlaylistPauseCommand : public Command {
+public:
+    PlaylistPauseCommand() : Command("Pause Playlist") {
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class PlaylistResumeCommand : public Command {
+public:
+    PlaylistResumeCommand() : Command("Resume Playlist") {
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };

@@ -54,7 +54,8 @@ PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
     m_videoOutput("--Default--"),
     m_openTime(0),
     m_fileMode("single"),
-    m_duration(0)
+    m_duration(0),
+    m_pausedTime(-1)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::PlaylistEntryMedia()\n");
     if (m_openStartDelay == -1) {
@@ -104,7 +105,7 @@ int PlaylistEntryMedia::Init(Json::Value &config)
     if (config.isMember("videoOut")) {
         m_videoOutput = config["videoOut"].asString();
     }
-
+    m_pausedTime = -1;
     return PlaylistEntryBase::Init(config);
 }
 
@@ -130,7 +131,6 @@ int PlaylistEntryMedia::PreparePlay() {
             }
         }
     }
-
     if (!OpenMediaOutput()) {
         FinishPlay();
         return 0;
@@ -138,7 +138,7 @@ int PlaylistEntryMedia::PreparePlay() {
 
     if (getFPPmode() == MASTER_MODE)
         multiSync->SendMediaOpenPacket(m_mediaFilename);
-    
+
     m_openTime = GetTimeMS();
     if (mqtt) {
         mqtt->Publish("playlist/media/status", m_mediaFilename);
@@ -320,11 +320,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 	if (m_mediaOutput) {
 		pthread_mutex_unlock(&m_mediaOutputLock);
 		CloseMediaOutput();
+        pthread_mutex_lock(&m_mediaOutputLock);
 	}
-	else
-		pthread_mutex_unlock(&m_mediaOutputLock);
-
-	pthread_mutex_lock(&m_mediaOutputLock);
 
 	std::string tmpFile = m_mediaFilename;
 	std::size_t found = tmpFile.find_last_of(".");
@@ -340,11 +337,8 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
 
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
 
-
-
     MediaDetails::INSTANCE.ParseMedia(m_mediaFilename.c_str());
     PluginManager::INSTANCE.mediaCallback(playlist->GetInfo(), MediaDetails::INSTANCE);
-
 
     std::string vOut = m_videoOutput;
     if (vOut == "--Default--") {
@@ -461,17 +455,16 @@ std::string PlaylistEntryMedia::GetNextRandomFile(void)
 Json::Value PlaylistEntryMedia::GetConfig(void)
 {
 	Json::Value result = PlaylistEntryBase::GetConfig();
-
-
+    MediaOutputStatus status = IsPaused() ? m_pausedStatus : mediaOutputStatus;
 	result["mediaFilename"]       = m_mediaFilename;
-	result["status"]              = mediaOutputStatus.status;
-	result["secondsElapsed"]      = mediaOutputStatus.secondsElapsed;
-	result["subSecondsElapsed"]   = mediaOutputStatus.subSecondsElapsed;
-	result["secondsRemaining"]    = mediaOutputStatus.secondsRemaining;
-	result["subSecondsRemaining"] = mediaOutputStatus.subSecondsRemaining;
-	result["minutesTotal"]        = mediaOutputStatus.minutesTotal;
-	result["secondsTotal"]        = mediaOutputStatus.secondsTotal;
-	result["mediaSeconds"]        = mediaOutputStatus.mediaSeconds;
+	result["status"]              = status.status;
+	result["secondsElapsed"]      = status.secondsElapsed;
+	result["subSecondsElapsed"]   = status.subSecondsElapsed;
+	result["secondsRemaining"]    = status.secondsRemaining;
+	result["subSecondsRemaining"] = status.subSecondsRemaining;
+	result["minutesTotal"]        = status.minutesTotal;
+	result["secondsTotal"]        = status.secondsTotal;
+	result["mediaSeconds"]        = status.mediaSeconds;
 
 	return result;
 }
@@ -479,12 +472,47 @@ Json::Value PlaylistEntryMedia::GetConfig(void)
 Json::Value PlaylistEntryMedia::GetMqttStatus(void)
 {
 	Json::Value result = PlaylistEntryBase::GetMqttStatus();
-	result["secondsElapsed"]    = mediaOutputStatus.secondsElapsed;
-	result["secondsRemaining"]  = mediaOutputStatus.secondsRemaining;
-	result["secondsTotal"]      = mediaOutputStatus.minutesTotal * 60 + mediaOutputStatus.secondsTotal;
+    MediaOutputStatus status = IsPaused() ? m_pausedStatus : mediaOutputStatus;
+	result["secondsElapsed"]    = status.secondsElapsed;
+	result["secondsRemaining"]  = status.secondsRemaining;
+	result["secondsTotal"]      = status.minutesTotal * 60 + status.secondsTotal;
 	result["mediaName"]         = m_mediaFilename;
 	result["mediaTitle"]        = MediaDetails::INSTANCE.title;
 	result["mediaArtist"]       = MediaDetails::INSTANCE.artist;
 
 	return result;
+}
+
+
+void PlaylistEntryMedia::Pause() {
+    m_pausedStatus = mediaOutputStatus;
+    m_pausedTime = GetElapsedMS();
+    CloseMediaOutput();
+    if (mqtt) {
+        mqtt->Publish("playlist/media/status", "");
+        mqtt->Publish("playlist/media/title", "");
+        mqtt->Publish("playlist/media/artist", "");
+    }
+}
+bool PlaylistEntryMedia::IsPaused() {
+    return m_pausedTime >= 0;
+}
+void PlaylistEntryMedia::Resume() {
+    if (m_pausedTime >= 0) {
+        PreparePlay();
+
+        pthread_mutex_lock(&m_mediaOutputLock);
+        if (getFPPmode() == MASTER_MODE)
+            multiSync->SendMediaSyncStartPacket(m_mediaFilename);
+
+        if (!m_mediaOutput->Start(m_pausedTime)) {
+            LogErr(VB_MEDIAOUT, "Could not start media %s\n", m_mediaOutput->m_mediaFilename.c_str());
+            delete m_mediaOutput;
+            m_mediaOutput = nullptr;
+            pthread_mutex_unlock(&m_mediaOutputLock);
+        }
+        m_pausedTime = -1;
+        mediaOutputStatus = m_pausedStatus;
+        pthread_mutex_unlock(&m_mediaOutputLock);
+    }
 }

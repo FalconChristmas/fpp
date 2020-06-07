@@ -41,6 +41,10 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 	virtual int  StartPlaying(void) override;
 	virtual int  Process(void) override;
 	virtual int  Stop(void) override;
+    
+    virtual void Pause() override;
+    virtual bool IsPaused() override;
+    virtual void Resume() override;
 
 	virtual int  HandleSigChild(pid_t pid) override;
 
@@ -76,5 +80,9 @@ class PlaylistEntryMedia : public PlaylistEntryBase {
 
     std::string              m_fileMode;
     std::vector<std::string> m_files;
+    
+    
+    int                m_pausedTime;
+    MediaOutputStatus  m_pausedStatus;
 };
 

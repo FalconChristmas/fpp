@@ -3,6 +3,7 @@ STATUS_IDLE = "0";
 STATUS_PLAYING = "1";
 STATUS_STOPPING_GRACEFULLY = "2";
 STATUS_STOPPING_GRACEFULLY_AFTER_LOOP = "3";
+STATUS_PAUSED = "5";
 
 
 // Globals
@@ -2380,6 +2381,7 @@ function GetSequenceArray()
         }
 		if (fppStatus == STATUS_IDLE ||
 			fppStatus == STATUS_PLAYING ||
+            fppStatus == STATUS_PAUSED ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
 		
@@ -2466,6 +2468,9 @@ function GetSequenceArray()
 			} else if (currentPlaylist.playlist != "") {
 				// Playing a playlist
 				var playerStatusText = "Playing ";
+                if (fppStatus == STATUS_PAUSED) {
+                    playerStatusText = "Paused ";
+                }
                 if (jsonStatus.current_song != "") {
                     playerStatusText += " - <strong>'" + jsonStatus.current_song + "'</strong>";
                     if (jsonStatus.current_sequence != "") {
@@ -2564,7 +2569,11 @@ if (1) {
 				}
             } else if (jsonStatus.current_sequence != "") {
                 //  Playing a sequence via test mode
-                var playerStatusText = "Playing <strong>'" + jsonStatus.current_sequence + "'</strong>";
+                var playerStatusText = "Playing ";
+                if (fppStatus == STATUS_PAUSED) {
+                    playerStatusText = "Paused ";
+                }
+                playerStatusTest = "<strong>'" + jsonStatus.current_sequence + "'</strong>";
                 SetButtonState('#btnPlay','disable');
                 SetButtonState('#btnPrev','enable');
                 SetButtonState('#btnNext','enable');
@@ -2724,29 +2733,26 @@ if (1) {
 	
 	function StopGracefully()
 	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=stopGracefully";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+        var url = 'api/playlists/stopgracefully';
+        $.get(url)
+            .done(function() {})
+            .fail(function() {});
 	}
 
 	function StopGracefullyAfterLoop()
 	{
-		var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=stopGracefullyAfterLoop";
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.send();
+        var url = 'api/playlists/stopgracefullyafterloop';
+        $.get(url)
+            .done(function() {})
+            .fail(function() {});
 	}
 
 	function StopNow()
 	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=stopNow";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+        var url = 'api/playlists/stop';
+        $.get(url)
+            .done(function() {})
+            .fail(function() {});
 	}
 
 	function ToggleSequencePause()

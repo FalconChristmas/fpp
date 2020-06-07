@@ -65,6 +65,9 @@ void CommandManager::Init() {
     addCommand(new StartPlaylistAtCommand());
     addCommand(new StartPlaylistAtRandomCommand());
     addCommand(new InsertPlaylistCommand());
+    addCommand(new InsertPlaylistImmediate());
+    addCommand(new PlaylistPauseCommand());
+    addCommand(new PlaylistResumeCommand());
     addCommand(new TriggerEventCommand());
     addCommand(new TriggerMultipleEventsCommand());
     addCommand(new RunScriptEvent());

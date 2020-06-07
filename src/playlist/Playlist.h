@@ -39,7 +39,8 @@ enum PlaylistStatus {
     FPP_STATUS_PLAYLIST_PLAYING,
     FPP_STATUS_STOPPING_GRACEFULLY,
     FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP,
-    FPP_STATUS_STOPPING_NOW
+    FPP_STATUS_STOPPING_NOW,
+    FPP_STATUS_PLAYLIST_PAUSED
 };
 
 class Playlist {
@@ -47,9 +48,7 @@ class Playlist {
 	Playlist(Playlist *parent = NULL);
 	~Playlist();
 
-    PlaylistStatus getPlaylistStatus() {
-        return m_status;
-    }
+    PlaylistStatus getPlaylistStatus();
     
 	// New methods
 	Json::Value        LoadJSON(const char *filename);
@@ -62,6 +61,9 @@ class Playlist {
 	int                StopNow(int forceStop = 0);
 	int                StopGracefully(int forceStop = 0, int afterCurrentLoop = 0);
     void               SetIdle(bool exit = true);
+    
+    void               Pause();
+    void               Resume();
 
 	int                IsPlaying(void);
 
@@ -72,6 +74,7 @@ class Playlist {
 	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduled = 0);
     
     void               InsertPlaylistAsNext(const std::string &filename, const int position = -1);
+    void               InsertPlaylistImmediate(const std::string &filename, const int position = -1);
 
 	void               SetPosition(int position);
 	void               SetRepeat(int repeat);
@@ -115,7 +118,7 @@ class Playlist {
     
     bool               SwitchToInsertedPlaylist();
 
-    PlaylistStatus       m_status;
+    volatile PlaylistStatus  m_status;
     
 	Playlist            *m_parent;
 	std::string          m_filename;

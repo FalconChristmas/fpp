@@ -55,7 +55,7 @@ MediaOutputBase::~MediaOutputBase()
 /*
  *
  */
-int MediaOutputBase::Start(void)
+int MediaOutputBase::Start(int msTime)
 {
 	return 0;
 }

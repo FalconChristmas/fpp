@@ -582,6 +582,19 @@
             }
         },
         {
+            "endpoint": "playlists/playable",
+            "methods": {
+                "GET": {
+                    "desc": "Get list of playlist names and sequences that are playable",
+                    "output": [
+                        "Playlist_1",
+                        "Playlist_2",
+                        "MySequence.fseq"
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "playlists/stop",
             "methods": {
                 "GET": {
@@ -594,6 +607,30 @@
             "methods": {
                 "GET": {
                     "desc": "Gracefully stop the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/stopgracefullyafterloop",
+            "methods": {
+                "GET": {
+                    "desc": "Gracefully stop the currently running playlist after completion of the current loop"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/pause",
+            "methods": {
+                "GET": {
+                    "desc": "Pause the currently running playlist"
+                }
+            }
+        },
+        {
+            "endpoint": "playlists/resume",
+            "methods": {
+                "GET": {
+                    "desc": "Resume a previously paused playlist"
                 }
             }
         },

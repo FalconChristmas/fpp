@@ -136,8 +136,11 @@ public:
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
         return 0;
     }
-    int start(VLCInternalData *data) {
+    int start(VLCInternalData *data, int startPos) {
         libvlc_media_player_play(data->vlcPlayer);
+        if (startPos) {
+            libvlc_media_player_set_time(data->vlcPlayer, startPos, false);
+        }
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
         return 0;
     }
@@ -201,11 +204,11 @@ VLCOutput::~VLCOutput() {
     }
 }
 
-int VLCOutput::Start(void) {
+int VLCOutput::Start(int msTime) {
     LogDebug(VB_MEDIAOUT, "VLCOutput::Start() %X\n", data);
     if (data) {
-        vlcManager.start(data);
-        
+        vlcManager.start(data, msTime);
+
         int seconds = data->length / 1000;
         m_mediaOutputStatus->secondsTotal = seconds / 60;
         m_mediaOutputStatus->minutesTotal = seconds % 60;

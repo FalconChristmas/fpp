@@ -33,7 +33,8 @@ PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)
   : PlaylistEntryBase(parent),
 	m_duration(0),
     m_prepared(false),
-    m_adjustTiming(true)
+    m_adjustTiming(true),
+    m_pausedFrame(-1)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntrySequence::PlaylistEntrySequence()\n");
 
@@ -58,17 +59,19 @@ int PlaylistEntrySequence::Init(Json::Value &config)
 	}
 
 	m_sequenceName = config["sequenceName"].asString();
+    m_pausedFrame = -1;
 	return PlaylistEntryBase::Init(config);
 }
 
 
-int PlaylistEntrySequence::PreparePlay() {
-    if (sequence->OpenSequenceFile(m_sequenceName.c_str(), 0) <= 0) {
+int PlaylistEntrySequence::PreparePlay(int frame) {
+    if (sequence->OpenSequenceFile(m_sequenceName, frame) <= 0) {
         LogErr(VB_PLAYLIST, "Error opening sequence %s\n", m_sequenceName.c_str());
         return 0;
     }
     m_prepared = true;
     m_duration = sequence->m_seqMSDuration;
+    m_sequenceFrameTime = sequence->GetSeqStepTime();
     return 1;
 }
 
@@ -88,7 +91,7 @@ int PlaylistEntrySequence::StartPlaying(void)
     if (!m_prepared) {
         PreparePlay();
     }
-    
+    m_pausedFrame = -1;
     sequence->StartSequence();
     m_startTme = GetTimeMS();
     LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
@@ -174,18 +177,51 @@ Json::Value PlaylistEntrySequence::GetConfig(void)
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
 	result["sequenceName"]     = m_sequenceName;
-	result["secondsElapsed"]   = sequence->m_seqMSElapsed / 1000;
-	result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
+    if (IsPaused()) {
+        int pos = m_pausedFrame * m_sequenceFrameTime;
+        result["secondsElapsed"]   = pos / 1000;
+        result["secondsRemaining"] = (m_duration - pos) / 1000;
+    } else {
+        result["secondsElapsed"]   = sequence->m_seqMSElapsed / 1000;
+        result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
+    }
 
 	return result;
 }
 Json::Value PlaylistEntrySequence::GetMqttStatus(void) {
 	Json::Value result = PlaylistEntryBase::GetMqttStatus();
 	result["sequenceName"]     = m_sequenceName;
-	result["secondsElapsed"]   = sequence->m_seqMSElapsed / 1000;
-	result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
-	result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
-
+    if (IsPaused()) {
+        int pos = m_pausedFrame * m_sequenceFrameTime;
+        result["secondsElapsed"]   = pos / 1000;
+        result["secondsRemaining"] = (m_duration - pos) / 1000;
+        result["secondsTotal"] = m_duration / 1000;
+    } else {
+        result["secondsElapsed"]   = sequence->m_seqMSElapsed / 1000;
+        result["secondsRemaining"] = sequence->m_seqMSRemaining / 1000;
+        result["secondsTotal"] = sequence->m_seqMSDuration / 1000;
+    }
 	return result;
 }
 
+void PlaylistEntrySequence::Pause() {
+    m_pausedFrame = sequence->m_seqMSElapsed / sequence->GetSeqStepTime();
+    sequence->CloseSequenceFile();
+    sequence->SendBlankingData();
+    m_prepared = false;
+}
+bool PlaylistEntrySequence::IsPaused() {
+    return m_pausedFrame != -1;
+}
+void PlaylistEntrySequence::Resume() {
+    if (m_pausedFrame >= 0) {
+        PreparePlay(m_pausedFrame);
+        sequence->StartSequence();
+        m_startTme = GetTimeMS() - m_pausedFrame*sequence->GetSeqStepTime();
+        LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
+        m_pausedFrame = -1;
+        if (mqtt) {
+            mqtt->Publish("playlist/sequence/status", m_sequenceName);
+        }
+    }
+}

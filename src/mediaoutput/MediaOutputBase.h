@@ -50,7 +50,7 @@ class MediaOutputBase {
 	MediaOutputBase();
 	virtual ~MediaOutputBase();
 
-	virtual int   Start(void);
+	virtual int   Start(int msTime = 0);
 	virtual int   Stop(void);
 	virtual int   Process(void);
 	virtual int   AdjustSpeed(float masterPos);

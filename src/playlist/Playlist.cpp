@@ -116,6 +116,12 @@ Playlist::~Playlist()
 	Cleanup();
 }
 
+
+PlaylistStatus Playlist::getPlaylistStatus() {
+    return m_status;
+}
+
+
 /*
  *
  */
@@ -554,21 +560,41 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
-	if (afterCurrentLoop)
-	{
+    if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
+        Resume();
+    }
+    
+	if (afterCurrentLoop) {
 		m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
 		m_currentState = "stoppingAfterLoop";
-	}
-	else
-	{
+	} else {
 		m_status = FPP_STATUS_STOPPING_GRACEFULLY;
 		m_currentState = "stoppingGracefully";
 	}
-
 	m_forceStop = forceStop;
 
 	return 1;
 }
+
+void Playlist::Pause() {
+    if (IsPlaying()) {
+        if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
+            m_currentSection->at(m_sectionPosition)->Pause();
+            if (m_currentSection->at(m_sectionPosition)->IsPaused()) {
+                m_status = FPP_STATUS_PLAYLIST_PAUSED;
+            }
+        }
+    }
+}
+void Playlist::Resume() {
+    if (IsPlaying()) {
+        if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
+            m_currentSection->at(m_sectionPosition)->Resume();
+            m_status = FPP_STATUS_PLAYLIST_PLAYING;
+        }
+    }
+}
+
 
 /*
  *
@@ -577,7 +603,8 @@ int Playlist::IsPlaying(void)
 {
 	if ((m_status == FPP_STATUS_PLAYLIST_PLAYING) ||
 		(m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
-		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP))
+		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP) ||
+        (m_status == FPP_STATUS_PLAYLIST_PAUSED)) //paused is technically still "running"
 		return 1;
 
 	return 0;
@@ -625,8 +652,15 @@ int Playlist::Process(void)
 	}
 
 
-    if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
+    if (!m_currentSection->at(m_sectionPosition)->IsPaused() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
 		m_currentSection->at(m_sectionPosition)->Process();
+    }
+    
+    if (m_currentSection->at(m_sectionPosition)->IsPaused()
+        && m_insertedPlaylist != ""
+        && SwitchToInsertedPlaylist()) {
+        playlist->Start();
+        return playlist->Process();
     }
 
 	if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
@@ -838,6 +872,9 @@ void Playlist::SetIdle(bool exit)
 	}
     if (m_parent && exit) {
         playlist = m_parent;
+        if (m_parent->getPlaylistStatus() == FPP_STATUS_PLAYLIST_PAUSED) {
+            m_parent->Resume();
+        }
         PL_CLEANUPS.push_back(this);
     } else if (exit) {
         sequence->SendBlankingData();
@@ -890,7 +927,16 @@ void Playlist::InsertPlaylistAsNext(const std::string &filename, const int posit
         m_insertedPlaylistPosition = position;
     }
 }
-
+void Playlist::InsertPlaylistImmediate(const std::string &filename, const int position) {
+    std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
+    if (m_status == FPP_STATUS_IDLE) {
+        Play(filename.c_str(), position, 0, m_scheduled);
+    } else {
+        Pause();
+        m_insertedPlaylist = filename;
+        m_insertedPlaylistPosition = position;
+    }
+}
 
 /*
  *
