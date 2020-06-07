@@ -79,4 +79,17 @@ function GetRemotes() {
     return json($remotes);
 }
 
+function GetProxiedURL() {
+    $ip = params('Ip');
+    $urlPart = params('urlPart');
+
+    $url = "http://$ip/$urlPart";
+
+    $data = file_get_contents($url);
+
+    echo $data;
+
+    return;
+}
+
 ?>

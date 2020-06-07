@@ -773,6 +773,14 @@
             }
         },
         {
+            "endpoint": "proxy/:IP/:PATH",
+            "methods": {
+                "GET": {
+                    "desc": "Get the contents of a remote URL at http://:IP/:PATH"
+                }
+            }
+        },
+        {
             "endpoint": "sequence",
             "methods": {
                 "GET": {
