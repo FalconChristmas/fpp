@@ -68,7 +68,7 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
     gettimeofday(&tv, nullptr);
     
 	struct tm tm;
-	char timeStr[256];
+	char timeStr[512];
 
 	localtime_r(&tv.tv_sec, &tm);
     int ms = tv.tv_usec / 1000;
