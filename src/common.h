@@ -118,6 +118,8 @@ void toLower(std::string& str);
 std::string toUpperCopy(const std::string& str);
 std::string toLowerCopy(const std::string& str);
 
+std::string getSimpleHTMLTTag(const std::string &html, const std::string &searchStr, const std::string &skipStr, const std::string &endStr);
+std::string getSimpleXMLTag(const std::string &xml, const std::string &tag);
 
 // URL Helpers
 bool urlGet(const std::string url, std::string &resp);

@@ -790,6 +790,52 @@ std::string toLowerCopy(const std::string& str) {
     return cp;
 }
 
+std::string getSimpleHTMLTTag(const std::string &html, const std::string &searchStr, const std::string &skipStr, const std::string &endStr)
+{
+    std::string value;
+    std::string tStr;
+    std::size_t fStart = html.find(searchStr);
+    std::size_t fEnd;
+
+    if (fStart != std::string::npos) {
+        tStr = html.substr(fStart);
+        fStart = tStr.find(skipStr);
+        if (fStart != std::string::npos) {
+            fStart += 2;
+            fEnd = tStr.substr(fStart).find(endStr);
+            fEnd += fStart;
+            if (fEnd > fStart) {
+                value = tStr.substr(fStart, fEnd - fStart);
+                TrimWhiteSpace(value);
+                replaceAll(value, std::string("  "), std::string(" "));
+            }
+        }
+    }
+
+    return value;
+}
+
+std::string getSimpleXMLTag(const std::string &xml, const std::string &tag)
+{
+    std::string value;
+    std::string sSearch = "<";
+    sSearch += tag + ">";
+
+    std::string eSearch = "</";
+    eSearch += tag + ">";
+
+    std::size_t fStart = xml.find(sSearch);
+    std::size_t fEnd = xml.find(eSearch);
+
+    if ((fStart != std::string::npos) &&
+        (fEnd != std::string::npos) &&
+        (fEnd > fStart)) {
+        value = xml.substr(fStart + sSearch.length(), fEnd - fStart - sSearch.length());
+        TrimWhiteSpace(value);
+    }
+
+    return value;
+}
 
 // URL Helpers
 size_t urlWriteData(void *buffer, size_t size, size_t nmemb, void *userp)
