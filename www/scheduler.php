@@ -106,9 +106,7 @@ function AddScheduleEntry(data = {}) {
     if (data.startTimeOffset != null) row.find('.schStartTimeOffset').val(data.startTimeOffset);
 
 
-    if (data.repeat == 1)
-        row.find('.schRepeat').prop('checked', true);
-
+    row.find('.schRepeat').val(data.repeat);
     row.find('.schStopType').val(data.stopType);
 
     if (newEntry) {
@@ -284,10 +282,10 @@ function SaveSchedule() {
         e.playlist = $(this).find('.schPlaylist').val();
         e.day = parseInt($(this).find('.schDay').val());
         e.startTime = $(this).find('.schStartTime').val();
-        e.startTimeOffset = $(this).find('.schStartTimeOffset').val();
+        e.startTimeOffset = parseInt($(this).find('.schStartTimeOffset').val());
         e.endTime = $(this).find('.schEndTime').val();
-        e.endTimeOffset = $(this).find('.schEndTimeOffset').val();
-        e.repeat = $(this).find('.schRepeat').is(':checked') ? 1 : 0;
+        e.endTimeOffset = parseInt($(this).find('.schEndTimeOffset').val());
+        e.repeat = parseInt($(this).find('.schRepeat').val());
         e.startDate = $(this).find('.schStartDate').val();
         e.endDate = $(this).find('.schEndDate').val();
         e.stopType = parseInt($(this).find('.schStopType').val());
@@ -501,7 +499,18 @@ a:visited {
 <span class='offset startOffset'>&nbsp;Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <td><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
 <span class='offset endOffset'>&nbsp;Offset: <input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
-                        <td class='center' ><input class='schRepeat' type='checkbox' /></td>
+                        <td class='center' >
+                            <select class='schRepeat'>
+                                <option value='0'>None</option>
+                                <option value='1'>Immediate</option>
+                                <option value='500'>5 Min.</option>
+                                <option value='1000'>10 Min.</option>
+                                <option value='1500'>15 Min.</option>
+                                <option value='2000'>20 Min.</option>
+                                <option value='3000'>30 Min.</option>
+                                <option value='6000'>60 Min.</option>
+                            </select>
+                        </td>
                         <td class='center' >
                             <select class='schStopType'>
                                 <option value='0'>Graceful</option>
@@ -519,7 +528,7 @@ a:visited {
                             <th colspan='3'>Run Dates</th>
                             <th rowspan='2' title='Scheduled Playlist'>Playlist</th>
                             <th colspan='2'>Run Times</th>
-                            <th rowspan='2' title='Repeat playlist'>Rpt</th>
+                            <th rowspan='2' title='Repeat playlist'>Repeat<br>Interval</th>
                             <th rowspan='2' title='Playlist Stop Type'>Stop Type</th>
                         </tr>
                         <tr>

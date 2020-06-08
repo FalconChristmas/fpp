@@ -25,11 +25,9 @@
  */
 
 #include <string>
-
+#include <utility>
 #include <time.h>
 
-
-#define DAYS_PER_WEEK       7
 
 class ScheduleEntry {
   public:
@@ -42,6 +40,9 @@ class ScheduleEntry {
 
 	int  LoadFromString(std::string entryStr);
 	int  LoadFromJson(Json::Value &entry);
+
+    void pushStartEndTimes(int start, int end);
+    
 	Json::Value GetJson(void);
 
 	bool         enabled;
@@ -55,9 +56,10 @@ class ScheduleEntry {
     int          endMinute;
     int          endSecond;
 	bool         repeat;
-    int          weeklySecondCount;
-	int          weeklyStartSeconds[DAYS_PER_WEEK];
-	int          weeklyEndSeconds[DAYS_PER_WEEK];
+    int          repeatInterval;
+    
+    std::vector<std::pair<int, int>> startEndSeconds;
+    
 	int          startDate; // YYYYMMDD format as an integer
 	int          endDate;   // YYYYMMDD format as an integer
 	int          stopType;

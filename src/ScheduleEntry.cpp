@@ -34,7 +34,6 @@ ScheduleEntry::ScheduleEntry()
 	playlist(""),
 	repeat(false),
 	dayIndex(0),
-	weeklySecondCount(0),
 	startHour(0),
 	startMinute(0),
 	startSecond(0),
@@ -45,12 +44,9 @@ ScheduleEntry::ScheduleEntry()
 	endDate(0),
 	stopType(0),
     startTimeOffset(0),
-    endTimeOffset(0)
+    endTimeOffset(0),
+    repeatInterval(0)
 {
-	for (int i = 0; i < DAYS_PER_WEEK; i++) {
-		weeklyStartSeconds[i] = 0;
-		weeklyEndSeconds[i] = 0;
-	}
 }
 
 ScheduleEntry::~ScheduleEntry()
@@ -283,12 +279,41 @@ static void mapTimeString(const std::string &tm, int &h, int &m, int &s) {
         s = atoi(sparts[2].c_str());
     }
 }
+
+void ScheduleEntry::pushStartEndTimes(int start, int end) {
+    if (end < start) {
+        // End is less than start, likely means crossing to next day, add 24hours.
+        // If Saturday, roll end around to Sunday morning.
+        if (end < (24*60*60*6)) {
+            end += 24*60*60;
+        } else {
+            end -= 24*60*60*6;
+        }
+    }
+    startEndSeconds.push_back(std::pair<int, int>(start, end));
+    if (repeatInterval) {
+        int newEnd = start + repeatInterval - 1;
+        while (start < end) {
+            startEndSeconds.push_back(std::pair<int, int>(start, newEnd));
+            newEnd += repeatInterval;
+            start += repeatInterval;
+        }
+    } else {
+        startEndSeconds.push_back(std::pair<int, int>(start, end));
+    }
+}
+
 int ScheduleEntry::LoadFromJson(Json::Value &entry)
 {
     enabled            = entry["enabled"].asInt();
     playlist           = entry["playlist"].asString();
     dayIndex           = entry["day"].asInt();
-    repeat             = entry["repeat"].asInt();
+    repeatInterval     = entry["repeat"].asInt();
+    repeat             = repeatInterval == 1;
+    
+    repeatInterval /= 100;
+    repeatInterval *= 60; //seconds betweeen intervals
+    
 
     mapTimeString(entry["startTime"].asString(), startHour, startMinute, startSecond);
     mapTimeString(entry["endTime"].asString(), endHour, endMinute, endSecond);
