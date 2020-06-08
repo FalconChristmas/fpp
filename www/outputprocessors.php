@@ -25,7 +25,7 @@ function PopulateOutputProcessorTable(data) {
         var type = output.type;
         
 		var html =
-			"<tr id='row'" + i + " class='fppTableRow'>" +
+			"<tr id='row" + i + "' class='fppTableRow'>" +
             "<td>" + (i+1) + "</td>" +
 			"<td><input class='active' type='checkbox'";
 
@@ -270,7 +270,7 @@ function AddNewProcessorRow() {
 	var currentRows = $("#outputProcessors > tbody > tr").length
 
 	$('#outputProcessors tbody').append(
-		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
+		"<tr id='row" + currentRows + "' class='fppTableRow'>" +
             "<td>" + (currentRows + 1) + "</td>" +
 			"<td><input class='active' type='checkbox' checked></td>" +
             "<td><select class='type' onChange='ProcessorTypeSelected(this);'>" +
@@ -294,10 +294,11 @@ var tableInfo = {
 	};
 
 function RenumberColumns(tableName) {
-	var id = 1;
+	var id = 0;
 	$('#' + tableName + ' tbody tr').each(function() {
 		$this = $(this);
-		$this.find("td:first").html(id);
+		$this.find("td:first").html(id+1);
+		$this.attr('id', 'row' + id);
 		id++;
 	});
 }
