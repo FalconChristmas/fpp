@@ -68,6 +68,7 @@
             "settings": [
                 "MultiSyncCopySequences",
                 "MultiSyncCopyEffects",
+                "MultiSyncCopyMusic",
                 "MultiSyncCopyVideos",
                 "MultiSyncCopyEvents",
                 "MultiSyncCopyScripts",
@@ -685,6 +686,13 @@
             "name": "MultiSyncCopyVideos",
             "description": "Copy Videos",
             "tip": "Copy Videos from Master to Remote.",
+            "type": "checkbox",
+            "textOnRight": 1
+        },
+        "MultiSyncCopyMusic": {
+            "name": "MultiSyncCopyMusic",
+            "description": "Copy Music",
+            "tip": "Copy Music from Master to Remote.",
             "type": "checkbox",
             "textOnRight": 1
         },

@@ -25,6 +25,8 @@ if (isset($settings['MultiSyncCopyEvents']) && ($settings['MultiSyncCopyEvents']
 	array_push($dirs, 'events');
 if (isset($settings['MultiSyncCopyScripts']) && ($settings['MultiSyncCopyScripts'] == 1))
 	array_push($dirs, 'scripts');
+if (isset($settings['MultiSyncCopyMusic']) && ($settings['MultiSyncCopyMusic'] == 1))
+    array_push($dirs, 'music');
 
 if (sizeof($dirs) == 0)
 {

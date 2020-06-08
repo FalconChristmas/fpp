@@ -103,6 +103,7 @@ this.value = default_value;
 
 function CloseUpgradeDialog() {
     $('#upgradePopup').dialog('close');
+    location.reload();
 }
 
 function UpdateVersionInfo() {
