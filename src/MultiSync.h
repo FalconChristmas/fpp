@@ -108,7 +108,9 @@ typedef enum systemType {
 	kSysTypeFalconF48                    = 0x87,
 	kSysTypeOtherSystem                  = 0xC0,
 	kSysTypexSchedule                    = 0xC1,
-    kSysTypeESPixelStick                 = 0xC2
+    kSysTypeESPixelStick                 = 0xC2,
+    kSysTypeNonMultiSyncCapable          = 0xF0,
+    kSysTypeSanDevices                   = 0xFF
 } MultiSyncSystemType;
 
 class MultiSyncSystem {
@@ -207,7 +209,7 @@ class MultiSync {
 
 	void Ping(int discover = 0, bool broadcast = true);
     void PingSingleRemote(const char *address, int discover = 0);
-	void Discover(void) { Ping(1); }
+    void Discover(void);
     void PeriodicPing();
 
     void SendSeqOpenPacket(const std::string &filename);
@@ -248,6 +250,8 @@ class MultiSync {
 
     static std::string GetTypeString(MultiSyncSystemType type, bool local = false);
 
+    void StoreHTTPResponse(std::string *ipp, std::string data);
+
   private:
     bool isSupportedForMultisync(const char *address, const char *intface);
     
@@ -270,6 +274,9 @@ class MultiSync {
 
 	int  OpenReceiveSocket(void);
 
+    void PerformHTTPDiscovery(void);
+    void DiscoverSubnetViaHTTP(std::string subnet);
+    void DiscoverIPViaHTTP(std::string ip);
 
 	void ProcessSyncPacket(ControlPkt *pkt, int len);
 	void ProcessCommandPacket(ControlPkt *pkt, int len);
@@ -318,6 +325,9 @@ class MultiSync {
     unsigned char rcvBuffers[MAX_MS_RCV_MSG][MAX_MS_RCV_BUFSIZE+1];
     unsigned char rcvCmbuf[MAX_MS_RCV_MSG][0x100];
     struct sockaddr_storage rcvSrcAddr[MAX_MS_RCV_MSG];
+
+	std::mutex                         m_httpResponsesLock;
+    std::map<std::string, std::string> m_httpResponses;
 };
 
 extern MultiSync *multiSync;

@@ -724,6 +724,29 @@
             "tip": "Hide subnets in private 192.168.0.0/16 IP space.",
             "type": "checkbox"
         },
+        "MultiSyncHTTPDiscovery": {
+            "name": "MultiSyncHTTPDiscovery",
+            "description": "Discover controllers via HTTP",
+            "tip": "Scan a list of subnets for HTTP servers to auto detect network attached pixel controllers",
+            "type": "checkbox",
+            "level": 1,
+            "restart": 2,
+            "children": {
+                "1": [
+                    "MultiSyncHTTPSubnets"
+                ]
+            }
+        },
+        "MultiSyncHTTPSubnets": {
+            "name": "MultiSyncHTTPSubnets",
+            "description": "Subnets to scan using HTTP",
+            "tip": "List of comma separated subnets or IPs to scan looking for network attached pixel controllers.  Individual IPs may be listed as either A.B.C.D/32 or just A.B.C.D.  Subnets are listed as A.B.C.D/X.",
+            "type": "text",
+            "level": 1,
+            "restart": 2,
+            "size": 64,
+            "maxlength": 128
+        },
         "MultiSyncMulticast": {
             "name": "MultiSyncMulticast",
             "description": "Send MultiSync to ALL remotes via Multicast (239.70.80.80)",

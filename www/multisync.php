@@ -89,6 +89,7 @@ input.remoteCheckbox {
              || platform == "xSchedule"
              || platform == "xLights"
              || platform.includes("Falcon ")
+             || platform == "SanDevices"
              || platform == "ESPixelStick")) {
             return false;
         }
@@ -449,6 +450,8 @@ input.remoteCheckbox {
                     (data[i].fppMode == 'bridge') &&
                     (majorVersion >= 3)) {
                     getESPixelStickBridgeStatus(ip);
+                } else if (data[i].Platform.indexOf("Falcon ") == 0) {
+                    getFalconControllerStatus(ip);
                 }
             }
         }
@@ -578,6 +581,31 @@ function getESPixelStickBridgeStatus(ip) {
             delete ESPSockets[ips];
         };
     }
+}
+
+function getFalconControllerStatus(ip) {
+    // Need to update this once Falcon controllers support
+    // FPP MultiSync discovery
+    $.ajax({
+        url: 'api/proxy/' + ip + '/status.xml',
+        dataType: 'xml',
+        success: function(data) {
+            var ips = ip.replace(/\./g, '_');
+            var u = "<table class='multiSyncVerboseTable'>";
+            u += "<tr><td>Uptime:</td><td>" + $(data).find('u').text() + "</td></tr>";
+            u += "</table>";
+
+            $('#advancedViewUtilization_fpp_' + ips).html(u);
+
+            var mode = $('#fpp_' + ips + '_mode').html();
+
+            if (mode == 'Bridge') {
+                $('#fpp_' + ips + '_status').html('Bridging');
+            } else {
+                $('#fpp_' + ips + '_status').html('');
+            }
+        }
+    });
 }
 
 function RefreshStats() {
@@ -959,6 +987,8 @@ PrintSetting('MultiSyncHide172', 'getFPPSystems');
 PrintSetting('MultiSyncHide192', 'getFPPSystems');
 PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');
 PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
+PrintSetting('MultiSyncHTTPDiscovery');
+PrintSetting('MultiSyncHTTPSubnets');
 ?>
             </table>
 		</fieldset>

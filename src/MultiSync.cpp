@@ -28,9 +28,12 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <linux/version.h>
+#include <math.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+
+#include <curl/curl.h>
 
 #include "MultiSync.h"
 
@@ -45,6 +48,7 @@
 #include "channeloutput/channeloutputthread.h"
 #include "playlist/Playlist.h"
 #include "commands/Commands.h"
+#include "NetworkController.h"
 #include "NetworkMonitor.h"
 
 
@@ -191,7 +195,11 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
                              const std::string &ranges
                              )
 {
-    
+    LogDebug(VB_SYNC, "UpdateSystem(%d, %u, %u, %d, '%s', '%s', '%s', '%s', '%s')\n",
+        (int)type, majorVersion, minorVersion, (int)fppMode,
+        address.c_str(), hostname.c_str(), version.c_str(), model.c_str(),
+        ranges.c_str());
+
     char timeStr[32];
     memset(timeStr, 0, sizeof(timeStr));
     time_t t = time(NULL);
@@ -404,6 +412,8 @@ std::string MultiSync::GetHardwareModel(void)
         replaceAll(result, "\n", "");
     }
 
+    TrimWhiteSpace(result);
+
 	return result;
 }
 
@@ -473,6 +483,7 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
             
         case kSysTypexSchedule:               return "xSchedule";
         case kSysTypeESPixelStick:            return "ESPixelStick";
+        case kSysTypeSanDevices:              return "SanDevices";
 		default:                              return "Unknown System Type";
 	}
 }
@@ -536,6 +547,184 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
     }
 	result["systems"] = systems;
 	return result;
+}
+
+void MultiSync::Discover()
+{
+    Ping(1);
+
+    if (getSettingInt("MultiSyncHTTPDiscovery", 0))
+        PerformHTTPDiscovery();
+}
+
+void MultiSync::PerformHTTPDiscovery()
+{
+    std::string subnetsStr = getSetting("MultiSyncHTTPSubnets");
+    if (subnetsStr != "") {
+        std::vector<std::string> tokens = split(subnetsStr, ',');
+        std::set<std::string> subnets;
+        for (auto &token : tokens) {
+            TrimWhiteSpace(token);
+            if (token != "") {
+                DiscoverSubnetViaHTTP(token);
+            }
+        }
+    } else {
+        LogWarn(VB_SYNC, "MultiSyncHTTPDiscovery turned on, but no subnets listed\n");
+    }
+}
+
+static size_t curl_write_data(void *ptr, size_t size, size_t nmemb, void *ourpointer)
+{
+    LogExcess(VB_SYNC, "write_data(%p, %d, %d, %p, '%s')\n", ptr, size, nmemb, ourpointer, ((std::string*)ourpointer)->c_str());
+
+    std::string data((char *)ptr, size * nmemb);
+
+    multiSync->StoreHTTPResponse((std::string*)ourpointer, data);
+
+    return size * nmemb;
+}
+
+void MultiSync::StoreHTTPResponse(std::string *ipp, std::string data)
+{
+    std::string ip = *ipp;
+    std::unique_lock<std::mutex> lock(m_httpResponsesLock);
+
+    auto search = m_httpResponses.find(ip);
+    if (search != m_httpResponses.end()) {
+        m_httpResponses[ip] = m_httpResponses[ip] + data;
+    } else {
+        m_httpResponses[ip] = data;
+    }
+}
+
+void MultiSync::DiscoverIPViaHTTP(std::string ip)
+{
+    LogDebug(VB_SYNC, "Checking HTTP response from %s\n", ip.c_str());
+
+    std::unique_lock<std::mutex> lock(m_httpResponsesLock);
+    auto search = m_httpResponses.find(ip);
+    if (search == m_httpResponses.end()) {
+        LogErr(VB_SYNC, "Error, no value in m_httpResponses for %s IP\n", ip.c_str());
+        return;
+    }
+
+    std::string data = search->second;
+
+    lock.unlock();
+
+    NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data);
+
+    if (nc) {
+        UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
+            nc->systemMode, nc->ip, nc->hostname, nc->version,
+            nc->typeStr, nc->ranges);
+        delete nc;
+    }
+
+}
+
+void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
+{
+    LogDebug(VB_SYNC, "Discovering %s subnet via HTTP Discovery\n", subnet.c_str());
+
+    std::vector<std::string> parts = split(subnet, '/');
+    int prefix = 32;
+
+    if (parts.size() == 2)
+        prefix = atoi(parts[1].c_str());
+
+    int ips = (int)(powl(2, 32 - prefix));
+    unsigned long firstIP = htonl(inet_addr(parts[0].c_str()));
+
+    // If prefix is a /31 or /32, we scan all IPs, otherwise skip network
+    // and broadcast
+    if (prefix <= 30) {
+        ips -= 2;
+        firstIP++;
+    }
+
+    std::vector<std::string> ipList;
+    CURL *handles[ips];
+    CURLM *multi_handle;
+    CURLMsg *msg;
+    int still_running = 0;
+    int msgs_left;
+
+    std::string userAgent = "FPP/";
+    userAgent += getFPPVersionTriplet();
+
+    LogExcess(VB_SYNC, "Scanning IPs:\n");
+    struct in_addr ia;
+    char ip[16];
+    char url[24];
+    for (int i = 0; i < ips; i++) {
+        ia.s_addr = ntohl(firstIP + i);
+        strcpy(ip, inet_ntoa(ia));
+        LogExcess(VB_SYNC, "  %s\n", ip);
+
+        handles[i] = curl_easy_init();
+
+        ipList.push_back(ip);
+
+        sprintf(url, "http://%s/", ip);
+        curl_easy_setopt(handles[i], CURLOPT_URL, url);
+        curl_easy_setopt(handles[i], CURLOPT_TIMEOUT, 1L);
+        curl_easy_setopt(handles[i], CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(handles[i], CURLOPT_USERAGENT, userAgent.c_str());
+        curl_easy_setopt(handles[i], CURLOPT_PRIVATE, &ipList[i]);
+        curl_easy_setopt(handles[i], CURLOPT_WRITEFUNCTION, curl_write_data);
+        curl_easy_setopt(handles[i], CURLOPT_WRITEDATA, &ipList[i]);
+    }
+
+    multi_handle = curl_multi_init();
+
+    for (int i = 0; i < ips; i++) {
+        curl_multi_add_handle(multi_handle, handles[i]);
+    }
+
+    curl_multi_perform(multi_handle, &still_running);
+
+    do {
+        int numfds=0;
+        int res = curl_multi_wait(multi_handle, NULL, 0, 200, &numfds);
+        if(res != CURLM_OK) {
+            LogErr(VB_SYNC, "error: curl_multi_wait() returned %d\n", res);
+            return;
+        }
+        curl_multi_perform(multi_handle, &still_running);
+
+    } while(still_running);
+
+    int respCode = 0;
+    std::string *respIP;
+
+    while((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
+        if(msg->msg == CURLMSG_DONE) {
+            int idx;
+
+            for(idx = 0; idx < ips; idx++) {
+                int found = (msg->easy_handle == handles[idx]);
+                if(found)
+                    break;
+            }
+
+            curl_easy_getinfo(handles[idx], CURLINFO_RESPONSE_CODE, &respCode);
+
+            if (respCode == 200) {
+                curl_easy_getinfo(handles[idx], CURLINFO_PRIVATE, &respIP);
+
+                LogExcess(VB_SYNC, "IP index %d (%s) completed with %d status, code: %d, IP: %s\n", idx, ipList[idx].c_str(), msg->data.result, respCode, respIP->c_str());
+
+                DiscoverIPViaHTTP(*respIP);
+            }
+        }
+    }
+
+    curl_multi_cleanup(multi_handle);
+
+    for(int i = 0; i < ips; i++)
+        curl_easy_cleanup(handles[i]);
 }
 
 /*
