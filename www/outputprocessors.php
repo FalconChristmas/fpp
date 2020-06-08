@@ -313,6 +313,14 @@ function DeleteSelectedProcessor() {
 $(document).ready(function(){
 	SetupSelectableTableRow(tableInfo);
 	GetOutputProcessors();
+
+    $('#outputProcessorsBody').sortable({
+        update: function(event, ui) {
+            RenumberColumns("outputProcessors");
+        },
+        scroll: true
+    }).disableSelection();
+
 });
 
 $(document).tooltip();
@@ -349,7 +357,7 @@ $(document).tooltip();
                                     <th>Configuration</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id='outputProcessorsBody'>
                             </tbody>
                         </table>
                     </div>
