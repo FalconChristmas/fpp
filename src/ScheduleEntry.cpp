@@ -290,9 +290,25 @@ void ScheduleEntry::pushStartEndTimes(int start, int end) {
             end -= 24*60*60*6;
         }
     }
-    startEndSeconds.push_back(std::pair<int, int>(start, end));
     if (repeatInterval) {
         int newEnd = start + repeatInterval - 1;
+        if (newEnd > (24*60*60*7)) {
+            newEnd -= 24*60*60*7;
+        }
+        while (end < start) {
+            // case where we eventually wrap around on sat->sunday...
+            // this handles all the intervals on Saturday until start
+            // wraps to Sunday, then the normal start<end can work
+            startEndSeconds.push_back(std::pair<int, int>(start, newEnd));
+            newEnd += repeatInterval;
+            start += repeatInterval;
+            if (start >= (24*60*60*7)) {
+                start -= 24*60*60*7;
+            }
+            if (newEnd >= (24*60*60*7)) {
+                newEnd -= 24*60*60*7;
+            }
+        }
         while (start < end) {
             startEndSeconds.push_back(std::pair<int, int>(start, newEnd));
             newEnd += repeatInterval;
