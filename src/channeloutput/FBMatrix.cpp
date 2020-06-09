@@ -172,18 +172,9 @@ int FBMatrixOutput::Init(Json::Value config) {
 		close(m_fbFd);
 		return 0;
 	}
-
-	m_screenSize = m_vInfo.xres * m_vInfo.yres * m_vInfo.bits_per_pixel / 8;
-
-	if (m_screenSize != (m_width * m_height * m_bpp / 8)) {
-        LogErr(VB_CHANNELOUT, "Error, screensize incorrect:   %dx%dx%d      %dx%dx%d\n",
-               m_vInfo.xres, m_vInfo.yres, m_vInfo.bits_per_pixel,
-               m_width, m_height, m_bpp);
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
-	}
-
+    m_lineLength = m_fInfo.line_length;
+	m_screenSize = m_fInfo.line_length * m_vInfo.yres;
+    
 	if (m_channelCount != (m_width * m_height * 3)) {
 		LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
 		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
@@ -300,7 +291,7 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
 		channelData);
 
-	int ostride = m_width * m_bpp / 8;
+	int ostride = m_lineLength;
 	int srow = 0;
 	int drow = m_inverted ? m_height - 1 : 0;
 	unsigned char *s = channelData;
@@ -362,19 +353,22 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 			drow += m_inverted ? -1 : 1;
 		}
 	} else {
-		if (m_inverted) {
-			int istride = m_width * 3;
-			unsigned char *src = channelData;
-			unsigned char *dst = (unsigned char *)m_frame + (ostride * (m_height-1));
+        int istride = m_width * 3;
+        unsigned char *src = channelData;
+        unsigned char *dst = (unsigned char*)m_frame;
 
-			for (int y = 0; y < m_height; y++) {
-				memcpy(dst, src, istride);
-				src += istride;
-				dst -= ostride;
-			}
-		} else {
-			memcpy(m_frame, channelData, m_screenSize);
-		}
+		if (m_inverted) {
+			dst = (unsigned char *)m_frame + (ostride * (m_height-1));
+        }
+        for (int y = 0; y < m_height; y++) {
+            memcpy(dst, src, istride);
+            src += istride;
+            if (m_inverted) {
+                dst -= ostride;
+            } else {
+                dst += ostride;
+            }
+        }
 	}
 }
 

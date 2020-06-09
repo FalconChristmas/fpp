@@ -59,6 +59,7 @@ class FBMatrixOutput : public ChannelOutputBase {
 	char   *m_fbp;
     char   *m_frame;
 	int     m_screenSize;
+    int     m_lineLength;
 
 	uint16_t ***m_rgb565map;
 
