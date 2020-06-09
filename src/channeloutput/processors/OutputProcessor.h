@@ -35,7 +35,7 @@ public:
     bool isActive() { return active; }
 
     enum OutputProcessorType {
-        UNKNOWN, REMAP, SETVALUE, BRIGHTNESS, COLORORDER, HOLDVALUE
+        UNKNOWN, REMAP, SETVALUE, BRIGHTNESS, COLORORDER, HOLDVALUE, THREETOFOUR
     };
 
     virtual OutputProcessorType getType() const { return UNKNOWN; }

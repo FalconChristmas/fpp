@@ -17,6 +17,69 @@ function outputOption(val, def) {
     return html;
 }
 
+function HTMLForOutputProcessorConfig(output) {
+    var html = "";
+    var type = output.type;
+    
+    if (type == "Remap") {
+        html += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
+                  + "Destination: <input class='destination' type=text size='7' maxlength='7' value='" + output.destination + "'/>&nbsp;"
+                  + "Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "' />&nbsp;"
+                  + "Loops: <input class='loops' type=text size='7' maxlength='7' value='" + output.loops + "'/>&nbsp;"
+                  + "Reverse: <select class='reverse'>";
+        html += "<option value='0' ";
+        if (output.reverse == 0) html += "selected";
+        html += ">None</option>";
+        html += "<option value='1' ";
+        if (output.reverse == 1) html += "selected";
+        html += ">By Channel</option>";
+        html += "<option value='2' ";
+        if (output.reverse == 2) html += "selected";
+        html += ">RGB Pixels</option>";
+        html += "<option value='3' ";
+        if (output.reverse == 3) html += "selected";
+        html += ">RGBW Pixels</option>";
+        html += "</select>";
+    } else if (type == "Brightness") {
+        html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
+            + "Brightness: <input class='brightness' type=number value='" + output.brightness + "' min='0' max='100'/>"
+            + "Gamma: <input class='gamma' type=number step='0.1' value='" + output.gamma + "' min='0.1' max='5.0'/>";
+    } else if (type == "Set Value") {
+        html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
+            + "Value: <input class='value' type=number value='" + output.value + "' min='0' max='255'/>";
+    } else if (type == "Hold Value") {
+        html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>";
+    } else if (type == "Reorder Colors") {
+        html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+            + "Nodes: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
+            + "Color Order: <select class='colorOrder'>"
+            + outputOption("132", output.colorOrder)
+            + outputOption("213", output.colorOrder)
+            + outputOption("231", output.colorOrder)
+            + outputOption("312", output.colorOrder)
+            + outputOption("321", output.colorOrder)
+            + "</select>";
+    } else if (type == "Three to Four") {
+        html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
+            + "Nodes: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
+            + "Color Order: <select class='colorOrder'>"
+            + "<option value='4123'" + ((output.colorOrder == 4123) ? " selected" : "") + ">WRGB</option>"
+            + "<option value='1234'" + ((output.colorOrder == 1234) ? " selected" : "") + ">RGBW</option>"
+            + "</select>&nbsp;"
+            + "Algorithm: <select class='algorithm'>"
+            + "<option value='0'" + ((output.algorithm == 0) ? " selected" : "") + ">No White</option>"
+            + "<option value='1'" + ((output.algorithm == 1) ? " selected" : "") + ">R=G=B->W</option>"
+            + "<option value='2'" + ((output.algorithm == 2) ? " selected" : "") + ">Advanced</option>"
+            + "</select>";
+    } else {
+        html += "unknown type " + type;
+    }
+    return html;
+}
+
 function PopulateOutputProcessorTable(data) {
 	$('#outputProcessors tbody').html("");
 
@@ -36,51 +99,7 @@ function PopulateOutputProcessorTable(data) {
             + "<td>" + type + "</td>"
             + "<td><input class='description' type='text' size='32' maxlength='64' value='" + output.description + "'></td><td>";
         
-        if (type == "Remap") {
-            html += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
-                      + "Destination: <input class='destination' type=text size='7' maxlength='7' value='" + output.destination + "'/>&nbsp;"
-                      + "Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "' />&nbsp;"
-                      + "Loops: <input class='loops' type=text size='7' maxlength='7' value='" + output.loops + "'/>&nbsp;"
-                      + "Reverse: <select class='reverse'>";
-			html += "<option value='0' ";
-			if (output.reverse == 0) html += "selected";
-			html += ">None</option>";
-			html += "<option value='1' ";
-			if (output.reverse == 1) html += "selected";
-			html += ">By Channel</option>";
-			html += "<option value='2' ";
-			if (output.reverse == 2) html += "selected";
-			html += ">RGB Pixels</option>";
-			html += "<option value='3' ";
-			if (output.reverse == 3) html += "selected";
-			html += ">RGBW Pixels</option>";
-			html += "</select>";
-        } else if (type == "Brightness") {
-            html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
-                + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
-                + "Brightness: <input class='brightness' type=number value='" + output.brightness + "' min='0' max='100'/>"
-                + "Gamma: <input class='gamma' type=number step='0.1' value='" + output.gamma + "' min='0.1' max='5.0'/>";
-        } else if (type == "Set Value") {
-            html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
-                + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
-                + "Value: <input class='value' type=number value='" + output.value + "' min='0' max='255'/>";
-        } else if (type == "Hold Value") {
-            html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
-                + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>";
-        } else if (type == "Reorder Colors") {
-            html += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='" + output.start + "'/>&nbsp;"
-                + "Nodes: <input class='count' type=text size='7' maxlength='7' value='" + output.count + "'/>&nbsp;"
-                + "Color Order: <select class='colorOrder'>"
-                + outputOption("132", output.colorOrder)
-                + outputOption("213", output.colorOrder)
-                + outputOption("231", output.colorOrder)
-                + outputOption("312", output.colorOrder)
-                + outputOption("321", output.colorOrder)
-                + "</select>";
-        } else {
-            html += "unknown type " + type;
-        }
-        
+        html += HTMLForOutputProcessorConfig(output);
 		html += "</td></tr>";
 
 		$('#outputProcessors tbody').append(html);
@@ -201,6 +220,24 @@ function SetOutputProcessors() {
                 alert("Color Order settings of row " + rowNumber + " is not valid.");
                 return;
             }
+        } else if (type == "Three to Four") {
+            var b = {
+                type: "Three to Four",
+                active: $this.find("input.active").is(':checked') ? 1 : 0,
+                description: $this.find("input.description").val(),
+                start: parseInt($this.find("input.start").val()),
+                count: parseInt($this.find("input.count").val()),
+                colorOrder: parseInt($this.find("select.colorOrder").val()),
+                algorithm: parseInt($this.find("select.algorithm").val())
+			};
+            if ((b.start > 0) &&
+                (b.count > 0)) {
+                processors.push(b);
+            } else {
+                dataError = 1;
+                alert("Three to Four settings of row " + rowNumber + " is not valid.");
+                return;
+            }
         }
 
 
@@ -228,32 +265,56 @@ function AddOtherTypeOptions(row, type) {
     var config = "";
     
     if (type == "Remap") {
-        config += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='1'/>&nbsp;"
-                  + "Destination: <input class='destination' type=text size='7' maxlength='7' value='1'/>&nbsp;"
-                  + "Count: <input class='count' type=text size='7' maxlength='7' value='1' />&nbsp;"
-                  + "Loops: <input class='loops' type=text size='7' maxlength='7' value='1'/>&nbsp;"
-                  + "Reverse: <select class='reverse'>"
-				  + "<option value='0'>None</option>"
-				  + "<option value='1'>By Channel</option>"
-		          + "<option value='2'>RGB Pixels</option>"
-		          + "<option value='3'>RGBW Pixels</option>"
-		          + "</select>";
+        var b = {
+            type: "Remap",
+            source: 1,
+            destination: 1,
+            count: 1,
+            loops: 1,
+            reverse: 0
+        };
+        config += HTMLForOutputProcessorConfig(b);
     } else if (type == "Brightness") {
-        config += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Brightness: <input class='brightness' type=number value='100' min='0' max='100'/>"
-            + "Gamma: <input class='gamma' type=number step='0.1' value='1.0' min='0.1' max='5.0'/>";
+        var b = {
+            type: "Brightness",
+            start: 1,
+            count: 1,
+            brightness: 100,
+            gamma: 1.0
+        };
+        config += HTMLForOutputProcessorConfig(b);
     } else if (type == "Set Value") {
-        config += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Value: <input class='value' type=number value='255' min='0' max='255'/>";
+        var b = {
+            type: "Set Value",
+            start: 1,
+            count: 1,
+            value: 255
+        };
+        config += HTMLForOutputProcessorConfig(b);
     } else if (type == "Hold Value") {
-        config += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Channel Count: <input class='count' type=text size='7' maxlength='7' value='1'/>";
+        var b = {
+            type: "Hold Value",
+            start: 1,
+            count: 1,
+        };
+        config += HTMLForOutputProcessorConfig(b);
     } else if (type == "Reorder Colors") {
-        config += "Start Channel: <input class='start' type=text  size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Nodes: <input class='count' type=text size='7' maxlength='7' value='1'/>&nbsp;"
-            + "Color Order: <select class='colorOrder'><option value='132'>132</option><option value='213'>213</option><option value='231'>231</option><option value='312'>312</option><option value='321'>321</option></select>";
+        var b = {
+            type: "Reorder Colors",
+            start: 1,
+            count: 1,
+            colorOrder: 132
+        };
+        config += HTMLForOutputProcessorConfig(b);
+    } else if (type == "Three to Four") {
+        var b = {
+            type: "Three to Four",
+            start: 1,
+            count: 1,
+            colorOrder: 1234,
+            algorithm: 1
+        };
+        config += HTMLForOutputProcessorConfig(b);
     }
 
     
@@ -280,6 +341,7 @@ function AddNewProcessorRow() {
                      "<option value='Hold Value'>Hold Value</option>" +
                      "<option value='Set Value'>Set Value</option>" +
                      "<option value='Reorder Colors'>Reorder Colors</option>" +
+                     "<option value='Three to Four'>Three to Four</option>" +
                   "</select></td>" +
 			"<td><input class='description' type='text' size='32' maxlength='64' value=''></td>" +
             "<td> </td>" +

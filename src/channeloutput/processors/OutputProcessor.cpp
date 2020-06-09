@@ -21,6 +21,7 @@
 #include "SetValueOutputProcessor.h"
 #include "BrightnessOutputProcessor.h"
 #include "ColorOrderOutputProcessor.h"
+#include "ThreeToFourOutputProcessor.h"
 #include "log.h"
 
 
@@ -91,6 +92,8 @@ OutputProcessor *OutputProcessors::create(const Json::Value &config) {
         return new SetValueOutputProcessor(config);
     } else if (type == "Reorder Colors") {
         return new ColorOrderOutputProcessor(config);
+    } else if (type == "Three to Four") {
+        return new ThreeToFourOutputProcessor(config);
     } else {
         LogErr(VB_CHANNELOUT, "Unknown OutputProcessor type: %s\n", type.c_str());
     }
