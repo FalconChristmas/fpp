@@ -18,7 +18,7 @@
 
 class SetVolumeCommand : public Command {
 public:
-    SetVolumeCommand() : Command("Volume Set") {
+    SetVolumeCommand() : Command("Volume Set", "Sets the volume to the specific value. (0 - 100)") {
         args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("70")
                        .setGetAdjustableValueURL("api/fppd/volume?simple=true"));
     }
@@ -26,21 +26,21 @@ public:
 };
 class AdjustVolumeCommand : public Command {
 public:
-    AdjustVolumeCommand() : Command("Volume Adjust") {
+    AdjustVolumeCommand() : Command("Volume Adjust", "Adjust volume either up or down by the given amount. (-100 - 100)") {
         args.push_back(CommandArg("volume", "int", "Volume").setRange(-100, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 class IncreaseVolumeCommand : public Command {
 public:
-    IncreaseVolumeCommand() : Command("Volume Increase") {
+    IncreaseVolumeCommand() : Command("Volume Increase", "Increases the volume by the given amount (0 - 100)") {
         args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 class DecreaseVolumeCommand : public Command {
 public:
-    DecreaseVolumeCommand() : Command("Volume Decrease") {
+    DecreaseVolumeCommand() : Command("Volume Decrease", "Decreases the volume by the given amount (0 - 100)") {
         args.push_back(CommandArg("volume", "int", "Volume").setRange(0, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

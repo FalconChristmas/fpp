@@ -58,13 +58,29 @@ std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::ve
 }
 
 std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string> &args) {
-    playlist->InsertPlaylistAsNext(args[0]);
+    int start = -1;
+    int end = -1;
+    if (args.size() > 1) {
+        start = std::atoi(args[1].c_str());
+    }
+    if (args.size() > 2) {
+        end = std::atoi(args[2].c_str());
+    }
+    playlist->InsertPlaylistAsNext(args[0], start - 1, end - 1);
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 
 
 std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<std::string> &args) {
-    playlist->InsertPlaylistImmediate(args[0]);
+    int start = -1;
+    int end = -1;
+    if (args.size() > 1) {
+        start = std::atoi(args[1].c_str());
+    }
+    if (args.size() > 2) {
+        end = std::atoi(args[2].c_str());
+    }
+    playlist->InsertPlaylistImmediate(args[0], start - 1, end - 1);
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 

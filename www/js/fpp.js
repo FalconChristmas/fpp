@@ -4064,7 +4064,6 @@ function PrintArgsInputsForEditable(tblCommand, configAdjustable, args, startCou
                    async: false,
                    success: function(data) {
                        if (Array.isArray(data)) {
-                            data.sort();
                             $.each( data, function( key, v ) {
                               var line = '<option value="' + v + '"';
                               if (v == dv) {
@@ -4284,7 +4283,6 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                    async: false,
                    success: function(data) {
                        if (Array.isArray(data)) {
-                            data.sort();
                             $.each( data, function( key, v ) {
                               var line = '<option value="' + v + '"'
                               if (v == dv) {

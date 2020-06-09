@@ -251,7 +251,7 @@ function loadCommands() {
            row += "</td><td>";
            var json = { "command": val["name"] };
            $.each(val["args"], function(key, arg) {
-                  row += arg["description"] + "&nbsp;(name: '" + arg["name"] + "',&nbsp;&nbsp;type: '" + arg["type"] + "')<br>";
+                  row += arg["description"].replace(/ /g, '&nbsp;') + "&nbsp;(name:&nbsp;'" + arg["name"] + "',&nbsp;&nbsp;type:&nbsp;'" + arg["type"] + "')<br>";
                   defaultForArg(arg, json);
                   });
            row += "</td><td><pre class='inputData'>";

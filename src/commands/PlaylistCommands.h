@@ -79,18 +79,22 @@ public:
 
 class InsertPlaylistCommand : public Command {
 public:
-    InsertPlaylistCommand() : Command("Insert Playlist After Current") {
+    InsertPlaylistCommand() : Command("Insert Playlist After Current", "After the current item of the currently running playlist is complete, run the new playlist.  When complete, resumes the original playlist at the next position.") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
                         .setContentListUrl("api/playlists/playable"));
+        args.push_back(CommandArg("startItem", "int", "Start Item Index", true).setRange(-1, 100).setDefaultValue("-1"));
+        args.push_back(CommandArg("endItem", "int", "End Item Index", true).setRange(-1, 100).setDefaultValue("-1"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 
 class InsertPlaylistImmediate : public Command {
 public:
-    InsertPlaylistImmediate() : Command("Insert Playlist Immediate") {
+    InsertPlaylistImmediate() : Command("Insert Playlist Immediate", "If possible, pauses the currently running playlist and then runs the new playlist.  When complete, resumes the original playlist where it was paused.") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
                         .setContentListUrl("api/playlists/playable"));
+        args.push_back(CommandArg("startItem", "int", "Start Item Index", true).setRange(0, 100).setDefaultValue("0"));
+        args.push_back(CommandArg("endItem", "int", "End Item Index", true).setRange(0, 100).setDefaultValue("0"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };

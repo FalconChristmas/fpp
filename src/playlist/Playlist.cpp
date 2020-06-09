@@ -690,6 +690,12 @@ int Playlist::Process(void)
             playlist->Start();
             return playlist->Process();
         }
+        if (m_stopAtPos <= (GetPosition() - 1)) {
+            LogDebug(VB_PLAYLIST, "Stopping after end position\n");
+            m_currentSection = nullptr;
+            SetIdle();
+            return 1;
+        }
 
         
         auto currentEntry = m_currentSection->at(m_sectionPosition);
@@ -812,7 +818,7 @@ int Playlist::Process(void)
 bool Playlist::SwitchToInsertedPlaylist() {
     if (m_insertedPlaylist != "") {
         Playlist *pl = new Playlist(this);
-        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduled);
+        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduled, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
         if (pl->IsPlaying()) {
             LogDebug(VB_PLAYLIST, "Switching to inserted playlist %s\n", m_insertedPlaylist.c_str());
@@ -918,30 +924,32 @@ int Playlist::Cleanup(void)
 }
 
 
-void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position) {
+void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position, 0, m_scheduled);
+        Play(filename.c_str(), position, 0, m_scheduled, endPosition);
     } else {
         m_insertedPlaylist = filename;
         m_insertedPlaylistPosition = position;
+        m_insertedPlaylistEndPosition = endPosition;
     }
 }
-void Playlist::InsertPlaylistImmediate(const std::string &filename, const int position) {
+void Playlist::InsertPlaylistImmediate(const std::string &filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position, 0, m_scheduled);
+        Play(filename.c_str(), position, 0, m_scheduled, endPosition);
     } else {
         Pause();
         m_insertedPlaylist = filename;
         m_insertedPlaylistPosition = position;
+        m_insertedPlaylistEndPosition = endPosition;
     }
 }
 
 /*
  *
  */
-int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduled)
+int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduled, const int endPosition)
 {
 	int hadToStop = 0;
 
@@ -1001,6 +1009,8 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
 	if (repeat >= 0)
 		SetRepeat(repeat);
+    
+    m_stopAtPos = endPosition;
 
 	m_status = FPP_STATUS_PLAYLIST_PLAYING;
     if (hadToStop) {

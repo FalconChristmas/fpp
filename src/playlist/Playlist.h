@@ -71,10 +71,10 @@ class Playlist {
 	void               ProcessMedia(void);
 	int                Cleanup(void);
 
-	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduled = 0);
+	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduled = 0, const int endPosition = -1);
     
-    void               InsertPlaylistAsNext(const std::string &filename, const int position = -1);
-    void               InsertPlaylistImmediate(const std::string &filename, const int position = -1);
+    void               InsertPlaylistAsNext(const std::string &filename, const int startPosition = -1, const int endPos = -1);
+    void               InsertPlaylistImmediate(const std::string &filename, const int startPosition = -1, const int endPos = -1);
 
 	void               SetPosition(int position);
 	void               SetRepeat(int repeat);
@@ -135,6 +135,7 @@ class Playlist {
 	int                  m_subPlaylistDepth;
 	int                  m_scheduled;
 	int                  m_forceStop;
+    int                  m_stopAtPos;
 
 	time_t               m_fileTime;
 	Json::Value          m_config;
@@ -149,7 +150,8 @@ class Playlist {
     
     std::string          m_insertedPlaylist;
     int                  m_insertedPlaylistPosition;
-    
+    int                  m_insertedPlaylistEndPosition;
+
 	std::recursive_mutex m_playlistMutex;
 
 	std::vector<PlaylistEntryBase*>  m_leadIn;
