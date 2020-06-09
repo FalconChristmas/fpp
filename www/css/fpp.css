@@ -460,17 +460,14 @@ fieldset
 .colPlaylistType {
 	text-align:left;
 	padding-left:5px;
-//	width: 10%;
 }
 .colPlaylistData1 {
 	text-align:center;
 	padding-left:5px;
-//	width: 40%;
 }
 .colPlaylistData2 {
 	text-align:left;
 	padding-left:5px;
-//	width: 40%;
 }
 
 
@@ -635,9 +632,7 @@ fieldset
 }
 
 #playlistDetailsContents{
-//	height:250px;
 	min-height:250px;
-//	max-height:220px;
 	overflow: auto;
 }
 
@@ -671,13 +666,6 @@ fieldset
 #tblPlaylistDetails {
 	 width:100%;
 }
-
-//.playlistEntriesBody > tr:nth-child(even) {
-//}
-
-//.playlistEntriesBody > tr:nth-child(odd) {
-//    background: #dddddd;
-//}
 
 .evenRow {
     background: #F0F0F0;
@@ -929,7 +917,6 @@ fieldset
 }
 
 .fppTable > tbody > tr {
-//    border: thin solid;
 }
 
 .fppTable > tbody > tr > td {
@@ -1395,222 +1382,132 @@ td.bgDarkOrange {
     cursor: pointer;
 }
 
+/* Default Font Awesome CSS for .php URLs */
+a[href*=".php"]:before{
+    font-family: "Font Awesome 5 Free" !important;
+    display: inline-block;
+    font-weight: 900;
+    text-align: center;
+    width: 2.5em;
+}
+
+/* .php URLs that use the default Font Awesome CSS and just need content */
 a[href="index.php"]:before{
    content: "\f129";
-   font-family: "Font Awesome\ 5 Free" !important;
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="networkconfig.php"]:not(.headerLink):before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f6ff";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="multisync.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f085";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="settings.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f013";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="backup.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f7c4";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="proxies.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f0ac";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="events.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f073";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="uploadfile.php?tab=4"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f0d0";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="effects.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f0d0";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="testing.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f46c";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="uploadfile.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f093";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="uploadfile.php?tab=0"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f093";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="uploadfile.php?tab=1"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f001";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="uploadfile.php?tab=2"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f03d";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="uploadfile.php?tab=5"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f70e";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="playlists.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f0cb";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="scheduler.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f017";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="scriptbrowser.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f70e";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="plugins.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f12e";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="channelinputs.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f542";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
    color:red;
 }
 a[href="channeloutputs.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f542";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
    color: green;
 }
 a[href="outputprocessors.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f2db";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="pixeloverlaymodels.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f1b3";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 1000;
 }
 a[href="gpio.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f362";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
-}
-a[href="https://falconchristmas.github.io/FPP_Manual.pdf"]:before{
-   font-family: "Font Awesome 5 Free" !important;
-   content: "\f02d";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="http://falconchristmas.com/wiki/index.php/Falcon_FPP"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f360";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="help.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f059";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="cliHelp.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f1cd";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="troubleshooting.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f121";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="about.php"]:not(.headerLink):before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f05a";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
 a[href="credits.php"]:before{
-   font-family: "Font Awesome 5 Free" !important;
    content: "\f550";
-   display: inline-block;
-   padding-right: 10px;
-   font-weight: 900;
 }
+
+/* Non-.php URLs that need the full Font Awesome CSS */
+a[href="api/help"]:before{
+    font-family: "Font Awesome 5 Free" !important;
+    content: "\f236";
+    display: inline-block;
+    font-weight: 900;
+    text-align: center;
+    width: 2.5em;
+}
+a[href$=":4200"]:before{
+    font-family: "Font Awesome 5 Free" !important;
+    content: "\f120";
+    display: inline-block;
+    font-weight: 900;
+    text-align: center;
+    width: 2.5em;
+}
+a[href="https://falconchristmas.github.io/FPP_Manual.pdf"]:before{
+    font-family: "Font Awesome 5 Free" !important;
+    content: "\f02d";
+    display: inline-block;
+    font-weight: 900;
+    text-align: center;
+    width: 2.5em;
+}
+
