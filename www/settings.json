@@ -480,8 +480,8 @@
         "LogLevel": {
             "name": "LogLevel",
             "description": "Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs.  It is recommended that the Log Level be set to 'Warn' on production systems",
-            "default": "warn",
+            "tip": "The Log Level controls the detail amount included in the FPP logs.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "default": "info",
             "type": "select",
             "options": {
                 "Warn": "warn",
