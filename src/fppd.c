@@ -582,10 +582,13 @@ int main(int argc, char *argv[])
 		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort",1883), getSetting("MQTTPrefix"));
 
 		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername"), getSetting("MQTTPassword"), getSetting("MQTTCaFile")))
-			exit(EXIT_FAILURE);
+		{
+        		LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
 
-		mqtt->Publish("version", getFPPVersion());
-		mqtt->Publish("branch", getFPPBranch());
+		} else {
+			mqtt->Publish("version", getFPPVersion());
+			mqtt->Publish("branch", getFPPBranch());
+		}
 	}
 
 	scheduler = new Scheduler();
