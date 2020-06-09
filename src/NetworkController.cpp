@@ -23,7 +23,7 @@
 
 #include "NetworkController.h"
 
-NetworkController::NetworkController(std::string &ipStr)
+NetworkController::NetworkController(const std::string &ipStr)
   :
     ip(ipStr),
     hostname(ipStr),
@@ -39,8 +39,8 @@ NetworkController::NetworkController(std::string &ipStr)
 {
 }
 
-NetworkController *NetworkController::DetectControllerViaHTML(std::string &ip,
-    std::string &html)
+NetworkController *NetworkController::DetectControllerViaHTML(const std::string &ip,
+    const std::string &html)
 {
     NetworkController *nc = new NetworkController(ip);
 
@@ -54,8 +54,8 @@ NetworkController *NetworkController::DetectControllerViaHTML(std::string &ip,
     return nullptr;
 }
 
-bool NetworkController::DetectFalconController(std::string &ip,
-    std::string &html)
+bool NetworkController::DetectFalconController(const std::string &ip,
+    const std::string &html)
 {
     LogExcess(VB_SYNC, "Checking if %s is a Falcon controller\n", ip.c_str());
 
@@ -108,8 +108,8 @@ bool NetworkController::DetectFalconController(std::string &ip,
     return false;
 }
 
-bool NetworkController::DetectSanDevicesController(std::string &ip,
-    std::string &html)
+bool NetworkController::DetectSanDevicesController(const std::string &ip,
+    const std::string &html)
 {
     LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", ip.c_str());
     std::regex re("Controller Model \\((E\\d+)\\)");

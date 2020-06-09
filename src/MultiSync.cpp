@@ -585,7 +585,7 @@ static size_t curl_write_data(void *ptr, size_t size, size_t nmemb, void *ourpoi
     return size * nmemb;
 }
 
-void MultiSync::StoreHTTPResponse(std::string *ipp, std::string data)
+void MultiSync::StoreHTTPResponse(std::string *ipp, const std::string &data)
 {
     std::string ip = *ipp;
     std::unique_lock<std::mutex> lock(m_httpResponsesLock);
@@ -598,7 +598,7 @@ void MultiSync::StoreHTTPResponse(std::string *ipp, std::string data)
     }
 }
 
-void MultiSync::DiscoverIPViaHTTP(std::string ip)
+void MultiSync::DiscoverIPViaHTTP(const std::string &ip)
 {
     LogDebug(VB_SYNC, "Checking HTTP response from %s\n", ip.c_str());
 

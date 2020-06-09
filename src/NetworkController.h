@@ -25,10 +25,10 @@
 
 class NetworkController {
   public:
-    NetworkController(std::string &ipStr);
+    NetworkController(const std::string &ipStr);
     ~NetworkController() {};
 
-    static NetworkController *DetectControllerViaHTML(std::string &ip, std::string &html);
+    static NetworkController *DetectControllerViaHTML(const std::string &ip, const std::string &html);
 
     std::string ip;
     std::string hostname;
@@ -43,8 +43,8 @@ class NetworkController {
     FPPMode systemMode;
 
   private:
-    bool DetectFalconController(std::string &ip, std::string &html);
-    bool DetectSanDevicesController(std::string &ip, std::string &html);
+    bool DetectFalconController(const std::string &ip, const std::string &html);
+    bool DetectSanDevicesController(const std::string &ip, const std::string &html);
 
     void DumpControllerInfo(void);
 };

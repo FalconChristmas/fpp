@@ -250,7 +250,7 @@ class MultiSync {
 
     static std::string GetTypeString(MultiSyncSystemType type, bool local = false);
 
-    void StoreHTTPResponse(std::string *ipp, std::string data);
+    void StoreHTTPResponse(std::string *ipp, const std::string &data);
 
   private:
     bool isSupportedForMultisync(const char *address, const char *intface);
@@ -276,7 +276,7 @@ class MultiSync {
 
     void PerformHTTPDiscovery(void);
     void DiscoverSubnetViaHTTP(std::string subnet);
-    void DiscoverIPViaHTTP(std::string ip);
+    void DiscoverIPViaHTTP(const std::string &ip);
 
 	void ProcessSyncPacket(ControlPkt *pkt, int len);
 	void ProcessCommandPacket(ControlPkt *pkt, int len);
