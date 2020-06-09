@@ -130,7 +130,7 @@ function showTestInputs(item) {
 
 var endpoints = {};
 function loadEndpoints() {
-    $.get('/api/endpoints.json', function(data) {
+    $.get('endpoints.json', function(data) {
         endpoints = data;
         var tables = [ 'endpoints' ];
         for (var t = 0; t < tables.length; t++) {
@@ -208,15 +208,69 @@ function loadEndpoints() {
     });
 }
 
+
+function defaultForArg(arg, json) {
+    if (typeof arg["default"] != "undefined") {
+        var def = arg["default"];
+        if (arg["type"] == "bool") {
+            json[arg["name"]] = def == "true";
+        } else if (arg["type"] == "int") {
+            json[arg["name"]] = parseInt(def);
+        } else {
+            json[arg["name"]] = def;
+        }
+    } else if (arg["type"] == "bool") {
+        json[arg["name"]] = false;
+    } else if (arg["type"] == "int") {
+        json[arg["name"]] = 0;
+    } else if (arg["type"] == "datalist") {
+        json[arg["name"]] = arg["description"];
+    } else {
+        json[arg["name"]] = arg["name"];
+    }
+}
+
+var commmands = {};
+function loadCommands() {
+    if (commandList == "") {
+        $.ajax({
+        dataType: "json",
+        url: "commands",
+        async: false,
+        success: function(data) {
+           commandList = data;
+        }
+        });
+    }
+    $.each( commandList, function(key, val) {
+           var row = "<tbody class='commandRow'><tr>";
+           row += "<td>" + val["name"] + "</td><td>";
+           if (typeof val["description"] != "undefined") {
+                row += val["description"] ;
+           }
+           row += "</td><td>";
+           var json = { "command": val["name"] };
+           $.each(val["args"], function(key, arg) {
+                  row += arg["description"] + "&nbsp;(name: '" + arg["name"] + "',&nbsp;&nbsp;type: '" + arg["type"] + "')<br>";
+                  defaultForArg(arg, json);
+                  });
+           row += "</td><td><pre class='inputData'>";
+           row += syntaxHighlight(JSON.stringify(json, null, 2));
+           row += "</pre></td></tr></tbody>";
+           $('#commands').append(row);
+    });
+}
+          
 $(document).ready(function() {
     loadEndpoints();
+    loadCommands();
 });
 
 </script>
 <link rel='stylesheet' href='../css/fpp.css' />
 <style>
 
-.endpointTable {
+.endpointTable .command {
     border-collapse: collapse;
 }
 
@@ -224,11 +278,15 @@ $(document).ready(function() {
     border-bottom: 2px solid #777777;
 }
 
+.commandTable tbody {
+    border-bottom: 2px solid #777777;
+}
+
 td {
 	vertical-align: top;
 }
 
-.endpoint {
+.endpoint .command {
 	white-space: nowrap;
 }
 
@@ -283,6 +341,17 @@ pre {
             <table class='endpointTable' id='endpoints' border=1 cellspacing=0 cellpadding=2 width='100%'>
                 <thead>
                     <tr><th>Endpoint</th><th>Method</th><th>Description</th><th>Input / Output</th></tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+    <h2>FPP Commands</h2>
+<b>NOTE: FPPD Commands are require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/Command" endpoint listed above.</b><br>
+    <div class='fppTableWrapper fppTableWrapperAsTable'>
+        <div class='fppTableContents'>
+            <table class='commandTable' id='commands' border=1 cellspacing=0 cellpadding=2 width='100%'>
+                <thead>
+                    <tr><th>Command</th><th>Description</th><th>Arguments</th><th>Example POST</th></tr>
                 </thead>
             </table>
         </div>

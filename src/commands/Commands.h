@@ -25,6 +25,7 @@
 class Command {
 public:
     Command(const std::string &n);
+    Command(const std::string &n, const std::string &descript);
     virtual ~Command();
     
     virtual Json::Value getDescription();
@@ -89,6 +90,7 @@ public:
     
     std::string name;
     std::list<CommandArg> args;
+    std::string description;
 };
 
 

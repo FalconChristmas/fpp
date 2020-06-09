@@ -7,15 +7,19 @@
 #include "MultiSync.h"
 
 CommandManager CommandManager::INSTANCE;
-Command::Command(const std::string &n) : name(n) {
+Command::Command(const std::string &n) : name(n), description("") {
 }
-
+Command::Command(const std::string &n, const std::string &descript) : name(n), description(descript) {
+}
 Command::~Command() {
 }
 
 Json::Value Command::getDescription() {
     Json::Value cmd;
     cmd["name"] = name;
+    if (description != "") {
+        cmd["description"] = description;
+    }
     for (auto &ar : args) {
         Json::Value a;
         a["name"] = ar.name;
