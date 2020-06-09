@@ -576,7 +576,7 @@ void MultiSync::PerformHTTPDiscovery()
 
 static size_t curl_write_data(void *ptr, size_t size, size_t nmemb, void *ourpointer)
 {
-    LogExcess(VB_SYNC, "write_data(%p, %d, %d, %p, '%s')\n", ptr, size, nmemb, ourpointer, ((std::string*)ourpointer)->c_str());
+    LogExcess(VB_SYNC, "write_data(%p, %d, %d, %p)\n", ptr, size, nmemb, ourpointer);
 
     std::string data((char *)ptr, size * nmemb);
 
@@ -658,6 +658,8 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
     struct in_addr ia;
     char ip[16];
     char url[24];
+    
+    ipList.resize(ips);
     for (int i = 0; i < ips; i++) {
         ia.s_addr = ntohl(firstIP + i);
         strcpy(ip, inet_ntoa(ia));
@@ -665,7 +667,7 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
 
         handles[i] = curl_easy_init();
 
-        ipList.push_back(ip);
+        ipList[i] = ip;
 
         sprintf(url, "http://%s/", ip);
         curl_easy_setopt(handles[i], CURLOPT_URL, url);
