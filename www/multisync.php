@@ -396,6 +396,8 @@ input.remoteCheckbox {
 
                     if (settings['fppMode'] == 'master')
                         fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
+                } else if (data[i].fppMode == 'unknown') {
+                    fppMode = 'Unknown';
                 }
 
                 rowSpans[rowID] = 1;

@@ -190,6 +190,8 @@ char *modeToString(int mode)
 		return strdup("master");
 	else if ( mode == REMOTE_MODE )
 		return strdup("remote");
+	else if ( mode == UNKNOWN_MODE )
+		return strdup("unknown");
 	
 	return NULL;
 }
