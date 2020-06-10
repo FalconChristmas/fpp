@@ -798,10 +798,10 @@ std::string getSimpleHTMLTTag(const std::string &html, const std::string &search
     std::size_t fEnd;
 
     if (fStart != std::string::npos) {
-        tStr = html.substr(fStart);
+        tStr = html.substr(fStart + searchStr.size());
         fStart = tStr.find(skipStr);
         if (fStart != std::string::npos) {
-            fStart += 2;
+            fStart += skipStr.size();
             fEnd = tStr.substr(fStart).find(endStr);
             fEnd += fStart;
             if (fEnd > fStart) {
@@ -847,7 +847,7 @@ size_t urlWriteData(void *buffer, size_t size, size_t nmemb, void *userp)
 	return size * nmemb;
 }
 
-bool urlHelper(const std::string method, const std::string &url, const std::string &data, std::string &resp)
+bool urlHelper(const std::string method, const std::string &url, const std::string &data, std::string &resp, const unsigned int timeout)
 {
 	CURL *curl = curl_easy_init();
 	struct curl_slist *headers = NULL;
@@ -901,7 +901,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 		}
 	}
 
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
 
 	if (method == "POST")
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -927,10 +927,10 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 	return true;
 }
 
-bool urlHelper(const std::string method, const std::string &url, std::string &resp)
+bool urlHelper(const std::string method, const std::string &url, std::string &resp, const unsigned int timeout)
 {
 	std::string data;
-	return urlHelper(method, url, data, resp);
+	return urlHelper(method, url, data, resp, timeout);
 }
 
 bool urlGet(const std::string url, std::string &resp)
