@@ -77,6 +77,11 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string &model,
                              const std::string &ranges,
                              const bool multiSync) {
+    // If this record is from info learned via the MultiSync protocol,
+    // don't allow it to be overwritten by data discovered elsewhere
+    if (this->multiSync && !multiSync)
+        return;
+
     this->type         = type;
     this->majorVersion = majorVersion;
     this->minorVersion = minorVersion;
@@ -220,7 +225,9 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     bool found = false;
     for (auto & sys : m_remoteSystems) {
         if ((address == sys.address) &&
-            (hostname == sys.hostname)) {
+            ((hostname == sys.hostname) ||
+             (address == sys.hostname) ||
+             (hostname == sys.address))) {
             found = true;
             sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, multiSync);
             sys.lastSeenStr = timeStr;
