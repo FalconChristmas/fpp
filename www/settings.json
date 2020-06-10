@@ -726,7 +726,7 @@
         },
         "MultiSyncHTTPSubnets": {
             "name": "MultiSyncHTTPSubnets",
-            "description": "Subnets to scan using HTTP (CSV list)",
+            "description": "HTTP Discovery subnet list (CSV)",
             "tip": "List of comma separated subnets or IPs to scan looking for network attached pixel controllers.  Individual IPs may be listed as either A.B.C.D/32 or just A.B.C.D.  Subnets are listed as A.B.C.D/X.",
             "type": "text",
             "level": 1,
