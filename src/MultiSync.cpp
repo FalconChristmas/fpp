@@ -75,7 +75,8 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string &hostname,
                              const std::string &version,
                              const std::string &model,
-                             const std::string &ranges) {
+                             const std::string &ranges,
+                             const bool multiSync) {
     this->type         = type;
     this->majorVersion = majorVersion;
     this->minorVersion = minorVersion;
@@ -90,6 +91,9 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     this->ipb = atoi(parts[1].c_str());
     this->ipc = atoi(parts[2].c_str());
     this->ipd = atoi(parts[3].c_str());
+
+    if (!this->multiSync && multiSync)
+        this->multiSync = true;
 }
 
 Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
@@ -113,6 +117,8 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     system["version"]      = version;
     system["model"]        = model;
     system["channelRanges"] = ranges;
+
+    system["multiSyncCapable"] = multiSync ? 1 : 0;
 
     return system;
 }
@@ -192,13 +198,14 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
                              const std::string &hostname,
                              const std::string &version,
                              const std::string &model,
-                             const std::string &ranges
+                             const std::string &ranges,
+                             const bool multiSync
                              )
 {
-    LogDebug(VB_SYNC, "UpdateSystem(%d, %u, %u, %d, '%s', '%s', '%s', '%s', '%s')\n",
+    LogDebug(VB_SYNC, "UpdateSystem(%d, %u, %u, %d, '%s', '%s', '%s', '%s', '%s', %s)\n",
         (int)type, majorVersion, minorVersion, (int)fppMode,
         address.c_str(), hostname.c_str(), version.c_str(), model.c_str(),
-        ranges.c_str());
+        ranges.c_str(), multiSync ? "true" : "false");
 
     char timeStr[32];
     memset(timeStr, 0, sizeof(timeStr));
@@ -209,13 +216,13 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
         tm.tm_hour, tm.tm_min, tm.tm_sec);
     
-    std::unique_lock<std::mutex> lock(m_systemsLock);
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     bool found = false;
     for (auto & sys : m_remoteSystems) {
         if ((address == sys.address) &&
             (hostname == sys.hostname)) {
             found = true;
-            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges);
+            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, multiSync);
             sys.lastSeenStr = timeStr;
             sys.lastSeen = t;
         }
@@ -224,14 +231,14 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         if ((address == sys.address) &&
             (hostname == sys.hostname)) {
             found = true;
-            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges);
+            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, multiSync);
             sys.lastSeen = t;
             sys.lastSeenStr = timeStr;
         }
     }
     if (!found) {
         MultiSyncSystem sys;
-        sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges);
+        sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, multiSync);
         sys.lastSeenStr = timeStr;
         sys.lastSeen = t;
         m_remoteSystems.push_back(sys);
@@ -355,7 +362,7 @@ bool MultiSync::FillLocalSystemInfo(void)
     LogDebug(VB_SYNC, "Model: %s\n", newSystem.model.c_str());
     
     bool changed = false;
-    std::unique_lock<std::mutex> lock(m_systemsLock);
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     
     for (auto address : addresses) {
         bool found = false;
@@ -535,7 +542,7 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
     const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
     std::string range = createRanges(ranges, 999999);
 
-    std::unique_lock<std::mutex> lock(m_systemsLock);
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     for (auto &sys : m_localSystems) {
         sys.ranges = range;
         systems.append(sys.toJSON(true, timestamps));
@@ -553,13 +560,30 @@ void MultiSync::Discover()
 {
     Ping(1);
 
-    if (getSettingInt("MultiSyncHTTPDiscovery", 0))
-        PerformHTTPDiscovery();
+    PerformHTTPDiscovery();
 }
 
 void MultiSync::PerformHTTPDiscovery()
 {
     std::string subnetsStr = getSetting("MultiSyncHTTPSubnets");
+
+    Json::Value outputs = LoadJsonFromFile("/home/fpp/media/config/co-universes.json");
+    if (outputs.isMember("channelOutputs")) {
+        for (int co = 0; co < outputs["channelOutputs"].size(); co++) {
+            if (outputs["channelOutputs"][co].isMember("universes")) {
+                for (int i = 0; i < outputs["channelOutputs"][co]["universes"].size(); i++) {
+                    if (outputs["channelOutputs"][co]["universes"][i].isMember("address")) {
+                        std::string ip = outputs["channelOutputs"][co]["universes"][i]["address"].asString();
+                        if (subnetsStr != "") {
+                            subnetsStr += ",";
+                        }
+                        subnetsStr += ip;
+                    }
+                }
+            }
+        }
+    }
+
     if (subnetsStr != "") {
         std::vector<std::string> tokens = split(subnetsStr, ',');
         std::set<std::string> subnets;
@@ -598,7 +622,7 @@ void MultiSync::StoreHTTPResponse(std::string *ipp, const std::string &data)
     }
 }
 
-void MultiSync::DiscoverIPViaHTTP(const std::string &ip)
+void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
 {
     LogDebug(VB_SYNC, "Checking HTTP response from %s\n", ip.c_str());
 
@@ -618,8 +642,10 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip)
     if (nc) {
         UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
             nc->systemMode, nc->ip, nc->hostname, nc->version,
-            nc->typeStr, nc->ranges);
+            nc->typeStr, nc->ranges, false);
         delete nc;
+    } else if (allowUnknown) {
+        UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, ip, ip, "Unknown", "Unknown", "0-0", false);
     }
 
 }
@@ -668,6 +694,7 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
         handles[i] = curl_easy_init();
 
         ipList[i] = ip;
+        m_httpResponses.erase(ipList[i]);
 
         sprintf(url, "http://%s/", ip);
         curl_easy_setopt(handles[i], CURLOPT_URL, url);
@@ -677,6 +704,7 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
         curl_easy_setopt(handles[i], CURLOPT_PRIVATE, &ipList[i]);
         curl_easy_setopt(handles[i], CURLOPT_WRITEFUNCTION, curl_write_data);
         curl_easy_setopt(handles[i], CURLOPT_WRITEDATA, &ipList[i]);
+        curl_easy_setopt(handles[i], CURLOPT_ACCEPT_ENCODING, "");
     }
 
     multi_handle = curl_multi_init();
@@ -718,7 +746,7 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
 
                 LogExcess(VB_SYNC, "IP index %d (%s) completed with %d status, code: %d, IP: %s\n", idx, ipList[idx].c_str(), msg->data.result, respCode, respIP->c_str());
 
-                DiscoverIPViaHTTP(*respIP);
+                DiscoverIPViaHTTP(*respIP, prefix == 32);
             }
         }
     }
@@ -748,7 +776,7 @@ void MultiSync::Ping(int discover, bool broadcast)
     std::string range = createRanges(ranges, 120);
     char outBuf[768];
     
-    std::unique_lock<std::mutex> lock(m_systemsLock);
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     for (auto & sys : m_localSystems) {
         memset(outBuf, 0, sizeof(outBuf));
         sys.ranges = range;
@@ -785,7 +813,7 @@ void MultiSync::PeriodicPing() {
     if (lpt < (unsigned long)t) {
         //once an hour, we'll send a ping letting everyone know we're still here
         //mark ourselves as seen
-        std::unique_lock<std::mutex> lock(m_systemsLock);
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
         for (auto &sys : m_localSystems) {
             sys.lastSeen = (unsigned long)t;
         }
@@ -803,17 +831,44 @@ void MultiSync::PeriodicPing() {
         //have caused at least 4 pings to have been sent.  If it has responded
         //to any of those 4, it's got to be down/gone.   Remove it.
         unsigned long timeoutRemove = (unsigned long)t - 60*120;
-        std::unique_lock<std::mutex> lock(m_systemsLock);
+        std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
         for (auto it = m_remoteSystems.begin(); it != m_remoteSystems.end(); ) {
             if (it->lastSeen < timeoutRemove) {
                 LogInfo(VB_SYNC, "Have not seen %s in over 2 hours, removing\n", it->address.c_str());
                 m_remoteSystems.erase(it);
             } else if (it->lastSeen < timeoutRePing) {
-                //do a ping
-                PingSingleRemote(*it, 1);
+                if (it->multiSync) {
+                    PingSingleRemote(*it, 1);
+                } else {
+                    PingSingleRemoteViaHTTP(it->address);
+                }
+
                 ++it;
             } else {
                 ++it;
+            }
+        }
+    }
+}
+
+void MultiSync::PingSingleRemoteViaHTTP(const std::string &address) {
+    std::string url("http://");
+    std::string resp;
+
+    url += address;
+
+    if (urlHelper("GET", url, resp, 1)) {
+        if (resp != "") {
+            NetworkController *nc = NetworkController::DetectControllerViaHTML(address.c_str(), resp);
+
+            if (nc) {
+                UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
+                    nc->systemMode, nc->ip, nc->hostname, nc->version,
+                    nc->typeStr, nc->ranges, false);
+                delete nc;
+            } else {
+                UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, address,
+                    address, "Unknown", "Unknown", "0-0", false);
             }
         }
     }
@@ -2167,7 +2222,8 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 
     if (isInstance) {
         multiSync->UpdateSystem(type, majorVersion, minorVersion,
-                                systemMode, address, hostname, version, typeStr, ranges);
+                                systemMode, address, hostname, version,
+                                typeStr, ranges, true);
     }
     if (discover) {
         bool isLocal = false;

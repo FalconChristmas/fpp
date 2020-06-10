@@ -48,6 +48,8 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
         return nc;
     if (nc->DetectSanDevicesController(ip, html))
         return nc;
+    if (nc->DetectESPixelStickController(ip, html))
+        return nc;
 
     delete nc;
 
@@ -150,6 +152,46 @@ bool NetworkController::DetectSanDevicesController(const std::string &ip,
     return false;
 }
 
+bool NetworkController::DetectESPixelStickController(const std::string &ip,
+    const std::string &html)
+{
+    LogExcess(VB_SYNC, "Checking if %s is running ESPixelStick firmware\n", ip.c_str());
+
+    std::regex re("\"esps.js\"");
+    std::cmatch m;
+
+    if (!std::regex_search(html.c_str(), m, re))
+        return false;
+
+    LogExcess(VB_SYNC, "%s is potentially an ESPixelStick, checking further\n", ip.c_str());
+
+    vendor = "ESPixelStick";
+    vendorURL = "https://forkineye.com";
+    typeId = kSysTypeESPixelStick;
+    typeStr = "ESPixelStick";
+    systemMode = BRIDGE_MODE;
+
+    std::string url = ip + "/conf";
+    std::string resp;
+
+    if (urlGet(url, resp)) {
+        Json::Value config = LoadJsonFromString(resp);
+        if (config.isMember("network")) {
+            if (config["network"].isMember("hostname")) {
+                hostname = config["network"]["hostname"].asString();
+            }
+        }
+
+        if (hostname != "") {
+            DumpControllerInfo();
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void NetworkController::DumpControllerInfo(void)
 {
     LogDebug(VB_SYNC, "Network Controller Info:\n"
@@ -166,6 +208,6 @@ void NetworkController::DumpControllerInfo(void)
         "System Mode     : %s\n",
         ip.c_str(), hostname.c_str(), vendor.c_str(), vendorURL.c_str(),
         (int)typeId, typeStr.c_str(), ranges.c_str(), version.c_str(),
-        majorVersion, minorVersion, getFPPmodeStr().c_str());
+        majorVersion, minorVersion, getFPPmodeStr(systemMode).c_str());
 }
 

@@ -119,6 +119,7 @@ public:
     }
 	unsigned long        lastSeen = 0;
 	std::string          lastSeenStr;
+    bool                 multiSync = false;
 	MultiSyncSystemType  type = kSysTypeUnknown;
 	unsigned int         majorVersion = 0;
 	unsigned int         minorVersion = 0;
@@ -141,7 +142,8 @@ public:
                 const std::string &hostname,
                 const std::string &version,
                 const std::string &model,
-                const std::string &ranges);
+                const std::string &ranges,
+                const bool multiSync);
     Json::Value toJSON(bool local, bool timestamps);
 };
 
@@ -203,7 +205,8 @@ class MultiSync {
                       const std::string &hostname,
                       const std::string &version,
                       const std::string &model,
-                      const std::string &range);
+                      const std::string &range,
+                      const bool multiSync);
 
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
 
@@ -257,6 +260,7 @@ class MultiSync {
     
     void setupMulticastReceive();
     void PingSingleRemote(MultiSyncSystem &sys, int discover = 0);
+    void PingSingleRemoteViaHTTP(const std::string &address);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
 
 	MultiSyncSystemType ModelStringToType(std::string model);
@@ -276,7 +280,7 @@ class MultiSync {
 
     void PerformHTTPDiscovery(void);
     void DiscoverSubnetViaHTTP(std::string subnet);
-    void DiscoverIPViaHTTP(const std::string &ip);
+    void DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown = false);
 
 	void ProcessSyncPacket(ControlPkt *pkt, int len);
 	void ProcessCommandPacket(ControlPkt *pkt, int len);
@@ -285,7 +289,7 @@ class MultiSync {
     void ProcessPluginPacket(ControlPkt *pkt, int len);
     void ProcessFPPCommandPacket(ControlPkt *pkt, int len);
 
-	std::mutex                   m_systemsLock;
+	std::recursive_mutex         m_systemsLock;
 	std::vector<MultiSyncSystem> m_localSystems;
     std::vector<MultiSyncSystem> m_remoteSystems;
 
