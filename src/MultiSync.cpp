@@ -606,25 +606,19 @@ void MultiSync::PerformHTTPDiscovery()
 static size_t curl_write_data(void *ptr, size_t size, size_t nmemb, void *ourpointer)
 {
     LogExcess(VB_SYNC, "write_data(%p, %d, %d, %p)\n", ptr, size, nmemb, ourpointer);
-
-    std::string data((char *)ptr, size * nmemb);
-
-    multiSync->StoreHTTPResponse((std::string*)ourpointer, data);
+    multiSync->StoreHTTPResponse((std::string*)ourpointer, (uint8_t*)ptr, size * nmemb);
 
     return size * nmemb;
 }
 
-void MultiSync::StoreHTTPResponse(std::string *ipp, const std::string &data)
+void MultiSync::StoreHTTPResponse(std::string *ipp, uint8_t *data, int sz)
 {
     std::string ip = *ipp;
     std::unique_lock<std::mutex> lock(m_httpResponsesLock);
 
-    auto search = m_httpResponses.find(ip);
-    if (search != m_httpResponses.end()) {
-        m_httpResponses[ip] = m_httpResponses[ip] + data;
-    } else {
-        m_httpResponses[ip] = data;
-    }
+    int pos = m_httpResponses[ip].size();
+    m_httpResponses[ip].resize(m_httpResponses[ip].size() + sz);
+    memcpy(&m_httpResponses[ip][pos], data, sz);
 }
 
 void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
@@ -637,8 +631,16 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
         LogErr(VB_SYNC, "Error, no value in m_httpResponses for %s IP\n", ip.c_str());
         return;
     }
-
-    std::string data = search->second;
+    /*
+    // if you need to debug thing, uncomment this.  Any \r in the string
+    // will likely make a printf("%s") not work as each "line" will overwrite itself
+    for (int x = 0; x < search->second.size(); x++) {
+        if (search->second[x] == '\n' || search->second[x] == '\r') {
+            search->second[x] = ' ';
+        }
+    }
+    */
+    std::string data((char *)&search->second[0], search->second.size());
 
     lock.unlock();
 
@@ -746,7 +748,7 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
 
             curl_easy_getinfo(handles[idx], CURLINFO_RESPONSE_CODE, &respCode);
 
-            if (respCode == 200) {
+            if (respCode == 200 || (msg->data.result == 0 && respCode == 0)) {
                 curl_easy_getinfo(handles[idx], CURLINFO_PRIVATE, &respIP);
 
                 LogExcess(VB_SYNC, "IP index %d (%s) completed with %d status, code: %d, IP: %s\n", idx, ipList[idx].c_str(), msg->data.result, respCode, respIP->c_str());

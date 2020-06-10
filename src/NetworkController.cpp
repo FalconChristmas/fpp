@@ -44,6 +44,14 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
 {
     NetworkController *nc = new NetworkController(ip);
 
+    if (nc->DetectFPP(ip, html)) {
+        //for now, short circuit if we know it's a FPP instance
+        //as we should be able to potentially detect these via
+        //multisync
+        delete nc;
+        return nullptr;
+    }
+    
     if (nc->DetectFalconController(ip, html))
         return nc;
     if (nc->DetectSanDevicesController(ip, html))
@@ -54,6 +62,9 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
     delete nc;
 
     return nullptr;
+}
+bool NetworkController::DetectFPP(const std::string &ip, const std::string &html) {
+    return html.find("Falcon Player - FPP") != std::string::npos;
 }
 
 bool NetworkController::DetectFalconController(const std::string &ip,
@@ -114,7 +125,7 @@ bool NetworkController::DetectSanDevicesController(const std::string &ip,
     const std::string &html)
 {
     LogExcess(VB_SYNC, "Checking if %s is a SanDevices controller\n", ip.c_str());
-    std::regex re("Controller Model \\((E\\d+)\\)");
+    std::regex re("Controller Model (E[0-9]+)");
     std::cmatch m;
 
     if (!std::regex_search(html.c_str(), m, re))

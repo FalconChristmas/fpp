@@ -46,6 +46,7 @@ class NetworkController {
     bool DetectFalconController(const std::string &ip, const std::string &html);
     bool DetectSanDevicesController(const std::string &ip, const std::string &html);
     bool DetectESPixelStickController(const std::string &ip, const std::string &html);
+    bool DetectFPP(const std::string &ip, const std::string &html);
 
     void DumpControllerInfo(void);
 };

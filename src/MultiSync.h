@@ -253,7 +253,7 @@ class MultiSync {
 
     static std::string GetTypeString(MultiSyncSystemType type, bool local = false);
 
-    void StoreHTTPResponse(std::string *ipp, const std::string &data);
+    void StoreHTTPResponse(std::string *ipp, uint8_t *data, int sz);
 
   private:
     bool isSupportedForMultisync(const char *address, const char *intface);
@@ -331,7 +331,7 @@ class MultiSync {
     struct sockaddr_storage rcvSrcAddr[MAX_MS_RCV_MSG];
 
 	std::mutex                         m_httpResponsesLock;
-    std::map<std::string, std::string> m_httpResponses;
+    std::map<std::string, std::vector<uint8_t>> m_httpResponses;
 };
 
 extern MultiSync *multiSync;
