@@ -600,8 +600,6 @@ void MultiSync::PerformHTTPDiscovery()
                 DiscoverSubnetViaHTTP(token);
             }
         }
-    } else {
-        LogWarn(VB_SYNC, "MultiSyncHTTPDiscovery turned on, but no subnets listed\n");
     }
 }
 

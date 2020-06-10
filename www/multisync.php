@@ -989,7 +989,6 @@ PrintSetting('MultiSyncHide172', 'getFPPSystems');
 PrintSetting('MultiSyncHide192', 'getFPPSystems');
 PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');
 PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
-PrintSetting('MultiSyncHTTPDiscovery');
 PrintSetting('MultiSyncHTTPSubnets');
 ?>
             </table>

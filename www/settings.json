@@ -724,19 +724,6 @@
             "tip": "Hide subnets in private 192.168.0.0/16 IP space.",
             "type": "checkbox"
         },
-        "MultiSyncHTTPDiscovery": {
-            "name": "MultiSyncHTTPDiscovery",
-            "description": "Discover network controllers via HTTP",
-            "tip": "Scan a list of subnets for HTTP servers to auto detect network attached pixel controllers",
-            "type": "checkbox",
-            "level": 1,
-            "restart": 2,
-            "children": {
-                "1": [
-                    "MultiSyncHTTPSubnets"
-                ]
-            }
-        },
         "MultiSyncHTTPSubnets": {
             "name": "MultiSyncHTTPSubnets",
             "description": "Subnets to scan using HTTP (CSV list)",
