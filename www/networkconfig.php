@@ -90,12 +90,6 @@ function checkStaticIP()
 			var gateway = $('#eth_ip').val().replace(/\.\d+$/, ".1");
 			$('#eth_gateway').val(gateway);
 		}
-		if ($('#dns1').val() == "") {
-			$('#dns1').val("8.8.8.8");
-		}
-		if ($('#dns2').val() == "") {
-			$('#dns2').val("1.1.1.1");
-		}
 	}
 }
 
