@@ -19,7 +19,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 <title><? echo $pageTitle; ?></title>
 <style>
-input.remoteCheckbox {
+input.largeCheckbox {
     -ms-transform: scale(2); /* IE */
     -moz-transform: scale(2); /* FF */
     -webkit-transform: scale(2); /* Safari and Chrome */
@@ -83,18 +83,31 @@ input.remoteCheckbox {
 
 	}
 
-    function platformIsFPP(platform) {
-        if (platform && !platform.includes("FPP") &&
-            (platform.toLowerCase().includes("unknown")
-             || platform == "xSchedule"
-             || platform == "xLights"
-             || platform.includes("Falcon ")
-             || platform == "SanDevices"
-             || platform == "ESPixelStick")) {
-            return false;
-        }
+    function isFPP(typeId) {
+        typeId = parseInt(typeId);
 
-        return true;
+        if (typeId >= 0x01 && typeId < 0x80)
+            return true;
+
+        return false;
+    }
+
+    function isFalconController(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId & 0x80)
+            return true;
+
+        return false;
+    }
+
+    function isESPixelStick(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId == 0xC2)
+            return true;
+
+        return false;
     }
 
     function getLocalVersionLink(ip, data) {
@@ -363,7 +376,7 @@ input.remoteCheckbox {
 
                 $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].IP));
 
-                if (platformIsFPP(data[i].Platform)) {
+                if (isFPP(data[i].typeId)) {
                     getFPPSystemStatus(ip, false);
                     getFPPSystemInfo(ip);
                 }
@@ -403,8 +416,8 @@ input.remoteCheckbox {
                 rowSpans[rowID] = 1;
 
                 var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
-                var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "'>" +
-                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
+                var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "' class='systemRow'>" +
+                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small><span class='hidden typeId'>" + data[i].typeId + "</span></td>" +
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
                     "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
                     "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
@@ -415,7 +428,7 @@ input.remoteCheckbox {
                 var majorVersion = parseInt(versionParts[0]);
 
                 if ((advancedView === true) &&
-                    (platformIsFPP(data[i].Platform))) {
+                    (isFPP(data[i].typeId))) {
                     newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
                 } else {
                     newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
@@ -427,9 +440,9 @@ input.remoteCheckbox {
                         "<td id='advancedViewUtilization_" + rowID + "'></td>";
 
                     newRow += "<td class='centerCenter'>";
-                    if ((platformIsFPP(data[i].Platform)) &&
+                    if ((isFPP(data[i].typeId)) &&
                         (majorVersion >= 4))
-                        newRow += "<input type='checkbox' class='remoteCheckbox' name='" + data[i].IP + "'>";
+                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox' name='" + data[i].IP + "'>";
 
                     newRow += "</td>";
                 }
@@ -445,14 +458,14 @@ input.remoteCheckbox {
                 newRow = "<tr id='" + rowID + "_logs' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanSet(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
                 $('#fppSystems').append(newRow);
 
-                if (platformIsFPP(data[i].Platform)) {
+                if (isFPP(data[i].typeId)) {
                     getFPPSystemStatus(ip, false);
                     getFPPSystemInfo(ip);
-                } else if ((data[i].Platform == 'ESPixelStick') &&
+                } else if ((isESPixelStick(data[i].typeId)) &&
                     (data[i].fppMode == 'bridge') &&
                     (majorVersion >= 3)) {
                     getESPixelStickBridgeStatus(ip);
-                } else if (data[i].Platform.indexOf("Falcon ") == 0) {
+                } else if (isFalconController(data[i].typeId)) {
                     getFalconControllerStatus(ip);
                 }
             }
@@ -615,15 +628,17 @@ function RefreshStats() {
     for (var i = 0; i < keys.length; i++) {
         var rowID = hostRows[keys[i]];
         var ip = ipFromRowID(rowID);
-        var platform = $('#' + rowID + '_platform').html();
         var mode = $('#' + rowID + '_mode').html();
 
-        if (platformIsFPP(platform)) {
+        var typeId = $('#' + rowID).find('.typeId').html();
+        if (isFPP(typeId)) {
             getFPPSystemStatus(ip, true);
             getFPPSystemInfo(ip);
-        } else if ((platform == 'ESPixelStick') &&
+        } else if (isESPixelStick(typeId) &&
             (mode == 'Bridge')) {
             getESPixelStickBridgeStatus(ip);
+        } else if (isFalconController(typeId)) {
+            getFalconControllerStatus(ip);
         }
     }
 }
@@ -755,6 +770,9 @@ function upgradeSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
             var origin = $('#' + rowID + '_origin').html();
             var originRowID = "fpp_" + origin.replace(/\./g, '_');
             if ((origin != '') &&
@@ -772,6 +790,9 @@ function upgradeSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
             var ip = ipFromRowID(rowID);
 
             if (origins.hasOwnProperty(ip)) {
@@ -783,6 +804,9 @@ function upgradeSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
             var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
 
             var origin = $('#' + rowID + '_origin').html();
             var originRowID = "fpp_" + origin.replace(/\./g, '_');
@@ -833,9 +857,12 @@ function restartSystem(rowID) {
 function restartSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
-	        $(this).prop('checked', false);
             var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
 
+            $(this).prop('checked', false);
             restartSystem(rowID);
         }
     });
@@ -855,9 +882,12 @@ function copyFilesToSystem(rowID) {
 function copyFilesToSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
-	        $(this).prop('checked', false);
             var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
 
+            $(this).prop('checked', false);
             copyFilesToSystem(rowID);
         }
     });
@@ -884,7 +914,34 @@ function copyFailed(id) {
 }
 
 function clearSelected() {
-	$('input.remoteCheckbox').prop('checked', false);
+    // clear all entries, even if filtered
+    $('input.remoteCheckbox').prop('checked', false);
+}
+
+function selectAll() {
+    // select all entries that are not filtered out of view
+    $('input.remoteCheckbox').each(function() {
+        var rowID = $(this).closest('tr').attr('id');
+        if (!$('#' + rowID).hasClass('filtered')) {
+            $(this).prop('checked', true);
+        }
+    });
+}
+
+function selectAllChanged() {
+    if ($('#selectAllCheckbox').is(":checked")) {
+        selectAll();
+    } else {
+        clearSelected();
+    }
+}
+
+function closeAllLogs() {
+    $('.systemRow').each(function() {
+        var rowID = $(this).attr('id');
+        $('#' + rowID + '_logs').hide();
+        rowSpanSet(rowID);
+    });
 }
 
 function performMultiAction() {
@@ -935,7 +992,7 @@ function multiActionChanged() {
 							?>
                             <th data-sorter='false' data-filter='false'>Git Versions</th>
                             <th data-sorter='false' data-filter='false'>Utilization</th>
-                            <th data-sorter='false' data-filter='false'>Select</th>
+                            <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox' onChange='selectAllChanged();' /></th>
                         <?php
                     }
                     ?>

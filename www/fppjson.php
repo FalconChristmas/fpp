@@ -770,6 +770,7 @@ function GetFPPSystems()
         $elem['fppMode'] = $system['fppModeString'];
         $elem['Local'] = 0;
         $elem['Platform'] = $system['type'];
+        $elem['typeId'] = $system['typeId'];
         $elem['majorVersion'] = $system['majorVersion'];
         $elem['minorVersion'] = $system['minorVersion'];
         $elem['model'] = $system['model'];

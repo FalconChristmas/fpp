@@ -105,6 +105,7 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     Json::Value system;
 
     system["type"] = MultiSync::GetTypeString(type, local);
+    system["typeId"] = (int)type;
     if (timestamps) {
         system["lastSeen"]     = (Json::UInt64)lastSeen;
         system["lastSeenStr"]  = lastSeenStr;
