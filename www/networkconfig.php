@@ -251,10 +251,14 @@ function SaveNetworkConfig()
 	var postData = "command=setInterfaceInfo&data=" + JSON.stringify(data);
 
 	$.post("fppjson.php", postData
-	).done(function(data) {
+	).done(function(rc) {
 		LoadNetworkConfig();
 		$.jGrowl(iface + " network interface configuration saved");
 		$('#btnConfigNetwork').show();
+
+		if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
+			DialogOK("Check DNS", "Don't forget to set a DNS IP address. Recommend using 8.8.8.8 is not sure.")
+		}
 	}).fail(function() {
 		DialogError("Save Network Config", "Save Failed");
 	});
