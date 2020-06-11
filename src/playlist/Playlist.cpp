@@ -690,7 +690,7 @@ int Playlist::Process(void)
             playlist->Start();
             return playlist->Process();
         }
-        if (m_stopAtPos <= (GetPosition() - 1)) {
+        if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
             m_currentSection = nullptr;
             SetIdle();
