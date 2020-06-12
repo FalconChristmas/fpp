@@ -53,7 +53,7 @@
 #
 #############################################################################
 SCRIPTVER="4.0"
-FPPBRANCH=${FPPBRANCH:-"master"}
+FPPBRANCH=${FPPBRANCH:-"v4.0"}
 FPPIMAGEVER="4.0"
 FPPCFGVER="61"
 FPPPLATFORM="UNKNOWN"
