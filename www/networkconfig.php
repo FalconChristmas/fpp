@@ -257,7 +257,7 @@ function SaveNetworkConfig()
 		$('#btnConfigNetwork').show();
 
 		if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
-			DialogOK("Check DNS", "Don't forget to set a DNS IP address. Recommend using 8.8.8.8 is not sure.")
+			DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
 		}
 	}).fail(function() {
 		DialogError("Save Network Config", "Save Failed");
