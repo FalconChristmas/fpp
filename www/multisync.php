@@ -953,6 +953,8 @@ function performMultiAction() {
         case 'copyFiles':      copyFilesToSelectedSystems();  break;
         default:               alert('You must select an action first.'); break;
     }
+
+    $('#selectAllCheckbox').prop('checked', false);
 }
 
 function multiActionChanged() {
