@@ -54,7 +54,7 @@
 #############################################################################
 SCRIPTVER="4.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="4.0-beta2"
+FPPIMAGEVER="4.0"
 FPPCFGVER="61"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp

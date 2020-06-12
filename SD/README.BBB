@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-10.3-console-armhf-2020-04-06-1gb.img.xz
-# from  https://debian.beagleboard.org/images/2020-04-06/buster-console/
+# bone-debian-10.4-console-armhf-2020-06-01-1gb.img
+# from  https://rcn-ee.com/rootfs/bb.org/testing/2020-06-01/buster-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -52,8 +52,8 @@ cd /opt/scripts/tools
 
 #check
 cd /root
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-4.19.94fpp_4.19.94fpp-1_armhf.deb
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-4.19.94fpp_4.19.94fpp-1_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-4.19.94fpp_4.19.94fpp-3_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-4.19.94fpp_4.19.94fpp-3_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
 
@@ -70,7 +70,7 @@ cd /opt/scripts/tools/developers/
 sudo ./update_bootloader.sh
 
 cd /opt/backup/uboot
-export BOOTLOADERVER=v2019.04-r11
+export BOOTLOADERVER=v2019.04-r13
 curl --output MLO  https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
 curl --output u-boot.img https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
 echo "$BOOTLOADERVER" > version.txt

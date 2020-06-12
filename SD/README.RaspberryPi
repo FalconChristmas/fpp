@@ -3,7 +3,7 @@ Instructions for creating a new FPP SD image package for the Raspberry Pi
 =============================================================================
 
 Install the latest Raspbian Buster Lite image to the SD card.  The last
-version tested is 2020-02-13-raspbian-buster-lite.zip
+version tested is 2020-05-27-raspios-buster-lite-armhf.zip
 
 Resize the root partition to 3.5GB using fdisk (substitute the proper device
 for your SD card).
