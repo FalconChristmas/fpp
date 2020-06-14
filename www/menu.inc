@@ -179,7 +179,7 @@ function list_plugin_entries($menu)
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="help.php">Help Index</a></li>
 <? if ($settings['uiLevel'] > 0) { ?>
-          <li><a href="api/help">REST API Help</a></li>
+          <li><a href="apihelp.php">REST API Help</a></li>
 <? } ?>
           <li><a href="cliHelp.php">fpp &amp; fppmm Usage</a></li>
           <li><a href="troubleshooting.php">Troubleshooting Commands</a></li>

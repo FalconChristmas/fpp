@@ -1,7 +1,18 @@
+<?
+$wrapped = 1;
+if (!isset($apiDir))
+{
+    $wrapped = 0;
+    $apiDir = "";
+?>
 <html>
 <head>
 <script type='text/javascript' src='../js/jquery-latest.min.js'></script>
 <script type='text/javascript' src='../js/fpp.js'></script>
+<link rel='stylesheet' href='../css/fpp.css' />
+<?
+}
+?>
 <script>
 function getJson(json) {
     if (typeof json == 'string') {
@@ -130,7 +141,7 @@ function showTestInputs(item) {
 
 var endpoints = {};
 function loadEndpoints() {
-    $.get('endpoints.json', function(data) {
+    $.get('<? echo $apiDir; ?>endpoints.json', function(data) {
         endpoints = data;
         var tables = [ 'endpoints' ];
         for (var t = 0; t < tables.length; t++) {
@@ -235,7 +246,7 @@ function loadCommands() {
     if (commandList == "") {
         $.ajax({
         dataType: "json",
-        url: "commands",
+        url: "<? echo $apiDir; ?>commands",
         async: false,
         success: function(data) {
            commandList = data;
@@ -267,7 +278,6 @@ $(document).ready(function() {
 });
 
 </script>
-<link rel='stylesheet' href='../css/fpp.css' />
 <style>
 
 .endpointTable .command {
@@ -331,9 +341,16 @@ pre {
 }
 
 </style>
+<?
+if (!$wrapped)
+{
+?>
 </head>
 <body>
 <div id='bodyWrapper'>
+<?
+}
+?>
     <h2>FPP API Endpoints</h2>
     <b>NOTE: FPPD endpoints are indicated by '<font color='red'>*</font>' and require FPPD to be running or a timeout error will occur</b><br>
     <div class='fppTableWrapper'>
@@ -357,5 +374,12 @@ pre {
         </div>
     </div>
 </div>
+<?
+if (!$wrapped)
+{
+?>
 </body>
 </html>
+<?
+}
+?>

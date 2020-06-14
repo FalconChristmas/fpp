@@ -1484,16 +1484,11 @@ a[href="about.php"]:not(.headerLink):before{
 a[href="credits.php"]:before{
    content: "\f550";
 }
+a[href="apihelp.php"]:before{
+    content: "\f236";
+}
 
 /* Non-.php URLs that need the full Font Awesome CSS */
-a[href="api/help"]:before{
-    font-family: "Font Awesome 5 Free" !important;
-    content: "\f236";
-    display: inline-block;
-    font-weight: 900;
-    text-align: center;
-    width: 2.5em;
-}
 a[href$=":4200"]:before{
     font-family: "Font Awesome 5 Free" !important;
     content: "\f120";
