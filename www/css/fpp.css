@@ -1497,7 +1497,7 @@ a[href$=":4200"]:before{
     text-align: center;
     width: 2.5em;
 }
-a[href="https://falconchristmas.github.io/FPP_Manual.pdf"]:before{
+a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
     font-family: "Font Awesome 5 Free" !important;
     content: "\f02d";
     display: inline-block;
