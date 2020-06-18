@@ -86,16 +86,43 @@ input.largeCheckbox {
     function isFPP(typeId) {
         typeId = parseInt(typeId);
 
-        if (typeId >= 0x01 && typeId < 0x80)
+        if ((typeId >= 0x01) && (typeId < 0x80))
             return true;
 
         return false;
     }
 
-    function isFalconController(typeId) {
+    function isFPPPi(typeId) {
         typeId = parseInt(typeId);
 
-        if (typeId & 0x80)
+        if ((typeId >= 0x01) && (typeId <= 0x3F))
+            return true;
+
+        return false;
+    }
+
+    function isFPPBeagleBone(typeId) {
+        typeId = parseInt(typeId);
+
+        if ((typeId >= 0x41) && (typeId <= 0x7F))
+            return true;
+
+        return false;
+    }
+
+    function isUnknownController(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId == 0x00)
+            return true;
+
+        return false;
+    }
+
+    function isFalcon(typeId) {
+        typeId = parseInt(typeId);
+
+        if ((typeId >= 0x80) && (typeId <= 0x8F))
             return true;
 
         return false;
@@ -105,6 +132,15 @@ input.largeCheckbox {
         typeId = parseInt(typeId);
 
         if (typeId == 0xC2)
+            return true;
+
+        return false;
+    }
+
+    function isSanDevices(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId == 0xFF)
             return true;
 
         return false;
@@ -417,9 +453,9 @@ input.largeCheckbox {
 
                 var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "' class='systemRow'>" +
-                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small><span class='hidden typeId'>" + data[i].typeId + "</span></td>" +
+                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
-                    "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small></td>" +
+                    "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span></td>" +
                     "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
                     "<td id='" + rowID + "_status'>Last Seen:<br>" + data[i].lastSeenStr + "</td>" +
                     "<td id='" + rowID + "_elapsed'></td>";
@@ -465,7 +501,7 @@ input.largeCheckbox {
                     (data[i].fppMode == 'bridge') &&
                     (majorVersion >= 3)) {
                     getESPixelStickBridgeStatus(ip);
-                } else if (isFalconController(data[i].typeId)) {
+                } else if (isFalcon(data[i].typeId)) {
                     getFalconControllerStatus(ip);
                 }
             }
@@ -503,10 +539,8 @@ if ($uiLevel >= 1) {
 
 		$.get("fppjson.php?command=getFPPSystems", function(data) {
             parseFPPSystems(data);
-            showHideSyncCheckboxes();
 //        $.get('/api/fppd/multiSyncSystems', function(data) {
 //            parseFPPSystems(data.systems);
-//            showHideSyncCheckboxes();
 		});
 	}
 
@@ -637,7 +671,7 @@ function RefreshStats() {
         } else if (isESPixelStick(typeId) &&
             (mode == 'Bridge')) {
             getESPixelStickBridgeStatus(ip);
-        } else if (isFalconController(typeId)) {
+        } else if (isFalcon(typeId)) {
             getFalconControllerStatus(ip);
         }
     }
@@ -658,15 +692,16 @@ function reloadMultiSyncPage() {
 	reloadPage();
 }
 
-function showHideSyncCheckboxes() {
-	if (($('#MultiSyncMulticast').is(":checked")) ||
-        ($('#MultiSyncBroadcast').is(":checked"))) {
-		$('input.syncCheckbox').each(function() {
-			$(this).prop('checked', false).trigger('change');
-        });
-        $('span.syncCheckboxSpan').hide();
-    } else {
-        $('span.syncCheckboxSpan').show();
+function syncModeUpdated(setting = '') {
+    var multicastChecked = $('#MultiSyncMulticast').is(":checked");
+    var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+
+    if (setting == 'MultiSyncMulticast') {
+        if (multicastChecked && broadcastChecked)
+            $('#MultiSyncBroadcast').prop('checked', false).trigger('change');
+    } else if (setting == 'MultiSyncBroadcast') {
+        if (multicastChecked && broadcastChecked)
+            $('#MultiSyncMulticast').prop('checked', false).trigger('change');
     }
 }
 
@@ -1040,15 +1075,15 @@ PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
 <? } ?>
             <table class='settingsTable'>
 <?
-PrintSetting('MultiSyncMulticast', 'showHideSyncCheckboxes');
-PrintSetting('MultiSyncBroadcast', 'showHideSyncCheckboxes');
-PrintSetting('MultiSyncExtraRemotes', 'updateMultiSyncRemotes');
+PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
+PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+PrintSetting('MultiSyncExtraRemotes');
+PrintSetting('MultiSyncHTTPSubnets');
 PrintSetting('MultiSyncHide10', 'getFPPSystems');
 PrintSetting('MultiSyncHide172', 'getFPPSystems');
 PrintSetting('MultiSyncHide192', 'getFPPSystems');
 PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');
 PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
-PrintSetting('MultiSyncHTTPSubnets');
 ?>
             </table>
 		</fieldset>
@@ -1066,7 +1101,6 @@ if ($uiLevel > 0) {
 $(document).ready(function() {
     SetupToolTips();
 	getFPPSystems();
-    showHideSyncCheckboxes();
 
     var $table = $('#fppSystemsTable');
 
@@ -1092,10 +1126,41 @@ $(document).ready(function() {
         widgets: ['zebra', 'filter', 'staticRow'],
         headers: {
             2: { sorter: 'ipAddress' }
+        },
+        widgetOptions: {
+            filter_functions: {
+                2: {
+                    "FPP (All)": function(e,n,f,i,$r,c,data) {
+                                return isFPP($r.find('span.typeId').html());
+                            },
+                    "FPP (Pi)": function(e,n,f,i,$r,c,data) {
+                                return isFPPPi($r.find('span.typeId').html());
+                            },
+                    "FPP (BeagleBone)": function(e,n,f,i,$r,c,data) {
+                                return isFPPBeagleBone($r.find('span.typeId').html());
+                            },
+                    "Falcon": function(e,n,f,i,$r,c,data) {
+                                return isFalcon($r.find('span.typeId').html());
+                            },
+                    "ESPixelStick": function(e,n,f,i,$r,c,data) {
+                                return isESPixelStick($r.find('span.typeId').html());
+                            },
+                    "SanDevices": function(e,n,f,i,$r,c,data) {
+                                return isSanDevices($r.find('span.typeId').html());
+                            },
+                    "Unknown": function(e,n,f,i,$r,c,data) {
+                                return isUnknownController($r.find('span.typeId').html());
+                            }
+                },
+                3: {
+                    "Master": function(e,n,f,i,$r,c,data) { return e === "Master"; },
+                    "Player": function(e,n,f,i,$r,c,data) { return e === "Player"; },
+                    "Bridge": function(e,n,f,i,$r,c,data) { return e === "Bridge"; },
+                    "Remote": function(e,n,f,i,$r,c,data) { return e === "Remote"; }
+                }
+            }
         }
     });
-
-    $('.tablesorter-filter').attr('title', 'Filter the system list by entering search text.');
 });
 
 </script>

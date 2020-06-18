@@ -698,11 +698,11 @@
         },
         "MultiSyncExtraRemotes": {
             "name": "MultiSyncExtraRemotes",
-            "description": "Additional FPP Instances (CSV list)",
-            "tip": "Comma Separated list of additional remote IPs to include when sending MultiSync commands",
+            "description": "MultiSync Unicast Discovery IPs (CSV list)",
+            "tip": "FPP will send unicast MultiSync discovery messages to the IPs in this list to allow discovery of devices which are unable to be discovered via FPP's normal multicast discovery.  This may include systems on remote networks or connected to certain routers which do not pass multicast packets between wired and wireless interfaces.",
             "level": 1,
             "restart": 2,
-            "size": 48,
+            "size": 64,
             "maxlength": 128,
             "type": "text"
         },
@@ -726,8 +726,8 @@
         },
         "MultiSyncHTTPSubnets": {
             "name": "MultiSyncHTTPSubnets",
-            "description": "HTTP Discovery subnet list (CSV)",
-            "tip": "List of comma separated subnets or IPs to scan looking for network attached pixel controllers.  Individual IPs may be listed as either A.B.C.D/32 or just A.B.C.D.  Subnets are listed as A.B.C.D/X.",
+            "description": "HTTP Discovery IPs &amp; subnets (CSV list)",
+            "tip": "List of comma separated subnets or IPs to scan looking for network attached pixel controllers.  Individual IPs may be listed as either A.B.C.D/32 or just A.B.C.D.  Subnets are listed as A.B.C.D/X.  FPP will attempt to discover these controllers using the HTTP protocol over port 80.",
             "type": "text",
             "level": 1,
             "restart": 2,

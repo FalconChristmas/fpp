@@ -1456,14 +1456,6 @@ int MultiSync::OpenControlSockets()
         remotesString += MULTISYNC_MULTICAST_ADDRESS;
     }
 
-    std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
-    if (extraRemotes != "") {
-        if (remotesString != "")
-            remotesString += ",";
-
-        remotesString += extraRemotes;
-    }
-
     std::vector<std::string> tokens = split(remotesString, ',');
     std::set<std::string> remotes;
     for (auto &token : tokens) {
