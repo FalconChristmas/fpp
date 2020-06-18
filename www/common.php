@@ -386,7 +386,7 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
 	}
 
 	if ($callbackName != "")
-		$callbackName = $callbackName . "();";
+		$callbackName = $callbackName . "('$setting');";
 
     $changedFunction = preg_replace('/\./', '', $setting . "Changed");
 
