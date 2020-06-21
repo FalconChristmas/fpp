@@ -116,7 +116,8 @@ class Playlist {
 	void               SwitchToMainPlaylist(void);
 	void               SwitchToLeadOut(void);
     
-    bool               SwitchToInsertedPlaylist();
+    bool               WillStopAfterCurrent();
+    bool               SwitchToInsertedPlaylist(bool isStopping = false);
 
     volatile PlaylistStatus  m_status;
     

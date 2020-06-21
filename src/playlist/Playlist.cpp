@@ -657,7 +657,6 @@ int Playlist::Process(void)
     }
     
     if (m_currentSection->at(m_sectionPosition)->IsPaused()
-        && m_insertedPlaylist != ""
         && SwitchToInsertedPlaylist()) {
         playlist->Start();
         return playlist->Process();
@@ -685,19 +684,21 @@ int Playlist::Process(void)
 				return 1;
 			}
 		}
-        if (m_insertedPlaylist != ""
-            && SwitchToInsertedPlaylist()) {
-            playlist->Start();
-            return playlist->Process();
-        }
         if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
+            if (SwitchToInsertedPlaylist(true)) {
+                playlist->Start();
+                return playlist->Process();
+            }
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
             m_currentSection = nullptr;
             SetIdle();
             return 1;
         }
+        if (SwitchToInsertedPlaylist(WillStopAfterCurrent())) {
+            playlist->Start();
+            return playlist->Process();
+        }
 
-        
         auto currentEntry = m_currentSection->at(m_sectionPosition);
         if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Index) {
         
@@ -815,9 +816,35 @@ int Playlist::Process(void)
 	return 1;
 }
 
-bool Playlist::SwitchToInsertedPlaylist() {
+bool Playlist::WillStopAfterCurrent() {
+    if ((m_sectionPosition+1) >= m_currentSection->size()) {
+        if (m_currentSectionStr == "LeadIn") {
+            return !m_mainPlaylist.empty() || !m_leadOut.empty();
+        } else if (m_currentSectionStr == "MainPlaylist") {
+            if (m_repeat) {
+                return false;
+            }
+            return !m_leadOut.empty();
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+bool Playlist::SwitchToInsertedPlaylist(bool isStopping) {
     if (m_insertedPlaylist != "") {
-        Playlist *pl = new Playlist(this);
+        Playlist *pl;
+        if (isStopping && m_parent) {
+            //we are exiting so there is no point wasting our memory on the stack of playlists
+            //so we'll point the new playlists parent at our parent and then cleanup ourselves
+            PL_CLEANUPS.push_back(this);
+            pl = new Playlist(m_parent);
+            m_parent = nullptr;
+        } else {
+            pl = new Playlist(this);
+        }
         pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduled, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
         if (pl->IsPlaying()) {
