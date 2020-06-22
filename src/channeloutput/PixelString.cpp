@@ -50,18 +50,18 @@ VirtualString::VirtualString(int r)
     switch (r) {
     case 0:
         leadInCount = 0;
-        toggleCount = 4*3;
-        leadOutCount = 4*3;
+        toggleCount = 5*3;
+        leadOutCount = 5*3;
         break;
     case 1:
-        leadInCount = 4*3;
-        toggleCount = 4*3*2;
-        leadOutCount = 4*3;
+        leadInCount = 5*3;
+        toggleCount = 5*3*2;
+        leadOutCount = 5*3;
         break;
     case 2:
-        leadInCount = 4*3;
-        toggleCount = 4*3*3;
-        leadOutCount = 4*3;
+        leadInCount = 5*3;
+        toggleCount = 5*3*3;
+        leadOutCount = 5*3;
         break;
     }
     pixelCount = leadInCount + toggleCount + leadOutCount;
