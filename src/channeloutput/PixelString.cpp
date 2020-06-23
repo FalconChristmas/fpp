@@ -30,6 +30,10 @@
 
 #define MAX_PIXEL_STRING_LENGTH  1600
 
+#define SMART_RECEIVER_LEADIN 6*3
+#define SMART_RECEIVER_LEN    6*3
+#define SMART_RECEIVER_LEADOUT  6*3
+
 #define CHECKPS_SETTING(SETTING) if (SETTING) { \
 LogErr(VB_CHANNELOUT, "Invalid PixelString Config %s\n", #SETTING); \
 return 0; \
@@ -50,18 +54,18 @@ VirtualString::VirtualString(int r)
     switch (r) {
     case 0:
         leadInCount = 0;
-        toggleCount = 5*3;
-        leadOutCount = 5*3;
+        toggleCount = SMART_RECEIVER_LEN;
+        leadOutCount = SMART_RECEIVER_LEADOUT;
         break;
     case 1:
-        leadInCount = 5*3;
-        toggleCount = 5*3*2;
-        leadOutCount = 5*3;
+        leadInCount = SMART_RECEIVER_LEADIN;
+        toggleCount = SMART_RECEIVER_LEN*2;
+        leadOutCount = SMART_RECEIVER_LEADOUT;
         break;
     case 2:
-        leadInCount = 5*3;
-        toggleCount = 5*3*3;
-        leadOutCount = 5*3;
+        leadInCount = SMART_RECEIVER_LEADIN;
+        toggleCount = SMART_RECEIVER_LEN*3;
+        leadOutCount = SMART_RECEIVER_LEADOUT;
         break;
     }
     pixelCount = leadInCount + toggleCount + leadOutCount;
