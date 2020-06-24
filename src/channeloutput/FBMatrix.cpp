@@ -62,7 +62,9 @@ FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	m_fbp(nullptr),
     m_frame(nullptr),
 	m_screenSize(0),
-	m_rgb565map(nullptr)
+	m_rgb565map(nullptr),
+    m_isDoubleBuffered(false),
+    m_topFrame(true)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::FBMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -149,7 +151,8 @@ int FBMatrixOutput::Init(Json::Value config) {
 	}
 
 	m_vInfo.xres_virtual = m_width;
-	m_vInfo.yres_virtual = m_height;
+	m_vInfo.yres_virtual = m_height * 2;
+    m_isDoubleBuffered = true;
     m_vInfo.xres = m_width;
     m_vInfo.yres = m_height;
 
@@ -159,11 +162,16 @@ int FBMatrixOutput::Init(Json::Value config) {
 	m_vInfoOrig.xres = m_vInfoOrig.xres_virtual = 640;
 	m_vInfoOrig.yres = m_vInfoOrig.yres_virtual = 480;
 
-	if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo))
-	{
-		LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
-		close(m_fbFd);
-		return 0;
+	if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
+        m_vInfo.yres_virtual = m_height;
+        m_isDoubleBuffered = false;
+        if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
+            LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
+            close(m_fbFd);
+            return 0;
+        } else {
+            LogErr(VB_CHANNELOUT, "Could not allocate virtual framebuffer large enough for double buffering, using single buffer\n");
+        }
 	}
 
 	if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo))
@@ -195,7 +203,7 @@ int FBMatrixOutput::Init(Json::Value config) {
 		ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
 	}
 
-	m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+	m_fbp = (char*)mmap(0, m_screenSize * (m_isDoubleBuffered ? 2 : 1), PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
     m_frame = new char[m_screenSize];
 
 	if ((char *)m_fbp == (char *)-1) {
@@ -261,7 +269,7 @@ int FBMatrixOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Close()\n");
 
-	munmap(m_fbp, m_screenSize);
+	munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
 
 	if (m_device == "/dev/fb0") {
 		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
@@ -373,7 +381,19 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 }
 
 int FBMatrixOutput::SendData(unsigned char *channelData) {
-    memcpy(m_fbp, m_frame, m_screenSize);
+    char *dst = m_fbp;
+    int targetoffset = 0;
+    if (m_isDoubleBuffered && !m_topFrame) {
+        dst += m_screenSize;
+        m_vInfo.yoffset = m_vInfo.yres;
+    } else {
+        m_vInfo.yoffset = 0;
+    }
+    m_topFrame = !m_topFrame;
+    memcpy(dst, m_frame, m_screenSize);
+    if (m_isDoubleBuffered) {
+        ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
+    }
     return m_channelCount;
 }
 
@@ -391,5 +411,6 @@ void FBMatrixOutput::DumpConfig(void)
 	LogDebug(VB_CHANNELOUT, "    layout : %s\n", m_layout.c_str());
 	LogDebug(VB_CHANNELOUT, "    width  : %d\n", m_width);
 	LogDebug(VB_CHANNELOUT, "    height : %d\n", m_height);
+    LogDebug(VB_CHANNELOUT, "    Double Buffered : %d\n", m_isDoubleBuffered);
 }
 
