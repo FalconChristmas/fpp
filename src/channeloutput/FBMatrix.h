@@ -55,6 +55,9 @@ class FBMatrixOutput : public ChannelOutputBase {
 	int          m_inverted;
 	int          m_bpp;
 	std::string  m_device;
+    
+    bool         m_isDoubleBuffered;
+    bool         m_topFrame;
 
 	char   *m_fbp;
     char   *m_frame;
