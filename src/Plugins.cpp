@@ -17,10 +17,7 @@
 
 #include "events.h"
 #include "mediadetails.h"
-#include "settings.h"
 #include "Plugins.h"
-#include "common.h"
-#include "log.h"
 #include "mediaoutput/mediaoutput.h"
 #include <jsoncpp/json/json.h>
 
