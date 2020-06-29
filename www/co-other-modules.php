@@ -281,7 +281,7 @@ class PCA9685Output extends I2COutput {
             var center = 1500;
             var dataType = 0;
             var zeroBehavior = 0;
-            var name = "";
+            var description = "";
             
             if (config.ports != undefined && config.ports[x] != undefined) {
                 min = config.ports[x].min;
@@ -292,14 +292,14 @@ class PCA9685Output extends I2COutput {
                 if (config.ports[x].zeroBehavior != undefined) {
                     zeroBehavior = config.ports[x].zeroBehavior;
                 }
-                if (config.ports[x].name != undefined) {
-                    name = config.ports[x].name;
+                if (config.ports[x].description != undefined) {
+                    description = config.ports[x].description;
                 }
                 dataType = config.ports[x].dataType;
             }
             
             result += "<tr style='outline: thin solid;'><td style='vertical-align:top'>Port " + x + ": </td><td>";
-            result += "&nbsp;Name:<input class='name" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + name + "'/>";
+            result += "&nbsp;Description:<input class='description" + x + "' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
             result += "&nbsp;Min&nbsp;Value:<input class='min" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + min + "'/>";
             result += "&nbsp;Center&nbsp;Value:<input class='center" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + center + "'/>";
             result += "&nbsp;Max&nbsp;Value:<input class='max" + x + "' type='number' min='0' max='4095' style='width: 6em' value='" + max + "'/><br>";
@@ -325,7 +325,7 @@ class PCA9685Output extends I2COutput {
             result.ports[x].min = parseInt(cell.find("input.min" + x).val());
             result.ports[x].max = parseInt(cell.find("input.max" + x).val());
             result.ports[x].center = parseInt(cell.find("input.center" + x).val());
-            result.ports[x].name = cell.find("input.name" + x).val();
+            result.ports[x].description = cell.find("input.description" + x).val();
         }
 
         
@@ -427,6 +427,7 @@ class GPIOOutputDevice extends OtherBase {
         var gpio = GPIOPins[0];
         var pwm = 0;
         var inverted = 0;
+        var description = "";
         if (config.gpio != undefined) {
             gpio = config.gpio;
         }
@@ -438,6 +439,11 @@ class GPIOOutputDevice extends OtherBase {
         if (config.invert != undefined) {
             inverted = config.invert;
         }
+        if (config.description != undefined) {
+            description = config.description;
+        }
+        result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+        result += "&nbsp;";
         result += CreateSelect(GPIOPins, gpio, "GPIO", "", "gpio", "GPIOHeaderPinChanged(this)");
         result += "\n";
         result += " Inverted: <input type=checkbox class='inverted'";
@@ -461,6 +467,7 @@ class GPIOOutputDevice extends OtherBase {
         result.gpio = parseInt(gpio);
         result.invert = cell.find("input.inverted").is(":checked") ? 1 : 0;
         result.pwm =  cell.find("input.pwm").is(":checked") ? 1 : 0;
+        result.description = cell.find("input.description").val();
         return result;
     }
 }
@@ -475,6 +482,7 @@ class GPIO595OutputDevice extends OtherBase {
         var clock = GPIOPins[0];
         var data = GPIOPins[0];
         var latch = GPIOPins[0];
+        var description = "";
         if (config.clockPin != undefined) {
             clock = config.clockPin;
         }
@@ -484,7 +492,11 @@ class GPIO595OutputDevice extends OtherBase {
         if (config.latchPin != undefined) {
             latch = config.latchPin;
         }
-
+        if (config.description != undefined) {
+            description = config.description;
+        }
+        result += "Description:<input class='description' type='text' size=30 maxlength=128 style='width: 6em' value='" + description + "'/>";
+        result += "&nbsp;";
         result += CreateSelect(GPIOPins, clock, "Clock", "", "clock", "");
         result += "&nbsp;";
         result += CreateSelect(GPIOPins, data, "Data", "", "data", "");
@@ -498,6 +510,7 @@ class GPIO595OutputDevice extends OtherBase {
         result.clockPin = parseInt(cell.find("select.clock").val());
         result.dataPin = parseInt(cell.find("select.data").val());
         result.latchPin = parseInt(cell.find("select.latch").val());
+        result.description = cell.find("input.description").val();
         return result;
     }
 }
