@@ -250,7 +250,9 @@ function CheckBrowser() {
     } else {
         $('#unsupportedBrowser').hide();
     }
-    
+    if(navigator.userAgent.indexOf('Mac') > 0) {
+        $('body').addClass('mac-os');
+    }
 }
 
 $(document).ready(function() {

@@ -923,6 +923,18 @@ fieldset
     vertical-align: top;
 }
 
+.mac-os ::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 7px;
+  height: 7px;
+}
+
+.mac-os ::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 1px rgba(255, 255, 255, .5);
+}
+
 .fppTableWrapper {
 	border: solid 2px;
 	margin-top: 5px;
@@ -930,7 +942,8 @@ fieldset
 	border-radius: 6px;
 	-webkit-border-radius: 6px;
 	min-height: 65px;
-    overflow: hidden;
+    overflow-y: hidden;
+    overflow-x: auto;
 
 	-moz-user-select: -moz-none;
 	-khtml-user-select: none;
