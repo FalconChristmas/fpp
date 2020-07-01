@@ -219,6 +219,12 @@ input.largeCheckbox {
 				status = 'Updating';
 			} else if (data.status_name == 'stopped') {
 				status = 'Stopped';
+			} else if (data.status_name == 'stopping gracefully') {
+				status = 'Stopping Gracefully';
+			} else if (data.status_name == 'stopping gracefully after loop') {
+				status = 'Stopping Gracefully After Loop';
+			} else if (data.status_name == 'paused') {
+				status = 'Paused';
 			} else if (data.status_name == 'testing') {
 				status = 'Testing';
             } else if (data.status_name == 'unreachable') {
