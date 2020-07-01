@@ -614,7 +614,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";
     } else {
-        switch (playlist->getPlaylistStatus()) {
+        switch (result["status"].asInt()) {
             case FPP_STATUS_IDLE:
                 result["status_name"] = "idle";
                 break;
