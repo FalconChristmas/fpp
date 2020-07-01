@@ -61,6 +61,17 @@ function printTetheringInterfaces() {
     }
     PrintSettingSelect("Tether Interface", "TetherInterface", 0, 1, $tiface, $tinterfaces);
 }
+function printWifiNetworks() {
+    $networksRaw = explode("\n",trim(shell_exec("connmanctl services  | colrm 1 4")));
+    echo "<datalist id='eth_ssids'>\n";
+    foreach ($networksRaw as $iface) {
+        $if2 = explode(" ", $iface);
+        if ($if2[0] != "" && $if2[0] != "Wired") {
+            echo "<option value='$if2[0]'>\n";
+        }
+    }
+    echo "</datalist>\n";
+}
     
 ?>
 <script>
@@ -526,7 +537,8 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
           <table width = "100%" border="0" cellpadding="1" cellspacing="1">
             <tr>
               <td width = "25%">WPA SSID:</td>
-              <td width = "75%"><input type="text" name="eth_ssid" id="eth_ssid" size="32" maxlength="32">&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
+              <td width = "75%"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><? printWifiNetworks(); ?>&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
+
             </tr>
             <tr>
               <td>WPA Pre Shared key (PSK):</td>
