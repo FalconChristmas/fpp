@@ -176,6 +176,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value &cmd) {
                 args.push_back(cmd["args"][x].asString());
             }
             MultiSync::INSTANCE.SendFPPCommandPacket(hosts, command, args);
+            return std::make_unique<Command::Result>("Command Sent");
         }
     }
     return run(command, cmd["args"]);

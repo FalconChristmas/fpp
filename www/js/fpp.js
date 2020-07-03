@@ -4130,6 +4130,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
 
             if (typeof val['contents'] !== "undefined") {
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
+                if (typeof val['contentListUrl'] != "undefined") {
+                    line += " data-url='" + val['contentListUrl'] + "'";
+                }
 
                 if (typeof val['children'] === 'object') {
                     line += " onChange='UpdateChildVisibility();";
@@ -4181,7 +4184,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             } else {
                 // Has a contentListUrl OR a init script
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' id='" + ID + "'";
-
+                if (typeof val['contentListUrl'] != "undefined") {
+                    line += " data-url='" + val['contentListUrl'] + "'";
+                }
                 if (typeof val['children'] === 'object') {
                     line += " onChange='UpdateChildVisibility();";
                     if (typeof val['onChange'] === 'string') {
@@ -4212,7 +4217,11 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             }
          } else if (val['type'] == "datalist") {
             line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='40' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
-            line += "<datalist id='" + ID + "_list'>";
+            line += "<datalist id='" + ID + "_list'";
+            if (typeof val['contentListUrl'] != "undefined") {
+                line += " data-url='" + val['contentListUrl'] + "'";
+            }
+            line += ">";
             $.each( val['contents'], function( key, v ) {
                    line += '<option value="' + v + '"';
                    line += ">" + v + "</option>";

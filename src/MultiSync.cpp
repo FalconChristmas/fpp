@@ -2253,9 +2253,17 @@ void MultiSync::ProcessPluginPacket(ControlPkt *pkt, int plen) {
     PluginManager::INSTANCE.multiSyncData(pn, data, len);
 }
 
-static bool MyHostMatches(const std::string &host, const std::string &hostName) {
+static bool MyHostMatches(const std::string &host, const std::string &hostName, std::vector<MultiSyncSystem> &localSystems) {
     std::vector<std::string> names = split(host, ',');
-    return std::find(names.begin(), names.end(), hostName) != names.end();
+    if (std::find(names.begin(), names.end(), hostName) != names.end()) {
+        return true;
+    }
+    for (auto &ls : localSystems) {
+        if (host == ls.address || host == ls.hostname) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void MultiSync::ProcessFPPCommandPacket(ControlPkt *pkt, int len) {
@@ -2272,8 +2280,7 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt *pkt, int len) {
         pos += arg.length() + 1;
         args.push_back(arg);
     }
-    
-    if (host == "" || MyHostMatches(host, m_hostname)) {
+    if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
         CommandManager::INSTANCE.run(cmd, args);
     }
 }
@@ -2308,8 +2315,13 @@ void MultiSync::SendFPPCommandPacket(const std::string &host, const std::string 
         strcpy(&outBuf[pos], a.c_str());
         pos += a.length() + 1;
     }
-    cpkt->extraDataLen   = pos - sizeof(SyncPkt);
+    cpkt->extraDataLen   = pos - sizeof(ControlPkt);
     SendControlPacket(outBuf, pos);
+    // the packet won't loop back so if it's supposed to run on this host as well,
+    // we need to force it
+    if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+        CommandManager::INSTANCE.run(cmd, args);
+    }
 }
 
 
