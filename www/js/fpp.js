@@ -968,6 +968,26 @@ function PopulatePlaylistItemDuration(row, editMode) {
     }
 }
 
+function GetPlaylistFPPCommandArgsFromEditor(c)
+{
+    var arr = [];
+    for (var x = 0; x < commandList[c]['args'].length; x++) {
+        var e = commandList[c]['args'][x];
+        if (e.type == "int") {
+            arr.push(parseInt($('#playlistEntryCommandOptions_arg_' + (x+1)).val()));
+        } else if (e.type == "bool") {
+            if ($('#playlistEntryCommandOptions_arg_' + (x+1)).is(':checked'))
+                arr.push(true);
+            else
+                arr.push(false);
+        } else {
+            arr.push($('#playlistEntryCommandOptions_arg_' + (x+1)).val());
+        }
+    }
+
+    return arr;
+}
+
 function AddPlaylistEntry(mode) {
     if (mode && !$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
         DialogError('No playlist item selected', "Error: No playlist item selected.");
@@ -1009,9 +1029,17 @@ function AddPlaylistEntry(mode) {
             pe[a.name] = f;
         } else if (a.type == 'args') {
             var arr = [];
-            for (x = 1; x <= 20; x++) {
-                if ($('#playlistEntryCommandOptions_arg_' + x).length) {
-                    arr.push($('#playlistEntryCommandOptions_arg_' + x).val());
+            if (type == 'command') {
+                for (var c = 0; c < commandList.length; c++) {
+                    if (commandList[c]['name'] == $('#playlistEntryOptions_arg_1').val()) {
+                        arr = GetPlaylistFPPCommandArgsFromEditor(c);
+                    }
+                };
+            } else {
+                for (x = 1; x <= 20; x++) {
+                    if ($('#playlistEntryCommandOptions_arg_' + x).length) {
+                        arr.push($('#playlistEntryCommandOptions_arg_' + x).val());
+                    }
                 }
             }
             pe[a.name] = arr;
@@ -1347,6 +1375,22 @@ function DeleteNamedPlaylist(name) {
     });
 }
 
+function AssignPlaylistEditorFPPCommandArgsFromList(row, c) {
+    for (var x = 0; x < commandList[c]['args'].length; x++) {
+        var a = commandList[c]['args'][x];
+        if (a.type == 'bool') {
+            if ($(row).find('.field_args_' + (x+1)).html() == 'true')
+                $('.arg_' + a.name).prop('checked', true).trigger('change');
+            else
+                $('.arg_' + a.name).prop('checked', false).trigger('change');
+        } else if (a.type == 'int') {
+            $('.arg_' + a.name).val(parseInt($(row).find('.field_args_' + (x+1)).html())).trigger('change');
+        } else {
+            $('.arg_' + a.name).val($(row).find('.field_args_' + (x+1)).html()).trigger('change');
+        }
+    }
+}
+
 function EditPlaylistEntry() {
     if (!$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
         DialogError('No playlist item selected', "Error: No playlist item selected.");
@@ -1373,10 +1417,17 @@ function EditPlaylistEntry() {
             else
                 $('.arg_' + a.name).prop('checked', false).trigger('change');
         } else if (a.type == 'args') {
-            var arr = [];
-            for (x = 1; x <= 20; x++) {
-                if ($(row).find('.field_args_' + x).length) {
-                    $('#playlistEntryCommandOptions_arg_' + x).val($(row).find('.field_args_' + x).html());
+            if (type == 'command') {
+                for (var c = 0; c < commandList.length; c++) {
+                    if (commandList[c]['name'] == $(row).find('.field_command').html()) {
+                        AssignPlaylistEditorFPPCommandArgsFromList(row, c);
+                    }
+                };
+            } else {
+                for (x = 1; x <= 20; x++) {
+                    if ($(row).find('.field_args_' + x).length) {
+                        $('#playlistEntryCommandOptions_arg_' + x).val($(row).find('.field_args_' + x).html());
+                    }
                 }
             }
         } else {
