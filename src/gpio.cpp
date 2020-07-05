@@ -94,7 +94,7 @@ int ExtGPIO(int gpio, char *mode, int value)
 class GPIOCommand : public Command {
 public:
     GPIOCommand(std::vector<std::string> &pins) : Command("GPIO") {
-        args.push_back(CommandArg("pin", "string", "Pin").setContentList(pins));
+        args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/gpio?list=true"));
         args.push_back(CommandArg("on", "bool", "On"));
     }
     virtual ~GPIOCommand() {
@@ -187,16 +187,24 @@ const std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const h
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "gpio") {
         if (plen <= 1) {
+            printf("Getting list of gpios\n");
+            bool simpleList = false;
+            if (req.get_arg("list") == "true") {
+                simpleList = true;
+            }
             std::vector<std::string> pins = PinCapabilities::getPinNames();
             if (pins.empty()) {
                 return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("[]", 200, "application/json"));
             }
             Json::Value result;
             for (auto & a : pins) {
-                result.append(PinCapabilities::getPinByName(a).toJSON());
+                if (simpleList) {
+                    result.append(a);
+                } else {
+                    result.append(PinCapabilities::getPinByName(a).toJSON());
+                }
             }
             std::string resultStr = SaveJsonToString(result);
-            
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
         }
     }

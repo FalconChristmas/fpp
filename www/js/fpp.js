@@ -4182,7 +4182,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             if (typeof val['contents'] !== "undefined") {
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
                 if (typeof val['contentListUrl'] != "undefined") {
-                    line += " data-url='" + val['contentListUrl'] + "'";
+                    line += " data-contentlisturl='" + val['contentListUrl'] + "'";
                 }
 
                 if (typeof val['children'] === 'object') {
@@ -4236,7 +4236,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 // Has a contentListUrl OR a init script
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' id='" + ID + "'";
                 if (typeof val['contentListUrl'] != "undefined") {
-                    line += " data-url='" + val['contentListUrl'] + "'";
+                    line += " data-contentlisturl='" + val['contentListUrl'] + "'";
                 }
                 if (typeof val['children'] === 'object') {
                     line += " onChange='UpdateChildVisibility();";
@@ -4270,7 +4270,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             line += "<input class='arg_" + val['name'] + "' id='" + ID  + "' type='text' size='40' maxlength='200' value='" + dv + "' list='" + ID + "_list'></input>";
             line += "<datalist id='" + ID + "_list'";
             if (typeof val['contentListUrl'] != "undefined") {
-                line += " data-url='" + val['contentListUrl'] + "'";
+                line += " data-contentlisturl='" + val['contentListUrl'] + "'";
             }
             line += ">";
             $.each( val['contents'], function( key, v ) {
@@ -4314,7 +4314,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
          } else if (val['type'] == "subcommand") {
              line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
              line += " onChange='SubCommandChanged(this, " + configAdjustable + ")'";
-             line += " data-url='" + val['contentListUrl'] + "'";
+             line += " data-contentlisturl='" + val['contentListUrl'] + "'";
              line += " data-count='" + count + "'";
              line += " data-tblcommand='" + tblCommand + "'";
              line += ">";
@@ -4361,8 +4361,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                               $(selId).append(line);
                            })
                        }
-                   }
-                   });
+                   },
+            });
          }
          if (subCommandInitFunc != null) {
            subCommandInitFunc();
@@ -4387,11 +4387,46 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
     }
 }
 
+function ReloadContentList(baseUrl, inp) {
+    var arg = $(inp);
+    if (typeof inp === "string") {
+        arg = $("#" + inp);
+    }
+    var url = arg.data("contentlisturl");
+    arg.empty();
+    baseUrl.split(",").forEach(function (burl) {
+        $.ajax({
+           dataType: "json",
+           async: false,
+           url: "http://" + burl + "/" + url,
+           success: function(data) {
+               var firstToRemove = 0;
+               if (arg.find("options[0]").value == "") {
+                   arg.innerHTML = "<option value=''></option>";
+               }
+               
+               if (Array.isArray(data)) {
+                    $.each( data, function( key, v ) {
+                      var line = '<option value="' + v + '"'
+                      line += ">" + v + "</option>";
+                      arg.append(line);
+                   })
+               } else {
+                    $.each( data, function( key, v ) {
+                      var line = '<option value="' + key + '"'
+                      line += ">" + v + "</option>";
+                      arg.append(line);
+                   })
+               }
+           }
+        })});
+}
 
 function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustable = false, argPrintFunc = PrintArgInputs) {
     if (typeof json != "undefined") {
         $('#' + commandSelect).val(json["command"]);
         CommandSelectChanged(commandSelect, tblCommand, configAdjustable, argPrintFunc);
+        var baseUrl = "";
         if (allowMultisyncCommands) {
             var to = typeof json['multisyncCommand'] ;
             
@@ -4400,6 +4435,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                 $("#" + tblCommand + "_multisync").prop("checked", val);
                 if (val) {
                     val = json['multisyncHosts']
+                    baseUrl = val;
                     $("#" + tblCommand + "_multisyncHosts_row").show();
                     $("#" + tblCommand + "_multisyncHosts").val(val);
                 }
@@ -4414,6 +4450,10 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
             var count = 1;
             $.each( json['args'], function( key, v ) {
                    var inp =  $("#" + tblCommand + "_arg_" + count);
+                   if (inp.data('contentlisturl') != null && baseUrl != "") {
+                       ReloadContentList(baseUrl, inp);
+                   }
+                                
                    if (inp.attr('type') == 'checkbox') {
                        var checked = false;
                        if (v == "true" || v == "1") {
