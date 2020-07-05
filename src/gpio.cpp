@@ -187,7 +187,6 @@ const std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const h
     std::string p1 = req.get_path_pieces()[0];
     if (p1 == "gpio") {
         if (plen <= 1) {
-            printf("Getting list of gpios\n");
             bool simpleList = false;
             if (req.get_arg("list") == "true") {
                 simpleList = true;
