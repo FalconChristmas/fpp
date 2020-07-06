@@ -308,7 +308,7 @@ int InitializeChannelOutputs(void) {
                     std::string libname = "libfpp-co-" + libnamePfx + type + ".so";
                     void *handle = dlopen(libname.c_str(), RTLD_NOW);
                     if (handle == NULL){
-                        LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s\n", type.c_str());
+                        LogErr(VB_CHANNELOUT, "Unknown Channel Output type: %s - Error: %s\n", type.c_str(), dlerror());
                         continue;
                     }
                     ChannelOutputBase* (*fptr)(unsigned int, unsigned int);

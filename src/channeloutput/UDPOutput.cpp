@@ -204,12 +204,15 @@ bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChann
 
 UDPOutput::UDPOutput(unsigned int startChannel, unsigned int channelCount)
     : pingThread(nullptr), runPingThread(true),
-      networkCallbackId(0)
+      networkCallbackId(0), doneWorkCount(0), numWorkThreads(0), runWorkThreads(true), useThreadedOutput(true)
 {
     INSTANCE = this;
     m_curlm = curl_multi_init();
 }
 UDPOutput::~UDPOutput() {
+    runWorkThreads = false;
+    workSignal.notify_all();
+    
     INSTANCE = nullptr;
     runPingThread = false;
     pingThreadCondition.notify_all();
@@ -224,6 +227,10 @@ UDPOutput::~UDPOutput() {
     }
     curl_multi_cleanup(m_curlm);
     m_curlm = nullptr;
+    
+    while (numWorkThreads) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 }
 
 int UDPOutput::Init(Json::Value config) {
@@ -254,6 +261,16 @@ int UDPOutput::Init(Json::Value config) {
         
     }
     
+    if (config.isMember("threaded")) {
+        useThreadedOutput = config["threaded"].asInt() ? true : false;
+    }
+    if (config.isMember("interface")) {
+        e131Interface = config["interface"].asString();
+    }
+    if (e131Interface == "") {
+        e131Interface = getE131interface();
+    }
+
     std::set<std::string> myIps;
     //get all the addresses
     struct ifaddrs *interfaces,*tmp;
@@ -285,7 +302,7 @@ int UDPOutput::Init(Json::Value config) {
     }
     
     std::function<void(NetworkMonitor::NetEventType, int, const std::string &)> f = [this](NetworkMonitor::NetEventType i, int up, const std::string &s) {
-        std::string interface = getE131interface();
+        std::string interface = e131Interface;
         if (s == interface && i == NetworkMonitor::NetEventType::NEW_ADDR && up) {
             LogInfo(VB_CHANNELOUT, "UDP Interface %s now up\n", s.c_str());
             PingControllers();
@@ -408,17 +425,122 @@ int UDPOutput::SendMessages(unsigned int socketKey, SendSocketInfo *socketInfo, 
     return outputCount;
 }
 
+
+static void DoWorkThread(UDPOutput *output) {
+    output->BackgroundOutputWork();
+}
+
+void UDPOutput::BackgroundOutputWork() {
+    std::chrono::high_resolution_clock clock;
+    while (runWorkThreads) {
+        std::unique_lock<std::mutex> lock(workMutex);
+        if (workQueue.empty()) {
+            workSignal.wait(lock);
+        }
+        if (!workQueue.empty()) {
+            WorkItem i = workQueue.front();
+            workQueue.pop_front();
+            lock.unlock();
+            
+            auto t1 = clock.now();
+            int outputCount = SendMessages(i.id, i.socketInfo, i.msgs);
+            auto t2 = clock.now();
+            
+            long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            if ((outputCount != i.msgs.size()) || (diff > 100)) {
+                i.socketInfo->errCount++;
+                
+                //failed to send all messages or it took more than 100ms to send them
+                LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                       i.id,
+                       outputCount, i.msgs.size(), diff, i.socketInfo->errCount,
+                       errno,
+                       strerror(errno));
+            } else {
+                i.socketInfo->errCount = 0;
+            }
+
+            doneWorkCount++;
+        }
+    }
+    
+    --numWorkThreads;
+}
+
+
+
 int UDPOutput::SendData(unsigned char *channelData) {
     std::unique_lock<std::mutex> lk(socketMutex);
     if (!enabled || messages.sendSockets.empty()) {
         return 0;
     }
+    std::chrono::high_resolution_clock clock;
+    if (useThreadedOutput) {
+        doneWorkCount = 0;
+        int total = 0;
+        auto t1 = clock.now();
+        for (auto &msgs : messages.messages) {
+            if (!msgs.second.empty() && msgs.first < LATE_MULTICAST_MESSAGES_KEY) {
+                SendSocketInfo *socketInfo = findOrCreateSocket(msgs.first, 5);
+
+                std::unique_lock<std::mutex> lock(workMutex);
+                workQueue.push_back(WorkItem(msgs.first, socketInfo, msgs.second));
+                lock.unlock();
+                workSignal.notify_one();
+                ++total;
+            }
+        }
+        std::unique_lock<std::mutex> lock(workMutex);
+        while (numWorkThreads < workQueue.size()) {
+            std::thread (DoWorkThread, this).detach();
+            numWorkThreads++;
+        }
+        if (workQueue.size()) {
+            workSignal.notify_all();
+        }
+        lock.unlock();
+        auto t2 = clock.now();
+        while (doneWorkCount != total && std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() < 50) {
+            std::this_thread::sleep_for(std::chrono::microseconds(250));
+            t2 = clock.now();
+        }
+        if (doneWorkCount == total) {
+            //now output the LATE/Broadcast packets (likely sync packets)
+            for (auto &msgs : messages.messages) {
+                if (!msgs.second.empty()) {
+                    SendSocketInfo *socketInfo = findOrCreateSocket(msgs.first, 5);
+                    if (msgs.first >= LATE_MULTICAST_MESSAGES_KEY) {
+                        t1 = clock.now();
+                        int outputCount = SendMessages(msgs.first, socketInfo, msgs.second);
+                        t2 = clock.now();
+                        long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+                        if ((outputCount != msgs.second.size()) || (diff > 100)) {
+                            socketInfo->errCount++;
+                            
+                            //failed to send all messages or it took more than 100ms to send them
+                            LogErr(VB_CHANNELOUT, "sendmmsg() failed for UDP output (key: %X   output count: %d/%d   time: %u ms    errCount: %d) with error: %d   %s\n",
+                                   msgs.first,
+                                   outputCount, msgs.second.size(), diff, socketInfo->errCount,
+                                   errno,
+                                   strerror(errno));
+                        } else {
+                            socketInfo->errCount = 0;
+                        }
+                    }
+                    if (socketInfo->errCount >= 3) {
+                        //we'll ping the controllers and rebuild the valid message list, this could take time
+                        pingThreadCondition.notify_all();
+                        socketInfo->errCount = 0;
+                    }
+                }
+            }
+        }
+        return 1;
+    }
     for (auto &msgs : messages.messages) {
         if (!msgs.second.empty()) {
-            std::chrono::high_resolution_clock clock;
-            auto t1 = clock.now();
-
             SendSocketInfo *socketInfo = findOrCreateSocket(msgs.first, 5);
+            auto t1 = clock.now();
             int outputCount = SendMessages(msgs.first, socketInfo, msgs.second);
             auto t2 = clock.now();
             long diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
@@ -587,7 +709,10 @@ int UDPOutput::createSocket(int port, bool broadCast) {
         LogErr(VB_CHANNELOUT, "Error opening datagram socket\n");
         exit(1);
     }
-    localAddress.sin_port = ntohs(port);
+    
+    static struct sockaddr_in address;
+    memcpy(&address, &localAddress, sizeof(localAddress));
+    address.sin_port = ntohs(port);
 
     errno = 0;
     /* Disable loopback so I do not receive my own datagrams. */
@@ -604,16 +729,16 @@ int UDPOutput::createSocket(int port, bool broadCast) {
             exit(1);
         }
     } else {
-        if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localAddress, sizeof(localAddress)) < 0) {
+        if (setsockopt(sendSocket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&address, sizeof(address)) < 0) {
             LogErr(VB_CHANNELOUT, "Error setting IP_MULTICAST_IF error\n");
             close(sendSocket);
             return -1;
         }
     }
-    if (bind(sendSocket, (struct sockaddr *) &localAddress, sizeof(struct sockaddr_in)) == -1) {
+    if (bind(sendSocket, (struct sockaddr *) &address, sizeof(struct sockaddr_in)) == -1) {
         LogErr(VB_CHANNELOUT, "Error in bind:errno=%d, %s\n", errno, strerror(errno));
     }
-    if (connect(sendSocket, (struct sockaddr *)&localAddress, sizeof(localAddress)) < 0)  {
+    if (connect(sendSocket, (struct sockaddr *)&address, sizeof(address)) < 0)  {
         LogErr(VB_CHANNELOUT, "Error connecting IP_MULTICAST_LOOP socket\n");
     }
     return sendSocket;
@@ -624,8 +749,10 @@ bool UDPOutput::InitNetwork() {
         return true;
     }
     
+    
+    
     char E131LocalAddress[16];
-    GetInterfaceAddress(getE131interface(), E131LocalAddress, NULL, NULL);
+    GetInterfaceAddress(e131Interface.c_str(), E131LocalAddress, NULL, NULL);
     LogDebug(VB_CHANNELOUT, "UDPLocalAddress = %s\n",E131LocalAddress);
 
     if (strcmp(E131LocalAddress, "127.0.0.1") == 0) {

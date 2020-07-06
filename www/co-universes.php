@@ -109,7 +109,12 @@ function PopulateInterfaces()
 
 				<div style="overflow: hidden; padding: 10px;">
 					<b>Enable E1.31 / ArtNet / DDP Output:</b> <input type="checkbox" id="E131Enabled"/><br><br>
-					Source Interface: <select id="selE131interfaces" onChange="SetE131interface();"><? PopulateInterfaces(); ?></select>
+					Source Interface: <select id="selE131interfaces"><? PopulateInterfaces(); ?></select>
+    <span
+    <? if ($uiLevel < 1) { ?>
+        style="display:none;"
+    <? } ?>
+    ><br>Multi-Threaded:&nbsp;<input id="E131ThreadedOutput" type="checkbox" checked /><b>*</b></span>
 					<br><br>
 
 					<div>

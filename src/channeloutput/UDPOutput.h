@@ -130,13 +130,19 @@ public:
     int createSocket(int port = 0, bool broadCast = false);
 
     static UDPOutput *INSTANCE;
+    
+    
+    void BackgroundOutputWork();
 private:
     int SendMessages(unsigned int key, SendSocketInfo *socketInfo, std::vector<struct mmsghdr> &sendmsgs);
+    struct sockaddr_in localAddress;
+    std::string e131Interface;
+
+
     bool InitNetwork();
     SendSocketInfo *findOrCreateSocket(unsigned int key, int sc = 1);
     void CloseNetwork();
     
-    struct sockaddr_in localAddress;
     std::mutex socketMutex;
     UDPOutputMessages messages;
     bool enabled;
@@ -152,4 +158,21 @@ private:
     std::mutex pingThreadMutex;
     std::condition_variable pingThreadCondition;
     CURLM *m_curlm;
+    
+
+    class WorkItem {
+    public:
+        WorkItem(unsigned int i, SendSocketInfo *si, std::vector<struct mmsghdr> &m) : id(i), socketInfo(si), msgs(m) {}
+        unsigned int id;
+        SendSocketInfo *socketInfo;
+        std::vector<struct mmsghdr> &msgs;
+    };
+    
+    std::mutex workMutex;
+    std::condition_variable workSignal;
+    std::list<WorkItem> workQueue;
+    std::atomic_int doneWorkCount;
+    std::atomic_int numWorkThreads;
+    volatile bool runWorkThreads;
+    bool useThreadedOutput;
 };

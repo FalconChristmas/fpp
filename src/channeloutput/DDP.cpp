@@ -224,7 +224,7 @@ void DDPOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &m
                 msg.msg_hdr.msg_iovlen = 2;
                 msg.msg_len = ddpIovecs[p * 2 + 1].iov_len + DDP_HEADER_LEN;
                 
-                msgs[ANY_MESSAGES_KEY].push_back(msg);
+                msgs[ddpAddress.sin_addr.s_addr].push_back(msg);
 
                 unsigned char *header = ddpBuffers[p];
                 header[1] = sequenceNumber & 0xF;

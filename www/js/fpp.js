@@ -1684,12 +1684,19 @@ function updateUniverseEndChannel(row) {
             var inputStyle = "";
             var inputStr = 'Output';
 
+            var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
+        
             if (input) {
                 inputStr = 'Input';
                 inputStyle = "style='display: none;'";
+            } else {
+                if (channelData.hasOwnProperty("interface")) {
+                    $("#selE131interfaces").value = channelData.interface;
+                }
+                if (channelData.hasOwnProperty("threaded")) {
+                    $("#E131ThreadedOutput").prop( "checked", channelData.threaded );
+                }
             }
-
-            var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
             
             UniverseCount = channelData.universes.length;
             for (var i = 0; i < channelData.universes.length; i++) {
@@ -2022,6 +2029,8 @@ function updateUniverseEndChannel(row) {
             output.type = "universes";
             if (!input) {
                 output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
+                output.interface = document.getElementById("selE131interfaces").value;
+                output.threaded = document.getElementById("E131ThreadedOutput").checked ? 1 : 0;
             } else {
                 output.enabled = 1;
             }
@@ -3417,17 +3426,6 @@ function SetFPPDmode()
 	}).fail(function() {
 		DialogError("FPP Mode Change", "Save Failed");
 	});
-}
-
-function SetE131interface()
-{
-			var xmlhttp=new XMLHttpRequest();
-			var iface = $('#selE131interfaces').val();	
-			var url = "fppxml.php?command=setE131interface&iface=" + iface;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-			$.jGrowl("E1.31 Interface Saved");
 }
 
 function GetVolume()

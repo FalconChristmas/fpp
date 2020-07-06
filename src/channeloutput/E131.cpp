@@ -191,7 +191,7 @@ void E131OutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &
                 if (type == E131_TYPE_MULTICAST) {
                     msgs[MULTICAST_MESSAGES_KEY].push_back(msg);
                 } else {
-                    msgs[ANY_MESSAGES_KEY].push_back(msg);
+                    msgs[e131Addresses[x].sin_addr.s_addr].push_back(msg);
                 }
                 
                 ++e131Headers[x][E131_SEQUENCE_INDEX];
