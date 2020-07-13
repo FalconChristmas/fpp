@@ -211,6 +211,9 @@ const std::shared_ptr<httpserver::http_response> GPIOManager::render_GET(const h
 }
 
 void GPIOManager::ConvertOldSettings() {
+    if (!FileExists("/home/fpp/media/settings")) {
+        return;
+    }
     FILE *file = fopen("/home/fpp/media/settings", "r");
     std::list<char *> lines;
     std::map<std::string, std::string> gpioSettings;

@@ -155,10 +155,19 @@ std::unique_ptr<Command::Result> CommandManager::runRemoteCommand(const std::str
 std::unique_ptr<Command::Result> CommandManager::run(const std::string &command, const Json::Value &argsArray) {
     auto f = commands.find(command);
     if (f != commands.end()) {
-        LogDebug(VB_COMMAND, "Running command \"%s\"\n", command.c_str());
         std::vector<std::string> args;
         for (int x = 0; x < argsArray.size(); x++) {
             args.push_back(argsArray[x].asString());
+        }
+        if (WillLog(LOG_DEBUG, VB_COMMAND)) {
+            std::string argString;
+            for (auto &a : args) {
+                if (!argString.empty()) {
+                    argString += ",";
+                }
+                argString += a;
+            }
+            LogDebug(VB_COMMAND, "Running command \"%s(%s)\"\n", command.c_str(), argString.c_str());
         }
         return f->second->run(args);
     }

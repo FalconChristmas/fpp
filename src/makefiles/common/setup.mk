@@ -22,6 +22,9 @@ UNAME := $(shell uname 2> /dev/null)
 ifeq '$(UNAME)' 'Darwin'
 ARCH = OSX
 endif
+ifeq '$(UNAME)' 'Linux'
+ARCH = Linux
+endif
 endif
 ifeq '$(ARCH)' ''
 	ARCH = "UNKNOWN"
