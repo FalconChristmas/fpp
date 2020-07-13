@@ -42,14 +42,8 @@
 
 #include <jsoncpp/json/json.h>
 
-#include "common.h"
 #include "e131bridge.h"
-#include "log.h"
-#include "Sequence.h"
-#include "settings.h"
 #include "command.h"
-#include "Warnings.h"
-#include "fppversion.h"
 
 #include "e131defs.h"
 #include "channeloutput/channeloutput.h"
