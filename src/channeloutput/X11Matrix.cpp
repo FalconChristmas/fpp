@@ -93,7 +93,7 @@ int X11MatrixOutput::Init(Json::Value config)
 	m_display = XOpenDisplay(getenv("DISPLAY"));
 	if (!m_display)
 	{
-		LogDebug(VB_CHANNELOUT, "Unable to connect to X Server\n");
+		LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", getenv("DISPLAY"));
 		return 0;
 	}
 
@@ -116,7 +116,7 @@ int X11MatrixOutput::Init(Json::Value config)
 	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
 	if (tgc < 0) {
-		LogDebug(VB_CHANNELOUT, "Unable to create GC\n");
+		LogErr(VB_CHANNELOUT, "Unable to create GC\n");
 		return 0;
 	}
 
