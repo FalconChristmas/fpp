@@ -109,7 +109,9 @@ int X11PixelStringsOutput::Init(Json::Value config)
     m_scaledWidth = m_longestString * m_scale;
     m_scaledHeight = m_strings.size() * m_scale;
 
-	InitializeX11Window();
+    if (!InitializeX11Window()) {
+        return 0;
+    }
 
 	return ThreadedChannelOutputBase::Init(config);
 }
@@ -134,10 +136,15 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 
 	// Initialize X11 Window here
 	m_title = "X11 FrameBuffer";
-	m_display = XOpenDisplay(getenv("DISPLAY"));
+    
+    const char *dsp = getenv("DISPLAY");
+    if (dsp == nullptr) {
+        dsp = ":0";
+    }
+	m_display = XOpenDisplay(dsp);
 	if (!m_display)
 	{
-		LogErr(VB_PLAYLIST, "Unable to connect to X Server\n");
+        LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", dsp);
 		return 0;
 	}
 
@@ -159,7 +166,7 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 	m_gc = XCreateGC(m_display, m_pixmap, 0, &values);
     int32_t tgc = reinterpret_cast<uintptr_t>(m_gc);
     if (tgc < 0) {
-		LogErr(VB_PLAYLIST, "Unable to create GC\n");
+		LogErr(VB_CHANNELOUT, "Unable to create GC\n");
 		return 0;
 	}
 
@@ -180,11 +187,13 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 
 void X11PixelStringsOutput::DestroyX11Window(void)
 {
-	XDestroyWindow(m_display, m_window);
-	XFreePixmap(m_display, m_pixmap);
-    XDestroyImage(m_xImage);
-	XFreeGC(m_display, m_gc);
-	XCloseDisplay(m_display);
+    if (m_display) {
+        XDestroyWindow(m_display, m_window);
+        XFreePixmap(m_display, m_pixmap);
+        XDestroyImage(m_xImage);
+        XFreeGC(m_display, m_gc);
+        XCloseDisplay(m_display);
+    }
 }
 
 void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {

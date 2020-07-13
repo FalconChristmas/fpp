@@ -92,10 +92,14 @@ int X11MatrixOutput::Init(Json::Value config)
 	m_imageData = (char *)calloc(m_scaleWidth * m_scaleHeight * 4, 1);
 
 	// Initialize X11 Window here
-	m_display = XOpenDisplay(getenv("DISPLAY"));
+    const char *dsp = getenv("DISPLAY");
+    if (dsp == nullptr) {
+        dsp = ":0";
+    }
+	m_display = XOpenDisplay(dsp);
 	if (!m_display)
 	{
-		LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", getenv("DISPLAY"));
+		LogErr(VB_CHANNELOUT, "Unable to connect to X Server: %s\n", dsp);
 		return 0;
 	}
 
@@ -146,13 +150,16 @@ int X11MatrixOutput::Close(void)
 
 	// Close X11 Window here
 
-	XLockDisplay(m_display);
-	XDestroyWindow(m_display, m_window);
-	XFreePixmap(m_display, m_pixmap);
-	XFreeGC(m_display, m_gc);
-    XDestroyImage(m_image);
-    XUnlockDisplay(m_display);
-	XCloseDisplay(m_display);
+    if (m_display) {
+        XLockDisplay(m_display);
+        XDestroyWindow(m_display, m_window);
+        XFreePixmap(m_display, m_pixmap);
+        XFreeGC(m_display, m_gc);
+        XDestroyImage(m_image);
+        XUnlockDisplay(m_display);
+        XCloseDisplay(m_display);
+    }
+    m_display = nullptr;
 
 	return ThreadedChannelOutputBase::Close();
 }
