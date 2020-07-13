@@ -25,6 +25,8 @@
 
 #include "fpp-pch.h"
 
+#include <X11/Xutil.h>
+
 #include "serialutil.h"
 #include "X11Matrix.h"
 
@@ -87,7 +89,7 @@ int X11MatrixOutput::Init(Json::Value config)
 
 	m_scaleWidth = m_scale * m_width;
 	m_scaleHeight = m_scale * m_height;
-	m_imageData = new char[m_scaleWidth * m_scaleHeight * 4];
+	m_imageData = (char *)calloc(m_scaleWidth * m_scaleHeight * 4, 1);
 
 	// Initialize X11 Window here
 	m_display = XOpenDisplay(getenv("DISPLAY"));
@@ -148,9 +150,9 @@ int X11MatrixOutput::Close(void)
 	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
 	XFreeGC(m_display, m_gc);
+    XDestroyImage(m_image);
     XUnlockDisplay(m_display);
 	XCloseDisplay(m_display);
-	delete [] m_imageData;
 
 	return ThreadedChannelOutputBase::Close();
 }

@@ -70,7 +70,7 @@ public:
         CommandArg &setGetAdjustableValueURL(const std::string &g) { adjustableGetValueURL = g; adjustable = true; return *this;}
         CommandArg &setAdjustable() { adjustable = true; return *this;}
         
-        virtual ~CommandArg() {}
+        ~CommandArg() {}
 
 
         const std::string name;

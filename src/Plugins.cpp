@@ -346,6 +346,7 @@ void PluginManager::init()
                             dlclose(handle);
                             continue;
                         }
+                        mShlibHandles.push_back(handle);
                         mPlugins.push_back(p);
                     }
                 }
@@ -363,11 +364,12 @@ void PluginManager::init()
 
 PluginManager::~PluginManager()
 {
-    if (mPluginsLoaded) {
-        while (!mPlugins.empty()) {
-            delete mPlugins.back();
-            mPlugins.pop_back();
-        }
+    while (!mPlugins.empty()) {
+        delete mPlugins.back();
+        mPlugins.pop_back();
+    }
+    for (auto &a : mShlibHandles) {
+        dlclose(a);
     }
 }
 

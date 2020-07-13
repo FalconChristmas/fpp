@@ -93,11 +93,9 @@ int ExtGPIO(int gpio, char *mode, int value)
 
 class GPIOCommand : public Command {
 public:
-    GPIOCommand(std::vector<std::string> &pins) : Command("GPIO") {
+    GPIOCommand() : Command("GPIO") {
         args.push_back(CommandArg("pin", "string", "Pin").setContentListUrl("api/gpio?list=true"));
         args.push_back(CommandArg("on", "bool", "On"));
-    }
-    virtual ~GPIOCommand() {
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() != 2) {
@@ -129,7 +127,7 @@ void GPIOManager::Initialize(std::map<int, std::function<bool(int)>> &callbacks)
     SetupGPIOInput(callbacks);
     std::vector<std::string> pins = PinCapabilities::getPinNames();
     if (!pins.empty()) {
-        CommandManager::INSTANCE.addCommand(new GPIOCommand(pins));
+        CommandManager::INSTANCE.addCommand(new GPIOCommand());
     }
 }
 void GPIOManager::CheckGPIOInputs(void) {
@@ -262,9 +260,11 @@ void GPIOManager::ConvertOldSettings() {
             } else {
                 lines.push_back(line);
                 line = (char*)calloc(256, 1);
+                free(key);
             }
             free(dup);
         }
+        free(line);
     }
     fclose(file);
     
@@ -329,9 +329,11 @@ void GPIOManager::ConvertOldSettings() {
         file = fopen("/home/fpp/media/settings", "w");
         for (auto l : lines) {
             fwrite(l, strlen(l), 1, file);
-            free(l);
         }
         fclose(file);
+    }
+    for (auto l : lines) {
+        free(l);
     }
 }
 

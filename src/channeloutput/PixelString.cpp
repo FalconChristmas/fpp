@@ -89,7 +89,8 @@ PixelString::PixelString(bool supportSmart)
   : m_portNumber(0),
 	m_channelOffset(0),
 	m_outputChannels(0),
-    m_isSmartReceiver(supportSmart)
+    m_isSmartReceiver(supportSmart),
+    m_brightnessMaps(nullptr)
 {
 }
 
@@ -98,6 +99,9 @@ PixelString::PixelString(bool supportSmart)
  */
 PixelString::~PixelString()
 {
+    if (m_brightnessMaps) {
+        free(m_brightnessMaps);
+    }
 }
 
 /*

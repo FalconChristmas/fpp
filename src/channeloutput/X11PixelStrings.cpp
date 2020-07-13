@@ -28,6 +28,8 @@
 #include <signal.h>
 #include <stdint.h>
 
+#include <X11/Xutil.h>
+
 #include "X11PixelStrings.h"
 
 
@@ -141,8 +143,7 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 
 	m_screen = DefaultScreen(m_display);
 
-	m_fbp = new char[m_scaledWidth * m_scaledHeight * 4];
-    memset(m_fbp, 0, m_scaledWidth * m_scaledHeight * 4);
+	m_fbp = (char *)calloc(m_scaledWidth * m_scaledHeight * 4, 1);
 
 	m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
 		(char *)m_fbp, m_scaledWidth, m_scaledHeight, 32, m_scaledWidth * 4);
@@ -181,9 +182,9 @@ void X11PixelStringsOutput::DestroyX11Window(void)
 {
 	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
+    XDestroyImage(m_xImage);
 	XFreeGC(m_display, m_gc);
 	XCloseDisplay(m_display);
-	delete [] m_fbp;
 }
 
 void X11PixelStringsOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {

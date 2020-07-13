@@ -36,5 +36,6 @@ public:
 
 private:
     std::vector<FPPPlugin *> mPlugins;
+    std::vector<void*> mShlibHandles;
     std::atomic_bool mPluginsLoaded;
 };

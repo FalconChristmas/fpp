@@ -11,8 +11,7 @@ Command::Command(const std::string &n) : name(n), description("") {
 }
 Command::Command(const std::string &n, const std::string &descript) : name(n), description(descript) {
 }
-Command::~Command() {
-}
+Command::~Command() {}
 
 Json::Value Command::getDescription() {
     Json::Value cmd;
@@ -95,9 +94,15 @@ void CommandManager::Init() {
 CommandManager::~CommandManager() {
     Cleanup();
 }
+
 void CommandManager::Cleanup() {
-    for (auto &a : commands) {
-        delete a.second;
+    while (!commands.empty()) {
+        Command *cmd = commands.begin()->second;
+        commands.erase(commands.begin());
+
+        if (cmd->name != "GPIO") { // No idea why deleteing the GPIO command causes a crash on exit
+            delete cmd;
+        }
     }
     commands.clear();
 }
