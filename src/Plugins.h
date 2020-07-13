@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <atomic>
 #include <functional>
 #include <jsoncpp/json/json.h>
 
@@ -35,4 +36,5 @@ public:
 
 private:
     std::vector<FPPPlugin *> mPlugins;
+    std::atomic_bool mPluginsLoaded;
 };

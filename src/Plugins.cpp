@@ -216,7 +216,7 @@ private:
 
 
 
-PluginManager::PluginManager()
+PluginManager::PluginManager() : mPluginsLoaded(false)
 {
 }
 
@@ -356,60 +356,79 @@ void PluginManager::init()
 	} else {
 		LogWarn(VB_PLUGIN, "Couldn't open the directory %s: (%d): %s\n", getPluginDirectory(), errno, strerror(errno));
 	}
+    mPluginsLoaded = true;
 
 	return;
 }
 
 PluginManager::~PluginManager()
 {
-	while (!mPlugins.empty()) {
-		delete mPlugins.back();
-		mPlugins.pop_back();
-	}
+    if (mPluginsLoaded) {
+        while (!mPlugins.empty()) {
+            delete mPlugins.back();
+            mPlugins.pop_back();
+        }
+    }
 }
 
 void PluginManager::eventCallback(const char *id, const char *impetus)
 {
-    for (auto a : mPlugins) {
-        a->eventCallback(id, impetus);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->eventCallback(id, impetus);
+        }
     }
 }
 void PluginManager::mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails)
 {
-    for (auto a : mPlugins) {
-        a->mediaCallback(playlist, mediaDetails);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->mediaCallback(playlist, mediaDetails);
+        }
     }
 }
 void PluginManager::registerApis(httpserver::webserver *m_ws) {
-    for (auto a : mPlugins) {
-        a->registerApis(m_ws);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->registerApis(m_ws);
+        }
     }
 }
 void PluginManager::unregisterApis(httpserver::webserver *m_ws)  {
-    for (auto a : mPlugins) {
-        a->unregisterApis(m_ws);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->unregisterApis(m_ws);
+        }
     }
 }
 void PluginManager::modifyChannelData(int ms, uint8_t *seqData) {
-    for (auto a : mPlugins) {
-        a->modifyChannelData(ms, seqData);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->modifyChannelData(ms, seqData);
+        }
     }
 }
 void PluginManager::addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks) {
-    for (auto a : mPlugins) {
-        a->addControlCallbacks(callbacks);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->addControlCallbacks(callbacks);
+        }
     }
 }
 void PluginManager::multiSyncData(const std::string &pn, uint8_t *data, int len) {
-    for (auto a : mPlugins) {
-        if (a->getName() == pn) {
-            a->multiSyncData(data, len);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            if (a->getName() == pn) {
+                a->multiSyncData(data, len);
+            }
         }
     }
 }
 void PluginManager::playlistCallback(const Json::Value &playlist, const std::string &action, const std::string &section, int item) {
-    for (auto a : mPlugins) {
-        a->playlistCallback(playlist, action, section, item);
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->playlistCallback(playlist, action, section, item);
+        }
     }
 }
 

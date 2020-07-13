@@ -148,8 +148,8 @@ int X11MatrixOutput::Close(void)
 	XDestroyWindow(m_display, m_window);
 	XFreePixmap(m_display, m_pixmap);
 	XFreeGC(m_display, m_gc);
+    XUnlockDisplay(m_display);
 	XCloseDisplay(m_display);
-	XUnlockDisplay(m_display);
 	delete [] m_imageData;
 
 	return ThreadedChannelOutputBase::Close();

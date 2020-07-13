@@ -142,6 +142,7 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 	m_screen = DefaultScreen(m_display);
 
 	m_fbp = new char[m_scaledWidth * m_scaledHeight * 4];
+    memset(m_fbp, 0, m_scaledWidth * m_scaledHeight * 4);
 
 	m_xImage = XCreateImage(m_display, CopyFromParent, 24, ZPixmap, 0,
 		(char *)m_fbp, m_scaledWidth, m_scaledHeight, 32, m_scaledWidth * 4);
