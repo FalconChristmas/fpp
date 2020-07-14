@@ -35,9 +35,9 @@ public:
     constexpr PixelOverlayState(PixelState v) : state(v) {}
     constexpr PixelOverlayState(int v) : state((PixelState)v) {}
     PixelOverlayState(const std::string &v) {
-        if (v == "Disabled") {
+        if (v == "Disabled" || v == "false" || v == "False" || v == "0") {
             state = PixelState::Disabled;
-        } else if (v == "Enabled") {
+        } else if (v == "Enabled" || v == "true" || v == "True" || v == "1") {
             state = PixelState::Enabled;
         } else if (v == "Transparent") {
             state = PixelState::Transparent;
@@ -85,8 +85,10 @@ public:
     
     uint8_t *getOverlayBuffer();
     void clearOverlayBuffer();
+    void setOverlayBufferScaledData(uint8_t *data, int w, int h);
     void fillOverlayBuffer(int r, int g, int b);
     void setOverlayPixelValue(int x, int y, int r, int g, int b);
+    void setOverlayBufferDirty();
     void flushOverlayBuffer();
 
     void clear() { clearOverlayBuffer(); flushOverlayBuffer(); }
@@ -97,7 +99,7 @@ public:
     void setPixelValue(int x, int y, int r, int g, int b);
 
     
-    bool applyEffect(bool autoEnable, const std::string &effect, const std::vector<std::string> &args);
+    bool applyEffect(const std::string &autoState, const std::string &effect, const std::vector<std::string> &args);
     void setRunningEffect(RunningEffect *r, int32_t firstUpdateMS);
     RunningEffect *getRunningEffect() const { return runningEffect; }
     

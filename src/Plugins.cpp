@@ -373,6 +373,12 @@ PluginManager::~PluginManager()
     }
 }
 
+
+bool PluginManager::hasPlugins() {
+    return mPluginsLoaded && !mPlugins.empty();
+}
+
+
 void PluginManager::eventCallback(const char *id, const char *impetus)
 {
     if (mPluginsLoaded) {
@@ -400,6 +406,13 @@ void PluginManager::unregisterApis(httpserver::webserver *m_ws)  {
     if (mPluginsLoaded) {
         for (auto a : mPlugins) {
             a->unregisterApis(m_ws);
+        }
+    }
+}
+void PluginManager::modifySequenceData(int ms, uint8_t *seqData) {
+    if (mPluginsLoaded) {
+        for (auto a : mPlugins) {
+            a->modifySequenceData(ms, seqData);
         }
     }
 }

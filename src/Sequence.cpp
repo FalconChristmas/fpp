@@ -505,6 +505,8 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
+    PluginManager::INSTANCE.modifySequenceData(ms, (uint8_t*)m_seqData);
+    
     if (IsEffectRunning())
         OverlayEffects(m_seqData);
 

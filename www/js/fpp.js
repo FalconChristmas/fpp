@@ -3990,6 +3990,9 @@ function SubCommandChanged(subCommandV, configAdjustable = false, argPrintFunc =
     }
     var val = subCommand.val();
     var url = subCommand.data("url");
+    if (url == null) {
+        url = subCommand.data("contentlisturl");
+    }
     var count = subCommand.data("count");
     var tblCommand = subCommand.data('tblcommand');
     
@@ -4312,7 +4315,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
          } else if (val['type'] == "subcommand") {
              line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
              line += " onChange='SubCommandChanged(this, " + configAdjustable + ")'";
-             line += " data-contentlisturl='" + val['contentListUrl'] + "'";
+             line += " data-url='" + val['contentListUrl'] + "'";
              line += " data-count='" + count + "'";
              line += " data-tblcommand='" + tblCommand + "'";
              line += ">";

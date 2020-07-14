@@ -791,7 +791,7 @@ class ApplyEffectOverlayCommand : public OverlayCommand {
 public:
     ApplyEffectOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Effect", m) {
         args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
-        args.push_back(CommandArg("AutoEnable", "bool", "Auto Enable/Disable").setDefaultValue("false"));
+        args.push_back(CommandArg("AutoEnable", "string", "Auto Enable/Disable").setContentList({"False", "Enabled", "Transparent", "Transparent RGB"}).setDefaultValue("false"));
         args.push_back(CommandArg("Effect", "subcommand", "Effect").setContentListUrl("api/overlays/effects/", false));
     }
     
@@ -802,11 +802,10 @@ public:
         std::unique_lock<std::mutex> lock(getLock());
         auto m = manager->getModel(args[0]);
         if (m) {
-            bool autoEnable = (args[1] == "true" || args[1] == "1");
             std::string effect = args[2];
             std::vector<std::string> newArgs(args.begin() + 3, args.end());
 
-            if (m->applyEffect(autoEnable, effect, newArgs)) {
+            if (m->applyEffect(args[1], effect, newArgs)) {
                 return std::make_unique<Command::Result>("Model Effect Started");
             }
             return std::make_unique<Command::ErrorResult>("Could not start effect: " + effect);

@@ -22,6 +22,7 @@
 
 #include "channeloutput/channeloutputthread.h"
 #include "effects.h"
+#include "Plugins.h"
 #include "PixelOverlayModel.h"
 #include "PixelOverlay.h"
 #include "PixelOverlayEffects.h"
@@ -208,7 +209,8 @@ void PixelOverlayModel::doOverlay(uint8_t *channels) {
     int st = state.getState();
     if (((st == 2) || (st == 3)) &&
         (!IsEffectRunning()) &&
-        (!sequence->IsSequenceRunning())) {
+        (!sequence->IsSequenceRunning()) &&
+        !PluginManager::INSTANCE.hasPlugins()) {
         //there is nothing running that we would be overlaying so do a straight copy
         st = 1;
     }
@@ -336,6 +338,34 @@ void PixelOverlayModel::flushOverlayBuffer() {
     //make sure the dirty flag is unset
     overlayBufferData->flags &= ~0x1;
 }
+void PixelOverlayModel::setOverlayBufferDirty() {
+    getOverlayBuffer();
+    overlayBufferData->flags |= 0x1;
+}
+
+void PixelOverlayModel::setOverlayBufferScaledData(uint8_t *data, int w, int h) {
+    float ydiff = (float)h / (float)height;
+    float xdiff = (float)w / (float)width;
+    uint8_t *buf = getOverlayBuffer();
+    
+    float newy = 0.0f;
+    float newx = 0.0f;
+    int x, y;
+
+    for (y = 0, newy = 0.0f; y < height; y++, newy += ydiff) {
+        int srcY = newy;
+        for (x = 0, newx = 0.0f; x < width; x++, newx += xdiff) {
+            int srcX = newx;
+            
+            int idx = y * width * 3 + x * 3;
+            int srcidx = srcY * w * 3 + srcX * 3;
+            
+            buf[idx++] = data[srcidx++];
+            buf[idx++] = data[srcidx++];
+            buf[idx] = data[srcidx];
+        }
+    }
+}
 
 
 
@@ -375,10 +405,10 @@ void PixelOverlayModel::setRunningEffect(RunningEffect *ef, int32_t firstUpdateM
     PixelOverlayManager::INSTANCE.addPeriodicUpdate(firstUpdateMS, this);
 }
 
-bool PixelOverlayModel::applyEffect(bool autoEnable, const std::string &effect, const std::vector<std::string> &args) {
+bool PixelOverlayModel::applyEffect(const std::string &autoState, const std::string &effect, const std::vector<std::string> &args) {
     PixelOverlayEffect *pe = PixelOverlayEffect::GetPixelOverlayEffect(effect);
     if (pe) {
-        return pe->apply(this, autoEnable, args);
+        return pe->apply(this, autoState, args);
     }
     return false;
 }

@@ -45,6 +45,13 @@ public:
     StopRunningEffect(PixelOverlayModel *m, const std::string &n, bool ad)
         : RunningEffect(m), effectName(n), autoDisable(ad) {
     }
+    StopRunningEffect(PixelOverlayModel *m, const std::string &n, const std::string &ad)
+        : RunningEffect(m), effectName(n), autoDisable(false) {
+        PixelOverlayState st(ad);
+        if (st.getState() != PixelOverlayState::PixelState::Disabled) {
+            autoDisable = true;
+        }
+    }
     const std::string &name() const override {
         return effectName;
     }
@@ -75,12 +82,15 @@ public:
     
     class CFRunningEffect : public RunningEffect {
     public:
-        CFRunningEffect(PixelOverlayModel *m, bool ae, const std::vector<std::string> &args) : RunningEffect(m), autoEnable(ae) {
+        CFRunningEffect(PixelOverlayModel *m, const std::string &ae, const std::vector<std::string> &args) : RunningEffect(m), autoEnable(false) {
             color = PixelOverlayManager::mapColor(args[0]);
             fadeIn = std::stol(args[1]);
             fadeOut = std::stol(args[2]);
-            if (autoEnable) {
-                model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+            
+            PixelOverlayState st(ae);
+            if (st.getState() != PixelOverlayState::PixelState::Disabled) {
+                autoEnable = true;
+                model->setState(st);
             }
             startTime = GetTimeMS();
             done = false;
@@ -145,7 +155,7 @@ public:
         bool done;
     };
     
-    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) override {
+    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
         if (args.size() != 3) {
             LogInfo(VB_CHANNELOUT, "ColorFadeEffect: not enough args\n");
             return false;
@@ -174,7 +184,7 @@ public:
     }
     class BarsRunningEffect : public RunningEffect {
     public:
-        BarsRunningEffect(PixelOverlayModel *m, bool ae, const std::vector<std::string> &args) : RunningEffect(m), autoEnable(ae) {
+        BarsRunningEffect(PixelOverlayModel *m, const std::string &ae, const std::vector<std::string> &args) : RunningEffect(m), autoEnable(false) {
             if (args[0] == "Up") {
                 direction = DirectionEnum::UP;
             } else if (args[0] == "Down") {
@@ -197,8 +207,10 @@ public:
                 }
                 colorRep--;
             }
-            if (autoEnable) {
-                model->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+            PixelOverlayState st(ae);
+            if (st.getState() != PixelOverlayState::PixelState::Disabled) {
+                autoEnable = true;
+                model->setState(st);
             }
             startTime = GetTimeMS();
             done = false;
@@ -305,7 +317,7 @@ public:
         bool done;
     };
     
-    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) override {
+    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
         if (args.size() < 5) {
             LogInfo(VB_CHANNELOUT, "Bars Effect: not enough args\n");
             return false;
@@ -466,7 +478,7 @@ public:
                 bool antialias,
                 const std::string &position,
                 int pixelsPerSecond,
-                bool autoEnable,
+                const std::string &autoEnable,
                 int duration) {
 
         Magick::Image image(Magick::Geometry(m->getWidth(),m->getHeight()), Magick::Color("black"));
@@ -477,9 +489,10 @@ public:
         image.antiAlias(antialias);
 
         bool disableWhenDone = false;
-        if ((autoEnable) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled))
-        {
-            m->setState(PixelOverlayState(PixelOverlayState::PixelState::Enabled));
+        
+        PixelOverlayState st(autoEnable);
+        if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
+            m->setState(st);
             disableWhenDone = true;
         }
         
@@ -620,7 +633,7 @@ public:
     }
 
     
-    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) override {
+    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
         std::string color = args[0];
         unsigned int cint = PixelOverlayManager::mapColor(color);
         std::string font = PixelOverlayManager::INSTANCE.mapFont(args[1]);
@@ -655,7 +668,7 @@ class StopEffect : public PixelOverlayEffect {
 public:
     StopEffect() : PixelOverlayEffect("Stop Effects") {
     }
-    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) override {
+    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
         model->setRunningEffect(new StopRunningEffect(model, "Stop Effects", autoEnable), 25);
         return true;
     }

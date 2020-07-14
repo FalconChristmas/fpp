@@ -51,8 +51,11 @@ public:
         return std::make_unique<Command::Result>("Ignored");
     };
     
-    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) = 0;
-    
+    virtual bool apply(PixelOverlayModel *model, bool autoEnable, const std::vector<std::string> &args) {return false;}
+    virtual bool apply(PixelOverlayModel *model, const std::string &enableState, const std::vector<std::string> &args) {
+        return apply(model, enableState != "false", args);
+    }
+
     static PixelOverlayEffect* GetPixelOverlayEffect(const std::string &name);
     static const std::vector<std::string>& GetPixelOverlayEffects();
 };

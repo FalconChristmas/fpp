@@ -19,6 +19,8 @@ public:
 	PluginManager();
 	~PluginManager();
 	void init(void);
+    
+    bool hasPlugins();
 
 	void eventCallback(const char *id, const char *impetus);
 	void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails);
@@ -28,9 +30,10 @@ public:
     void registerApis(httpserver::webserver *m_ws);
     void unregisterApis(httpserver::webserver *m_ws);
     
-    void modifyChannelData(int ms, uint8_t *seqData);
     void addControlCallbacks(std::map<int, std::function<bool(int)>> &callbacks);
 
+    void modifySequenceData(int ms, uint8_t *seqData);
+    void modifyChannelData(int ms, uint8_t *seqData);
 
     static PluginManager INSTANCE;
 
