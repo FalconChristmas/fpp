@@ -793,20 +793,17 @@ function PopulateChannelOutputTable(data) {
                 (type == 'Pixelnet-Open') ||
                 (type == 'MAX7219Matrix') ||
                 (type == 'VirtualDisplay') ||
-                (type == 'VirtualMatrix') ||
-				(() => {
-					///////used for new way
-					if (output_module != undefined)
-						return output_module.fixedChan;
-					return false;
-					})()
-					///////
-				)
+                (type == 'VirtualMatrix')) {
                 countDisabled = " disabled='disabled'";
+            }
 
 			var typeFriendlyName = type;
-			if (output_module != undefined)
-					typeFriendlyName = output_module.typeFriendlyName;
+            if (output_module != undefined) {
+				typeFriendlyName = output_module.typeFriendlyName;
+                if (output_module._fixedChans) {
+                    countDisabled = " disabled='disabled'";
+                }
+            }
 
 			newRow += "></td>" +	
 					"<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +

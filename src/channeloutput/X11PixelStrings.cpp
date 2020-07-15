@@ -135,7 +135,7 @@ int X11PixelStringsOutput::InitializeX11Window(void)
 	}
 
 	// Initialize X11 Window here
-	m_title = "X11 FrameBuffer";
+	m_title = "X11 Pixel Strings";
     
     const char *dsp = getenv("DISPLAY");
     if (dsp == nullptr) {

@@ -58,6 +58,7 @@ class OtherBase {
     get fixedChans () {
         return this._fixedChans;
     }
+    
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -390,6 +391,37 @@ class GenericUDPDevice extends OtherBase {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// X11 Virtual Matrix Output
+class X11VirtualMatrixDevice extends OtherBase {
+    
+    constructor(name="X11Matrix", friendlyName="X11 Virtual Matrix", maxChannels=73728, fixedChans=true,
+                config={title: "X11 Virtual Matrix", scale:6, width:192, height: 128}) {
+        super(name, friendlyName, maxChannels, fixedChans, config);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+        result += "Title:&nbsp;<input type='text' name='x11title' class='x11title' value='"+config.title+"'>&nbsp;";
+        result += "Width:&nbsp;<input type='number' name='width' min='1' max='1920' class='width' value='"+config.width+"'  onChange='VirtualMatrixLayoutChanged(this);'>&nbsp;";
+        result += "Height:&nbsp;<input type='number' name='height' min='1' max='1080' class='height' value='"+config.height+"' onChange='VirtualMatrixLayoutChanged(this);'>&nbsp;";
+        result += "Scale:&nbsp;<input type='number' name='scale' min='1' max='25' class='scale' value='"+config.scale+"'>&nbsp;";
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        result.title = cell.find("input.x11title").val();
+        result.width = parseInt(cell.find("input.width").val());
+        result.height = parseInt(cell.find("input.height").val());
+        result.scale = parseInt(cell.find("input.scale").val());
+
+        return result;
+    }
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////
 // GPIO Output
 
 var GPIOPins = new Map();
@@ -550,6 +582,12 @@ if ($settings['Platform'] == "Raspberry Pi")
 }
 ?>
     output_modules.push(new GenericUDPDevice());
+
+<?
+if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
+    echo "output_modules.push(new X11VirtualMatrixDevice());";
+}
+?>
 
 
 </script>
