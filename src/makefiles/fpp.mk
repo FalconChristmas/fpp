@@ -1,7 +1,12 @@
 OBJECTS_fpp = \
 	fpp.o \
+	common.o \
+    log.o \
 	fppversion.o
 LIBS_fpp = \
+    -ljsoncpp \
+    -lcurl \
+    -lpthread -lrt \
 	$(NULL)
 
 TARGETS+=fpp

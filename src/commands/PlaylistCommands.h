@@ -56,6 +56,18 @@ public:
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
+class TogglePlaylistCommand : public Command {
+public:
+    TogglePlaylistCommand() : Command("Toggle Playlist") {
+        args.push_back(CommandArg("name", "string", "Playlist Name")
+                        .setContentListUrl("api/playlists/playable"));
+        args.push_back(CommandArg("repeat", "bool", "Repeat", true));
+        args.push_back(CommandArg("stop", "string", "Stop Type")
+                       .setContentList({"Gracefully", "After Loop", "Now"})
+                       .setDefaultValue("Gracefully"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
 class StartPlaylistAtCommand : public Command {
 public:
     StartPlaylistAtCommand() : Command("Start Playlist At Item") {

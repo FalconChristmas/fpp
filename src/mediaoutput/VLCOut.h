@@ -31,10 +31,18 @@ class VLCOutput : public MediaOutputBase {
     virtual int Close(void) override;
     virtual int IsPlaying(void) override;
     
+    virtual int Restart();
+        
     virtual int AdjustSpeed(float master) override;
-    virtual void SetVolume(int volume) override;
+    
+    
+    void SetVolumeAdjustment(int volAdj);
 
     
+    //events from VLC
+    virtual void Starting() {}
+    virtual void Stopped() {}
+
   private:
     VLCInternalData *data;
     bool m_allowSpeedAdjust;

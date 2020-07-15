@@ -224,20 +224,18 @@ function defaultForArg(arg, json) {
     if (typeof arg["default"] != "undefined") {
         var def = arg["default"];
         if (arg["type"] == "bool") {
-            json[arg["name"]] = def == "true";
-        } else if (arg["type"] == "int") {
-            json[arg["name"]] = parseInt(def);
+            json["args"].push(def == "true" ? "true" : "false");
         } else {
-            json[arg["name"]] = def;
+            json["args"].push(def);
         }
     } else if (arg["type"] == "bool") {
-        json[arg["name"]] = false;
+        json["args"].push("false");
     } else if (arg["type"] == "int") {
-        json[arg["name"]] = 0;
+        json["args"].push("0");
     } else if (arg["type"] == "datalist") {
-        json[arg["name"]] = arg["description"];
+        json["args"].push(arg["description"]);
     } else {
-        json[arg["name"]] = arg["name"];
+        json["args"].push(arg["name"]);
     }
 }
 
@@ -260,7 +258,7 @@ function loadCommands() {
                 row += val["description"] ;
            }
            row += "</td><td>";
-           var json = { "command": val["name"] };
+           var json = { "command": val["name"], "args": [] };
            $.each(val["args"], function(key, arg) {
                   row += arg["description"].replace(/ /g, '&nbsp;') + "&nbsp;(name:&nbsp;'" + arg["name"] + "',&nbsp;&nbsp;type:&nbsp;'" + arg["type"] + "')<br>";
                   defaultForArg(arg, json);

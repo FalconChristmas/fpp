@@ -24,10 +24,13 @@
 
 class VLCInternalData {
 public:
-    VLCInternalData(const std::string &m) : fullMediaPath(m) {
+    VLCInternalData(const std::string &m, VLCOutput *out) : fullMediaPath(m), vlcOutput(out) {
     }
+    VLCOutput *vlcOutput;
     libvlc_media_player_t *vlcPlayer = nullptr;
-    std::string fullMediaPath;
+    libvlc_media_t *media = nullptr;
+    libvlc_equalizer_t *equalizer = nullptr;
+    std::string fullMediaPath;   
     
     uint64_t length = 0;
     uint64_t lastPos = 0;
@@ -96,6 +99,9 @@ void logCallback(void *data, int level, const libvlc_log_t *ctx,
                 if (str == "buffer deadlock prevented") {
                     return;
                 }
+                if (str == "cannot estimate delay: Input/output error") {
+                    return;
+                }
                 if (str == "cannot connect to session bus: Unable to autolaunch a dbus-daemon without a $DISPLAY for X11") {
                     return;
                 }
@@ -104,6 +110,16 @@ void logCallback(void *data, int level, const libvlc_log_t *ctx,
             break;
     }
 }
+
+static void startingEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
+    VLCInternalData *d = (VLCInternalData*)p_data;
+    d->vlcOutput->Starting();
+}
+static void stoppedEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
+    VLCInternalData *d = (VLCInternalData*)p_data;
+    d->vlcOutput->Stopped();
+}
+
 
 class VLCManager {
 public:
@@ -130,10 +146,12 @@ public:
             
             libvlc_log_set(vlcInstance, logCallback, this);
         }
-        libvlc_media_t *media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
-        data->vlcPlayer = libvlc_media_player_new_from_media(media);
-        libvlc_media_release(media);
+        data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
+        data->vlcPlayer = libvlc_media_player_new_from_media(data->media);
+        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
+        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
+        
         return 0;
     }
     int start(VLCInternalData *data, int startPos) {
@@ -144,12 +162,27 @@ public:
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
         return 0;
     }
+    int restart(VLCInternalData *data) {
+        if (data->vlcPlayer) {
+            libvlc_media_player_set_media(data->vlcPlayer, data->media);
+            libvlc_media_player_play(data->vlcPlayer);
+            libvlc_media_player_set_time(data->vlcPlayer, 0, false);
+        }
+        return 0;
+    }
 
     int stop(VLCInternalData *data) {
         if (data->vlcPlayer) {
             libvlc_media_player_stop_async(data->vlcPlayer);
             libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
+            libvlc_media_release(data->media);
+            data->media = nullptr;
+            
+            if (data->equalizer) {
+                libvlc_audio_equalizer_release(data->equalizer);
+                data->equalizer = nullptr;
+            }
         }
         return 0;
     }
@@ -193,7 +226,7 @@ VLCOutput::VLCOutput(const std::string &mediaFilename, MediaOutputStatus *status
     }
     currentMediaFilename = mediaFilename;
     m_mediaFilename = mediaFilename;
-    data = new VLCInternalData(fullMediaPath);
+    data = new VLCInternalData(fullMediaPath, this);
     vlcManager.load(data);
 }
 VLCOutput::~VLCOutput() {
@@ -230,6 +263,7 @@ int VLCOutput::Stop(void) {
     m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
     return 1;
 }
+
 int VLCOutput::Process(void) {
     if (!data) {
         return 0;
@@ -297,6 +331,24 @@ int VLCOutput::Close(void) {
 }
 int VLCOutput::IsPlaying(void) {
     return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
+}
+int VLCOutput::Restart() {
+    LogDebug(VB_MEDIAOUT, "VLCOutput::Start() %X\n", data);
+    if (data) {
+        vlcManager.restart(data);
+
+        int seconds = data->length / 1000;
+        m_mediaOutputStatus->secondsTotal = seconds / 60;
+        m_mediaOutputStatus->minutesTotal = seconds % 60;
+
+        m_mediaOutputStatus->secondsRemaining = seconds;
+        m_mediaOutputStatus->subSecondsRemaining = 0;
+        
+        m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
+        return 1;
+    }
+    m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
+    return 0;
 }
 
 
@@ -417,6 +469,18 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
     }
     return 1;
 }
-void VLCOutput::SetVolume(int volume) {
+void VLCOutput::SetVolumeAdjustment(int volAdj) {
+    if (data && volAdj) {
+        if (!data->equalizer) {
+            data->equalizer = libvlc_audio_equalizer_new_from_preset(0);
+        }
+        float ampv = libvlc_audio_equalizer_get_preamp(data->equalizer);
+        float adj = (volAdj > 0) ? 20.0 - ampv : 20.0 + ampv;
+        adj *= volAdj;
+        adj /= 100;
+        ampv += adj;
+        libvlc_audio_equalizer_set_preamp(data->equalizer,  ampv);
+        libvlc_media_player_set_equalizer(data->vlcPlayer, data->equalizer);
+    }
 }
 

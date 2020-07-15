@@ -46,6 +46,16 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 
+class PlayMediaCommand : public Command {
+public:
+    PlayMediaCommand() : Command("Play Media", "Plays the media in the background") {
+        args.push_back(CommandArg("media", "string", "Media").setContentListUrl("api/media"));
+        args.push_back(CommandArg("loop", "int", "Loop Count").setRange(1, 100).setDefaultValue("1"));
+        args.push_back(CommandArg("volume", "int", "Volume Adjust").setRange(-100, 100).setDefaultValue("0"));
+    }
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+
 
 class URLCommand : public Command {
 public:

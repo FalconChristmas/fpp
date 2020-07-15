@@ -4,7 +4,7 @@
 
 #include "MediaCommands.h"
 #include "mediaoutput/mediaoutput.h"
-
+#include "mediaoutput/VLCOut.h"
 
 std::unique_ptr<Command::Result> SetVolumeCommand::run(const std::vector<std::string> &args) {
     if (args.size() != 1) {
@@ -168,3 +168,50 @@ private:
 std::unique_ptr<Command::Result> URLCommand::run(const std::vector<std::string> &args) {
     return std::make_unique<CURLResult>(args);
 }
+
+
+class VLCPlayData : public VLCOutput {
+public:
+    VLCPlayData(const std::string &file, int l, int vol) : VLCOutput(file, &status, "--hdmi--"), filename(file), loop(l), volumeAdjust(vol) {
+        SetVolumeAdjustment(vol);
+    }
+    virtual ~VLCPlayData() {
+    }
+    
+    virtual void Stopped() override {
+        //cannot Stop/delete right now as the vlc player is locked, fork a thread
+        std::thread th([this] {
+            if (loop) {
+                loop--;
+                Restart();
+            } else {
+                Stop();
+                delete this;
+            }
+        });
+        th.detach();
+    }
+    
+    std::string filename;
+    VLCOutput *output = nullptr;
+    int loop = 0;
+    int volumeAdjust = 0;
+    MediaOutputStatus status;
+};
+
+std::unique_ptr<Command::Result> PlayMediaCommand::run(const std::vector<std::string> &args) {
+    int loop = std::atoi(args[1].c_str());
+    int volAdjust = 0;
+    if (args.size() > 2) {
+        volAdjust = std::atoi(args[2].c_str());
+    }
+    if (loop < 1) {
+        loop = 1;
+    }
+    VLCOutput *out = new VLCPlayData(args[0], loop - 1, volAdjust);
+    out->Start();
+    
+    return std::make_unique<Command::Result>("Playing");
+}
+
+

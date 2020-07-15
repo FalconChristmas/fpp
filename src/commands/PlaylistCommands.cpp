@@ -38,6 +38,30 @@ std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std
     playlist->Play(args[0].c_str(), -1, r);
     return std::make_unique<Command::Result>("Playlist Starting");
 }
+
+std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<std::string> &args) {
+    bool r = false;
+    std::string stopType = "Gracefully";
+    if (args.size() > 1) {
+        r = args[1] == "true" || args[1] == "1";
+    }
+    if (args.size() > 2) {
+        stopType = args[2];
+    }
+    if (playlist->IsPlaying() && playlist->GetPlaylistName() == args[0]) {
+        if (stopType == "Now") {
+            playlist->StopNow();
+        } else if (stopType == "After Loop") {
+            playlist->StopGracefully(true, true);
+        } else {
+            playlist->StopGracefully(false, false);
+        }
+        return std::make_unique<Command::Result>("Playlist Stopping");
+    }
+    playlist->Play(args[0].c_str(), -1, r);
+    return std::make_unique<Command::Result>("Playlist Starting");
+}
+
 std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string> &args) {
     bool r = false;
     int idx = std::atoi(args[1].c_str());

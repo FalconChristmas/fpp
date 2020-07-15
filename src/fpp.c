@@ -160,12 +160,6 @@ int main (int argc, char *argv[])
       sprintf(command,"t,%s,",argv[2]);
       SendCommand(command);
     }
-    // Send a raw command to fppd for debugging
-    else if((strncmp(argv[1],"-C",2) == 0) &&  argc > 2)
-    {
-      sprintf(command,"%s,",argv[2]);
-      SendCommand(command);
-    }
     else if(strncmp(argv[1],"-h",2) == 0)
     {
       Usage(argv[0]);
@@ -205,6 +199,17 @@ int main (int argc, char *argv[])
     } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 5) {
         sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
         SendCommand(command);
+    } else if((strncmp(argv[1],"-C",2) == 0)) {
+        Json::Value val;
+        val["command"] = argv[2];
+        for (int x = 3; x < argc; x++) {
+            val["args"].append(argv[x]);
+        }
+        std::string js = SaveJsonToString(val);
+        std::string resp;
+        urlPost("http://localhost/api/command", js, resp);
+        printf("Result: %s\n", resp.c_str());
+        return 0;
     } else {
         Usage(argv[0]);
     }
@@ -255,6 +260,7 @@ void SetupDomainSocket(void)
  */
 void SendCommand(const char * com)
 {
+    printf("Sending command %s\n", com);
  int max_timeout = 4000;
  int i=0;
  bytes_sent = sendto(socket_fd, com, strlen(com), 0,
@@ -330,5 +336,6 @@ void Usage(char *appname)
 "                                 SoftPWM  - Set to Software PWM.\n"
 "  -g GPIO MODE VALUE           - Set the given GPIO to VALUE applicable to the given MODEs defined above\n"
 "                                 VALUE is ignored for Input mode\n"
+"  -C FPPCOMMAND ARG1 ARG2 ...  - Trigger the FPP Command\n"
 "\n", appname);
 }
