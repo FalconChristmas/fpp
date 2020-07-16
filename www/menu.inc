@@ -65,8 +65,13 @@ function list_plugin_entries($menu)
   <div class="header">
     <div class="headerLeft"><a href="https://falconchristmas.com/forum/"><img src="images/falconlogo.png" class="logo" /></a></div>
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
-      Version: <a href='about.php' class='nonULLink headerLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host: <? echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " . $ipStr; ?>
+      Version: <a href='about.php' class='nonULLink headerLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host:&nbsp;
 <?
+    if (!file_exists("/etc/fpp/desktop")) {
+        echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " . $ipStr;
+    } else {
+        echo "" . gethostname() . "&nbsp;" . $ipStr;
+    }
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
 		$mounted = 0;
@@ -130,7 +135,11 @@ function list_plugin_entries($menu)
       <li><a>Status/Control</a>
         <ul>
           <li><a href="index.php">Status Page</a></li>
-          <li><a href="networkconfig.php">Network</a></li>
+<?
+if (!file_exists("/etc/fpp/desktop")) {
+          echo "<li><a href='networkconfig.php'>Network</a></li>";
+}
+?>
           <li><a href="multisync.php">MultiSync</a></li>
           <li><a href="settings.php">FPP Settings</a></li>
           <li><a href="backup.php">FPP Backup</a></li>
