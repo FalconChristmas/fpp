@@ -16,7 +16,9 @@ ${SCRIPTDIR}/timezone_sync
 
 WaitForInterfacesUp
 
+if [ ! -f /etc/fpp/desktop ]; then
 MaybeEnableTethering
+fi
 
 SLEEPSECS=$(getSetting bootDelay)
 if [ "x${SLEEPSECS}" != "x" ]

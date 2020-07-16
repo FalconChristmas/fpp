@@ -111,7 +111,7 @@ reboot
 cd /root
 wget -O ./FPP_Install.sh  http://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
 chmod 700 ./FPP_Install.sh
-./FPP_Install.sh
+./FPP_Install.sh --img
 
 # once FPP_Install is done, the wifi drivers and such are installed so the linux-headers
 # are no longer needed, remove them to save 150MB of space

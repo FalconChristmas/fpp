@@ -63,6 +63,10 @@ fi
 # Configure Network and DNS
 #echo "FPP - Configuring Network"
 SKIPNETWORKRESET=$(getSetting SkipNetworkReset)
+
+if [ -f /etc/fpp/desktop ]; then
+    SKIPNETWORKRESET=1
+fi
 if [ "x${SKIPNETWORKRESET}" != "x1" ]; then
     SetupFPPNetworkConfig
 fi
@@ -78,8 +82,10 @@ then
 	/etc/init.d/avahi-daemon restart
 fi
 
-echo "FPP - Configuring DNS"
-${BINDIR}/config_dns
+if [ ! -f /etc/fpp/desktop ]; then
+    echo "FPP - Configuring DNS"
+    ${BINDIR}/config_dns
+fi
 
 
 
@@ -87,6 +93,7 @@ ${BINDIR}/config_dns
 echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
 
+if [ ! -f /etc/fpp/desktop ]; then
 # make sure the media directory in the settings matches what we used at boot
 echo "FPP - Sanity checking storage device setting"
 MEDIADEV=`findmnt -n -o SOURCE /home/fpp/media | colrm 1 5`
@@ -104,6 +111,7 @@ if [ "$LASTBLOCK" == "" ]; then
     LASTBLOCK=0
 fi
 setSetting LastBlock $LASTBLOCK
+fi
 
 echo "FPP - Setting max IGMP memberships"
 sysctl net/ipv4/igmp_max_memberships=512 > /dev/null 2>&1
@@ -140,7 +148,9 @@ fi
 ##############################################################################
 # Leave these things till last so user can see output of anything above here
 ##############################################################################
+if [ ! -f /etc/fpp/desktop ]; then
 applyScreenBlankSetting
+fi
 
 #make sure the entire media dir and subdirs is writable by fpp user
 chown -R ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
