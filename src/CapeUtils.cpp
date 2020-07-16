@@ -45,8 +45,10 @@
 
 #ifdef PLATFORM_BBB
 #define I2C_DEV 2
-#else
+#elif defined(PLATFORM_PI)
 #define I2C_DEV 1
+#else
+#define I2C_DEV 0
 #endif
 
 
@@ -120,11 +122,19 @@ static bool waitForI2CBus(int i2cBus) {
     char buf[256];
     sprintf(buf, "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
     
+    bool has0 = access("/sys/bus/i2c/devices/i2c-0/new_device", F_OK ) != -1;
+    
     //wait for up to 15 seconds for the i2c bus to appear
     //if it's already there, this should be nearly immediate
     for (int x = 0; x < 1500; x++) {
         if (access(buf, F_OK ) != -1) {
             return true;
+        }
+        
+        // after 1/10 of a second, if there is a 0 bus, then it's likely
+        // that the wanted bus won't exist
+        if (x > 100 && has0) {
+            return false;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -135,7 +145,7 @@ static bool HasI2CDevice(int i, int i2cBus) {
     char buf[256];
     sprintf(buf, "i2cdetect -y -r %d 0x%X 0x%X", i2cBus, i, i);
     std::string result = exec(buf);
-    return result.find("--") == std::string::npos;
+    return result != "" && result.find("--") == std::string::npos;
 }
 static FILE * DoSignatureVerify(FILE *file, const std::string &fKeyId, const std::string &path, bool &validSignature, bool &deleteEpromFile) {
     uint8_t *b = new uint8_t[32768];

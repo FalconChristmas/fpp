@@ -168,3 +168,11 @@ then
         echo "FPP - No IP(s) found"
     fi
 fi
+
+HOSTNAME=$(getSetting HostName)
+if [ "${HOSTNAME}" = "" ]; then
+    HOSTNAME=$(hostname)
+    if [ "${HOSTNAME}" != "" ]; then
+        setSetting HostName ${HOSTNAME}
+    fi
+fi
