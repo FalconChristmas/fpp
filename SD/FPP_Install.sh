@@ -752,21 +752,12 @@ sh scripts/upgrade_config -notee
 
 #######################################
 PHPDIR="/etc/php/7.3"
-if [ -d "/etc/php/7.3" ]; then
-    PHPDIR="/etc/php/7.3"
-fi
-
-echo "FPP - Setting up for UI"
-if [ -f  ${PHPDIR}/fpm/pool.d/www.conf ]; then
-    sed -i -e "s/^user =.*/user = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-    sed -i -e "s/^group =.*/group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-    sed -i -e "s/.*listen.owner =.*/listen.owner = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-    sed -i -e "s/.*listen.group =.*/listen.group = ${FPPUSER}/" ${PHPDIR}/fpm/pool.d/www.conf
-    sed -i -e "s/.*listen.mode =.*/listen.mode = 0660/" ${PHPDIR}/fpm/pool.d/www.conf
+if [ -d "/etc/php/7.4" ]; then
+    PHPDIR="/etc/php/7.4"
 fi
 
 echo "FPP - Allowing short tags in PHP"
-FILES="cli/php.ini apache2/php.ini fpm/php.ini"
+FILES="cli/php.ini apache2/php.ini"
 for FILE in ${FILES}
 do
     if [ -f ${PHPDIR}/${FILE} ]; then
