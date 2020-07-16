@@ -823,8 +823,7 @@ chmod 700 ${FPPHOME}/.ssh
 
 mkdir ${FPPHOME}/media
 chown ${FPPUSER}.${FPPUSER} ${FPPHOME}/media
-chmod 770 ${FPPHOME}/media
-chmod a+s ${FPPHOME}/media
+chmod 775 ${FPPHOME}/media
 
 cat > ${FPPHOME}/.vimrc <<-EOF
 set tabstop=4
