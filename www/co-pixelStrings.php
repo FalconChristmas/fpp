@@ -49,6 +49,11 @@ if ($settings['Platform'] == "BeagleBone Black") {
     }
 ?>
 
+
+#X11PixelStrings_Output_0 tr > th:nth-of-type(2),
+#X11PixelStrings_Output_0 tr > td:nth-of-type(2) {
+    display: none;
+}
 </style>
 
 

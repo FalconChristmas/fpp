@@ -66,6 +66,7 @@ private:
     
     
     std::map<std::string, PixelOverlayModel*> models;
+    std::list<std::string> modelNames;
     std::map<std::string, std::string> fonts;
     bool fontsLoaded = false;
     std::mutex   modelsLock;

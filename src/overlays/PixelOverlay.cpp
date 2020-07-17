@@ -94,6 +94,7 @@ PixelOverlayManager::~PixelOverlayManager() {
         delete a.second;
     }
     models.clear();
+    modelNames.clear();
 }
 void PixelOverlayManager::Initialize() {
     loadModelMap();
@@ -116,6 +117,7 @@ void PixelOverlayManager::loadModelMap() {
         delete a.second;
     }
     models.clear();
+    modelNames.clear();
     ConvertCMMFileToJSON();
 
     char filename[1024];
@@ -133,6 +135,7 @@ void PixelOverlayManager::loadModelMap() {
         for (int c = 0; c < models.size(); c++) {
             PixelOverlayModel *pmodel = new PixelOverlayModel(models[c]);
             this->models[pmodel->getName()] = pmodel;
+            this->modelNames.push_back(pmodel->getName());
         }
     }
 }
@@ -346,13 +349,13 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             if (req.get_arg("simple") == "true") {
                 simple = true;
             }
-            for (auto & m : models) {
+            for (auto & mn : modelNames) {
                 if (simple) {
-                    result.append(m.second->getName());
+                    result.append(mn);
                     empty = false;
                 } else {
                     Json::Value model;
-                    m.second->toJson(model);
+                    models[mn]->toJson(model);
                     result.append(model);
                     empty = false;
                 }
@@ -386,10 +389,11 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             }
         } else if (p2 == "models") {
             std::unique_lock<std::mutex> lock(modelsLock);
-            for (auto & m : models) {
+            for (auto & mn : modelNames) {
                 Json::Value model;
-                m.second->toJson(model);
-                model["isActive"] = (int)m.second->getState().getState();
+                PixelOverlayModel *m = models[mn];
+                m->toJson(model);
+                model["isActive"] = (int)m->getState().getState();
                 result.append(model);
             }
         } else if (p2 == "model") {

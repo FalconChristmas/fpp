@@ -235,33 +235,30 @@ void X11PixelStringsOutput::PrepData(unsigned char *channelData)
 	PixelString *ps = NULL;
 	int inCh = 0;
 
-	for (int s = 0; s < m_strings.size(); s++)
-	{
+	for (int s = 0; s < m_strings.size(); s++) {
 		ps = m_strings[s];
 
 		d = (unsigned char *)m_fbp + (s * stride * m_scale);
         l = d;
 		inCh = 0;
 
-		for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++)
-		{
+		for (int p = 0, pix = 0; p < ps->m_outputChannels; pix++) {
 			r = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 			g = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 			b = ps->m_brightnessMaps[p++][channelData[ps->m_outputMap[inCh++]]];
 
             // scale horizontally by duplicating pixels
-            for (int i = 0; i < m_scale; i++)
-            {
-                *(d++) = r;
-                *(d++) = g;
+            for (int i = 0; i < m_scale; i++) {
+                //framebuffer is bgr
                 *(d++) = b;
+                *(d++) = g;
+                *(d++) = r;
                 d++;
             }
 		}
 
         // scale vertically by duplicating rows
-        for (int i = 0; i < (m_scale - 1); i++)
-        {
+        for (int i = 0; i < (m_scale - 1); i++)  {
             memcpy(d, l, stride);
             d += stride;
         }
@@ -282,8 +279,7 @@ void X11PixelStringsOutput::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "X11PixelStringsOutput::DumpConfig()\n");
 
-	for (int i = 0; i < m_strings.size(); i++)
-	{
+	for (int i = 0; i < m_strings.size(); i++) {
 		LogDebug(VB_CHANNELOUT, "    String #%d\n", i);
 		m_strings[i]->DumpConfig();
 	}
