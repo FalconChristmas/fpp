@@ -82,6 +82,7 @@ Sequence::Sequence()
     }
 
     m_seqControlRawIDs = getSettingInt("RawEventIDs");
+    m_blankBetweenSequences = getSettingInt("blankBetweenSequences");
 }
 
 Sequence::~Sequence()
@@ -488,7 +489,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             frameLoadSignal.notify_all();
         }
     } else {
-        if (getSettingInt("blankBetweenSequences")) {
+        if (m_blankBetweenSequences) {
             BlankSequenceData();
         } else if (getFPPmode() == REMOTE_MODE) {
             //on a remote, we will get a "stop" and then a "start" a short time later
@@ -500,6 +501,11 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             } else {
                 m_remoteBlankCount++;
             }
+        } else if (!playlist->IsPlaying()
+                   && (getFPPmode() & PLAYER_MODE)) {
+            //Standalone or Master, but not playlist running (so not between sequences)
+            //yet we are likely outputting something (overlay, etc...)  Need to blank
+            BlankSequenceData();
         }
     }
 }
@@ -598,7 +604,7 @@ void Sequence::CloseSequenceFile(void) {
     if ((!IsEffectRunning()) &&
         ((getFPPmode() != REMOTE_MODE) &&
          (playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING)) ||
-        (getSettingInt("blankBetweenSequences"))) {
+        (m_blankBetweenSequences)) {
         SendBlankingData();
     }
     

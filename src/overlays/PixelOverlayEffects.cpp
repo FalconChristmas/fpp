@@ -491,6 +491,7 @@ public:
         bool disableWhenDone = false;
         
         PixelOverlayState st(autoEnable);
+        
         if ((st.getState() != PixelOverlayState::PixelState::Disabled) && (m->getState().getState() == PixelOverlayState::PixelState::Disabled)) {
             m->setState(st);
             disableWhenDone = true;
@@ -548,7 +549,7 @@ public:
                 if (duration > 0) {
                     nd = duration * 1000;
                 }
-                m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), duration);
+                m->setRunningEffect(new StopRunningEffect(m, "Text", disableWhenDone), nd);
             }
         } else {
             //movement

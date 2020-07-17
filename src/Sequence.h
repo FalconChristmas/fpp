@@ -78,8 +78,8 @@ class Sequence {
 
     
     int  GetSeqStepTime() const { return m_seqStepTime;}
+    void  BlankSequenceData(void);
   private:
-	void  BlankSequenceData(void);
 	char  NormalizeControlValue(char in);
 
 	FSEQFile     *m_seqFile;
@@ -96,6 +96,8 @@ class Sequence {
     int           m_remoteBlankCount;
     bool          m_dataProcessed;
     int           m_numSeek;
+    
+    int           m_blankBetweenSequences;
     
     std::recursive_mutex m_sequenceLock;
     
