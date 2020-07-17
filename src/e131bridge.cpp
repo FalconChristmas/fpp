@@ -65,7 +65,7 @@ int artnetSock = -1;
 #define BUFSIZE 1500
 struct mmsghdr msgs[MAX_MSG];
 struct iovec iovecs[MAX_MSG];
-unsigned char buffers[MAX_MSG][BUFSIZE+1];
+uint8_t buffers[MAX_MSG][BUFSIZE+1];
 struct sockaddr_in inAddress[MAX_MSG];
 
 unsigned int UniverseCache[65536];
@@ -74,26 +74,26 @@ unsigned int UniverseCache[65536];
 std::vector<UniverseEntry> InputUniverses;
 int InputUniverseCount;
 
-static unsigned long ddpBytesReceived = 0;
-static unsigned long ddpPacketsReceived = 0;
-static unsigned long ddpErrors = 0;
+static uint64_t ddpBytesReceived = 0;
+static uint32_t ddpPacketsReceived = 0;
+static uint32_t ddpErrors = 0;
 
-static long ddpLastSequence = 0;
-static long ddpLastChannel = 0;
-static unsigned long ddpMinChannel = 0xFFFFFFF;
-static unsigned long ddpMaxChannel = 0;
+static uint32_t ddpLastSequence = 0;
+static uint32_t ddpLastChannel = 0;
+static uint32_t ddpMinChannel = 0xFFFFFFF;
+static uint32_t ddpMaxChannel = 0;
 
-static unsigned long e131Errors = 0;
-static unsigned long e131SyncPackets = 0;
+static uint32_t e131Errors = 0;
+static uint32_t e131SyncPackets = 0;
 static UniverseEntry unknownUniverse;
 
 
 
 
 // prototypes for functions below
-bool Bridge_StoreData(char *bridgeBuffer);
-bool Bridge_StoreDDPData(char *bridgeBuffer);
-bool Bridge_StoreArtNetData(char *bridgeBuffer);
+bool Bridge_StoreData(uint8_t *bridgeBuffer);
+bool Bridge_StoreDDPData(uint8_t *bridgeBuffer);
+bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 
@@ -194,7 +194,7 @@ bool Bridge_ReceiveE131Data(void)
     bool sync = false;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            sync |= Bridge_StoreData((char*)buffers[x]);
+            sync |= Bridge_StoreData((uint8_t*)buffers[x]);
         }
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -207,7 +207,7 @@ bool Bridge_ReceiveDDPData(void)
     bool sync = false;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            sync |= Bridge_StoreDDPData((char*)buffers[x]);
+            sync |= Bridge_StoreDDPData((uint8_t*)buffers[x]);
         }
         msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -218,7 +218,7 @@ bool Bridge_ReceiveArtNetData(void) {
     bool sync = false;
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            sync |= Bridge_StoreArtNetData((char*)buffers[x]);
+            sync |= Bridge_StoreArtNetData((uint8_t*)buffers[x]);
         }
         msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -392,14 +392,14 @@ void Bridge_Initialize_Internal()
     if (i3 >= 0) close(i3);
 }
 
-bool Bridge_StoreData(char *bridgeBuffer)
+bool Bridge_StoreData(uint8_t *bridgeBuffer)
 {
     if ((bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_DATA) &&
         (bridgeBuffer[E131_START_CODE] == 0x00)) {
-        int universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] << 8) + bridgeBuffer[E131_UNIVERSE_INDEX + 1];
-        int universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
+        uint32_t universe = ((int)bridgeBuffer[E131_UNIVERSE_INDEX] << 8) + bridgeBuffer[E131_UNIVERSE_INDEX + 1];
+        uint32_t universeIndex = Bridge_GetIndexFromUniverseNumber(universe);
         if(universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX) {
-            int sn = bridgeBuffer[E131_SEQUENCE_INDEX];
+            uint32_t sn = bridgeBuffer[E131_SEQUENCE_INDEX];
             if (InputUniverses[universeIndex].packetsReceived != 0) {
                 if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
                     // some wrap from 255 -> 1 and some from 255 -> 0, spec doesn't say which
@@ -420,7 +420,7 @@ bool Bridge_StoreData(char *bridgeBuffer)
             sequence->setDataNotProcessed();
         } else {
             unknownUniverse.packetsReceived++;
-            int len = bridgeBuffer[16] & 0xF;
+            uint32_t len = bridgeBuffer[16] & 0xF;
             len <<= 8;
             len += bridgeBuffer[17];
             unknownUniverse.bytesReceived += len;
@@ -439,7 +439,7 @@ bool Bridge_StoreData(char *bridgeBuffer)
     }
     return false;
 }
-bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
+bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
     
     if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-'
         || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
@@ -449,18 +449,18 @@ bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
     }
     if (bridgeBuffer[9] == 0x50 && bridgeBuffer[8] == 0x00) {
         //data packet
-        int sn = bridgeBuffer[12];
+        uint32_t sn = bridgeBuffer[12];
        
-        int univ = bridgeBuffer[15];
+        uint32_t univ = bridgeBuffer[15];
         univ <<= 8;
         univ &= 0x7F00;
         univ |= bridgeBuffer[14];
         
-        int len = bridgeBuffer[16];
+        uint32_t len = bridgeBuffer[16];
         len <<= 8;
         len &= 0x7F00;
         len += bridgeBuffer[17];
-        int universeIndex = Bridge_GetIndexFromUniverseNumber(univ);
+        uint32_t universeIndex = Bridge_GetIndexFromUniverseNumber(univ);
         if(universeIndex != BRIDGE_INVALID_UNIVERSE_INDEX) {
             if (InputUniverses[universeIndex].packetsReceived != 0) {
                 if (InputUniverses[universeIndex].lastSequenceNumber == 255) {
@@ -482,7 +482,7 @@ bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
             sequence->setDataNotProcessed();
         } else {
             unknownUniverse.packetsReceived++;
-            int len = bridgeBuffer[16] & 0xF;
+            uint32_t len = bridgeBuffer[16] & 0xF;
             len <<= 8;
             len += bridgeBuffer[17];
             unknownUniverse.bytesReceived += len;
@@ -579,14 +579,14 @@ bool Bridge_StoreArtNetData(char *bridgeBuffer)  {
     }
     return false;
 }
-bool Bridge_StoreDDPData(char *bridgeBuffer)  {
+bool Bridge_StoreDDPData(uint8_t *bridgeBuffer)  {
     bool push = false;
     if (bridgeBuffer[3] == 1) {
         ddpPacketsReceived++;
         bool tc = bridgeBuffer[0] & DDP_TIMECODE_FLAG;
         push = bridgeBuffer[0] & DDP_PUSH_FLAG;
         
-        unsigned long chan = bridgeBuffer[4];
+        uint32_t chan = bridgeBuffer[4];
         chan <<= 8;
         chan += bridgeBuffer[5];
         chan <<= 8;
@@ -594,10 +594,10 @@ bool Bridge_StoreDDPData(char *bridgeBuffer)  {
         chan <<= 8;
         chan += bridgeBuffer[7];
         
-        unsigned long len = bridgeBuffer[8] << 8;
+        uint32_t len = bridgeBuffer[8] << 8;
         len += bridgeBuffer[9];
         
-        int sn = bridgeBuffer[1] & 0xF;
+        uint32_t sn = bridgeBuffer[1] & 0xF;
         if (sn) {
             bool isErr = false;
             if (ddpLastSequence) {
@@ -619,11 +619,13 @@ bool Bridge_StoreDDPData(char *bridgeBuffer)  {
 
         ddpMinChannel = std::min(ddpMinChannel, chan + 1);
         ddpMaxChannel = std::max(ddpMaxChannel, chan + len);
-
+        
         int offset = tc ? 14 : 10;
         memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
         sequence->setDataNotProcessed();
         ddpBytesReceived += len;
+    } else {
+        printf("Unknown packet: %d \n", (int)bridgeBuffer[3]);
     }
     return push;
 }

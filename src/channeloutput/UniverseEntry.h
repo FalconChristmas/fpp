@@ -26,12 +26,12 @@
 
 
 typedef struct {
-	int           active;
-	int           universe;
-	int           startChannel;
-	int           channelCount;
-	int           unicast;
+	uint32_t      active;
+	uint32_t      universe;
+	uint32_t      startChannel;
+	uint32_t      channelCount;
+	uint32_t      unicast;
 	char          unicastAddress[16];
-	unsigned long bytesReceived;
+	uint32_t      bytesReceived;
 } Universe;
 
