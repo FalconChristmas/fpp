@@ -59,8 +59,8 @@ Reboot again to pick up the latest kernel that may have been installed with the 
 
 On the Pi, run the FPP installer:
 	wget -O ./FPP_Install.sh https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/FPP_Install.sh
-	chmod 700 ./FPP_Install.sh --img
-	sudo ./FPP_Install.sh --build-omxplayer
+	chmod 700 ./FPP_Install.sh
+	sudo ./FPP_Install.sh --img
 
 This will install FPP and perform all required changes to the root filesystem
 and add the FPP user, install required packages, etc.
