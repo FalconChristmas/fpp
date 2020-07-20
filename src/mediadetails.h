@@ -25,10 +25,10 @@ public:
 	int channels;
 
     void ParseMedia(const char *mediaFilename);
+    void Clear();
     
     static MediaDetails INSTANCE;
     
 private:
-    void clearPreviousMedia();
 
 };

@@ -276,20 +276,26 @@ int Playlist::Load(const char *filename)
                 if ((head.code[0] == 'm') && (head.code[1] == 'f')) {
                     if (strchr((char *)&head.data[0], '/')) {
                         mediaName = (char *)(strrchr((char *)&head.data[0], '/') + 1);
+                    } else if (strchr((char *)&head.data[0], '\\')) {
+                        mediaName = (char *)(strrchr((char *)&head.data[0], '\\') + 1);
+                    } else {
+                        mediaName = (const char *)&head.data[0];
+                    }
+                    std::string tmpMedia = getMusicDirectory();
+                    tmpMedia += "/";
+                    tmpMedia += mediaName;
 
-                        std::string tmpMedia = getMusicDirectory();
+                    if (!FileExists(tmpMedia)) {
+                        tmpMedia = getVideoDirectory();
                         tmpMedia += "/";
                         tmpMedia += mediaName;
 
                         if (!FileExists(tmpMedia)) {
-                            tmpMedia = getVideoDirectory();
-                            tmpMedia += "/";
-                            tmpMedia += mediaName;
-
-                            if (!FileExists(tmpMedia)) {
-                                LogDebug(VB_PLAYLIST, "fseq %s lists a media file of %s, but it can not be found\n", tmpFilename.c_str(), mediaName.c_str());
-                                mediaName = "";
-                            }
+                            std::string warn = "fseq \"" + tmpFilename + "\" lists a media file of \"" + mediaName + "\" but it can not be found";
+                            
+                            WarningHolder::AddWarningTimeout(warn, 60);
+                            LogDebug(VB_PLAYLIST, "%s\n", warn.c_str());
+                            mediaName = "";
                         }
                     }
                 }

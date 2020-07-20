@@ -42,12 +42,17 @@
 #include "SDLOut.h"
 #include "Sequence.h"
 #include "settings.h"
+#include "Plugins.h"
+#include "mediadetails.h"
+
 
 
 /////////////////////////////////////////////////////////////////////////////
 MediaOutputBase *mediaOutput = 0;
-pthread_mutex_t  mediaOutputLock;
 float            masterMediaPosition = 0.0;
+pthread_mutex_t  mediaOutputLock;
+
+static bool firstOutCreate = true;
 
 MediaOutputStatus mediaOutputStatus = {
 	MEDIAOUTPUTSTATUS_IDLE, //status
@@ -279,6 +284,25 @@ int OpenMediaOutput(const char *filename) {
                      filename, tmpFile.c_str());
         }
 	}
+    Json::Value root;
+    root["currentEntry"]["type"] = "media";
+    root["currentEntry"]["mediaFilename"] = mediaOutput->m_mediaFilename;
+
+    if (getFPPmode() == REMOTE_MODE && firstOutCreate) {
+        firstOutCreate = false;
+        //need to "fake" a playlist start as some plugins will not initialize
+        //until a playlist is started, but remotes don't have playlists
+        root["name"] = "FPP Remote";
+        root["desc"] = "FPP Remote Mode";
+        root["loop"] = false;
+        root["repeat"] = false;
+        root["random"] = false;
+        root["size"] = 1;
+        PluginManager::INSTANCE.playlistCallback(root, "start", "Main", 0);
+    }
+    
+    MediaDetails::INSTANCE.ParseMedia(mediaOutput->m_mediaFilename.c_str());
+    PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
 
     pthread_mutex_lock(&mediaOutputLock);
     std::string vOut = getSetting("VideoOutput");
@@ -296,6 +320,8 @@ int OpenMediaOutput(const char *filename) {
         LogErr(VB_MEDIAOUT, "No Media Output handler for %s\n", tmpFile.c_str());
 		return 0;
 	}
+    MediaDetails::INSTANCE.ParseMedia(mediaOutput->m_mediaFilename.c_str());
+    PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
 
 	if (getFPPmode() == MASTER_MODE)
 		multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
@@ -394,9 +420,17 @@ void CloseMediaOutput() {
 	if (getFPPmode() == MASTER_MODE)
 		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
 
-	delete mediaOutput;
-	mediaOutput = 0;
+    delete mediaOutput;
+    mediaOutput = 0;
 
+    Json::Value root;
+    root["name"] = "FPP Remote";
+    root["desc"] = "FPP Remote Mode";
+    root["currentEntry"]["type"] = "media";
+    root["currentEntry"]["mediaFilename"] = "";
+    MediaDetails::INSTANCE.Clear();
+    PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
+    
 	pthread_mutex_unlock(&mediaOutputLock);
 }
 

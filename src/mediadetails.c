@@ -17,7 +17,7 @@ MediaDetails::~MediaDetails() {
     
 }
 
-void MediaDetails::clearPreviousMedia()
+void MediaDetails::Clear()
 {
 	title.clear();
     artist.clear();
@@ -66,7 +66,7 @@ void MediaDetails::ParseMedia(const char *mediaFilename)
 		}
     }
 
-	clearPreviousMedia();
+	Clear();
 
 	TagLib::FileRef f(fullMediaPath);
 
