@@ -108,12 +108,15 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
         if (config.isMember("data")) {
             customData = config["data"].asString();
         }
-        std::vector<std::string> lines = split(customData, ';');
+        std::vector<std::string> layers = split(customData, '|');
         std::vector<std::vector<std::string>> allData;
-        for (auto &l : lines) {
-            allData.push_back(split(l, ','));
+        for (auto&layer : layers) {
+            std::vector<std::string> lines = split(layer, ';');
+            for (auto &l : lines) {
+                allData.push_back(split(l, ','));
+            }
+            lines.clear();
         }
-        lines.clear();
         width = 1;
         height = allData.size();
         for (auto &l : allData) {
