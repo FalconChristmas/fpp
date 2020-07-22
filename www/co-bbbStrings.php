@@ -66,6 +66,9 @@ function MapPixelStringSubType(type) {
 function MapPixelStringSubTypeVersion(version) {
     return $('#BBB48StringSubTypeVersion').val();
 }
+function GetPixelStringTiming() {
+    return $('#BBB48StringPixelTiming').val();;
+}
 </script>
 
 <?
@@ -462,6 +465,13 @@ function populatePixelStringOutputs(data) {
                     $('#BBB48StringSubTypeVersion').hide();
                     $('#versionTag').hide();
                 }
+                
+                var pixelTiming = 0;
+                if ('pixelTiming' in output) {
+                    pixelTiming = output.pixelTiming;
+                }
+                $('#BBB48StringPixelTiming').val(pixelTiming);
+
 
                 $('#pixelOutputs').html("");
                 
@@ -825,6 +835,14 @@ $(document).ready(function(){
                                 </select>
                             </td>
 						</tr>
+                        <tr>
+                        <td><b>Pixel Timing:</b></td>
+                        <td colspan="3"><select id='BBB48StringPixelTiming'>
+                            <option value="0">Normal (ws281x)</option>
+                            <option value="1">Slow (1903)</option>
+                            </select>
+                        </td>
+                        </tr>
 					</table>
 
 

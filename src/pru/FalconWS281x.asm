@@ -42,17 +42,21 @@
 
 // defines are slightly lower as
 // there is overhead in resetting the clocks
+#ifdef PIXELTYPE_SLOW
+#define T0_TIME   250
+#define T1_TIME   800
+#define LOW_TIME  1200
+#else
 #define T0_TIME   200
 #define T1_TIME   600
 #define LOW_TIME  1150
 //if LOW_TIME needs to be more than 1250, you need to do:
 // #define SLOW_WAITNS
-
-
+#endif
 
 // GPIO0 sometimes takes a while to come out of sleep or
 // something so use an lower "low" time
-#define T0_TIME_GPIO0      165
+#define T0_TIME_GPIO0     (T0_TIME - 35)
 #define T1_TIME_GPIO0     T1_TIME
 #define LOW_TIME_GPIO0    LOW_TIME
 

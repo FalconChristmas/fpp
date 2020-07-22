@@ -435,6 +435,7 @@ function getPixelStringOutputJSON()
 		output.startChannel = 1;
 		output.channelCount = -1;
 		output.outputCount = parseInt($this.attr('ports'));
+        output.pixelTiming = parseInt(GetPixelStringTiming());
 
 		var outputs = [];
 		for (var i = 0; i < output.outputCount; i++) {

@@ -294,6 +294,13 @@ int BBB48StringOutput::Init(Json::Value config)
     split0args.push_back("-DRUNNING_ON_PRU" + std::to_string(BBB_PRU ? 0 : 1));
     std::vector<std::string> split1args;
     split1args.push_back("-DRUNNING_ON_PRU" + std::to_string(BBB_PRU ? 1 : 0));
+    
+    if (config.isMember("pixelTiming")) {
+        int pixelTiming = config["pixelTiming"].asInt();
+        if (pixelTiming) {
+            args.push_back("-DPIXELTYPE_SLOW");
+        }
+    }
 
     std::string dirname = "bbb";
     std::string verPostf = "";

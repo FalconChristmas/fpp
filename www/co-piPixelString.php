@@ -8,6 +8,9 @@ function MapPixelStringSubType(type) {
 function MapPixelStringSubTypeVersion(version) {
     return 1;
 }
+function GetPixelStringTiming() {
+    return 0;
+}
 </script>
 
 <?
