@@ -77,8 +77,8 @@ void logCallback(void *data, int level, const libvlc_log_t *ctx,
     switch (level) {
         case LIBVLC_DEBUG:
             if (WillLog(LOG_EXCESSIVE, VB_MEDIAOUT)) {
-                char buf[256];
-                vsprintf(buf, fmt, args);
+                char buf[513];
+                vsnprintf(buf, 512, fmt, args);
                 LogExcess(VB_MEDIAOUT, "%s\n", buf);
             }
             break;
@@ -86,7 +86,7 @@ void logCallback(void *data, int level, const libvlc_log_t *ctx,
         case LIBVLC_WARNING:
             if (WillLog(LOG_DEBUG, VB_MEDIAOUT)) {
                 char buf[256];
-                vsprintf(buf, fmt, args);
+                vsnprintf(buf, 255, fmt, args);
                 LogDebug(VB_MEDIAOUT, "%s\n", buf);
             }
             break;
@@ -94,7 +94,7 @@ void logCallback(void *data, int level, const libvlc_log_t *ctx,
             // log at warn as nothing it's reporting as error is critical
             if (WillLog(LOG_WARN, VB_MEDIAOUT)) {
                 char buf[256];
-                vsprintf(buf, fmt, args);
+                vsnprintf(buf, 255, fmt, args);
                 std::string str = buf;
                 if (str == "buffer deadlock prevented") {
                     return;
@@ -133,9 +133,17 @@ public:
     int load(VLCInternalData *data) {
         if (vlcInstance == nullptr) {
             //const char *args[] {"-A", "alsa", "-V", "mmal_vout", nullptr};
+#ifdef PLATFORM_UNKNOWN
+            const char *dsp = getenv("DISPLAY");
+            if (dsp == nullptr) {
+                setenv("DISPLAY", ":0", true);
+            }
+#endif
             const char *args[] {"-A", "alsa", "--no-osd",
 #ifdef PLATFORM_PI
                 "-V", "mmal_vout",
+#elif defined(PLATFORM_UNKNOWN)
+                "-I", "dummy",
 #endif
                 nullptr};
             int argc = 0;
