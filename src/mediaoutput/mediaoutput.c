@@ -220,11 +220,11 @@ MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::
             return new SDLOutput(mediaFilename, &mediaOutputStatus, "--Disabled--");
         }
 #ifdef HASVLC
-    } else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
+    } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
         return new VLCOutput(mediaFilename, &mediaOutputStatus, vOut);
 #endif
 #ifdef PLATFORM_PI
-    } else if (IsExtensionVideo(ext) && vOut == "--HDMI--") {
+    } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
        return new omxplayerOutput(tmpFile, &mediaOutputStatus);
 #endif
     } else if (IsExtensionVideo(ext)) {

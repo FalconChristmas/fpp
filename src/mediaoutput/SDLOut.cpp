@@ -847,7 +847,7 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         data->audio_stream_idx = -1;
     }
     int videoOverlayWidth, videoOverlayHeight;
-    if (videoOutput != "--Disabled--" && videoOutput != "" && videoOutput != "--HDMI--") {
+    if (videoOutput != "--Disabled--" && videoOutput != "" && (videoOutput != "--HDMI--" && videoOutput != "HDMI")) {
         data->videoOverlayModel = PixelOverlayManager::INSTANCE.getModel(videoOutput);
         
         if (data->videoOverlayModel &&
