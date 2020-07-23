@@ -1613,7 +1613,7 @@ function RemovePlaylistEntry()	{
 
         function IPOutputTypeChanged(item, input) {
             var type = $(item).val();
-            if (type == 4 || type == 5) { // DDP
+            if (type == 4 || type == 5 || type == 6) { // DDP, ZCPP
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', true);
                 var univc = $(item).parent().parent().find("input.numUniverseCount");
@@ -1723,6 +1723,7 @@ function updateUniverseEndChannel(row) {
                 var typeUnicastArtNet = type == 3 ? "selected": "";
                 var typeDDPR = type == 4 ? "selected": "";
                 var typeDDP1 = type == 5 ? "selected": "";
+                var typeZCPP = type == 6 ? "selected": "";
                 var monitor = 1;
                 if (universe.monitor != null) {
                     monitor = universe.monitor;
@@ -1737,7 +1738,7 @@ function updateUniverseEndChannel(row) {
                 var universeNumberDisable = "";
                 var monitorDisabled = "";
                 var ipDisabled = "";
-                if (type == 4 || type == 5) {
+                if (type == 4 || type == 5 || type == 6) {
                     universeSize = 512000;
                     universeCountDisable = " disabled";
                     universeNumberDisable = " disabled";
@@ -1772,7 +1773,8 @@ function updateUniverseEndChannel(row) {
                                 "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
                                 "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
                                 "<option value='4' " + typeDDPR + ">DDP - Raw Channel Numbers</option>" +
-                                "<option value='5' " + typeDDP1 + ">DDP - One Based</option>";
+                                "<option value='5' " + typeDDP1 + ">DDP - One Based</option>" +
+                                "<option value='6' " + typeZCPP + ">ZCPP</option>";
                 }
 
                 bodyHTML += "</select></td>";
@@ -2092,7 +2094,7 @@ function updateUniverseEndChannel(row) {
 
                 // unicast address
                 universeType=document.getElementById("universeType[" + i + "]").value;
-                if(universeType == 1 || universeType == 3 || universeType == 4 || universeType == 5)
+                if(universeType == 1 || universeType == 3 || universeType == 4 || universeType == 5 || universeType == 6)
                 {
                     if(!validateIPaddress("txtIP[" + i + "]"))
                     {
@@ -2120,7 +2122,7 @@ function updateUniverseEndChannel(row) {
                 // size
                 txtSize=document.getElementById("txtSize[" + i + "]");
                 var max = 512;
-                if (universeType == 4 || universeType == 5) {
+                if (universeType == 4 || universeType == 5 || universeType == 6) {
                     max = 512000;
                 }
                 if(!validateNumber(txtSize,1,max))
