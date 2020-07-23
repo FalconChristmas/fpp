@@ -43,12 +43,12 @@
 // defines are slightly lower as
 // there is overhead in resetting the clocks
 #ifdef PIXELTYPE_SLOW
-#define T0_TIME   250
+#define T0_TIME   300
 #define T1_TIME   800
-#define LOW_TIME  1200
+#define LOW_TIME  1225
 #else
 #define T0_TIME   200
-#define T1_TIME   600
+#define T1_TIME   675
 #define LOW_TIME  1150
 //if LOW_TIME needs to be more than 1250, you need to do:
 // #define SLOW_WAITNS
