@@ -270,16 +270,18 @@ int BBB48StringOutput::Init(Json::Value config)
         m_strings.push_back(newString);
     }
     
-    if (m_maxStringLen == 0) {
-        LogErr(VB_CHANNELOUT, "No pixels configured in any string\n");
-        return 0;
-    }
     m_numStrings = 48;
 
     int retVal = ChannelOutputBase::Init(config);
     if (retVal == 0) {
         return 0;
     }
+    if (m_maxStringLen == 0) {
+        m_numStrings = 0;
+        LogErr(VB_CHANNELOUT, "No pixels configured in any string\n");
+        return 1;
+    }
+    
     int maxString = -1;
     for (int s = 0; s < m_strings.size(); s++) {
         PixelString *ps = m_strings[s];
@@ -459,7 +461,9 @@ void BBB48StringOutput::StopPRU(bool wait)
 int BBB48StringOutput::Close(void)
 {
     LogDebug(VB_CHANNELOUT, "BBB48StringOutput::Close()\n");
-    StopPRU();
+    if (m_numStrings) {
+        StopPRU();
+    }
     return ChannelOutputBase::Close();
 }
 
@@ -490,6 +494,9 @@ void BBB48StringOutput::GetRequiredChannelRanges(const std::function<void(int, i
 void BBB48StringOutput::PrepData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBB48StringOutput::PrepData(%p)\n", channelData);
+    if (!m_numStrings) {
+        return;
+    }
 
     m_curFrame++;
 
@@ -534,6 +541,9 @@ int BBB48StringOutput::SendData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBB48StringOutput::SendData(%p)\n",
               channelData);
+    if (!m_numStrings) {
+        return 0;
+    }
 
     /*
     while this would be nice to do, reading from the pruData can take 15-20ms by itself due
