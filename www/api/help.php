@@ -34,6 +34,10 @@ function getFieldsFromEndpoint(url) {
 
 function testEndpoint(method, item) {
     var url = $(item).closest('.endpointRow').find('.endpoint').html();
+<?
+    if ($wrapped)
+        echo "url = '$apiDir' + url;\n";
+?>
     var fields = getFieldsFromEndpoint(url);
 
     for (var i = 0; i < fields.length; i++) {
