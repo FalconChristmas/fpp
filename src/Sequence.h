@@ -79,8 +79,13 @@ class Sequence {
     
     int  GetSeqStepTime() const { return m_seqStepTime;}
     void  BlankSequenceData(void);
+    
+    
+    void SetBridgeData(uint8_t *data, int startChannel, int len);
   private:
 	char  NormalizeControlValue(char in);
+    
+    uint8_t      *m_bridgeData;
 
 	FSEQFile     *m_seqFile;
 

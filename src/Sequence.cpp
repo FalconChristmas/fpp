@@ -73,7 +73,8 @@ Sequence::Sequence()
     m_doneRead(false),
     m_shuttingDown(false),
     m_dataProcessed(false),
-    m_seqFilename("")
+    m_seqFilename(""),
+    m_bridgeData(nullptr)
 {
     memset(m_seqData, 0, sizeof(m_seqData));
     for (int x = 0; x < 4; x++) {
@@ -96,6 +97,9 @@ Sequence::~Sequence()
     clearCaches();
     if (m_seqFile) {
         delete m_seqFile;
+    }
+    if (m_bridgeData) {
+        free(m_bridgeData);
     }
 }
 void Sequence::clearCaches() {
@@ -391,6 +395,11 @@ void Sequence::BlankSequenceData(void) {
     for (auto &a : GetOutputRanges()) {
         memset(&m_seqData[a.first], 0, a.second);
     }
+    if (m_bridgeData) {
+        for (auto &a : GetOutputRanges()) {
+            memset(&m_bridgeData[a.first], 0, a.second);
+        }
+    }
 }
 
 int Sequence::SequenceIsPaused(void) {
@@ -511,6 +520,12 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
+    if (m_bridgeData) {
+        // copy the latest bridge data to the sequence data
+        for (auto &a : GetOutputRanges()) {
+            memcpy(&m_seqData[a.first], &m_bridgeData[a.first], a.second);
+        }
+    }
     PluginManager::INSTANCE.modifySequenceData(ms, (uint8_t*)m_seqData);
     
     if (IsEffectRunning())
@@ -622,3 +637,10 @@ char Sequence::NormalizeControlValue(char in) {
     return result;
 }
 
+void Sequence::SetBridgeData(uint8_t *data, int startChannel, int len) {
+    if (!m_bridgeData) {
+        m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
+    }
+    memcpy(&m_bridgeData[startChannel], data, len);
+    setDataNotProcessed();
+}

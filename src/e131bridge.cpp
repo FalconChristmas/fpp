@@ -412,12 +412,11 @@ bool Bridge_StoreData(uint8_t *bridgeBuffer)
             }
             InputUniverses[universeIndex].lastSequenceNumber = sn;
             
-            memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
-                   (void*)(bridgeBuffer+E131_HEADER_LENGTH),
-                   InputUniverses[universeIndex].size);
+            sequence->SetBridgeData(&bridgeBuffer[E131_HEADER_LENGTH],
+                                    InputUniverses[universeIndex].startAddress-1,
+                                    InputUniverses[universeIndex].size);
             InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
             InputUniverses[universeIndex].packetsReceived++;
-            sequence->setDataNotProcessed();
         } else {
             unknownUniverse.packetsReceived++;
             uint32_t len = bridgeBuffer[16] & 0xF;
@@ -476,10 +475,10 @@ bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
             InputUniverses[universeIndex].bytesReceived += std::min(InputUniverses[universeIndex].size, len);
             InputUniverses[universeIndex].packetsReceived++;
 
-            memcpy((void*)(sequence->m_seqData+InputUniverses[universeIndex].startAddress-1),
-                   (void*)(&bridgeBuffer[18]),
-                   std::min(InputUniverses[universeIndex].size, len));
-            sequence->setDataNotProcessed();
+            sequence->SetBridgeData(&bridgeBuffer[18],
+                                    InputUniverses[universeIndex].startAddress-1,
+                                    std::min(InputUniverses[universeIndex].size, len));
+
         } else {
             unknownUniverse.packetsReceived++;
             uint32_t len = bridgeBuffer[16] & 0xF;
@@ -621,8 +620,9 @@ bool Bridge_StoreDDPData(uint8_t *bridgeBuffer)  {
         ddpMaxChannel = std::max(ddpMaxChannel, chan + len);
         
         int offset = tc ? 14 : 10;
-        memcpy(sequence->m_seqData + chan, &bridgeBuffer[offset], len);
-        sequence->setDataNotProcessed();
+        sequence->SetBridgeData(&bridgeBuffer[offset],
+                                chan,
+                                len);
         ddpBytesReceived += len;
     } else {
         printf("Unknown packet: %d \n", (int)bridgeBuffer[3]);
