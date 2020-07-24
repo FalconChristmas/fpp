@@ -1,13 +1,22 @@
-<!DOCTYPE html>
-<html>
-<?php
+<?
+header( "Access-Control-Allow-Origin: *");
+
+$wrapped = 1;
+$version = $_GET['version'];
+
+if (isset($_GET['wrapped']))
+    $wrapped = 1;
+
+if (!$wrapped)
+    echo "<html>\n";
 
 $skipJSsettings = 1;
 require_once("common.php");
 
 DisableOutputBuffering();
-?>
 
+if (!$wrapped) {
+?>
 <head>
 <title>
 Upgrading FPP
@@ -38,14 +47,17 @@ function Reboot() {
 <pre>
 <?php
     echo "==================================================================================\n";
+} else{
+    echo "FPP Upgrade to version " . $version . "\n";
+}
 
-    $version = $_GET['version'];
 	$command = "sudo /opt/fpp/scripts/upgrade_FPP " . $version . " 2>&1";
 
 	echo "Command: $command\n";
 	echo "----------------------------------------------------------------------------------\n";
     system($command);
 	echo "\n";
+if (!$wrapped) {
 ?>
 
 ==========================================================================
@@ -53,3 +65,9 @@ function Reboot() {
 <input id='RebootButton' type='button' value='Reboot' onClick='Reboot();'/>
 </body>
 </html>
+<?
+} else {
+    echo "----------------------------------------------------------------------------------\n";
+    echo "Upgrade complete.  Please reboot.\n";
+}
+?>
