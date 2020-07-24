@@ -1513,6 +1513,11 @@ function RemovePlaylistEntry()	{
 				});
 		}
 
+        function VersionUpgradeDone(id) {
+            id = id.replace('_logText', '');
+            $('#' + id + '_doneButtons').show();
+            $('#rebootFPPAfterUpgradeButton').show();
+        }
 		function UpgradeFPPVersion(newVersion)
 		{
 			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'))
@@ -1521,7 +1526,7 @@ function RemovePlaylistEntry()	{
                 $('#upgradePopup').dialog( "moveToTop" );
                 $('#upgradeText').html('');
 
-                StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeText');
+                StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeText', 'VersionUpgradeDone');
 			}
 		}
 
