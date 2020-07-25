@@ -405,7 +405,7 @@ case "${OSVER}" in
                       libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
                       vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
                       libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-                      fonts-freefont-ttf"
+                      fonts-freefont-ttf flex bison pkg-config libasound2-dev"
 
         if [ "$FPPPLATFORM" == "Raspberry Pi" -o "$FPPPLATFORM" == "BeagleBone Black" ]; then
             PACKAGE_LIST="$PACKAGE_LIST firmware-realtek firmware-atheros firmware-ralink firmware-brcm80211 firmware-iwlwifi firmware-libertas firmware-zd1211 firmware-ti-connectivity python-daemon python-smbus"
@@ -733,6 +733,7 @@ fi
 #######################################
 # Build VLC
 if $build_vlc; then
+    echo "FPP - Building VLC"
     cd /opt/fpp/SD
     ./buildVLC.sh
     rm -rf /opt/vlc/

@@ -1,5 +1,8 @@
 #!/bin/sh
 
+
+apt-get install -y flex bison pkg-config libasound2-dev
+
 cd /opt
 git clone git://git.videolan.org/vlc.git
 cd vlc
@@ -14,7 +17,6 @@ else
 fi
 
 
-apt-get install -y flex bison
 export LDFLAGS="-latomic"
 ./bootstrap
 ./configure --disable-lua --disable-a52 --disable-chromecast --disable-chromaprint  --disable-pulse --disable-jack --disable-dbus --disable-avahi $DISABLES --enable-run-as-root
