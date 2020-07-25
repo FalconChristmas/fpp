@@ -48,6 +48,7 @@ OBJECTS_fpp_so += \
 	mediaoutput/mediaoutput.o \
 	mediaoutput/omxplayer.o \
 	mediaoutput/SDLOut.o \
+	mediaoutput/VLCOut.o \
 	mqtt.o \
 	NetworkController.o \
  	NetworkMonitor.o \
@@ -109,15 +110,13 @@ LIBS_fpp_so += \
 	-lavcodec \
 	-lavutil \
 	-lswresample \
+	-L/usr/local/lib \
 	-lswscale \
+	-lvlc
     $(LIBS_GPIO_ADDITIONS)
 
 
-ifneq ($(wildcard /usr/local/include/vlc/vlc.h),)
-LIBS_fpp_so += -L/usr/local/lib -lvlc
-OBJECTS_fpp_so += mediaoutput/VLCOut.o
 CFLAGS_mediaoutput/mediaoutput.o+=-DHASVLC
-endif
 
 
 util/tinyexpr.o: util/tinyexpr.c fppversion_defines.h Makefile makefiles/*.mk makefiles/platform/*.mk
