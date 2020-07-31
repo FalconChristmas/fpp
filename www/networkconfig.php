@@ -14,12 +14,110 @@
 $wifiDrivers = Array();
 $wifiDrivers['External'] = "External";
 $wifiDrivers['Linux Kernel'] = "Kernel";
-    
 $defaultWifiDrivers = "External";
 if (isset($settings['wifiDrivers']) && $settings['wifiDrivers'] == "Realtek") {
     $settings['wifiDrivers'] == "External";
 }
-    
+
+    // list from https://www.arubanetworks.com/techdocs/InstantWenger_Mobile/Advanced/Content/Instant%20User%20Guide%20-%20volumes/Country_Codes_List.htm#regulatory_domain_3737302751_1017918
+    $wifiDomains = Array();
+    $wifiDomains['United States'] = 'US';
+    $wifiDomains['Canada'] = 'CA';
+    $wifiDomains['Japan'] = 'JP3';
+    $wifiDomains['Germany'] = 'DE';
+    $wifiDomains['Netherlands'] = 'NL';
+    $wifiDomains['Italy'] = 'IT';
+    $wifiDomains['Portugal'] = 'PT';
+    $wifiDomains['Luxembourg'] = 'LU';
+    $wifiDomains['Norway'] = 'NO';
+    $wifiDomains['Finland'] = 'FI';
+    $wifiDomains['Denmark'] = 'DK';
+    $wifiDomains['Switzerland'] = 'CH';
+    $wifiDomains['Czech Republic'] = 'CZ';
+    $wifiDomains['Spain'] = 'ES';
+    $wifiDomains['United Kingdom'] = 'GB';
+    $wifiDomains['Republic of Korea (South Korea)'] = 'KR';
+    $wifiDomains['China'] = 'CN';
+    $wifiDomains['France'] = 'FR';
+    $wifiDomains['Hong Kong'] = 'HK';
+    $wifiDomains['Singapore'] = 'SG';
+    $wifiDomains['Taiwan'] = 'TW';
+    $wifiDomains['Brazil'] = 'BR';
+    $wifiDomains['Israel'] = 'IL';
+    $wifiDomains['Saudi Arabia'] = 'SA';
+    $wifiDomains['Lebanon'] = 'LB';
+    $wifiDomains['United Arab Emirates'] = 'AE';
+    $wifiDomains['South Africa'] = 'ZA';
+    $wifiDomains['Argentina'] = 'AR';
+    $wifiDomains['Australia'] = 'AU';
+    $wifiDomains['Austria'] = 'AT';
+    $wifiDomains['Bolivia'] = 'BO';
+    $wifiDomains['Chile'] = 'CL';
+    $wifiDomains['Greece'] = 'GR';
+    $wifiDomains['Iceland'] = 'IS';
+    $wifiDomains['India'] = 'IN';
+    $wifiDomains['Ireland'] = 'IE';
+    $wifiDomains['Kuwait'] = 'KW';
+    $wifiDomains['Liechtenstein'] = 'LI';
+    $wifiDomains['Lithuania'] = 'LT';
+    $wifiDomains['Mexico'] = 'MX';
+    $wifiDomains['Morocco'] = 'MA';
+    $wifiDomains['New Zealand'] = 'NZ';
+    $wifiDomains['Poland'] = 'PL';
+    $wifiDomains['Puerto Rico'] = 'PR';
+    $wifiDomains['Slovak Republic'] = 'SK';
+    $wifiDomains['Slovenia'] = 'SI';
+    $wifiDomains['Thailand'] = 'TH';
+    $wifiDomains['Uruguay'] = 'UY';
+    $wifiDomains['Panama'] = 'PA';
+    $wifiDomains['Russia'] = 'RU';
+    $wifiDomains['Kuwait'] = 'KW';
+    $wifiDomains['Liechtenstein'] = 'LI';
+    $wifiDomains['Lithuania'] = 'LT';
+    $wifiDomains['Mexico'] = 'MX';
+    $wifiDomains['Morocco'] = 'MA';
+    $wifiDomains['New Zealand'] = 'NZ';
+    $wifiDomains['Poland'] = 'PL';
+    $wifiDomains['Puerto Rico'] = 'PR';
+    $wifiDomains['Slovak Republic'] = 'SK';
+    $wifiDomains['Slovenia'] = 'SI';
+    $wifiDomains['Thailand'] = 'TH';
+    $wifiDomains['Uruguay'] = 'UY';
+    $wifiDomains['Panama'] = 'PA';
+    $wifiDomains['Russia'] = 'RU';
+    $wifiDomains['Egypt'] = 'EG';
+    $wifiDomains['Trinidad and Tobago'] = 'TT';
+    $wifiDomains['Turkey'] = 'TR';
+    $wifiDomains['Costa Rica'] = 'CR';
+    $wifiDomains['Ecuador'] = 'EC';
+    $wifiDomains['Honduras'] = 'HN';
+    $wifiDomains['Kenya'] = 'KE';
+    $wifiDomains['Ukraine'] = 'UA';
+    $wifiDomains['Vietnam'] = 'VN';
+    $wifiDomains['Bulgaria'] = 'BG';
+    $wifiDomains['Cyprus'] = 'CY';
+    $wifiDomains['Estonia'] = 'EE';
+    $wifiDomains['Mauritius'] = 'MU';
+    $wifiDomains['Romania'] = 'RO';
+    $wifiDomains['Serbia and Montenegro'] = 'CS';
+    $wifiDomains['Indonesia'] = 'ID';
+    $wifiDomains['Peru'] = 'PE';
+    $wifiDomains['Venezuela'] = 'VE';
+    $wifiDomains['Jamaica'] = 'JM';
+    $wifiDomains['Bahrain'] = 'BH';
+    $wifiDomains['Oman'] = 'OM';
+    $wifiDomains['Jordan'] = 'JO';
+    $wifiDomains['Bermuda'] = 'BM';
+    $wifiDomains['Colombia'] = 'CO';
+    $wifiDomains['Dominican Republic'] = 'DO';
+    $wifiDomains['Guatemala'] = 'GT';
+    $wifiDomains['Philippines'] = 'PH';
+    $wifiDomains['Sri Lanka'] = 'LK';
+    $wifiDomains['El Salvador'] = 'SV';
+    $wifiDomains['Tunisia'] = 'TN';
+    $wifiDomains['Islamic Republic of Pakistan'] = 'PK';
+    $wifiDomains['Qatar'] = 'QA';
+    $wifiDomains['Algeria'] = 'DZ';
 
 function PopulateInterfaces()
 {
@@ -256,7 +354,7 @@ function SaveNetworkConfig()
 	{
 		data.SSID = encodeURIComponent($('#eth_ssid').val());
 		data.PSK = encodeURIComponent($('#eth_psk').val());
-        data.Hidden = $('#eth_hidden').is(':checked');
+        data.HIDDEN = $('#eth_hidden').is(':checked');
 	}
 
 	var postData = "command=setInterfaceInfo&data=" + JSON.stringify(data);
@@ -491,6 +589,12 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
 <?php PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage"); ?>
 </td>
 </tr>
+<tr>
+<td width = "45%">WIFI Regulatory Domain:</td>
+<td width = "55%">
+<?php PrintSettingSelect("WIFI Regulatory Domain", "WifiRegulatoryDomain", 0, 1, isset($settings['WifiRegulatoryDomain']) ? $settings['WifiRegulatoryDomain'] : "US", $wifiDomains); ?>
+</td>
+</tr>
 </table>
 <br>
 <?
@@ -538,12 +642,9 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
             <tr>
               <td width = "25%">WPA SSID:</td>
               <td width = "75%"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><? printWifiNetworks(); ?>&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
-
             </tr>
             <tr>
-              <td>WPA Pre Shared key (PSK):</td>
-<td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
-            </tr>
+              <td>WPA Pre Shared key (PSK):</td><td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
             </tr>
           </table>
           </div>
