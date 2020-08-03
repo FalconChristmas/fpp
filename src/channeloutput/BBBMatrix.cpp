@@ -278,6 +278,55 @@ private:
     const bool m_flipRows;
 };
 
+class ZigZagClusterInterleaveHandler : public InterleaveHandler {
+public:
+    ZigZagClusterInterleaveHandler(int interleave, int ph, int pw, int ps)
+        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
+    virtual ~ZigZagClusterInterleaveHandler() {}
+
+    virtual void mapRow(int &y) override {
+        while (y >= m_panelScan) {
+            y -= m_panelScan;
+        }
+    }
+    virtual void mapCol(int y, int &x) override {
+        int whichInt = x / m_interleave;
+        int offInInt = x % m_interleave;
+        int mult = y / m_panelScan;
+
+        if (m_panelScan == 2) {
+            // AC_MAPPING code - stealing codepath for scan 1/2 and zigzag8
+            // cluster -- the ordinal number of a group of 8 linear lights on a half-frame
+            // starting in the top left corner of a half-module; bits 3,2 from y, 1,0 from x
+            int tc = whichInt | (y << 1) & 0xc;
+            // mapped cluster - this reverses the effects of unusual wiring on this panel
+            // address bits are shifted around and bit3 is negated to achieve linear counting
+            uint8_t map_cb = (~tc & 8) | (tc & 4) >> 2 | (tc & 2) << 1 | (tc & 1) << 1;
+            // scale up from cluster to pixel counts and account for reverse-running clusters
+            x = map_cb * 8 + (x & 0x7 ^ (((~y >> 1) & 1) * 7) );
+            return;
+        } else if (m_interleave == 4) {
+            if ((whichInt & 0x1) == 1) {
+                mult = (y < m_panelScan ? y + m_panelScan : y - m_panelScan) / m_panelScan;
+            }
+        } else {
+            int tmp = (y * 2) / m_panelScan;
+            if ((tmp & 0x2) == 0) {
+                offInInt = m_interleave - 1 - offInInt;
+            }
+        }
+        x = m_interleave * (whichInt * m_panelHeight / m_panelScan / 2 + mult) + offInInt;
+    }
+
+private:
+    const int m_interleave;
+    const int m_panelWidth;
+    const int m_panelHeight;
+    const int m_panelScan;
+};
+
+
+
 class ZigZagInterleaveHandler : public InterleaveHandler {
 public:
     ZigZagInterleaveHandler(int interleave, int ph, int pw, int ps)
@@ -500,6 +549,7 @@ int BBBMatrix::Init(Json::Value config)
         m_colorDepth = 8;
     }
     bool zigZagInterleave = false;
+    bool zigZagClusterInterleave = false;
     bool flipRows = false;
     if (config.isMember("panelInterleave")) {
         if (config["panelInterleave"].asString() == "8z") {
@@ -523,6 +573,9 @@ int BBBMatrix::Init(Json::Value config)
         } else if (config["panelInterleave"].asString() == "64f") {
             m_interleave = 64;
             flipRows = true;
+        } else if (config["panelInterleave"].asString() == "8c") {
+            m_interleave = 8;
+            zigZagClusterInterleave = true;
         } else {
             m_interleave = std::atoi(config["panelInterleave"].asString().c_str());
         }
@@ -731,6 +784,8 @@ int BBBMatrix::Init(Json::Value config)
     if (m_interleave && ((m_panelScan * 2) != m_panelHeight)) {
         if (zigZagInterleave) {
             m_handler = new ZigZagInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        } else if (zigZagClusterInterleave) {
+            m_handler = new ZigZagClusterInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
         } else {
             m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan, flipRows);
         }
