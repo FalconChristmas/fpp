@@ -458,8 +458,8 @@ function InitializeLEDPanels()
 			LEDPanelOutputs = 12;
 			LEDPanelPanelsPerOutput = 16;
 		}
-	}
-    
+    }
+
     <?
     if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
     {
@@ -482,7 +482,7 @@ function InitializeLEDPanels()
     }
     ?>
 
-	DrawLEDPanelTable();
+    UpdateLegacyLEDPanelLayout();
 }
 
 function GetLEDPanelConfig()
