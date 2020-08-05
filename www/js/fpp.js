@@ -2369,11 +2369,13 @@ function GetSequenceArray()
 		}
 	}
 
-    var temperatureUnit = false;
+    var temperatureUnit = settings['temperatureInF'] == 1;
     function changeTemperatureUnit() {
         if (temperatureUnit) {
+            SetSetting("temperatureInF", "0", 0, 0);
             temperatureUnit = false;
         } else {
+            SetSetting("temperatureInF", "1", 0, 0);
             temperatureUnit = true;
         }
     }
