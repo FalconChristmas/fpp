@@ -108,7 +108,7 @@ function MediaChanged()
     if (value == null)  {
         return;
     }
-    value = value.replace(/\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
+    value = value.replace(/\.flac|\.ogg|\.mp3|\.mp4|\.mov|\.m4a/i, "");
 
 	var seq = document.getElementsByClassName("arg_sequenceName")[0];
     if (seq) {
