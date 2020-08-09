@@ -296,7 +296,7 @@ h2 {
     <div id="tab-audio">
       <div id= "divMusic">
         <fieldset  class="fs">
-          <legend> Music Files (.mp3/.ogg/.m4a) </legend>
+          <legend> Music Files (.mp3/.ogg/.m4a/.flac) </legend>
           <div id="divMusicData">
             <table id="tblMusic">
             </table>

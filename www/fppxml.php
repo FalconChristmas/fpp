@@ -422,7 +422,7 @@ function MoveFile()
 				error_log("Couldn't move script file");
 				exit(1);
 			}
-        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma)$/i", $file)) {
+        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $file)) {
 			if ( !rename($uploadDirectory."/" . $file, $musicDirectory . '/' . $file) ) {
 				error_log("Couldn't move music file");
 				exit(1);
@@ -1626,6 +1626,8 @@ function GetFile()
 			header('Content-type: audio/mp3');
 		else if (preg_match('/ogg$/i', $filename))
 			header('Content-type: audio/ogg');
+		else if (preg_match('/flac$/i', $filename))
+			header('Content-type: audio/flac');
         else if (preg_match('/m4a$/i', $filename))
             header('Content-type: audio/m4a');
         else if (preg_match('/mov$/i', $filename))
