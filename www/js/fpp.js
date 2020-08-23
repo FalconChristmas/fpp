@@ -968,26 +968,6 @@ function PopulatePlaylistItemDuration(row, editMode) {
     }
 }
 
-function GetPlaylistFPPCommandArgsFromEditor(c)
-{
-    var arr = [];
-    for (var x = 0; x < commandList[c]['args'].length; x++) {
-        var e = commandList[c]['args'][x];
-        if (e.type == "int") {
-            arr.push(parseInt($('#playlistEntryCommandOptions_arg_' + (x+1)).val()));
-        } else if (e.type == "bool") {
-            if ($('#playlistEntryCommandOptions_arg_' + (x+1)).is(':checked'))
-                arr.push(true);
-            else
-                arr.push(false);
-        } else {
-            arr.push($('#playlistEntryCommandOptions_arg_' + (x+1)).val());
-        }
-    }
-
-    return arr;
-}
-
 function AddPlaylistEntry(mode) {
     if (mode && !$('#tblPlaylistDetails').find('.playlistSelectedEntry').length) {
         DialogError('No playlist item selected', "Error: No playlist item selected.");
@@ -1032,7 +1012,11 @@ function AddPlaylistEntry(mode) {
             if (type == 'command') {
                 for (var c = 0; c < commandList.length; c++) {
                     if (commandList[c]['name'] == $('#playlistEntryOptions_arg_1').val()) {
-                        arr = GetPlaylistFPPCommandArgsFromEditor(c);
+                        var json = {};
+                        CommandToJSON("playlistEntryOptions_arg_1", "playlistEntryCommandOptions", json);
+                        arr = json["args"];
+                        pe["multisyncCommand"] = json["multisyncCommand"];
+                        pe["multisyncHosts"] = json["multisyncHosts"];
                     }
                 };
             } else {
@@ -1410,6 +1394,10 @@ function EditPlaylistEntry() {
     var keys = Object.keys(pet.args);
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
+        
+        if (a.hidden == true) {
+            continue;
+        }
 
         if (a.type == 'bool') {
             if ($(row).find('.field_' + a.name).html() == 'true')
@@ -1418,11 +1406,8 @@ function EditPlaylistEntry() {
                 $('.arg_' + a.name).prop('checked', false).trigger('change');
         } else if (a.type == 'args') {
             if (type == 'command') {
-                for (var c = 0; c < commandList.length; c++) {
-                    if (commandList[c]['name'] == $(row).find('.field_command').html()) {
-                        AssignPlaylistEditorFPPCommandArgsFromList(row, c);
-                    }
-                };
+                var pe = GetPlaylistEntry(row);
+                PopulateExistingCommand(pe, "playlistEntryOptions_arg_1", "playlistEntryCommandOptions");
             } else {
                 for (x = 1; x <= 20; x++) {
                     if ($(row).find('.field_args_' + x).length) {
@@ -4033,6 +4018,10 @@ function PrintArgsInputsForEditable(tblCommand, configAdjustable, args, startCou
             (val.statusOnly == true)) {
             return;
         }
+        if ((val.hasOwnProperty('hidden')) &&
+            (val.hidden == true)) {
+            return;
+        }
         var ID = tblCommand + "_arg_" + count;
         var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
         var subCommandInitFunc = null;
@@ -4167,6 +4156,10 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
              (val.statusOnly == true)) {
             return;
          }
+        if ((val.hasOwnProperty('hidden')) &&
+            (val.hidden == true)) {
+           return;
+        }
 
          var ID = tblCommand + "_arg_" + count;
          var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";

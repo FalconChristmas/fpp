@@ -234,6 +234,20 @@
                 "optional": false,
                 "simpleUI": true
             },
+            "multisyncCommand": {
+                "name": "multisyncCommand",
+                "description": "Multicast",
+                "type": "bool",
+                "optional": true,
+                "hidden": true
+            },
+            "multisyncHosts": {
+                "name": "multisyncHosts",
+                "description": "Multicast Hosts",
+                "type": "string",
+                "optional": true,
+                "hidden": true
+            },
             "args": {
                 "name": "args",
                 "description": "Args",
