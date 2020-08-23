@@ -643,9 +643,22 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
     */
     std::string data((char *)&search->second[0], search->second.size());
 
-    lock.unlock();
+    // determine if the ip is on the local subnet.
+    // right now it assumes a /24 subnet, not ideal
+    bool isLocalSubnet = false;
+    in_addr_t add = inet_addr(ip.c_str());
+    unsigned char ipd = (add >> 24) & 0xFF;
+    unsigned char ipc = (add >> 16) & 0xFF;
+    unsigned char ipb = (add >> 8) & 0xFF;
+    unsigned char ipa = add & 0xFF;
+    std::unique_lock<std::recursive_mutex> slock(m_systemsLock);
+    for (auto &a : m_localSystems) {
+        if (ipa == a.ipa &&  ipb == a.ipb & ipc == a.ipc) {
+            isLocalSubnet = true;
+        }
+    }
 
-    NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data);
+    NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data, isLocalSubnet);
 
     if (nc) {
         UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
@@ -867,7 +880,7 @@ void MultiSync::PingSingleRemoteViaHTTP(const std::string &address) {
 
     if (urlHelper("GET", url, resp, 1)) {
         if (resp != "") {
-            NetworkController *nc = NetworkController::DetectControllerViaHTML(address.c_str(), resp);
+            NetworkController *nc = NetworkController::DetectControllerViaHTML(address.c_str(), resp, false);
 
             if (nc) {
                 UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,

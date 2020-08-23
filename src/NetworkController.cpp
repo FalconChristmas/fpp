@@ -40,7 +40,7 @@ NetworkController::NetworkController(const std::string &ipStr)
 }
 
 NetworkController *NetworkController::DetectControllerViaHTML(const std::string &ip,
-    const std::string &html)
+    const std::string &html, bool isLocalSubnet)
 {
     NetworkController *nc = new NetworkController(ip);
 
@@ -48,8 +48,12 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
         //for now, short circuit if we know it's a FPP instance
         //as we should be able to potentially detect these via
         //multisync
-        delete nc;
-        return nullptr;
+        if (isLocalSubnet) {
+            delete nc;
+            return nullptr;
+        } else {
+            return nc;
+        }
     }
     
     if (nc->DetectFalconController(ip, html))
@@ -64,7 +68,39 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
     return nullptr;
 }
 bool NetworkController::DetectFPP(const std::string &ip, const std::string &html) {
-    return html.find("Falcon Player - FPP") != std::string::npos;
+    if (html.find("Falcon Player - FPP") == std::string::npos) {
+        return false;
+    }
+    std::string url = ip + "/fppjson.php?command=getSysInfo&simple";
+    std::string resp;
+
+    if (urlGet(url, resp)) {
+        Json::Value v = LoadJsonFromString(resp);
+        hostname = v["HostName"].asString();
+        vendor = "FPP";
+        vendorURL = "https://falconchristmas.com/forum/";
+        if (v.isMember("channelRanges")) {
+            ranges = v["channelRanges"].asString();
+        }
+        version = v["Version"].asString();
+        typeStr = v["Variant"].asString();
+        typeId = MultiSync::ModelStringToType(typeStr);
+        
+        std::string md = v["Mode"].asString();
+        if (md == "bridge") {
+            systemMode = BRIDGE_MODE;
+        } else if (md == "player") {
+            systemMode = PLAYER_MODE;
+        } else if (md == "remote") {
+            systemMode = REMOTE_MODE;
+        } else if (md == "master") {
+            systemMode = MASTER_MODE;
+        }
+        majorVersion = v["majorVersion"].asInt();
+        minorVersion = v["minorVersion"].asInt();
+        return true;
+    }
+    return false;
 }
 
 bool NetworkController::DetectFalconController(const std::string &ip,

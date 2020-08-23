@@ -252,6 +252,7 @@ class MultiSync {
     int OpenControlSockets();
 
     static std::string GetTypeString(MultiSyncSystemType type, bool local = false);
+    static MultiSyncSystemType ModelStringToType(std::string model);
 
     void StoreHTTPResponse(std::string *ipp, uint8_t *data, int sz);
 
@@ -263,7 +264,6 @@ class MultiSync {
     void PingSingleRemoteViaHTTP(const std::string &address);
     int CreatePingPacket(MultiSyncSystem &sys, char* outBuf, int discover);
 
-	MultiSyncSystemType ModelStringToType(std::string model);
 	bool FillLocalSystemInfo(void);
 	std::string GetHardwareModel(void);
 
