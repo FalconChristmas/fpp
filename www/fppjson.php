@@ -1371,6 +1371,7 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['channelRanges'] = $json['channelRanges'];
         $result['majorVersion'] = $json['majorVersion'];
         $result['minorVersion'] = $json['minorVersion'];
+        $result['typeId'] = $json['typeId'];
     }
     
     if (! $simple) {
