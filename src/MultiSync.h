@@ -110,6 +110,8 @@ typedef enum systemType {
 	kSysTypexSchedule                    = 0xC1,
     kSysTypeESPixelStick                 = 0xC2,
     kSysTypeNonMultiSyncCapable          = 0xF0,
+    kSysTypeHinksPix                     = 0xFD,
+    kSysTypeAlphaPix                     = 0xFE,
     kSysTypeSanDevices                   = 0xFF
 } MultiSyncSystemType;
 

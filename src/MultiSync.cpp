@@ -499,6 +499,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
         case kSysTypexSchedule:               return "xSchedule";
         case kSysTypeESPixelStick:            return "ESPixelStick";
         case kSysTypeSanDevices:              return "SanDevices";
+        case kSysTypeAlphaPix:                return "AlphaPix";
+        case kSysTypeHinksPix:                return "HinksPix";
 		default:                              return "Unknown System Type";
 	}
 }

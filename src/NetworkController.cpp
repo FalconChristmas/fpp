@@ -62,6 +62,10 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
         return nc;
     if (nc->DetectESPixelStickController(ip, html))
         return nc;
+    if (nc->DetectAlphaPixController(ip, html))
+        return nc;
+    if (nc->DetectHinksPixController(ip, html))
+        return nc;
 
     delete nc;
 
@@ -237,6 +241,67 @@ bool NetworkController::DetectESPixelStickController(const std::string &ip,
     }
 
     return false;
+}
+
+bool NetworkController::DetectAlphaPixController(const std::string &ip, const std::string &html)
+{
+    LogExcess(VB_SYNC, "Checking if %s is a AlphaPix controller\n", ip.c_str());
+    std::regex re("AlphaPix (\\d+|Flex|Evolution)");
+    std::regex re2("(\\d+) Port Ethernet to SPI Controller");
+    std::cmatch m;
+
+    if ((!std::regex_search(html.c_str(), m, re))&&(!std::regex_search(html.c_str(), m, re2)))
+        return false;
+
+    LogExcess(VB_SYNC, "%s is potentially a AlphaPix controller, checking further\n", ip.c_str());
+
+    vendor = "HolidayCoro";
+    vendorURL = "https://www.holidaycoro.com/";
+    typeId = kSysTypeAlphaPix;
+    typeStr = m[1];
+    systemMode = BRIDGE_MODE;
+
+    std::regex vre("Currently Installed Firmware Version:  ([0-9]+.[0-9]+)");
+    
+    if (std::regex_search(html.c_str(), m, vre)) {
+        version = m[1];
+
+        if (version != "") {
+            majorVersion = atoi(version.c_str());
+
+            std::size_t verDot = version.find(".");
+            if (verDot != std::string::npos) {
+                minorVersion = atoi(version.substr(verDot + 1).c_str());
+            }
+        }
+
+        DumpControllerInfo();
+
+        return true;
+    }
+
+    return false;
+}
+
+bool NetworkController::DetectHinksPixController(const std::string &ip, const std::string &html)
+{
+    LogExcess(VB_SYNC, "Checking if %s is a HinksPix controller\n", ip.c_str());
+    std::regex re("HinksPix Config");
+    std::cmatch m;
+
+    if (!std::regex_search(html.c_str(), m, re))
+        return false;
+
+    LogExcess(VB_SYNC, "%s is potentially a HinksPix controller, checking further\n", ip.c_str());
+
+    vendor = "HolidayCoro";
+    vendorURL = "https://www.holidaycoro.com/";
+    typeId = kSysTypeHinksPix;
+    typeStr = "HinksPix";
+    systemMode = BRIDGE_MODE;
+
+    DumpControllerInfo();
+    return true;
 }
 
 void NetworkController::DumpControllerInfo(void)
