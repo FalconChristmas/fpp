@@ -227,6 +227,8 @@ int GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw)
 
 	if (gw)
 	{
+        *gw = 0;
+        
 		FILE *f;
 		char  line[100];
 		char *iface;
