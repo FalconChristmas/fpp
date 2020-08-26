@@ -497,7 +497,8 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
         case kSysTypeFPPSanCloudBeagleBoneEnhanced: return "SanCloud BeagleBone Enhanced";
             
         case kSysTypexSchedule:               return "xSchedule";
-        case kSysTypeESPixelStick:            return "ESPixelStick";
+        case kSysTypeESPixelStick:            return "ESPixelStick-ESP8266";
+        case kSysTypeESPixelStickESP32:       return "ESPixelStick-ESP32";
         case kSysTypeSanDevices:              return "SanDevices";
         case kSysTypeAlphaPix:                return "AlphaPix";
         case kSysTypeHinksPix:                return "HinksPix";
