@@ -270,7 +270,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
     }
 
     m_seqStepTime = seqFile->getStepTime();
-    m_seqRefreshRate = 1000 / m_seqStepTime;
+    m_seqRefreshRate = 1000.0f / m_seqStepTime;
     
     if (startSecond >= 0) {
         int frame = startSecond * 1000;
@@ -301,7 +301,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
 
 
     m_numSeek = 0;
-    LogDebug(VB_SEQUENCE, "seqRefreshRate        : %d\n", m_seqRefreshRate);
+    LogDebug(VB_SEQUENCE, "seqRefreshRate        : %f\n", m_seqRefreshRate);
     LogDebug(VB_SEQUENCE, "seqMSDuration         : %d\n", m_seqMSDuration);
     LogDebug(VB_SEQUENCE, "seqMSRemaining        : %d\n", m_seqMSRemaining);
     return 1;
