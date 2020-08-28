@@ -41,6 +41,18 @@
 
 Scheduler *scheduler = NULL;
 
+
+static int GetWeeklySeconds(int day, int hour, int minute, int second)
+{
+  int weeklySeconds = (day*SECONDS_PER_DAY) + (hour*SECONDS_PER_HOUR) + (minute*SECONDS_PER_MINUTE) + second;
+
+  if (weeklySeconds >= SECONDS_PER_WEEK)
+    weeklySeconds -= SECONDS_PER_WEEK;
+
+  return weeklySeconds;
+}
+
+
 void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
 {
     actualStartTime = currTime;
@@ -616,20 +628,6 @@ void Scheduler::PlayListStopCheck(void)
     m_nowWeeklySeconds2 = nowWeeklySeconds;
 
     int diff = m_currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds;
-    int displayDiff = 0;
-
-    // Convoluted code to print the countdown more frequently as we get closer
-    if (((diff > 300) &&                  ((diff % 300) == 0)) ||
-        ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
-        ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
-        (                (diff <=  10)))
-    {
-      displayDiff = diff;
-    }
-
-    if (displayDiff)
-      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
-        nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
 
     // This check for 1 second ago is a hack rather than a more invasive
     // patch to handle the race condition if we miss this check on the exact
@@ -640,7 +638,7 @@ void Scheduler::PlayListStopCheck(void)
 	// If the current item crosses the Saturday-Sunday midnight boundary and
 	//    it is now at or past the end time on Sunday.
 	if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
-		(m_currentSchedulePlaylist.startWeeklySeconds > (6 * 24 * 60 * 60)))
+		(m_currentSchedulePlaylist.startWeeklySeconds >= (6 * 24 * 60 * 60)))
 	{
 		// Need to nest this if so the else if below is less complicated
 		if ((nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
@@ -648,6 +646,7 @@ void Scheduler::PlayListStopCheck(void)
 		{
 			stopPlaying = 1;
 		}
+        diff += 7*24*60*60;
 	}
 	// Not a Saturday-Sunday rollover so just check if we are now past the
 	//     end time of the current item
@@ -655,6 +654,21 @@ void Scheduler::PlayListStopCheck(void)
 	{
 		stopPlaying = 1;
 	}
+      
+    int displayDiff = 0;
+
+    // Convoluted code to print the countdown more frequently as we get closer
+    if (((diff > 300) &&                  ((diff % 300) == 0)) ||
+        ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
+        ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
+        (                (diff <=  10)))
+    {
+      displayDiff = diff;
+    }
+    if (displayDiff)
+      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+        nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
+
 
 	if (stopPlaying)
     {
@@ -833,15 +847,6 @@ std::string Scheduler::GetWeekDayStrFromSeconds(int weeklySeconds)
     return result;
 }
 
-int Scheduler::GetWeeklySeconds(int day, int hour, int minute, int second)
-{
-  int weeklySeconds = (day*SECONDS_PER_DAY) + (hour*SECONDS_PER_HOUR) + (minute*SECONDS_PER_MINUTE) + second;
-
-  if (weeklySeconds >= SECONDS_PER_WEEK)
-    weeklySeconds = 0;
-
-  return weeklySeconds;
-}
 
 int Scheduler::GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2)
 {

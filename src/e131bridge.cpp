@@ -855,6 +855,10 @@ void AddFakeListener(int port, const std::string &protocol,
             for (int x = 0; x < msgcnt; x++) {
                 struct in_addr i = inAddress[x].sin_addr;
                 in_addr_t at = i.s_addr;
+                if (protocol == "DDP" && buffers[x][3] != 1) {
+                    //non pixel DDP data, possibly a broadcast discovery packet or sync packet or similar
+                    continue;
+                }
                 if (errrors[at] == "") {
                     std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
                     LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());

@@ -158,7 +158,11 @@ void *RunChannelOutputThread(void *data)
             if (!sequence->isDataProcessed()) {
                 //first time through or immediately after sequence load, the data might not be
                 //processed yet, need to do it
-                sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
+                int msTime = 1000.0 * channelOutputFrame / RefreshRate;
+                if (!sequence->IsSequenceRunning()) {
+                    msTime = mediaElapsedSeconds * 1000;
+                }
+                sequence->ProcessSequenceData(msTime, 1);
             }
             if (getFPPmode() == REMOTE_MODE && !doForceOutput) {
                 // Sleep about 1 seconds waiting for the master
@@ -182,7 +186,12 @@ void *RunChannelOutputThread(void *data)
                 sequence->ReadSequenceData();
             }
             readTime = GetTime();
-            sequence->ProcessSequenceData(1000.0 * channelOutputFrame / RefreshRate, 1);
+            
+            int msTime = 1000.0 * channelOutputFrame / RefreshRate;
+            if (!sequence->IsSequenceRunning()) {
+                msTime = mediaElapsedSeconds * 1000;
+            }
+            sequence->ProcessSequenceData(msTime, 1);
         } else {
             sequence->setDataNotProcessed();
             readTime = GetTime();
@@ -420,7 +429,9 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 {
 	static float nextSyncCheck = 0.5;
 
-	if (getFPPmode() == REMOTE_MODE)
+    mediaElapsedSeconds = mediaPosition;
+
+	if (getFPPmode() == REMOTE_MODE || !sequence->IsSequenceRunning())
 		return;
 
 	if ((mediaPosition <= nextSyncCheck) &&
@@ -432,8 +443,6 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 	float offsetMediaPosition = mediaPosition - mediaOffset;
 
 	int expectedFramesSent = (int)(offsetMediaPosition * RefreshRate);
-
-	mediaElapsedSeconds = mediaPosition;
 
 	LogDebug(VB_CHANNELOUT,
 		"Media Position: %.2f, Offset: %.3f, Frames Sent: %d, Expected: %d, Diff: %d\n",

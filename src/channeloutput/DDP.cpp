@@ -138,7 +138,7 @@ DDPOutputData::DDPOutputData(const Json::Value &config) : UDPOutputData(config),
     ddpAddress.sin_port = htons(DDP_PORT);
     ddpAddress.sin_addr.s_addr = toInetAddr(ipAddress, valid);
     
-    if (!valid) {
+    if (!valid && active) {
         WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
         active = false;
     }

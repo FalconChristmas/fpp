@@ -12,7 +12,7 @@ AttemptCreateSoftAP() {
     if [ ! -e "/sys/class/net/SoftAp0" ]; then
         if [ -e "/sys/class/net/$TetherInterface" ]; then
             COMBINATIONS=$(iw "phy${TetherInterfaceNum}" info | grep "interface combinations are not supported")
-            if [ "x${COMBINATIONS}" == "x"]; then
+            if [ "x${COMBINATIONS}" == "x" ]; then
                 iw phy "phy${TetherInterfaceNum}" interface add "SoftAp0" type __ap
             fi
         fi
@@ -47,6 +47,12 @@ SetupFPPNetworkConfigViaConnMann() {
     then
         DNS="$DNS1,$DNS2"
     fi
+
+    WifiRegulatoryDomain=$(getSetting WifiRegulatoryDomain)
+    if [ "$WifiRegulatoryDomain" == "" ]; then
+        WifiRegulatoryDomain="US"
+    fi
+    iw reg set "$WifiRegulatoryDomain"
 
     TMPFILE="/var/tmp/fpp.config"
     rm -f ${TMPFILE}

@@ -19,6 +19,7 @@ public:
 	PluginManager();
 	~PluginManager();
 	void init(void);
+    void Cleanup();
     
     bool hasPlugins();
 

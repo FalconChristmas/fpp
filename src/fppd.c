@@ -642,15 +642,15 @@ int main(int argc, char *argv[])
 		CloseEffects();
 	}
 	CloseChannelOutputs();
-    GPIOManager::INSTANCE.Cleanup();
     CommandManager::INSTANCE.Cleanup();
+    PluginManager::INSTANCE.Cleanup();
+    GPIOManager::INSTANCE.Cleanup();
 
 	delete scheduler;
 	delete playlist;
 	delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
-    
     
 	if (mqtt)
 		delete mqtt;

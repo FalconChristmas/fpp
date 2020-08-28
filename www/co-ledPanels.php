@@ -152,6 +152,7 @@ function printLEDPanelInterleaveSelect($platform, $interleave)
         $values["16 Pixels Flip Rows"] = "16f";
         $values["32 Pixels Flip Rows"] = "32f";
         $values["64 Pixels Flip Rows"] = "64f";
+        $values["8 Pixels Cluster Zig/Zag"] = "8c";
     } else {
         $values["Off"] = "0";
         $values["Stripe"] = "1";
@@ -457,8 +458,8 @@ function InitializeLEDPanels()
 			LEDPanelOutputs = 12;
 			LEDPanelPanelsPerOutput = 16;
 		}
-	}
-    
+    }
+
     <?
     if ($settings['Platform'] == "Raspberry Pi" || $settings['Platform'] == "BeagleBone Black")
     {
@@ -481,7 +482,7 @@ function InitializeLEDPanels()
     }
     ?>
 
-	DrawLEDPanelTable();
+    UpdateLegacyLEDPanelLayout();
 }
 
 function GetLEDPanelConfig()

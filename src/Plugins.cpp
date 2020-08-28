@@ -364,6 +364,9 @@ void PluginManager::init()
 
 PluginManager::~PluginManager()
 {
+    Cleanup();
+}
+void PluginManager::Cleanup() {
     while (!mPlugins.empty()) {
         delete mPlugins.back();
         mPlugins.pop_back();
@@ -371,6 +374,7 @@ PluginManager::~PluginManager()
     for (auto &a : mShlibHandles) {
         dlclose(a);
     }
+    mShlibHandles.clear();
 }
 
 

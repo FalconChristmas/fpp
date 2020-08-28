@@ -6,13 +6,11 @@ cd wifi
 mkdir patches
 cd patches
 
-wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8812au
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192cu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723bu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723au
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192eu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8822bu
-wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8812AU_8821AU
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8188fu
 
 shopt -s nullglob
@@ -63,8 +61,10 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-git clone https://github.com/zebulon2/rtl8812au-5.6.4.2
-cd rtl8812au-5.6.4.2
+# git clone https://github.com/zebulon2/rtl8812au-5.6.4.2
+# cd rtl8812au-5.6.4.2
+git clone https://github.com/aircrack-ng/rtl8812au
+cd rtl8812au
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile

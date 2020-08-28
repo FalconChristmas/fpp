@@ -1070,16 +1070,14 @@ int SDLOutput::Process(void)
                             m_mediaOutputStatus->mediaSeconds);
     }
     
-    if (sequence->IsSequenceRunning()) {
-        LogExcess(VB_MEDIAOUT,
-                  "Elapsed: %.2d.%.3d  Remaining: %.2d Total %.2d:%.2d.\n",
-                  m_mediaOutputStatus->secondsElapsed,
-                  m_mediaOutputStatus->subSecondsElapsed,
-                  m_mediaOutputStatus->secondsRemaining,
-                  m_mediaOutputStatus->minutesTotal,
-                  m_mediaOutputStatus->secondsTotal);
-        CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
-    }
+    LogExcess(VB_MEDIAOUT,
+              "Elapsed: %.2d.%.3d  Remaining: %.2d Total %.2d:%.2d.\n",
+              m_mediaOutputStatus->secondsElapsed,
+              m_mediaOutputStatus->subSecondsElapsed,
+              m_mediaOutputStatus->secondsRemaining,
+              m_mediaOutputStatus->minutesTotal,
+              m_mediaOutputStatus->secondsTotal);
+    CalculateNewChannelOutputDelay(m_mediaOutputStatus->mediaSeconds);
 	return m_mediaOutputStatus->status == MEDIAOUTPUTSTATUS_PLAYING;
 }
 int SDLOutput::IsPlaying(void)

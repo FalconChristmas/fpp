@@ -31,27 +31,38 @@ public:
     uint8_t *sharedRam = nullptr;
     uint32_t sharedRamPhyLoc = 0;
     int sharedRamSize = 0;
-    
+
     uint8_t *instructionRam = nullptr;
     int instructionRamSize = 0;
 
     unsigned int *controlRegs = nullptr;
-    
+
     void disable() {
         if (!hasUIO) {
             std::string filename = "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
-            FILE *rp = fopen(filename.c_str(), "w");
-            fprintf(rp, "stop");
-            fclose(rp);
+            if (FileExists(filename)) {
+                FILE *rp = fopen(filename.c_str(), "w");
+                fprintf(rp, "stop");
+                fclose(rp);
+            }
         }
         controlRegs[0] = 1;
     }
     void enable(uint32_t addr = 0) {
         if (!hasUIO) {
             std::string filename = "/sys/class/remoteproc/remoteproc" + std::to_string(pru_num) + "/state";
-            FILE *rp = fopen(filename.c_str(), "w");
-            fprintf(rp, "start");
-            fclose(rp);
+            int cnt = 0;
+            while (!FileExists(filename) && cnt < 20000) {
+                cnt++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            if (FileExists(filename) && cnt < 20000) {
+                FILE *rp = fopen(filename.c_str(), "w");
+                fprintf(rp, "start");
+                fclose(rp);
+            } else {
+                LogWarn(VB_CHANNELOUT, "BBBPru::Pru::enable() - could not start PRU core %d\n", pru_num);
+            }
         } else {
             uint32_t a = addr;
             a /= sizeof(uint32_t);
@@ -111,6 +122,9 @@ static void initPrus() {
         ddr_sizeb = proc_read("/sys/class/uio/uio0/maps/map1/size");
     } else {
         hasUIO = false;
+        if (!FileExists("/sys/class/remoteproc/remoteproc0/state")) {
+            system("modprobe pru_rproc");
+        }
     }
     if (ddr_mem_loc == nullptr) {
         ddr_phy_mem_loc = ddr_addr;

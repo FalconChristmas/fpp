@@ -325,6 +325,8 @@ include "playlistDetails.php";
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
     <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'>
     </textarea>
+    <input id='rebootFPPAfterUpgradeButton' type='button' class='buttons' value='Reboot' onClick='Reboot();' style='display: none;'>
+
 </div>
 </body>
 </html>

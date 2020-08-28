@@ -116,7 +116,11 @@ buf[9] = App/Hardware Type
            - 0x85 - F48
          - 0xC0-0xFF = Other systems
            - 0xC1 - xSchedule
-           - 0xC2 - ESPixelStick
+           - 0xC2 - ESPixelStick - ESP8266
+           - 0xC3 - ESPixelStick - ESP32
+           - 0xFD - HinksPix
+           - 0xFE - AlphaPix
+           - 0xFF - SanDevices
 
 buf[10-11] = Major version (MSB first, 0x00 0x01 for FPP v1.10, 0x07 0xE2 for xSchedule 2018.4)
 buf[12-13] = Minor version (MSB first, 0x00 0x0a for FPP v1.10, 0x00 0x04 for xSchedule 2018.4)

@@ -473,31 +473,39 @@ int ColorLight5a75Output::SendData(unsigned char *channelData)
     }
 
     int errCount = 0;
-    while ((outputCount != msgCount) && (errCount < 5)) {
+    bool done = false;
+    while ((outputCount != msgCount) && !done) {
         errCount++;
-        LogErr(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d) with error: %d   %s\n",
-            m_fd, outputCount, msgCount, errno, strerror(errno));
-
         errno = 0;
         oc = sendmmsg(m_fd, &msgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
         if (oc > 0) {
             outputCount += oc;
         }
+        if (outputCount != msgCount) {
+            long long tm = GetTimeMS();
+            long long totalTime = tm - startTime;
+            if (totalTime < 22) {
+                // we'll keep trying for up to 22ms, but give the network stack some time to flush some buffers
+                std::this_thread::sleep_for(std::chrono::microseconds(500));
+            } else {
+                done = true;
+            }
+        }
     }
-
     long long endTime = GetTimeMS();
     long long totalTime = endTime - startTime;
-    if (totalTime > 25) {
+    if (outputCount != msgCount) {
+        int tti = (int)totalTime;
+        LogWarn(VB_CHANNELOUT, "sendmmsg() failed for ColorLight output (Socket: %d   output count: %d/%d   time: %dms) with error: %d   %s, errorcount: %d\n",
+            m_fd, outputCount, msgCount, tti, errno, strerror(errno), errCount);
         m_slowCount++;
-        LogDebug(VB_CHANNELOUT, "Long time to send frame to colorlight: %d ms\n", ((int)totalTime));
         if (m_slowCount > 3) {
-            LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 25ms to send to ColorLight");
-            WarningHolder::AddWarningTimeout("Repeated frames taking more than 25ms to send to ColorLight", 30);
+            LogWarn(VB_CHANNELOUT, "Repeated frames taking more than 20ms to send to ColorLight");
+            WarningHolder::AddWarningTimeout("Repeated frames taking more than 20ms to send to ColorLight", 30);
         }
     } else {
         m_slowCount = 0;
     }
-
 	return m_channelCount;
 }
 

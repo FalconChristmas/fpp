@@ -281,11 +281,15 @@ static void mapTimeString(const std::string &tm, int &h, int &m, int &s) {
 }
 
 void ScheduleEntry::pushStartEndTimes(int start, int end) {
+    
     if (end < start) {
         // End is less than start, likely means crossing to next day, add 24hours.
         // If Saturday, roll end around to Sunday morning.
         if (end < (24*60*60*6)) {
-            end += 24*60*60;
+            //if start is not saturday, add 24 hours, otherwise it's already on Sunday
+            if (start < (24*60*60*6)) {
+                end += 24*60*60;
+            }
         } else {
             end -= 24*60*60*6;
         }

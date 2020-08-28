@@ -98,7 +98,7 @@ E131OutputData::E131OutputData(const Json::Value &config)
         e131Address.sin_addr.s_addr = inet_addr(sAddress);
     } else {
         e131Address.sin_addr.s_addr = toInetAddr(ipAddress, valid);
-        if (!valid) {
+        if (!valid && active) {
             WarningHolder::AddWarning("Could not resolve host name " + ipAddress + " - disabling output");
             active = false;
         }
