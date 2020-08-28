@@ -44,7 +44,7 @@
 #include "settings.h"
 
 /* used by external sync code */
-int   RefreshRate = 20;
+float   RefreshRate = 20;
 int   DefaultLightDelay = 0;
 int   LightDelay = 0;
 volatile int FrameSkip = 0;
@@ -292,12 +292,12 @@ void *RunChannelOutputThread(void *data)
 /*
  * Set the step time
  */
-void SetChannelOutputRefreshRate(int rate)
+void SetChannelOutputRefreshRate(float rate)
 {
 	RefreshRate = rate;
 	DefaultLightDelay = 1000000 / RefreshRate;
 }
-int GetChannelOutputRefreshRate() {
+float GetChannelOutputRefreshRate() {
     return RefreshRate;
 }
 
