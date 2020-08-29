@@ -1629,7 +1629,7 @@ function GetFile()
 		else if (preg_match('/flac$/i', $filename))
 			header('Content-type: audio/flac');
         else if (preg_match('/m4a$/i', $filename))
-            header('Content-type: audio/m4a');
+            header('Content-type: audio/mp4');
         else if (preg_match('/mov$/i', $filename))
             header('Content-type: video/mov');
 		else if (preg_match('/mp4$/i', $filename))
