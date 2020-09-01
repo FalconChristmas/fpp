@@ -491,6 +491,10 @@ case "${FPPPLATFORM}" in
         echo "blacklist inv_mpu6050" >> /etc/modprobe.d/blacklist-gyro.conf
         echo "blacklist st_sensors" >> /etc/modprobe.d/blacklist-gyro.conf
 
+        # need to blacklist the bluetooth on BBG Gateway or it tends to crash the kernel, we don't need it
+        echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
+        echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
+        echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
 		;;
 
 	'Raspberry Pi')
