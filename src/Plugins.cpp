@@ -22,6 +22,7 @@
 #include <jsoncpp/json/json.h>
 
 #include "playlist/Playlist.h"
+#include "commands/Commands.h"
 
 #include "Plugin.h"
 #include "mediadetails.h"
@@ -220,6 +221,74 @@ PluginManager::PluginManager() : mPluginsLoaded(false)
 {
 }
 
+
+class ScriptCommand : public Command {
+public:
+    ScriptCommand(const std::string &dir, Json::Value &json)
+    : Command(json["name"].asString()), directory(dir), description(json) {
+        script = json["script"].asString();
+        description.removeMember("script");
+    }
+    bool IsOk() {
+        return FileExists(directory + "/" + script);
+    }
+    virtual Json::Value getDescription() override {
+        return description;
+    }
+    
+    virtual std::unique_ptr<Result> run(const std::vector<std::string> &args) override {
+        int pid = fork();
+        if (pid == -1) {
+            LogErr(VB_PLUGIN, "Failed to fork\n");
+            exit(EXIT_FAILURE);
+        }
+        if ( pid == 0 ) {
+            LogDebug(VB_PLUGIN, "Child process, calling %s for command: %s\n", script.c_str(), name.c_str());
+            
+            std::string eventScript = directory + "/" + script;
+            
+            std::vector<const char *> sargs;
+            sargs.push_back(eventScript.c_str());
+            for (auto &a : args) {
+                sargs.push_back(a.c_str());
+            }
+            sargs.push_back(nullptr);
+            
+            execv(eventScript.c_str(), (char* const*)&sargs[0]);
+            
+            LogErr(VB_PLUGIN, "We failed to exec our command callback!\n");
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            LogExcess(VB_PLUGIN, "Command parent process, resuming work.\n");
+            waitpid(pid, nullptr, 0);
+        }
+        return std::make_unique<Command::Result>(name + " complete");
+    }
+    
+    std::string directory;
+    std::string script;
+    Json::Value description;
+};
+
+static void LoadPluginCommands(const std::string &dir) {
+    std::string commandDir = std::string(getPluginDirectory()) + "/" + dir + "/commands/";
+    std::string descriptions = commandDir + "/descriptions.json";
+    if (FileExists(descriptions)) {
+        Json::Value json = LoadJsonFromFile(descriptions);
+        for (int x = 0; x < json.size(); x++) {
+            Json::Value jscmd = json[x];
+            ScriptCommand *cmd = new ScriptCommand(commandDir, jscmd);
+            if (cmd->IsOk()) {
+                CommandManager::INSTANCE.addCommand(cmd);
+            } else {
+                delete cmd;
+            }
+        }
+    }
+}
+
 void PluginManager::init()
 {
 	DIR *dp;
@@ -268,6 +337,7 @@ void PluginManager::init()
 					}
 				}
 			}
+            LoadPluginCommands(ep->d_name);
             
 			std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
 
