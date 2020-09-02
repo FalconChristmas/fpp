@@ -30,14 +30,14 @@
 #       Raspberry Pi
 #           - URL: https://www.raspberrypi.org/downloads/
 #           - Image
-#             - 2020-02-13-raspbian-buster-lite.zip
+#             - 2020-08-20-raspbian-buster-lite.zip
 #           - Login/Password
 #             - pi/raspberry
 #
 #       BeagleBone Black
 #           - URL: https://debian.beagleboard.org/images/2020-04-06/buster-console/
 #           - Images
-#             - bone-debian-10.3-console-armhf-2020-04-06-1gb.img.xz
+#             - bone-debian-10.5-console-armhf-2020-08-31-1gb.img.xz
 #           - Login/Password
 #             - debian/temppwd
 #
@@ -52,9 +52,9 @@
 #       hardware which does not support Buster may have issues.
 #
 #############################################################################
-SCRIPTVER="4.0"
+SCRIPTVER="4.2"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="4.0"
+FPPIMAGEVER="4.2"
 FPPCFGVER="61"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp

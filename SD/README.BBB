@@ -48,12 +48,11 @@ localectl set-locale LANG="en_US.utf8"
 
 cd /opt/scripts
 git pull
-cd /opt/scripts/tools
 
 #check
 cd /root
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-4.19.94fpp_4.19.94fpp-3_armhf.deb
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-4.19.94fpp_4.19.94fpp-3_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-4.19.94fpp_4.19.94fpp-1_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-4.19.94fpp_4.19.94fpp-1_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
 
@@ -70,7 +69,7 @@ cd /opt/scripts/tools/developers/
 sudo ./update_bootloader.sh
 
 cd /opt/backup/uboot
-export BOOTLOADERVER=v2019.04-r13
+export BOOTLOADERVER=v2019.04-r16
 curl --output MLO  https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
 curl --output u-boot.img https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
 echo "$BOOTLOADERVER" > version.txt
@@ -102,6 +101,11 @@ rm -rf /etc/udev/rules.d/beagle-tester.rules
 rm -rf /opt/cloud9
 rm -rf /etc/avahi/services/cloud9.service
 rm -f /var/local/bb_usb_mass_storage.img
+
+# blacklist  bluetooth (needed if making image on BBGG or BBBW)
+echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
+echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
+echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
 
 # need to reboot so that the new kernel is picked up and used
 reboot
