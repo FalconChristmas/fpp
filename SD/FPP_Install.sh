@@ -62,6 +62,10 @@ FPPUSER=fpp
 FPPHOME=/home/${FPPUSER}
 OSVER="UNKNOWN"
 
+# Make sure the sbin directories are on the path as we will
+# need the adduser/addgroup/ldconfig/a2enmod/etc... commands
+PATH=$PATH:/usr/sbin:/sbin
+
 #############################################################################
 # Some Helper Functions
 #############################################################################
