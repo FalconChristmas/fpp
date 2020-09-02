@@ -100,20 +100,29 @@ buf[9] = App/Hardware Type
            - 0x04 - Pi A+
            - 0x05 - Pi B+
            - 0x06 - Pi 2 B
-           - 0x07 - Pi 3 B
+           - 0x07 - Pi 2 BNew
+           - 0x08 - Pi 3 B
+           - 0x09 - Pi 3 B+
+           - 0x10 - Pi Zero
+           - 0x11 - Pi ZeroW
+           - 0x12 - Pi 3 A+
+           - 0x13 - Pi 4
            - 0x40 - BeagleBone Black Rev B
            - 0x41 - BeagleBone Black Rev C
            - 0x42 - BeagleBone Black Wireless
            - 0x43 - BeagleBone Green
            - 0x44 - BeagleBone Green Wireless
            - 0x45 - PocketBeagle
+           - 0x46 - SanCloud Beaglebone Enhanced
          - 0x80-0xCF = Falcon Hardware
-           - 0x80 - F16v2-B (Blue)
-           - 0x81 - F16v2-R (Red)
-           - 0x82 - F4v2 (Red)
-           - 0x83 - F4v3
-           - 0x84 - F16v3
-           - 0x85 - F48
+           - 0x80 - Unknown Falcon Controller
+           - 0x81 - F16v2-B
+           - 0x82 - F4v2-64M
+           - 0x83 - F16v2 (Red)
+           - 0x84 - F4v2 (Red)
+           - 0x85 - F16v3
+           - 0x86 - F4v3
+           - 0x87 - F48
          - 0xC0-0xFF = Other systems
            - 0xC1 - xSchedule
            - 0xC2 - ESPixelStick - ESP8266
