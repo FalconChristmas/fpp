@@ -12,6 +12,7 @@ wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192eu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8822bu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8188fu
+wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8814au
 
 shopt -s nullglob
 KVERS=($(ls /usr/src/ | colrm 1 14))
@@ -77,7 +78,7 @@ done
 cd /opt/wifi
 git clone https://github.com/zebulon2/rtl8814au
 cd rtl8814au
-patch -p1 < /opt/wifi/patches/rtl8812au
+patch -p1 < /opt/wifi/patches/rtl8814au
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make
     KVER=$i ARCH=arm make install
