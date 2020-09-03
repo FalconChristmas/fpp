@@ -499,6 +499,13 @@ case "${FPPPLATFORM}" in
         echo "blacklist bluetooth" > /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist hci_uart" >> /etc/modprobe.d/blacklist-bluetooth.conf
         echo "blacklist bnep" >> /etc/modprobe.d/blacklist-bluetooth.conf
+        
+        # we will need the PRU's, we might as well bring them up immediately for faster boot
+        echo "pruss_soc_bus" >> /etc/modules-load.d/modules.conf
+        echo "pru_rproc" >> /etc/modules-load.d/modules.conf
+        echo "pruss" >> /etc/modules-load.d/modules.conf
+        echo "irq_pruss_intc" >> /etc/modules-load.d/modules.conf
+        echo "remoteproc" >> /etc/modules-load.d/modules.conf
 		;;
 
 	'Raspberry Pi')
@@ -1069,6 +1076,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     sed -i -e "s+ quiet+ quiet rootwait+g"  /boot/uEnv.txt
     sed -i -e "s+^uboot_overlay_pru=+#uboot_overlay_pru=+g"  /boot/uEnv.txt
     sed -i -e "s+#uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
+    sed -i -e "s+#uboot_overlay_pru=AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+uboot_overlay_pru=/lib/firmware/AM335X-PRU-RPROC-4-19-TI-00A0.dtbo+g" /boot/uEnv.txt
     echo "bootdelay=0" >> /boot/uEnv.txt
     echo "#cmdline=init=/opt/fpp/SD/BBB-AutoFlash.sh" >> /boot/uEnv.txt
 fi
