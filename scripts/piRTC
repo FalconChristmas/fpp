@@ -18,6 +18,12 @@ if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
         if [[ $RTCNAME == *"omap_rtc"* ]]; then
             RTCDEVICE="/dev/rtc1"
         fi
+        # Beaglebone Green Gateway has a ds1307 on i2c0
+        # but no battery (by default) so cape would
+        # be rtc1 and that's what we should use
+        if [[ $RTCNAME == *" 0-00"* ]]; then
+            RTCDEVICE="/dev/rtc1"
+        fi
     fi
 fi
 
@@ -95,7 +101,9 @@ if [ -e ${RTCDEVICE} ]; then
 
       if [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
           # set the built in rtc to the same time as read from the RTC
-          hwclock -w -f /dev/rtc0
+          if [ "${RTCDEVICE}" != "/dev/rtc0" ]; then
+            hwclock -w -f /dev/rtc0
+          fi
       fi
       cp ${FPPDIR}/etc/update-RTC /etc/cron.daily/
     fi
