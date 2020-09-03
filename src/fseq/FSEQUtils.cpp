@@ -7,6 +7,7 @@
 #include <libgen.h>
 
 #include <string>
+#include <list>
 #include <vector>
 
 #include "fppversion.h"
@@ -21,18 +22,32 @@ void usage(char *appname) {
     printf("   -V                - Print version information\n");
     printf("   -v                - verbose\n");
     printf("   -o OUTPUTFILE     - Filename for Output FSEQ\n");
-    printf("   -m FSEQFILE       - FSEQ to merge onto the input\n");
+    printf("   -m FSEQFILE       - FSEQ to merge onto the input, ignoring 0\n");
+    printf("   -M[ FSEQFILE      - FSEQ to merge onto the input, copy 0\n");
     printf("   -f #              - FSEQ Version\n");
     printf("   -c (none|zstd|zlib) - Compession type\n");
     printf("   -l #              - Compession level (-1 for default)\n");
     printf("   -r (#-# | #+#)    - Channel Range.  Use - to separate start/end channel\n");
     printf("                            Use + to separate start channel + num channels\n");
+    printf("                       If used before first -m/-M argument, sets a sparse range of output\n");
+    printf("                       If used after -m/-M argument, sets a range to read from last merged sequence.\n");
     printf("   -n                - No Sparse. -r will only read the range, but the resulting fseq is not sparse.\n");
     printf("   -j                - Output the fseq file metadata to json\n");
     printf("   -h                - This help output\n");
 }
 const char *outputFilename = nullptr;
-static std::vector<std::string> mergeFseqs;
+
+class MergeFSEQ {
+public:
+    MergeFSEQ(const std::string &f, bool cz) : filename(f), copyZero(cz) {}
+    
+    std::string filename;
+    std::vector<std::pair<uint32_t, uint32_t>> ranges;
+    bool copyZero = false;
+    FSEQFile *srcFile = nullptr;
+};
+
+static std::list<MergeFSEQ> mergeFseqs;
 static int fseqVersion = 2;
 static int compressionLevel = -1;
 static bool verbose = false;
@@ -40,6 +55,19 @@ static std::vector<std::pair<uint32_t, uint32_t>> ranges;
 static bool sparse = true;
 static bool json = false;
 static V2FSEQFile::CompressionType compressionType = V2FSEQFile::CompressionType::zstd;
+
+static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>> &ranges, char *rng) {
+    char *end = rng;
+    int startc = strtol(rng, &end, 10);
+    int r = *end == '-';
+    end++;
+    int endc = strtol(end, &end, 10);
+    if (r) {
+        ranges.push_back(std::pair<uint32_t, uint32_t>(startc-1, endc-startc+1));
+    } else {
+        ranges.push_back(std::pair<uint32_t, uint32_t>(startc-1, endc));
+    }
+}
 
 int parseArguments(int argc, char **argv) {
     char *s = NULL;
@@ -55,23 +83,17 @@ int parseArguments(int argc, char **argv) {
             {0,                0,                    0, 0}
         };
         
-        c = getopt_long(argc, argv, "c:l:o:f:r:m:hjVvn", long_options, &option_index);
+        c = getopt_long(argc, argv, "c:l:o:f:r:m:M:hjVvn", long_options, &option_index);
         if (c == -1) {
             break;
         }
         
         switch (c) {
-            case 'r': {
-                    char *end = optarg;
-                    int startc = strtol(optarg, &end, 10);
-                    int r = *end == '-';
-                    end++;
-                    int endc = strtol(end, &end, 10);
-                    if (r) {
-                        ranges.push_back(std::pair<uint32_t, uint32_t>(startc, endc-startc+1));
-                    } else {
-                        ranges.push_back(std::pair<uint32_t, uint32_t>(startc, endc));
-                    }
+            case 'r':
+                if (mergeFseqs.empty()) {
+                    parseRanges(ranges, optarg);
+                } else {
+                    parseRanges(mergeFseqs.back().ranges, optarg);
                 }
                 break;
             case 'j':
@@ -102,7 +124,10 @@ int parseArguments(int argc, char **argv) {
                 outputFilename = optarg;
                 break;
             case 'm':
-                mergeFseqs.push_back(optarg);
+                mergeFseqs.push_back(MergeFSEQ(optarg, false));
+                break;
+            case 'M':
+                mergeFseqs.push_back(MergeFSEQ(optarg, true));
                 break;
             case 'n':
                 sparse = false;
@@ -205,11 +230,13 @@ int main(int argc, char *argv[]) {
             }
             printf("}\n");
         } else {
-            std::vector<FSEQFile *> merges;
             for (auto &f : mergeFseqs) {
-                FSEQFile *src = FSEQFile::openFSEQFile(f);
+                FSEQFile *src = FSEQFile::openFSEQFile(f.filename);
                 if (src) {
-                    merges.push_back(src);
+                    f.srcFile = src;
+                    if (f.ranges.empty()) {
+                        f.ranges.push_back(std::pair<uint32_t, uint32_t>(0, 8024*1024));
+                    }
                 }
             }
 
@@ -251,14 +278,18 @@ int main(int argc, char *argv[]) {
                 fdata->readFrame(data, 8024*1024);
                 delete fdata;
                 
-                for (auto m : merges) {
-                    FSEQFile::FrameData *fdata = m->getFrame(x);
-                    fdata->readFrame(mergedata, 8024*1024);
-                    delete fdata;
-                    for (int y = 0; y < 8024*1024; ++y) {
-                        if (mergedata[y]) {
-                            data[y] = mergedata[y];
-                            mergedata[y] = 0;
+                for (auto &m : mergeFseqs) {
+                    if (m.srcFile) {
+                        FSEQFile::FrameData *fdata = m.srcFile->getFrame(x);
+                        fdata->readFrame(mergedata, 8024*1024);
+                        delete fdata;
+                        for (auto &r : m.ranges) {
+                            for (int y = 0, idx = r.first; y < r.second; ++y, ++idx) {
+                                if (mergedata[idx] || m.copyZero) {
+                                    data[idx] = mergedata[idx];
+                                    mergedata[idx] = 0;
+                                }
+                            }
                         }
                     }
                 }
@@ -273,8 +304,10 @@ int main(int argc, char *argv[]) {
             }
             
             delete dest;
-            for (auto a : merges) {
-                delete a;
+            for (auto &a : mergeFseqs) {
+                if (a.srcFile) {
+                    delete a.srcFile;
+                }
             }
         }
         delete src;
