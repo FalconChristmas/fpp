@@ -361,6 +361,11 @@ static void copyIfNotExist(const std::string &src, const std::string &target) {
     }
     copyFile(src, target);
 }
+static void removeIfExist(const std::string &src) {
+    if (file_exists(src)) {
+        unlink(src.c_str());
+    }
+}
 bool fpp_detectCape() {
     int bus = I2C_DEV;
     waitForI2CBus(bus);
@@ -434,7 +439,10 @@ bool fpp_detectCape() {
             return false;
         }
     }
-    bool validSignature = true;
+    bool validSignature = false;
+    bool hasSignature = false;
+    bool validEpromLocation = true;
+    
     bool deleteEpromFile = false;
     std::string fkeyId;
     std::string cape;
@@ -494,18 +502,19 @@ bool fpp_detectCape() {
                     std::string type = read_string(file, 2);
                     if (type == "1") {
                         if (EEPROM.find("/i2c") == std::string::npos) {
-                            validSignature = false;
+                            validEpromLocation = false;
                         }
                     } else if (type == "2") {
                         if (EEPROM.find("cape-eeprom.bin") == std::string::npos) {
-                            validSignature = false;
+                            validEpromLocation = false;
                         }
                     } else if (type != "0") {
-                        validSignature = false;
+                        validEpromLocation = false;
                     }
                     break;
                 }
                 case 99: {
+                    hasSignature = true;
                     fkeyId = read_string(file, 6);
                     fread(buffer, 1, flen - 6, file);
                     path = "/home/fpp/media/tmp/eeprom.sig";
@@ -526,6 +535,18 @@ bool fpp_detectCape() {
     delete [] buffer;
     if (deleteEpromFile) {
         unlink("/home/fpp/media/tmp/eeprom");
+    }
+    
+    if (!validEpromLocation) {
+        //if the eeprom location is not valid, treat like an invalid signature
+        validSignature = false;
+        hasSignature = true;
+    }
+    if (!hasSignature || !validSignature) {
+        // not a valid signed eeprom, remove stuff that requires it
+        removeIfExist("/home/fpp/media/tmp/cape-sensors.json");
+        removeIfExist("/home/fpp/media/tmp/cape-inputs.json");
+        removeIfExist("/home/fpp/media/tmp/defaults/config/cape-sensors.json");
     }
 
     // if the cape-info has default settings and those settings are not already set, set them
@@ -560,25 +581,26 @@ bool fpp_detectCape() {
                 if (result.isMember("verifiedKeyId")) result.removeMember("verifiedKeyId");
             } else {
                 result["verifiedKeyId"] = fkeyId;
-                if (result.isMember("defaultSettings")) {
-                    readSettingsFile(lines);
-                    
-                    std::map<std::string, std::string> defaults;
-                    for (auto a : result["defaultSettings"].getMemberNames()) {
-                        std::string v = result["defaultSettings"][a].asString();
-                        bool found = false;
-                        for (auto l : lines) {
-                            if (l.find(a) == 0) {
-                                found = true;
-                            }
+            }
+            if ((!hasSignature || validSignature) && result.isMember("defaultSettings")) {
+                readSettingsFile(lines);
+                
+                std::map<std::string, std::string> defaults;
+                for (auto a : result["defaultSettings"].getMemberNames()) {
+                    std::string v = result["defaultSettings"][a].asString();
+                    bool found = false;
+                    for (auto l : lines) {
+                        if (l.find(a) == 0) {
+                            found = true;
                         }
-                        if (!found) {
-                            lines.push_back(a + " = \"" + v + "\"");
-                            settingsChanged = true;
-                        }
+                    }
+                    if (!found) {
+                        lines.push_back(a + " = \"" + v + "\"");
+                        settingsChanged = true;
                     }
                 }
             }
+
             if (result.isMember("bootConfig")) {
                 //if the cape requires changes/update to config.txt (Pi) or uEnv.txt (BBB)
                 //we need to process them and see if we have to apply the changes and reboot or not
@@ -609,7 +631,7 @@ bool fpp_detectCape() {
                     exec(v.c_str());
                 }
             }
-            if (result.isMember("copyFiles")) {
+            if ((!hasSignature || validSignature) && result.isMember("copyFiles")) {
                 //if the cape requires certain files copied into place (asoundrc for example)
                 for (auto src : result["copyFiles"].getMemberNames()) {
                     std::string target = result["copyFiles"][src].asString();
@@ -637,7 +659,7 @@ bool fpp_detectCape() {
                     close(f);
                 }
             }
-            if (result.isMember("disableOutputs")) {
+            if ((!hasSignature || validSignature) && result.isMember("disableOutputs")) {
                 disableOutputs(result["disableOutputs"]);
             }
             if (settingsChanged) {
@@ -651,9 +673,9 @@ bool fpp_detectCape() {
             printf("Failed to parse cape-info.json\n");
         }
     }
-    
+
     // if there are default configurations, copy them into place if they dont already exist
-    if (validSignature) {
+    if (!hasSignature || validSignature) {
         std::vector<std::string> files;
         getFileList("/home/fpp/media/tmp/defaults", "", files);
         for (auto a : files) {
@@ -666,9 +688,6 @@ bool fpp_detectCape() {
                 copyIfNotExist(src, target);
             }
         }
-    } else {
-        if (file_exists("/home/fpp/media/tmp/cape-sensors.json")) unlink("/home/fpp/media/tmp/cape-sensors.json");
-        if (file_exists("/home/fpp/media/tmp/cape-inputs.json")) unlink("/home/fpp/media/tmp/cape-inputs.json");
     }
 
     return !validSignature;
