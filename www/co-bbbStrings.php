@@ -466,6 +466,16 @@ function populatePixelStringOutputs(data) {
                     $('#versionTag').hide();
                 }
                 
+                if (document.getElementById("BBB48StringSubType").length == 1) {
+                    $('#BBB48StringSubType').hide();
+                    document.getElementById("BBB48StringSubTypeSpan").textContent = subType;
+                    $('#BBB48StringSubTypeSpan').show();
+                } else {
+                    $('#BBB48StringSubType').show();
+                    $('#BBB48StringSubTypeSpan').hide();
+                }
+                
+                
                 var pixelTiming = 0;
                 if ('pixelTiming' in output) {
                     pixelTiming = output.pixelTiming;
@@ -822,9 +832,7 @@ $(document).ready(function(){
 						</tr>
 						<tr>
 							<td><b>Cape Type:</b></td>
-							<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'>
-
-								</select>
+							<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'></select><span id='BBB48StringSubTypeSpan'> </span>
 
 							</td>
                             <td><b id='versionTag'>Version: </b></td>
