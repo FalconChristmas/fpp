@@ -33,8 +33,8 @@ fi
 mkdir tmp/ssh
 cp -a mnt/etc/ssh/*key* tmp/ssh
 
-#copy everything other than fstab
-rsync -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=etc/fstab
+#copy everything other than fstab and the persistent net names
+rsync -aAXxv bin etc lib opt root sbin usr var /mnt --delete-during --exclude=etc/fstab --exclude=/etc/systemd/network/*-fpp-*
 
 #restore the ssh keys
 cp -a tmp/ssh/* mnt/etc/ssh
