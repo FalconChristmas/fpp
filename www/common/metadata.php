@@ -147,11 +147,11 @@ function GetMetaDataFromFFprobe($filename)
         $result[$filename] = Array();
         return $result;
     }
-
-    exec('ffprobe -hide_banner -loglevel fatal -show_error -show_format -show_streams -show_programs -show_chapters -show_private_data -print_format json ' . $filename, $output);
-    $jsonStr = join(' ', $output);
-
-    return json_decode($jsonStr, true);
+ 
+   $cmd =  'ffprobe -hide_banner -loglevel fatal -show_error -show_format -show_streams -show_programs -show_chapters -show_private_data -print_format json "' . $filename . '"';
+   exec($cmd, $output);
+   $jsonStr = join(' ', $output);
+   return json_decode($jsonStr, true);
 }
 
 ?>
