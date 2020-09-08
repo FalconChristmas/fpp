@@ -161,6 +161,26 @@ MosquittoClient::~MosquittoClient()
 	pthread_mutex_destroy(&m_mosqLock);
 }
 
+void MosquittoClient::PrepareForShutdown() {
+    while (!callbacks.empty()) {
+        const std::string &n = callbacks.begin()->first;
+        RemoveCallback(n);
+    }
+    if (m_canProcessMessages && m_isConnected) {
+        std::vector<std::string> subscribe_topics;
+        subscribe_topics.push_back(m_baseTopic + "/set/#");
+        subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
+        subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
+
+    
+        for (auto &subscribe : subscribe_topics) {
+            mosquitto_unsubscribe(m_mosq, NULL, subscribe.c_str());
+        }
+    }
+    m_canProcessMessages = false;
+}
+
+
 /*
  *
  */
@@ -310,7 +330,20 @@ void MosquittoClient::AddCallback(const std::string &topic, std::function<void(c
         }
     }
 }
-
+void MosquittoClient::RemoveCallback(const std::string &topic) {
+    if (m_canProcessMessages && m_isConnected) {
+        if (topic.rfind("/set/", 0) != 0) {
+            // we are registered on all "/set/" already, no need to un-register
+            std::string tp = m_baseTopic + topic;
+            LogDebug(VB_CONTROL, "MQTT: Preparing to Unsubscribe to %s\n", tp.c_str());
+            int rc = mosquitto_unsubscribe(m_mosq, NULL, tp.c_str());
+            if (rc != MOSQ_ERR_SUCCESS) {
+                LogErr(VB_CONTROL, "Error, unable to Unsubscribe to %s: %d\n", tp.c_str(), rc);
+            }
+        }
+    }
+    callbacks.erase(topic);
+}
 void MosquittoClient::SetReady() {
    LogInfo(VB_CONTROL, "Mosquitto SetReady()\n");
     if (!m_canProcessMessages) {

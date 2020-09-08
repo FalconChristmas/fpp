@@ -42,6 +42,8 @@ class MosquittoClient {
 	~MosquittoClient();
 
 	int  Init(const std::string &username, const std::string &password, const std::string &ca_file);
+    
+    void PrepareForShutdown();
 
 	int  PublishRaw(const std::string &topic, const std::string &msg, const int qos = 1, const bool retain = true);
 	int  Publish(const std::string &subTopic, const std::string &msg, const int qos = 1, const bool retain = true);
@@ -51,6 +53,7 @@ class MosquittoClient {
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
     
 	void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
+    void RemoveCallback(const std::string &topic);
 	void HandleDisconnect();
 	void HandleConnect();
 	bool IsConnected();
