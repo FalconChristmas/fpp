@@ -227,6 +227,7 @@ int main(int argc, char *argv[]) {
                     }
                     printf("]");
                 }
+                printf(", \"CompressionType\": %d", (int)f->m_compressionType);
             }
             printf("}\n");
         } else {
