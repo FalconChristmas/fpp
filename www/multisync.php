@@ -131,7 +131,7 @@ input.largeCheckbox {
     function isESPixelStick(typeId) {
         typeId = parseInt(typeId);
 
-        if (typeId == 0xC2)
+        if (typeId == 0xC2 || typeId == 0xC3)
             return true;
 
         return false;
@@ -561,6 +561,10 @@ function parseESPixelStickConfig(ip, data) {
 function parseESPixelStickStatus(ip, data) {
     var s = JSON.parse(data);
     var ips = ip.replace(/\./g, '_');
+
+    if (s.hasOwnProperty("status")) {
+        s = s.status;
+    }
 
     var rssi = +s.system.rssi;
     var quality = 2 * (rssi + 100);
