@@ -308,34 +308,75 @@ input.largeCheckbox {
                     updatesAvailable = 1;
                 }
 
-                var u = "<table class='multiSyncVerboseTable'>" +
-                    "<tr><td>Local:</td><td id='" + rowID + "_localgitvers'>";
-                u += getLocalVersionLink(ip, data);
-                u += "</td></tr>" +
-                    "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
-                    "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
+               if (data.advancedView.hasOwnProperty("RemoteGitVersion")) {
+                    var u = "<table class='multiSyncVerboseTable'>";
+                    u += "<tr><td>Local:</td><td id='" + rowID + "_localgitvers'>";
+                    u += getLocalVersionLink(ip, data);
+                    u += "</td></tr>" +
+                        "<tr><td>Remote:</td><td id='" + rowID + "_remotegitvers'>" + data.advancedView.RemoteGitVersion + "</td></tr>" +
+                        "<tr><td>Branch:</td><td id='" + rowID + "_gitbranch'>" + data.advancedView.Branch + "</td></tr>";
 
-                if ((typeof(data.advancedView.UpgradeSource) !== 'undefined') &&
-                    (data.advancedView.UpgradeSource != 'github.com')) {
-                    u += "<tr><td>Origin:</td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
-                } else {
-                    u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
+                    if ((typeof(data.advancedView.UpgradeSource) !== 'undefined') &&
+                        (data.advancedView.UpgradeSource != 'github.com')) {
+                        u += "<tr><td>Origin:</td><td id='" + rowID + "_origin'>" + data.advancedView.UpgradeSource + "</td></tr>";
+                    } else {
+                        u += "<span style='display: none;' id='" + rowID + "_origin'></span>";
+                    }
+                    u += "</table>";
+                    $('#advancedViewGitVersions_' + rowID).html(u);
                 }
 
-                u += "</table>";
-
-                $('#advancedViewGitVersions_' + rowID).html(u);
 
                 if (data.advancedView.OSVersion !== "") {
                     $('#' + rowID + '_osversionRow').show();
                     $('#' + rowID + '_osversion').html(data.advancedView.OSVersion);
                 }
 
-                var u = "<table class='multiSyncVerboseTable'>" +
-                    "<tr><td>CPU:</td><td>" + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.CPU) : 'Unk.') + "%</td></tr>" +
-                    "<tr><td>Mem:</td><td>" + (typeof (data.advancedView.Utilization) !== 'undefined' ? Math.round(data.advancedView.Utilization.Memory) : 'Unk.') + "%</td></tr>" +
-                    "<tr><td>Uptime:&nbsp;</td><td>" + (typeof (data.advancedView.Utilization) !== 'undefined' ? data.advancedView.Utilization.Uptime.replace(/ /, '&nbsp;') : 'Unk.') + "</td></tr>" +
-                    "</table>";
+                var u = "<table class='multiSyncVerboseTable'>";
+                if (typeof (data.advancedView.Utilization) !== 'undefined') {
+                    if (data.advancedView.Utilization.hasOwnProperty("CPU")) {
+                        u += "<tr><td>CPU:</td><td>" + Math.round(data.advancedView.Utilization.CPU) + "%</td></tr>";
+                    }
+                    if (data.advancedView.Utilization.hasOwnProperty("Memory")) {
+                        u += "<tr><td>Mem:</td><td>" + Math.round(data.advancedView.Utilization.Memory) + "%</td></tr>";
+                    }
+                    if (data.advancedView.Utilization.hasOwnProperty("MemoryFree")) {
+                        var fr = data.advancedView.Utilization.MemoryFree;
+                        fr /= 1024;
+                        u += "<tr><td>Free Mem:&nbsp;</td><td>" + Math.round(fr) + "K</td></tr>";
+                    }
+                    if (data.advancedView.hasOwnProperty("rssi")) {
+                        var rssi = +data.advancedView.rssi;
+                        var quality = 2 * (rssi + 100);
+
+                        if (rssi <= -100)
+                            quality = 0;
+                        else if (rssi >= -50)
+                            quality = 100;
+                        u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
+                    }
+                    if (data.advancedView.Utilization.hasOwnProperty("Uptime")) {
+                       var ut = data.advancedView.Utilization.Uptime;
+                       if (typeof ut === "string" || ut instanceof String) {
+                         ut = ut.replace(/ /, '&nbsp;');
+                       } else {
+                         ut /= 1000;
+                         ut = Math.round(ut);
+               
+                         var min = Math.round(ut / 60);
+                         var hours = Math.round(min / 60);
+                         min = Math.round(min % 60);
+                         min = min.toString();
+                        if (min.length < 2) {
+                            min = "0" + min;
+                        }
+                         ut = hours.toString() + ":" + min.toString();
+                
+                       }
+                       u += "<tr><td>Uptime:&nbsp;</td><td>" + ut + "</td></tr>";
+                    }
+               }
+               u += "</table>";
 
                 $('#advancedViewUtilization_' + rowID).html(u);
             }
@@ -461,7 +502,8 @@ input.largeCheckbox {
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "' class='systemRow'>" +
                     "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
-                    "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span></td>" +
+                    "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
+                        + "<span class='hidden version'>" + data[i].version + "</span></td>" +
                     "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
                     "<td id='" + rowID + "_status'>Last Seen:<br>" + data[i].lastSeenStr + "</td>" +
                     "<td id='" + rowID + "_elapsed'></td>";
@@ -503,10 +545,13 @@ input.largeCheckbox {
                 if (isFPP(data[i].typeId)) {
                     getFPPSystemStatus(ip, false);
                     getFPPSystemInfo(ip);
-                } else if ((isESPixelStick(data[i].typeId)) &&
-                    (data[i].fppMode == 'bridge') &&
-                    (majorVersion >= 3)) {
-                    getESPixelStickBridgeStatus(ip);
+                } else if (isESPixelStick(data[i].typeId)) {
+                    if (majorVersion == 3) {
+                        getESPixelStickBridgeStatus(ip);
+                    } else {
+                        getFPPSystemStatus(ip, false);
+                        getFPPSystemInfo(ip);
+                    }
                 } else if (isFalcon(data[i].typeId)) {
                     getFalconControllerStatus(ip);
                 }
@@ -675,12 +720,19 @@ function RefreshStats() {
         var mode = $('#' + rowID + '_mode').html();
 
         var typeId = $('#' + rowID).find('.typeId').html();
+        var version = $('#' + rowID).find('.version').html();
         if (isFPP(typeId)) {
             getFPPSystemStatus(ip, true);
             getFPPSystemInfo(ip);
-        } else if (isESPixelStick(typeId) &&
-            (mode == 'Bridge')) {
-            getESPixelStickBridgeStatus(ip);
+        } else if (isESPixelStick(typeId)) {
+            var versionParts = version.split('.');
+            var majorVersion = parseInt(versionParts[0]);
+            if (majorVersion == 3) {
+                getESPixelStickBridgeStatus(ip);
+            } else {
+                getFPPSystemStatus(ip, true);
+                getFPPSystemInfo(ip);
+            }
         } else if (isFalcon(typeId)) {
             getFalconControllerStatus(ip);
         }

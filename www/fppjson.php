@@ -309,9 +309,15 @@ function GetFPPStatusJson()
 		//validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
         if (filter_var($args['ip'], FILTER_VALIDATE_IP)) {
         	$do_expert = (isset($args['advancedView']) && $args['advancedView'] == true) ? "&advancedView=true" : "";
-
         	//Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
-            $request_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus" . $do_expert);
+            $curl = curl_init("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus" . $do_expert);
+            curl_setopt($curl, CURLOPT_FAILONERROR, true);
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 250);
+            $request_content = curl_exec($curl);
+            curl_close($curl);
+            
             //check we have valid data
             if ($request_content === FALSE) {
             	//check the response header
@@ -339,7 +345,14 @@ function GetFPPStatusJson()
 				if ((isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) && strpos($request_content, 'advancedView') === FALSE) {
 					$request_content_arr = json_decode($request_content, true);
 					//
-					$request_expert_content = @file_get_contents("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
+                    $curl = curl_init("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
+                    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+                    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 250);
+                    $request_expert_content = curl_exec($curl);
+                    curl_close($curl);
+
 					//check we have valid data
 					if ($request_expert_content === FALSE) {
 						$request_expert_content = array();
