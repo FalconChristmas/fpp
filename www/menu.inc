@@ -263,7 +263,8 @@ function CheckBrowser() {
 }
 
 $(document).ready(function() {
-    CheckBrowser();
+	CheckBrowser();
+	LoadNetworkDetails();
 	$(document).on('keydown', handleKeypress);
 
 	CheckRestartRebootFlags();
