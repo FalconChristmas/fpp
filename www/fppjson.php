@@ -1168,7 +1168,7 @@ function SetInterfaceInfo()
 			"SSID=\"%s\"\n" .
 			"PSK=\"%s\"\n" .
             "HIDDEN=%s\n",
-			$data['SSID'], $data['PSK'], $data['Hidden']);
+			$data['SSID'], $data['PSK'], $data['HIDDEN']);
 	}
 
 	fclose($f);
