@@ -32,6 +32,7 @@ dispatch_get   ('/media', 'GetMedia');
 dispatch_get   ('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
 
+dispatch_get   ('/network/interface', 'network_list_interfaces');
 dispatch_get   ('/options/:SettingName', 'GetOptions');
 
 dispatch_get   ('/playlists', 'playlist_list');
