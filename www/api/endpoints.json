@@ -547,6 +547,84 @@
             }
         },
         {
+            "endpoint": "network/interface",
+            "methods": {
+                "GET": {
+                    "desc": "Returns detailed information about the network interfaces and their IP addresses",
+                    "output": [
+                        {
+                            "addr_info": [
+                                {
+                                    "family": "inet",
+                                    "label": "lo",
+                                    "local": "127.0.0.1",
+                                    "preferred_life_time": 4294967295,
+                                    "prefixlen": 8,
+                                    "scope": "host",
+                                    "valid_life_time": 4294967295
+                                }
+                            ],
+                            "address": "00:00:00:00:00:00",
+                            "broadcast": "00:00:00:00:00:00",
+                            "flags": [
+                                "LOOPBACK",
+                                "UP",
+                                "LOWER_UP"
+                            ],
+                            "group": "default",
+                            "ifindex": 1,
+                            "ifname": "lo",
+                            "link_type": "loopback",
+                            "mtu": 65536,
+                            "operstate": "UNKNOWN",
+                            "qdisc": "noqueue",
+                            "txqlen": 1000
+                        },
+                        {
+                            "addr_info": [
+                                {
+                                    "broadcast": "192.168.1.255",
+                                    "dynamic": true,
+                                    "family": "inet",
+                                    "label": "eth0",
+                                    "local": "192.168.1.149",
+                                    "preferred_life_time": 4679,
+                                    "prefixlen": 24,
+                                    "scope": "global",
+                                    "valid_life_time": 4679
+                                },
+                                {
+                                    "family": "inet6",
+                                    "local": "fe80::c10:82ff:fe9e:91e9",
+                                    "preferred_life_time": 4294967295,
+                                    "prefixlen": 64,
+                                    "scope": "link",
+                                    "valid_life_time": 4294967295
+                                }
+                            ],
+                            "address": "0e:10:82:9e:91:e9",
+                            "broadcast": "ff:ff:ff:ff:ff:ff",
+                            "flags": [
+                                "BROADCAST",
+                                "MULTICAST",
+                                "DYNAMIC",
+                                "UP",
+                                "LOWER_UP"
+                            ],
+                            "group": "default",
+                            "ifindex": 2,
+                            "ifname": "eth0",
+                            "link_type": "ether",
+                            "mtu": 1500,
+                            "operstate": "UP",
+                            "qdisc": "mq",
+                            "txqlen": 1000
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "playlists",
             "methods": {
                 "GET": {

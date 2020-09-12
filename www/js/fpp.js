@@ -766,6 +766,28 @@ function PlaylistNameOK(name) {
     return 1;
 }
 
+function LoadNetworkDetails(){
+    $.get('/api/network/interface'
+    ).done(function(data) {
+       var rc = [];
+       data.forEach(function(e) {
+	  if (e.ifname === "lo") { return 0; }
+	  if (e.ifname.startsWith("eth0:0")) { return 0; }
+	  if (e.ifname.startsWith("usb")) { return 0; }
+	  if (e.ifname.startsWith("SoftAp")) { return 0; }
+	  if (e.ifname.startsWith("can.")) { return 0; }
+	  e.addr_info.forEach(function(n) {
+             if (n.family === "inet") {
+                rc.push(e.ifname + ":" + n.local);
+	     }
+	  });
+       });
+       $("#header_IPs").html(rc.join(", "));
+    }).fail(function() {
+        DialogError('Error loading network info', 'Error loading network interface details.');
+    });
+}
+
 function LoadPlaylistDetails(name) {
     $.get('api/playlist/' + name
     ).done(function(data) {
