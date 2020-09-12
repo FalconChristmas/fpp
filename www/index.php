@@ -128,7 +128,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();">
+<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();LoadNetworkDetails();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';

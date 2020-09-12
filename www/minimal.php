@@ -13,8 +13,6 @@ $git_branch = getFPPBranch();
 if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
     $fpp_head_version .= " ($git_branch branch)";
 
-$IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-
 ?>
 <script type="text/javascript" src="js/jquery-latest.min.js"></script>
 <script type="text/javascript" src="js/jquery-ui.min.js"></script>
@@ -121,11 +119,11 @@ $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v
 
 
 </head>
-<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();">
+<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();LoadNetworkDetails();">
 <div id="bodyWrapper">
   <div class="header">
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
-      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a><br>Host: <? echo "<a href='networkconfig.php' class='nonULLink'>" . $settings['HostName'] . "</a> (" . join(' ', $IPs) . ")"; ?>
+      Version: <a href='about.php' class='nonULLink'><?php echo $fpp_head_version; ?></a><br>Host: <? echo "<a href='networkconfig.php' class='nonULLink'>" . $settings['HostName'] . "</a> (<span id=\"header_IPs\"></span>)"; ?>
 <?
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{

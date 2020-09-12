@@ -8,11 +8,6 @@ $git_branch = getFPPBranch();
 if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 	$fpp_head_version .= " ($git_branch branch)";
 
-$IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-$ipStr = '';
-if (count($IPs)) {
-    $ipStr = '(' . join(' ', $IPs) . ')';
-}
 ?>
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
@@ -68,10 +63,13 @@ function list_plugin_entries($menu)
       Version: <a href='about.php' class='nonULLink headerLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;Host:&nbsp;
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " . $ipStr;
+        echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " ;
     } else {
-        echo "" . gethostname() . "&nbsp;" . $ipStr;
+        echo "" . gethostname() . "&nbsp;";
     }
+
+    echo("(<span id=\"header_IPs\"></span>)");
+
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
 		$mounted = 0;
