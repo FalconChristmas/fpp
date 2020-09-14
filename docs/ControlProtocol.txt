@@ -136,10 +136,11 @@ buf[12-13] = Minor version (MSB first, 0x00 0x0a for FPP v1.10, 0x00 0x04 for xS
              (NOTE: Only Major/Minor allowed here, full version listed in 'string' version below)
 
 buf[14] = (FPP) Operating Mode
-          - 0x00 - Player
+          - 0x00 - Unknown
           - 0x01 - Bridge (also Falcon Controller operating in E1.31/Artnet mode instead of master/remote)
-          - 0x02 - Master
-          - 0x03 - Remote
+          - 0x02 - Player
+          - 0x06 - Master
+          - 0x08 - Remote
 
 buf[15-18] = IP address (MSB-LSB) (192, 168, 1, 21) (IP address on the network ping was received from)
           For a discovery Ping packet sent from a Non-FPP instance that should not be recorded by every
