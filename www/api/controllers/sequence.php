@@ -25,6 +25,9 @@ function GetSequence() {
     if (!file_exists($file)) {
         $file = $file . ".fseq";
     }
+    if (!file_exists($file)) {
+        $file = urldecode($file);
+    }
     if (file_exists($file)) {
         if (ob_get_level()) {
             ob_end_clean();
@@ -48,13 +51,16 @@ function GetSequenceMetaData() {
     if (substr( $file, -5 ) != ".fseq") {
         $file = $file . ".fseq";
     }
+    if (!file_exists($file)) {
+	$file = urldecode($file);
+    }
     if (file_exists($file)) {
         $cmd = "/opt/fpp/src/fsequtils -j \"$file\" 2>&1";
         exec( $cmd, $output);
         $js = json_decode($output[0]);
         return json($js);
     }
-    halt(404, "Not found");
+    halt(404, "Not found: ". $file);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -90,6 +96,9 @@ function DeleteSequences() {
     $file = $settings['sequenceDirectory'] . "/" . $sequence;
     if (!file_exists($file)) {
         $file = $file . ".fseq";
+    }
+    if (!file_exists($file)) {
+        $file = urldecode($file);
     }
     if (file_exists($file)) {
         unlink($file);
