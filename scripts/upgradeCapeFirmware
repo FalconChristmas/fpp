@@ -56,8 +56,12 @@ while ($flen != 0) {
     $flags = fread($olddata, 2);
     if ($flags == 97) {
         fread($olddata, $flen);
+        $fpos = ftell($olddata);
         $flen = fread($olddata, 6); //length of the section
         $flen = intval($flen);
+        if ($flen == 0) {
+            fseek($olddata, $fpos, SEEK_SET);
+        }
     } else {
         fseek($olddata, -8, SEEK_CUR);
         $flen = 0;
