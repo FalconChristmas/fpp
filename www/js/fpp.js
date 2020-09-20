@@ -1703,7 +1703,7 @@ function updateUniverseEndChannel(row) {
                 inputStyle = "style='display: none;'";
             } else {
                 if (channelData.hasOwnProperty("interface")) {
-                    $("#selE131interfaces").value = channelData.interface;
+                    $('#selE131interfaces').val(channelData.interface).prop('selected', true);
                 }
                 if (channelData.hasOwnProperty("threaded")) {
                     $("#E131ThreadedOutput").prop( "checked", channelData.threaded );

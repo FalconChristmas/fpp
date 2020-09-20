@@ -76,6 +76,7 @@ function PopulateInterfaces()
 
 	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb | grep -v SoftAp | grep -v 'can.'")));
 	$ifaceE131 = "";
+    // legacy setting for the E131Interface
 	if (isset($settings['E131interface'])) {
 		$ifaceE131 = $settings['E131interface'];
 	}

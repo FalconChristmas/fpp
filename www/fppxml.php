@@ -62,7 +62,6 @@ $command_array = Array(
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
 	"getFPPDmode" => 'GetFPPDmode',
-	"setE131interface" => 'SetE131interface',
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
 	"stopEffectByName" => 'StopEffectByName',
@@ -271,14 +270,6 @@ function SetFPPDmode()
 	$mode = $_GET['mode'];
 	check($mode, "mode", __FUNCTION__);
 	WriteSettingToFile("fppMode",$mode_string["$mode"]);
-	EchoStatusXML("true");
-}
-
-function SetE131interface()
-{
-	$iface = $_GET['iface'];
-	check($iface, "iface", __FUNCTION__);
-	WriteSettingToFile("E131interface",$iface);
 	EchoStatusXML("true");
 }
 

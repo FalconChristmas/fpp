@@ -78,36 +78,6 @@ $(document).ready(function() {
     $(document).tooltip();
 });
 
-<?
-function PopulateInterfaces()
-{
-	global $settings;
-
-	$interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v usb0")));
-	$ifaceE131 = "";
-	if (isset($settings['E131interface'])) {
-		$ifaceE131 = $settings['E131interface'];
-	}
-	$found = 0;
-	if ($ifaceE131 == "") {
-		$ifaceE131 = "eth0";
-	}
-	foreach ($interfaces as $iface)
-	{
-		$iface = preg_replace("/:$/", "", $iface);
-		$ifaceChecked = "";
-		if ($iface == $ifaceE131) {
-			$ifaceChecked = " selected";
-			$found = 1;
-		}
-		echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
-	}
-	if (!$found && ($ifaceE131 != "")) {
-		echo "<option value='" . $ifaceE131 . "' selected>" . $ifaceE131 . "</option>";
-	}
-}
-?>
-
 /////////////////////////////////////////////////////////////////////////////
 
 function handleCIKeypress(e)
