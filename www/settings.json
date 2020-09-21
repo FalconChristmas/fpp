@@ -790,7 +790,7 @@
         "openStartDelay": {
             "name": "openStartDelay",
             "description": "Open/Start Delay",
-            "tip": "An extra delay (in ms) between the master sending the 'Open' command and actually starting the sequence.  This can be used to allow the remotes to have extra time to open the sequence, process videos, etc...   This requires master and remote to both be running FPP 3.2 or newer.  For complext MP4 files on remotes, a value of around 650-800 is likely needed for the remote video to be loaded and buffers filled prior to first frame being displayed.",
+            "tip": "An extra delay (in ms) between the master sending the 'Open' command and actually starting the sequence.  This can be used to allow the remotes to have extra time to open the sequence, process videos, etc...   This requires master and remote to both be running FPP 3.2 or newer.  For complex MP4 files on remotes, a value of around 650-800 is likely needed for the remote video to be loaded and buffers filled prior to first frame being displayed.",
             "level": 1,
             "restart": 2,
             "fppModes": [
