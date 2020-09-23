@@ -173,7 +173,8 @@ function WirelessSettingsVisible(visible)
 
 function checkStaticIP()
 {
-	if ($('#eth_ip').val().substr(0,7) == "192.168")
+	var ip = $('#eth_ip').val();
+	if (ip.startsWith( "192.168") || ip.startsWith("10.") )
 	{
 		if ($('#eth_netmask').val() == "")
 		{
@@ -189,21 +190,24 @@ function checkStaticIP()
 
 function validateNetworkFields()
 {
+        $("#ipWarning").html('');
 	if($('#eth_static').is(':checked'))
 	{
-		if(validateIPaddress('eth_ip')== false)
+		if((validateIPaddress('eth_ip')== false) || ($('#eth_ip').val() == ""))
 		{
-			$.jGrowl("Invalid IP Address");
+			$.jGrowl("Invalid IP Address. Expect format like 192.168.0.101");
+			$("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
 			return false;
 		}
-		if(validateIPaddress('eth_netmask')== false)
+		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
 		{
-			$.jGrowl("Invalid Netmask");
+			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0");
+			$("#ipWarning").html('Invalid Netmask. Expect format like 255.255.255.0');
 			return false;
 		}
 		if(validateIPaddress('eth_gateway')== false)
 		{
-			$.jGrowl("Invalid Gateway");
+			$.jGrowl("Invalid Gateway. Expect format like 192.168.0.1");
 			return false;
 		}
 	}
@@ -617,7 +621,10 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
 								<input type="button" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
             </tr>
             <tr>
-              <td colspan='2'><b><font color='#ff0000'><span id='dnsWarning'></span></font></b></td>
+	      <td colspan='2'>
+                <b><font color='#ff0000'><span id='ipWarning'></span></font></b>
+		<b><font color='#ff0000'><span id='dnsWarning'></span></font></b>
+              </td>
             </tr>
           </table>
 		  <br>
