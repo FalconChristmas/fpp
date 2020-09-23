@@ -2251,8 +2251,15 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
         }
         lock.unlock();
         if ((hostname != m_hostname) && !isLocal) {
-            multiSync->PingSingleRemote(addrStr, 0);
+            //very slight random delay so all the remotes don't send
+            //packets out at the same time
+            std::srand(std::time(nullptr)); 
+            int rand = std::rand() % 5000;
+            std::this_thread::sleep_for(std::chrono::microseconds(rand));
             multiSync->Ping();
+            rand = std::rand() % 1000;
+            std::this_thread::sleep_for(std::chrono::microseconds(rand));
+            multiSync->PingSingleRemote(addrStr, 0);
         }
     }
 }
