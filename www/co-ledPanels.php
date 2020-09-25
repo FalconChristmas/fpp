@@ -153,6 +153,7 @@ function printLEDPanelInterleaveSelect($platform, $interleave)
         $values["32 Pixels Flip Rows"] = "32f";
         $values["64 Pixels Flip Rows"] = "64f";
         $values["8 Pixels Cluster Zig/Zag"] = "8c";
+        $values["8 Stripe/16 Cluster"] = "8s";
     } else {
         $values["Off"] = "0";
         $values["Stripe"] = "1";

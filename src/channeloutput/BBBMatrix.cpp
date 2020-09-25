@@ -325,6 +325,41 @@ private:
     const int m_panelScan;
 };
 
+class StripeClusterInterleaveHandler : public InterleaveHandler {
+public:
+    static constexpr int MAPPING[8][4] = {
+        {32, 48, 96, 112},
+        {32, 48, 96, 112},
+        {40, 56, 104, 120},
+        {40, 56, 104, 120},
+        {0, 16, 64, 80},
+        {0, 16, 64, 80},
+        {8, 24, 72, 88},
+        {8, 24, 72, 88}
+    };
+
+    
+    StripeClusterInterleaveHandler(int interleave, int ph, int pw, int ps)
+        : InterleaveHandler(), m_interleave(interleave), m_panelHeight(ph), m_panelWidth(pw), m_panelScan(ps) {}
+    virtual ~StripeClusterInterleaveHandler() {}
+
+    virtual void mapRow(int &y) override {
+        while (y >= m_panelScan) {
+            y -= m_panelScan;
+        }
+    }
+    virtual void mapCol(int y, int &x) override {
+        int whichInt = x / m_interleave;
+        int offInInt = x % m_interleave;
+        x = MAPPING[y % 8][whichInt % 4] + offInInt;
+    }
+
+private:
+    const int m_interleave;
+    const int m_panelWidth;
+    const int m_panelHeight;
+    const int m_panelScan;
+};
 
 
 class ZigZagInterleaveHandler : public InterleaveHandler {
@@ -550,6 +585,7 @@ int BBBMatrix::Init(Json::Value config)
     }
     bool zigZagInterleave = false;
     bool zigZagClusterInterleave = false;
+    bool stripeInterleave = false;
     bool flipRows = false;
     if (config.isMember("panelInterleave")) {
         if (config["panelInterleave"].asString() == "8z") {
@@ -576,6 +612,9 @@ int BBBMatrix::Init(Json::Value config)
         } else if (config["panelInterleave"].asString() == "8c") {
             m_interleave = 8;
             zigZagClusterInterleave = true;
+        } else if (config["panelInterleave"].asString() == "8s") {
+            m_interleave = 8;
+            stripeInterleave = true;
         } else {
             m_interleave = std::atoi(config["panelInterleave"].asString().c_str());
         }
@@ -786,6 +825,8 @@ int BBBMatrix::Init(Json::Value config)
             m_handler = new ZigZagInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
         } else if (zigZagClusterInterleave) {
             m_handler = new ZigZagClusterInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
+        } else if (stripeInterleave) {
+            m_handler = new StripeClusterInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan);
         } else {
             m_handler = new SimpleInterleaveHandler(m_interleave, m_panelHeight, m_panelWidth, m_panelScan, flipRows);
         }
