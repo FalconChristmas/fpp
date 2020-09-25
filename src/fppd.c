@@ -636,7 +636,9 @@ int main(int argc, char *argv[])
 
     //turn off processessing of events so we don't get
     //events while we are shutting down
-    mqtt->PrepareForShutdown();
+    if (mqtt) {
+        mqtt->PrepareForShutdown();
+    }
 
 	if (getFPPmode() != BRIDGE_MODE) {
 		CleanupMediaOutput();
