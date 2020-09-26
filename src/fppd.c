@@ -852,6 +852,15 @@ void MainLoop(void)
         if (doPing) {
             idleCount = 0;
             multiSync->PeriodicPing();
+	    if (getFPPmode() == BRIDGE_MODE) {
+	       int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
+	       if (maxInputDelay) {
+                  double inputDelay = GetSecondsFromInputPacket();
+	          if (inputDelay > 2.0) {
+		     sequence->BlankSequenceData();
+	          }
+	       }
+	    }
         }
         GPIOManager::INSTANCE.CheckGPIOInputs();
 	}

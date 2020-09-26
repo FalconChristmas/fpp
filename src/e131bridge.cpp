@@ -50,6 +50,8 @@
 #include "channeloutput/channeloutputthread.h"
 #include "channeloutput/DDP.h"
 #include "channeloutput/Universe.h"
+#include <ctime>
+
 
 #define BRIDGE_INVALID_UNIVERSE_INDEX 0xFFFFFF
 
@@ -59,6 +61,8 @@ socklen_t addrlen;
 int bridgeSock = -1;
 int ddpSock = -1;
 int artnetSock = -1;
+
+std::time_t last_packet_time = std::time(NULL);
 
 
 #define MAX_MSG 48
@@ -96,7 +100,7 @@ bool Bridge_StoreDDPData(uint8_t *bridgeBuffer);
 bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
-
+inline void SetBridgeData(uint8_t *data, int startChannel, int len);
 
 /*
  *
@@ -181,6 +185,17 @@ void LoadInputUniversesFromFile(void)
 			}
 		}
 	}
+}
+
+inline void SetBridgeData(uint8_t *data, int startChannel, int len){
+   last_packet_time = std::time(NULL);
+   sequence->SetBridgeData(data, startChannel, len);
+}
+
+
+double GetSecondsFromInputPacket() {
+   std::time_t ts = std::time(NULL);
+   return difftime(ts, last_packet_time);
 }
 
 /*
@@ -412,7 +427,7 @@ bool Bridge_StoreData(uint8_t *bridgeBuffer)
             }
             InputUniverses[universeIndex].lastSequenceNumber = sn;
             
-            sequence->SetBridgeData(&bridgeBuffer[E131_HEADER_LENGTH],
+            SetBridgeData(&bridgeBuffer[E131_HEADER_LENGTH],
                                     InputUniverses[universeIndex].startAddress-1,
                                     InputUniverses[universeIndex].size);
             InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
@@ -475,7 +490,7 @@ bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
             InputUniverses[universeIndex].bytesReceived += std::min(InputUniverses[universeIndex].size, len);
             InputUniverses[universeIndex].packetsReceived++;
 
-            sequence->SetBridgeData(&bridgeBuffer[18],
+            SetBridgeData(&bridgeBuffer[18],
                                     InputUniverses[universeIndex].startAddress-1,
                                     std::min(InputUniverses[universeIndex].size, len));
 
@@ -620,7 +635,7 @@ bool Bridge_StoreDDPData(uint8_t *bridgeBuffer)  {
         ddpMaxChannel = std::max(ddpMaxChannel, chan + len);
         
         int offset = tc ? 14 : 10;
-        sequence->SetBridgeData(&bridgeBuffer[offset],
+        SetBridgeData(&bridgeBuffer[offset],
                                 chan,
                                 len);
         ddpBytesReceived += len;
