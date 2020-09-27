@@ -61,6 +61,8 @@ $command_array = Array(
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
+	"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack',
+	"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack',
 	"getFPPDmode" => 'GetFPPDmode',
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
@@ -271,6 +273,27 @@ function SetFPPDmode()
 	check($mode, "mode", __FUNCTION__);
 	WriteSettingToFile("fppMode",$mode_string["$mode"]);
 	EchoStatusXML("true");
+}
+
+function SetBridgeInputDelayBeforeBlack()
+{
+	$delay = $_GET['delay'];
+	check($delay, "delay", __FUNCTION__);
+	WriteSettingToFile("BridgeInputDelayBeforeBlack", $delay);
+	EchoStatusXML("true");
+}
+
+function GetBridgeInputDelayBeforeBlack()
+{
+	$realValue = ReadSettingFromFile("BridgeInputDelayBeforeBlack");
+	if ($realValue == "")
+		$realValue = 0;
+	$doc = new DomDocument('1.0');
+	$root = $doc->createElement('Setting');
+	$value = $doc->createElement("BridgeInputDelayBeforeBlack", $realValue);
+	$root->appendChild($value);
+	$doc->appendChild($root);
+	echo $doc->saveXML();
 }
 
 function GetVolume()
