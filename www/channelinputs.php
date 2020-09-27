@@ -29,8 +29,45 @@ $(document).ready(function() {
 		});
 	});
 
+	$.ajax({
+	   url: "fppxml.php?command=getBridgeInputDelayBeforeBlack", 
+	   method: "GET",
+	   dataType: "text",
+	   success: function (data) {
+		   xmlDoc = $.parseXML(data);
+		   $xml = $( xmlDoc );
+		   $value = $xml.find("BridgeInputDelayBeforeBlack");
+		   $('#txtBridgeInputDelayBeforeBlack').val($value.text());
+	   }
+	});
+	$(document).tooltip({
+	   content: function() {
+	     $('.ui-tooltip').hide();
+	     var id=$(this).attr('id');
+	     id = id.replace('_img', '_tip');
+	     return $('#'+id).html();
+	     },
+	   hide: {delay: 100 }
+	});
+
+
 	$('#txtUniverseCount').on('focus',function() {
 		$(this).select();
+	});
+
+	$('#txtBridgeInputDelayBeforeBlack').change(function() {
+	   var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
+	   $.ajax({
+	      url: "fppxml.php?command=setBridgeInputDelayBeforeBlack&delay=" + newValue, 
+	      method: "GET",
+	      dataType: "text",
+	      success: function (data) {
+		      $.jGrowl("Input Delay Saved");
+		      SetRestartFlag(2);
+		      CheckRestartRebootFlags();
+	      }
+	   });
+
 	});
 
 	$('#tblUniversesBody').sortable({
@@ -112,7 +149,7 @@ $(document).ready(function(){
 	if (total > 1)
 	{
 		var currentLoadingTab = 1;
-		$tabs.bind('tabsload',function(){
+		$tabs.bind('tabsload', function() {
 			currentLoadingTab++;
 			if (currentLoadingTab < total)
 				$tabs.tabs('load',currentLoadingTab);
@@ -163,7 +200,17 @@ $(document).ready(function(){
 
     <div>
       <form>
-        Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
+        <span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received withing specified number of seconds, blank the output. (Zero to disable.)</span>
+        <table width="100%">
+        <tr>
+        <td>
+	   Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
+        </td><td>
+	   Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
+           <img id="timeout_img" title="Blank Timeout" src="images/questionmark.png">
+        </td>
+        </tr>
+        </table>
       </form>
     </div>
     <form id="frmUniverses">
