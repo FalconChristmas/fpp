@@ -200,7 +200,7 @@ $(document).ready(function(){
 
     <div>
       <form>
-        <span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received withing specified number of seconds, blank the output. (Zero to disable.)</span>
+        <span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
         <table width="100%">
         <tr>
         <td>
