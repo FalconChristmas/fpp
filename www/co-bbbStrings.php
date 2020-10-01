@@ -264,7 +264,7 @@ function addSerialOutputJSON(postData) {
 		var ai = '\\[' + i + '\\]';
 
 		output.outputNumber = i - 1;
-		output.startChannel = parseInt($('#BBBSerialStartChannel' + i).val());
+		output.startChannel = parseInt($('#BBBSerialStartChannel' + i).val()) || 0;
         if (output.startChannel > 0) {
             count = count + 1;
         }
@@ -275,7 +275,7 @@ function addSerialOutputJSON(postData) {
 		output.outputType = config.subType;
 
 		if (config.subType == 'DMX')
-            output.channelCount = parseInt($('#BBBSerialNumDMXChannels').val());
+            output.channelCount = parseInt($('#BBBSerialNumDMXChannels').val()) || 512;
 		else
 			output.channelCount = 4096;
 
