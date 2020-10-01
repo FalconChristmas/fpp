@@ -633,6 +633,7 @@ $(document).ready(function(){
 	GetTestMode();
 });
 
+</script>
 
 <?
 $testStartChannel = 1;
@@ -646,7 +647,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
         $testEndChannel = 1;
         $ranges = explode(',', $channelRanges);
         foreach ($ranges as $range) {
-            $minmax = explode('-', $channelRanges);
+            $minmax = explode('-', $range);
             
             if ($minmax[0] < $testStartChannel) {
                 $testStartChannel = $minmax[0] + 1;
@@ -665,7 +666,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 }
 ?>
 
-</script>
+
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <div id='channelTester'>
