@@ -57,6 +57,9 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     channelsPerNode = 3;
     if (config.isMember("ChannelCountPerNode")) {
         channelsPerNode = config["ChannelCountPerNode"].asInt();
+        if (channelsPerNode == 0) {
+            channelsPerNode = 1;
+        }
     }
 
     height = strings * sps;
