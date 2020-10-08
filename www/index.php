@@ -33,6 +33,7 @@ include 'common/menuHead.inc';
 
 			//Store frequently elements in variables
 			var slider  = $('#slider');
+            var rslider  = $('#remoteVolumeSlider');
 			//Call the Slider
 			slider.slider({
 				//Config
@@ -40,18 +41,34 @@ include 'common/menuHead.inc';
 				min: 1,
 				//value: 35,
 			});
+			rslider.slider({
+				//Config
+				range: "min",
+				min: 1,
+				//value: 35,
+			});
 
 
-			$('#slider').slider({
+			slider.slider({
 				stop: function( event, ui ) {
 					var value = slider.slider('value');
 
 					SetSpeakerIndicator(value);
 					$('#volume').html(value);
+                    $('#remoteVolume').html(value);
 					SetVolume(value);
 				}
 			});
+            rslider.slider({
+              stop: function( event, ui ) {
+                  var value = rslider.slider('value');
 
+                  SetSpeakerIndicator(value);
+                  $('#volume').html(value);
+                  $('#remoteVolume').html(value);
+                  SetVolume(value);
+              }
+            });
             $(document).tooltip({
                 content: function() {
                     $('.ui-tooltip').hide();
@@ -66,22 +83,27 @@ include 'common/menuHead.inc';
 
 	function SetSpeakerIndicator(value) {
 		var speaker = $('#speaker');
+        var remoteSpeaker = $('#remoteSpeaker');
 
 		if(value <= 5)
 		{
 			speaker.css('background-position', '0 0');
+            remoteSpeaker.css('background-position', '0 0');
 		}
 		else if (value <= 25)
 		{
 			speaker.css('background-position', '0 -25px');
+            remoteSpeaker.css('background-position', '0 -25px');
 		}
 		else if (value <= 75)
 		{
 			speaker.css('background-position', '0 -50px');
+            remoteSpeaker.css('background-position', '0 -50px');
 		}
 		else
 		{
 			speaker.css('background-position', '0 -75px');
+            remoteSpeaker.css('background-position', '0 -75px');
 		};
 	}
 
@@ -92,7 +114,9 @@ include 'common/menuHead.inc';
 		if (volume > 100)
 			volume = 100;
 		$('#volume').html(volume);
+        $('#remoteVolume').html(volume);
 		$('#slider').slider('value', volume);
+        $('#remoteVolumeSlider').slider('value', volume);
 		SetSpeakerIndicator(volume);
 		SetVolume(volume);
 	}
@@ -104,7 +128,9 @@ include 'common/menuHead.inc';
 		if (volume < 0)
 			volume = 0;
 		$('#volume').html(volume);
+        $('#remoteVolume').html(volume);
 		$('#slider').slider('value', volume);
+        $('#remoteVolumeSlider').slider('value', volume);
 		SetSpeakerIndicator(volume);
 		SetVolume(volume);
 	}
@@ -213,6 +239,15 @@ include 'common/menuHead.inc';
                     <td id='txtRemoteSeqFilename'></td></tr>
                 <tr><th>Media Filename:</th>
                     <td id='txtRemoteMediaFilename'></td></tr>
+                <tr>
+                    <th>Volume [<span id='remoteVolume' class='volume'></span>]:</th>
+                    <td>
+                        <input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
+                        <span id="remoteVolumeSlider"></span> <!-- the Slider -->
+                        <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
+                        <span id='remoteSpeaker'></span> <!-- Volume -->
+                    </td>
+                </tr>
             </table>
         </div>
 
@@ -228,9 +263,6 @@ include 'common/menuHead.inc';
                             <th>Next Playlist: </th>
                             <td id='nextPlaylist' colspan=9></td>
                         </tr>
-<?
-//PrintSetting('scheduling');
-?>
                     </table>
                 </div>
                 <div class='statusBoxRight'>

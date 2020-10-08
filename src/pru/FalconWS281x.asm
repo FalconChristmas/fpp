@@ -54,18 +54,39 @@
 // #define SLOW_WAITNS
 #endif
 
-// GPIO0 sometimes takes a while to come out of sleep or
-// something so use an lower "low" time
-#define T0_TIME_GPIO0     (T0_TIME - 35)
-#define T1_TIME_GPIO0     T1_TIME
-#define LOW_TIME_GPIO0    LOW_TIME
-
 // writing to GPIO's isn't exact so may have some jitter
 // we can tollerate much larger jitter between bits
 // than can be tollerated for the hi/low time, hi can be a bit longer
 #define BETWEEN_BIT_ALLOWANCE 1500
-#define LOW_BIT_ALLOWANCE   60
+#define LOW_BIT_ALLOWANCE   80
 #define HI_BIT_ALLOWANCE   100
+
+
+// GPIO0 sometimes takes a while to come out of sleep or
+// something so use an lower "low" time
+#define T0_TIME_GPIO0     (T0_TIME - 100)
+#define T1_TIME_GPIO0     (T1_TIME - 50)
+#define LOW_TIME_GPIO0    LOW_TIME
+#define LOW_BIT_ALLOWANCE_GPIO0  180
+#define HI_BIT_ALLOWANCE_GPIO0  175
+
+
+
+#if defined(USES_GPIO0) && !defined(SPLIT_GPIO0)
+#define T0_TIME_PASS1    T0_TIME_GPIO0
+#define T1_TIME_PASS1    T1_TIME_GPIO0
+#define LOW_TIME_PASS1   LOW_TIME_GPIO0
+#define LOW_BIT_ALLOWANCE_PASS1  LOW_BIT_ALLOWANCE_GPIO0
+#define HI_BIT_ALLOWANCE_PASS1  HI_BIT_ALLOWANCE_GPIO0
+#else
+#define T0_TIME_PASS1    T0_TIME
+#define T1_TIME_PASS1    T1_TIME
+#define LOW_TIME_PASS1   LOW_TIME
+#define LOW_BIT_ALLOWANCE_PASS1  LOW_BIT_ALLOWANCE
+#define HI_BIT_ALLOWANCE_PASS1  HI_BIT_ALLOWANCE
+#endif
+
+
 
 
 #if !defined(RUNNING_ON_PRU0) && !defined(RUNNING_ON_PRU1)
@@ -598,7 +619,7 @@ BIT_LOOP:
 #endif
 
 			// wait for the length of the zero bits
-            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, LOW_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
+            WAIT_AND_CHECK_TIMEOUT  T0_TIME_PASS1, LOW_BIT_ALLOWANCE_PASS1, r8, r9, WORD_LOOP_DONE
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
@@ -616,7 +637,7 @@ BIT_LOOP:
 #endif
 
 			// Wait until the length of the one bits
-			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, HI_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_PASS1, HI_BIT_ALLOWANCE_PASS1, r8, r9, WORD_LOOP_DONE
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was
@@ -707,14 +728,14 @@ BIT_LOOP_PASS2:
             AND gpio0_zeros, gpio0_zeros, gpio0_led_mask
 
 			// wait for the length of the zero bits
-            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, LOW_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
+            WAIT_AND_CHECK_TIMEOUT    T0_TIME_GPIO0, LOW_BIT_ALLOWANCE_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
 
             // turn off all the zero bits
             // if gpio_zeros is 0, nothing will be turned off, skip
             CLEAR_IF_NOT_EQUAL  gpio0_zeros, gpio0_address, 0
 
 			// Wait until the length of the one bits
-			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, HI_BIT_ALLOWANCE, r8, r9, WORD_LOOP_DONE_PASS2
+			WAIT_AND_CHECK_TIMEOUT	T1_TIME_GPIO0, HI_BIT_ALLOWANCE_GPIO0, r8, r9, WORD_LOOP_DONE_PASS2
 
             // Turn all the bits off
             // if gpio#_zeros is equal to the led mask, then everythin was

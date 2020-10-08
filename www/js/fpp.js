@@ -2465,7 +2465,9 @@ function GetSequenceArray()
 
 		var Volume = parseInt(jsonStatus.volume);
 		$('#volume').html(Volume);
+        $('#remoteVolume').html(Volume);
 		$('#slider').slider('value', Volume);
+        $('#remoteVolumeSlider').slider('value', Volume);
 		SetSpeakerIndicator(Volume);
 
         AdjustFPPDModeFromStatus(fppMode);
@@ -3459,7 +3461,9 @@ function GetVolume()
 						SetVolume(Volume);
 					}
 					$('#volume').html(Volume);
+                    $('#remoteVolume').html(Volume);
 					$('#slider').slider('value', Volume);
+                    $('#remoteVolumeSlider').slider('value', Volume);
 					SetSpeakerIndicator(Volume);
 			}
 		};
