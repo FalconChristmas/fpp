@@ -188,17 +188,6 @@
 #define SCRATCH_PAD 10
 #endif
 
-#if defined(USES_GPIO0) && !defined(SPLIT_GPIO0)
-#define T0_TIME_PASS1    T0_TIME_GPIO0
-#define T1_TIME_PASS1    T1_TIME_GPIO0
-#define LOW_TIME_PASS1   LOW_TIME_GPIO0
-#else
-#define T0_TIME_PASS1    T0_TIME
-#define T1_TIME_PASS1    T1_TIME
-#define LOW_TIME_PASS1   LOW_TIME
-#endif
-
-
 SETUP_GPIO0_REGS .macro
 #ifdef USES_GPIO0
     // also need to turn off the GPIO0 idle and wakeup domain stuff
