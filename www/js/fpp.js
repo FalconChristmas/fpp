@@ -29,9 +29,12 @@ function PadLeft(string,pad,length) {
 function SecondsToHuman(seconds) {
     var m = parseInt(seconds / 60);
     var s = parseInt(seconds % 60);
-    var human = PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
-
-    return human;
+    var h = parseInt(seconds / 3600);
+    if (h > 0) {
+        m = m % 60;
+        return PadLeft(h, '0', 2) + ':' + PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
+    }
+    return PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
 }
 
 function versionToNumber(version)

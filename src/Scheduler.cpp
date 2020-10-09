@@ -603,8 +603,11 @@ void Scheduler::PlayListLoadCheck(void)
       LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrStartSecs = %d, CurrEndSecs = %d\n",
         nowWeeklySeconds, m_currentSchedulePlaylist.startWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds);
 
-      if ((playlist->getPlaylistStatus() != FPP_STATUS_IDLE) && (!playlist->WasScheduled()))
-        playlist->StopNow(1);
+        if ((playlist->getPlaylistStatus() != FPP_STATUS_IDLE) && (!playlist->WasScheduled())) {
+            while (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
+                playlist->StopNow(1);
+            }
+        }
 
       m_currentSchedulePlaylist.SetTimes(currTime, nowWeeklySeconds);
 
@@ -691,17 +694,20 @@ void Scheduler::PlayListStopCheck(void)
 		if (m_currentSchedulePlaylist.actualEndTime < m_currentSchedulePlaylist.scheduledEndTime)
 			forceStop = 1;
 
-		switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType)
-		{
-			case 0: playlist->StopGracefully(forceStop);
-					break;
-			case 1: playlist->StopNow(forceStop);
-					break;
-			case 2: playlist->StopGracefully(forceStop,1);
-					break;
-			default: playlist->StopNow(forceStop);
-					break;
-		}
+        switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType) {
+            case 0:
+                playlist->StopGracefully(forceStop);
+                break;
+            case 2:
+                playlist->StopGracefully(forceStop,1);
+                break;
+            case 1:
+            default:
+                while (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
+                    playlist->StopNow(forceStop);
+                }
+                break;
+        }
 
 		LoadCurrentScheduleInfo(true);
     }

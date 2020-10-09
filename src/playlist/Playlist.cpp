@@ -566,7 +566,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 {
 	LogDebug(VB_PLAYLIST, "Playlist::StopGracefully(%d, %d)\n", forceStop, afterCurrentLoop);
 
-    if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
+    if (m_status == FPP_STATUS_PLAYLIST_PAUSED && this == playlist) {
         Resume();
     }
     
@@ -578,6 +578,9 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 		m_currentState = "stoppingGracefully";
 	}
 	m_forceStop = forceStop;
+    if (m_parent) {
+        m_parent->StopGracefully(forceStop, afterCurrentLoop);
+    }
 
 	return 1;
 }
