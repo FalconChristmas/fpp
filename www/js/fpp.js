@@ -794,7 +794,7 @@ function LoadNetworkDetails(){
 function LoadPlaylistDetails(name) {
     $.get('api/playlist/' + name
     ).done(function(data) {
-        PopulatePlaylistDetails(data, 1);
+        PopulatePlaylistDetails(data, 1, name);
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
         VerbosePlaylistItemDetailsToggled();
@@ -805,7 +805,7 @@ function LoadPlaylistDetails(name) {
 }
 
 function CreateNewPlaylist() {
-	var name = $('#txtNewPlaylistName').val().replace(/ /,'_');
+	var name = $('#txtNewPlaylistName').val();
 
     if (!PlaylistNameOK(name))
         return;
@@ -3334,7 +3334,7 @@ function UpgradePlaylist(data, editMode)
     return data;
 }
 
-function PopulatePlaylistDetails(data, editMode)
+function PopulatePlaylistDetails(data, editMode, name = "")
 {
     var innerHTML = "";
     var entries = 0;
@@ -3388,7 +3388,11 @@ function PopulatePlaylistDetails(data, editMode)
         desc = data.desc
     }
     $("#txtPlaylistDesc").val(desc)
-    SetPlaylistName(data.name);
+    if (name == "") {
+        SetPlaylistName(data.name);
+    } else {
+        SetPlaylistName(name);
+    }
 }
 
 function PopulatePlaylistDetailsEntries(playselected,playList)
@@ -3416,7 +3420,7 @@ function PopulatePlaylistDetailsEntries(playselected,playList)
         url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&mergeSubs=1' + fromMemory,
         dataType: 'json',
         success: function(data, reqStatus, xhr) {
-            PopulatePlaylistDetails(data, 0);
+            PopulatePlaylistDetails(data, 0, pl);
             VerbosePlaylistItemDetailsToggled();
         }
     });
