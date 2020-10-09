@@ -182,7 +182,7 @@ if (!file_exists("/etc/fpp/desktop")) {
       </li>
       <li><a>Help</a>
         <ul>
-          <li><a href="https://falconchristmas.github.io/FPP_Manual(4.0).pdf" target="_blank">FPP Manual</a></li>
+          <li><a href="https://falconchristmas.github.io/FPP_Manual(4.3).pdf" target="_blank">FPP Manual</a></li>
           <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
           <li><a href="help.php">Help Index</a></li>
 <? if ($settings['uiLevel'] > 0) { ?>
