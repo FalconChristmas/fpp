@@ -133,6 +133,10 @@ int LOROutput::Init(Json::Value config) {
     }
     if (config.isMember("firstControllerId")) {
         data->controllerOffset = config["firstControllerId"].asInt();
+	// Fix for box off by one error reported in issue 820
+	if (data->controllerOffset > 0) {
+           data->controllerOffset -= 1;
+	}
     }
 
 
