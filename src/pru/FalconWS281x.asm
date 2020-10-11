@@ -93,9 +93,12 @@
 #define RUNNING_ON_PRU1
 #endif
 
-#if __has_include("/tmp/PinConfiguration.hp")
+#if defined(RUNNING_ON_PRU1)
 # include "/tmp/PinConfiguration.hp"
+#else
+# include "/tmp/PinConfigurationGPIO0.hp"
 #endif
+
 #include "FalconUtils.asm"
 
 //register allocations for data
@@ -326,7 +329,7 @@ skip?:
     .endm
 
 
-READ_DATA .macro
+READ_DATA .macro NUMOUTSTOREAD
     .newblock
     // Load OUTPUTS bytes of data, starting at r10
     // one byte for each of the outputs
@@ -335,9 +338,9 @@ READ_DATA .macro
 
     QBBS USERAM2?, bit_flags, 1
 #ifdef RUNNING_ON_PRU1
-        LBCO    &r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_PRUDRAM, sram_offset, NUMOUTSTOREAD
 #else
-        LBCO    &r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_OTHERPRUDRAM, sram_offset, NUMOUTSTOREAD
 #endif
         ADD     sram_offset, sram_offset, OUTPUTS
         LDI     r8, 8142 //8k - 50
@@ -349,9 +352,9 @@ READ_DATA .macro
             QBA DATALOADED?
 USERAM2?:
 #ifdef RUNNING_ON_PRU1
-        LBCO    &r10, CONST_OTHERPRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_OTHERPRUDRAM, sram_offset, NUMOUTSTOREAD
 #else
-        LBCO    &r10, CONST_PRUDRAM, sram_offset, OUTPUTS
+        LBCO    &r10, CONST_PRUDRAM, sram_offset, NUMOUTSTOREAD
 #endif
 
         ADD     sram_offset, sram_offset, OUTPUTS
@@ -364,7 +367,7 @@ USERAM2?:
         QBA     DATALOADED?
 USESHAREDRAM?:
         LDI32   r9, 0x00010000
-        LBBO    &r10, r9, sram_offset, OUTPUTS
+        LBBO    &r10, r9, sram_offset, NUMOUTSTOREAD
         ADD     sram_offset, sram_offset, OUTPUTS
         LDI     r8, 12188
         QBLT DATALOADED?, r8, sram_offset
@@ -372,7 +375,7 @@ USESHAREDRAM?:
             SET  bit_flags, bit_flags, 3
             QBA  DATALOADED?
 USEDDR?:
-        LBBO    &r10, data_addr, 0, OUTPUTS
+        LBBO    &r10, data_addr, 0, NUMOUTSTOREAD
 DATALOADED?:
     ADD data_addr, data_addr, OUTPUTS
     .endm
@@ -513,6 +516,9 @@ _LOOP:
 
     LDI sram_offset, 512
     LDI bit_flags, 0
+#if defined(DDRONLY)
+    SET bit_flags, bit_flags, 3
+#endif
     LDI cur_data, 0
     LDI next_check,  $CODE(FIRST_CHECK)
 
@@ -533,7 +539,7 @@ _LOOP:
 
 WORD_LOOP:
     LOOP WORD_LOOP_DONE, data_len
-        READ_DATA
+        READ_DATA OUTPUTS
 
 		// for bit in 8 to 0; one color at a time
 		LDI	bit_num, 8
@@ -692,7 +698,7 @@ WORD_LOOP_DONE:
 
 WORD_LOOP_PASS2:
     LOOP WORD_LOOP_DONE_PASS2, data_len
-        READ_DATA
+        READ_DATA GPIO0OUTPUTS
 
 		// for bit in 8 to 0; one color at a time
 		LDI	bit_num, 8
@@ -772,6 +778,8 @@ EXIT:
 NO_PIXELS_CHECK:
     RET
 
-#if __has_include("/tmp/OutputLengths.hp")
-#include "/tmp/OutputLengths.hp"
+#if defined(RUNNING_ON_PRU1)
+# include "/tmp/OutputLengths.hp"
+#else
+# include "/tmp/OutputLengthsGPIO0_.hp"
 #endif

@@ -44,6 +44,8 @@ typedef struct {
     volatile unsigned command;
     volatile unsigned response;
     
+    uintptr_t address_dma_gpio0;
+    
     uint16_t timings[MAX_WS2811_TIMINGS];
 } __attribute__((__packed__)) BBB48StringData;
 
@@ -64,15 +66,21 @@ class BBB48StringOutput : public ChannelOutputBase {
   private:
     void StopPRU(bool wait = true);
     int StartPRU(bool both);
+    
 
     std::string                m_subType;
-    int                        m_maxStringLen;
-    int                        m_numStrings;
-    size_t                     m_frameSize;
+    
+    class FrameData {
+    public:
+        std::vector<int>   gpioStringMap;
+        uint8_t            *lastData = nullptr;
+        uint8_t            *curData = nullptr;
+        uint32_t           frameSize = 0;
+        int                maxStringLen = 0;
+        bool               copyToPru = true;
+    } m_gpio0Data, m_gpioData;
     std::vector<PixelString*>  m_strings;
     
-    uint8_t            *m_lastData;
-    uint8_t            *m_curData;
     uint32_t           m_curFrame;
     int                m_stallCount;
  
@@ -81,4 +89,10 @@ class BBB48StringOutput : public ChannelOutputBase {
 
     BBBPru             *m_pru0;
     BBB48StringData    *m_pru0Data;
+    
+    
+    void prepData(FrameData &d, unsigned char *channelData);
+    void sendData(FrameData &d, uintptr_t *dptr);
+    void createOutputLengths(FrameData &d, const std::string& pfx, std::vector<std::string> &args);
+
 };
