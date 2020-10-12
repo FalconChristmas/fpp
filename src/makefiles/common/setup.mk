@@ -41,16 +41,16 @@ ifeq '$(CXXCOMPILER)' 'g++'
     # Common CFLAGS
     ifeq "$(GCCVERSIONGTEQ8)" "1"
     OPTIMIZE_FLAGS=-O3 -Wno-psabi
-    debug: OPTIMIZE_FLAGS=-g -Wno-psabi
+    debug: OPTIMIZE_FLAGS=-g -DDEBUG -Wno-psabi
     CXXFLAGS += -std=gnu++2a
     else
     OPTIMIZE_FLAGS=-O1
-    debug: OPTIMIZE_FLAGS=-g
+    debug: OPTIMIZE_FLAGS=-g -DDEBUG
     CXXFLAGS += -std=gnu++17
     endif
 else
     OPTIMIZE_FLAGS=-O3
-    debug: OPTIMIZE_FLAGS=-g
+    debug: OPTIMIZE_FLAGS=-g -DDEBUG
     CXXFLAGS += -std=gnu++2a
 endif
 

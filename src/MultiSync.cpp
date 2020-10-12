@@ -570,7 +570,6 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 void MultiSync::Discover()
 {
     Ping(1);
-
     PerformHTTPDiscovery();
 }
 
@@ -660,6 +659,14 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
             isLocalSubnet = true;
         }
     }
+    
+    if (data.size()) {
+        std::string d = data;
+        if (d.size() > 500) {
+            d = d.substr(0, 500);
+        }
+        LogExcess(VB_SYNC, "IP: %s    Resp: %s\n", ip.c_str(), d.c_str());
+    }
 
     NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data, isLocalSubnet);
 
@@ -710,6 +717,7 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
     char url[24];
     
     ipList.resize(ips);
+    multi_handle = curl_multi_init();
     for (int i = 0; i < ips; i++) {
         ia.s_addr = ntohl(firstIP + i);
         strcpy(ip, inet_ntoa(ia));
@@ -722,63 +730,74 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
 
         sprintf(url, "http://%s/", ip);
         curl_easy_setopt(handles[i], CURLOPT_URL, url);
-        curl_easy_setopt(handles[i], CURLOPT_TIMEOUT, 1L);
+        curl_easy_setopt(handles[i], CURLOPT_CONNECTTIMEOUT, 1L);
+        curl_easy_setopt(handles[i], CURLOPT_TIMEOUT, 5L);
         curl_easy_setopt(handles[i], CURLOPT_FOLLOWLOCATION, 1L);
         curl_easy_setopt(handles[i], CURLOPT_USERAGENT, userAgent.c_str());
         curl_easy_setopt(handles[i], CURLOPT_PRIVATE, &ipList[i]);
         curl_easy_setopt(handles[i], CURLOPT_WRITEFUNCTION, curl_write_data);
         curl_easy_setopt(handles[i], CURLOPT_WRITEDATA, &ipList[i]);
         curl_easy_setopt(handles[i], CURLOPT_ACCEPT_ENCODING, "");
-    }
+        curl_easy_setopt(handles[i], CURLOPT_TCP_FASTOPEN, 1L);
 
-    multi_handle = curl_multi_init();
-
-    for (int i = 0; i < ips; i++) {
         curl_multi_add_handle(multi_handle, handles[i]);
     }
 
+    int start = ips;
     curl_multi_perform(multi_handle, &still_running);
-
-    do {
+    while (still_running || start != still_running) {
+        if (start != still_running) {
+            int msgq = 0;
+            while ((msg = curl_multi_info_read(multi_handle, &msgq))) {
+                if (msg->msg == CURLMSG_DONE) {
+                    CURL *e = msg->easy_handle;
+                    int idx = -1;
+                    for (idx = 0; idx < ips; idx++) {
+                        if (e == handles[idx]) {
+                            break;
+                        }
+                    }
+                    if (msg->data.result == CURLE_OK || msg->data.result == 0) {
+                        long responseCode = 0;
+                        curl_easy_getinfo(e, CURLINFO_HTTP_CODE, &responseCode);
+                        if (responseCode == 200 || (msg->data.result == 0 && responseCode == 0)) {
+                            LogDebug(VB_SYNC, "IP index %d (%s) completed with %d status, code: %d\n", idx, ipList[idx].c_str(), msg->data.result, responseCode);
+                        } else {
+                            LogDebug(VB_SYNC, "Error response from %s.  ResponseCode: %d\n", ipList[idx].c_str(), responseCode);
+                            ipList[idx] = "";
+                        }
+                    } else {
+                        LogDebug(VB_SYNC, "No/Error response from %s\n", ipList[idx].c_str());
+                        ipList[idx] = "";
+                    }
+                    curl_multi_remove_handle(multi_handle, e);
+                    curl_easy_cleanup(e);
+                    handles[idx] = nullptr;
+                }
+            }
+            start = still_running;
+        }
         int numfds=0;
-        int res = curl_multi_wait(multi_handle, NULL, 0, 200, &numfds);
+        int res = curl_multi_wait(multi_handle, NULL, 0, 100, &numfds);
         if(res != CURLM_OK) {
             LogErr(VB_SYNC, "error: curl_multi_wait() returned %d\n", res);
             return;
         }
         curl_multi_perform(multi_handle, &still_running);
-
-    } while(still_running);
-
-    int respCode = 0;
-    std::string *respIP;
-
-    while((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
-        if(msg->msg == CURLMSG_DONE) {
-            int idx;
-
-            for(idx = 0; idx < ips; idx++) {
-                int found = (msg->easy_handle == handles[idx]);
-                if(found)
-                    break;
-            }
-
-            curl_easy_getinfo(handles[idx], CURLINFO_RESPONSE_CODE, &respCode);
-
-            if (respCode == 200 || (msg->data.result == 0 && respCode == 0)) {
-                curl_easy_getinfo(handles[idx], CURLINFO_PRIVATE, &respIP);
-
-                LogExcess(VB_SYNC, "IP index %d (%s) completed with %d status, code: %d, IP: %s\n", idx, ipList[idx].c_str(), msg->data.result, respCode, respIP->c_str());
-
-                DiscoverIPViaHTTP(*respIP, prefix == 32);
-            }
-        }
     }
 
+    for (int idx = 0; idx < ips; idx++) {
+        if (ipList[idx] != "") {
+            DiscoverIPViaHTTP(ipList[idx], prefix == 32);
+        }
+    }
+    for(int i = 0; i < ips; i++) {
+        if (handles[i]) {
+            curl_multi_remove_handle(multi_handle, handles[i]);
+            curl_easy_cleanup(handles[i]);
+        }
+    }
     curl_multi_cleanup(multi_handle);
-
-    for(int i = 0; i < ips; i++)
-        curl_easy_cleanup(handles[i]);
 }
 
 /*
