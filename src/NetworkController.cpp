@@ -40,20 +40,12 @@ NetworkController::NetworkController(const std::string &ipStr)
 }
 
 NetworkController *NetworkController::DetectControllerViaHTML(const std::string &ip,
-    const std::string &html, bool isLocalSubnet)
+    const std::string &html)
 {
     NetworkController *nc = new NetworkController(ip);
 
     if (nc->DetectFPP(ip, html)) {
-        //for now, short circuit if we know it's a FPP instance
-        //as we should be able to potentially detect these via
-        //multisync
-        if (isLocalSubnet) {
-            delete nc;
-            return nullptr;
-        } else {
-            return nc;
-        }
+        return nc;
     }
     
     if (nc->DetectFalconController(ip, html))
@@ -75,7 +67,7 @@ bool NetworkController::DetectFPP(const std::string &ip, const std::string &html
     if (html.find("Falcon Player - FPP") == std::string::npos) {
         return false;
     }
-    std::string url = ip + "/fppjson.php?command=getSysInfo&simple";
+    std::string url = "http://" + ip + "/fppjson.php?command=getSysInfo&simple";
     std::string resp;
 
     if (urlGet(url, resp)) {
@@ -123,7 +115,7 @@ bool NetworkController::DetectFalconController(const std::string &ip,
     vendor = "Falcon";
     vendorURL = "https://pixelcontroller.com";
 
-    std::string url = ip + "/status.xml";
+    std::string url = "http://" + ip + "/status.xml";
     std::string resp;
 
     if (urlGet(url, resp)) {

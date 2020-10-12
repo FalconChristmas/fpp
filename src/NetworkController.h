@@ -28,7 +28,7 @@ class NetworkController {
     NetworkController(const std::string &ipStr);
     ~NetworkController() {};
 
-    static NetworkController *DetectControllerViaHTML(const std::string &ip, const std::string &html, bool isLocalSubnet);
+    static NetworkController *DetectControllerViaHTML(const std::string &ip, const std::string &html);
 
     std::string ip;
     std::string hostname;

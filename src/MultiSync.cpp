@@ -668,13 +668,33 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
         LogExcess(VB_SYNC, "IP: %s    Resp: %s\n", ip.c_str(), d.c_str());
     }
 
-    NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data, isLocalSubnet);
+    NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data);
 
     if (nc) {
-        UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
-            nc->systemMode, nc->ip, nc->hostname, nc->version,
-            nc->typeStr, nc->ranges, false);
-        delete nc;
+        if (isLocalSubnet && nc->typeId < 0x80) {
+            std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+            bool found = false;
+            for (auto & sys : m_remoteSystems) {
+                if ((nc->ip == sys.address) &&
+                    ((nc->hostname == sys.hostname) ||
+                     (nc->ip == sys.hostname) ||
+                     (nc->hostname == sys.address))) {
+                    // we already found this via normal multicast discovery, ignore
+                    found = true;
+                }
+            }
+            if (found) {
+                delete nc;
+                nc == nullptr;
+            }
+        }
+        
+        if (nc) {
+            UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
+                nc->systemMode, nc->ip, nc->hostname, nc->version,
+                nc->typeStr, nc->ranges, false);
+            delete nc;
+        }
     } else if (allowUnknown) {
         UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, ip, ip, "Unknown", "Unknown", "0-0", false);
     }
@@ -902,7 +922,7 @@ void MultiSync::PingSingleRemoteViaHTTP(const std::string &address) {
 
     if (urlHelper("GET", url, resp, 1)) {
         if (resp != "") {
-            NetworkController *nc = NetworkController::DetectControllerViaHTML(address.c_str(), resp, false);
+            NetworkController *nc = NetworkController::DetectControllerViaHTML(address.c_str(), resp);
 
             if (nc) {
                 UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
