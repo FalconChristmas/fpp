@@ -45,6 +45,13 @@ class FBMatrixOutput : public ChannelOutputBase {
     virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
+    enum ScalingType {
+        HARDWARE,
+        SOFTWARE,
+        NONE
+    }       m_scaling;
+    
+    
 	int     m_fbFd;
 	int     m_ttyFd;
 

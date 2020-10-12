@@ -51,6 +51,7 @@ extern "C" {
 FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
+    m_scaling(HARDWARE),
 	m_fbFd(0),
 	m_ttyFd(0),
 	m_width(0),
@@ -104,6 +105,18 @@ int FBMatrixOutput::Init(Json::Value config) {
     m_inverted = config["invert"].asInt();
     m_device = "/dev/" + config["device"].asString();
     
+    std::string sc = "Hardware";
+    if (config.isMember("scaling")) {
+        sc = config["scaling"].asString();
+    }
+    if (sc == "Hardware") {
+        m_scaling = HARDWARE;
+    } else if (sc == "Software") {
+        m_scaling = SOFTWARE;
+    } else if (sc == "None") {
+        m_scaling = NONE;
+    }
+     
 	LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
 	m_fbFd = open(m_device.c_str(), O_RDWR);
 	if (!m_fbFd) {
@@ -116,7 +129,6 @@ int FBMatrixOutput::Init(Json::Value config) {
 		close(m_fbFd);
 		return 0;
 	}
-
 	memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
 
 	m_bpp = m_vInfo.bits_per_pixel;
@@ -150,20 +162,17 @@ int FBMatrixOutput::Init(Json::Value config) {
 		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
 	}
 
-	m_vInfo.xres_virtual = m_width;
-	m_vInfo.yres_virtual = m_height * 2;
     m_isDoubleBuffered = true;
-    m_vInfo.xres = m_width;
-    m_vInfo.yres = m_height;
 
-	// Config to set the screen back to when we are done
-	// Once we determine how this interacts with omxplayer, this may change
-	m_vInfoOrig.bits_per_pixel = m_bpp;
-	m_vInfoOrig.xres = m_vInfoOrig.xres_virtual = 640;
-	m_vInfoOrig.yres = m_vInfoOrig.yres_virtual = 480;
+    if (m_scaling == HARDWARE) {
+        m_vInfo.xres = m_width;
+        m_vInfo.yres = m_height;
+    }
+    m_vInfo.xres_virtual = m_vInfo.xres;
+    m_vInfo.yres_virtual = m_vInfo.yres * 2;
 
 	if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-        m_vInfo.yres_virtual = m_height;
+        m_vInfo.yres_virtual = m_vInfo.yres;
         m_isDoubleBuffered = false;
         if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
             LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
@@ -174,14 +183,11 @@ int FBMatrixOutput::Init(Json::Value config) {
         }
 	}
 
-	if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo))
-	{
+	if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo)) {
 		LogErr(VB_CHANNELOUT, "Error getting fixed FrameBuffer info\n");
 		close(m_fbFd);
 		return 0;
 	}
-    m_lineLength = m_fInfo.line_length;
-	m_screenSize = m_fInfo.line_length * m_vInfo.yres;
     
 	if (m_channelCount != (m_width * m_height * 3)) {
 		LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
@@ -203,7 +209,13 @@ int FBMatrixOutput::Init(Json::Value config) {
 		ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
 	}
 
+    m_lineLength = m_fInfo.line_length;
+    m_screenSize = m_fInfo.line_length * m_vInfo.yres;
 	m_fbp = (char*)mmap(0, m_screenSize * (m_isDoubleBuffered ? 2 : 1), PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+    if ((char *)m_fbp == (char *)-1) {
+        m_isDoubleBuffered = false;
+        m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+    }
     m_frame = new char[m_screenSize];
 
 	if ((char *)m_fbp == (char *)-1) {
@@ -271,18 +283,19 @@ int FBMatrixOutput::Close(void)
 
 	munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
 
+    if (m_device == "/dev/fb0") {
+        // Re-enable the text console
+        ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
+        close(m_ttyFd);
+    }
+    
 	if (m_device == "/dev/fb0") {
+        m_vInfoOrig.yres_virtual = m_vInfoOrig.yres;
+        m_vInfoOrig.xres_virtual = m_vInfoOrig.xres;
 		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
 			LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
 	}
-
 	close(m_fbFd);
-
-	if (m_device == "/dev/fb0") {
-		// Re-enable the text console
-		ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
-		close(m_ttyFd);
-	}
 
     if (m_frame) {
         delete [] m_frame;
@@ -300,13 +313,19 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 		channelData);
 
 	int ostride = m_lineLength;
-	int srow = 0;
-	int drow = m_inverted ? m_height - 1 : 0;
 	unsigned char *s = channelData;
 	unsigned char *d;
 	unsigned char *sR = channelData;
 	unsigned char *sG = channelData + 1;
 	unsigned char *sB = channelData + 2;
+    
+    int height = m_height;
+    int width = m_width;
+    if (m_scaling == SOFTWARE) {
+        height = m_vInfo.yres;
+        width = m_vInfo.xres;
+    }
+    int drow = m_inverted ? height - 1 : 0;
 
 	if (m_bpp == 16) {
 		for (int y = 0; y < m_height; y++) {
@@ -323,16 +342,23 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
                 d += 2;
 			}
 
-			srow++;
 			drow += m_inverted ? -1 : 1;
 		}
-	} else if (m_useRGB || m_bpp == 32) {
+	} else if (m_useRGB || m_bpp == 32 || m_scaling == SOFTWARE) {
+        int *xpos = new int[width + 1];
+        for (int vx = 0; vx < width+1; vx++) {
+            xpos[vx] = vx * m_width /  width;
+        }
+        int *ypos = new int[height + 1];
+        for (int vy = 0; vy < height+1; vy++) {
+            ypos[vy] = vy * m_height /  height;
+        }
 		unsigned char *dR;
 		unsigned char *dG;
 		unsigned char *dB;
         int add = m_bpp / 8;
 
-		for (int y = 0; y < m_height; y++) {
+		for (int vy = 0; vy < height; vy++) {
 			// RGB data to BGR framebuffer
             if (m_useRGB) {
                 dR = (unsigned char *)m_frame + (drow * ostride) + 2;
@@ -344,22 +370,41 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
                 dB = (unsigned char *)m_frame + (drow * ostride) + 2;
             }
 
-			for (int x = 0; x < m_width; x++) {
+			for (int vx = 0; vx < width; vx++) {
                 *dR = *sR;
                 *dG = *sG;
                 *dB = *sB;
 
-				sR += 3;
-				sG += 3;
-				sB += 3;
 				dR += add;
 				dG += add;
 				dB += add;
+                
+                if (m_scaling == SOFTWARE) {
+                    if (xpos[vx] != xpos[vx + 1]) {
+                        sR += 3;
+                        sG += 3;
+                        sB += 3;
+                    }
+                } else {
+                    sR += 3;
+                    sG += 3;
+                    sB += 3;
+                }
 			}
 
-			srow++;
-			drow += m_inverted ? -1 : 1;
+            if (m_scaling == SOFTWARE) {
+                while ((ypos[vy] == ypos[vy+1]) && vy < height) {
+                    unsigned char *src = (unsigned char *)m_frame + (drow * ostride);
+                    drow += m_inverted ? -1 : 1;
+                    vy++;
+                    unsigned char *dst = (unsigned char *)m_frame + (drow * ostride);
+                    memcpy(dst, src, ostride);
+                }
+            }
+            drow += m_inverted ? -1 : 1;
 		}
+        delete [] xpos;
+        delete [] ypos;
 	} else {
         int istride = m_width * 3;
         unsigned char *src = channelData;

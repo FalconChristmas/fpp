@@ -99,7 +99,23 @@ function VirtualMatrixColorOrderSelect(colorOrder) {
 
 	return result;
 }
+function VirtualMatrixScalingSelect(scaling) {
+    var result = "";
 
+    result += " Scaling: <select class='scaling'>";
+    result += "<option value='Hardware'";
+
+    if (scaling == 'Hardware')
+        result += " selected";
+    result += ">Hardware</option><option value='Software'";
+    if (scaling == 'Software')
+        result += " selected";
+    result += ">Software</option><option value='None'";
+    if (scaling == 'None')
+        result += " selected";
+    result += ">None</option></select>";
+    return result;
+}
 function VirtualMatrixConfig(config) {
 	var result = "";
 
@@ -112,6 +128,7 @@ function VirtualMatrixConfig(config) {
 		result += " checked='checked'";
 	result += ">";
 	result += DeviceSelect(FBDevices, config.device);
+    result += VirtualMatrixScalingSelect(config.scaling);
 
 	return result;
 }
@@ -125,6 +142,7 @@ function NewVirtualMatrixConfig() {
 	config.colorOrder = "RGB";
 	config.invert = 0;
 	config.device = "fb0";
+    config.scaling = "Hardware";
 
 	return VirtualMatrixConfig(config);
 }
@@ -147,9 +165,12 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 		return "";
 
 	var device = $cell.find("select.device").val();
-
 	if (device == "")
 		return "fb0";
+
+    var scaling = $cell.find("select.scaling").val();
+    if (scaling == "")
+        return "Hardware";
 
 	var invert = 0;
 	if ($cell.find("input.invert").is(":checked"))
@@ -161,6 +182,7 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 	result.colorOrder = colorOrder;
 	result.invert = invert;
 	result.device = device;
+    result.scaling = scaling;
 
 	return result;
 }
