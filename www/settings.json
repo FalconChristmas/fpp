@@ -871,7 +871,7 @@
         "remoteOffset": {
             "name": "remoteOffset",
             "description": "Remote Media/Sequence Offset",
-            "tip": "The Remote Offset value allows adjusting the synchronization of a FPP Remote.  The value is specified in milliseconds.  A positive value moves the remove ahead, a negative value moves the remote back.  Changing this value requires a FPPD restart on the Remote.  WARNING - This offset applies to both sequence and media files.  If your media files require different offsets per file then you will need to edit the media files to bring them into sync.",
+            "tip": "The Remote Offset value allows adjusting the synchronization of a FPP Remote.  The value is specified in milliseconds.  A positive value moves the remote ahead, a negative value moves the remote back.  Changing this value requires a FPPD restart on the remote.  WARNING - This offset applies to both sequence and media files.  If your media files require different offsets per file then you will need to edit the media files to bring them into sync.",
             "level": 1,
             "restart": 2,
             "fppModes": [
