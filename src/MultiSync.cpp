@@ -1595,16 +1595,26 @@ void MultiSync::SendControlPacket(void *outBuf, int len)
         m_destIovec.iov_len = len;
         
         std::unique_lock<std::mutex> lock(m_socketLock);
-        int oc = sendmmsg(m_controlSock, &m_destMsgs[0], msgCount, 0);
+        int oc = sendmmsg(m_controlSock, &m_destMsgs[0], msgCount, MSG_DONTWAIT);
         int outputCount = oc;
-        while (oc > 0 && outputCount != msgCount) {
-            int oc = sendmmsg(m_controlSock, &m_destMsgs[outputCount], msgCount - outputCount, 0);
-            if (oc >= 0) {
+        long long startTime = GetTimeMS();
+        while (oc >= 0 && outputCount != msgCount) {
+            int oc = sendmmsg(m_controlSock, &m_destMsgs[outputCount], msgCount - outputCount, MSG_DONTWAIT);
+            if (oc > 0) {
                 outputCount += oc;
+            } else {
+                long long tm = GetTimeMS();
+                long long totalTime = tm - startTime;
+                if (totalTime < 10) {
+                    // we'll keep trying for up to 15ms, but give the network stack some time to flush some buffers
+                    std::this_thread::sleep_for(std::chrono::microseconds(250));
+                } else {
+                    oc = -1;
+                }
             }
         }
         if (outputCount != msgCount) {
-            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s\n", strerror(errno));
+            LogErr(VB_SYNC, "Error: Unable to send multisync packet: %s   (%d/%d)\n", strerror(errno),  outputCount, msgCount);
         }
     }
     if (m_sendMulticast) {
