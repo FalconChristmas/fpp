@@ -29,6 +29,8 @@
 
 #include "ChannelOutputBase.h"
 
+class FrameBuffer;
+
 class FBMatrixOutput : public ChannelOutputBase {
   public:
 	FBMatrixOutput(unsigned int startChannel, unsigned int channelCount);
@@ -45,35 +47,18 @@ class FBMatrixOutput : public ChannelOutputBase {
     virtual void  GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
-    enum ScalingType {
-        HARDWARE,
-        SOFTWARE,
-        NONE
-    }       m_scaling;
-    
-    
-	int     m_fbFd;
-	int     m_ttyFd;
 
-	std::string  m_layout;
+    
+    FrameBuffer *m_frameBuffer;
+    
 	int          m_width;
 	int          m_height;
+    int          m_xoff;
+    int          m_yoff;
 	int          m_useRGB;
 	int          m_inverted;
-	int          m_bpp;
 	std::string  m_device;
     
-    bool         m_isDoubleBuffered;
-    bool         m_topFrame;
-
-	char   *m_fbp;
-    char   *m_frame;
-	int     m_screenSize;
-    int     m_lineLength;
-
 	uint16_t ***m_rgb565map;
 
-	struct fb_var_screeninfo m_vInfo;
-	struct fb_var_screeninfo m_vInfoOrig;
-	struct fb_fix_screeninfo m_fInfo;
 };

@@ -45,27 +45,224 @@ extern "C" {
 // To disable interpolated scaling on the GPU, add this to /boot/config.txt:
 // scaling_kernel=8
 
+
+enum ScalingType {
+    HARDWARE,
+    SOFTWARE,
+    NONE
+};
+
+
+class FrameBuffer {
+public:
+    FrameBuffer(const std::string &dev, ScalingType st)
+    : m_device(dev),
+        m_scaling(st),
+        m_fbFd(0),
+        m_ttyFd(0),
+        m_bpp(24),
+        m_fbp(nullptr),
+        m_screenSize(0),
+        m_isDoubleBuffered(false),
+        m_topFrame(true)
+    {
+    }
+    ~FrameBuffer() {
+        munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
+
+        if (m_device == "/dev/fb0") {
+            // Re-enable the text console
+            ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
+            close(m_ttyFd);
+        }
+        
+        if (m_device == "/dev/fb0") {
+            m_vInfoOrig.yres_virtual = m_vInfoOrig.yres;
+            m_vInfoOrig.xres_virtual = m_vInfoOrig.xres;
+            if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
+                LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
+        }
+        close(m_fbFd);
+
+        if (m_frame) {
+            delete [] m_frame;
+            m_frame = nullptr;
+        }
+    }
+    
+    int Init(int width, int height) {
+        count = 1;
+        LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
+        m_fbFd = open(m_device.c_str(), O_RDWR);
+        if (!m_fbFd) {
+            LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", m_device.c_str());
+            return 0;
+        }
+
+        if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo)) {
+            LogErr(VB_CHANNELOUT, "Error getting FrameBuffer info\n");
+            close(m_fbFd);
+            return 0;
+        }
+        memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
+
+        m_bpp = m_vInfo.bits_per_pixel;
+        LogDebug(VB_CHANNELOUT, "FrameBuffer is using %d BPP\n", m_bpp);
+
+        if ((m_bpp != 32) && (m_bpp != 24) && (m_bpp != 16)) {
+            LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
+            close(m_fbFd);
+            return 0;
+        }
+
+        if (m_bpp == 16) {
+            LogExcess(VB_CHANNELOUT, "Current Bitfield offset info:\n");
+            LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+            LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+            LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+
+            // RGB565
+            m_vInfo.red.offset    = 11;
+            m_vInfo.red.length    = 5;
+            m_vInfo.green.offset  = 5;
+            m_vInfo.green.length  = 6;
+            m_vInfo.blue.offset   = 0;
+            m_vInfo.blue.length   = 5;
+            m_vInfo.transp.offset = 0;
+            m_vInfo.transp.length = 0;
+
+            LogExcess(VB_CHANNELOUT, "New Bitfield offset info should be:\n");
+            LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
+            LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
+            LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+        }
+
+        m_isDoubleBuffered = true;
+
+        if (m_scaling == HARDWARE) {
+            m_vInfo.xres = width;
+            m_vInfo.yres = height;
+        }
+        m_vInfo.xres_virtual = m_vInfo.xres;
+        m_vInfo.yres_virtual = m_vInfo.yres * 2;
+
+        if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
+            m_vInfo.yres_virtual = m_vInfo.yres;
+            m_isDoubleBuffered = false;
+            if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
+                LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
+                close(m_fbFd);
+                return 0;
+            } else {
+                LogErr(VB_CHANNELOUT, "Could not allocate virtual framebuffer large enough for double buffering, using single buffer\n");
+            }
+        }
+
+        if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo)) {
+            LogErr(VB_CHANNELOUT, "Error getting fixed FrameBuffer info\n");
+            close(m_fbFd);
+            return 0;
+        }
+        
+
+        if (m_device == "/dev/fb0") {
+            m_ttyFd = open("/dev/console", O_RDWR);
+            if (!m_ttyFd) {
+                LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
+                ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+                close(m_fbFd);
+                return 0;
+            }
+
+            // Hide the text console
+            ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
+        }
+
+        m_lineLength = m_fInfo.line_length;
+        m_screenSize = m_fInfo.line_length * m_vInfo.yres;
+        m_fbp = (char*)mmap(0, m_screenSize * (m_isDoubleBuffered ? 2 : 1), PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+        if ((char *)m_fbp == (char *)-1) {
+            m_isDoubleBuffered = false;
+            m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+        }
+        m_frame = new char[m_screenSize];
+
+        if ((char *)m_fbp == (char *)-1) {
+            LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
+            ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+            close(m_fbFd);
+            return 0;
+        }
+
+        
+        
+        return 1;
+    }
+    
+    void DisplayIfDirty() {
+        if (dirty) {
+            char *dst = m_fbp;
+            int targetoffset = 0;
+            if (m_isDoubleBuffered && !m_topFrame) {
+                dst += m_screenSize;
+                m_vInfo.yoffset = m_vInfo.yres;
+            } else {
+                m_vInfo.yoffset = 0;
+            }
+            m_topFrame = !m_topFrame;
+            memcpy(dst, m_frame, m_screenSize);
+            if (m_isDoubleBuffered) {
+                ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
+            }
+            dirty = false;
+        }
+    }
+    
+    std::string m_device;
+    ScalingType m_scaling;
+    
+    
+    struct fb_var_screeninfo m_vInfo;
+    struct fb_var_screeninfo m_vInfoOrig;
+    struct fb_fix_screeninfo m_fInfo;
+    int    m_fbFd;
+    int    m_ttyFd;
+    int    m_bpp;
+    char   *m_fbp;
+    char   *m_frame;
+    int    m_screenSize;
+    int    m_lineLength;
+
+    
+    
+    bool    m_isDoubleBuffered;
+    bool    m_topFrame;
+    
+    
+    int count = 0;
+    bool dirty = true;
+};
+
+
+static std::list<FrameBuffer*> BUFFERS;
+
+
+
 /*
  *
  */
 FBMatrixOutput::FBMatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
-    m_scaling(HARDWARE),
-	m_fbFd(0),
-	m_ttyFd(0),
+    m_frameBuffer(nullptr),
 	m_width(0),
 	m_height(0),
+    m_xoff(0),
+    m_yoff(0),
 	m_useRGB(0),
 	m_inverted(0),
-	m_bpp(24),
 	m_device("/dev/fb0"),
-	m_fbp(nullptr),
-    m_frame(nullptr),
-	m_screenSize(0),
-	m_rgb565map(nullptr),
-    m_isDoubleBuffered(false),
-    m_topFrame(true)
+	m_rgb565map(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::FBMatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -79,21 +276,14 @@ FBMatrixOutput::~FBMatrixOutput()
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::~FBMatrixOutput()\n");
 
     if (m_rgb565map) {
-		for (int r = 0; r < 32; r++)
-		{
-			for (int g = 0; g < 64; g++)
-			{
+		for (int r = 0; r < 32; r++) {
+			for (int g = 0; g < 64; g++) {
 				delete[] m_rgb565map[r][g];
 			}
-
 			delete[] m_rgb565map[r];
 		}
-
 		delete[] m_rgb565map;
 	}
-    if (m_frame) {
-        delete [] m_frame;
-    }
 }
 int FBMatrixOutput::Init(Json::Value config) {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Init()\n");
@@ -101,142 +291,74 @@ int FBMatrixOutput::Init(Json::Value config) {
 
     m_width = config["width"].asInt();
     m_height = config["height"].asInt();
-    m_useRGB = config["colorOrder"].asString() == "RGB";
     m_inverted = config["invert"].asInt();
     m_device = "/dev/" + config["device"].asString();
-    
+    m_useRGB = config["colorOrder"].asString() == "RGB";
+
     std::string sc = "Hardware";
     if (config.isMember("scaling")) {
         sc = config["scaling"].asString();
     }
+    if (m_channelCount != (m_width * m_height * 3)) {
+        LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
+        return 0;
+    }
+
+    ScalingType scaling = HARDWARE;
     if (sc == "Hardware") {
-        m_scaling = HARDWARE;
+        scaling = HARDWARE;
     } else if (sc == "Software") {
-        m_scaling = SOFTWARE;
+        scaling = SOFTWARE;
     } else if (sc == "None") {
-        m_scaling = NONE;
+        scaling = NONE;
     }
-     
-	LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
-	m_fbFd = open(m_device.c_str(), O_RDWR);
-	if (!m_fbFd) {
-		LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", m_device.c_str());
-		return 0;
-	}
-
-	if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo)) {
-		LogErr(VB_CHANNELOUT, "Error getting FrameBuffer info\n");
-		close(m_fbFd);
-		return 0;
-	}
-	memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
-
-	m_bpp = m_vInfo.bits_per_pixel;
-	LogDebug(VB_CHANNELOUT, "FrameBuffer is using %d BPP\n", m_bpp);
-
-	if ((m_bpp != 32) && (m_bpp != 24) && (m_bpp != 16)) {
-		LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
-		close(m_fbFd);
-		return 0;
-	}
-
-	if (m_bpp == 16) {
-		LogExcess(VB_CHANNELOUT, "Current Bitfield offset info:\n");
-		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
-
-		// RGB565
-		m_vInfo.red.offset    = 11;
-		m_vInfo.red.length    = 5;
-		m_vInfo.green.offset  = 5;
-		m_vInfo.green.length  = 6;
-		m_vInfo.blue.offset   = 0;
-		m_vInfo.blue.length   = 5;
-		m_vInfo.transp.offset = 0;
-		m_vInfo.transp.length = 0;
-
-		LogExcess(VB_CHANNELOUT, "New Bitfield offset info should be:\n");
-		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
-	}
-
-    m_isDoubleBuffered = true;
-
-    if (m_scaling == HARDWARE) {
-        m_vInfo.xres = m_width;
-        m_vInfo.yres = m_height;
-    }
-    m_vInfo.xres_virtual = m_vInfo.xres;
-    m_vInfo.yres_virtual = m_vInfo.yres * 2;
-
-	if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-        m_vInfo.yres_virtual = m_vInfo.yres;
-        m_isDoubleBuffered = false;
-        if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
-            LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
-            close(m_fbFd);
-            return 0;
-        } else {
-            LogErr(VB_CHANNELOUT, "Could not allocate virtual framebuffer large enough for double buffering, using single buffer\n");
+    if (scaling == NONE) {
+        if (config.isMember("xoff")) {
+            m_xoff = config["xoff"].asInt();
         }
-	}
-
-	if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo)) {
-		LogErr(VB_CHANNELOUT, "Error getting fixed FrameBuffer info\n");
-		close(m_fbFd);
-		return 0;
-	}
-    
-	if (m_channelCount != (m_width * m_height * 3)) {
-		LogErr(VB_CHANNELOUT, "Error, channel count is incorrect\n");
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
-	}
-
-	if (m_device == "/dev/fb0") {
-		m_ttyFd = open("/dev/console", O_RDWR);
-		if (!m_ttyFd) {
-			LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
-			ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-			close(m_fbFd);
-			return 0;
-		}
-
-		// Hide the text console
-		ioctl(m_ttyFd, KDSETMODE, KD_GRAPHICS);
-	}
-
-    m_lineLength = m_fInfo.line_length;
-    m_screenSize = m_fInfo.line_length * m_vInfo.yres;
-	m_fbp = (char*)mmap(0, m_screenSize * (m_isDoubleBuffered ? 2 : 1), PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
-    if ((char *)m_fbp == (char *)-1) {
-        m_isDoubleBuffered = false;
-        m_fbp = (char*)mmap(0, m_screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, m_fbFd, 0);
+        if (config.isMember("yoff")) {
+            m_yoff = config["yoff"].asInt();
+        }
     }
-    m_frame = new char[m_screenSize];
+    for (auto a : BUFFERS) {
+        if (a->m_device == m_device) {
+            if (scaling != a->m_scaling) {
+                LogErr(VB_CHANNELOUT, "Two VirtualMatrices cannot have different Scaling settings\n");
+                return 0;
+            }
+            if (scaling != NONE) {
+                LogErr(VB_CHANNELOUT, "Two VirtualMatrices cannot use the same framebuffer if scaling is used\n");
+                return 0;
+            }
+            m_frameBuffer = a;
+            m_frameBuffer->count++;
+        }
+    }
+    if (m_frameBuffer == nullptr) {
+        FrameBuffer *b = new FrameBuffer(m_device, scaling);
+        if (b->Init(m_width, m_height)) {
+            m_frameBuffer = b;
+            BUFFERS.push_back(m_frameBuffer);
+        } else {
+            delete b;
+            return 0;
+        }
+    }
+    
+     
 
-	if ((char *)m_fbp == (char *)-1) {
-		LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
-		ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
-		close(m_fbFd);
-		return 0;
-	}
-
-	if (m_bpp == 16) {
+	if (m_frameBuffer->m_bpp == 16) {
 		LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
-		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_vInfo.red.offset, m_vInfo.red.length);
-		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_vInfo.green.offset, m_vInfo.green.length);
-		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_vInfo.blue.offset, m_vInfo.blue.length);
+		LogExcess(VB_CHANNELOUT, " R: %d (%d bits)\n", m_frameBuffer->m_vInfo.red.offset, m_frameBuffer->m_vInfo.red.length);
+		LogExcess(VB_CHANNELOUT, " G: %d (%d bits)\n", m_frameBuffer->m_vInfo.green.offset, m_frameBuffer->m_vInfo.green.length);
+		LogExcess(VB_CHANNELOUT, " B: %d (%d bits)\n", m_frameBuffer->m_vInfo.blue.offset, m_frameBuffer->m_vInfo.blue.length);
 
-		unsigned char rMask = (0xFF ^ (0xFF >> m_vInfo.red.length));
-		unsigned char gMask = (0xFF ^ (0xFF >> m_vInfo.green.length));
-		unsigned char bMask = (0xFF ^ (0xFF >> m_vInfo.blue.length));
-		int rShift = m_vInfo.red.offset - (8 + (8-m_vInfo.red.length));
-		int gShift = m_vInfo.green.offset - (8 + (8 - m_vInfo.green.length));
-		int bShift = m_vInfo.blue.offset - (8 + (8 - m_vInfo.blue.length));;
+		unsigned char rMask = (0xFF ^ (0xFF >> m_frameBuffer->m_vInfo.red.length));
+		unsigned char gMask = (0xFF ^ (0xFF >> m_frameBuffer->m_vInfo.green.length));
+		unsigned char bMask = (0xFF ^ (0xFF >> m_frameBuffer->m_vInfo.blue.length));
+		int rShift = m_frameBuffer->m_vInfo.red.offset - (8 + (8-m_frameBuffer->m_vInfo.red.length));
+		int gShift = m_frameBuffer->m_vInfo.green.offset - (8 + (8 - m_frameBuffer->m_vInfo.green.length));
+		int bShift = m_frameBuffer->m_vInfo.blue.offset - (8 + (8 - m_frameBuffer->m_vInfo.blue.length));;
 
 		//LogDebug(VB_CHANNELOUT, "rM/rS: 0x%02x/%d, gM/gS: 0x%02x/%d, bM/bS: 0x%02x/%d\n", rMask, rShift, gMask, gShift, bMask, bShift);
 
@@ -280,27 +402,16 @@ int FBMatrixOutput::Init(Json::Value config) {
 int FBMatrixOutput::Close(void)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::Close()\n");
-
-	munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
-
-    if (m_device == "/dev/fb0") {
-        // Re-enable the text console
-        ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
-        close(m_ttyFd);
+    if (m_frameBuffer) {
+        if (m_frameBuffer->count == 1) {
+            BUFFERS.remove(m_frameBuffer);
+            delete m_frameBuffer;
+            m_frameBuffer = nullptr;
+        } else {
+            --m_frameBuffer->count;
+        }
     }
-    
-	if (m_device == "/dev/fb0") {
-        m_vInfoOrig.yres_virtual = m_vInfoOrig.yres;
-        m_vInfoOrig.xres_virtual = m_vInfoOrig.xres;
-		if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
-			LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
-	}
-	close(m_fbFd);
 
-    if (m_frame) {
-        delete [] m_frame;
-        m_frame = nullptr;
-    }
 	return ChannelOutputBase::Close();
 }
 
@@ -312,7 +423,7 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 	LogExcess(VB_CHANNELOUT, "FBMatrixOutput::SendData(%p)\n",
 		channelData);
 
-	int ostride = m_lineLength;
+	int ostride = m_frameBuffer->m_lineLength;
 	unsigned char *s = channelData;
 	unsigned char *d;
 	unsigned char *sR = channelData;
@@ -321,15 +432,18 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
     
     int height = m_height;
     int width = m_width;
-    if (m_scaling == SOFTWARE) {
-        height = m_vInfo.yres;
-        width = m_vInfo.xres;
+    if (m_frameBuffer->m_scaling == SOFTWARE) {
+        height = m_frameBuffer->m_vInfo.yres;
+        width = m_frameBuffer->m_vInfo.xres;
     }
     int drow = m_inverted ? height - 1 : 0;
+    
+    drow += m_yoff;
 
-	if (m_bpp == 16) {
+	if (m_frameBuffer->m_bpp == 16) {
 		for (int y = 0; y < m_height; y++) {
-			d = (unsigned char *)m_frame + (drow * ostride);
+			d = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
+            d += m_xoff * 2;
 			for (int x = 0; x < m_width; x++) {
                 if (m_useRGB) // RGB data to BGR framebuffer
                     *((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
@@ -341,10 +455,9 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
                 sR += 3;
                 d += 2;
 			}
-
 			drow += m_inverted ? -1 : 1;
 		}
-	} else if (m_useRGB || m_bpp == 32 || m_scaling == SOFTWARE) {
+	} else if (m_useRGB || m_frameBuffer->m_bpp == 32 || m_frameBuffer->m_scaling == SOFTWARE) {
         int *xpos = new int[width + 1];
         for (int vx = 0; vx < width+1; vx++) {
             xpos[vx] = vx * m_width /  width;
@@ -356,18 +469,23 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 		unsigned char *dR;
 		unsigned char *dG;
 		unsigned char *dB;
-        int add = m_bpp / 8;
+        int add = m_frameBuffer->m_bpp / 8;
 
 		for (int vy = 0; vy < height; vy++) {
 			// RGB data to BGR framebuffer
             if (m_useRGB) {
-                dR = (unsigned char *)m_frame + (drow * ostride) + 2;
-                dG = (unsigned char *)m_frame + (drow * ostride) + 1;
-                dB = (unsigned char *)m_frame + (drow * ostride) + 0;
+                dR = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride) + 2;
+                dG = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride) + 1;
+                dB = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride) + 0;
             } else {
-                dR = (unsigned char *)m_frame + (drow * ostride) + 0;
-                dG = (unsigned char *)m_frame + (drow * ostride) + 1;
-                dB = (unsigned char *)m_frame + (drow * ostride) + 2;
+                dR = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride) + 0;
+                dG = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride) + 1;
+                dB = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride) + 2;
+            }
+            if (m_xoff) {
+                dR += m_xoff * add;
+                dG += m_xoff * add;
+                dB += m_xoff * add;
             }
 
 			for (int vx = 0; vx < width; vx++) {
@@ -379,7 +497,7 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 				dG += add;
 				dB += add;
                 
-                if (m_scaling == SOFTWARE) {
+                if (m_frameBuffer->m_scaling == SOFTWARE) {
                     if (xpos[vx] != xpos[vx + 1]) {
                         sR += 3;
                         sG += 3;
@@ -392,12 +510,12 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
                 }
 			}
 
-            if (m_scaling == SOFTWARE) {
+            if (m_frameBuffer->m_scaling == SOFTWARE) {
                 while ((ypos[vy] == ypos[vy+1]) && vy < height) {
-                    unsigned char *src = (unsigned char *)m_frame + (drow * ostride);
+                    unsigned char *src = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
                     drow += m_inverted ? -1 : 1;
                     vy++;
-                    unsigned char *dst = (unsigned char *)m_frame + (drow * ostride);
+                    unsigned char *dst = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
                     memcpy(dst, src, ostride);
                 }
             }
@@ -408,10 +526,16 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 	} else {
         int istride = m_width * 3;
         unsigned char *src = channelData;
-        unsigned char *dst = (unsigned char*)m_frame;
+        unsigned char *dst = (unsigned char*)m_frameBuffer->m_frame;
 
 		if (m_inverted) {
-			dst = (unsigned char *)m_frame + (ostride * (m_height-1));
+			dst = (unsigned char *)m_frameBuffer->m_frame + (ostride * (m_height-1));
+        }
+        if (m_yoff) {
+            dst += ostride * m_yoff;
+        }
+        if (m_xoff) {
+            dst += m_xoff * 3;
         }
         for (int y = 0; y < m_height; y++) {
             memcpy(dst, src, istride);
@@ -423,22 +547,11 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
             }
         }
 	}
+    m_frameBuffer->dirty = true;
 }
 
 int FBMatrixOutput::SendData(unsigned char *channelData) {
-    char *dst = m_fbp;
-    int targetoffset = 0;
-    if (m_isDoubleBuffered && !m_topFrame) {
-        dst += m_screenSize;
-        m_vInfo.yoffset = m_vInfo.yres;
-    } else {
-        m_vInfo.yoffset = 0;
-    }
-    m_topFrame = !m_topFrame;
-    memcpy(dst, m_frame, m_screenSize);
-    if (m_isDoubleBuffered) {
-        ioctl(m_fbFd, FBIOPAN_DISPLAY, &m_vInfo);
-    }
+    m_frameBuffer->DisplayIfDirty();
     return m_channelCount;
 }
 
@@ -453,9 +566,8 @@ void FBMatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)
 void FBMatrixOutput::DumpConfig(void)
 {
 	LogDebug(VB_CHANNELOUT, "FBMatrixOutput::DumpConfig()\n");
-	LogDebug(VB_CHANNELOUT, "    layout : %s\n", m_layout.c_str());
+    LogDebug(VB_CHANNELOUT, "    dev    : %d\n", m_device.c_str());
 	LogDebug(VB_CHANNELOUT, "    width  : %d\n", m_width);
 	LogDebug(VB_CHANNELOUT, "    height : %d\n", m_height);
-    LogDebug(VB_CHANNELOUT, "    Double Buffered : %d\n", m_isDoubleBuffered);
 }
 

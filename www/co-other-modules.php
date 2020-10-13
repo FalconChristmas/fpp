@@ -95,7 +95,7 @@ class OtherBaseDevice extends OtherBase {
 /////////////////////////////////////////////////////////////////////////////
 // Misc. Support functions
 function CreateSelect(optionArray = ["No Options"], currentValue, selectTitle, dropDownTitle, selectClass, onselect = "") {
-	var result = selectTitle+": <select class='"+selectClass+"'";
+	var result = selectTitle+":&nbsp;<select class='"+selectClass+"'";
     if (onselect != "") {
         result += " onchange='" + onselect + "'";
     }

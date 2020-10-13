@@ -65,8 +65,7 @@ function NewUSBConfig() {
 // Framebuffer Devices
 var FBDevices = new Array();
 <?
-	foreach(scandir("/dev/") as $fileName)
-	{
+	foreach(scandir("/dev/") as $fileName) {
 		if (preg_match("/^fb[0-9]+/", $fileName)) {
 			echo "FBDevices['$fileName'] = '$fileName';\n";
 		}
@@ -84,7 +83,7 @@ function VirtualMatrixLayoutChanged(item) {
 function VirtualMatrixColorOrderSelect(colorOrder) {
 	var result = "";
 
-	result += " Color Order: <select class='colorOrder'>";
+	result += " Color&nbsp;Order:&nbsp;<select class='colorOrder'>";
 	result += "<option value='RGB'";
 
 	if (colorOrder == 'RGB')
@@ -99,10 +98,18 @@ function VirtualMatrixColorOrderSelect(colorOrder) {
 
 	return result;
 }
+function OnVirtualMatrixScalingChange(item) {
+    var val = $(item).val();
+    if (val == "None") {
+        $(item).parent().parent().find("span.VirtualMatrixOffset").show();
+    } else {
+        $(item).parent().parent().find("span.VirtualMatrixOffset").hide();
+    }
+}
 function VirtualMatrixScalingSelect(scaling) {
     var result = "";
 
-    result += " Scaling: <select class='scaling'>";
+    result += " Scaling:&nbsp;<select class='scaling' onchange='OnVirtualMatrixScalingChange(this);'>";
     result += "<option value='Hardware'";
 
     if (scaling == 'Hardware')
@@ -118,17 +125,32 @@ function VirtualMatrixScalingSelect(scaling) {
 }
 function VirtualMatrixConfig(config) {
 	var result = "";
+    
+    if (config.xoff == null) {
+        config.xoff = 0;
+    }
+    if (config.yoff == null) {
+        config.yoff = 0;
+    }
 
-	result += " Width: <input type='text' size='3' maxlength='3' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
-				" Height: <input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+	result += " Width:&nbsp;<input type='text' size='3' maxlength='3' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
+				" Height:&nbsp;<input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
 
 	result += VirtualMatrixColorOrderSelect(config.colorOrder);
-	result += " Invert: <input type=checkbox class='invert'";
+	result += " Invert:&nbsp;<input type=checkbox class='invert'";
 	if (config.invert)
 		result += " checked='checked'";
 	result += ">";
 	result += DeviceSelect(FBDevices, config.device);
     result += VirtualMatrixScalingSelect(config.scaling);
+    
+    result += "<br><span class='VirtualMatrixOffset' id='VirtualMatrixOffset' ";
+    if (config.scaling != "None") {
+        result += "style='display: none;'";
+    }
+    result += ">X&nbsp;offset:&nbsp;<input type='number' class='xoff' min='0' max='4096' value='" + config.xoff + "'/> ";
+    result += "Y&nbsp;offset:&nbsp;<input type='number' class='yoff' min='0' max='4096' value='" + config.yoff + "'/>";
+    result += "</span>";
 
 	return result;
 }
@@ -143,6 +165,8 @@ function NewVirtualMatrixConfig() {
 	config.invert = 0;
 	config.device = "fb0";
     config.scaling = "Hardware";
+    config.xoff = 0;
+    config.yoff = 0;
 
 	return VirtualMatrixConfig(config);
 }
@@ -183,6 +207,8 @@ function GetVirtualMatrixOutputConfig(result, cell) {
 	result.invert = invert;
 	result.device = device;
     result.scaling = scaling;
+    result.xoff = parseInt($cell.find("input.xoff").val());
+    result.yoff = parseInt($cell.find("input.yoff").val());
 
 	return result;
 }
