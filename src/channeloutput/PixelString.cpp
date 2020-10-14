@@ -77,6 +77,9 @@ int VirtualString::channelsPerNode() const {
     if (receiverNum >= 0) {
         return 1;
     }
+    if (colorOrder == kColorOrderONE) {
+        return 1;
+    }
     return whiteOffset == -1 ? 3 : 4;
 }
 
@@ -264,6 +267,8 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
                 vs.whiteOffset = 3;
                 colorOrder = colorOrder.substr(0, 3);
             }
+        } else if (colorOrder.length() == 1) {
+            colorOrder = "W";
         }
         vs.colorOrder = ColorOrderFromString(colorOrder);
         
@@ -364,43 +369,47 @@ void PixelString::SetupMap(int vsOffset, const VirtualString &vs)
 			ch = vs.startChannel + (p * vs.channelsPerNode());
 		}
 
-		if (vs.colorOrder == kColorOrderRGB) {
-			ch1 = ch;
-			ch2 = ch + 1;
-			ch3 = ch + 2;
-		} else if (vs.colorOrder == kColorOrderRBG) {
-			ch1 = ch;
-			ch2 = ch + 2;
-			ch3 = ch + 1;
-		} else if (vs.colorOrder == kColorOrderGRB) {
-			ch1 = ch + 1;
-			ch2 = ch;
-			ch3 = ch + 2;
-		} else if (vs.colorOrder == kColorOrderGBR) {
-			ch1 = ch + 1;
-			ch2 = ch + 2;
-			ch3 = ch;
-		} else if (vs.colorOrder == kColorOrderBRG) {
-			ch1 = ch + 2;
-			ch2 = ch;
-			ch3 = ch + 1;
-		} else if (vs.colorOrder == kColorOrderBGR) {
-			ch1 = ch + 2;
-			ch2 = ch + 1;
-			ch3 = ch;
-		}
-        
-        if (vs.whiteOffset == 0) {
+        if (vs.colorOrder == kColorOrderONE) {
             m_outputMap[offset++] = ch;
-            ch1++;
-            ch2++;
-            ch3++;
-        }
-        m_outputMap[offset++] = ch1;
-        m_outputMap[offset++] = ch2;
-        m_outputMap[offset++] = ch3;
-        if (vs.whiteOffset == 3) {
-            m_outputMap[offset++] = ch + 3;
+        } else {
+            if (vs.colorOrder == kColorOrderRGB) {
+                ch1 = ch;
+                ch2 = ch + 1;
+                ch3 = ch + 2;
+            } else if (vs.colorOrder == kColorOrderRBG) {
+                ch1 = ch;
+                ch2 = ch + 2;
+                ch3 = ch + 1;
+            } else if (vs.colorOrder == kColorOrderGRB) {
+                ch1 = ch + 1;
+                ch2 = ch;
+                ch3 = ch + 2;
+            } else if (vs.colorOrder == kColorOrderGBR) {
+                ch1 = ch + 1;
+                ch2 = ch + 2;
+                ch3 = ch;
+            } else if (vs.colorOrder == kColorOrderBRG) {
+                ch1 = ch + 2;
+                ch2 = ch;
+                ch3 = ch + 1;
+            } else if (vs.colorOrder == kColorOrderBGR) {
+                ch1 = ch + 2;
+                ch2 = ch + 1;
+                ch3 = ch;
+            }
+            
+            if (vs.whiteOffset == 0) {
+                m_outputMap[offset++] = ch;
+                ch1++;
+                ch2++;
+                ch3++;
+            }
+            m_outputMap[offset++] = ch1;
+            m_outputMap[offset++] = ch2;
+            m_outputMap[offset++] = ch3;
+            if (vs.whiteOffset == 3) {
+                m_outputMap[offset++] = ch + 3;
+            }
         }
 		ch += vs.channelsPerNode();
 	}

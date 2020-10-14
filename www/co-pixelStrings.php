@@ -169,6 +169,7 @@ function pixelOutputTableInputOrder(colorOrder)
         result += pixelOutputTableInputOrderOption('WGRB', colorOrder);
         result += pixelOutputTableInputOrderOption('WBGR', colorOrder);
         result += pixelOutputTableInputOrderOption('WBRG', colorOrder);
+        result += pixelOutputTableInputOrderOption('W', colorOrder);
     <?
     }
     ?>
