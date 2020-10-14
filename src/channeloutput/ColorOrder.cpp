@@ -45,6 +45,9 @@ FPPColorOrder ColorOrderFromString(const std::string &colorOrderStr)
 	if (colorOrderStr == "BGR")
 		return kColorOrderBGR;
 
+    if (colorOrderStr == "W")
+        return kColorOrderONE;
+
 	return kColorOrderRGB;
 }
 
@@ -58,7 +61,7 @@ const std::string ColorOrderToString(FPPColorOrder colorOrder)
 		case kColorOrderGRB: return std::string("GRB");
 		case kColorOrderBGR: return std::string("BGR");
 		case kColorOrderBRG: return std::string("BRG");
-
+        case kColorOrderONE: return std::string("W");
 	}
 
 	return std::string("UNKNOWN");
