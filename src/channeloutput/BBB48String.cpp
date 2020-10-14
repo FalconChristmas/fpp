@@ -172,6 +172,7 @@ void BBB48StringOutput::createOutputLengths(FrameData &d, const std::string& pfx
         if (min != d.maxStringLen) {
             if (min <= 255) {
                 outputFile << "    QBNE skip_"
+                << pfx
                 << std::to_string(min)
                 << ", cur_data, "
                 << std::to_string(min)
