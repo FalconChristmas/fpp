@@ -87,10 +87,13 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 	if (logFileName[0]) {
 		FILE *logFile;
 
+        bool close = true;
 		if (!strcmp(logFileName, "stderr")) {
 			logFile = stderr;
+            close = false;
 		} else if (!strcmp(logFileName, "stdout")) {
 			logFile = stdout;
+            close = false;
         } else {
 			logFile = fopen(logFileName, "a");
 			if ( ! logFile ) {
@@ -106,8 +109,9 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 		vfprintf(logFile, timeStr, arg);
 		va_end(arg);
 
-		if (strcmp(logFileName, "stderr") || strcmp(logFileName, "stdout"))
+        if (close)  {
 			fclose(logFile);
+        }
 	}
     if (strcmp(logFileName, "stdout") && logToStdOut) {
 		va_start(arg, format);

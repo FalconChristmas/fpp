@@ -55,11 +55,11 @@ enum ScalingType {
 
 class FrameBuffer {
 public:
-    FrameBuffer(const std::string &dev, ScalingType st)
-    : m_device(dev),
+    FrameBuffer(const std::string &d, ScalingType st)
+    : m_device(d),
         m_scaling(st),
-        m_fbFd(0),
-        m_ttyFd(0),
+        m_fbFd(-1),
+        m_ttyFd(-1),
         m_bpp(24),
         m_fbp(nullptr),
         m_screenSize(0),
@@ -68,22 +68,27 @@ public:
     {
     }
     ~FrameBuffer() {
-        munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
+        if (m_fbp) {
+            munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
+        }
 
         if (m_device == "/dev/fb0") {
-            // Re-enable the text console
-            ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
-            close(m_ttyFd);
+            if (m_ttyFd != -1) {
+                // Re-enable the text console
+                ioctl(m_ttyFd, KDSETMODE, KD_TEXT);
+                close(m_ttyFd);
+                m_ttyFd = -1;
+            }
+            if (m_fbFd != -1) {
+                m_vInfoOrig.yres_virtual = m_vInfoOrig.yres;
+                m_vInfoOrig.xres_virtual = m_vInfoOrig.xres;
+                ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
+            }
         }
-        
-        if (m_device == "/dev/fb0") {
-            m_vInfoOrig.yres_virtual = m_vInfoOrig.yres;
-            m_vInfoOrig.xres_virtual = m_vInfoOrig.xres;
-            if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig))
-                LogErr(VB_CHANNELOUT, "Error resetting variable info\n");
+        if (m_fbFd != -1) {
+            close(m_fbFd);
+            m_fbFd = -1;
         }
-        close(m_fbFd);
-
         if (m_frame) {
             delete [] m_frame;
             m_frame = nullptr;
@@ -92,16 +97,18 @@ public:
     
     int Init(int width, int height) {
         count = 1;
-        LogDebug(VB_CHANNELOUT, "Using FrameBuffer device %s\n", m_device.c_str());
-        m_fbFd = open(m_device.c_str(), O_RDWR);
-        if (!m_fbFd) {
-            LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", m_device.c_str());
+        
+        std::string dev = m_device;
+        m_fbFd = open(dev.c_str(), O_RDWR);
+        if (m_fbFd == -1) {
+            LogErr(VB_CHANNELOUT, "Error opening FrameBuffer device: %s\n", dev.c_str());
             return 0;
         }
 
         if (ioctl(m_fbFd, FBIOGET_VSCREENINFO, &m_vInfo)) {
             LogErr(VB_CHANNELOUT, "Error getting FrameBuffer info\n");
             close(m_fbFd);
+            m_fbFd = -1;
             return 0;
         }
         memcpy(&m_vInfoOrig, &m_vInfo, sizeof(struct fb_var_screeninfo));
@@ -112,6 +119,7 @@ public:
         if ((m_bpp != 32) && (m_bpp != 24) && (m_bpp != 16)) {
             LogErr(VB_CHANNELOUT, "Do not know how to handle %d BPP\n", m_bpp);
             close(m_fbFd);
+            m_fbFd = -1;
             return 0;
         }
 
@@ -152,6 +160,7 @@ public:
             if (ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfo)) {
                 LogErr(VB_CHANNELOUT, "Error setting FrameBuffer info\n");
                 close(m_fbFd);
+                m_fbFd = -1;
                 return 0;
             } else {
                 LogErr(VB_CHANNELOUT, "Could not allocate virtual framebuffer large enough for double buffering, using single buffer\n");
@@ -161,16 +170,18 @@ public:
         if (ioctl(m_fbFd, FBIOGET_FSCREENINFO, &m_fInfo)) {
             LogErr(VB_CHANNELOUT, "Error getting fixed FrameBuffer info\n");
             close(m_fbFd);
+            m_fbFd = -1;
             return 0;
         }
         
 
-        if (m_device == "/dev/fb0") {
+        if (dev == "/dev/fb0") {
             m_ttyFd = open("/dev/console", O_RDWR);
-            if (!m_ttyFd) {
+            if (m_ttyFd != -1) {
                 LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
                 ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
                 close(m_fbFd);
+                m_fbFd = -1;
                 return 0;
             }
 
@@ -187,15 +198,13 @@ public:
         }
         m_frame = new char[m_screenSize];
 
-        if ((char *)m_fbp == (char *)-1) {
-            LogErr(VB_CHANNELOUT, "Error, unable to map /dev/fb0\n");
+        if (m_fbp == MAP_FAILED) {
+            LogErr(VB_CHANNELOUT, "Error, unable to map %s\n", dev.c_str());
             ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
             close(m_fbFd);
+            m_fbFd = -1;
             return 0;
         }
-
-        
-        
         return 1;
     }
     
@@ -220,11 +229,7 @@ public:
     
     std::string m_device;
     ScalingType m_scaling;
-    
-    
-    struct fb_var_screeninfo m_vInfo;
-    struct fb_var_screeninfo m_vInfoOrig;
-    struct fb_fix_screeninfo m_fInfo;
+
     int    m_fbFd;
     int    m_ttyFd;
     int    m_bpp;
@@ -233,7 +238,9 @@ public:
     int    m_screenSize;
     int    m_lineLength;
 
-    
+    struct fb_var_screeninfo m_vInfo;
+    struct fb_var_screeninfo m_vInfoOrig;
+    struct fb_fix_screeninfo m_fInfo;
     
     bool    m_isDoubleBuffered;
     bool    m_topFrame;
@@ -335,17 +342,18 @@ int FBMatrixOutput::Init(Json::Value config) {
         }
     }
     if (m_frameBuffer == nullptr) {
+        if (!FileExists(m_device)) {
+            LogErr(VB_CHANNELOUT, "No FrameBuffer device: %s\n", m_device.c_str());
+            return 0;
+        }
         FrameBuffer *b = new FrameBuffer(m_device, scaling);
         if (b->Init(m_width, m_height)) {
             m_frameBuffer = b;
             BUFFERS.push_back(m_frameBuffer);
         } else {
-            delete b;
             return 0;
         }
     }
-    
-     
 
 	if (m_frameBuffer->m_bpp == 16) {
 		LogExcess(VB_CHANNELOUT, "Generating RGB565Map for Bitfield offset info:\n");
