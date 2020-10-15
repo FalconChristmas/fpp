@@ -29,7 +29,7 @@
 
 #include "ChannelOutputBase.h"
 
-class FrameBuffer;
+class MatrixFrameBuffer;
 
 class FBMatrixOutput : public ChannelOutputBase {
   public:
@@ -49,7 +49,7 @@ class FBMatrixOutput : public ChannelOutputBase {
   private:
 
     
-    FrameBuffer *m_frameBuffer;
+    MatrixFrameBuffer *m_frameBuffer;
     
 	int          m_width;
 	int          m_height;

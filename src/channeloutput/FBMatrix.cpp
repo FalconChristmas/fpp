@@ -53,9 +53,9 @@ enum ScalingType {
 };
 
 
-class FrameBuffer {
+class MatrixFrameBuffer {
 public:
-    FrameBuffer(const std::string &d, ScalingType st)
+    MatrixFrameBuffer(const std::string &d, ScalingType st)
     : m_device(d),
         m_scaling(st),
         m_fbFd(-1),
@@ -67,7 +67,7 @@ public:
         m_topFrame(true)
     {
     }
-    ~FrameBuffer() {
+    ~MatrixFrameBuffer() {
         if (m_fbp) {
             munmap(m_fbp, m_screenSize * (m_isDoubleBuffered ? 2 : 1));
         }
@@ -175,9 +175,9 @@ public:
         }
         
 
-        if (dev == "/dev/fb0") {
+        if (dev == "/dev/fb0" && FileExists("/dev/console")) {
             m_ttyFd = open("/dev/console", O_RDWR);
-            if (m_ttyFd != -1) {
+            if (m_ttyFd == -1) {
                 LogErr(VB_CHANNELOUT, "Error, unable to open /dev/console\n");
                 ioctl(m_fbFd, FBIOPUT_VSCREENINFO, &m_vInfoOrig);
                 close(m_fbFd);
@@ -251,7 +251,7 @@ public:
 };
 
 
-static std::list<FrameBuffer*> BUFFERS;
+static std::list<MatrixFrameBuffer*> BUFFERS;
 
 
 
@@ -346,7 +346,7 @@ int FBMatrixOutput::Init(Json::Value config) {
             LogErr(VB_CHANNELOUT, "No FrameBuffer device: %s\n", m_device.c_str());
             return 0;
         }
-        FrameBuffer *b = new FrameBuffer(m_device, scaling);
+        MatrixFrameBuffer *b = new MatrixFrameBuffer(m_device, scaling);
         if (b->Init(m_width, m_height)) {
             m_frameBuffer = b;
             BUFFERS.push_back(m_frameBuffer);
