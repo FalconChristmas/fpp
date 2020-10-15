@@ -318,25 +318,21 @@ function DrawLEDPanelTable()
 {
 	var r;
 	var c;
-	var html = "";
 	var key = "";
 	var frontView = 0;
 
-	if ($('#LEDPanelUIFrontView').is(":checked"))
-	{
+    var tbody = $('#LEDPanelTable tbody');
+    tbody.empty();
+	if ($('#LEDPanelUIFrontView').is(":checked")) {
 		frontView = 1;
-		html += "<tr><th colspan='" + LEDPanelCols + "'>Front View</th></tr>";
-	}
-	else
-	{
-		html += "<tr><th colspan='" + LEDPanelCols + "'>Back View</th></tr>";
+        tbody[0].insertRow(0).innerHTML = "<th colspan='" + LEDPanelCols + "'>Front View</th>";
+	} else {
+        tbody[0].insertRow(0).innerHTML = "<th colspan='" + LEDPanelCols + "'>Back View</th>";
 	}
 
-	for (r = 0 ; r < LEDPanelRows; r++)
-	{
-		html += "<tr>";
-		for (i = 0; i < LEDPanelCols; i++)
-		{
+	for (r = 0 ; r < LEDPanelRows; r++) {
+		var html = "<tr>";
+		for (i = 0; i < LEDPanelCols; i++) {
 			if (frontView)
 				c = i;
 			else
@@ -379,9 +375,8 @@ function DrawLEDPanelTable()
 			html += "</td></tr></table></td>\n";
 		}
 		html += "</tr>";
+        tbody[0].insertRow(-1).innerHTML = html;
 	}
-
-    $('#LEDPanelTable tbody').html(html);
 }
 
 function InitializeLEDPanels()
