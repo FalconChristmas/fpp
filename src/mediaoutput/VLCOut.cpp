@@ -111,9 +111,14 @@ void logCallback(void *data, int level, const libvlc_log_t *ctx,
     }
 }
 
-
-static void startingEventCallBack(const struct libvlc_event_t *p_event, void *p_data);
-static void stoppedEventCallBack(const struct libvlc_event_t *p_event, void *p_data);
+static void startingEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
+    VLCInternalData *d = (VLCInternalData*)p_data;
+    d->vlcOutput->Starting();
+}
+static void stoppedEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
+    VLCInternalData *d = (VLCInternalData*)p_data;
+    d->vlcOutput->Stopped();
+}
 
 
 class VLCManager {
@@ -148,18 +153,12 @@ public:
             vlcInstance = libvlc_new(argc, args);
             
             libvlc_log_set(vlcInstance, logCallback, this);
-            
-            vlcPlayer = libvlc_media_player_new(vlcInstance);
-            libvlc_event_attach(libvlc_media_player_event_manager(vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, this);
-            libvlc_event_attach(libvlc_media_player_event_manager(vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, this);
         }
-        
         data->media = libvlc_media_new_path(vlcInstance, data->fullMediaPath.c_str());
-        data->vlcPlayer = vlcPlayer;
-        libvlc_media_player_set_media(data->vlcPlayer, data->media);
-        
+        data->vlcPlayer = libvlc_media_player_new_from_media(data->media);
+        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerEndReached, stoppedEventCallBack, data);
+        libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
-        this->data = data;
         
         return 0;
     }
@@ -183,6 +182,7 @@ public:
     int stop(VLCInternalData *data) {
         if (data->vlcPlayer) {
             libvlc_media_player_stop_async(data->vlcPlayer);
+            libvlc_media_player_release(data->vlcPlayer);
             data->vlcPlayer = nullptr;
             libvlc_media_release(data->media);
             data->media = nullptr;
@@ -192,30 +192,11 @@ public:
                 data->equalizer = nullptr;
             }
         }
-        this->data = nullptr;
         return 0;
     }
     
-    
-    VLCInternalData *data = nullptr;
     libvlc_instance_t *vlcInstance = nullptr;
-    libvlc_media_player_t *vlcPlayer = nullptr;
 };
-
-static void startingEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
-    VLCManager *d = (VLCManager*)p_data;
-    if (d->data) {
-        d->data->vlcOutput->Starting();
-    }
-}
-static void stoppedEventCallBack(const struct libvlc_event_t *p_event, void *p_data) {
-    VLCManager *d = (VLCManager*)p_data;
-    if (d->data) {
-        d->data->vlcOutput->Stopped();
-    }
-}
-
-
 
 static VLCManager vlcManager;
 static constexpr int RATE_AVERAGE_COUNT = 20;
