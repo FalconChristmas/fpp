@@ -119,9 +119,19 @@ function SetUIPassword($value)
     if ($value == '')
         $value = 'falcon';
 
-    // First clear file and set admin, then without clear for adding fpp user
-    shell_exec("sudo htpasswd -cbd " . $settings['mediaDirectory'] . "/config/.htpasswd admin " . $value);
-    shell_exec("sudo htpasswd -bd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $value);
+    // Write a new password file, replacing odl one if exists. 
+    // users fpp and admin
+    // BCRYPT requires apache 2.4+
+    $encrypted_password = password_hash($value, PASSWORD_BCRYPT);
+    $data = "admin:$encrypted_password\nfpp:$encrypted_password\n";
+    $filename =  $settings['mediaDirectory'] . "/config/.htpasswd";
+
+    // Old file may have been ownedby root so file_put_contents will fail.
+    if (file_exists($filename)) {
+	    unlink($filename);
+    }
+
+    file_put_contents($filename, $data);
 }
 
 /////////////////////////////////////////////////////////////////////////////
