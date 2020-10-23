@@ -32,10 +32,16 @@ std::unique_ptr<Command::Result> PrevPlaylistCommand::run(const std::vector<std:
 
 std::unique_ptr<Command::Result> StartPlaylistCommand::run(const std::vector<std::string> &args) {
     bool r = false;
+    bool iNR = false;
     if (args.size() > 1) {
         r = args[1] == "true" || args[1] == "1";
     }
-    playlist->Play(args[0].c_str(), -1, r);
+    if (args.size() > 2) {
+        iNR = args[2] == "true" || args[2] == "1";
+    }
+    if (!iNR || args[0] != playlist->GetPlaylistName()) {
+        playlist->Play(args[0].c_str(), -1, r);
+    }
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
@@ -65,32 +71,50 @@ std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<st
 std::unique_ptr<Command::Result> StartPlaylistAtCommand::run(const std::vector<std::string> &args) {
     bool r = false;
     int idx = std::atoi(args[1].c_str());
+    bool iNR = false;
     if (args.size() > 2) {
         r = args[2] == "true" || args[2] == "1";
     }
-    playlist->Play(args[0].c_str(), idx - 1, r);
+    if (args.size() > 3) {
+        iNR = args[3] == "true" || args[3] == "1";
+    }
+    if (!iNR || args[0] != playlist->GetPlaylistName()) {
+        playlist->Play(args[0].c_str(), idx - 1, r);
+    }
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
 std::unique_ptr<Command::Result> StartPlaylistAtRandomCommand::run(const std::vector<std::string> &args) {
     bool r = false;
+    bool iNR = false;
     if (args.size() > 1) {
         r = args[1] == "true" || args[1] == "1";
     }
-    playlist->Play(args[0].c_str(), -2, r);
+    if (args.size() > 2) {
+        iNR = args[2] == "true" || args[2] == "1";
+    }
+    if (!iNR || args[0] != playlist->GetPlaylistName()) {
+        playlist->Play(args[0].c_str(), -2, r);
+    }
     return std::make_unique<Command::Result>("Playlist Starting");
 }
 
 std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<std::string> &args) {
     int start = -1;
     int end = -1;
+    bool iNR = false;
     if (args.size() > 1) {
         start = std::atoi(args[1].c_str());
     }
     if (args.size() > 2) {
         end = std::atoi(args[2].c_str());
     }
-    playlist->InsertPlaylistAsNext(args[0], start - 1, end - 1);
+    if (args.size() > 3) {
+        iNR = args[3] == "true" || args[3] == "1";
+    }
+    if (!iNR || args[0] != playlist->GetPlaylistName()) {
+        playlist->InsertPlaylistAsNext(args[0], start - 1, end - 1);
+    }
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 
@@ -98,13 +122,19 @@ std::unique_ptr<Command::Result> InsertPlaylistCommand::run(const std::vector<st
 std::unique_ptr<Command::Result> InsertPlaylistImmediate::run(const std::vector<std::string> &args) {
     int start = -1;
     int end = -1;
+    bool iNR = false;
     if (args.size() > 1) {
         start = std::atoi(args[1].c_str());
     }
     if (args.size() > 2) {
         end = std::atoi(args[2].c_str());
     }
-    playlist->InsertPlaylistImmediate(args[0], start - 1, end - 1);
+    if (args.size() > 3) {
+        iNR = args[3] == "true" || args[3] == "1";
+    }
+    if (!iNR || args[0] != playlist->GetPlaylistName()) {
+        playlist->InsertPlaylistImmediate(args[0], start - 1, end - 1);
+    }
     return std::make_unique<Command::Result>("Playlist Inserted");
 }
 

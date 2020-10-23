@@ -134,7 +134,7 @@ function SetForceHDMI($value)
     }
 }
 
-SetWifiDrivers($value) {
+function SetWifiDrivers($value) {
     if ($value == "Kernel") {
         exec( $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
         exec( $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
