@@ -52,7 +52,8 @@ public:
     StartPlaylistCommand() : Command("Start Playlist") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
                         .setContentListUrl("api/playlists/playable"));
-        args.push_back(CommandArg("repeat", "bool", "Repeat", true));
+        args.push_back(CommandArg("repeat", "bool", "Repeat", true).setDefaultValue("false"));
+        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
@@ -61,7 +62,7 @@ public:
     TogglePlaylistCommand() : Command("Toggle Playlist") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
                         .setContentListUrl("api/playlists/playable"));
-        args.push_back(CommandArg("repeat", "bool", "Repeat", true));
+        args.push_back(CommandArg("repeat", "bool", "Repeat", true).setDefaultValue("false"));
         args.push_back(CommandArg("stop", "string", "Stop Type")
                        .setContentList({"Gracefully", "After Loop", "Now"})
                        .setDefaultValue("Gracefully"));
@@ -74,7 +75,8 @@ public:
         args.push_back(CommandArg("name", "string", "Playlist Name")
                         .setContentListUrl("api/playlists"));
         args.push_back(CommandArg("item", "int", "Item Index").setRange(1, 100));
-        args.push_back(CommandArg("repeat", "bool", "Repeat", true));
+        args.push_back(CommandArg("repeat", "bool", "Repeat", true).setDefaultValue("false"));
+        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
@@ -83,7 +85,8 @@ public:
     StartPlaylistAtRandomCommand() : Command("Start Playlist At Random Item") {
         args.push_back(CommandArg("name", "string", "Playlist Name")
                         .setContentListUrl("api/playlists"));
-        args.push_back(CommandArg("repeat", "bool", "Repeat", true));
+        args.push_back(CommandArg("repeat", "bool", "Repeat", true).setDefaultValue("false"));
+        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
@@ -96,6 +99,7 @@ public:
                         .setContentListUrl("api/playlists/playable"));
         args.push_back(CommandArg("startItem", "int", "Start Item Index", true).setRange(-1, 100).setDefaultValue("-1"));
         args.push_back(CommandArg("endItem", "int", "End Item Index", true).setRange(-1, 100).setDefaultValue("-1"));
+        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
@@ -107,6 +111,7 @@ public:
                         .setContentListUrl("api/playlists/playable"));
         args.push_back(CommandArg("startItem", "int", "Start Item Index", true).setRange(0, 100).setDefaultValue("0"));
         args.push_back(CommandArg("endItem", "int", "End Item Index", true).setRange(0, 100).setDefaultValue("0"));
+        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
     }
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
