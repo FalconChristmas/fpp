@@ -29,7 +29,7 @@ Add any other context about the problem here.
 **Additional Attachments**
 Please include the log files. To create the file:
 1. Open the FPP UI
-2. Open the FOn the File Manager (Content Setup->File Manager), 
+2. Open the the File Manager (Content Setup->File Manager), 
 3. Select the "Logs" tab
 4. Click "zip" button.
 5. Attach to this ticket.
