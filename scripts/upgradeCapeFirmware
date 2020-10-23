@@ -12,22 +12,28 @@ if (!file_exists($eepromFile)) {
 }
 
 //backup the old firmware
-//copy($eepromFile, "/home/fpp/media/upload/cape-firmware-old.bin");
+$newFirmwareFile = $argv[1];
+$force = false;
+if ($newFirmwareFile == 'force') {
+    $force = true;
+    $newFirmwareFile = $argv[2];
+}
 
-$newdata = fopen($argv[1], 'rb');
+copy($eepromFile, "/home/fpp/media/upload/cape-firmware-old.bin");
+//copy($newFirmwareFile, "/home/fpp/media/upload/cape-firmware-new.bin");
+
 $olddata = fopen($eepromFile, 'r+b');
 set_file_buffer($olddata, 32768);
-
 $oldheader = trim(fread($olddata, 6)); // should be FPP02 + null
-
 if ($oldheader != "FPP02") {
     //first 4 bytes are 0xFF, assume blank eeprom and just write what we have
     echo "Blank EEPROM, overwriting";
     fclose($olddata);
-    fclose($newdata);
-    copy($argv[1], $eepromFile);
+    copy($newFirmwareFile, $eepromFile);
     return 0;
 }
+
+$newdata = fopen($newFirmwareFile, 'rb');
 
 $oldcape = trim(fread($olddata, 26)); // cape name + nulls
 $oldcapev = trim(fread($olddata, 10)); // cape version + nulls
@@ -36,19 +42,30 @@ $newheader = trim(fread($newdata, 6)); // should be FPP02 + null
 $newcape = trim(fread($newdata, 26)); // cape name + nulls
 $newcapev = trim(fread($newdata, 10)); // cape version + nulls
 
+$missmatch = false;
 if ($oldcape != $newcape || $oldcapev != $newcapev) {
-    echo "Capes does not match new firmware.\n";
-    echo "Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
-    echo "Firmware: " . $newcape . "   Version: " . $newcapev . "\n";
-    return 1;
+    if ($force) {
+        echo "Overwriting cape firmware.\n";
+        echo "Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
+        echo "Firmware: " . $newcape . "   Version: " . $newcapev . "\n";
+        $missmatch = true;
+        fseek($olddata, 6, SEEK_SET);
+        fwrite($olddata, pack("a26", $newcape));
+        fwrite($olddata, pack("a10", $newcapev));
+        fflush($olddata);
+    } else {
+        echo "Cape does not match new firmware.\n";
+        echo "Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
+        echo "Firmware: " . $newcape . "   Version: " . $newcapev . "\n";
+        return 1;
+    }
+} else {
+    echo "Found Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
 }
-
-echo "Found Cape: " . $oldcape . "   Version: " . $oldcapev . "\n";
 
 //skip over the serial number
 $newcapesn = trim(fread($newdata, 16)); // cape serial# + nulls
 $oldcapesn = trim(fread($olddata, 16)); // cape serial# + nulls
-
 
 $flen = fread($olddata, 6); //length of the section
 $flen = intval($flen);
@@ -94,3 +111,5 @@ fclose($newdata);
 fclose($olddata);
 
 echo "Upgrade Complete\n";
+
+system("/opt/fpp/src/fppcapedetect");

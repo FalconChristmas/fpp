@@ -124,6 +124,26 @@ function SetUIPassword($value)
     shell_exec("sudo htpasswd -bd " . $settings['mediaDirectory'] . "/config/.htpasswd fpp " . $value);
 }
 
+function SetForceHDMI($value)
+{
+    if ($value == '1') {
+        exec( $SUDO . " sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
+        exec( $SUDO . " sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
+    } else {
+        exec( $SUDO . " sed -i -e 's/^hdmi_force_hotplug/#hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
+    }
+}
+
+SetWifiDrivers($value) {
+    if ($value == "Kernel") {
+        exec( $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+        exec( $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
+    } else {
+        exec( $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+        exec( $SUDO . " rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 function ApplySetting($setting, $value) {
     switch ($setting) {
@@ -135,6 +155,8 @@ function ApplySetting($setting, $value) {
         case 'password':        SetUIPassword($value);        break;
         case 'piRTC':           SetRTC($value);               break;
         case 'TimeZone':        SetTimeZone($value);          break;
+        case 'ForceHDMI':       SetForceHDMI($value);         break;
+        case 'wifiDrivers':     SetWifiDrivers($value);       break;
     }
 }
 

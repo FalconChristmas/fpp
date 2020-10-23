@@ -171,7 +171,7 @@ function HandleTableRowMouseClick(event, row) {
     }
 }
 
-function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null) {
+function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null, postProcessData = true) {
     var last_response_len = false;
     var outputArea = document.getElementById(id);
     var reAddLF = false;
@@ -180,6 +180,7 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
         type: reqType,
         contentType: postContentType,
         data: postData,
+        processData: postProcessData,
         xhrFields: {
             onprogress: function(e)
             {

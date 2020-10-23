@@ -204,14 +204,6 @@ function SetSetting()
         unset($output);
 	} else if ($setting == "AudioOutput") {
 		SetAudioOutput($value);
-    } else if ($setting == "wifiDrivers") {
-        if ($value == "Kernel") {
-            exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
-            exec(   $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
-        } else {
-            exec(   $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
-            exec(   $SUDO . " rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
-        }
     } else if ($setting == "EnableTethering") {
         $ssid = ReadSettingFromFile("TetherSSID");
         $psk = ReadSettingFromFile("TetherPSK");
@@ -223,19 +215,6 @@ function SetSetting()
             $psk = "Christmas";
             WriteSettingToFile("TetherPSK", $psk);
         }
-    } else if ($setting == "ForceHDMI") {
-		if ($value)
-		{
-			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
-				$SUDO . " sed -i '\$ahdmi_force_hotplug=1' /boot/config.txt",
-				$output, $return_val);
-		}
-		else
-		{
-			exec( $SUDO . " sed -i '/hdmi_force_hotplug/d' /boot/config.txt; " .
-				$SUDO . " sed -i '\$a#hdmi_force_hotplug=1' /boot/config.txt",
-				$output, $return_val);
-		}
     } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
         SetBBBLeds();
 	} else if ($setting == "scheduling") {

@@ -141,6 +141,36 @@ function UpgradeFPP() {
 
     StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
 }
+function UpgradeFirmwareDone() {
+    var txt = $('#upgradeText').val();
+    if (txt.includes("Cape does not match new firmware")) {
+        var arrayOfLines = txt.match(/[^\r\n]+/g);
+        var msg = "Are you sure you want to replace the firmware for cape:\n" + arrayOfLines[1] + "\n\nWith the firmware for: \n" + arrayOfLines[2] + "\n";
+        if (confirm(msg)) {
+            let formData = new FormData();
+            let firmware = document.getElementById("firmware").files[0];
+            formData.append("firmware", firmware);
+
+            $('#upgradeText').html('');
+            StreamURL('upgradeCapeFirmware.php?force=true', 'upgradeText', 'UpgradeDone', 'UpgradeDone', 'POST', formData, false, false);
+        }
+    }
+    $('#closeDialogButton').show();
+}
+function UpgradeFirmware() {
+    let firmware = document.getElementById("firmware").files[0];
+    if (firmware == "" || firmware == null) {
+        return;
+    }
+    let formData = new FormData();
+    formData.append("firmware", firmware);
+
+    $('#closeDialogButton').hide();
+    $('#upgradePopup').dialog({ height: 600, width: 900, title: "Upgrade Cape Firmware", dialogClass: 'no-close' });
+    $('#upgradePopup').dialog( "moveToTop" );
+    $('#upgradeText').html('');
+    StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
+}
 
 </script>
 <title><? echo $pageTitle; ?></title>
@@ -397,9 +427,7 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
     <br>
     <fieldset style="padding: 10px; border: 2px solid #000;">
     <legend>Cape/Hat Firmware Upgrade</legend>
-        <form action="upgradeCapeFirmware.php" method="post"  enctype="multipart/form-data">
-        Firmware file: <input type="file" name="firmware" id="firmware"/>&nbsp;<input type="submit" name="submit" value="Submit"/>
-        </form>
+        Firmware file: <input type="file" name="firmware" id="firmware"/>&nbsp;<input type='button' value='Upgrade' onClick='UpgradeFirmware();'  id='UpdateFirmware'>
     </fieldset>
         <?
         }

@@ -1,40 +1,17 @@
-<!DOCTYPE html>
-<html>
 <?php
+    $wrapped = 0;
+    $skipJSsettings = 1;
+    require_once('common.php');
 
-$skipJSsettings = 1;
-require_once("common.php");
-
-DisableOutputBuffering();
-?>
-
-<head>
-<title>
-Upgrading Cape Firmware
-</title>
-<script type="text/javascript" src="js/jquery-latest.min.js"></script>
-<script type="text/javascript" src="js/jquery-ui.min.js"></script>
-<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
-<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
-<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
-</head>
-<body>
-<h2>Upgrading Cape Firmware</h2>
-<pre>
-<?php
+    
+    $force = "";
+    if (isset($_GET['force']) && $_GET['force'] == 'true') {
+        $force = "force ";
+    }
     $file = $_FILES["firmware"]["tmp_name"];
     
-    system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $file);
-
-    copy($file, "/tmp/doo.bin");
-    unlink($file);
+    system("sudo /opt/fpp/scripts/upgradeCapeFirmware " . $force . $file, $retval);
     WriteSettingToFile('rebootFlag', 1);
+    unlink($file);
 ?>
 
-==========================================================================
-</pre>
-</body>
-<a href='index.php'>Go to FPP Main Status Page</a><br>
-<a href='about.php'>Go back to FPP About page</a><br>
-
-</html>
