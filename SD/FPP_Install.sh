@@ -52,10 +52,10 @@
 #       hardware which does not support Buster may have issues.
 #
 #############################################################################
-SCRIPTVER="4.2"
+SCRIPTVER="4.4"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="4.2"
-FPPCFGVER="61"
+FPPIMAGEVER="4.4"
+FPPCFGVER="63"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
 FPPUSER=fpp
@@ -622,7 +622,9 @@ EOF
             echo "gpu_mem=64" >> /boot/config.txt
             echo "[pi2]" >> /boot/config.txt
             echo "gpu_mem=64" >> /boot/config.txt
-            echo >> /boot/config.txt
+            echo "" >> /boot/config.txt
+            echo "[all]" >> /boot/config.txt
+            echo "" >> /boot/config.txt
 
             echo "FPP - Freeing up more space by removing unnecessary packages"
             apt-get -y purge wolfram-engine sonic-pi minecraft-pi
