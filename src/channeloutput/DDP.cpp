@@ -202,9 +202,6 @@ DDPOutputData::~DDPOutputData() {
 void DDPOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) {
     if (valid && active) {
         int start = startChannel - 1;
-        if (type == 5) {
-            start = 0;
-        }
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
         
