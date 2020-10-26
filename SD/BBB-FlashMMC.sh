@@ -218,6 +218,8 @@ rm -rf /tmp/rootfs/etc/ssh/*key*
 rm -rf /tmp/rootfs/var/lib/connman/eth*
 find /tmp/rootfs/var/log/  -type f -delete
 rm -rf /tmp/rootfs/home/fpp/media/logs/*
+rm -f /tmp/rootfs/root/.bash_history
+rm -f /tmp/rootfs/home/fpp/.bash_history
 
 echo "---------------------------------------"
 echo "Unmounting filesystems"

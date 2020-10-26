@@ -31,7 +31,7 @@ EOF
 echo "Enabling startup of chromium"
 cat >> /home/fpp/.bashrc << EOF
 
-[[ -z \$DISPLAY && \$XDG_VTNR -eq 1 ]] && startx -- -nocursor
+[[ -z \$DISPLAY && \$XDG_VTNR -eq 1 ]] && startx -- 
 
 EOF
 chown fpp:fpp /home/fpp/.bashrc
