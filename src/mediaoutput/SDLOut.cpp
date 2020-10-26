@@ -721,7 +721,7 @@ bool SDLOutput::IsOverlayingVideo() {
 }
 bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
     SDLInternalData *data = sdlManager.data;
-    if (data && !data->stopped && data->curVideoFrame && data->videoOverlayModel) {
+    if (data && !data->stopped && data->video_stream_idx != -1 && data->curVideoFrame && data->videoOverlayModel) {
         while (data->curVideoFrame->next
                && data->curVideoFrame->next->timestamp <= msTimestamp) {
             data->curVideoFrame = data->curVideoFrame->next;
@@ -734,6 +734,10 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
             
             //printf("v:  %d  %d      %d        %d\n", msTimestamp, vf->timestamp, t2, sdlManager.data->videoFrameCount);
             data->videoOverlayModel->setData(vf->data);
+            
+            if (data->videoOverlayModel->getState() ==  PixelOverlayState::Disabled) {
+                data->videoOverlayModel->setState(PixelOverlayState::Enabled);
+            }
         }
     }
     return false;
@@ -909,11 +913,6 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
         }
 
         data->totalVideoLen = lengthMS;
-
-        if (data->videoOverlayModel) {
-            data->videoOverlayModel->setState(PixelOverlayState::Enabled);
-        }
-        
         data->scaledFrame = av_frame_alloc();
     
     
@@ -974,7 +973,9 @@ int SDLOutput::Start(int msTime)
             Stop();
             return 0;
         }
-        
+        if (data->videoOverlayModel) {
+            StartChannelOutputThread();
+        }
         m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_PLAYING;
         return 1;
     }
@@ -1090,6 +1091,12 @@ int  SDLOutput::Close(void)
     LogDebug(VB_MEDIAOUT, "SDLOutput::Close()\n");
     Stop();
     sdlManager.Close();
+    
+    if (data && data->videoOverlayModel) {
+        data->videoOverlayModel->clearOverlayBuffer();
+        data->videoOverlayModel->flushOverlayBuffer();
+        data->videoOverlayModel = nullptr;
+    }
     return 0;
 }
 
@@ -1102,13 +1109,8 @@ int SDLOutput::Stop(void)
     sdlManager.Stop();
     if (data) {
         data->stopped++;
-        if (data->video_stream_idx >= 0) {
-            data->video_stream_idx = -1;
-            if (data->videoOverlayModel) {
-                data->videoOverlayModel->clearOverlayBuffer();
-                data->videoOverlayModel->flushOverlayBuffer();
-                data->videoOverlayModel->setState(PixelOverlayState::Disabled);
-            }
+        if (data->video_stream_idx >= 0 && data->videoOverlayModel) {
+            data->videoOverlayModel->setState(PixelOverlayState::Disabled);
         }
     }
 	m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;

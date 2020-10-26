@@ -43,6 +43,8 @@
 #include "Sequence.h"
 #include "settings.h"
 
+#include "mediaoutput/SDLOut.h"
+
 /* used by external sync code */
 float   RefreshRate = 20;
 int   DefaultLightDelay = 0;
@@ -98,6 +100,7 @@ void ForceChannelOutputNow(void) {
 static inline bool forceOutput() {
     return IsEffectRunning() ||
         PixelOverlayManager::INSTANCE.hasActiveOverlays() ||
+        SDLOutput::IsOverlayingVideo() ||
         ChannelTester::INSTANCE.Testing() ||
         getAlwaysTransmit() ||
         outputForced;
@@ -227,7 +230,6 @@ void *RunChannelOutputThread(void *data)
 		{
             // REMOTE mode keeps looping a few extra times before we blank
             onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
-
             int sleepTime = LightDelay - (processTime - startTime);
 			if ((channelOutputFrame <= 1) || (sleepTime <= 0) || (startTime > (lastStatTime + 1000000))) {
 				if (sleepTime < 0)
