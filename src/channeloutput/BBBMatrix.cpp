@@ -1023,9 +1023,9 @@ void BBBMatrix::PrepData(unsigned char *channelData)
     size_t fullRowLen = rowLen * m_colorDepth;
 
     uint32_t *gpioFrame = m_gpioFrame;
-    if (m_numFrames == 4) {
-       gpioFrame = (uint32_t*)m_frames[m_curFrame];
-    }
+    //if (m_numFrames == 4) {
+    //   gpioFrame = (uint32_t*)m_frames[m_curFrame];
+    //}
     
     //long long startTime = GetTime();
     memset(gpioFrame, 0, m_fullFrameLen);
@@ -1100,7 +1100,7 @@ void BBBMatrix::PrepData(unsigned char *channelData)
     }
     
     //long long dataTime = GetTime();
-    if (m_numFrames == 3) {
+    if (m_numFrames >= 3) {
         memcpy(m_frames[m_curFrame], m_gpioFrame, m_fullFrameLen);
     }
     /*
