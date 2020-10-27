@@ -36,7 +36,7 @@ class InterleaveHandler;
 // that the pru program expects to see
 typedef struct {
     // in the DDR shared with the PRU
-    uintptr_t address_dma;
+    volatile uintptr_t address_dma;
     
     // write 1 to start, 0xFF to abort. will be cleared when started
     volatile unsigned command;
@@ -96,7 +96,6 @@ class BBBMatrix : public ChannelOutputBase {
     int          m_height;
     int          m_rowSize;
     
-    bool         m_evenFrame;
     bool         m_outputByRow;
     bool         m_outputBlankData;
     std::vector<int> m_bitOrder;
@@ -122,5 +121,11 @@ class BBBMatrix : public ChannelOutputBase {
         } row[2];
     } m_pinInfo[8];
     
-    std::vector<std::string> m_usedPins;    
+    std::vector<std::string> m_usedPins;
+    
+    
+    uint8_t *m_frames[3];
+    int m_curFrame;
+    int m_numFrames;
+    int m_fullFrameLen;
 };

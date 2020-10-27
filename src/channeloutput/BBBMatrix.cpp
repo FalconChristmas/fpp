@@ -424,7 +424,9 @@ BBBMatrix::BBBMatrix(unsigned int startChannel, unsigned int channelCount)
     m_printStats(false),
     m_handler(nullptr),
     m_outputByRow(false),
-    m_outputBlankData(false)
+    m_outputBlankData(false),
+    m_curFrame(0),
+    m_numFrames(0)
 {
 	LogDebug(VB_CHANNELOUT, "BBBMatrix::BBBMatrix(%u, %u)\n",
 		startChannel, channelCount);
@@ -656,7 +658,7 @@ int BBBMatrix::Init(Json::Value config)
     }
     int gpioFrameLen = m_longestChain * m_panelWidth * maxBits * (m_panelHeight / 2) * 4;
     m_gpioFrame = new uint32_t[gpioFrameLen];
-    memset(m_gpioFrame, 0, gpioFrameLen);
+    memset(m_gpioFrame, 0, gpioFrameLen * 4);
 
     std::vector<std::string> compileArgs;
     
@@ -917,7 +919,26 @@ int BBBMatrix::Init(Json::Value config)
     
     //make sure the PRU starts outputting a blank frame to remove any random noise
     //from the panels
-    memcpy(m_pru->ddr, m_gpioFrame, gpioFrameLen);
+    m_fullFrameLen = gpioFrameLen * 4;
+    // round up to next page boundary
+    int alignedLen = m_fullFrameLen + 8192;
+    alignedLen -= (alignedLen & 0xFFF);
+    
+    m_frames[0] = (uint8_t*)m_pru->ddr;
+    uint8_t *maxPtr = m_frames[0];
+    maxPtr += m_pru->ddr_size;
+    m_frames[1] = m_frames[0] + alignedLen;
+    m_frames[2] = m_frames[1] + alignedLen;
+    uint8_t *next = m_frames[2] + alignedLen;
+    if (next < maxPtr) {
+        m_numFrames = 3;
+    } else if (m_frames[2] < maxPtr) {
+        m_numFrames = 2;
+    } else {
+        m_numFrames = 1;
+    }
+    m_curFrame = 0;
+    memset(m_pru->ddr, 0, m_pru->ddr_size);
     m_pruData->address_dma = m_pru->ddr_addr;
     //make sure memory is flushed before command is set to 1
     __asm__ __volatile__("":::"memory");
@@ -997,10 +1018,15 @@ void BBBMatrix::PrepData(unsigned char *channelData)
     size_t rowLen = m_panelWidth * m_longestChain * m_panelHeight / (m_panelScan * 2) * 4; //4 GPIO's
     //number of uint32_t per full row (all bits)
     size_t fullRowLen = rowLen * m_colorDepth;
-    size_t fullLen = sizeof(uint32_t) * rowLen * m_colorDepth * m_panelScan;
 
     uint32_t *gpioFrame = m_gpioFrame;
-    memset(gpioFrame, 0, fullLen);
+    if (m_numFrames == 3) {
+        gpioFrame = (uint32_t*)m_frames[m_curFrame];
+    }
+    
+    //long long startTime = GetTime();
+    memset(gpioFrame, 0, m_fullFrameLen);
+    //long long memsetTime = GetTime();
 
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
@@ -1069,31 +1095,38 @@ void BBBMatrix::PrepData(unsigned char *channelData)
             }
         }
     }
+    /*
+    long long dataTime = GetTime();
+    if (m_numFrames == 3) {
+        memcpy(m_frames[m_curFrame], m_gpioFrame, m_fullFrameLen);
+    }
+    long long endTime = GetTime();
+    if ((endTime - startTime) > 5000) {
+        printf("Memset: %d     Data: %d    cpy: %d   Total: %d\n", (int)(memsetTime- startTime), (int)(dataTime - memsetTime), (int)(endTime -dataTime), (int)(endTime -startTime));
+    }
+    */
 }
 int BBBMatrix::SendData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
     //long long startTime = GetTime();
-
-    size_t rowLen = m_panelWidth * m_longestChain * m_panelHeight / (m_panelScan * 2) * 4; //4 GPIO's
-    size_t len = sizeof(uint32_t) * rowLen * m_colorDepth * m_panelScan;
-
-    uint8_t *ptr;
-    if (len < (m_pru->ddr_size / 2)) {
-        //we can flip frames
-        ptr = m_pru->ddr + (m_evenFrame ? (m_pru->ddr_size / 2) : 0);
-        memcpy(ptr, m_gpioFrame, len);
-        m_pruData->address_dma = m_pru->ddr_addr + (m_evenFrame ? (m_pru->ddr_size / 2) : 0);
-        m_evenFrame = !m_evenFrame;
-    } else {
-        memcpy(m_pru->ddr, m_gpioFrame, len);
-        ptr = m_pru->ddr;
-        m_pruData->address_dma = m_pru->ddr_addr;
+    uint8_t *addr = (uint8_t*)m_pru->ddr_addr;
+    addr += (m_frames[m_curFrame] - m_frames[0]);
+    uint8_t *ptr = m_frames[m_curFrame];
+    if (m_numFrames != 3) {
+        // if we have 3 blocks, we can do the copy in prepdata
+        memcpy(ptr, m_gpioFrame, m_fullFrameLen);
     }
-   // long long cpyTime = GetTime();
+    //long long cpyTime = GetTime();
+    m_curFrame++;
+    if (m_curFrame == m_numFrames) {
+        m_curFrame = 0;
+    }
 
     //make sure memory is flushed before command is set to 1
-    msync(ptr, len, MS_SYNC);
+    msync(ptr, m_fullFrameLen, MS_SYNC);
+    m_pruData->address_dma = (uintptr_t)addr;
+
     __asm__ __volatile__("":::"memory");
     //long long flshTime = GetTime();
     m_pruData->command = 1;
@@ -1114,11 +1147,10 @@ int BBBMatrix::SendData(unsigned char *channelData)
     */
     /*
     long long endTime = GetTime();
-    if ((endTime - startTime) > 5000) {
+    if ((endTime - startTime) > 100) {
         printf("cpy: %d    flush: %d    cmd: %d    Total:  %d\n", (int)(cpyTime - startTime),  (int)(flshTime - cpyTime), (int)(endTime - flshTime), (int)(endTime - startTime));
     }
     */
-    
     return m_channelCount;
 }
 
