@@ -929,8 +929,11 @@ int BBBMatrix::Init(Json::Value config)
     maxPtr += m_pru->ddr_size;
     m_frames[1] = m_frames[0] + alignedLen;
     m_frames[2] = m_frames[1] + alignedLen;
-    uint8_t *next = m_frames[2] + alignedLen;
+    m_frames[3] = m_frames[2] + alignedLen;
+    uint8_t *next = m_frames[3] + alignedLen;
     if (next < maxPtr) {
+        m_numFrames = 4;
+    } else if (m_frames[3] < maxPtr) {
         m_numFrames = 3;
     } else if (m_frames[2] < maxPtr) {
         m_numFrames = 2;
@@ -1020,8 +1023,8 @@ void BBBMatrix::PrepData(unsigned char *channelData)
     size_t fullRowLen = rowLen * m_colorDepth;
 
     uint32_t *gpioFrame = m_gpioFrame;
-    if (m_numFrames == 3) {
-        gpioFrame = (uint32_t*)m_frames[m_curFrame];
+    if (m_numFrames == 4) {
+       gpioFrame = (uint32_t*)m_frames[m_curFrame];
     }
     
     //long long startTime = GetTime();
@@ -1095,11 +1098,12 @@ void BBBMatrix::PrepData(unsigned char *channelData)
             }
         }
     }
-    /*
-    long long dataTime = GetTime();
+    
+    //long long dataTime = GetTime();
     if (m_numFrames == 3) {
         memcpy(m_frames[m_curFrame], m_gpioFrame, m_fullFrameLen);
     }
+    /*
     long long endTime = GetTime();
     if ((endTime - startTime) > 5000) {
         printf("Memset: %d     Data: %d    cpy: %d   Total: %d\n", (int)(memsetTime- startTime), (int)(dataTime - memsetTime), (int)(endTime -dataTime), (int)(endTime -startTime));
@@ -1113,8 +1117,8 @@ int BBBMatrix::SendData(unsigned char *channelData)
     uint8_t *addr = (uint8_t*)m_pru->ddr_addr;
     addr += (m_frames[m_curFrame] - m_frames[0]);
     uint8_t *ptr = m_frames[m_curFrame];
-    if (m_numFrames != 3) {
-        // if we have 3 blocks, we can do the copy in prepdata
+    if (m_numFrames < 3) {
+        // if we have 3 or moore blocks, we can do the copy in prepdata
         memcpy(ptr, m_gpioFrame, m_fullFrameLen);
     }
     //long long cpyTime = GetTime();
