@@ -124,7 +124,7 @@ class BBBMatrix : public ChannelOutputBase {
     std::vector<std::string> m_usedPins;
     
     
-    uint8_t *m_frames[4];
+    uint8_t *m_frames[8];
     int m_curFrame;
     int m_numFrames;
     int m_fullFrameLen;
