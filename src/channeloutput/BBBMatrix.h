@@ -110,17 +110,17 @@ class BBBMatrix : public ChannelOutputBase {
     
     class GPIOPinInfo {
     public:
-        class {
+        class Pins {
         public:
-            uint8_t r_gpio = 0;
             uint32_t r_pin = 0;
-            uint8_t g_gpio = 0;
             uint32_t g_pin = 0;
-            uint8_t b_gpio = 0;
             uint32_t b_pin = 0;
+
+            uint8_t r_gpio = 0;
+            uint8_t g_gpio = 0;
+            uint8_t b_gpio = 0;
         } row[2];
     } m_pinInfo[8];
     
-    std::vector<std::string> m_usedPins;
-    
+    std::vector<std::string> m_usedPins;    
 };

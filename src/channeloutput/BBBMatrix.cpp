@@ -19,6 +19,7 @@
 
 #include "fpp-pch.h"
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include "BBBMatrix.h"
 
 #include "util/BBBUtils.h"
@@ -980,12 +981,11 @@ void BBBMatrix::PrepData(unsigned char *channelData)
 {
     m_matrix->OverlaySubMatrices(channelData);
     
-    fcount++;
-    
-    if (fcount == 20) {
-        //every 20 frames or so, save stats
-        fcount = 0;
-        if (m_printStats) {
+    if (m_printStats) {
+        fcount++;
+        if (fcount == 20) {
+            //every 20 frames or so, save stats
+            fcount = 0;
             printStats();
         }
     }
@@ -997,15 +997,20 @@ void BBBMatrix::PrepData(unsigned char *channelData)
     size_t rowLen = m_panelWidth * m_longestChain * m_panelHeight / (m_panelScan * 2) * 4; //4 GPIO's
     //number of uint32_t per full row (all bits)
     size_t fullRowLen = rowLen * m_colorDepth;
-    memset(m_gpioFrame, 0, sizeof(uint32_t) * fullRowLen * m_panelScan);
+    size_t fullLen = sizeof(uint32_t) * rowLen * m_colorDepth * m_panelScan;
+
+    uint32_t *gpioFrame = m_gpioFrame;
+    memset(gpioFrame, 0, fullLen);
 
     for (int output = 0; output < m_outputs; output++) {
         int panelsOnOutput = m_panelMatrix->m_outputPanels[output].size();
+        const GPIOPinInfo::Pins &pinInfo0 = m_pinInfo[output].row[0];
+        const GPIOPinInfo::Pins &pinInfo1 = m_pinInfo[output].row[1];
         
         for (int i = 0; i < panelsOnOutput; i++) {
             int panel = m_panelMatrix->m_outputPanels[output][i];
             int chain = m_panelMatrix->m_panels[panel].chain;
-            
+
             for (int y = 0; y < (m_panelHeight / 2); y++) {
                 int yw1 = y * m_panelWidth * 3;
                 int yw2 = (y + (m_panelHeight / 2)) * m_panelWidth * 3;
@@ -1037,22 +1042,22 @@ void BBBMatrix::PrepData(unsigned char *channelData)
 
                         uint16_t mask = 1 << bit;
                         if (r1 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].r_gpio] |= m_pinInfo[output].row[0].r_pin;
+                            gpioFrame[offset + xOff + pinInfo0.r_gpio] |= pinInfo0.r_pin;
                         }
                         if (g1 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].g_gpio] |= m_pinInfo[output].row[0].g_pin;
+                            gpioFrame[offset + xOff + pinInfo0.g_gpio] |= pinInfo0.g_pin;
                         }
                         if (b1 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[0].b_gpio] |= m_pinInfo[output].row[0].b_pin;
+                            gpioFrame[offset + xOff + pinInfo0.b_gpio] |= pinInfo0.b_pin;
                         }
                         if (r2 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].r_gpio] |= m_pinInfo[output].row[1].r_pin;
+                            gpioFrame[offset + xOff + pinInfo1.r_gpio] |= pinInfo1.r_pin;
                         }
                         if (g2 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].g_gpio] |= m_pinInfo[output].row[1].g_pin;
+                            gpioFrame[offset + xOff + pinInfo1.g_gpio] |= pinInfo1.g_pin;
                         }
                         if (b2 & mask) {
-                            m_gpioFrame[offset + xOff + m_pinInfo[output].row[1].b_gpio] |= m_pinInfo[output].row[1].b_pin;
+                            gpioFrame[offset + xOff + pinInfo1.b_gpio] |= pinInfo1.b_pin;
                         }
                         if (m_outputByRow) {
                             xOff += rowLen;
@@ -1068,22 +1073,29 @@ void BBBMatrix::PrepData(unsigned char *channelData)
 int BBBMatrix::SendData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
-    
+    //long long startTime = GetTime();
+
     size_t rowLen = m_panelWidth * m_longestChain * m_panelHeight / (m_panelScan * 2) * 4; //4 GPIO's
     size_t len = sizeof(uint32_t) * rowLen * m_colorDepth * m_panelScan;
-    
+
+    uint8_t *ptr;
     if (len < (m_pru->ddr_size / 2)) {
         //we can flip frames
-        memcpy(m_pru->ddr + (m_evenFrame ? (m_pru->ddr_size / 2) : 0), m_gpioFrame, len);
+        ptr = m_pru->ddr + (m_evenFrame ? (m_pru->ddr_size / 2) : 0);
+        memcpy(ptr, m_gpioFrame, len);
         m_pruData->address_dma = m_pru->ddr_addr + (m_evenFrame ? (m_pru->ddr_size / 2) : 0);
         m_evenFrame = !m_evenFrame;
     } else {
         memcpy(m_pru->ddr, m_gpioFrame, len);
+        ptr = m_pru->ddr;
         m_pruData->address_dma = m_pru->ddr_addr;
     }
-    
+   // long long cpyTime = GetTime();
+
     //make sure memory is flushed before command is set to 1
+    msync(ptr, len, MS_SYNC);
     __asm__ __volatile__("":::"memory");
+    //long long flshTime = GetTime();
     m_pruData->command = 1;
     
     /*
@@ -1100,6 +1112,13 @@ int BBBMatrix::SendData(unsigned char *channelData)
         printf("     %d   %X   %X    %X %X %X\n", t[0], t[1], t[2], t[3], t[4], t[5]);
     }
     */
+    /*
+    long long endTime = GetTime();
+    if ((endTime - startTime) > 5000) {
+        printf("cpy: %d    flush: %d    cmd: %d    Total:  %d\n", (int)(cpyTime - startTime),  (int)(flshTime - cpyTime), (int)(endTime - flshTime), (int)(endTime - startTime));
+    }
+    */
+    
     return m_channelCount;
 }
 

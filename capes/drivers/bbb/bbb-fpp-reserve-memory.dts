@@ -18,7 +18,6 @@
 				ranges;
 				fpp_reserved: fpp_reserved@8f000000 {
 					reg = <0x8f000000 0x00400000>;
-					no-map;
 					status = "okay"; 
 				};      
 			};
