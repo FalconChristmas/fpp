@@ -452,7 +452,7 @@ function InitializeLEDPanels()
 			(channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9'))
 		{
 			LEDPanelOutputs = 12;
-			LEDPanelPanelsPerOutput = 16;
+			LEDPanelPanelsPerOutput = 24;
 		}
     }
 
