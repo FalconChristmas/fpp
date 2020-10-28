@@ -137,20 +137,20 @@ function SetUIPassword($value)
 function SetForceHDMI($value)
 {
     if ($value == '1') {
-        exec( $SUDO . " sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
-        exec( $SUDO . " sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
     } else {
-        exec( $SUDO . " sed -i -e 's/^hdmi_force_hotplug/#hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_force_hotplug/#hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
     }
 }
 
 function SetWifiDrivers($value) {
     if ($value == "Kernel") {
-        exec( $SUDO . " rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
-        exec( $SUDO . " rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
+        exec("sudo rm -f /etc/modprobe.d/blacklist-native-wifi.conf", $output, $return_val );
+        exec("sudo rm -f /etc/modprobe.d/rtl8723bu-blacklist.conf", $output, $return_val );
     } else {
-        exec( $SUDO . " cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
-        exec( $SUDO . " rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
+        exec("sudo cp /opt/fpp/etc/blacklist-native-wifi.conf /etc/modprobe.d", $output, $return_val );
+        exec("sudo rm -f /etc/modprobe.d/blacklist-8192cu.conf", $output, $return_val );
     }
 }
 
