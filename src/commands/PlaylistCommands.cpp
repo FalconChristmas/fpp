@@ -5,7 +5,7 @@
 
 
 std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std::string> &args) {
-    playlist->StopNow();
+    playlist->StopNow(1);
     return std::make_unique<Command::Result>("Stopped");
 }
 std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::vector<std::string> &args) {
@@ -56,7 +56,7 @@ std::unique_ptr<Command::Result> TogglePlaylistCommand::run(const std::vector<st
     }
     if (playlist->IsPlaying() && playlist->GetPlaylistName() == args[0]) {
         if (stopType == "Now") {
-            playlist->StopNow();
+            playlist->StopNow(1);
         } else if (stopType == "After Loop") {
             playlist->StopGracefully(true, true);
         } else {
