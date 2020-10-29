@@ -1632,7 +1632,7 @@ function TailFile() {
 }
 
 /*
- * Tail the last $files of of the file (or read it all if -1)
+ * Tail the last $lines of of the file (or read it all if -1)
  */
 function GetFileImpl($lines)
 {
