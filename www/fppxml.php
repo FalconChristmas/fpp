@@ -13,6 +13,7 @@ error_reporting(E_ALL);
 // than XML need to return their own Content-type header.
 $nonXML = Array(
 	"getFile" => 1,
+	"tailFile" => 1,
 	"getGitOriginLog" => 1,
 	"gitStatus" => 1,
 	"viewReleaseNotes" => 1,
@@ -73,6 +74,7 @@ $command_array = Array(
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
 	"getFile" => 'GetFile',
+	"tailFile" => 'TailFile',
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setupExtGPIO" => 'SetupExtGPIO',
@@ -1617,7 +1619,22 @@ function universe_cmp($a, $b)
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
 }
 
-function GetFile()
+function GetFile(){
+	GetFileImpl(-1);
+}
+
+function TailFile() {
+	$lines = 100;
+	if (isset($_GET['lines'])) {
+		$lines = $_GET['lines'];
+	}
+	GetFileImpl($lines);
+}
+
+/*
+ * Tail the last $files of of the file (or read it all if -1)
+ */
+function GetFileImpl($lines)
 {
 	$filename = $_GET['filename'];
 	check($filename, "filename", __FUNCTION__);
@@ -1680,7 +1697,11 @@ function GetFile()
 
 	ob_clean();
 	flush();
-	readfile($dir . '/' . $filename);
+	if ($lines == -1) {
+		readfile($dir . '/' . $filename);
+	} else {
+		passthru('tail -' . $lines. ' ' . $dir . '/' . $filename);
+	}
 }
 
 function GetZip()

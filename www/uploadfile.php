@@ -91,6 +91,12 @@ function ButtonHandler(table, button) {
         } else {
             DialogError('Error', 'Error, unable to view multiple files at the same time.');
         }
+    } else if (button == 'tailFile') {
+        if (selectedCount == 1) {
+            TailFile(table, filename, 50);
+        } else {
+            DialogError('Error', 'Error, unable to view multiple files at the same time.');
+        }
     } else if (button == 'viewImage') {
         if (selectedCount == 1) {
             ViewImage(filename);
@@ -413,6 +419,7 @@ h2 {
             <input onclick="ClearSelections('Logs');" class="buttons" type="button" value="Clear" style="float: left;" />
             <input onclick="DownloadZip('Logs');" class="buttons" type="button" value="Zip" />
             <input onclick="ButtonHandler('Logs', 'viewFile');" class="disableButtons singleLogsButton" type="button"  value="View" />
+            <input onclick="ButtonHandler('Logs', 'tailFile');" class="disableButtons singleLogsButton" type="button"  value="Tail" />
             <input onclick="ButtonHandler('Logs', 'download');" class="disableButtons singleLogsButton multiLogsButton" type="button"  value="Download" />
             <input onclick="ButtonHandler('Logs', 'delete');" class="disableButtons singleLogsButton multiLogsButton" type="button"  value="Delete" />
           </div>

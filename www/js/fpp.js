@@ -3647,10 +3647,18 @@ function ViewImage(file)
 	window.open(url, '_blank');
 }
 
-function ViewFile(dir, file)
+function ViewFile(dir, file){
+	var url = "fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
+	ViewFileImpl(url, file);
+}
+function TailFile(dir, file, lines) {
+	var url = "fppxml.php?command=tailFile&dir=" + dir + "&filename=" + file + "&lines=" + lines;
+	ViewFileImpl(url, file);
+}
+function ViewFileImpl(url, file)
 {
 	$('#fileText').html("Loading...");
-	$.get("fppxml.php?command=getFile&dir=" + dir + "&filename=" + file, function(text) {
+	$.get(url, function(text) {
 		var ext = file.split('.').pop();
 		if (ext != "html")
 			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
