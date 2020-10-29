@@ -543,8 +543,17 @@ a:visited {
                     </tbody>
                 </table>
             </div>
+	</div>
+	<div>
+           <font size = -1>
+	      <b>Notes</b>:
+              <ul style="margin-top:0px;">
+		 <li>If times overlap, playlist higher in the last have priority.</li>
+		 <li>Drag/Drop to change order</li>
+	         <li>CTRL+Click to select multiple items</li>
+              </ul>
+           </font>
         </div>
-        <font size=-1><b>CTRL+Click to select multiple items</b></font>
     </fieldset>
   </div>
   <?php	include 'common/footer.inc'; ?>
