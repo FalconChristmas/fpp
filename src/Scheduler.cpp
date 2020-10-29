@@ -696,7 +696,6 @@ void Scheduler::PlayListStopCheck(void)
                 }
             }
         }
-      
         int displayDiff = 0;
 
         // Convoluted code to print the countdown more frequently as we get closer
@@ -744,11 +743,10 @@ void Scheduler::PlayListStopCheck(void)
                 default:
                     while (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
                         playlist->StopNow(forceStop);
+                        LoadCurrentScheduleInfo(true);
                     }
                     break;
             }
-
-            LoadCurrentScheduleInfo(true);
         }
     }
 }
