@@ -548,7 +548,7 @@ a:visited {
            <font size = -1>
 	      <b>Notes</b>:
               <ul style="margin-top:0px;">
-		 <li>If times overlap, playlist higher in the last have priority.</li>
+		 <li>If times overlap, playlist higher in the list have priority.</li>
 		 <li>Drag/Drop to change order</li>
 	         <li>CTRL+Click to select multiple items</li>
               </ul>
