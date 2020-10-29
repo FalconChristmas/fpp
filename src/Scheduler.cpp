@@ -82,8 +82,7 @@ Scheduler::Scheduler()
 	m_lastProcTime(0),
 	m_lastLoadTime(0),
 	m_lastCalculateTime(0),
-	m_runThread(0),
-	m_threadIsRunning(0)
+    m_forcedNextPlaylist(SCHEDULE_INDEX_INVALID)
 {
 	ConvertScheduleFile();
 
@@ -145,21 +144,27 @@ void Scheduler::ScheduleProc(void)
 
 void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 {
-  if (m_loadSchedule)
-    LoadScheduleFromFile();
+    if (m_loadSchedule) {
+        LoadScheduleFromFile();
+    }
+    
+    int i,dayCount;
+    time_t currTime = time(NULL);
+    struct tm now;
 
-  int i,dayCount;
-  time_t currTime = time(NULL);
-  struct tm now;
+    localtime_r(&currTime, &now);
 
-  localtime_r(&currTime, &now);
-
-  int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
-  for( i = 0; i < m_Schedule.size(); i++) {
+    int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
+    for( i = 0; i < m_Schedule.size(); i++) {
+        bool ir = ignoreRepeat;
+        if (m_forcedNextPlaylist == i) {
+            ir = true;
+        }
+        
 		// only check schedule entries that are enabled and set to repeat.
 		// Do not start non repeatable entries
 		if ((m_Schedule[i].enabled) &&
-			(m_Schedule[i].repeat || ignoreRepeat) &&
+			(m_Schedule[i].repeat || ir) &&
 			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
 		{
             int j = 0;
@@ -181,6 +186,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 					m_currentSchedulePlaylist.entry = m_Schedule[i];
 					m_currentSchedulePlaylist.SetTimes(currTime, nowWeeklySeconds);
 
+                    m_forcedNextPlaylist = SCHEDULE_INDEX_INVALID;
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
 						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
 
@@ -195,14 +201,14 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
                 j++;
 			}
 		}
-  }
+    }
 
-  if (m_loadSchedule)
-    LoadScheduleFromFile();
+    if (m_loadSchedule)
+        LoadScheduleFromFile();
 
-  SchedulePrint();
-  LoadCurrentScheduleInfo();
-  LoadNextScheduleInfo();
+    SchedulePrint();
+    LoadCurrentScheduleInfo();
+    LoadNextScheduleInfo();
 }
 
 std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
@@ -632,6 +638,7 @@ void Scheduler::PlayListLoadCheck(void)
 
       m_currentSchedulePlaylist.SetTimes(currTime, nowWeeklySeconds);
 
+      m_forcedNextPlaylist = SCHEDULE_INDEX_INVALID;
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
         0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
     }
@@ -680,6 +687,8 @@ void Scheduler::PlayListStopCheck(void)
             if (nowWeeklySeconds > m_nextSchedulePlaylist.startWeeklySeconds) {
                 stopPlaying = 1;
                 diff = 0;
+                m_forcedNextPlaylist = m_nextSchedulePlaylist.ScheduleEntryIndex;
+                // we are going to stop, but we need to make sure the "next" playlist actually will start
             } else {
                 int diff2 = m_nextSchedulePlaylist.startWeeklySeconds - nowWeeklySeconds;
                 if (diff2 < diff) {

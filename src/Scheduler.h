@@ -135,15 +135,12 @@ class Scheduler {
 	time_t        m_lastLoadTime;
 	time_t        m_lastCalculateTime;
 
-	pthread_t     m_threadID;
-	int           m_runThread;
-	int           m_threadIsRunning;
-
 	std::mutex                  m_scheduleLock;
 	std::vector<ScheduleEntry>  m_Schedule;
 
 	SchedulePlaylistDetails m_currentSchedulePlaylist;
 	SchedulePlaylistDetails m_nextSchedulePlaylist;
+    int                     m_forcedNextPlaylist;
 };
 
 extern Scheduler *scheduler;
