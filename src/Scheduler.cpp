@@ -258,6 +258,11 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
     struct tm now;
 
     localtime_r(&currTime, &now);
+    
+    int curPlayIdx = m_currentSchedulePlaylist.ScheduleEntryIndex;
+    if (curPlayIdx == SCHEDULE_INDEX_INVALID) {
+        curPlayIdx = 0xFFFF;
+    }
 
     int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
     for (i = 0; i < m_Schedule.size(); i++) {
@@ -265,8 +270,20 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
             (CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate))) {
             int j = 0;
             for (auto & startEnd : m_Schedule[i].startEndSeconds) {
-                difference = GetWeeklySecondDifference(nowWeeklySeconds, startEnd.first);
-                if((difference >= minDiff) && (difference < leastWeeklySecondDifferenceFromNow)) {
+                int start = startEnd.first;
+                int end = startEnd.second;
+                if (i > curPlayIdx) {
+                    //lower priority, adjust start time until after current playlist is done
+                    if (start < m_currentSchedulePlaylist.endWeeklySeconds) {
+                        if (end > m_currentSchedulePlaylist.endWeeklySeconds) {
+                            start = m_currentSchedulePlaylist.endWeeklySeconds;
+                        } else {
+                            continue;
+                        }
+                    }
+                }
+                difference = GetWeeklySecondDifference(nowWeeklySeconds, start);
+                if ((difference >= minDiff) && (difference < leastWeeklySecondDifferenceFromNow)) {
                     leastWeeklySecondDifferenceFromNow = difference;
                     nextEntryIndex = i;
                     *weeklySecondIndex = j;
@@ -314,6 +331,10 @@ void Scheduler::LoadNextScheduleInfo(void)
     if (m_nextSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID) {
         char t[64];
         char p[64];
+        
+        m_nextSchedulePlaylist.startWeeklySeconds = m_Schedule[m_nextSchedulePlaylist.ScheduleEntryIndex].startEndSeconds[m_nextSchedulePlaylist.weeklySecondIndex].first;
+        m_nextSchedulePlaylist.endWeeklySeconds = m_Schedule[m_nextSchedulePlaylist.ScheduleEntryIndex].startEndSeconds[m_nextSchedulePlaylist.weeklySecondIndex].second;
+        
         GetNextPlaylistText(p);
         GetNextScheduleStartText(t);
         LogDebug(VB_SCHEDULE, "Next Scheduled Playlist is index %d: '%s' for %s\n", m_nextSchedulePlaylist.ScheduleEntryIndex, p, t);
@@ -619,99 +640,108 @@ void Scheduler::PlayListLoadCheck(void)
 
 void Scheduler::PlayListStopCheck(void)
 {
-  time_t currTime = time(NULL);
-  struct tm now;
+    time_t currTime = time(NULL);
+    struct tm now;
   
-  localtime_r(&currTime, &now);
+    localtime_r(&currTime, &now);
 
-  int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
+    int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
 
-  if (m_nowWeeklySeconds2 != nowWeeklySeconds)
-  {
-    m_nowWeeklySeconds2 = nowWeeklySeconds;
+    if (m_nowWeeklySeconds2 != nowWeeklySeconds) {
+        m_nowWeeklySeconds2 = nowWeeklySeconds;
 
-    int diff = m_currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds;
+        int diff = m_currentSchedulePlaylist.endWeeklySeconds - nowWeeklySeconds;
 
-    // This check for 1 second ago is a hack rather than a more invasive
-    // patch to handle the race condition if we miss this check on the exact
-    // second the schedule should be ending.  The odds of us missing 2 in a row
-    // are much lower, so this will suffice for v1.0.
-	int stopPlaying = 0;
+        // This check for 1 second ago is a hack rather than a more invasive
+        // patch to handle the race condition if we miss this check on the exact
+        // second the schedule should be ending.  The odds of us missing 2 in a row
+        // are much lower, so this will suffice for v1.0.
+        int stopPlaying = 0;
 
-	// If the current item crosses the Saturday-Sunday midnight boundary and
-	//    it is now at or past the end time on Sunday.
-	if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
-		(m_currentSchedulePlaylist.startWeeklySeconds >= (6 * 24 * 60 * 60)))
-	{
-		// Need to nest this if so the else if below is less complicated
-		if ((nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
-			(nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds))
-		{
-			stopPlaying = 1;
-		}
-        diff += 7*24*60*60;
-	}
-	// Not a Saturday-Sunday rollover so just check if we are now past the
-	//     end time of the current item
-	else if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds)
-	{
-		stopPlaying = 1;
-	}
-      
-    int displayDiff = 0;
-
-    // Convoluted code to print the countdown more frequently as we get closer
-    if (((diff > 300) &&                  ((diff % 300) == 0)) ||
-        ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
-        ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
-        (                (diff <=  10)))
-    {
-      displayDiff = diff;
-    }
-    if (displayDiff)
-      LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
-        nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
-
-
-	if (stopPlaying)
-    {
-		LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist %s\n",
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
-			m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 0 ? "Gracefully" :
-				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 1 ? "Now with Hard Stop" :
-				m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 2 ? "Gracefully after this loop" : "");
-
-
-		// If the end time has been modified to be earlier than the originally
-		// scheduled end time, then use a force stop so the main loop doesn't
-		// restart the playlist when calling CheckIfShouldBePlayingNow()
-		int forceStop = 0;
-		if (m_currentSchedulePlaylist.actualEndTime < m_currentSchedulePlaylist.scheduledEndTime)
-			forceStop = 1;
-
-        switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType) {
-            case 0:
-                playlist->StopGracefully(forceStop);
-                break;
-            case 2:
-                playlist->StopGracefully(forceStop,1);
-                break;
-            case 1:
-            default:
-                while (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
-                    playlist->StopNow(forceStop);
-                }
-                break;
+        // If the current item crosses the Saturday-Sunday midnight boundary and
+        //    it is now at or past the end time on Sunday.
+        if ((m_currentSchedulePlaylist.endWeeklySeconds < (24 * 60 * 60)) &&
+            (m_currentSchedulePlaylist.startWeeklySeconds >= (6 * 24 * 60 * 60))) {
+            // Need to nest this if so the else if below is less complicated
+            if ((nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) &&
+                (nowWeeklySeconds < m_currentSchedulePlaylist.startWeeklySeconds)) {
+                stopPlaying = 1;
+            }
+            diff += 7*24*60*60;
+        } else if (nowWeeklySeconds >= m_currentSchedulePlaylist.endWeeklySeconds) {
+            // Not a Saturday-Sunday rollover so just check if we are now past the
+            //     end time of the current item
+            stopPlaying = 1;
         }
+      
+        if (m_nextSchedulePlaylist.ScheduleEntryIndex != SCHEDULE_INDEX_INVALID &&
+            m_nextSchedulePlaylist.ScheduleEntryIndex < m_currentSchedulePlaylist.ScheduleEntryIndex)  {
+            //next scheduled is higher priority
+            if (nowWeeklySeconds > m_nextSchedulePlaylist.startWeeklySeconds) {
+                stopPlaying = 1;
+                diff = 0;
+            } else {
+                int diff2 = m_nextSchedulePlaylist.startWeeklySeconds - nowWeeklySeconds;
+                if (diff2 < diff) {
+                    diff = diff2;
+                }
+            }
+        }
+      
+        int displayDiff = 0;
 
-		LoadCurrentScheduleInfo(true);
+        // Convoluted code to print the countdown more frequently as we get closer
+        if (((diff > 300) &&                  ((diff % 300) == 0)) ||
+            ((diff >  60) && (diff <= 300) && ((diff %  60) == 0)) ||
+            ((diff >  10) && (diff <=  60) && ((diff %  10) == 0)) ||
+            (                (diff <=  10)))
+        {
+            displayDiff = diff;
+        }
+        if (displayDiff)
+            LogDebug(VB_SCHEDULE, "NowSecs = %d, CurrEndSecs = %d (%d seconds away)\n",
+                     nowWeeklySeconds, m_currentSchedulePlaylist.endWeeklySeconds, displayDiff);
+
+
+        if (stopPlaying) {
+            LogInfo(VB_SCHEDULE, "Schedule Entry: %02d:%02d:%02d - %02d:%02d:%02d - Stopping Playlist %s\n",
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startHour,
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startMinute,
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].startSecond,
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endHour,
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endMinute,
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].endSecond,
+                m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 0 ? "Gracefully" :
+                    m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 1 ? "Now with Hard Stop" :
+                    m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType == 2 ? "Gracefully after this loop" : "");
+
+
+            // If the end time has been modified to be earlier than the originally
+            // scheduled end time, then use a force stop so the main loop doesn't
+            // restart the playlist when calling CheckIfShouldBePlayingNow()
+            int forceStop = 0;
+            if (m_currentSchedulePlaylist.actualEndTime < m_currentSchedulePlaylist.scheduledEndTime) {
+                forceStop = 1;
+            }
+
+            switch (m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].stopType) {
+                case 0:
+                    playlist->StopGracefully(forceStop);
+                    break;
+                case 2:
+                    playlist->StopGracefully(forceStop, 1);
+                    break;
+                case 1:
+                default:
+                    while (playlist->getPlaylistStatus() != FPP_STATUS_IDLE) {
+                        playlist->StopNow(forceStop);
+                    }
+                    break;
+            }
+
+            LoadCurrentScheduleInfo(true);
+        }
     }
-  }
 }
 
 void Scheduler::ConvertScheduleFile(void)
@@ -856,18 +886,12 @@ std::string Scheduler::GetWeekDayStrFromSeconds(int weeklySeconds)
 
 int Scheduler::GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2)
 {
-  int seconds = 0;
-  int i;
-  if(weeklySeconds1<weeklySeconds2)
-  {
-    seconds = weeklySeconds2-weeklySeconds1;
+  if (weeklySeconds1 < weeklySeconds2) {
+      return weeklySeconds2 - weeklySeconds1;
+  } else if (weeklySeconds1 > weeklySeconds2) {
+      return (SECONDS_PER_WEEK - weeklySeconds1) + weeklySeconds2;
   }
-  else if (weeklySeconds1 > weeklySeconds2)
-  {
-    seconds = (SECONDS_PER_WEEK - weeklySeconds1) + weeklySeconds2;
-  }
-
-  return seconds;
+  return 0;
 }
 
 int Scheduler::GetDayFromWeeklySeconds(int weeklySeconds)
