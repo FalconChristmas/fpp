@@ -283,8 +283,6 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
                     if (start < m_currentSchedulePlaylist.endWeeklySeconds) {
                         if (end > m_currentSchedulePlaylist.endWeeklySeconds) {
                             start = m_currentSchedulePlaylist.endWeeklySeconds;
-                        } else {
-                            continue;
                         }
                     }
                 }
@@ -972,6 +970,9 @@ void Scheduler::GetScheduleEntryStartText(int index, int weeklySecondIndex, char
     char text[64];
     char dayText[16];
     int start = m_Schedule[index].startEndSeconds[weeklySecondIndex].first;
+    if (index > m_currentSchedulePlaylist.ScheduleEntryIndex && m_currentSchedulePlaylist.ScheduleEntryIndex >= 0 && start < m_currentSchedulePlaylist.endWeeklySeconds) {
+        start = m_currentSchedulePlaylist.endWeeklySeconds;
+    }
     int dayIndex = GetDayFromWeeklySeconds(start);
     GetDayTextFromDayIndex(dayIndex,text);
     
