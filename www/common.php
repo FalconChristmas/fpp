@@ -767,6 +767,23 @@ function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxleng
 {
     $sData = Array();
 	PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $pluginName, $defaultValue, $callbackName, $changedFunction, "password", $sData);
+    echo "&nbsp;<input id='" . $setting . "_showHideButton' type='button' class='buttons' value='Show' onclick='". $setting . "_showHidePassword()'>";
+
+                            ?>
+<script>
+function <?=$setting?>_showHidePassword() {
+  var x = document.getElementById("<?=$setting?>");
+  var b = document.getElementById("<?=$setting?>_showHideButton");
+  if (x.type === "password") {
+    x.type = "text";
+    b.value = "Hide";
+  } else {
+    x.type = "password";
+    b.value = "Show";
+  }
+}
+</script>
+<?
 }
 
 

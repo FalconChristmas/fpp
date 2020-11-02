@@ -557,6 +557,17 @@ function setHostDescription() {
         DialogError("Save HostDescription", "Save Failed");
     });
 }
+function showHidePassword(id) {
+  var x = document.getElementById(id);
+  var b = document.getElementById(id + "_showHideButton");
+  if (x.type === "password") {
+    x.type = "text";
+    b.value = "Hide";
+  } else {
+    x.type = "password";
+    b.value = "Show";
+  }
+}
 
 </script>
 <div id="bodyWrapper">
@@ -636,7 +647,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
               <td width = "75%"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><? printWifiNetworks(); ?>&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
             </tr>
             <tr>
-              <td>WPA Pre Shared key (PSK):</td><td><input type="text" name="eth_psk" id="eth_psk" size="32" maxlength="64"></td>
+              <td>WPA Pre Shared key (PSK):</td><td><input type="password" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<input id="eth_psk_showHideButton" type="button" class="buttons" value="Show" onclick="showHidePassword('eth_psk')"></td>
             </tr>
           </table>
           </div>
@@ -713,7 +724,7 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
             </tr>
             <tr>
                 <td>Tethering Pre Shared key (PSK):</td>
-                <td><? PrintSettingTextSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
+                <td><? PrintSettingPasswordSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
             </tr>
             </tr>
             </table>
