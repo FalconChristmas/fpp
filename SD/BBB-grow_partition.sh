@@ -25,11 +25,6 @@ if ! id | grep -q root; then
 	exit
 fi
 
-if [ ! -f /etc/ssh/ssh_host_ecdsa_key.pub ] ; then
-	echo "Please wait a few more seconds as ssh keys are still being generated..."
-	exit 1
-fi
-
 unset root_drive
 root_drive="$(cat /proc/cmdline | sed 's/ /\n/g' | grep root=UUID= | awk -F 'root=' '{print $2}' || true)"
 if [ ! "x${root_drive}" = "x" ] ; then
