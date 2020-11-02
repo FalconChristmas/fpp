@@ -97,6 +97,8 @@
                 "Locale",
                 "screensaver",
                 "ForceHDMI",
+                "ForceHDMIResolution",
+                "ForceHDMIResolutionPort2",
                 "LEDDisplayType",
                 "bootDelay"
             ]
@@ -424,6 +426,31 @@
                 "Raspberry Pi"
             ],
             "type": "checkbox"
+        },
+        "ForceHDMIResolution": {
+            "name": "ForceHDMIResolution",
+            "description": "Force HDMI Resolution",
+            "tip": "Force the Raspberry Pi to set the HDMI output to the give resolution.  The default is whatever settings the monitor reports at bootup time.",
+            "reboot": 1,
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "type": "select",
+            "optionsURL": "hdmi_table.json"
+        },
+        "ForceHDMIResolutionPort2": {
+            "name": "ForceHDMIResolutionPort2",
+            "description": "Force Port 2 HDMI Resolution",
+            "tip": "Force the Raspberry Pi 4's second HDMI to the give resolution.  The default is whatever settings the monitor reports at bootup time.",
+            "reboot": 1,
+            "platforms": [
+                "Raspberry Pi"
+            ],
+            "checkFile": [
+                "/dev/fb1"
+            ],
+            "type": "select",
+            "optionsURL": "hdmi_table.json"
         },
         "gitBranch": {
             "name": "gitBranch",

@@ -14,7 +14,10 @@ function HandleSettings() {
     if (array_key_exists("ntp", $settings)) ApplySetting("ntp", $settings["ntp"]);
     if (array_key_exists("ntpServer", $settings)) ApplySetting("ntpServer", $settings["ntpServer"]);
     if (array_key_exists("ForceHDMI", $settings)) ApplySetting("ForceHDMI", $settings["ForceHDMI"]);
+    if (array_key_exists("ForceHDMIResolution", $settings)) ApplySetting("ForceHDMIResolution", $settings["ForceHDMIResolution"]);
+    if (array_key_exists("ForceHDMIResolutionPort2", $settings)) ApplySetting("ForceHDMIResolutionPort2", $settings["ForceHDMIResolutionPort2"]);
     if (array_key_exists("wifiDrivers", $settings)) ApplySetting("wifiDrivers", $settings["wifiDrivers"]);
+
 }
 
 function HandleExpandFS() {

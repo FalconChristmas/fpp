@@ -143,6 +143,27 @@ function SetForceHDMI($value)
         exec("sudo sed -i -e 's/^hdmi_force_hotplug/#hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
     }
 }
+function SetForceHDMIResolution($value, $postfix)
+{
+    $parts = explode(":", $value);
+
+    if (strpos(file_get_contents("/boot/config.txt"), "hdmi_group:1") == false) {
+        exec("sudo sed -i -e 's/hdmi_group=\(.*\)$/hdmi_group=\\1\\nhdmi_group:1=0/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/hdmi_mode=\(.*\)$/hdmi_mode=\\1\\nhdmi_mode:1=0/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_group:1/#hdmi_group:1/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_mode:1/#hdmi_mode:1/' /boot/config.txt", $output, $return_val);
+    }
+    
+    if ($parts[0] == '0') {
+        exec("sudo sed -i -e 's/^hdmi_group".$postfix."=/#hdmi_group".$postfix."=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_mode".$postfix."=/#hdmi_mode".$postfix."=/' /boot/config.txt", $output, $return_val);
+    } else {
+        exec("sudo sed -i -e 's/^#hdmi_group".$postfix."=/hdmi_group".$postfix."=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^#hdmi_mode".$postfix."=/hdmi_mode".$postfix."=/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_group".$postfix."=.*/hdmi_group".$postfix."=".$parts[0]."/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_mode".$postfix."=.*/hdmi_mode".$postfix."=".$parts[1]."/' /boot/config.txt", $output, $return_val);
+    }
+}
 
 function SetWifiDrivers($value) {
     if ($value == "Kernel") {
@@ -166,6 +187,8 @@ function ApplySetting($setting, $value) {
         case 'piRTC':           SetRTC($value);               break;
         case 'TimeZone':        SetTimeZone($value);          break;
         case 'ForceHDMI':       SetForceHDMI($value);         break;
+        case 'ForceHDMIResolution':  SetForceHDMIResolution($value, "");         break;
+        case 'ForceHDMIResolutionPort2':  SetForceHDMIResolution($value, ":1");         break;
         case 'wifiDrivers':     SetWifiDrivers($value);       break;
     }
 }
