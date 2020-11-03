@@ -145,7 +145,7 @@ function printTetheringInterfaces() {
     PrintSettingSelect("Tether Interface", "TetherInterface", 0, 1, $tiface, $tinterfaces);
 }
 function printWifiNetworks() {
-    $networksRaw = explode("\n",trim(shell_exec("connmanctl services  | colrm 1 4")));
+    $networksRaw = explode("\n",trim(shell_exec("connmanctl services | grep wifi | perl -nle 'm/\s+(.*)\s+wifi_.*/; print $1 if $1'")));
     echo "<datalist id='eth_ssids'>\n";
     foreach ($networksRaw as $iface) {
         $if2 = explode(" ", $iface);
