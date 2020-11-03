@@ -275,7 +275,7 @@ int OpenMediaOutput(const char *filename) {
             tmpFile = filename;
             if (alreadyWarned.find(tmpFile) == alreadyWarned.end()) {
                 alreadyWarned.emplace(tmpFile);
-                LogInfo(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
+                LogDebug(VB_MEDIAOUT, "No video found for remote playing of %s\n", filename);
             }
             return 0;
         } else {

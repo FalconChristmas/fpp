@@ -336,7 +336,7 @@ void Sequence::SeekSequenceFile(int frameNumber) {
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);
     if (!IsSequenceRunning()) {
-        LogErr(VB_SEQUENCE, "No sequence is running\n");
+        LogDebug(VB_SEQUENCE, "No sequence is running\n");
         return;
     }
     seqLock.unlock();
