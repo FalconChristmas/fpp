@@ -136,6 +136,11 @@ function SetUIPassword($value)
 
 function SetForceHDMI($value)
 {
+    
+    if (strpos(file_get_contents("/boot/config.txt"), "hdmi_force_hotplug:1") == false) {
+        exec("sudo sed -i -e 's/hdmi_force_hotplug=\(.*\)$/hdmi_force_hotplug=\\1\\nhdmi_force_hotplug:1=0/' /boot/config.txt", $output, $return_val);
+        exec("sudo sed -i -e 's/^hdmi_force_hotplug:1/#hdmi_force_hotplug:1/' /boot/config.txt", $output, $return_val);
+    }
     if ($value == '1') {
         exec("sudo sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
         exec("sudo sed -i -e 's/#hdmi_force_hotplug/hdmi_force_hotplug/' /boot/config.txt", $output, $return_val);
