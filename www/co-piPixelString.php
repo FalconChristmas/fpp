@@ -224,7 +224,7 @@ function savePixelStringOutputs() {
     var postData = getPixelStringOutputJSON();
     
 	// Double stringify so JSON in .json file is surrounded by { }
-	postData = "command=setChannelOutputs&file=co-pixelStrings&data=" + encodeURIComponent(JSON.stringify(postData));
+	postData = "command=setChannelOutputs&file=co-pixelStrings&data=" + encodeURIComponent(JSON.stringify(JSON.stringify(postData)));
 
 	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
