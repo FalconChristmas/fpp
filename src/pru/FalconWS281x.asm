@@ -64,10 +64,10 @@
 
 // GPIO0 sometimes takes a while to come out of sleep or
 // something so use an lower "low" time
-#define T0_TIME_GPIO0     (T0_TIME - 100)
+#define T0_TIME_GPIO0     (T0_TIME - 80)
 #define T1_TIME_GPIO0     (T1_TIME - 50)
 #define LOW_TIME_GPIO0    LOW_TIME
-#define LOW_BIT_ALLOWANCE_GPIO0  180
+#define LOW_BIT_ALLOWANCE_GPIO0  220
 #define HI_BIT_ALLOWANCE_GPIO0  175
 
 
