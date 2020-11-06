@@ -195,6 +195,7 @@ input.largeCheckbox {
 
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(data) {
+               
 			var status = 'Idle';
 			var statusInfo = "";
 			var elapsed = "";
@@ -296,7 +297,7 @@ input.largeCheckbox {
             rowSpanSet(rowID);
                
 			//Expert View Rows
-            if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'password') {
+            if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
                 $('#' + rowID + '_platform').html(data.advancedView.Platform);
 
                 var updatesAvailable = 0;
@@ -767,11 +768,6 @@ function syncModeUpdated(setting = '') {
     }
 }
 
-function rebootRemoteFPP(rowID, ip) {
-    $('#' + rowID + '_logText').val($('#' + rowID + '_logText').val() + '\n==================================\n');
-
-    StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText');
-}
 
 function ipFromRowID(id) {
     ip = $('#' + id).attr('ip');
@@ -950,6 +946,16 @@ function restartSystem(rowID) {
     var ip = ipFromRowID(rowID);
     StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
 }
+function setSystemMode(rowID, mode) {
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = ipFromRowID(rowID);
+    StreamURL('restartRemoteFPPD.php?ip=' + ip + '&mode=' + mode, rowID + '_logText', 'restartDone', 'restartFailed');
+}
 
 function restartSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
@@ -961,6 +967,69 @@ function restartSelectedSystems() {
 
             $(this).prop('checked', false);
             restartSystem(rowID);
+        }
+    });
+}
+
+
+function setSelectedSystemsMode(mode) {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
+
+            $(this).prop('checked', false);
+            setSystemMode(rowID, mode);
+        }
+    });
+}
+
+function rebootSystem(rowID) {
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = ipFromRowID(rowID);
+    StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+}
+
+function rebootSelectedSystems() {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
+
+            $(this).prop('checked', false);
+            rebootSystem(rowID);
+        }
+    });
+}
+function shutdownSystem(rowID) {
+    streamCount++;
+    EnableDisableStreamButtons();
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = ipFromRowID(rowID);
+    StreamURL('shutdownRemoteFPP.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+}
+function shutdownSelectedSystems() {
+    $('input.remoteCheckbox').each(function() {
+        if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
+
+            $(this).prop('checked', false);
+            shutdownSystem(rowID);
         }
     });
 }
@@ -989,6 +1058,8 @@ function copyFilesToSelectedSystems() {
         }
     });
 }
+
+
 
 function copyDone(id) {
     id = id.replace('_logText', '');
@@ -1048,6 +1119,12 @@ function performMultiAction() {
         case 'upgradeFPP':     upgradeSelectedSystems();      break;
         case 'restartFPPD':    restartSelectedSystems();      break;
         case 'copyFiles':      copyFilesToSelectedSystems();  break;
+        case 'reboot':         rebootSelectedSystems();       break;
+        case 'shutdown':       shutdownSelectedSystems();     break;
+        case 'bridgeMode':     setSelectedSystemsMode('1');     break;
+        case 'remoteMode':     setSelectedSystemsMode('8');     break;
+        case 'standaloneMode': setSelectedSystemsMode('2'); break;
+        case 'masterMode':     setSelectedSystemsMode('6');     break;
         default:               alert('You must select an action first.'); break;
     }
 
@@ -1116,7 +1193,13 @@ if ($advancedView) {
             <option value='noop'>---- Select an Action ----</option>
             <option value='upgradeFPP'>Upgrade FPP</option>
             <option value='restartFPPD'>Restart FPPD</option>
+            <option value='reboot'>Reboot</option>
+            <option value='shutdown'>Shutdown</option>
             <option value='copyFiles'>Copy Files</option>
+            <option value='standaloneMode'>Set to Standalone</option>
+            <option value='masterMode'>Set to Master</option>
+            <option value='remoteMode'>Set to Remote</option>
+            <option value='bridgeMode'>Set to Bridge</option>
         </select>
         <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
         <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>

@@ -9,16 +9,29 @@ if (!isset($_GET['ip'])) {
     echo "ERROR: No IP given\n";
     exit(0);
 }
-
 $ip = $_GET['ip'];
+
+$postfix = '';
+if (isset($_GET['mode'])) {
+    echo "Setting FPPD mode @ $ip\n";
+    $mode = $_GET['mode'];
+    $curl = curl_init('http://' . $ip . '/fppxml.php?command=setFPPDmode&mode=' . $mode);
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 300);
+    $request_content = curl_exec($curl);
+    curl_close($curl);
+    $postfix = '&quick=1';
+}
 
 echo "Restarting FPPD @ $ip\n";
 
-$curl = curl_init('http://' . $ip . '/fppxml.php?command=restartFPPD');
+$curl = curl_init('http://' . $ip . '/fppxml.php?command=restartFPPD' . $postfix);
 curl_setopt($curl, CURLOPT_FAILONERROR, true);
 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 300);
 $request_content = curl_exec($curl);
 curl_close($curl);
 
