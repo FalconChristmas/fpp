@@ -94,7 +94,7 @@ function SaveChannelOutputsJSON()
 {
 	var configStr = GetChannelOutputConfig();
 
-	var postData = "command=setChannelOutputs&file=channelOutputsJSON&data=" + JSON.stringify(configStr);
+	var postData = "command=setChannelOutputs&file=channelOutputsJSON&data=" + encodeURIComponent(JSON.stringify(configStr));
 
 	$.post("fppjson.php", postData
 	).done(function(data) {

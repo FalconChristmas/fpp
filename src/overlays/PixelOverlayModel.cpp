@@ -42,6 +42,7 @@ PixelOverlayModel::PixelOverlayModel(const Json::Value &c)
     : config(c), overlayBufferData(nullptr), channelData(nullptr), runningEffect(nullptr)
 {
     name = config["Name"].asString();
+    replaceAll(name, "/", "_");
     startChannel = config["StartChannel"].asInt();
     startChannel--; //need to be 0 based
     channelCount = config["ChannelCount"].asInt();

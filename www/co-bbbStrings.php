@@ -784,7 +784,7 @@ function saveBBBOutputs() {
     postData = addSerialOutputJSON(postData);
     
 	// Double stringify so JSON in .json file is surrounded by { }
-	postData = "command=setChannelOutputs&file=co-bbbStrings&data=" + JSON.stringify(JSON.stringify(postData));
+	postData = "command=setChannelOutputs&file=co-bbbStrings&data=" + encodeURIComponent(JSON.stringify(JSON.stringify(postData)));
 
 	$.post("fppjson.php", postData).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
