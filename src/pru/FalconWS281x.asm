@@ -509,6 +509,14 @@ _LOOP:
 
     // store the address and such
     XOUT    SCRATCH_PAD, &data_addr, 12
+    
+    
+    #if !defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+        // send some clears (shouldn't be needed) to make sure GPIO0 wakes up
+        SBBO &gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
+        SBBO &gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
+    #endif
+
 
     RESET_PRU_CLOCK r8, r9
 
@@ -679,6 +687,10 @@ WORD_LOOP_DONE:
     
 
 #if defined(SPLIT_GPIO0) && defined(USES_GPIO0)
+    // send some clears (shouldn't be needed) to make sure GPIO0 wakes up
+    SBBO &gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
+    SBBO &gpio0_led_mask, gpio0_address, GPIO_CLRDATAOUT, 4
+
     // do a second pass for GPIO0 only
     SETUP_GPIO0_REGS
 
