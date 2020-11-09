@@ -710,7 +710,7 @@ WORD_LOOP_DONE:
 
 WORD_LOOP_PASS2:
     LOOP WORD_LOOP_DONE_PASS2, data_len
-        READ_DATA GPIO0OUTPUTS
+        READ_DATA OUTPUTS
 
 		// for bit in 8 to 0; one color at a time
 		LDI	bit_num, 8
