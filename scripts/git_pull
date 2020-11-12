@@ -32,8 +32,21 @@ if curl --silent --head "${HTTPURL}" | grep -i "Content-Type: text/html; charset
     then
         cd ${FPPDIR} && $SUDO git pull && $SUDO git fetch --tags -f
         if [ "${SOURCEIP}" == "github.com" ]; then
-            cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init
+            cd ${FPPDIR} && $SUDO git submodule sync && $SUDO git submodule update --init --remote
+        else
+            cd ${FPPDIR} && $SUDO git config submodule.external/spixels.url http://${SOURCEIP}/git/modules/external/spixels
+            cd ${FPPDIR} && $SUDO git config submodule.external/RF24.url http://${SOURCEIP}/git/modules/external/RF24
+            cd ${FPPDIR} && $SUDO git config submodule.external/rpi_ws281x.url http://${SOURCEIP}/git/modules/external/rpi_ws281x
+            cd ${FPPDIR} && $SUDO git config submodule.external/rpi-rgb-led-matrix.url http://${SOURCEIP}/git/modules/external/rpi-rgb-led-matrix
+
+
+            cd ${FPPDIR}/external/rpi-rgb-led-matrix && $SUDO git remote set-url origin "http://${SOURCEIP}/git/modules/external/rpi-rgb-led-matrix" && $SUDO git fetch
+            cd ${FPPDIR}/external/spixels && $SUDO git remote set-url origin "http://${SOURCEIP}/git/modules/external/spixels" && $SUDO git fetch
+            cd ${FPPDIR}/external/RF24 && $SUDO git remote set-url origin "http://${SOURCEIP}/git/modules/external/RF24" && $SUDO git fetch
+            cd ${FPPDIR}/external/rpi_ws281x && $SUDO git remote set-url origin "http://${SOURCEIP}/git/modules/external/rpi_ws281x" && $SUDO git fetch
+            cd ${FPPDIR}/
         fi
+        cd ${FPPDIR}/ && $SUDO git submodule update --init
     else
         cd ${FPPDIR} && sudo -u ${FPPUSER} git pull && sudo -u ${FPPUSER} git fetch --tags -f && sudo -u ${FPPUSER} git submodule sync && sudo -u ${FPPUSER} git submodule update --init
     fi
