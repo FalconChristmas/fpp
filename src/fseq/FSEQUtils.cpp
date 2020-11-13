@@ -26,7 +26,7 @@ void usage(char *appname) {
     printf("   -M[ FSEQFILE      - FSEQ to merge onto the input, copy 0\n");
     printf("   -f #              - FSEQ Version\n");
     printf("   -c (none|zstd|zlib) - Compession type\n");
-    printf("   -l #              - Compession level (-1 for default)\n");
+    printf("   -l #              - Compression level (-99 for default)\n");
     printf("   -r (#-# | #+#)    - Channel Range.  Use - to separate start/end channel\n");
     printf("                            Use + to separate start channel + num channels\n");
     printf("                       If used before first -m/-M argument, sets a sparse range of output\n");
@@ -49,7 +49,7 @@ public:
 
 static std::list<MergeFSEQ> mergeFseqs;
 static int fseqVersion = 2;
-static int compressionLevel = -1;
+static int compressionLevel = -99;
 static bool verbose = false;
 static std::vector<std::pair<uint32_t, uint32_t>> ranges;
 static bool sparse = true;
