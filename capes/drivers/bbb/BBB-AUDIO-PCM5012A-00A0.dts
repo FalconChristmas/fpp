@@ -68,7 +68,7 @@
 				        bitclock-inversion;
 				        frame-master;
                                         /* 24576000 11289600      24000000 */
-				        system-clock-frequency = <24576000>;
+				        system-clock-frequency = <24000000>;
 				        system-clock-direction-out;
 				};
 
