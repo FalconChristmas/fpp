@@ -57,7 +57,7 @@
 // writing to GPIO's isn't exact so may have some jitter
 // we can tollerate much larger jitter between bits
 // than can be tollerated for the hi/low time, hi can be a bit longer
-#define BETWEEN_BIT_ALLOWANCE 1500
+#define BETWEEN_BIT_ALLOWANCE 3000
 #define LOW_BIT_ALLOWANCE   80
 #define HI_BIT_ALLOWANCE   100
 
