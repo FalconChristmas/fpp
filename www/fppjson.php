@@ -281,79 +281,87 @@ function GetFPPStatusJson()
     );
 
     //if the ip= argument supplied
-    if (isset($args['ip']))
-	{
-		$result = array();
-
-		//validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
-        if (filter_var($args['ip'], FILTER_VALIDATE_IP)) {
-        	$do_expert = (isset($args['advancedView']) && $args['advancedView'] == true) ? "&advancedView=true" : "";
-        	//Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
-            $curl = curl_init("http://" . $args['ip'] . "/fppjson.php?command=getFPPstatus" . $do_expert);
-            curl_setopt($curl, CURLOPT_FAILONERROR, true);
-            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 250);
-            $request_content = curl_exec($curl);
-            curl_close($curl);
-            
-            //check we have valid data
-            if ($request_content === FALSE) {
-            	//check the response header
-				//check for a 401 - Unauthorized response
-                if (isset($http_response_header)) {
-                    if (stristr($http_response_header[0], '401')){
-                        //set a reason so we can inform the user
-                        $default_return_json['reason'] = "Cannot Access - Web GUI Password Set";
-                    }
-                    //error return default response
-                    $result = $default_return_json;
-                    $result["status_name"] = "password";
-                    error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert . " - " . json_encode($http_response_header));
-                } else {
-                    //error return default response
-                    $result = $default_return_json;
-                    $result["status_name"] = "unreachable";
-                    error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " -> " . $do_expert);
+    if (isset($args['ip'])) {
+        $ipAddresses = $args['ip'];
+        $isArray = true;
+        if (!is_array($ipAddresses)) {
+            $ipAddresses = array();
+            $ipAddresses[] = $args['ip'];
+            $isArray = false;
+        }
+        
+        $isAdvanced = false;
+        if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
+            $isAdvanced = true;
+        }
+        $result = array();
+        
+        $curlmulti = curl_multi_init();
+        $curls = array();
+        foreach ($ipAddresses as $ip) {
+            //validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                $do_expert = $isAdvanced ? "&advancedView=true" : "";
+                //Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
+                $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus" . $do_expert);
+                curl_setopt($curl, CURLOPT_FAILONERROR, true);
+                curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
+                $curls[$ip] = $curl;
+                curl_multi_add_handle($curlmulti, $curl);
+            }
+        }
+        $running = null;
+        do {
+            curl_multi_exec($curlmulti, $running);
+        } while ($running > 0);
+        
+        foreach ($curls as $ip => $curl) {
+            $request_content = curl_multi_getcontent($curl);
+        
+            if ($request_content === FALSE || $request_content == null || $request_content == "") {
+                $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+                $result[$ip] = array_merge(array(), $default_return_json);
+                if ($responseCode == 401) {
+                    $result[$ip]['reason'] = "Cannot Access - Web GUI Password Set";
+                    $result[$ip]["status_name"] = "password";
+                } else if ($responseCode == 0) {
+                    $result[$ip]["status_name"] = "unreachable";
                 }
             } else {
-            	//Work around for older versioned devices where the advanced data was pulled in separately rather than being
-				//included (when requested) with the standard data via getFPPStatus
-				//If were in advanced view and the request_content doesn't have the 'advancedView' key (this is included when requested with the standard data) then we're dealing with a older version
-				//that's using the expertView key and was being obtained separately
-				if ((isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) && strpos($request_content, 'advancedView') === FALSE) {
-					$request_content_arr = json_decode($request_content, true);
-					//
-                    $curl = curl_init("http://" . $args['ip'] . "/fppjson.php?command=getSysInfo");
-                    curl_setopt($curl, CURLOPT_FAILONERROR, true);
-                    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 250);
-                    $request_expert_content = curl_exec($curl);
-                    curl_close($curl);
-
-					//check we have valid data
-					if ($request_expert_content === FALSE) {
-						$request_expert_content = array();
-					}
-					//Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
-					//Add a new key for the advanced data, also decode it as it's an array
-					$request_content_arr['advancedView'] = json_decode($request_expert_content, true);
-					//Re-encode everything back to a string
-					$request_content = json_encode($request_content_arr);
-				}
-
-				$result = json_decode($request_content);
+                $content = json_decode($request_content);
+                
+                if ($isAdvanced && strpos($request_content, 'advancedView') === FALSE) {
+                    //Work around for older versioned devices where the advanced data was pulled in separately rather than being
+                    //included (when requested) with the standard data via getFPPStatus
+                    //If were in advanced view and the request_content doesn't have the 'advancedView' key (this is included when requested with the standard data) then we're dealing with a older version
+                    //that's using the expertView key and was being obtained separately
+                    
+                    $curl2 = curl_init("http://" . $ip . "/fppjson.php?command=getSysInfo");
+                    curl_setopt($curl2, CURLOPT_FAILONERROR, true);
+                    curl_setopt($curl2, CURLOPT_FOLLOWLOCATION, true);
+                    curl_setopt($curl2, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($curl2, CURLOPT_CONNECTTIMEOUT_MS, 250);
+                    $request_expert_content = curl_exec($curl2);
+                    curl_close($curl2);
+                    //check we have valid data
+                    if ($request_expert_content === FALSE) {
+                        $request_expert_content = array();
+                    }
+                    //Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
+                    //Add a new key for the advanced data, also decode it as it's an array
+                    $content['advancedView'] = json_decode($request_expert_content, true);
+                }
+                $result[$ip] = $content;
             }
-        } else {
-            error_log("GetFPPStatusJson failed for IP: " . $args['ip'] . " ");
-            //IPv6 (in rare case it happens) return default response
-			$result = $default_return_json;
+            curl_multi_remove_handle($curlmulti, $curl);
         }
-
+        curl_multi_close($curlmulti);
+        if (!$isArray) {
+            $result = $result[$ipAddresses[0]];
+        }
 		returnJSON($result);
-
-        exit(0);
 	}
 	else
 	{

@@ -177,25 +177,26 @@ input.largeCheckbox {
 		});
 	}
 
-    var refreshTimers = new Object();
+    var refreshTimer = null;
     function clearRefreshTimers() {
-        for (var refreshKey in refreshTimers) {
-            clearTimeout(refreshTimers[refreshKey]);
-        }
-
-        refreshTimers = new Object();
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
     }
+    var unavailables = [];
 
-	function getFPPSystemStatus(ip, refreshing = false) {
-        var refreshKey = ip.replace(/\./g, '_');
-        if (refreshTimers.hasOwnProperty(refreshKey)) {
-            clearTimeout(refreshTimers[refreshKey]);
-            delete refreshTimers[refreshKey];
+	function getFPPSystemStatus(ipAddresses, refreshing = false) {
+        if (refreshTimer != null) {
+            clearTimeout(refreshTimer);
+            delete refreshTimer;
+            refreshTimer = null;
         }
-
-		$.get("fppjson.php?command=getFPPstatus&ip=" + ip + (advancedView == true ? '&advancedView=true' : '')
-		).done(function(data) {
-               
+        ips = "";
+        ipAddresses.forEach(function(entry) {
+            ips += "&ip[]=" + entry;
+        });
+		$.get("fppjson.php?command=getFPPstatus&ip=" + ips + (advancedView == true ? '&advancedView=true' : '')
+		).done(function(alldata) {
+            jQuery.each(alldata, function(ip, data) {
 			var status = 'Idle';
 			var statusInfo = "";
 			var elapsed = "";
@@ -229,7 +230,12 @@ input.largeCheckbox {
 			} else if (data.status_name == 'testing') {
 				status = 'Testing';
             } else if (data.status_name == 'unreachable') {
-                status = '<font color="red">Unreachable</font>';
+                unavailables[ip]++;
+                if (unavailables[ip] > 3) {
+                    status = '<font color="red">Unreachable</font>';
+                } else {
+                    status = "";
+                }
             } else if (data.status_name == 'password') {
                 status = '<font color="red">Protected</font>';
 			} else if (data.status_name == 'unknown') {
@@ -257,6 +263,9 @@ input.largeCheckbox {
             } else {
                 status = data.status_name;
             }
+            if (data.status_name != 'unreachable') {
+                unavailables[ip] = 0;
+            }
 
 			var rowID = "fpp_" + ip.replace(/\./g, '_');
             var hostRowKey = ip.replace(/\./g, '_');
@@ -274,7 +283,9 @@ input.largeCheckbox {
             if ($('#' + rowID).attr('ip') != ip)
                 $('#' + rowID).attr('ip', ip);
 
-			$('#' + rowID + '_status').html(status);
+            if (status != "") {
+                $('#' + rowID + '_status').html(status);
+            }
 			$('#' + rowID + '_elapsed').html(elapsed);
                
             if (data.warnings != null && data.warnings.length > 0) {
@@ -381,9 +392,10 @@ input.largeCheckbox {
 
                 $('#advancedViewUtilization_' + rowID).html(u);
             }
+            });
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked")) {
-				refreshTimers[refreshKey] = setTimeout(function() {getFPPSystemStatus(ip, true);}, <? if ($advancedView) echo '5000'; else echo '1000'; ?>);
+				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, <? if ($advancedView) echo '2000'; else echo '1000'; ?>);
             }
 		});
 	}
@@ -398,6 +410,7 @@ input.largeCheckbox {
 
         var uniqueHosts = new Object();
 
+        var fppIpAddresses = [];
 		var remotes = [];
 		if (settings['fppMode'] == 'master') {
             if (typeof settings['MultiSyncRemotes'] === 'string') {
@@ -461,7 +474,7 @@ input.largeCheckbox {
                 $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].IP));
 
                 if (isFPP(data[i].typeId)) {
-                    getFPPSystemStatus(ip, false);
+                    fppIpAddresses.push(ip);
                     getFPPSystemInfo(ip);
                 }
             } else {
@@ -544,7 +557,7 @@ input.largeCheckbox {
                 $('#fppSystems').append(newRow);
 
                 if (isFPP(data[i].typeId)) {
-                    getFPPSystemStatus(ip, false);
+                    fppIpAddresses.push(ip);
                     getFPPSystemInfo(ip);
                 } else if (isESPixelStick(data[i].typeId)) {
                     if (majorVersion == 3) {
@@ -558,6 +571,7 @@ input.largeCheckbox {
                 }
             }
         }
+        getFPPSystemStatus(fppIpAddresses, false);
 
         var extras = "";
         for (var x in remotes) {
@@ -715,6 +729,8 @@ function getFalconControllerStatus(ip) {
 
 function RefreshStats() {
     var keys = Object.keys(hostRows);
+    var ips = [];
+    
     for (var i = 0; i < keys.length; i++) {
         var rowID = hostRows[keys[i]];
         var ip = ipFromRowID(rowID);
@@ -723,7 +739,7 @@ function RefreshStats() {
         var typeId = $('#' + rowID).find('.typeId').html();
         var version = $('#' + rowID).find('.version').html();
         if (isFPP(typeId)) {
-            getFPPSystemStatus(ip, true);
+            ips.push(ip);
             getFPPSystemInfo(ip);
         } else if (isESPixelStick(typeId)) {
             var versionParts = version.split('.');
@@ -731,13 +747,14 @@ function RefreshStats() {
             if (majorVersion == 3) {
                 getESPixelStickBridgeStatus(ip);
             } else {
-                getFPPSystemStatus(ip, true);
+                ips.push(ip);
                 getFPPSystemInfo(ip);
             }
         } else if (isFalcon(typeId)) {
             getFalconControllerStatus(ip);
         }
     }
+    getFPPSystemStatus(ips, true);
 }
 
 function autoRefreshToggled() {
