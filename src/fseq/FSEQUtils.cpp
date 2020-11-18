@@ -32,6 +32,7 @@ void usage(char *appname) {
     printf("                       If used before first -m/-M argument, sets a sparse range of output\n");
     printf("                       If used after -m/-M argument, sets a range to read from last merged sequence.\n");
     printf("   -n                - No Sparse. -r will only read the range, but the resulting fseq is not sparse.\n");
+    printf("   -B                - V2 only: allow use of up to 4095 compression blocks instead of default 255.\n");
     printf("   -j                - Output the fseq file metadata to json\n");
     printf("   -h                - This help output\n");
 }
@@ -54,6 +55,7 @@ static bool verbose = false;
 static std::vector<std::pair<uint32_t, uint32_t>> ranges;
 static bool sparse = true;
 static bool json = false;
+static bool allowExtendedBlocks = false;
 static V2FSEQFile::CompressionType compressionType = V2FSEQFile::CompressionType::zstd;
 
 static void parseRanges(std::vector<std::pair<uint32_t, uint32_t>> &ranges, char *rng) {
@@ -83,7 +85,7 @@ int parseArguments(int argc, char **argv) {
             {0,                0,                    0, 0}
         };
         
-        c = getopt_long(argc, argv, "c:l:o:f:r:m:M:hjVvn", long_options, &option_index);
+        c = getopt_long(argc, argv, "c:l:o:f:r:m:M:BhjVvn", long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -98,6 +100,9 @@ int parseArguments(int argc, char **argv) {
                 break;
             case 'j':
                 json = true;
+                break;
+            case 'B':
+                allowExtendedBlocks = true;
                 break;
             case 'v':
                 verbose = true;
@@ -153,7 +158,7 @@ static char *escape(char *buf, const char *data) {
         dest++;
         if (*data == '\\') {
             *dest = '\\';
-            *dest++;
+            dest++;
         }
         data++;
     }
@@ -258,6 +263,12 @@ int main(int argc, char *argv[]) {
                 printf("Failed to create FSEQ file (returned nullptr)!\n");
                 delete src;
                 return 1;
+            }
+            if (allowExtendedBlocks && fseqVersion >= 2) {
+                V2FSEQFile *d2 = dynamic_cast<V2FSEQFile*>(dest);
+                if (d2) {
+                    d2->allowExtendedBlocks();
+                }
             }
             
             if (ranges.empty()) {

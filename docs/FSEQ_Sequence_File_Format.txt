@@ -24,8 +24,9 @@ v2.0 spec
 14-17 - number of frames
 18  - step time in ms, usually 25 or 50
 19  - bit flags/reserved should be 0
-20  - compression type 0 for uncompressed, 1 for zstd, 2 for libz/gzip
-21  - number of compression blocks, 0 if uncompressed
+20 bits 0-3 - compression type 0 for uncompressed, 1 for zstd, 2 for libz/gzip
+20 bits 4-7 - number of compression blocks, upper 4 bits
+21  - number of compression blocks, 0 if uncompressed, lower 8 bits.  Total 12 bits.
 22  - number of sparse ranges, 0  if none
 23  - bit flags/reserved, unused right now, should be 0
 24-31 - 64bit unique identifier, likely a timestamp or uuid

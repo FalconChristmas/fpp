@@ -174,6 +174,7 @@ public:
 
     virtual uint32_t getMaxChannel() const override;
 
+    void allowExtendedBlocks(bool a = true) { m_allowExtendedBlocks = a; }
     
     CompressionType m_compressionType;
     int             m_compressionLevel;
@@ -181,6 +182,7 @@ public:
     std::vector<std::pair<uint32_t, uint32_t>> m_rangesToRead;
     std::vector<std::pair<uint32_t, uint64_t>> m_frameOffsets;
     uint32_t m_dataBlockSize;
+    bool m_allowExtendedBlocks;
 private:
     
     void createHandler();

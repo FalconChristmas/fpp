@@ -702,7 +702,7 @@ public:
     virtual uint8_t getCompressionType() = 0;
     virtual FrameData *getFrame(uint32_t frame) = 0;
 
-    virtual uint32_t computeMaxBlocks() = 0;
+    virtual uint32_t computeMaxBlocks(int max = 255) { return 0; }
     virtual void addFrame(uint32_t frame, const uint8_t *data) = 0;
     virtual void finalize() = 0;
     virtual std::string GetType() const = 0;
@@ -735,7 +735,6 @@ public:
     virtual ~V2NoneCompressionHandler() {}
 
     virtual uint8_t getCompressionType() override { return 0;}
-    virtual uint32_t computeMaxBlocks() override {return 0;}
     virtual std::string GetType() const override { return "No Compression"; }
     virtual void prepareRead(uint32_t frame) override {
         FrameData *f = getFrame(frame);
@@ -810,16 +809,16 @@ public:
         m_blockMap.clear();
     }
 
-    virtual uint32_t computeMaxBlocks() override {
+    virtual uint32_t computeMaxBlocks(int maxNumBlocks) override {
         if (m_maxBlocks > 0) {
             return m_maxBlocks;
         }
         //determine a good number of compression blocks
         uint64_t datasize = m_file->getChannelCount() * m_file->getNumFrames();
         uint64_t numBlocks = datasize / V2FSEQ_OUT_COMPRESSION_BLOCK_SIZE;
-        if (numBlocks > 255) {
+        if (numBlocks > maxNumBlocks) {
             //need a lot of blocks, use as many as we can
-            numBlocks = 255;
+            numBlocks = maxNumBlocks;
         } else if (numBlocks < 1) {
             numBlocks = 1;
         }
@@ -829,14 +828,14 @@ public:
         m_curBlock = 0;
 
         numBlocks = m_file->getNumFrames() / m_framesPerBlock + 1;
-        while (numBlocks > 255) {
+        while (numBlocks > maxNumBlocks) {
             m_framesPerBlock++;
             numBlocks = m_file->getNumFrames() / m_framesPerBlock + 1;
         }
         // first block is going to be smaller, so add some blocks
-        if (numBlocks < 254) {
+        if (numBlocks < (maxNumBlocks - 1)) {
             numBlocks += 2;
-        } else if (numBlocks < 255) {
+        } else if (numBlocks < maxNumBlocks) {
             numBlocks++;
         }
         m_maxBlocks = numBlocks;
@@ -1026,7 +1025,7 @@ public:
     virtual std::string GetType() const override { return "Compressed ZSTD"; }
 
     virtual FrameData *getFrame(uint32_t frame) override {
-        if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
+        if (m_curBlock >= m_file->m_frameOffsets.size() || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
             //frame is not in the current block
             m_curBlock = 0;
             while (frame >= m_file->m_frameOffsets[m_curBlock + 1].first) {
@@ -1220,7 +1219,7 @@ public:
     virtual std::string GetType() const override { return "Compressed ZLIB"; }
 
     virtual FrameData *getFrame(uint32_t frame) override {
-        if (m_curBlock > 256 || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
+        if (m_curBlock >= m_file->m_frameOffsets.size() || (frame < m_file->m_frameOffsets[m_curBlock].first) || (frame >= m_file->m_frameOffsets[m_curBlock + 1].first)) {
             //frame is not in the current block
             m_curBlock = 0;
             while (frame >= m_file->m_frameOffsets[m_curBlock + 1].first) {
@@ -1399,7 +1398,8 @@ V2FSEQFile::V2FSEQFile(const std::string &fn, CompressionType ct, int cl)
     : FSEQFile(fn),
     m_compressionType(ct),
     m_compressionLevel(cl),
-    m_handler(nullptr)
+    m_handler(nullptr),
+    m_allowExtendedBlocks(false)
 {
     m_seqVersionMajor = V2FSEQ_MAJOR_VERSION;
     m_seqVersionMinor = V2FSEQ_MINOR_VERSION;
@@ -1431,7 +1431,7 @@ void V2FSEQFile::writeHeader() {
     // Additional file format documentation available at:
     // https://github.com/FalconChristmas/fpp/blob/master/docs/FSEQ_Sequence_File_Format.txt#L17
 
-    uint8_t maxBlocks = m_handler->computeMaxBlocks() & 0xFF;
+    uint16_t maxBlocks = m_handler->computeMaxBlocks(m_allowExtendedBlocks ? 4095 : 255) & 0xFFF;
 
     // Compute headerSize to include the header, compression blocks and sparse ranges
     int headerSize = V2FSEQ_HEADER_SIZE;
@@ -1476,10 +1476,10 @@ void V2FSEQFile::writeHeader() {
     header[18] = m_seqStepTime;
     // Flags (unused & reserved, should be 0) - 1 byte
     header[19] = 0;
-    // Compression type - 1 byte
-    header[20] = m_handler->getCompressionType();
-    // Number of blocks in compressed channel data (should be 0 if not compressed) - 1 byte
-    header[21] = maxBlocks;
+    // Compression type and upper 4 bits of max blocks- 1 byte
+    header[20] = (maxBlocks >> 4) & 0xF0 | m_handler->getCompressionType();
+    // Number of blocks in compressed channel data (should be 0 if not compressed) - 1 byte, lower 8 bits
+    header[21] = maxBlocks & 0xFF;
     // Number of ranges in sparse range index - 1 byte
     header[22] = m_sparseRanges.size();
     // Flags (unused & reserved, should be 0) - 1 byte
@@ -1545,7 +1545,7 @@ m_handler(nullptr)
         // ESEQ files use 1 based start channels, offset to start at 0
         m_sparseRanges.push_back(std::pair<uint32_t, uint32_t>(modelStart ? modelStart - 1 : modelStart, modelLen));
     } else {
-        switch (header[20]) {
+        switch (header[20] & 0xF) {
             case 0:
             m_compressionType = CompressionType::none;
             break;
@@ -1565,10 +1565,16 @@ m_handler(nullptr)
 
         // Read compression blocks
         // 8 byte size each (4 byte firstFrame + 4 byte length)
-        // header[21] is the "max blocks count" field
+        // header[21] is the "max blocks count" field, lower 8 bits
+        // header[20] & 0xF0 is the upper 4 bits, total 12 bits
+        // for maximum of 4095 blocks
         uint64_t lastBlockOffset = m_seqChanDataOffset;
+        uint32_t numBlocks = header[20];
+        numBlocks &= 0xF0;
+        numBlocks <<= 4;
+        numBlocks |= header[21];
 
-        for (int i = 0; i < header[21]; i++) {
+        for (int i = 0; i < numBlocks; i++) {
             uint32_t firstFrame = read4ByteUInt(&header[readPos]);
             uint64_t length = read4ByteUInt(&header[readPos + 4]);
 
