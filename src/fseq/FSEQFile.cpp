@@ -547,7 +547,7 @@ void V1FSEQFile::writeHeader() {
 
     // Use m_seqChanDataOffset for buffer size to avoid additional writes or buffer allocations
     // It also comes pre-memory aligned to avoid additional padding
-    uint8_t header[m_seqChanDataOffset];
+    uint8_t *header = (uint8_t*)malloc(m_seqChanDataOffset);
     memset(header, 0, m_seqChanDataOffset);
 
     // File identifier (PSEQ) - 4 bytes
@@ -611,7 +611,7 @@ void V1FSEQFile::writeHeader() {
     // header buffer is sized to the value of m_seqChanDataOffset, which comes padded for memory alignment
     // If writePos extends past m_seqChanDataOffset (in error), writing m_seqChanDataOffset prevents data overflow
     write(header, m_seqChanDataOffset);
-
+    free(header);
     LogDebug(VB_SEQUENCE, "Setup for writing v1 FSEQ\n");
     dumpInfo(true);
 }
@@ -1109,7 +1109,7 @@ public:
             m_outBuffer.pos = 0;
             m_curFrameInBlock = 0;
         }
-        int fidx = frame - m_file->m_frameOffsets[m_curBlock].first;
+        uint32_t fidx = frame - m_file->m_frameOffsets[m_curBlock].first;
 
         if (fidx >= m_curFrameInBlock) {
             m_outBuffer.size = (fidx + 1) * m_file->getChannelCount();
@@ -1626,7 +1626,7 @@ m_handler(nullptr)
         numBlocks <<= 4;
         numBlocks |= header[21];
 
-        for (int i = 0; i < numBlocks; i++) {
+        for (uint32_t i = 0; i < numBlocks; i++) {
             uint32_t firstFrame = read4ByteUInt(&header[readPos]);
             uint64_t length = read4ByteUInt(&header[readPos + 4]);
 
