@@ -1379,9 +1379,7 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['Utilization']['CPU'] =  get_server_cpu_usage();
         $result['Utilization']['Memory'] = get_server_memory_usage();
         $result['Utilization']['Uptime'] = get_server_uptime(true);
-
-        $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
-
+        
         $result['Kernel'] = get_kernel_version();
         $result['LocalGitVersion'] = get_local_git_version();
         $result['RemoteGitVersion'] = get_remote_git_version(getFPPBranch());
@@ -1390,6 +1388,19 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
             $result['UpgradeSource'] = $settings['UpgradeSource'];
         else
             $result['UpgradeSource'] = 'github.com';
+        
+        $output = array();
+        $IPs = array();
+        exec("ip --json -4 address show", $output);
+        //print(join("", $output));
+        $ipAddresses = json_decode(join("", $output), true);
+        foreach($ipAddresses as $key => $value) {
+            if ($value["ifname"] != "lo" && strpos($value["ifname"], 'usb') === false) {
+                foreach($value["addr_info"] as $key2 => $value2) {
+                    $IPs[] = $value2["local"];
+                }
+            }
+        }
 
         $result['IPs'] = $IPs;
     }

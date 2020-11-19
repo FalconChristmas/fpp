@@ -327,7 +327,9 @@ bool MultiSync::FillLocalSystemInfo(void)
                 if (strncmp("usb", tmp->ifa_name, 3) != 0) {
                     //skip the usb* interfaces as we won't support multisync on those
                     memset(addressBuf, 0, sizeof(addressBuf));
-                    GetInterfaceAddress(tmp->ifa_name, addressBuf, NULL, NULL);
+                    
+                    struct sockaddr_in *sa = (struct sockaddr_in*)(tmp->ifa_addr);
+                    strcpy(addressBuf, inet_ntoa(sa->sin_addr));
                     if (isSupportedForMultisync(addressBuf, tmp->ifa_name)) {
                         addresses.push_back(addressBuf);
                     }
