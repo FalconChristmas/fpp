@@ -175,7 +175,7 @@ public:
 
     virtual uint32_t getMaxChannel() const override;
 
-    virtual void enableMinorVersionFeatures(uint8_t ver) {
+    virtual void enableMinorVersionFeatures(uint8_t ver) override {
         if (ver == 0) {
             m_allowExtendedBlocks = false;
             m_seqVersionMinor = 0;
