@@ -554,7 +554,7 @@ function PrintSettingSelect($title, $setting, $restart = 1, $reboot = 0, $defaul
 
 	echo "
 function " . $changedFunction . "() {
-	var value = $('#$escSetting').val();
+	var value = encodeURIComponent($('#$escSetting').val());
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
