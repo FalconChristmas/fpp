@@ -3327,6 +3327,28 @@ function UpgradePlaylist(data, editMode)
                     n.args = [ o.volume ];
 
                     data[sections[s]][i] = n;
+                } else if ((type == 'command') &&
+                           (o.command == 'Overlay Model Text')) {
+                    n = o;
+                    n.command = 'Overlay Model Effect';
+                    n.multisyncCommand = false;
+
+                    var args = [];
+                    args.push(o.args[0]);
+                    args.push("Enabled");
+                    args.push("Text");
+                    args.push(o.args[1]);
+                    args.push(o.args[2]);
+                    args.push(o.args[3]);
+                    args.push(o.args[4]);
+                    args.push(o.args[5]);
+                    args.push(o.args[6]);
+                    args.push("0");
+                    args.push(o.args[8]);
+
+                    n.args = args;
+
+                    data[sections[s]][i] = n;
                 }
             }
         }
