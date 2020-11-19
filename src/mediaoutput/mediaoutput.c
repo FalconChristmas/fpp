@@ -102,7 +102,7 @@ void setVolume(int vol)
     const char *mixerDeviceC = getSetting("AudioMixerDevice");
     std::string mixerDevice = "PCM";
     if (mixerDeviceC) {
-        mixerDevice = mixerDevice;
+        mixerDevice = mixerDeviceC;
     }
     int   audioOutput = getSettingInt("AudioOutput");
     std::string audio0Type = getSetting("AudioCard0Type");
