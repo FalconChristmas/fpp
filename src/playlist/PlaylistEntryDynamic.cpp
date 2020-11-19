@@ -83,9 +83,9 @@ int PlaylistEntryDynamic::Init(Json::Value &config)
 	if (m_subType == "file")
 		m_data = config["dataFile"].asString();
 	else if (m_subType == "plugin")
-		m_data = config["dataPlugin"].asString();
+		m_data = config["pluginName"].asString();
 	else if (m_subType == "url")
-		m_data = config["dataURL"].asString();
+		m_data = config["url"].asString();
 
 	if ((m_subType == "plugin") || (m_subType == "url"))
 	{
@@ -254,7 +254,16 @@ Json::Value PlaylistEntryDynamic::GetConfig(void)
 
 	result["subType"] = m_subType;
 	result["data"] = m_data;
-	result["pluginHost"] = m_pluginHost;
+
+	if (m_subType == "file") {
+		result["dataFile"] = m_data;
+	} else if (m_subType == "plugin") {
+		result["pluginName"] = m_data;
+		result["pluginHost"] = m_pluginHost;
+	} else if (m_subType == "url") {
+		result["url"] = m_data;
+	}
+
 	result["drainQueue"] = m_drainQueue;
 	if ((m_currentEntry >= 0) && (m_playlistEntries[m_currentEntry]))
 		result["dynamic"] = m_playlistEntries[m_currentEntry]->GetConfig();
