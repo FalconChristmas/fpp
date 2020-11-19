@@ -493,6 +493,8 @@ function LoadSubPlaylist(&$playlist, &$i, $plentry)
 	}
 
     array_splice($playlist, $i, 1, $subPlaylist);
+
+    $i += count($subPlaylist) - 1;
 }
 
 function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
@@ -521,7 +523,7 @@ function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
 		$i = 0;
 		foreach ($data->leadIn as $entry)
 		{
-			if ($entry->type == "playlist")
+			if ($mergeSubs && $entry->type == "playlist")
 			{
 				LoadSubPlaylist($data->leadIn, $i, $entry);
 			}
