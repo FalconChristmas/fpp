@@ -23,6 +23,14 @@ function LoadInitialPlaylist() {
 <?
 }
 ?>
+<script>
+$(document).ready(function() {
+    $( "#playlistSelect" ).resizable({ minWidth: 400, minHeight: 100});
+});
+</script>
+<style>
+.ui-resizable-se { bottom: 20px; right: 25px; }
+</style>
 </head>
 <body onload="PopulateLists(); <?
 if (isset($_GET['playlist'])) {
@@ -38,7 +46,7 @@ include 'menu.inc';
             <legend>Playlists</legend>
             <div class='playlistBoxLeft'>
                 <b>Select Playlist to Edit:</b><br>
-                <select id='playlistSelect' size='5' style='min-width: 150px;' onChange='EditPlaylist();'>
+                <select id='playlistSelect' size='5' style='width: 400px;' onChange='EditPlaylist();'>
                 </select><br>
             </div>
             <div class='playlistBoxRight'>
