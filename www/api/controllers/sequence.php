@@ -55,7 +55,7 @@ function GetSequenceMetaData() {
 	$file = urldecode($file);
     }
     if (file_exists($file)) {
-        $cmd = "/opt/fpp/src/fsequtils -j \"$file\" 2>&1";
+        $cmd = "/opt/fpp/src/fsequtils -j \"$file\" 2> /dev/null";
         exec( $cmd, $output);
         $js = json_decode($output[0]);
         return json($js);
