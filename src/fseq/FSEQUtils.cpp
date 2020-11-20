@@ -172,6 +172,8 @@ int main(int argc, char *argv[]) {
     int idx = parseArguments(argc, argv);
     if (verbose) {
         SetLogLevel("debug");
+    } else {
+        SetLogFile("stderr", false);
     }
     FSEQFile *src = FSEQFile::openFSEQFile(argv[idx]);
     if (src) {
