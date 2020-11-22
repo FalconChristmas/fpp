@@ -687,7 +687,7 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
             }
             if (found) {
                 delete nc;
-                nc == nullptr;
+                nc = nullptr;
             }
         }
         
