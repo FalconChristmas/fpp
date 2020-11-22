@@ -946,12 +946,16 @@ function SetPlaylistItemMetaData(row) {
                     duration = sDuration;
             }
 
-            var humanDuration = SecondsToHuman(duration);
+            if (duration > 0) {
+                var humanDuration = SecondsToHuman(duration);
 
-            row.find('.psiDurationSeconds').html(duration);
-            row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
+                row.find('.psiDurationSeconds').html(duration);
+                row.find('.humanDuration').html('<b>Length: </b>' + humanDuration);
 
-            UpdatePlaylistDurations();
+                UpdatePlaylistDurations();
+            } else {
+                row.find('.humanDuration').html('');
+            }
         }).fail(function() {
             row.find('.humanDuration').html('');
             row.find('.psiDataSimple').append('<span style="color: #FF0000; font-weight: bold;">ERROR: Media File "' + file + '" Not Found</span><br>');
