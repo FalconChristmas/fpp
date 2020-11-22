@@ -913,7 +913,10 @@ function GetSequenceDuration(sequence, updateUI, row) {
             }
         },
         error: function() {
-            $.jGrowl('Error: Unable to get metadata for ' + sequence);
+            durationInSeconds = -1;
+            row.find('.humanDuration').html('');
+            row.find('.psiDataSimple').append('<span style="color: #FF0000; font-weight: bold;">ERROR: Sequence "' + sequence + '" Not Found</span><br>');
+            row.find('.psiData').append('<div style="color: #FF0000; font-weight: bold;">ERROR: Sequence "' + sequence + '" Not Found</div>');
         }
     });
 
@@ -936,7 +939,7 @@ function SetPlaylistItemMetaData(row) {
             }
 
             if (type == 'both') {
-                var sDuration = GetSequenceDuration(row.find('.field_sequenceName').html(), false, '');
+                var sDuration = GetSequenceDuration(row.find('.field_sequenceName').html(), false, row);
 
                 // Playlist/PlaylistEntryBoth.cpp ends whenever shortest item ends
                 if ((duration > sDuration) || (duration < 0))
@@ -950,7 +953,12 @@ function SetPlaylistItemMetaData(row) {
 
             UpdatePlaylistDurations();
         }).fail(function() {
-            $.jGrowl('Error: Unable to get metadata for ' + file);
+            row.find('.humanDuration').html('');
+            row.find('.psiDataSimple').append('<span style="color: #FF0000; font-weight: bold;">ERROR: Media File "' + file + '" Not Found</span><br>');
+            row.find('.psiData').append('<div style="color: #FF0000; font-weight: bold;">ERROR: Media File "' + file + '" Not Found</div>');
+
+            if (type == 'both')
+                GetSequenceDuration(row.find('.field_sequenceName').html(), false, row);
         });
     } else if (type == 'sequence') {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);

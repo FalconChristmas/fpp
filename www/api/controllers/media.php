@@ -34,7 +34,10 @@ function GetMediaDuration() {
 
     $resp = getMediaDurationInfo($file, true);
 
-    return json($resp);
+    if ($resp[$file]['duration'] < 0)
+        halt(404, "Not found: ". $file);
+    else
+        return json($resp);
 }
 
 /////////////////////////////////////////////////////////////////////////////

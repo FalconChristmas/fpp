@@ -89,6 +89,11 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 //		media_duration_cache($mediaName, $total_duration, $media_filesize);
 	} else {
 		error_log("getMediaDurationInfo:: Could not find media file - " . $mediaName);
+		if ($returnArray == false) {
+			$returnStr[$mediaName]['duration'] = "-00:01";
+		} else {
+			$returnStr[$mediaName]['duration'] = -1;
+		}
 	}
 
 	if ($total_duration !== 0) {

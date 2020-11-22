@@ -60,7 +60,7 @@ function GetSequenceMetaData() {
         $js = json_decode($output[0]);
         return json($js);
     }
-    halt(404, "Not found: ". $file);
+    halt(404, "Not found: ". $sequence);
 }
 
 /////////////////////////////////////////////////////////////////////////////
