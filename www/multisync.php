@@ -505,7 +505,7 @@ input.largeCheckbox {
                     fppMode = 'Remote';
 
                     if (settings['fppMode'] == 'master')
-                        fppMode += "<span class='syncCheckboxSpan'>:<br>Enable Sync: " + star + "</span>";
+                        fppMode += "<span class='syncCheckboxSpan'>:<br>Unicast Sync: " + star + "</span>";
                 } else if (data[i].fppMode == 'unknown') {
                     fppMode = 'Unknown';
                 }
