@@ -201,6 +201,9 @@ input.largeCheckbox {
 			var statusInfo = "";
 			var elapsed = "";
 			var files = "";
+                        if (data == null || data == "" || data == "null") {
+                            return;
+                        }
 
 			if (data.status_name == 'playing') {
 				status = 'Playing';
