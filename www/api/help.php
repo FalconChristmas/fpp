@@ -2,6 +2,8 @@
 $wrapped = 1;
 if (!isset($apiDir))
 {
+    require_once('../config.php');
+    require_once('../common.php');
     $wrapped = 0;
     $apiDir = "";
 ?>
