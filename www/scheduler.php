@@ -112,6 +112,8 @@ function AddScheduleEntry(data = {}) {
     if (newEntry) {
         SetScheduleInputNames();
     }
+
+    SetupDatePicker();
 }
 
 function getSchedule()
@@ -202,6 +204,13 @@ function SetScheduleInputNames() {
 			]
 		});
 
+    SetupDatePicker();
+}
+
+function SetupDatePicker()
+{
+    $('.date').removeClass('hasDatepicker');
+
 	$('.date').datepicker({
 		'changeMonth': true,
 		'changeYear': true,
@@ -233,6 +242,7 @@ function SetScheduleInputNames() {
         }
     });
 }
+
 function TimeChanged(item)
 {
     if ($(item).val() == 'SunSet' || $(item).val() == 'SunRise') {

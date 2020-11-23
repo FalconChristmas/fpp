@@ -494,7 +494,7 @@ if (!isset($settings['uiLevel']))
 
 $uiLevel = $settings['uiLevel'];
 
-define('MINYEAR', date('Y'));
+define('MINYEAR', date('Y') - 2);
 define('MAXYEAR', date('Y') + 5);
 
 LoadLocale();
