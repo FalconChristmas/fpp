@@ -563,7 +563,7 @@ input.largeCheckbox {
                     if (majorVersion == 3) {
                         getESPixelStickBridgeStatus(ip);
                     } else {
-                        getFPPSystemStatus(ip, false);
+                        fppIpAddresses.push(ip);
                         getFPPSystemInfo(ip);
                     }
                 } else if (isFalcon(data[i].typeId)) {
