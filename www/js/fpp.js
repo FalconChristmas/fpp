@@ -1147,19 +1147,19 @@ function GetPlaylistEntry(row) {
             var arr = [];
             for (x = 1; x <= 20; x++) {
                 if ($(row).find('.field_args_' + x).length) {
-                    arr.push($(row).find('.field_args_' + x).html());
+                    arr.push($(row).find('.field_args_' + x).text());
                 }
             }
             e[a.name] = arr;
         } else if (a.type == 'string') {
-            var v = $(row).find('.field_' + a.name).html();
+            var v = $(row).find('.field_' + a.name).text();
             if (parseInt(v) == v) {
                 e[a.name] = parseInt(v);
             } else {
                 e[a.name] = v;
             }
         } else {
-            e[a.name] = $(row).find('.field_' + a.name).html();
+            e[a.name] = $(row).find('.field_' + a.name).text();
         }
     }
 
