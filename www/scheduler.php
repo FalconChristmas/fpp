@@ -113,7 +113,7 @@ function AddScheduleEntry(data = {}) {
         SetScheduleInputNames();
     }
 
-    SetupDatePicker();
+    SetupDatePicker(row);
 }
 
 function getSchedule()
@@ -204,14 +204,12 @@ function SetScheduleInputNames() {
 			]
 		});
 
-    SetupDatePicker();
+    SetupDatePicker("#tblScheduleBody > tr > td > input.date");
 }
 
-function SetupDatePicker()
+function SetupDatePicker(item)
 {
-    $('.date').removeClass('hasDatepicker');
-
-	$('.date').datepicker({
+	$(item).datepicker({
 		'changeMonth': true,
 		'changeYear': true,
 		'dateFormat': 'yy-mm-dd',
