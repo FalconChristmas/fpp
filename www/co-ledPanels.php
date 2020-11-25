@@ -449,7 +449,8 @@ function InitializeLEDPanels()
 		$('#LEDPanelsStartCorner').val(channelOutputsLookup["LEDPanelMatrix"].invertedData);
 
 		if ((channelOutputsLookup["LEDPanelMatrix"].subType == 'ColorLight5a75') ||
-			(channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9'))
+            (channelOutputsLookup["LEDPanelMatrix"].subType == 'LinsnRv9') ||
+            (channelOutputsLookup["LEDPanelMatrix"].subType == 'X11PanelMatrix'))
 		{
 			LEDPanelOutputs = 12;
 			LEDPanelPanelsPerOutput = 24;
@@ -514,10 +515,12 @@ function GetLEDPanelConfig()
    	config.channelCount = parseInt($('#LEDPanelsChannelCount').html());
 	config.colorOrder = $('#LEDPanelsColorOrder').val();
     config.gamma = $('#LEDPanelsGamma').val();
-	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9"))
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix"))
 	{
 		config.subType = $('#LEDPanelsConnection').val();
-		config.interface = $('#LEDPanelsInterface').val();
+        if ($('#LEDPanelsConnection').val() != "X11PanelMatrix")
+            config.interface = $('#LEDPanelsInterface').val();
+
 		if (($('#LEDPanelsConnection').val() === "LinsnRV9") && $('#LEDPanelsSourceMacInput').val() !== "00:00:00:00:00:00" && $('#LEDPanelsSourceMacInput').val() !== "")
 		{
 			config.sourceMAC = $('#LEDPanelsSourceMacInput').val();
@@ -644,8 +647,7 @@ function PopulateEthernetInterfaces()
 
 function LEDPanelsConnectionChanged()
 {
-	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9")) {
-		$('#LEDPanelsConnectionInterface').show();
+	if (($('#LEDPanelsConnection').val() === "ColorLight5a75") || ($('#LEDPanelsConnection').val() === "LinsnRV9") || ($('#LEDPanelsConnection').val() === "X11PanelMatrix")) {
 		$('#LEDPanelsGPIOSlowdownLabel').hide();
 		$('#LEDPanelsGPIOSlowdown').hide();
         $('#LEDPanelsBrightness').hide();
@@ -654,7 +656,15 @@ function LEDPanelsConnectionChanged()
         $('#LEDPanelsColorDepthLabel').hide();
         $('#LEDPanelsWiringPinoutLabel').hide();
         $('#LEDPanelsWiringPinout').hide();
-		$('#LEDPanelsInterface').show();
+
+        if ($('#LEDPanelsConnection').val() === "X11PanelMatrix") {
+            $('#LEDPanelsConnectionInterface').hide();
+            $('#LEDPanelsInterface').hide();
+        } else {
+            $('#LEDPanelsConnectionInterface').show();
+            $('#LEDPanelsInterface').show();
+        }
+
 		if ($('#LEDPanelsConnection').val() === "LinsnRV9") {
 			$('#LEDPanelsSourceMac').show();
 		} else {
@@ -1353,6 +1363,11 @@ if ($settings['Platform'] == "Raspberry Pi") {
 ?>
 									<option value='ColorLight5a75'>ColorLight</option>
 									<option value='LinsnRV9'>Linsn</option>
+<?
+if ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux")) {
+    echo "<option value='X11PanelMatrix'>X11 Panel Matrix</option>\n";
+}
+?>
 								</select>
 							</td>
 							<td></td>
