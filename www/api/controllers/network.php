@@ -41,7 +41,7 @@ function network_wifi_strength()
 			array_push($rc, $obj);
 		}
 	}
-	return json_encode($rc);
+	return json($rc);
 }
 
 
