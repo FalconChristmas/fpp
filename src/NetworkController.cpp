@@ -134,6 +134,14 @@ bool NetworkController::DetectFalconController(const std::string &ip,
                 (typeId == kSysTypeFalconF4v2)) {
                 hostname = getSimpleHTMLTTag(html, "Name:</td>", "\">", "</td>");
                 version = getSimpleHTMLTTag(html, "SW Version:</td>", "\">", "</td>");
+                if ((hostname != "") && (startsWith(version, hostname))) {
+                    std::string tmpStr(hostname);
+                    version.erase(0, hostname.length());
+                    TrimWhiteSpace(version);
+
+                    if (startsWith(version, "- "))
+                        version.erase(0, 2);
+                }
             } else {
                 hostname = getSimpleXMLTag(resp, "n");
 
