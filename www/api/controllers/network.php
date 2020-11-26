@@ -28,6 +28,16 @@ function network_wifi_strength()
 			$obj->link      = intval($parts[2]);
 			$obj->level     = intval($parts[3]);
 			$obj->noise     = intval($parts[4]);
+
+			if ($obj->level > -50) {
+			   $obj->desc="excellent";
+			} elseif ($obj->level > -60) {
+			   $obj->desc="good";
+			} elseif ($obj->level > -70) {
+			   $obj->desc="fair";
+			} else {
+			   $obj->desc="weak";
+			}
 			array_push($rc, $obj);
 		}
 	}
