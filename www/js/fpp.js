@@ -773,20 +773,32 @@ function PlaylistNameOK(name) {
 function LoadNetworkDetails(){
     $.get('/api/network/interface'
     ).done(function(data) {
-       var rc = [];
-       data.forEach(function(e) {
-	  if (e.ifname === "lo") { return 0; }
-	  if (e.ifname.startsWith("eth0:0")) { return 0; }
-	  if (e.ifname.startsWith("usb")) { return 0; }
-	  if (e.ifname.startsWith("SoftAp")) { return 0; }
-	  if (e.ifname.startsWith("can.")) { return 0; }
-	  e.addr_info.forEach(function(n) {
-             if (n.family === "inet") {
-                rc.push(e.ifname + ":" + n.local);
-	     }
-	  });
+       $.get('/api/network/wifi_strength'
+       ).done(function(wifiData) {
+          var rc = [];
+          data.forEach(function(e) {
+	     if (e.ifname === "lo") { return 0; }
+	     if (e.ifname.startsWith("eth0:0")) { return 0; }
+	     if (e.ifname.startsWith("usb")) { return 0; }
+	     if (e.ifname.startsWith("SoftAp")) { return 0; }
+	     if (e.ifname.startsWith("can.")) { return 0; }
+	     e.addr_info.forEach(function(n) {
+                if (n.family === "inet") {
+                   var row =e.ifname + ":" + n.local;
+	           console.log('wifi: ' + wifiData);
+		   wifiData.forEach(function(w) {
+		      if (w.interface === e.ifname) {
+		         row = row + '<span title="' + w.level + 'dBm" class="wifi-' + w.desc + '"></span>';
+		      }
+		   });
+		   rc.push(row);
+	        }
+	     });
+          });
+          $("#header_IPs").html(rc.join(", "));
+       }).fail(function(){
+        DialogError('Error loading wifi info', 'Error loading wifi interface details.');
        });
-       $("#header_IPs").html(rc.join(", "));
     }).fail(function() {
         DialogError('Error loading network info', 'Error loading network interface details.');
     });

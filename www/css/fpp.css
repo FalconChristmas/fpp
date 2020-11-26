@@ -1543,3 +1543,30 @@ a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
     width: 2.5em;
 }
 
+.wifi-excellent {
+    background: url(images/wifi.png) 0 0;
+    width: 30px;
+    height: 25px;
+    display: inline-block;
+}
+
+.wifi-good {
+    background: url(images/wifi.png) -30px 0px;
+    width: 30px;
+    height: 25px;
+    display: inline-block;
+}
+
+.wifi-fair {
+    background: url(images/wifi.png) -60px 0px;
+    width: 30px;
+    height: 25px;
+    display: inline-block;
+}
+
+.wifi-weak {
+    background: url(images/wifi.png) -90px 0px;
+    width: 30px;
+    height: 25px;
+    display: inline-block;
+}
