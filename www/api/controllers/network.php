@@ -10,5 +10,30 @@ function network_list_interfaces()
 	#return json(join(" ", $output));
 }
 
+function network_wifi_strength()
+{
+	$rc = array();
+	$lines = file("/proc/net/wireless");
+	#
+	# Expected format
+	# 
+	# face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
+	# wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
+	#
+	foreach($lines as $cnt=>$line) {
+		if ($cnt > 1) {
+			$parts = preg_split("/\s+/", trim($line));
+			$obj = new \stdClass();
+			$obj->interface = rtrim($parts[0], ":");
+			$obj->link      = intval($parts[2]);
+			$obj->level     = intval($parts[3]);
+			$obj->noise     = intval($parts[4]);
+			array_push($rc, $obj);
+		}
+	}
+	return json_encode($rc);
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 ?>
