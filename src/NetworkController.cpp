@@ -128,7 +128,10 @@ bool NetworkController::DetectFalconController(const std::string &ip,
             version = getSimpleXMLTag(resp, "fv");
             systemMode = BRIDGE_MODE;
 
-            if (typeId == kSysTypeFalconF16v2) {
+            if ((typeId == kSysTypeFalconF16v2) ||
+                (typeId == kSysTypeFalconF4v2_64Mb) ||
+                (typeId == kSysTypeFalconF16v2R) ||
+                (typeId == kSysTypeFalconF4v2)) {
                 hostname = getSimpleHTMLTTag(html, "Name:</td>", "\">", "</td>");
                 version = getSimpleHTMLTTag(html, "SW Version:</td>", "\">", "</td>");
             } else {
