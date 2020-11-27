@@ -1545,7 +1545,7 @@ a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
 
 .wifi-excellent {
     background: url(images/wifi.png) 0 0;
-    padding-left: 2px;
+    padding-left: 4px;
     width: 30px;
     height: 25px;
     display: inline-block;
@@ -1553,7 +1553,7 @@ a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
 
 .wifi-good {
     background: url(images/wifi.png) -30px 0px;
-    padding-left: 2px;
+    padding-left: 4px;
     width: 30px;
     height: 25px;
     display: inline-block;
@@ -1561,7 +1561,7 @@ a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
 
 .wifi-fair {
     background: url(images/wifi.png) -60px 0px;
-    padding-left: 2px;
+    padding-left: 4px;
     width: 30px;
     height: 25px;
     display: inline-block;
@@ -1569,7 +1569,7 @@ a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
 
 .wifi-weak {
     background: url(images/wifi.png) -90px 0px;
-    padding-left: 2px;
+    padding-left: 4px;
     width: 30px;
     height: 25px;
     display: inline-block;
