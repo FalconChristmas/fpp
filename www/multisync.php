@@ -288,11 +288,12 @@ input.largeCheckbox {
 		    data.wifi.forEach(function(w) {
 			    wifi_html.push('<span title="');
 			    wifi_html.push(w.level);
-			    wifi_html.push('dBm" class="wifi-');
+			    wifi_html.push('dBm" class="wifi-icon wifi-');
 			    wifi_html.push(w.desc);
 			    wifi_html.push('"></span>');
 		    });
 
+		    $('#' + rowID + "_ip").find(".wifi-icon").remove();
 		    $('#' + rowID + "_ip").append(wifi_html.join(''));
 	    }
 
