@@ -293,8 +293,10 @@ input.largeCheckbox {
 			    wifi_html.push('"></span>');
 		    });
 
-		    $('#' + rowID + "_ip").find(".wifi-icon").remove();
-		    $('#' + rowID + "_ip").append(wifi_html.join(''));
+                    if (wifi_html.length > 0) {
+		    	$('#' + rowID + "_ip").find(".wifi-icon").remove();
+		    	$('#' + rowID + "_ip").append(wifi_html.join(''));
+		    }
 	    }
 
             if ($('#' + rowID).attr('ip') != ip)
