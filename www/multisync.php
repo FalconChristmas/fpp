@@ -470,11 +470,31 @@ input.largeCheckbox {
 
             hostRows[hostRowKey] = rowID;
 
+            var hostname = data[i].HostName;
+            if (data[i].Local) {
+                hostname = "<b>" + hostname + "</b>";
+            } else {
+                if ((settings['fppMode'] == 'master') &&
+                        (data[i].fppMode == "remote"))
+                {
+                    star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].IP + "'";
+                    if (typeof remotes[data[i].IP] !== 'undefined') {
+                        star += " checked";
+                        delete remotes[data[i].IP];
+                    }
+                    star += " onClick='updateMultiSyncRemotes(true);'>";
+                }
+            }
+
             if (uniqueHosts.hasOwnProperty(hostKey)) {
                 rowID = uniqueHosts[hostKey];
                 hostRows[hostRowKey] = rowID;
 
                 $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].IP));
+
+                if (data[i].fppMode == 'remote') {
+                    $('#' + rowID + '_ip').append(star);
+                }
 
                 if (isFPP(data[i].typeId)) {
                     fppIpAddresses.push(ip);
@@ -483,22 +503,6 @@ input.largeCheckbox {
             } else {
                 uniqueHosts[hostKey] = rowID;
 
-                var hostname = data[i].HostName;
-                if (data[i].Local) {
-                    hostname = "<b>" + hostname + "</b>";
-                } else {
-                    if ((settings['fppMode'] == 'master') &&
-                            (data[i].fppMode == "remote"))
-                    {
-                        star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].IP + "'";
-                        if (typeof remotes[data[i].IP] !== 'undefined') {
-                            star += " checked";
-                            delete remotes[data[i].IP];
-                        }
-                        star += " onClick='updateMultiSyncRemotes(true);'>";
-                    }
-                }
-
                 var fppMode = 'Player';
                 if (data[i].fppMode == 'bridge') {
                     fppMode = 'Bridge';
@@ -506,9 +510,6 @@ input.largeCheckbox {
                     fppMode = 'Master';
                 } else if (data[i].fppMode == 'remote') {
                     fppMode = 'Remote';
-
-                    if (settings['fppMode'] == 'master')
-                        fppMode += "<span class='syncCheckboxSpan'>:<br>Unicast Sync: " + star + "</span>";
                 } else if (data[i].fppMode == 'unknown') {
                     fppMode = 'Unknown';
                 }
@@ -516,6 +517,10 @@ input.largeCheckbox {
                 rowSpans[rowID] = 1;
 
                 var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
+
+                if ((data[i].fppMode == 'remote') && (star != ""))
+                    ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
+
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "' class='systemRow'>" +
                     "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
