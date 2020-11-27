@@ -1568,4 +1568,45 @@ function PrintAwesomeFree($code, $isLink = 0) {
     echo "'>&#x$code;</span>";
 }
 
+
+#############
+# Returns a PHP Array of Objects for each wifi interface describing strength
+#############
+function network_wifi_strength_obj()
+{
+	$rc = array();
+	$lines = file("/proc/net/wireless");
+	#
+	# Expected format
+	# 
+	# face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
+	# wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
+	#
+	foreach($lines as $cnt=>$line) {
+		if ($cnt > 1) {
+			$parts = preg_split("/\s+/", trim($line));
+			$obj = new \stdClass();
+			$obj->interface = rtrim($parts[0], ":");
+			$obj->link      = intval($parts[2]);
+			$obj->level     = intval($parts[3]);
+			$obj->noise     = intval($parts[4]);
+
+			if ($obj->level > -50) {
+			   $obj->desc="excellent";
+			} elseif ($obj->level > -60) {
+			   $obj->desc="good";
+			} elseif ($obj->level > -70) {
+			   $obj->desc="fair";
+			} else {
+			   $obj->desc="weak";
+			}
+			array_push($rc, $obj);
+		}
+	}
+	return $rc;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+
 ?>

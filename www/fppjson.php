@@ -263,7 +263,8 @@ function GetFPPStatusJson()
     //Default json to be returned
     $default_return_json = array(
         'fppd' => 'unknown',
-        'status' => -1,
+	'status' => -1,
+	'wifi' => [],
         'status_name' => 'unknown',
         'current_playlist' =>
             [
@@ -380,11 +381,13 @@ function GetFPPStatusJson()
             
             $default_return_json['fppd'] = "Not Running";
             $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
+	    $default_return_json['wifi'] = network_wifi_strength_obj();
             
             returnJSON($default_return_json);
             exit(0);
         }
 		$data = json_decode($request_content, TRUE);
+	        $data['wifi'] = network_wifi_strength_obj();
 
 		//Check to see if we should also get the systemInfo for multiSync Expert view
 		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
