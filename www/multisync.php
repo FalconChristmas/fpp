@@ -281,7 +281,20 @@ input.largeCheckbox {
                 (!refreshing)) {
                 // Don't replace an existing status via a different IP
                 return;
-            }
+	    }
+
+	    if (data.hasOwnProperty('wifi')) {
+		    var wifi_html = [];
+		    data.wifi.forEach(function(w) {
+			    wifi_html.push('<span title="');
+			    wifi_html.push(w.level);
+			    wifi_html.push('dBm" class="wifi-');
+			    wifi_html.push(w.desc);
+			    wifi_html.push('"></span>');
+		    });
+
+		    $('#' + rowID + "_ip").append(wifi_html.join(''));
+	    }
 
             if ($('#' + rowID).attr('ip') != ip)
                 $('#' + rowID).attr('ip', ip);
@@ -409,7 +422,7 @@ input.largeCheckbox {
 
 	function parseFPPSystems(data) {
 		$('#fppSystems').empty();
-        rowSpans = [];
+	rowSpans = [];
 
         var uniqueHosts = new Object();
 
@@ -516,7 +529,7 @@ input.largeCheckbox {
 
                 rowSpans[rowID] = 1;
 
-                var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
+		var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
 
                 if ((data[i].fppMode == 'remote') && (star != ""))
                     ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
