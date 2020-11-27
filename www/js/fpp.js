@@ -785,7 +785,6 @@ function LoadNetworkDetails(){
 	     e.addr_info.forEach(function(n) {
                 if (n.family === "inet") {
                    var row =e.ifname + ":" + n.local;
-	           console.log('wifi: ' + wifiData);
 		   wifiData.forEach(function(w) {
 		      if (w.interface === e.ifname) {
 		         row = row + '<span title="' + w.level + 'dBm" class="wifi-' + w.desc + '"></span>';
