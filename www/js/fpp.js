@@ -617,7 +617,7 @@ function GetPlaylistDurationDiv(entry) {
 
 	if ((entry.hasOwnProperty('duration')) &&
         (entry.duration > 0)) {
-        h = "Length: " + SecondsToHuman(entry.duration);
+        h = "<b>Length:</b> " + SecondsToHuman(entry.duration);
         s = entry.duration;
     }
 
