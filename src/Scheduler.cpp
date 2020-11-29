@@ -688,11 +688,6 @@ void Scheduler::PlayListStopCheck(void)
                 diff = 0;
                 m_forcedNextPlaylist = m_nextSchedulePlaylist.ScheduleEntryIndex;
                 // we are going to stop, but we need to make sure the "next" playlist actually will start
-            } else {
-                int diff2 = m_nextSchedulePlaylist.startWeeklySeconds - nowWeeklySeconds;
-                if (diff2 < diff) {
-                    diff = diff2;
-                }
             }
         }
         int displayDiff = 0;
