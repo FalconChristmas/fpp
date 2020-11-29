@@ -469,14 +469,14 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int read
         readIndex += VariableLengthSize;
 
         if (dataLength <= 0) {
-            LogErr(VB_SEQUENCE, "VariableHeader has 0 length data: %c%c", header[readIndex], header[readIndex + 1]);
+            LogErr(VB_SEQUENCE, "VariableHeader has 0 length data: %c%c\n", header[readIndex], header[readIndex + 1]);
             
             // empty data, advance only the length of the 2 byte code
             readIndex += VariableCodeSize;
         } else if (readIndex + VariableCodeSize + dataLength > header.size()) {
             // ensure the data length is contained within the header
             // this is primarily protection against hand modified, or corrupted, sequence files
-            LogErr(VB_SEQUENCE, "VariableHeader '%c%c' has out of bounds data length: %d bytes, max length: %d bytes", header[readIndex], header[readIndex + 1], readIndex + VariableCodeSize + dataLength, header.size());
+            LogErr(VB_SEQUENCE, "VariableHeader '%c%c' has out of bounds data length: %d bytes, max length: %d bytes\n", header[readIndex], header[readIndex + 1], readIndex + VariableCodeSize + dataLength, header.size());
             
             // there is no reasonable way to recover from this error - the reported dataLength is longer than possible
             // return from parsing variable headers and let the program attempt to read the rest of the file
@@ -484,15 +484,16 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int read
         } else {
             // log when reading unrecongized variable headers
             if (!isRecognizedVariableHeader(header[readIndex], header[readIndex + 1])) {
-                LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes", header[readIndex], header[readIndex + 1], dataLength);
+                LogDebug(VB_SEQUENCE, "Unrecognized VariableHeader code: %c%c, length: %d bytes\n", header[readIndex], header[readIndex + 1], dataLength);
             } else {
                 // print a warning if the data is not null terminated
                 // this is to assist debugging potential string related issues
                 // the data is not forcibly null terminated to avoid mutating unknown data
-                if (header.size() <= readIndex + VariableCodeSize + dataLength)                     {
-                    LogErr(VB_SEQUENCE, "VariableHeader %c%c data exceeds header buffer size!", header[readIndex], header[readIndex + 1]);
+                if (header.size() < readIndex + VariableCodeSize + dataLength)                     {
+                    LogErr(VB_SEQUENCE, "VariableHeader %c%c data exceeds header buffer size!  %d > %d\n",
+                           header[readIndex], header[readIndex + 1], (readIndex + VariableCodeSize + dataLength), header.size());
                 } else if (header[readIndex + VariableCodeSize + dataLength - 1] != '\0') {
-                    LogErr(VB_SEQUENCE, "VariableHeader %c%c data is not NULL terminated!", header[readIndex], header[readIndex + 1]);
+                    LogErr(VB_SEQUENCE, "VariableHeader %c%c data is not NULL terminated!\n", header[readIndex], header[readIndex + 1]);
                 }
             }
             
@@ -509,7 +510,7 @@ void FSEQFile::parseVariableHeaders(const std::vector<uint8_t> &header, int read
             
             m_variableHeaders.push_back(vheader);
             
-            LogDebug(VB_SEQUENCE, "Read VariableHeader: %c%c, length: %d bytes", vheader.code[0], vheader.code[1], dataLength);
+            LogDebug(VB_SEQUENCE, "Read VariableHeader: %c%c, length: %d bytes\n", vheader.code[0], vheader.code[1], dataLength);
             
             // advance the length of the data
             // readIndex now points at the next VariableHeader's length (if any)
