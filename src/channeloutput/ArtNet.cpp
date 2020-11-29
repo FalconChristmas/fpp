@@ -180,7 +180,7 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages
         }
         
         unsigned char *cur = channelData + startChannel - 1;
-        int start = startChannel - 1;
+        int start = 0;
         bool skipped = false;
         bool allSkipped = true;
 
@@ -213,7 +213,7 @@ void ArtNetOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages
             skippedFrames++;
         }
         if (!allSkipped) {
-            SaveFrame(channelData);
+            SaveFrame(&channelData[startChannel - 1], start);
         }
     }
 }

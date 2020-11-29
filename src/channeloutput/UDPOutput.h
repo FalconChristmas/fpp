@@ -101,8 +101,8 @@ public:
     void operator=(UDPOutputData const &x) = delete;
     
 protected:
-    void SaveFrame(unsigned char *channelData);
-    bool NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count);
+    void SaveFrame(unsigned char *channelData, int len);
+    bool NeedToOutputFrame(unsigned char *channelData, int startChannel, int savedIdx, int count);
     bool           deDuplicate;
     int            skippedFrames;
     unsigned char* lastData;

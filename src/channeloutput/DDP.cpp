@@ -201,7 +201,7 @@ DDPOutputData::~DDPOutputData() {
 
 void DDPOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) {
     if (valid && active) {
-        int start = startChannel - 1;
+        int start = 0;
         struct mmsghdr msg;
         memset(&msg, 0, sizeof(msg));
         
@@ -232,7 +232,7 @@ void DDPOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &m
                 }
                 
                 // set the pointer to the channelData for the universe
-                ddpIovecs[p * 2 + 1].iov_base = (void*)(channelData + start);
+                ddpIovecs[p * 2 + 1].iov_base = (void*)(&channelData[startChannel - 1 + start]);
                 allSkipped = false;
             } else {
                 skipped = true;
@@ -243,7 +243,7 @@ void DDPOutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &m
             skippedFrames++;
         }
         if (!allSkipped) {
-            SaveFrame(channelData);
+            SaveFrame(&channelData[startChannel - 1], start);
         }
     }
 }

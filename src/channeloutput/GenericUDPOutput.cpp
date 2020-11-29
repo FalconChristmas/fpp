@@ -150,7 +150,7 @@ public:
             } else {
                 msgs[udpAddress.sin_addr.s_addr].push_back(msg);
             }
-            SaveFrame(channelData);
+            SaveFrame(&channelData[startChannel - 1], channelCount);
         } else {
             skippedFrames++;
         }

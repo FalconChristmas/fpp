@@ -175,7 +175,7 @@ bool E131OutputData::IsPingable() {
 void E131OutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) {
     if (valid && active) {
         unsigned char *cur = channelData + startChannel - 1;
-        int start = startChannel - 1;
+        int start = 0;
         bool skipped = false;
         bool allSkipped = true;
         for (int x = 0; x < universeCount; x++) {
@@ -205,9 +205,11 @@ void E131OutputData::PrepareData(unsigned char *channelData, UDPOutputMessages &
         }
         if (skipped) {
             skippedFrames++;
+        } else {
+            skippedFrames = 0;
         }
         if (!allSkipped) {
-            SaveFrame(channelData);
+            SaveFrame(&channelData[startChannel - 1], start);
         }
     }
 }

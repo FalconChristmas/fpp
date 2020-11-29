@@ -171,28 +171,39 @@ in_addr_t UDPOutputData::toInetAddr(const std::string &ipAddress, bool &valid) {
     }
     return inet_addr(ipAddress.c_str());
 }
-void UDPOutputData::SaveFrame(unsigned char *channelData) {
+
+void UDPOutputData::SaveFrame(unsigned char *channelData, int len) {
     if (deDuplicate) {
-        int min = 999999999;
-        int max = 0;
-        GetRequiredChannelRange(min, max);
-        if (max >= min) {
-            max -= min;
-            if (lastData == nullptr) {
-                lastData = (unsigned char *)malloc(max);
-            }
-            memcpy(lastData, &channelData[min], max);
+        if (lastData == nullptr) {
+            lastData = (unsigned char *)calloc(1, len);
         }
+        /*
+        printf("Saving: %d   %2X%2X%2X %2X%2X%2X %2X%2X%2X %2X%2X%2X\n", len,
+               channelData[0], channelData[1], channelData[2], channelData[3], channelData[4], channelData[5],
+               channelData[6], channelData[7], channelData[8], channelData[9], channelData[10], channelData[11]);
+         */
+        memcpy(lastData, channelData, len);
     }
 }
 
-bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChannel, int start, int count) {
+bool UDPOutputData::NeedToOutputFrame(unsigned char *channelData, int startChannel, int savedIdx, int count) {
     if (deDuplicate && skippedFrames < 10) {
         if (lastData == nullptr) {
             return true;
         }
         for (int x = 0; x < count; x++) {
-            if (channelData[x + start + startChannel] != lastData[x + start]) {
+            if (channelData[x + savedIdx + startChannel] != lastData[x + savedIdx]) {
+                /*
+                printf("ND: %d   %2X%2X%2X %2X%2X%2X %2X%2X%2X %2X%2X%2X\n", x,
+                       lastData[0], lastData[1], lastData[2], lastData[3], lastData[4], lastData[5],
+                       lastData[6], lastData[7], lastData[8], lastData[9], lastData[10], lastData[11]);
+                printf("%d %d    %2X%2X%2X %2X%2X%2X %2X%2X%2X %2X%2X%2X\n", start, startChannel, x,
+                       channelData[start + startChannel + 0], channelData[start + startChannel + 1], channelData[start + startChannel + 2],
+                       channelData[start + startChannel + 3], channelData[start + startChannel + 4], channelData[start + startChannel + 5],
+                       channelData[start + startChannel + 6], channelData[start + startChannel + 7], channelData[start + startChannel + 8],
+                       channelData[start + startChannel + 9], channelData[start + startChannel + 10], channelData[start + startChannel + 11]);
+                 printf("New data %d  %d  %d      %X %X\n", x, startChannel, savedIdx, channelData[x + savedIdx + startChannel], lastData[x + savedIdx]);
+                 */
                 return true;
             }
         }
