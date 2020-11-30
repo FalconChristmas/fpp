@@ -194,7 +194,9 @@ void *RunChannelOutputThread(void *data)
             if (!sequence->IsSequenceRunning()) {
                 msTime = mediaElapsedSeconds * 1000;
             }
-            sequence->ProcessSequenceData(msTime, 1);
+            if (!sequence->isDataProcessed()) {
+                sequence->ProcessSequenceData(msTime, 1);
+            }
         } else {
             sequence->setDataNotProcessed();
             readTime = GetTime();
