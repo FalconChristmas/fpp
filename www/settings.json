@@ -629,7 +629,7 @@
             "restart": 2,
             "type": "password",
             "size": 32,
-            "maxlength": 32
+            "maxlength": 300 
         },
         "MQTTPort": {
             "name": "MQTTPort",
@@ -656,7 +656,7 @@
             "tip": "Username to use to authenticate with the MQTT broker",
             "restart": 2,
             "size": 32,
-            "maxlength": 32,
+            "maxlength": 100,
             "type": "text",
             "children": {
                 "*": [
