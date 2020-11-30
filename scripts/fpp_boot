@@ -52,8 +52,21 @@ if [ ${HASSOUND} -eq 1 ]; then
     then
         echo "Resetting /root/.asoundrc to use card id ${AUDIOOUTPUT}"
         sed -i "s/card [0-9]/card ${AUDIOOUTPUT}/" /root/.asoundrc
+        CARDID=${AUDIOOUTPUT}
     fi
-    
+    if [ -f "/home/fpp/media/tmp/asoundrc" ]; then
+        if [ "$CARDID" == "0" ]; then
+            # if the selected card is the built in card and the cape provides the required asoundrc
+            # then we will use that.   Various capes may need special alsa configuration in order
+            # to properly be able to have volume control work
+            cp -f "/home/fpp/media/tmp/asoundrc" /root/.asoundrc
+        else
+            # reset back to default asoundrc and set the card
+            rm -f /root/.asoundrc
+            checkAudioConfig
+            sed -i "s/card [0-9]/card ${CARDID}/" /root/.asoundrc
+        fi
+    fi
     HASCARD=$(amixer -c ${CARDID} cset numid=3 1 2>&1  >/dev/null)
     ## if invlid, we can wait a few seconds to see if the card appears 
     if [[ $HASCARD == *"Invalid "* ]]; then
@@ -76,12 +89,7 @@ if [ ${HASSOUND} -eq 1 ]; then
         CARDID=0
         setSetting "AudioOutput" "0"
     fi
-    if [ "$CARDID" == "0" -a -f "/home/fpp/media/tmp/asoundrc" ]; then
-        # if the selected card is the built in card and the cape provides the required asoundrc
-        # then we will use that.   Various capes may need special also configuration in order
-        # to properly be able to have volume control work
-        cp -f "/home/fpp/media/tmp/asoundrc" /root/.asoundrc
-    fi
+
     VOLUME=$(getSetting volume)
     if [ "x${VOLUME}" = "x" ]; then
         setSetting volume 70
