@@ -190,10 +190,12 @@ input.largeCheckbox {
             delete refreshTimer;
             refreshTimer = null;
         }
-        ips = "";
-        ipAddresses.forEach(function(entry) {
-            ips += "&ip[]=" + entry;
-        });
+	ips = "";
+	if (Array.isArray(ipAddresses)) {
+           ipAddresses.forEach(function(entry) {
+               ips += "&ip[]=" + entry;
+	   });
+	}
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ips + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(alldata) {
             jQuery.each(alldata, function(ip, data) {
