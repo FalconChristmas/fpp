@@ -509,7 +509,7 @@ function populatePixelStringOutputs(data) {
                     if (o < sourceOutputCount) {
                         port = output.outputs[o];
                     }
-                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o)) {
+                    if (ShouldAddBreak(subType, o) || (o == 0 && IsDifferential(subType, o)) || IsDifferentialExpansion(inExpansion, expansionType, o) || IsExpansion(subType, o)) {
                         if (IsExpansion(subType, o)) {
                             expansionType = port["expansionType"];
                             if (expansionType == null) {
