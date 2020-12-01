@@ -84,6 +84,7 @@ class Sequence {
     void SetBridgeData(uint8_t *data, int startChannel, int len);
   private:
 	char  NormalizeControlValue(char in);
+    void  SetLastFrameData(FSEQFile::FrameData *data);
     
     uint8_t      *m_bridgeData;
 
@@ -112,6 +113,7 @@ class Sequence {
     std::thread *m_readThread;
     std::list<FSEQFile::FrameData*> frameCache;
     std::list<FSEQFile::FrameData*> pastFrameCache;
+    FSEQFile::FrameData* m_lastFrameData;
     void clearCaches();
     std::mutex frameCacheLock;
     std::mutex readFileLock; //lock for just the stuff needed to read from the file (m_seqFile variable)

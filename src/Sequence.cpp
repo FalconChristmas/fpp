@@ -72,6 +72,7 @@ Sequence::Sequence()
     m_lastFrameRead(-1),
     m_doneRead(false),
     m_shuttingDown(false),
+    m_lastFrameData(nullptr),
     m_dataProcessed(false),
     m_seqFilename(""),
     m_bridgeData(nullptr)
@@ -94,6 +95,7 @@ Sequence::~Sequence()
         m_readThread->join();
         delete m_readThread;
     }
+    SetLastFrameData(nullptr);
     clearCaches();
     if (m_seqFile) {
         delete m_seqFile;
@@ -108,11 +110,29 @@ void Sequence::clearCaches() {
         frameCache.pop_front();
     }
     while (!pastFrameCache.empty()) {
-        delete pastFrameCache.front();
+        if (pastFrameCache.front() != m_lastFrameData)
+            delete pastFrameCache.front();
         pastFrameCache.pop_front();
     }
 }
 
+void Sequence::SetLastFrameData(FSEQFile::FrameData *data) {
+    if (m_lastFrameData == data)
+        return;
+
+    if (m_lastFrameData) {
+        bool found = false;
+        for (auto const& i : pastFrameCache) {
+            if (i == m_lastFrameData)
+                found = true;
+        }
+
+        if (!found)
+            delete m_lastFrameData;
+    }
+
+    m_lastFrameData = data;
+}
 
 /*
  *
@@ -400,6 +420,9 @@ void Sequence::BlankSequenceData(void) {
             memset(&m_bridgeData[a.first], 0, a.second);
         }
     }
+
+    std::unique_lock<std::mutex> lock(frameCacheLock);
+    SetLastFrameData(nullptr);
 }
 
 int Sequence::SequenceIsPaused(void) {
@@ -471,6 +494,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
                 pastFrameCache.pop_front();
             }
             pastFrameCache.push_back(data);
+            SetLastFrameData(data);
             lock.unlock();
             frameLoadSignal.notify_all();
             
@@ -490,6 +514,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
                 m_lastFrameRead++;
                 if (!pastFrameCache.empty()) {
                     //and copy the last frame data
+                    SetLastFrameData(pastFrameCache.back());
                     pastFrameCache.back()->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
                     m_dataProcessed = false;
                 }
@@ -520,6 +545,14 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
+    if (m_dataProcessed) {
+        // we shouldn't normally be reprocessing the same data, so
+        // if we are then see if we can start with a pristine copy
+        std::unique_lock<std::mutex> lock(frameCacheLock);
+        if (m_lastFrameData)
+            m_lastFrameData->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
+    }
+
     if (m_bridgeData) {
         // copy the latest bridge data to the sequence data
         for (auto &a : GetOutputRanges()) {
@@ -538,7 +571,7 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         PixelOverlayManager::INSTANCE.doOverlays((uint8_t*)m_seqData);
     }
 
-    if (checkControlChannels && getControlMajor() && getControlMinor())
+    if (checkControlChannels && !m_dataProcessed && getControlMajor() && getControlMinor())
     {
         char thisMajor = m_seqData[getControlMajor()-1];
         char thisMinor = m_seqData[getControlMinor()-1];
