@@ -106,7 +106,8 @@ Sequence::~Sequence()
 }
 void Sequence::clearCaches() {
     while (!frameCache.empty()) {
-        delete frameCache.front();
+        if (frameCache.front() != m_lastFrameData)
+            delete frameCache.front();
         frameCache.pop_front();
     }
     while (!pastFrameCache.empty()) {
@@ -125,6 +126,13 @@ void Sequence::SetLastFrameData(FSEQFile::FrameData *data) {
         for (auto const& i : pastFrameCache) {
             if (i == m_lastFrameData)
                 found = true;
+        }
+
+        if (!found) {
+            for (auto const& i : frameCache) {
+                if (i == m_lastFrameData)
+                    found = true;
+            }
         }
 
         if (!found)
@@ -369,7 +377,8 @@ void Sequence::SeekSequenceFile(int frameNumber) {
         pastFrameCache.pop_back();
     }
     while (!frameCache.empty() && frameCache.front()->frame < frameNumber) {
-        delete frameCache.front();
+        if (frameCache.front() != m_lastFrameData)
+            delete frameCache.front();
         frameCache.pop_front();
     }
     if (!frameCache.empty() && frameNumber < frameCache.front()->frame) {
@@ -490,7 +499,8 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             FSEQFile::FrameData *data = frameCache.front();
             frameCache.pop_front();
             if (pastFrameCache.size() > 5) {
-                delete pastFrameCache.front();
+                if (pastFrameCache.front() != m_lastFrameData)
+                    delete pastFrameCache.front();
                 pastFrameCache.pop_front();
             }
             pastFrameCache.push_back(data);
