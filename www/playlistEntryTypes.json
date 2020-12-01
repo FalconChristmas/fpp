@@ -3,17 +3,23 @@
         "name": "branch",
         "description": "Branch",
         "args": {
-            "branchType": {
-                "name": "branchType",
+            "branchTest": {
+                "name": "branchTest",
                 "description": "Test Condition",
                 "type": "string",
                 "contents": {
-                    "Time": "Time"
+                    "Time": "Time",
+                    "Loop Number": "Loop"
                 },
                 "children": {
                     "Time": [
                         "startTime",
                         "endTime"
+                    ],
+                    "Loop": [
+                        "loopTest",
+                        "iterationStart",
+                        "iterationCount"
                     ]
                 },
                 "optional": false,
@@ -33,16 +39,55 @@
                 "optional": false,
                 "simpleUI": true
             },
+            "loopTest": {
+                "name": "loopTest",
+                "description": "Loop Test",
+                "type": "string",
+                "default": "iteration",
+                "contents": {
+                    "Iteration": "iteration"
+                },
+                "children": {
+                    "iteration": [
+                        "iterationStart",
+                        "iterationCount"
+                    ]
+                },
+                "optional": false,
+                "simpleUI": true
+            },
+            "iterationStart": {
+                "name": "iterationStart",
+                "description": "Starting iteration",
+                "type": "int",
+                "default": 1,
+                "min": 1,
+                "max": 99,
+                "optional": false,
+                "simpleUI": true
+            },
+            "iterationCount": {
+                "name": "iterationCount",
+                "description": "Every",
+                "type": "int",
+                "default": 2,
+                "min": 1,
+                "max": 99,
+                "unit": "loop iterations",
+                "optional": false,
+                "simpleUI": true
+            },
             "trueNextBranchType": {
                 "name": "trueNextBranchType",
-                "description": "If True jump to",
+                "description": "If True",
                 "type": "string",
                 "default": "Offset",
                 "onChange": "BranchTypeChanged",
                 "contents": {
-                    "None": "None",
-                    "Index": "Index",
-                    "Offset": "Offset"
+                    "Do Nothing": "None",
+                    "Jump to Index": "Index",
+                    "Jump to Offset": "Offset",
+                    "Call Playlist": "Playlist"
                 },
                 "children": {
                     "Index": [
@@ -51,6 +96,9 @@
                     ],
                     "Offset": [
                         "trueNextItem"
+                    ],
+                    "Playlist": [
+                        "trueBranchPlaylist"
                     ]
                 },
                 "optional": false
@@ -76,16 +124,24 @@
                 "default": 1,
                 "optional": false
             },
+            "trueBranchPlaylist": {
+                "name": "trueBranchPlaylist",
+                "description": "Playlist",
+                "type": "string",
+                "contentListUrl": "api/playlists",
+                "optional": false
+            },
             "falseNextBranchType": {
                 "name": "falseNextBranchType",
-                "description": "If False jump to",
+                "description": "If False",
                 "type": "string",
                 "default": "Offset",
                 "onChange": "BranchTypeChanged",
                 "contents": {
-                    "None": "None",
-                    "Index": "Index",
-                    "Offset": "Offset"
+                    "Do Nothing": "None",
+                    "Jump to Index": "Index",
+                    "Jump to Offset": "Offset",
+                    "Call Playlist": "Playlist"
                 },
                 "children": {
                     "Index": [
@@ -94,6 +150,9 @@
                     ],
                     "Offset": [
                         "falseNextItem"
+                    ],
+                    "Playlist": [
+                        "falseBranchPlaylist"
                     ]
                 },
                 "optional": false
@@ -117,6 +176,13 @@
                 "default": 1,
                 "min": -99,
                 "max": 99,
+                "optional": false
+            },
+            "falseBranchPlaylist": {
+                "name": "falseBranchPlaylist",
+                "description": "Playlist",
+                "type": "string",
+                "contentListUrl": "api/playlists",
                 "optional": false
             }
         }

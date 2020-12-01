@@ -371,6 +371,23 @@ function psiDetailsEnd() {
     return "</div></div>";
 }
 
+function psiDetailsForEntrySimpleBranch(entry, editMode) {
+    var result = '';
+
+    switch (entry.branchTest) {
+        case 'Time':
+            result += 'Time: ' + entry.startTime + ' < X < ' + entry.endTime;
+            break;
+        case 'Loop':
+            result += 'Loop: Every ' + entry.iterationCount + ' iterations starting at ' + entry.iterationStart;
+            break;
+    }
+
+    result += psiDetailsBranchDestination(entry);
+
+    return result;
+}
+
 function psiDetailsForEntrySimple(entry, editMode) {
     var pet = playlistEntryTypes[entry.type];
     var result = "";
@@ -424,6 +441,7 @@ function psiDetailsForEntrySimple(entry, editMode) {
                 if (a.hasOwnProperty('contents')) {
                     var ckeys = Object.keys(a.contents);
                     for (var x = 0; x < ckeys.length; x++) {
+alert('comparing ' + a.contents[ckeys[x]] + ' to ' + entry[a.name] + ' for ' + a.name);
                         if (a.contents[ckeys[x]] == entry[a.name]) {
                             partialResult += ckeys[x];
                         }
@@ -563,20 +581,62 @@ function psiDetailsForEntry(entry, editMode) {
     return result;
 }
 
+function psiDetailsBranchDestination(entry)
+{
+    var result = "";
+
+    switch (entry.trueNextBranchType) {
+        case 'Index':
+            result += ', True: Index: ';
+            if (entry.trueNextSection != '') {
+                result += entry.trueNextSection + '/';
+            }
+            result += entry.trueNextItem;
+            break;
+        case 'Offset':
+            result += ', True: Offset: ' + entry.trueNextItem;
+            break;
+        case 'Playlist':
+            result += ', True: Call Playlist: "' + entry.trueBranchPlaylist + '"';
+            break;
+    }
+
+    switch (entry.falseNextBranchType) {
+        case 'Index':
+            result += ', False: Index: ';
+            if (entry.falseNextSection != '') {
+                result += entry.falseNextSection + '/';
+            }
+            result += entry.falseNextItem;
+            break;
+        case 'Offset':
+            result += ', False: Offset: ' + entry.falseNextItem;
+            break;
+        case 'Playlist':
+            result += ', False: Call Playlist: "' + entry.falseBranchPlaylist + '"';
+            break;
+    }
+
+    return result;
+}
+
 function psiDetailsForEntryBranch(entry, editMode)
 {
     var result = "";
 
     result += psiDetailsBegin();
 
-    var branchStr = "Invalid Config";
-    if (entry.trueNextItem < 999) {
+    var branchStr = "";
+    if (entry.branchTest == 'Time') {
         branchStr = entry.startTime + " < X < " + entry.endTime;
-        branchStr += ", True: " + BranchItemToString(entry.trueNextBranchType, entry.trueNextSection, entry.trueNextItem);
-
-        if (entry.falseNextItem < 999) {
-            branchStr += ", False: " + BranchItemToString(entry.falseNextBranchType, entry.falseNextSection, entry.falseNextItem);
+        branchStr += psiDetailsBranchDestination(entry);
+    } else if (entry.branchTest == 'Loop') {
+        if (entry.loopTest == 'iteration') {
+            branchStr = 'Every ' + entry.iterationCount + ' iterations starting at ' + entry.iterationStart;
+            branchStr += psiDetailsBranchDestination(entry);
         }
+    } else {
+        branchStr = "Invalid Config: " + JSON.stringify(entry);
     }
 
     result += psiDetailsHeader('Test');
@@ -596,7 +656,6 @@ function psiDetailsForEntryBranch(entry, editMode)
             result += "<span style='display:none;' class='field_" + keys[i] + "'>" + a + "</span>";
         }
     }
-
 
     return result;
 }
@@ -674,6 +733,8 @@ function GetPlaylistRowHTML(ID, entry, editMode)
 
 		if (entry.hasOwnProperty('dynamic'))
             HTML += psiDetailsForEntrySimple(entry.dynamic, editMode);
+    } else if (entry.type == 'branch') {
+        HTML += psiDetailsForEntrySimpleBranch(entry, editMode);
     } else {
         HTML += psiDetailsForEntrySimple(entry, editMode);
     }
@@ -1136,6 +1197,13 @@ function GetPlaylistEntry(row) {
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
 
+        if (!$(row).find('.field_' + a.name).length) {
+            // handle new fields by using default for fields we can't find
+            if (typeof a.default != "undefined")
+                e[a.name] = a.default;
+            continue;
+        }
+
         if (a.type == 'int') {
             e[a.name] = parseInt($(row).find('.field_' + a.name).html());
 
@@ -1465,7 +1533,8 @@ function EditPlaylistEntry() {
                 }
             }
         } else {
-            $('.arg_' + a.name).val($(row).find('.field_' + a.name).html()).trigger('change');
+            if ($(row).find('.field_' + a.name).length)
+                $('.arg_' + a.name).val($(row).find('.field_' + a.name).html()).trigger('change');
         }
     }
 
@@ -3269,8 +3338,9 @@ function UpgradePlaylist(data, editMode)
             // when new fields replace old fields and where the PlaylistEntry* classes also
             // handle these conversions.
             if (type == 'branch') {
-                if ((typeof o.startTime === 'undefined') ||
-                    (typeof o.endTime === 'undefined')) {
+                if (((typeof o.startTime === 'undefined') ||
+                     (typeof o.endTime === 'undefined')) &&
+                    (typeof o.compInfo != 'undefined')) {
                     n = o;
                     n.startTime =
                         PadLeft(o.compInfo.startHour, '0', 2) + ':' +
@@ -3283,6 +3353,13 @@ function UpgradePlaylist(data, editMode)
                         PadLeft(o.compInfo.endSecond, '0', 2);
 
                     delete n.compInfo;
+                    data[sections[s]][i] = n;
+                }
+
+                if (typeof o.branchType != 'undefined') {
+                    n = o;
+                    n.branchTest = n.branchType;
+                    delete n.branchType;
                     data[sections[s]][i] = n;
                 }
             } else if (type == 'dynamic') {
@@ -3975,8 +4052,12 @@ function UpdateChildVisibility() {
             for (var c = 0; c < ckeys.length; c++) {
                 for (var x = 0; x < a.children[ckeys[c]].length; x++) {
                     if (val == ckeys[c]) {
-                        $('.arg_row_' + a.children[ckeys[c]][x]).show();
-                        shown.push(a.children[ckeys[c]][x]);
+                        if ($('.arg_row_' + a.name).is(":visible")) {
+                            $('.arg_row_' + a.children[ckeys[c]][x]).show();
+                            shown.push(a.children[ckeys[c]][x]);
+                        } else {
+                            $('.arg_row_' + a.children[ckeys[c]][x]).hide();
+                        }
                     } else {
                         if (!shown.includes(a.children[ckeys[c]][x])) {
                             $('.arg_row_' + a.children[ckeys[c]][x]).hide();

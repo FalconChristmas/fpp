@@ -70,11 +70,13 @@ class PlaylistEntryBase {
     enum class PlaylistBranchType {
         None,
         Index,
-        Offset
+        Offset,
+        Playlist
     };
     virtual PlaylistBranchType GetNextBranchType() { return PlaylistBranchType::None; }
     virtual std::string  GetNextSection(void) { return ""; }
     virtual int          GetNextItem(void) { return 0; }
+    virtual std::string  GetNextData(void) { return ""; }
 
 
   protected:

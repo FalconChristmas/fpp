@@ -91,6 +91,7 @@ class Playlist {
 	int                GetRepeat(void) { return m_repeat; }
 	int                GetPosition(void);
 	int                GetSize(void);
+	int                GetLoopNumber(void) { return (m_loop + 1); }
 	std::string        GetConfigStr(void);
 	Json::Value        GetConfig(void);
 	uint64_t           GetFileTime(void) { return (Json::UInt64)m_fileTime; }
