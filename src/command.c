@@ -370,6 +370,14 @@ char *ProcessCommand(char *command, char *response)
         if (SetLogLevel(s)) {
             sprintf(response,"%d,%d,Log Level Updated,%d,%d,,,,,,,,,\n",
                 getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+
+            WarningHolder::RemoveWarning(EXCESSIVE_LOG_LEVEL_WARNING);
+            WarningHolder::RemoveWarning(DEBUG_LOG_LEVEL_WARNING);
+
+            if (!strcmp(s, "excess"))
+                WarningHolder::AddWarning(EXCESSIVE_LOG_LEVEL_WARNING);
+            else if (!strcmp(s, "debug"))
+                WarningHolder::AddWarning(DEBUG_LOG_LEVEL_WARNING);
         } else {
             sprintf(response,"%d,%d,Error Updating Log Level,%d,%d,,,,,,,,,\n",
                 getFPPmode(),COMMAND_FAILED,logLevel,logMask);

@@ -63,6 +63,9 @@ typedef enum {
 	LOG_EXCESSIVE
 } LogLevel;
 
+#define EXCESSIVE_LOG_LEVEL_WARNING "Log Level set to Excessive"
+#define DEBUG_LOG_LEVEL_WARNING "Log Level set to Debug"
+
 extern int logLevel;
 extern char logLevelStr[16];
 extern int logMask;

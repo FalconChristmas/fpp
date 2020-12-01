@@ -751,6 +751,11 @@ void MainLoop(void)
     
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
+    if (logLevel == LOG_EXCESSIVE)
+        WarningHolder::AddWarning(EXCESSIVE_LOG_LEVEL_WARNING);
+    else if (logLevel == LOG_DEBUG)
+        WarningHolder::AddWarning(DEBUG_LOG_LEVEL_WARNING);
+
     static const int MAX_EVENTS = 20;
     epoll_event events[MAX_EVENTS];
     memset(events, 0, sizeof(events));
