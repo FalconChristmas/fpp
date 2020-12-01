@@ -159,6 +159,16 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 	{
 		GetMultiSyncSystems(result);
 	}
+    else if (url == "multiSyncStats")
+    {
+        bool reset = false;
+
+        if ((req.get_arg("reset") != "") &&
+            (req.get_arg("reset") == "1"))
+            reset = true;
+
+        GetMultiSyncStats(result, reset);
+    }
     else if (url == "playlists")
     {
         GetCurrentPlaylists(result);
@@ -824,6 +834,19 @@ void PlayerResource::GetMultiSyncSystems(Json::Value &result)
 		SetOKResult(result, "");
 	else
 		SetErrorResult(result, 400, "MultiSync did not return any systems.");
+}
+
+void PlayerResource::GetMultiSyncStats(Json::Value &result, bool reset)
+{
+    if (reset)
+        multiSync->ResetSyncStats();
+
+    result = multiSync->GetSyncStats();
+
+    if (result.isMember("systems"))
+        SetOKResult(result, "");
+    else
+        SetErrorResult(result, 400, "MultiSync did not return any systems.");
 }
 
 /*

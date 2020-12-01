@@ -569,6 +569,46 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 	return result;
 }
 
+Json::Value MultiSync::GetSyncStats()
+{
+    Json::Value result;
+    Json::Value systems(Json::arrayValue);
+
+    std::unique_lock<std::recursive_mutex> slock(m_statsLock);
+    for (auto &a : m_syncStats) {
+        MultiSyncStats *stats = (MultiSyncStats *)a.second;
+        systems.append(stats->toJSON());
+    }
+    slock.unlock();
+
+    result["systems"] = systems;
+
+    std::string masterHostname;
+
+    std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+    for (auto &sys : m_remoteSystems) {
+        if (sys.address == m_syncMaster)
+            masterHostname = sys.hostname;
+    }
+    lock.unlock();
+
+    result["masterIP"] = m_syncMaster;
+    result["masterHostname"] = masterHostname;
+
+    return result;
+}
+
+void MultiSync::ResetSyncStats()
+{
+    std::unique_lock<std::recursive_mutex> slock(m_statsLock);
+    for (auto &a : m_syncStats) {
+        MultiSyncStats *stats = (MultiSyncStats *)a.second;
+        delete stats;
+    }
+
+    m_syncStats.clear();
+}
+
 void MultiSync::Discover()
 {
     Ping(1);
@@ -1921,6 +1961,41 @@ void MultiSync::ProcessControlPacket(void)
                 continue;
             }
 
+            char tmpIP[INET_ADDRSTRLEN];
+            inet_ntop(rcvSrcAddr[msg].ss_family, &(((struct sockaddr_in *)&rcvSrcAddr[msg])->sin_addr), tmpIP, INET_ADDRSTRLEN);
+            std::string sourceIP(tmpIP);
+            std::string hostname;
+
+            std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
+            bool isLocal = false;
+            for (auto &sys : m_localSystems) {
+                if (sys.address == sourceIP) {
+                    isLocal = true;
+                }
+            }
+            lock.unlock();
+
+            MultiSyncStats  tempStats("", "");
+            MultiSyncStats *stats = &tempStats;
+            std::unique_lock<std::recursive_mutex> slock(m_statsLock);
+
+            if (!isLocal) {
+                for (auto &sys : m_remoteSystems) {
+                    if (sys.address == sourceIP)
+                        hostname = sys.hostname;
+                }
+
+                auto a = m_syncStats.find(sourceIP);
+                if (a != m_syncStats.end()) {
+                    stats = (MultiSyncStats *)a->second;
+                } else {
+                    stats = new MultiSyncStats(sourceIP, hostname);
+                    m_syncStats[sourceIP] = stats;
+                }
+                stats->lastReceiveTime = time(NULL);
+            }
+            slock.unlock();
+
             pkt = (ControlPkt*)inBuf;
 
             if ((pkt->fppd[0] != 'F') ||
@@ -1946,28 +2021,30 @@ void MultiSync::ProcessControlPacket(void)
 
             switch (pkt->pktType) {
                 case CTRL_PKT_CMD:
-                    ProcessCommandPacket(pkt, len);
+                    ProcessCommandPacket(pkt, len, stats);
                     break;
                 case CTRL_PKT_SYNC:
                     if (getFPPmode() == REMOTE_MODE)
-                        ProcessSyncPacket(pkt, len);
+                        ProcessSyncPacket(pkt, len, stats);
                     break;
                 case CTRL_PKT_EVENT:
                     if (getFPPmode() == REMOTE_MODE)
-                        ProcessEventPacket(pkt, len);
+                        ProcessEventPacket(pkt, len, stats);
                     break;
                 case CTRL_PKT_BLANK:
-                    if (getFPPmode() == REMOTE_MODE)
+                    if (getFPPmode() == REMOTE_MODE) {
+                        stats->pktBlank++;
                         sequence->SendBlankingData();
+                    }
                     break;
                 case CTRL_PKT_PING:
-                    ProcessPingPacket(pkt, len);
+                    ProcessPingPacket(pkt, len, stats);
                     break;
                 case CTRL_PKT_PLUGIN:
-                    ProcessPluginPacket(pkt, len);
+                    ProcessPluginPacket(pkt, len, stats);
                     break;
                 case CTRL_PKT_FPPCOMMAND:
-                    ProcessFPPCommandPacket(pkt, len);
+                    ProcessFPPCommandPacket(pkt, len, stats);
                     break;
             }
         }
@@ -2123,13 +2200,16 @@ void MultiSync::SyncSyncedMedia(const char *filename, int frameNumber, float sec
 /*
  *
  */
-void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
+void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
 {
 	if (pkt->extraDataLen < sizeof(SyncPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
 		HexDump("Received data:", (void*)&pkt, len);
+        stats->pktError++;
 		return;
 	}
+
+    m_syncMaster = stats->sourceIP;
 
 	SyncPkt *spkt = (SyncPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
@@ -2141,10 +2221,13 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 	if (spkt->fileType == SYNC_FILE_SEQ) {
 		switch (spkt->pktType) {
 			case SYNC_PKT_OPEN:  OpenSyncedSequence(spkt->filename);
+                                 stats->pktSyncSeqOpen++;
 								 break;
 			case SYNC_PKT_START: StartSyncedSequence(spkt->filename);
+                                 stats->pktSyncSeqStart++;
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedSequence(spkt->filename);
+                                 stats->pktSyncSeqStop++;
 								 break;
 			case SYNC_PKT_SYNC:  secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
 								 if (secondsElapsed < 0)
@@ -2152,15 +2235,19 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 
 								 SyncSyncedSequence(spkt->filename,
 									spkt->frameNumber, secondsElapsed);
+                                 stats->pktSyncSeqSync++;
 								 break;
 		}
 	} else if (spkt->fileType == SYNC_FILE_MEDIA) {
 		switch (spkt->pktType) {
             case SYNC_PKT_OPEN:  OpenSyncedMedia(spkt->filename);
+                                 stats->pktSyncMedOpen++;
                                  break;
 			case SYNC_PKT_START: StartSyncedMedia(spkt->filename);
+                                 stats->pktSyncMedStart++;
 								 break;
 			case SYNC_PKT_STOP:  StopSyncedMedia(spkt->filename);
+                                 stats->pktSyncMedStop++;
 								 break;
 			case SYNC_PKT_SYNC:  secondsElapsed = spkt->secondsElapsed - m_remoteOffset;
 								 if (secondsElapsed < 0)
@@ -2168,6 +2255,7 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 
 								 SyncSyncedMedia(spkt->filename,
 									spkt->frameNumber, secondsElapsed);
+                                 stats->pktSyncMedSync++;
 								 break;
 		}
 	}
@@ -2176,15 +2264,18 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len)
 /*
  *
  */
-void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len)
+void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
 {
 	LogDebug(VB_SYNC, "ProcessCommandPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(CommandPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
 		HexDump("Received data:", (void*)&pkt, len);
+        stats->pktError++;
 		return;
 	}
+
+    stats->pktCommand++;
 
 	CommandPkt *cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
@@ -2198,15 +2289,18 @@ void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len)
 /*
  *
  */
-void MultiSync::ProcessEventPacket(ControlPkt *pkt, int len)
+void MultiSync::ProcessEventPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
 {
 	LogDebug(VB_SYNC, "ProcessEventPacket()\n");
 
 	if (pkt->extraDataLen < sizeof(EventPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received Event packet\n");
 		HexDump("Received data:", (void*)&pkt, len);
+        stats->pktError++;
 		return;
 	}
+
+    stats->pktEvent++;
 
 	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
 
@@ -2217,13 +2311,14 @@ void MultiSync::ProcessEventPacket(ControlPkt *pkt, int len)
 /*
  *
  */
-void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
+void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
 {
 	LogDebug(VB_SYNC, "ProcessPingPacket()\n");
 
 	if (pkt->extraDataLen < 169) { // v1 packet length
 		LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
 		HexDump("Received data:", (void*)&pkt, len);
+        stats->pktError++;
 		return;
 	}
 
@@ -2234,11 +2329,13 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
 	if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
         LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
 		HexDump("Received data:", (void*)&pkt, len);
+        stats->pktError++;
 		return;
 	}
     if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
         LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
         HexDump("Received data:", (void*)&pkt, len);
+        stats->pktError++;
         return;
     }
 	int discover = extraData[1];
@@ -2313,10 +2410,12 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len)
             multiSync->PingSingleRemote(addrStr, 0);
         }
     }
+
+    stats->pktPing++;
 }
 
 
-void MultiSync::ProcessPluginPacket(ControlPkt *pkt, int plen) {
+void MultiSync::ProcessPluginPacket(ControlPkt *pkt, int plen, MultiSyncStats *stats) {
     LogDebug(VB_SYNC, "ProcessPluginPacket()\n");
     CommandPkt *cpkt = (CommandPkt*)(((char*)pkt) + sizeof(ControlPkt));
     int len = pkt->extraDataLen;
@@ -2325,6 +2424,8 @@ void MultiSync::ProcessPluginPacket(ControlPkt *pkt, int plen) {
     len -= nlen;
     uint8_t *data = (uint8_t*)&cpkt->command[nlen];
     PluginManager::INSTANCE.multiSyncData(pn, data, len);
+
+    stats->pktPlugin++;
 }
 
 static bool MyHostMatches(const std::string &host, const std::string &hostName, std::vector<MultiSyncSystem> &localSystems) {
@@ -2340,7 +2441,7 @@ static bool MyHostMatches(const std::string &host, const std::string &hostName, 
     return false;
 }
 
-void MultiSync::ProcessFPPCommandPacket(ControlPkt *pkt, int len) {
+void MultiSync::ProcessFPPCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats) {
     char *b = (char *)pkt;
     int pos = sizeof(ControlPkt);
     int numArgs = b[pos++];
@@ -2355,6 +2456,8 @@ void MultiSync::ProcessFPPCommandPacket(ControlPkt *pkt, int len) {
         args.push_back(arg);
     }
     if (host == "" || MyHostMatches(host, m_hostname, m_localSystems)) {
+        stats->pktFPPCommand++;
+
         CommandManager::INSTANCE.run(cmd, args);
     }
 }
@@ -2398,5 +2501,60 @@ void MultiSync::SendFPPCommandPacket(const std::string &host, const std::string 
     }
 }
 
+MultiSyncStats::MultiSyncStats(std::string ip, std::string host)
+  : sourceIP(ip),
+    hostname(host),
+    pktCommand(0),
+    pktSyncSeqOpen(0),
+    pktSyncSeqStart(0),
+    pktSyncSeqStop(0),
+    pktSyncSeqSync(0),
+    pktSyncMedOpen(0),
+    pktSyncMedStart(0),
+    pktSyncMedStop(0),
+    pktSyncMedSync(0),
+    pktEvent(0),
+    pktBlank(0),
+    pktPing(0),
+    pktPlugin(0),
+    pktFPPCommand(0),
+    pktError(0)
+{
+    lastReceiveTime = time(NULL);
+}
 
+Json::Value MultiSyncStats::toJSON()
+{
+    Json::Value result;
+
+    result["sourceIP"] = sourceIP;
+    result["hostname"] = hostname;
+
+    char timeStr[32];
+    memset(timeStr, 0, sizeof(timeStr));
+    struct tm tm;
+    localtime_r(&lastReceiveTime, &tm);
+    sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
+        1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
+        tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    result["lastReceiveTime"] = timeStr;
+    result["pktCommand"] = pktCommand;
+    result["pktSyncSeqOpen"] = pktSyncSeqOpen;
+    result["pktSyncSeqStart"] = pktSyncSeqStart;
+    result["pktSyncSeqStop"] = pktSyncSeqStop;
+    result["pktSyncSeqSync"] = pktSyncSeqSync;
+    result["pktSyncMedOpen"] = pktSyncMedOpen;
+    result["pktSyncMedStart"] = pktSyncMedStart;
+    result["pktSyncMedStop"] = pktSyncMedStop;
+    result["pktSyncMedSync"] = pktSyncMedSync;
+    result["pktEvent"] = pktEvent;
+    result["pktBlank"] = pktBlank;
+    result["pktPing"] = pktPing;
+    result["pktPlugin"] = pktPlugin;
+    result["pktFPPCommand"] = pktFPPCommand;
+    result["pktError"] = pktError;
+
+    return result;
+}
 

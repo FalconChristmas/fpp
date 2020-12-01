@@ -233,6 +233,8 @@ include 'common/menuHead.inc';
         <!-- Remote Mode info -->
         <div id="remoteModeInfo" class='statusDiv'>
             <table class='statusTable'>
+                <tr><th>Master System:</th>
+                    <td id='syncMaster'></td></tr>
                 <tr><th>Remote Status:</th>
                     <td id='txtRemoteStatus'></td></tr>
                 <tr><th>Sequence Filename:</th>
@@ -249,6 +251,51 @@ include 'common/menuHead.inc';
                     </td>
                 </tr>
             </table>
+            <hr>
+
+            <span class='title'>MultiSync Packet Counts</span><br>
+            <table style='width: 100%' class='statusTable'>
+                <tr>
+                    <td align='left'>
+                        <input type='button' onClick='GetMultiSyncStats();' value='Update' class='buttons'>
+                        <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
+                    </td>
+                    <td align='right'>
+<? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+                    </td>
+                </tr>
+            </table>
+            <div class='fppTableWrapper'>
+                <div class='fppTableContents'>
+                    <table>
+                        <thead>
+                            <tr><th rowspan=2>Host</th>
+                                <th rowspan=2>Last Received</th>
+                                <th colspan=4>Sequence Sync</th>
+                                <th colspan=4>Media Sync</th>
+                                <th rowspan=2>Blank<br>Data</th>
+                                <th rowspan=2>Ping</th>
+                                <th rowspan=2>Plugin</th>
+                                <th rowspan=2>FPP<br>Command</th>
+                                <th rowspan=2>Event</th>
+                                <th rowspan=2>Command</th>
+                                <th rowspan=2>Errors</th>
+                                </tr>
+                            <tr><th>Open</th>
+                                <th>Start</th>
+                                <th>Stop</th>
+                                <th>Sync</th>
+                                <th>Open</th>
+                                <th>Start</th>
+                                <th>Stop</th>
+                                <th>Sync</th>
+                                </tr>
+                        </thead>
+                        <tbody id='syncStats'>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- Player/Master Mode Info -->

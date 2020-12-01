@@ -76,7 +76,6 @@ typedef struct __attribute__((packed)) {
 	                         // (data may continue past this header)
 } SyncPkt;
 
-
 typedef enum systemType {
 	kSysTypeUnknown                      = 0x00,
 	kSysTypeFPP                          = 0x01,
@@ -150,6 +149,31 @@ public:
     Json::Value toJSON(bool local, bool timestamps);
 };
 
+class MultiSyncStats {
+  public:
+    MultiSyncStats(std::string ip, std::string host);
+
+    Json::Value toJSON();
+
+    std::string       sourceIP;
+    std::string       hostname;
+    time_t            lastReceiveTime;
+    uint32_t          pktCommand;
+    uint32_t          pktSyncSeqOpen;
+    uint32_t          pktSyncSeqStart;
+    uint32_t          pktSyncSeqStop;
+    uint32_t          pktSyncSeqSync;
+    uint32_t          pktSyncMedOpen;
+    uint32_t          pktSyncMedStart;
+    uint32_t          pktSyncMedStop;
+    uint32_t          pktSyncMedSync;
+    uint32_t          pktEvent;
+    uint32_t          pktBlank;
+    uint32_t          pktPing;
+    uint32_t          pktPlugin;
+    uint32_t          pktFPPCommand;
+    uint32_t          pktError;
+};
 
 class MultiSyncPlugin {
     public:
@@ -212,6 +236,8 @@ class MultiSync {
                       const bool multiSync);
 
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
+    Json::Value GetSyncStats();
+    void        ResetSyncStats();
 
 	void Ping(int discover = 0, bool broadcast = true);
     void PingSingleRemote(const char *address, int discover = 0);
@@ -285,12 +311,12 @@ class MultiSync {
     void DiscoverSubnetViaHTTP(std::string subnet);
     void DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown = false);
 
-	void ProcessSyncPacket(ControlPkt *pkt, int len);
-	void ProcessCommandPacket(ControlPkt *pkt, int len);
-	void ProcessEventPacket(ControlPkt *pkt, int len);
-	void ProcessPingPacket(ControlPkt *pkt, int len);
-    void ProcessPluginPacket(ControlPkt *pkt, int len);
-    void ProcessFPPCommandPacket(ControlPkt *pkt, int len);
+    void ProcessSyncPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
+    void ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
+    void ProcessEventPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
+    void ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
+    void ProcessPluginPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
+    void ProcessFPPCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
 
 	std::recursive_mutex         m_systemsLock;
 	std::vector<MultiSyncSystem> m_localSystems;
@@ -335,6 +361,10 @@ class MultiSync {
 
 	std::mutex                         m_httpResponsesLock;
     std::map<std::string, std::vector<uint8_t>> m_httpResponses;
+
+    std::recursive_mutex                    m_statsLock;
+    std::map<std::string, MultiSyncStats *> m_syncStats;
+    std::string                             m_syncMaster;
 };
 
 extern MultiSync *multiSync;

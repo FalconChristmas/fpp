@@ -2601,13 +2601,19 @@ function GetSequenceArray()
 			// Remote Mode
 			$('#fppTime').html(jsonStatus.time);
 
-			if(jsonStatus.time_elapsed) {
+			if (((jsonStatus.time_elapsed != '00:00') && (jsonStatus.time_elapsed != '')) ||
+			    ((jsonStatus.time_remaining != '00:00') && (jsonStatus.time_remaining != ''))) {
 				status = "Syncing to Master: Elapsed: " + jsonStatus.time_elapsed + "&nbsp;&nbsp;&nbsp;&nbsp;Remaining: " + jsonStatus.time_remaining;
-			}
+			} else {
+                status = "Waiting for MultiSync commands";
+            }
 
 			$('#txtRemoteStatus').html(status);
 			$('#txtRemoteSeqFilename').html(jsonStatus.sequence_filename);
 			$('#txtRemoteMediaFilename').html(jsonStatus.media_filename);
+
+			if (firstStatusLoad || $('#syncStatsLiveUpdate').is(':checked'))
+				GetMultiSyncStats();
 		} else {
 			// Player/Master Mode
 			var nextPlaylist = jsonStatus.next_playlist;
@@ -2811,6 +2817,59 @@ if (1) {
 
 		firstStatusLoad = 0;
 	}
+
+function ShowMultiSyncStats(data) {
+    $('#syncStats').empty();
+
+    var master = "<a href='http://" + data.masterIP + "'>" + data.masterIP + "</a>";
+    if (data.masterHostname != '')
+        master += ' (' + data.masterHostname + ')';
+
+    $('#syncMaster').html(master);
+
+    for (var i = 0; i < data.systems.length; i++) {
+        var s = data.systems[i];
+        var row = '<tr>'
+            + '<td>' + s.sourceIP;
+
+        if (s.hostname != '')
+            row += ' (' + s.hostname + ')</td>'
+
+        row += '<td>' + s.lastReceiveTime + '</td>'
+            + '<td class="right">' + s.pktSyncSeqOpen + '</td>'
+            + '<td class="right">' + s.pktSyncSeqStart + '</td>'
+            + '<td class="right">' + s.pktSyncSeqStop + '</td>'
+            + '<td class="right">' + s.pktSyncSeqSync + '</td>'
+            + '<td class="right">' + s.pktSyncMedOpen + '</td>'
+            + '<td class="right">' + s.pktSyncMedStart + '</td>'
+            + '<td class="right">' + s.pktSyncMedStop + '</td>'
+            + '<td class="right">' + s.pktSyncMedSync + '</td>'
+            + '<td class="right">' + s.pktBlank + '</td>'
+            + '<td class="right">' + s.pktPing + '</td>'
+            + '<td class="right">' + s.pktPlugin + '</td>'
+            + '<td class="right">' + s.pktFPPCommand + '</td>'
+            + '<td class="right">' + s.pktEvent + '</td>'
+            + '<td class="right">' + s.pktCommand + '</td>'
+            + '<td class="right">' + s.pktError + '</td>'
+            + '</tr>';
+
+        $('#syncStats').append(row);
+    }
+}
+
+function ResetMultiSyncStats()
+{
+    $.get('api/fppd/multiSyncStats?reset=1', function(data) {
+        ShowMultiSyncStats(data);
+    });
+}
+
+function GetMultiSyncStats()
+{
+    $.get('api/fppd/multiSyncStats', function(data) {
+        ShowMultiSyncStats(data);
+    });
+}
 
 	function GetUniverseBytesReceived()
 	{	

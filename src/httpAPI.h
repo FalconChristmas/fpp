@@ -49,6 +49,7 @@ class PlayerResource : public http_resource {
 	void GetCurrentPlaylists(Json::Value &result);
 	void GetE131BytesReceived(Json::Value &result);
 	void GetMultiSyncSystems(Json::Value &result);
+    void GetMultiSyncStats(Json::Value &result, bool reset = false);
 	void GetPlaylistFileTime(Json::Value &result);
 	void GetPlaylistConfig(Json::Value &result);
 
