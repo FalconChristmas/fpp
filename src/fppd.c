@@ -520,6 +520,7 @@ int parseArguments(int argc, char **argv)
 			case 'l': //log-file
 				free(settings.logFile);
 				settings.logFile = strdup(optarg);
+				SetLogFile(settings.logFile, !getDaemonize());
 				break;
 			case 'H': //Detect Falcon hardware
 			case 'C': //Configure Falcon hardware
