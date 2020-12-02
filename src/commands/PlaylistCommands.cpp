@@ -10,8 +10,8 @@ std::unique_ptr<Command::Result> StopPlaylistCommand::run(const std::vector<std:
 }
 std::unique_ptr<Command::Result> StopGracefullyPlaylistCommand::run(const std::vector<std::string> &args) {
     bool loop = false;
-    if (args.size() > 1) {
-        loop = args[1] == "true" || args[1] == "1";
+    if (args.size()) {
+        loop = args[0] == "true" || args[0] == "1";
     }
     playlist->StopGracefully(1, loop);
     return std::make_unique<Command::Result>("Stopping");
