@@ -31,6 +31,7 @@
 #include <sys/types.h>
 
 #include <jsoncpp/json/json.h>
+#include <set>
 
 #include "settings.h"
 
@@ -222,7 +223,7 @@ class MultiSync {
 	int  Init(void);
 
 	int  GetControlSocket(void) { return m_receiveSock; }
-	void ProcessControlPacket(void);
+	void ProcessControlPacket(bool pingOnly = false);
 
 	void UpdateSystem(MultiSyncSystemType type,
                       unsigned int majorVersion,
@@ -308,7 +309,7 @@ class MultiSync {
 	int  OpenReceiveSocket(void);
 
     void PerformHTTPDiscovery(void);
-    void DiscoverSubnetViaHTTP(std::string subnet);
+    void DiscoverViaHTTP(const std::set<std::string> &ips, const std::set<std::string> &exacts);
     void DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown = false);
 
     void ProcessSyncPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);

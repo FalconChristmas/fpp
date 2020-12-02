@@ -639,11 +639,63 @@ void MultiSync::PerformHTTPDiscovery()
     if (subnetsStr != "") {
         std::vector<std::string> tokens = split(subnetsStr, ',');
         std::set<std::string> subnets;
-        for (auto &token : tokens) {
+        std::set<std::string> exacts;
+        for (std::string token : tokens) {
             TrimWhiteSpace(token);
             if (token != "") {
-                DiscoverSubnetViaHTTP(token);
+                size_t pos = token.find('[');
+                size_t posSlash = token.find('/');
+                if (pos != std::string::npos) {
+                    std::string rng = token.substr(pos + 1);
+                    token = token.substr(0, pos);
+                    size_t pos2 = rng.find(']');
+                    std::string postfix = "";
+                    if (pos2 != (rng.size()-1)) {
+                        postfix = rng.substr(pos2 + 1);
+                    }
+                    std::vector<std::string> r1 = split(rng, ',');
+                    for (const auto& a : r1) {
+                        std::vector<std::string> r = split(a, '-');
+                        int start = atoi(r[0].c_str());
+                        int len = 1;
+                        if (r.size() == 2) {
+                            len = atoi(r[1].c_str()) - start + 1;
+                        }
+                        
+                        for (int x = start; x < (start+len); x++) {
+                            subnets.insert(token + std::to_string(x) + postfix);
+                        }
+                    }
+                } else if (posSlash != std::string::npos) {
+                    std::vector<std::string> parts = split(token, '/');
+                    int prefix = 32;
+                    if (parts.size() == 2) {
+                        prefix = atoi(parts[1].c_str());
+                    }
+                    int ips = (int)(powl(2, 32 - prefix));
+                    unsigned long firstIP = htonl(inet_addr(parts[0].c_str()));
+                    // If prefix is a /31 or /32, we scan all IPs, otherwise skip network
+                    // and broadcast
+                    if (prefix <= 30) {
+                        ips -= 2;
+                        firstIP++;
+                    }
+                    struct in_addr ia;
+                    char ip[16];
+                    char url[24];
+                    for (int i = 0; i < ips; i++) {
+                        ia.s_addr = ntohl(firstIP + i);
+                        strcpy(ip, inet_ntoa(ia));
+                        subnets.insert(ip);
+                    }
+                } else {
+                    subnets.insert(token);
+                    exacts.insert(token);
+                }
             }
+        }
+        if (!subnets.empty()) {
+            DiscoverViaHTTP(subnets, exacts);
         }
     }
 }
@@ -743,28 +795,11 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
 
 }
 
-void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
-{
-    LogDebug(VB_SYNC, "Discovering %s subnet via HTTP Discovery\n", subnet.c_str());
-
-    std::vector<std::string> parts = split(subnet, '/');
-    int prefix = 32;
-
-    if (parts.size() == 2)
-        prefix = atoi(parts[1].c_str());
-
-    int ips = (int)(powl(2, 32 - prefix));
-    unsigned long firstIP = htonl(inet_addr(parts[0].c_str()));
-
-    // If prefix is a /31 or /32, we scan all IPs, otherwise skip network
-    // and broadcast
-    if (prefix <= 30) {
-        ips -= 2;
-        firstIP++;
-    }
-
+void MultiSync::DiscoverViaHTTP(const std::set<std::string> &ipSet, const std::set<std::string> &exacts) {
+    std::vector<CURL *> handles;
     std::vector<std::string> ipList;
-    CURL *handles[ips];
+    handles.resize(ipSet.size());
+    ipList.resize(ipSet.size());
     CURLM *multi_handle;
     CURLMsg *msg;
     int still_running = 0;
@@ -773,39 +808,32 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
     std::string userAgent = "FPP/";
     userAgent += getFPPVersionTriplet();
 
-    LogExcess(VB_SYNC, "Scanning IPs:\n");
-    struct in_addr ia;
-    char ip[16];
-    char url[24];
-    
-    ipList.resize(ips);
     multi_handle = curl_multi_init();
-    for (int i = 0; i < ips; i++) {
-        ia.s_addr = ntohl(firstIP + i);
-        strcpy(ip, inet_ntoa(ia));
-        LogExcess(VB_SYNC, "  %s\n", ip);
+    int ips = 0;
+    char url[24];
+    for (auto &ip : ipSet) {
+        LogExcess(VB_SYNC, "  %s\n", ip.c_str());
+        handles[ips] = curl_easy_init();
+        ipList[ips] = ip;
+        m_httpResponses.erase(ip);
 
-        handles[i] = curl_easy_init();
+        sprintf(url, "http://%s/", ip.c_str());
+        curl_easy_setopt(handles[ips], CURLOPT_URL, url);
+        curl_easy_setopt(handles[ips], CURLOPT_CONNECTTIMEOUT_MS, 1000L);
+        curl_easy_setopt(handles[ips], CURLOPT_TIMEOUT_MS, 5000L);
+        curl_easy_setopt(handles[ips], CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(handles[ips], CURLOPT_USERAGENT, userAgent.c_str());
+        curl_easy_setopt(handles[ips], CURLOPT_PRIVATE, &ipList[ips]);
+        curl_easy_setopt(handles[ips], CURLOPT_WRITEFUNCTION, curl_write_data);
+        curl_easy_setopt(handles[ips], CURLOPT_WRITEDATA, &ipList[ips]);
+        curl_easy_setopt(handles[ips], CURLOPT_ACCEPT_ENCODING, "");
+        curl_easy_setopt(handles[ips], CURLOPT_TCP_FASTOPEN, 1L);
 
-        ipList[i] = ip;
-        m_httpResponses.erase(ipList[i]);
-
-        sprintf(url, "http://%s/", ip);
-        curl_easy_setopt(handles[i], CURLOPT_URL, url);
-        curl_easy_setopt(handles[i], CURLOPT_CONNECTTIMEOUT, 1L);
-        curl_easy_setopt(handles[i], CURLOPT_TIMEOUT, 5L);
-        curl_easy_setopt(handles[i], CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(handles[i], CURLOPT_USERAGENT, userAgent.c_str());
-        curl_easy_setopt(handles[i], CURLOPT_PRIVATE, &ipList[i]);
-        curl_easy_setopt(handles[i], CURLOPT_WRITEFUNCTION, curl_write_data);
-        curl_easy_setopt(handles[i], CURLOPT_WRITEDATA, &ipList[i]);
-        curl_easy_setopt(handles[i], CURLOPT_ACCEPT_ENCODING, "");
-        curl_easy_setopt(handles[i], CURLOPT_TCP_FASTOPEN, 1L);
-
-        curl_multi_add_handle(multi_handle, handles[i]);
+        curl_multi_add_handle(multi_handle, handles[ips]);
+        ips++;
     }
 
-    int start = ips;
+    int start = handles.size();
     curl_multi_perform(multi_handle, &still_running);
     while (still_running || start != still_running) {
         if (start != still_running) {
@@ -840,6 +868,8 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
             start = still_running;
         }
         int numfds=0;
+        // process ping packets in the loop as well
+        ProcessControlPacket(true);
         int res = curl_multi_wait(multi_handle, NULL, 0, 100, &numfds);
         if(res != CURLM_OK) {
             LogErr(VB_SYNC, "error: curl_multi_wait() returned %d\n", res);
@@ -850,7 +880,8 @@ void MultiSync::DiscoverSubnetViaHTTP(std::string subnet)
 
     for (int idx = 0; idx < ips; idx++) {
         if (ipList[idx] != "") {
-            DiscoverIPViaHTTP(ipList[idx], prefix == 32);
+            bool exact = exacts.find(ipList[idx]) != exacts.end();
+            DiscoverIPViaHTTP(ipList[idx], exact);
         }
     }
     for(int i = 0; i < ips; i++) {
@@ -1905,7 +1936,7 @@ static bool shouldSkipPacket(int i, int num, std::vector<unsigned char *> &rcvBu
 /*
  *
  */
-void MultiSync::ProcessControlPacket(void)
+void MultiSync::ProcessControlPacket(bool pingOnly)
 {
 	LogExcess(VB_SYNC, "ProcessControlPacket()\n");
 
@@ -2019,33 +2050,35 @@ void MultiSync::ProcessControlPacket(void)
                 HexDump("Received MultiSync packet with contents:", (void*)inBuf, len);
             }
 
-            switch (pkt->pktType) {
-                case CTRL_PKT_CMD:
-                    ProcessCommandPacket(pkt, len, stats);
-                    break;
-                case CTRL_PKT_SYNC:
-                    if (getFPPmode() == REMOTE_MODE)
-                        ProcessSyncPacket(pkt, len, stats);
-                    break;
-                case CTRL_PKT_EVENT:
-                    if (getFPPmode() == REMOTE_MODE)
-                        ProcessEventPacket(pkt, len, stats);
-                    break;
-                case CTRL_PKT_BLANK:
-                    if (getFPPmode() == REMOTE_MODE) {
-                        stats->pktBlank++;
-                        sequence->SendBlankingData();
-                    }
-                    break;
-                case CTRL_PKT_PING:
-                    ProcessPingPacket(pkt, len, stats);
-                    break;
-                case CTRL_PKT_PLUGIN:
-                    ProcessPluginPacket(pkt, len, stats);
-                    break;
-                case CTRL_PKT_FPPCOMMAND:
-                    ProcessFPPCommandPacket(pkt, len, stats);
-                    break;
+            if (!pingOnly || pkt->pktType == CTRL_PKT_PING) {
+                switch (pkt->pktType) {
+                    case CTRL_PKT_CMD:
+                        ProcessCommandPacket(pkt, len, stats);
+                        break;
+                    case CTRL_PKT_SYNC:
+                        if (getFPPmode() == REMOTE_MODE)
+                            ProcessSyncPacket(pkt, len, stats);
+                        break;
+                    case CTRL_PKT_EVENT:
+                        if (getFPPmode() == REMOTE_MODE)
+                            ProcessEventPacket(pkt, len, stats);
+                        break;
+                    case CTRL_PKT_BLANK:
+                        if (getFPPmode() == REMOTE_MODE) {
+                            stats->pktBlank++;
+                            sequence->SendBlankingData();
+                        }
+                        break;
+                    case CTRL_PKT_PING:
+                        ProcessPingPacket(pkt, len, stats);
+                        break;
+                    case CTRL_PKT_PLUGIN:
+                        ProcessPluginPacket(pkt, len, stats);
+                        break;
+                    case CTRL_PKT_FPPCOMMAND:
+                        ProcessFPPCommandPacket(pkt, len, stats);
+                        break;
+                }
             }
         }
         msgcnt = recvmmsg(m_receiveSock, rcvMsgs, MAX_MS_RCV_MSG, MSG_DONTWAIT, nullptr);
