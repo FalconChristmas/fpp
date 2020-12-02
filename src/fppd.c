@@ -817,6 +817,7 @@ void MainLoop(void)
 					playlist->Cleanup();
 
 					scheduler->ReLoadCurrentScheduleInfo();
+                    scheduler->ReLoadNextScheduleInfo();
 
 					if (!playlist->GetForceStop())
 						scheduler->CheckIfShouldBePlayingNow();

@@ -270,10 +270,28 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
         curPlayIdx = 0xFFFF;
     }
 
+    std::string playlistFile;
     int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
     for (i = 0; i < m_Schedule.size(); i++) {
-        if ((m_Schedule[i].enabled) &&
-            (CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate))) {
+        if (!m_Schedule[i].enabled)
+            continue;
+
+        playlistFile = getPlaylistDirectory();
+        playlistFile += "/";
+        playlistFile += m_Schedule[i].playlist + ".json";
+
+        std::string warning = "Scheduled Playlist '";
+        warning += m_Schedule[i].playlist + "' does not exist";
+
+        if (FileExists(playlistFile)) {
+            WarningHolder::RemoveWarning(warning);
+        } else {
+            WarningHolder::AddWarning(warning);
+            m_Schedule[i].enabled = false;
+            continue;
+        }
+
+        if (CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)) {
             int j = 0;
             for (auto & startEnd : m_Schedule[i].startEndSeconds) {
                 int start = startEnd.first;
@@ -789,10 +807,28 @@ void Scheduler::LoadScheduleFromFile(void)
   std::unique_lock<std::mutex> lock(m_scheduleLock);
   m_Schedule.clear();
 
+  std::string playlistFile;
+
   Json::Value sch = LoadJsonFromFile(SCHEDULE_FILE);
   for (int i = 0; i < sch.size(); i++) {
 	ScheduleEntry scheduleEntry;
 	scheduleEntry.LoadFromJson(sch[i]);
+
+    playlistFile = getPlaylistDirectory();
+    playlistFile += "/";
+    playlistFile += scheduleEntry.playlist + ".json";
+
+    std::string warning = "Scheduled Playlist '";
+    warning += scheduleEntry.playlist + "' does not exist";
+
+    if (scheduleEntry.enabled && !FileExists(playlistFile)) {
+        LogErr(VB_SCHEDULE, "ERROR: Scheduled Playlist '%s' does not exist\n",
+            scheduleEntry.playlist.c_str());
+        WarningHolder::AddWarning(warning);
+        continue;
+    } else {
+        WarningHolder::RemoveWarning(warning);
+    }
 
 	// Check for sunrise/sunset flags
 	if (scheduleEntry.startHour == 25)

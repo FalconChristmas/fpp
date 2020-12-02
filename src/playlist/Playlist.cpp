@@ -562,9 +562,9 @@ int Playlist::StopNow(int forceStop)
 	if (m_currentSection && m_currentSection->at(m_sectionPosition)->IsPlaying())
 		m_currentSection->at(m_sectionPosition)->Stop();
 
+	m_forceStop = forceStop;
 	SetIdle();
 
-	m_forceStop = forceStop;
     m_currentSection = nullptr;
 
 	return 1;
