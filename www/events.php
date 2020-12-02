@@ -97,7 +97,7 @@ function SaveControlChannels()
                             }
                             inp.prop( "checked", checked);
                         } else {
-                            inp.val(v);
+                            inp.val(v).trigger('change');
                         }
                         count = count + 1;
                  })
