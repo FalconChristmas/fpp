@@ -247,18 +247,26 @@ char *ProcessCommand(char *command, char *response)
         {
             int repeat = strcmp(CommandStr, "p") ? 0 : 1;
             int scheduledRepeat = 0;
-            std::string playlistName = scheduler->GetPlaylistThatShouldBePlaying(scheduledRepeat);
+            bool manualStart = true;
 
-            if ((playlistName == s) && (repeat == scheduledRepeat)) {
-                // Use CheckIfShouldBePlayingNow() so the scheduler knows when
-                // to stop the playlist
-                scheduler->CheckIfShouldBePlayingNow(1);
-                sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+            if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
+                std::string playlistName = scheduler->GetPlaylistThatShouldBePlaying(scheduledRepeat);
+                if ((playlistName == s) &&
+                    (repeat == scheduledRepeat)) {
+                    // Use CheckIfShouldBePlayingNow() so the scheduler knows when
+                    // to stop the playlist
+                    scheduler->CheckIfShouldBePlayingNow(1);
+                    sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+                    manualStart = false;
+                }
             }
-            if (playlist->Play(s, entry, repeat, 0)) {
-                sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
-		    } else {
-                sprintf(response,"%d,%d,Error Starting Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+
+            if (manualStart) {
+                if (playlist->Play(s, entry, repeat, 0)) {
+                    sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
+                } else {
+                    sprintf(response,"%d,%d,Error Starting Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+                }
             }
         } else {
             sprintf(response,"%d,%d,Unknown Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
