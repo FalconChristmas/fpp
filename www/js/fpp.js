@@ -441,7 +441,6 @@ function psiDetailsForEntrySimple(entry, editMode) {
                 if (a.hasOwnProperty('contents')) {
                     var ckeys = Object.keys(a.contents);
                     for (var x = 0; x < ckeys.length; x++) {
-alert('comparing ' + a.contents[ckeys[x]] + ' to ' + entry[a.name] + ' for ' + a.name);
                         if (a.contents[ckeys[x]] == entry[a.name]) {
                             partialResult += ckeys[x];
                         }
