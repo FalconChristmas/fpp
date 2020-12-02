@@ -91,14 +91,29 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     this->version      = version;
     this->model        = model;
     this->ranges       = ranges;
+
+    if (!this->multiSync && multiSync)
+        this->multiSync = true;
+
     std::vector<std::string> parts = split(address, '.');
+    if (parts.size() != 4) {
+        struct hostent* uhost = gethostbyname(address.c_str());
+        if (!uhost) {
+            LogErr(VB_SYNC, "Error looking up hostname: %s\n", address.c_str());
+            this->ipa = 0;
+            this->ipb = 0;
+            this->ipc = 0;
+            this->ipd = 0;
+        } else {
+            struct in_addr add = *((struct in_addr*)uhost->h_addr);
+            this->address = inet_ntoa(add);
+            parts = split(this->address, '.');
+        }
+    }
     this->ipa = atoi(parts[0].c_str());
     this->ipb = atoi(parts[1].c_str());
     this->ipc = atoi(parts[2].c_str());
     this->ipd = atoi(parts[3].c_str());
-
-    if (!this->multiSync && multiSync)
-        this->multiSync = true;
 }
 
 Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
