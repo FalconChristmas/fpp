@@ -376,6 +376,10 @@ include 'common/menuHead.inc';
                             <th>Remaining:</th>
                             <td id="txtTimeRemaining"></td>
                         </tr>
+                        <tr>
+                            <th>Randomize:</th>
+                            <td id="txtRandomize"></td>
+                        </tr>
                     </table>
                 </div>
                 <div class="clear"></div>

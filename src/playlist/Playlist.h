@@ -79,6 +79,8 @@ class Playlist {
 	void               SetPosition(int position);
 	void               SetRepeat(int repeat);
 
+    void               RandomizeMainPlaylist();
+
 	void               Dump(void);
 
 	void               NextItem(void);

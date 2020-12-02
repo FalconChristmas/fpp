@@ -206,6 +206,12 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                 <input type="text" id="txtPlaylistName" class="pl_title" disabled />
                 <br><b>Playlist Description:</b><br>
                 <input type="text" id="txtPlaylistDesc" class="pl_description" />
+                <br><b>Randomize:</b><br>
+                <select id='randomizePlaylist'>
+                    <option value='0'>Off</option>
+                    <option value='1'>Once per load</option>
+                    <option value='2'>Every iteration</option>
+                </select>
                 <br />
                 <input type="button" value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons playlistEditButton" />
                 <input type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />

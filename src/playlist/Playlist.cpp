@@ -208,6 +208,11 @@ int Playlist::Load(Json::Value &config)
 		LoadJSONIntoPlaylist(m_leadOut, leadOut);
 	}
 
+    if (config.isMember("random"))
+        m_random = config["random"].asInt();
+    else
+        m_random = 0;
+
 	m_sectionPosition = 0;
     m_currentSection = nullptr;
 
@@ -331,6 +336,9 @@ int Playlist::Load(const char *filename)
 
 	int res = Load(root);
 
+    if (m_random > 0)
+        RandomizeMainPlaylist();
+
 	GetConfigStr();
 
 	return res;
@@ -407,6 +415,9 @@ int Playlist::ReloadPlaylist(void)
 
 	if (!Load(root))
 		return 0;
+
+    if (m_random > 0)
+        RandomizeMainPlaylist();
 
 	m_repeat = repeat;
 	m_loopCount = loopCount;
@@ -801,6 +812,9 @@ int Playlist::Process(void)
 					else
 						LogDebug(VB_PLAYLIST, "mainPlaylist repeating for another loop, %d <= %d\n", m_loop, m_loopCount);
 
+                    if (m_random == 2)
+                        RandomizeMainPlaylist();
+
 					m_sectionPosition = 0;
 					m_mainPlaylist[0]->StartPlaying();
 				} else if (m_leadOut.size()) {
@@ -1037,6 +1051,9 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
 	Load(filename);
 
+    if (m_random > 0)
+        RandomizeMainPlaylist();
+
     int p = position;
     if (p == -2) {
         //random
@@ -1087,6 +1104,26 @@ void Playlist::SetRepeat(int repeat)
     }
 }
 
+void Playlist::RandomizeMainPlaylist()
+{
+    if (m_mainPlaylist.empty())
+        return;
+
+    std::vector<PlaylistEntryBase*>  tmpPlaylist = m_mainPlaylist;
+    m_mainPlaylist.clear();
+
+    while (tmpPlaylist.size()) {
+        int l = tmpPlaylist.size();
+        if (l > 1) {
+            int p = rand() % l;
+            m_mainPlaylist.push_back(tmpPlaylist[p]);
+            tmpPlaylist.erase(tmpPlaylist.begin() + p);
+        } else {
+            m_mainPlaylist.push_back(tmpPlaylist.back());
+            tmpPlaylist.pop_back();
+        }
+    }
+}
 
 /*
  *
@@ -1476,6 +1513,8 @@ Json::Value Playlist::GetConfig(void)
 
 	m_configTime = time(NULL);
 	result["configTime"] = (Json::UInt64)m_configTime;
+
+    result["random"] = m_random;
 
 	result["playlistInfo"] = m_playlistInfo;
 	m_config = result;

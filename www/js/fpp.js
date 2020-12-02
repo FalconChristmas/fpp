@@ -1273,7 +1273,8 @@ function SavePlaylistAs(name, filter, callback) {
     pl.version = 3;   // v1 == CSV, v2 == JSON, v3 == deprecated some things
     pl.repeat = 0;    // currently unused by player
     pl.loopCount = 0; // currently unused by player
-    pl.desc = $('#txtPlaylistDesc').val()
+    pl.desc = $('#txtPlaylistDesc').val();
+    pl.random = parseInt($('#randomizePlaylist').val());
 
     var leadIn = [];
     $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
@@ -3574,6 +3575,27 @@ function PopulatePlaylistDetails(data, editMode, name = "")
         SetPlaylistName(data.name);
     } else {
         SetPlaylistName(name);
+    }
+
+    if (editMode) {
+        if (typeof data.random === "undefined") {
+            $('#randomizePlaylist').val(0);
+        } else {
+            $('#randomizePlaylist').val(data.random);
+        }
+    } else {
+        if (typeof data.random === "undefined") {
+            $('#txtRandomize').html('Off');
+        } else {
+            if (data.random == 0)
+                $('#txtRandomize').html('Off');
+            else if (data.random == 1)
+                $('#txtRandomize').html('Once at load time');
+            else if (data.random == 2)
+                $('#txtRandomize').html('Once per iteration');
+            else
+                $('#txtRandomize').html('Invalid value');
+        }
     }
 }
 
