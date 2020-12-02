@@ -1196,7 +1196,7 @@ function GetPlaylistEntry(row) {
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
 
-        if (!$(row).find('.field_' + a.name).length) {
+        if ((a.type != 'args') && (!$(row).find('.field_' + a.name).length)) {
             // handle new fields by using default for fields we can't find
             if (typeof a.default != "undefined")
                 e[a.name] = a.default;
@@ -1517,7 +1517,7 @@ function EditPlaylistEntry() {
         }
 
         if (a.type == 'bool') {
-            if ($(row).find('.field_' + a.name).html() == 'true')
+            if ($(row).find('.field_' + a.name).text() == 'true')
                 $('.arg_' + a.name).prop('checked', true).trigger('change');
             else
                 $('.arg_' + a.name).prop('checked', false).trigger('change');
@@ -1528,13 +1528,13 @@ function EditPlaylistEntry() {
             } else {
                 for (x = 1; x <= 20; x++) {
                     if ($(row).find('.field_args_' + x).length) {
-                        $('#playlistEntryCommandOptions_arg_' + x).val($(row).find('.field_args_' + x).html());
+                        $('#playlistEntryCommandOptions_arg_' + x).val($(row).find('.field_args_' + x).text());
                     }
                 }
             }
         } else {
             if ($(row).find('.field_' + a.name).length)
-                $('.arg_' + a.name).val($(row).find('.field_' + a.name).html()).trigger('change');
+                $('.arg_' + a.name).val($(row).find('.field_' + a.name).text()).trigger('change');
         }
     }
 
