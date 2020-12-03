@@ -1637,6 +1637,11 @@ function RemovePlaylistEntry()	{
 		{
             location.href="changebranch.php?branch=" + newBranch;
 		}
+		
+		function RebuildFPPSource()
+		{
+            location.href="rebuildfpp.php";
+		}
 	
 		function SetUniverseCount(input)
 		{

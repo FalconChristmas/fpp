@@ -72,7 +72,9 @@ function GitReset() {
         <td><input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes<br></td>
     </tr>
     <tr><th colspan='2'><pre id='gitStatusPre'><? echo $git_status; ?></pre></th>
-
+    <tr><th valign='top'>FPP Rebuild:</th>
+        <td><input type='button' value='Rebuild FPP' onClick='RebuildFPPSource();'> <b>WARNING:</b> This recompiles the local source code<br></td>
+    </tr>
 <?
 PrintSetting('masqUIPlatform');
 ?>
