@@ -454,8 +454,11 @@ input.largeCheckbox {
 
 		for (var i = 0; i < data.length; i++) {
 			var star = "";
-			var ip = data[i].IP;
-            var hostDescription = data[i].HostDescription;
+			var ip = data[i].address;
+            var hostDescription = "";
+
+            if (ip.indexOf('169.254') == 0)
+                continue;
 
             if ((settings.hasOwnProperty('MultiSyncHide10')) &&
                 (settings['MultiSyncHide10'] == '1') &&
@@ -483,22 +486,22 @@ input.largeCheckbox {
             var newHost = 1;
             var hostRowKey = ip.replace(/\./g, '_');
 
-            var hostKey = data[i].HostName + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].lastSeenStr + '_' + data[i].channelRanges;
+            var hostKey = data[i].hostname + '_' + data[i].version + '_' + data[i].fppModeString + '_' + data[i].lastSeenStr + '_' + data[i].channelRanges;
             hostKey = hostKey.replace(/[^a-zA-Z0-9]/, '_');
 
             hostRows[hostRowKey] = rowID;
 
-            var hostname = data[i].HostName;
-            if (data[i].Local) {
+            var hostname = data[i].hostname;
+            if (data[i].local) {
                 hostname = "<b>" + hostname + "</b>";
             } else {
                 if ((settings['fppMode'] == 'master') &&
-                        (data[i].fppMode == "remote"))
+                        (data[i].fppModeString == "remote"))
                 {
-                    star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].IP + "'";
-                    if (typeof remotes[data[i].IP] !== 'undefined') {
+                    star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";
+                    if (typeof remotes[data[i].address] !== 'undefined') {
                         star += " checked";
-                        delete remotes[data[i].IP];
+                        delete remotes[data[i].address];
                     }
                     star += " onClick='updateMultiSyncRemotes(true);'>";
                 }
@@ -508,9 +511,11 @@ input.largeCheckbox {
                 rowID = uniqueHosts[hostKey];
                 hostRows[hostRowKey] = rowID;
 
-                $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].IP));
+                $('#' + rowID + '_ip').append('<br>' + ipLink(data[i].address));
 
-                if (data[i].fppMode == 'remote') {
+                $('#' + rowID).attr('ipList', $('#' + rowID).attr('ipList') + ',' + data[i].address);
+
+                if (data[i].fppModeString == 'remote') {
                     $('#' + rowID + '_ip').append(star);
                 }
 
@@ -522,27 +527,27 @@ input.largeCheckbox {
                 uniqueHosts[hostKey] = rowID;
 
                 var fppMode = 'Player';
-                if (data[i].fppMode == 'bridge') {
+                if (data[i].fppModeString == 'bridge') {
                     fppMode = 'Bridge';
-                } else if (data[i].fppMode == 'master') {
+                } else if (data[i].fppModeString == 'master') {
                     fppMode = 'Master';
-                } else if (data[i].fppMode == 'remote') {
+                } else if (data[i].fppModeString == 'remote') {
                     fppMode = 'Remote';
-                } else if (data[i].fppMode == 'unknown') {
+                } else if (data[i].fppModeString == 'unknown') {
                     fppMode = 'Unknown';
                 }
 
                 rowSpans[rowID] = 1;
 
-		var ipTxt = data[i].Local ? data[i].IP : ipLink(data[i].IP);
+		var ipTxt = data[i].local ? data[i].address : ipLink(data[i].address);
 
-                if ((data[i].fppMode == 'remote') && (star != ""))
+                if ((data[i].fppModeString == 'remote') && (star != ""))
                     ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
-                var newRow = "<tr id='" + rowID + "' ip='" + data[i].IP + "' class='systemRow'>" +
+                var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
                     "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
-                    "<td><span id='" + rowID + "_platform'>" + data[i].Platform + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
+                    "<td><span id='" + rowID + "_platform'>" + data[i].type + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
                         + "<span class='hidden version'>" + data[i].version + "</span></td>" +
                     "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
                     "<td id='" + rowID + "_status'>Last Seen:<br>" + data[i].lastSeenStr + "</td>" +
@@ -566,7 +571,7 @@ input.largeCheckbox {
                     newRow += "<td class='centerCenter'>";
                     if ((isFPP(data[i].typeId)) &&
                         (majorVersion >= 4))
-                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox' name='" + data[i].IP + "'>";
+                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox' name='" + data[i].address + "'>";
 
                     newRow += "</td>";
                 }
@@ -620,6 +625,7 @@ if ($uiLevel >= 1) {
         $('#fppSystems').trigger('update', true);
 	}
 
+    var systemsList = [];
 	function getFPPSystems() {
 		if (streamCount) {
 			alert("FPP Systems are being udpated, you will need to manually refresh once these updates are complete.");
@@ -629,10 +635,9 @@ if ($uiLevel >= 1) {
 		$('.masterOptions').hide();
 		$('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
 
-		$.get("fppjson.php?command=getFPPSystems", function(data) {
-            parseFPPSystems(data);
-//        $.get('/api/fppd/multiSyncSystems', function(data) {
-//            parseFPPSystems(data.systems);
+        $.get('/api/fppd/multiSyncSystems', function(data) {
+            systemsList = data.systems;
+            parseFPPSystems(data.systems);
 		});
 	}
 
@@ -811,6 +816,47 @@ function syncModeUpdated(setting = '') {
     }
 }
 
+function IPsCanTalk(ip1, ip2, octets) {
+    var p1 = ip1.split('.');
+    var p2 = ip2.split('.');
+
+    switch (octets) {
+        case 3: if ((p1[0] == p2[0]) && (p1[1] == p2[1]) && (p1[2] == p2[2]))
+                    return true;
+                break;
+        case 2: if ((p1[0] == p2[0]) && (p1[1] == p2[1]))
+                    return true;
+                break;
+        case 1: if (p1[0] == p2[0])
+                    return true;
+                break;
+    }
+
+    return false;
+}
+
+function getReachableIPFromRowID(id) {
+    var ip = ipFromRowID(id);
+    var ipListStr = $('#' + id).attr('ipList');
+
+    if (ip == ipListStr)
+        return ip;
+
+    var ipList = ipListStr.split(',');
+
+    for (var o = 3; o > 0; o--) {
+        for (var i = 0; i < systemsList.length; i++) {
+            if (systemsList[i].local == 1) {
+                for (var j = 0; j < ipList.length; j++) {
+                    if (IPsCanTalk(systemsList[i].address, ipList[j], o))
+                        return ipList[j];
+                }
+            }
+        }
+    }
+
+    return '';
+}
 
 function ipFromRowID(id) {
     ip = $('#' + id).attr('ip');
@@ -1084,8 +1130,13 @@ function copyFilesToSystem(rowID) {
     showLogsRow(rowID);
     addLogsDivider(rowID);
 
-    var ip = ipFromRowID(rowID);
-    StreamURL('copyFilesToRemote.php?ip=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
+    var ip = getReachableIPFromRowID(rowID);
+    if (ip == "") {
+        ip = ipFromRowID(rowID);
+        $('#' + rowID + '_logText').append('No IPs appear reachable for ' + ip);
+    } else {
+        StreamURL('copyFilesToRemote.php?ip=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
+    }
 }
 
 function copyFilesToSelectedSystems() {

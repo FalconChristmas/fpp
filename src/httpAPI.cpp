@@ -157,14 +157,18 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 	}
 	else if (url == "multiSyncSystems")
 	{
-		GetMultiSyncSystems(result);
+        bool localOnly = false;
+
+        if (req.get_arg("localOnly") == "1")
+            localOnly = true;
+
+		GetMultiSyncSystems(result, localOnly);
 	}
     else if (url == "multiSyncStats")
     {
         bool reset = false;
 
-        if ((req.get_arg("reset") != "") &&
-            (req.get_arg("reset") == "1"))
+        if (req.get_arg("reset") == "1")
             reset = true;
 
         GetMultiSyncStats(result, reset);
@@ -826,9 +830,9 @@ void PlayerResource::GetE131BytesReceived(Json::Value &result)
 /*
  *
  */
-void PlayerResource::GetMultiSyncSystems(Json::Value &result)
+void PlayerResource::GetMultiSyncSystems(Json::Value &result, bool localOnly)
 {
-	result = multiSync->GetSystems();
+	result = multiSync->GetSystems(localOnly);
 
 	if (result.isMember("systems"))
 		SetOKResult(result, "");

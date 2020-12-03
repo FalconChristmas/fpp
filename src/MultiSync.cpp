@@ -139,6 +139,8 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     system["model"]        = model;
     system["channelRanges"] = ranges;
 
+    system["local"] = local ? 1 : 0;
+
     system["multiSyncCapable"] = multiSync ? 1 : 0;
 
     return system;
