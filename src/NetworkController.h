@@ -48,6 +48,7 @@ class NetworkController {
     bool DetectESPixelStickController(const std::string &ip, const std::string &html);
     bool DetectAlphaPixController(const std::string &ip, const std::string &html);
     bool DetectHinksPixController(const std::string &ip, const std::string &html);
+    bool DetectDIYLEDExpressController(const std::string &ip, const std::string &html);
     bool DetectFPP(const std::string &ip, const std::string &html);
 
     void DumpControllerInfo(void);

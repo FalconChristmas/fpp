@@ -58,6 +58,8 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
         return nc;
     if (nc->DetectHinksPixController(ip, html))
         return nc;
+    if (nc->DetectDIYLEDExpressController(ip, html))
+        return nc;
 
     delete nc;
 
@@ -305,6 +307,47 @@ bool NetworkController::DetectHinksPixController(const std::string &ip, const st
 
     DumpControllerInfo();
     return true;
+}
+
+bool NetworkController::DetectDIYLEDExpressController(const std::string &ip,
+    const std::string &html)
+{
+    LogExcess(VB_SYNC, "Checking if %s is a DIYLEDExpress controller\n", ip.c_str());
+    std::regex re("DIYLEDExpress E1.31 Bridge Configuration Page");
+    std::cmatch m;
+
+    if (!std::regex_search(html.c_str(), m, re))
+        return false;
+
+    LogExcess(VB_SYNC, "%s is potentially a DIYLEDExpress controller, checking further\n", ip.c_str());
+
+    vendor = "DIYLEDExpress";
+    vendorURL = "http://www.diyledexpress.com/";
+    typeId = kSysTypeDIYLEDExpress;
+    typeStr = "E1.31 Bridge";
+    systemMode = BRIDGE_MODE;
+
+    //Firmware Rev: 4.02
+    std::regex vre("Firmware Rev: ([0-9]+.[0-9]+)");
+    
+    if (std::regex_search(html.c_str(), m, vre)) {
+        version = m[1];
+
+        if (version != "") {
+            majorVersion = atoi(version.c_str());
+
+            std::size_t verDot = version.find(".");
+            if (verDot != std::string::npos) {
+                minorVersion = atoi(version.substr(verDot + 1).c_str());
+            }
+        }
+
+        DumpControllerInfo();
+
+        return true;
+    }
+
+    return false;
 }
 
 void NetworkController::DumpControllerInfo(void)

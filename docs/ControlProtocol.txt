@@ -127,6 +127,7 @@ buf[9] = App/Hardware Type
            - 0xC1 - xSchedule
            - 0xC2 - ESPixelStick - ESP8266
            - 0xC3 - ESPixelStick - ESP32
+           - 0xFC - DIYLEDExpress
            - 0xFD - HinksPix
            - 0xFE - AlphaPix
            - 0xFF - SanDevices

@@ -521,6 +521,7 @@ std::string MultiSync::GetTypeString(MultiSyncSystemType type, bool local)
         case kSysTypeSanDevices:              return "SanDevices";
         case kSysTypeAlphaPix:                return "AlphaPix";
         case kSysTypeHinksPix:                return "HinksPix";
+        case kSysTypeDIYLEDExpress:           return "DIYLEDExpress";
 		default:                              return "Unknown System Type";
 	}
 }
