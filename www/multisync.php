@@ -635,7 +635,7 @@ if ($uiLevel >= 1) {
 		$('.masterOptions').hide();
 		$('#fppSystems').html("<tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>");
 
-        $.get('/api/fppd/multiSyncSystems', function(data) {
+        $.get('api/fppd/multiSyncSystems', function(data) {
             systemsList = data.systems;
             parseFPPSystems(data.systems);
 		});
