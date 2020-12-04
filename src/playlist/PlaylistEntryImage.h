@@ -70,6 +70,7 @@ class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
 	void CleanupCache(void);
 
   	std::string m_imagePath;
+	std::string m_imageFullPath;
 	std::string m_curFileName;
 	std::string m_nextFileName;
 

@@ -87,9 +87,16 @@ int PlaylistEntryImage::Init(Json::Value &config)
 	}
 
 	m_imagePath = config["imagePath"].asString();
+    if (startsWith(m_imagePath,"/")) {
+        m_imageFullPath = m_imagePath;
+    } else {
+        m_imageFullPath = getMediaDirectory();
+        m_imageFullPath += "/images/";
+        m_imageFullPath += m_imagePath;
+    }
 
-	if (config.isMember("device"))
-		m_device = config["device"].asString();
+	if (config.isMember("outputDevice"))
+		m_device = config["outputDevice"].asString();
 
 	if (m_device == "fb0")
 		m_device = "/dev/fb0";
@@ -174,6 +181,7 @@ void PlaylistEntryImage::Dump(void)
 	PlaylistEntryBase::Dump();
 
 	LogDebug(VB_PLAYLIST, "Image Path     : %s\n", m_imagePath.c_str());
+	LogDebug(VB_PLAYLIST, "Image Full Path: %s\n", m_imageFullPath.c_str());
 	LogDebug(VB_PLAYLIST, "Output Device  : %s\n", m_device.c_str());
 
 	FrameBuffer::Dump();
@@ -187,7 +195,7 @@ Json::Value PlaylistEntryImage::GetConfig(void)
 	Json::Value result = PlaylistEntryBase::GetConfig();
 
 	result["imagePath"] = m_imagePath;
-	result["device"] = m_device;
+	result["outputDevice"] = m_device;
 
 	std::size_t found = m_curFileName.find_last_of("/");
 	if (found > 0)
@@ -209,15 +217,15 @@ void PlaylistEntryImage::SetFileList(void)
 
 	m_files.clear();
 
-	if (is_regular_file(m_imagePath))
+	if (is_regular_file(m_imageFullPath))
 	{
-		m_files.push_back(m_imagePath);
+		m_files.push_back(m_imageFullPath);
 		return;
 	}
 
-	if (is_directory(m_imagePath))
+	if (is_directory(m_imageFullPath))
 	{
-        for (auto &cp : recursive_directory_iterator(m_imagePath)) {
+        for (auto &cp : recursive_directory_iterator(m_imageFullPath)) {
             std::string entry = cp.path().string();
             m_files.push_back(entry);
         }
@@ -318,17 +326,17 @@ void PlaylistEntryImage::PrepImage(void)
 				int diff = m_width - cols;
 
 				image.borderColor(Color("black"));
-				image.border(Geometry(diff / 2 + 1, 0, 0, 0));
+				image.border(Geometry(diff / 2 + 1, 1, 0, 0));
 			}
 			else if (rows < m_height) // center vertically
 			{
 				int diff = m_height - rows;
 
 				image.borderColor(Color("black"));
-				image.border(Geometry(0, diff / 2 + 1, 0, 0));
+				image.border(Geometry(1, diff / 2 + 1, 0, 0));
 			}
 
-			image.crop(Geometry(m_width, m_height, 0, 0));
+			image.crop(Geometry(m_width, m_height, 1, 1));
 		}
 
 		image.type(TrueColorType);
