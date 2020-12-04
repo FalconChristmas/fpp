@@ -328,7 +328,7 @@
         "args": {
             "imagePath": {
                 "name": "imagePath",
-                "description": "Path",
+                "description": "Image",
                 "type": "file",
                 "directory": "images",
                 "optional": false,
