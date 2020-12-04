@@ -35,6 +35,8 @@
 #include "log.h"
 #include "FrameBuffer.h"
 
+#define X11_WINDOW_WIDTH 720
+#define X11_WINDOW_HEIGHT 400
 void StartDrawLoopThread(FrameBuffer *fb);
 
 /*
@@ -433,8 +435,8 @@ int FrameBuffer::InitializeX11Window(void)
 {
 	if ((m_fbWidth == 0) || (m_fbHeight == 0))
 	{
-		m_fbWidth = 720;
-		m_fbHeight = 400;
+		m_fbWidth = X11_WINDOW_WIDTH;
+		m_fbHeight = X11_WINDOW_HEIGHT;
 	}
 
 	// Initialize X11 Window here
@@ -667,8 +669,13 @@ void FrameBuffer::FBCopyData(unsigned char *buffer, int draw)
 void FrameBuffer::Dump(void)
 {
 	LogDebug(VB_PLAYLIST, "Transition Type: %d\n", (int)m_transitionType);
+#ifdef USE_X11
+	LogDebug(VB_PLAYLIST, "Width          : %d\n", X11_WINDOW_WIDTH);
+	LogDebug(VB_PLAYLIST, "Height         : %d\n", X11_WINDOW_HEIGHT);
+#else
 	LogDebug(VB_PLAYLIST, "Width          : %d\n", m_fbWidth);
 	LogDebug(VB_PLAYLIST, "Height         : %d\n", m_fbHeight);
+#endif
 	LogDebug(VB_PLAYLIST, "Device         : %s\n", m_device.c_str());
 	LogDebug(VB_PLAYLIST, "DataFormat     : %s\n", m_dataFormat.c_str());
 	LogDebug(VB_PLAYLIST, "Inverted       : %d\n", m_inverted);
