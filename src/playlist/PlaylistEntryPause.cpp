@@ -137,7 +137,7 @@ void PlaylistEntryPause::Dump(void)
 	PlaylistEntryBase::Dump();
 
 	LogDebug(VB_PLAYLIST, "Duration:    %f\n", m_duration);
-	LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTime());
+	LogDebug(VB_PLAYLIST, "Cur Time:    %lld\n", GetTimeMS());
 	LogDebug(VB_PLAYLIST, "Start Time:  %lld\n", m_startTime);
 	LogDebug(VB_PLAYLIST, "End Time:    %lld\n", m_endTime);
 	LogDebug(VB_PLAYLIST, "Finish Time: %lld\n", m_finishTime);
