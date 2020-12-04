@@ -29,8 +29,7 @@ include 'common/menuHead.inc';
 <title><? echo $pageTitle; ?></title>
 
 	<script>
-		$(function() {
-
+        function PageSetup() {
 			//Store frequently elements in variables
 			var slider  = $('#slider');
             var rslider  = $('#remoteVolumeSlider');
@@ -79,7 +78,7 @@ include 'common/menuHead.inc';
                 hide: { delay: 1000 }
             });
 
-		});
+		};
 
 	function SetSpeakerIndicator(value) {
 		var speaker = $('#speaker');
@@ -154,7 +153,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();">
+<body onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
