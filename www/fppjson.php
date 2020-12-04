@@ -309,6 +309,7 @@ function GetFPPStatusJson()
                 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
+                curl_setopt($curl, CURLOPT_TIMEOUT_MS, 2000);
                 $curls[$ip] = $curl;
                 curl_multi_add_handle($curlmulti, $curl);
             }
@@ -330,6 +331,8 @@ function GetFPPStatusJson()
                 } else if ($responseCode == 0) {
                     $result[$ip]["status_name"] = "unreachable";
                 }
+            } else if (strpos($request_content, 'Not Running') !== FALSE) {
+                    $result[$ip]["status_name"] = "not running";
             } else {
                 $content = json_decode($request_content);
                 
