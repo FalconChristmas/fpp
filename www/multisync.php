@@ -95,7 +95,7 @@ input.largeCheckbox {
     function isFPPPi(typeId) {
         typeId = parseInt(typeId);
 
-        if ((typeId >= 0x01) && (typeId <= 0x3F))
+        if ((typeId >= 0x02) && (typeId <= 0x3F))
             return true;
 
         return false;
