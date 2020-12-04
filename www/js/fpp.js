@@ -1136,7 +1136,7 @@ function AddPlaylistEntry(mode) {
                 }
             }
             pe[a.name] = arr;
-        } else if (a.type == 'string') {
+        } else if ((a.type == 'string') || (a.type == 'file')) {
             pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).val();
         } else {
             pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).html();
@@ -1322,6 +1322,10 @@ function SavePlaylistAs(name, filter, callback) {
             }
 
             SetPlaylistName(name);
+
+            if ($('#tblPlaylistDetails').find('.playlistSelectedEntry').length)
+                EditPlaylistEntry();
+
             $.jGrowl("Playlist Saved");
         },
         error: function() {
@@ -4428,7 +4432,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             dv = val['default'];
          }
          var contentListPostfix = "";
-         if (val['type'] == "string") {
+         if ((val['type'] == "string") || (val['type'] == 'file')) {
             if (typeof val['init'] === 'string') {
                 initFuncs.push(val['init']);
             }
@@ -4485,6 +4489,10 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 line += "></input>";
                 if (configAdjustable && val['adjustable']) {
                     line += "&nbsp;<input type='checkbox' id='" + ID + "_adjustable' class='arg_" + val['name'] + "'>Adjustable</input>";
+                }
+
+                if (val['type'] == 'file') {
+                    line += "&nbsp;<input type='button' value='Choose File' onclick='FileChooser(" + '"' + val['directory'] + '",".arg_' + val['name'] + '"' + ");' class='buttons'>";
                 }
             } else {
                 // Has a contentListUrl OR a init script
@@ -4731,3 +4739,23 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
         }
     }
 }
+
+function FileChooser(dir, target)
+{
+    if ($('#fileChooser').length == 0) {
+        var dialogHTML = "<div id='fileChooserPopup'><div id='fileChooserDiv'></div></div>";
+        $(dialogHTML).appendTo('body');
+    }
+
+    $('#fileChooserPopup').dialog({
+        height: 440,
+        width: 600,
+        title: "File Chooser",
+        modal: true
+    });
+    $('#fileChooserPopup').dialog( "moveToTop" );
+    $('#fileChooserDiv').load('fileChooser.php', function() {
+        SetupFileChooser(dir, target);
+    });
+}
+

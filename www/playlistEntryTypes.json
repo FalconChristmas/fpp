@@ -329,7 +329,8 @@
             "imagePath": {
                 "name": "imagePath",
                 "description": "Path",
-                "type": "string",
+                "type": "file",
+                "directory": "images",
                 "optional": false,
                 "simpleUI": true
             },

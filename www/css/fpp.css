@@ -418,6 +418,10 @@ fieldset
     -webkit-border-radius: 6px;
 }
 
+.left {
+    text-align: left;
+}
+
 .right {
     text-align: right;
 }
