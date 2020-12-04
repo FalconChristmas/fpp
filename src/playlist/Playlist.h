@@ -71,7 +71,7 @@ class Playlist {
 	void               ProcessMedia(void);
 	int                Cleanup(void);
 
-	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduled = 0, const int endPosition = -1);
+	int                Play(const char *filename, const int position = -1, const int repeat = -1, const int scheduleEntry = -1, const int endPosition = -1);
     
     void               InsertPlaylistAsNext(const std::string &filename, const int startPosition = -1, const int endPos = -1);
     void               InsertPlaylistImmediate(const std::string &filename, const int startPosition = -1, const int endPos = -1);
@@ -98,7 +98,8 @@ class Playlist {
 	Json::Value        GetConfig(void);
 	uint64_t           GetFileTime(void) { return (Json::UInt64)m_fileTime; }
 	int                GetForceStop(void) { return m_forceStop; }
-	int                WasScheduled(void) { return m_scheduled; }
+	int                WasScheduled(void) { return (m_scheduleEntry != -1) ? 1 : 0; }
+	int                GetScheduleEntry(void) { return m_scheduleEntry; }
     
     uint64_t           GetCurrentPosInMS();
     uint64_t           GetPosStartInMS(int pos);
@@ -137,7 +138,7 @@ class Playlist {
 	int                  m_blankAtEnd;
 	long long            m_startTime;
 	int                  m_subPlaylistDepth;
-	int                  m_scheduled;
+	int                  m_scheduleEntry;
 	int                  m_forceStop;
     int                  m_stopAtPos;
 

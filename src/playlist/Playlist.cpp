@@ -874,7 +874,7 @@ bool Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         } else {
             pl = new Playlist(this);
         }
-        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduled, m_insertedPlaylistEndPosition);
+        pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduleEntry, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
         if (pl->IsPlaying()) {
             LogDebug(VB_PLAYLIST, "Switching to inserted playlist %s\n", m_insertedPlaylist.c_str());
@@ -983,7 +983,7 @@ int Playlist::Cleanup(void)
 void Playlist::InsertPlaylistAsNext(const std::string &filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position, 0, m_scheduled, endPosition);
+        Play(filename.c_str(), position, 0, m_scheduleEntry, endPosition);
     } else {
         m_insertedPlaylist = filename;
         m_insertedPlaylistPosition = position;
@@ -993,7 +993,7 @@ void Playlist::InsertPlaylistAsNext(const std::string &filename, const int posit
 void Playlist::InsertPlaylistImmediate(const std::string &filename, const int position, int endPosition) {
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     if (m_status == FPP_STATUS_IDLE) {
-        Play(filename.c_str(), position, 0, m_scheduled, endPosition);
+        Play(filename.c_str(), position, 0, m_scheduleEntry, endPosition);
     } else {
         Pause();
         m_insertedPlaylist = filename;
@@ -1005,7 +1005,7 @@ void Playlist::InsertPlaylistImmediate(const std::string &filename, const int po
 /*
  *
  */
-int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduled, const int endPosition)
+int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduleEntry, const int endPosition)
 {
 	int hadToStop = 0;
 
@@ -1013,7 +1013,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 		return 0;
 
 	LogDebug(VB_PLAYLIST, "Playlist::Play('%s', %d, %d, %d)\n",
-		filename, position, repeat, scheduled);
+		filename, position, repeat, scheduleEntry);
 
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
@@ -1046,7 +1046,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
             sleep(1);
         }
 	}
-    m_scheduled = scheduled;
+    m_scheduleEntry = scheduleEntry;
 	m_forceStop = 0;
 
 	Load(filename);

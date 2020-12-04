@@ -142,8 +142,10 @@ void Scheduler::ScheduleProc(void)
   }
 }
 
-void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
+void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped)
 {
+    LogDebug(VB_SCHEDULE, "CheckIfShouldBePlayingNow(%d, %d)\n", ignoreRepeat, forceStopped);
+
     if (m_loadSchedule) {
         LoadScheduleFromFile();
     }
@@ -165,6 +167,7 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 		// Do not start non repeatable entries
 		if ((m_Schedule[i].enabled) &&
 			(m_Schedule[i].repeat || ir) &&
+            (forceStopped != i) &&
 			(CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate)))
 		{
             int j = 0;
@@ -188,7 +191,8 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat)
 
                     m_forcedNextPlaylist = SCHEDULE_INDEX_INVALID;
 					playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
-						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
+						0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat,
+                        m_currentSchedulePlaylist.ScheduleEntryIndex);
 
 					if (m_loadSchedule)
 						LoadScheduleFromFile();
@@ -656,7 +660,8 @@ void Scheduler::PlayListLoadCheck(void)
 
       m_forcedNextPlaylist = SCHEDULE_INDEX_INVALID;
       playlist->Play(m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].playlist.c_str(),
-        0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat, 1);
+        0, m_Schedule[m_currentSchedulePlaylist.ScheduleEntryIndex].repeat,
+        m_currentSchedulePlaylist.ScheduleEntryIndex);
     }
   }
 }

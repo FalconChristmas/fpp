@@ -819,7 +819,9 @@ void MainLoop(void)
 					scheduler->ReLoadCurrentScheduleInfo();
                     scheduler->ReLoadNextScheduleInfo();
 
-					if (!playlist->GetForceStop())
+					if (playlist->GetForceStop())
+						scheduler->CheckIfShouldBePlayingNow(0, playlist->GetScheduleEntry());
+                    else
 						scheduler->CheckIfShouldBePlayingNow();
 
 					if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE)

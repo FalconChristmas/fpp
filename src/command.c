@@ -262,7 +262,7 @@ char *ProcessCommand(char *command, char *response)
             }
 
             if (manualStart) {
-                if (playlist->Play(s, entry, repeat, 0)) {
+                if (playlist->Play(s, entry, repeat)) {
                     sprintf(response,"%d,%d,Playlist Started,,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS);
                 } else {
                     sprintf(response,"%d,%d,Error Starting Playlist,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);

@@ -93,7 +93,7 @@ class Scheduler {
 	~Scheduler();
 
 	void ScheduleProc(void);
-	void CheckIfShouldBePlayingNow(int ignoreRepeat = 0);
+	void CheckIfShouldBePlayingNow(int ignoreRepeat = 0, int forceStopped = -1);
 	void ReloadScheduleFile(void);
 	void ReLoadCurrentScheduleInfo(void);
 	void ReLoadNextScheduleInfo(void);
