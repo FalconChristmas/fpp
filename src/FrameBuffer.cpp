@@ -606,6 +606,10 @@ void FrameBuffer::FBCopyData(unsigned char *buffer, int draw)
 		unsigned char *dG;
 		unsigned char *dB;
 
+		// Hack for Pi's 1366x768 mode on a 1376x768 monitor. Not sure why...
+		if ((m_fbWidth == 1366) && (m_fbHeight == 768))
+			ostride += 30;
+
 		for (int y = 0; y < m_fbHeight; y++)
 		{
 			// Data to BGR framebuffer
