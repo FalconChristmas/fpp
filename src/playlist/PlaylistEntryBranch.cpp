@@ -40,11 +40,11 @@ PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
 	m_eHourSecond(-1),
     m_iterationStart(1),
     m_iterationCount(1),
-    m_trueNextBranchType(PlaylistBranchType::None),
+    m_trueNextBranchType(PlaylistBranchType::NoBranch),
 	m_trueNextItem(0),
-    m_falseNextBranchType(PlaylistBranchType::None),
+    m_falseNextBranchType(PlaylistBranchType::NoBranch),
 	m_falseNextItem(0),
-    m_nextBranchType(PlaylistBranchType::None)
+    m_nextBranchType(PlaylistBranchType::NoBranch)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBranch::PlaylistEntryBranch()\n");
 	m_type = "branch";
@@ -74,7 +74,7 @@ static inline PlaylistEntryBase::PlaylistBranchType toBranchType(Json::Value &v)
         return PlaylistEntryBase::PlaylistBranchType::Offset;
     }
     if (s == "None") {
-        return PlaylistEntryBase::PlaylistBranchType::None;
+        return PlaylistEntryBase::PlaylistBranchType::NoBranch;
     }
     return PlaylistEntryBase::PlaylistBranchType::Index;
 }
