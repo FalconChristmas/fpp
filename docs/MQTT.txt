@@ -22,6 +22,7 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 */playlist/section/status - either “New”, “LeadIn”, “MainPlayList”, “LeadOut”, or {null} if nothing playing
 */playlist/sectionPosition/status - The numeric position of the item currently playing in the playlist section (zero based)
 */playlist/sequence/status - Name of current sequence file playing. Can be {null}.
+*/playlist/sequence/secondsTotal - The duration of the current sequence file playing, in seconds.  Can be {null}.
 
 */playlist/media/title - Title of the audio / video media being displayed
 */playlist/media/status - filename of the current audio/movie
