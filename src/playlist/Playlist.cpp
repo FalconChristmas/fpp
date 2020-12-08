@@ -1586,7 +1586,7 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 		StopGracefully(1);
 
 	} else if (topicEnd == "/stop/afterloop") {
-		StopGracefully(1);
+		StopGracefully(1,1);
 
 	// These three are depgrecated and should be removed
 	} else if (topic == "name/set") {
