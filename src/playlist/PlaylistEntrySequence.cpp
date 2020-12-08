@@ -96,8 +96,14 @@ int PlaylistEntrySequence::StartPlaying(void)
     m_startTme = GetTimeMS();
     LogDebug(VB_PLAYLIST, "Started Sequence, ID: %s\n", m_sequenceName.c_str());
 
-	if (mqtt)
+	if (mqtt) {
 		mqtt->Publish("playlist/sequence/status", m_sequenceName);
+		if (m_duration > 0) {
+			mqtt->Publish("playlist/sequence/secondsTotal", m_duration / 1000);
+		} else {
+			mqtt->Publish("playlist/sequence/secondsTotal", "");
+		}
+	}
 
 	return PlaylistEntryBase::StartPlaying();
 }
@@ -111,8 +117,10 @@ int PlaylistEntrySequence::Process(void)
 		FinishPlay();
         m_prepared = false;
 
-		if (mqtt)
+		if (mqtt) {
 			mqtt->Publish("playlist/sequence/status", "");
+			mqtt->Publish("playlist/sequence/secondsTotal", "");
+		}
     } else if (m_adjustTiming) {
         long long now = GetTimeMS();
         int total = (now - m_startTme);
@@ -132,8 +140,10 @@ int PlaylistEntrySequence::Stop(void)
     
 	sequence->CloseSequenceFile();
     m_prepared = false;
-	if (mqtt)
+	if (mqtt) {
 		mqtt->Publish("playlist/sequence/status", "");
+		mqtt->Publish("playlist/sequence/secondsTotal", "");
+	}
 
 	return PlaylistEntryBase::Stop();
 }
