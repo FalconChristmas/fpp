@@ -467,12 +467,12 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             lastRates.pop_front();
         }
         rate = rateSum / lastRates.size();
-        
-	LogDebug(VB_MEDIAOUT, "Diff: %d	RateDiff: %0.3f / %d	New rate: %0.3f/%0.3f	Calc Rate: %0.3f\n", rawdiff, rateDiff, data->rateDiff, rate, data->currentRate, lastRates.back());
-	if ((int)(rate * 1000) != (int)(data->currentRate * 1000)){
-	    LogDebug(VB_MEDIAOUT, "Calling libvlc_media_player_set_rate(%0.6f)\n", rate);
-	    libvlc_media_player_set_rate(data->vlcPlayer, rate);
-	    }
+
+        LogDebug(VB_MEDIAOUT, "Diff: %d	RateDiff: %0.3f / %d	New rate: %0.3f/%0.3f	Calc Rate: %0.3f\n", rawdiff, rateDiff, data->rateDiff, rate, data->currentRate, lastRates.back());
+        if ((int)(rate * 1000) != (int)(data->currentRate * 1000)){
+            LogDebug(VB_MEDIAOUT, "Calling libvlc_media_player_set_rate(%0.6f)\n", rate);
+            libvlc_media_player_set_rate(data->vlcPlayer, rate);
+            }
         data->rateDiff = rateDiffI;
         data->currentRate = rate;
     }
