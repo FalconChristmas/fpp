@@ -379,7 +379,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
             // close enough
             data->lastDiff = 0;
             if (data->currentRate != 1.0) {
-                LogDebug(VB_MEDIAOUT, "Diff: %d    Very close, using rate of 1.0\n", rawdiff);
+                LogDebug(VB_MEDIAOUT, "Diff: %d	Very close, using rate of 1.0\n", rawdiff);
                 
                 lastRates.push_back(1.0);
                 lastRates.push_back(1.0);
@@ -468,8 +468,11 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         }
         rate = rateSum / lastRates.size();
         
-        LogDebug(VB_MEDIAOUT, "Diff: %d     RateDiff:  %0.3f / %d  New rate: %0.3f/%0.3f\n", rawdiff, rateDiff, data->rateDiff, rate, data->currentRate);
-        libvlc_media_player_set_rate(data->vlcPlayer, rate);
+	LogDebug(VB_MEDIAOUT, "Diff: %d	RateDiff: %0.3f / %d	New rate: %0.3f/%0.3f	Calc Rate: %0.3f\n", rawdiff, rateDiff, data->rateDiff, rate, data->currentRate, lastRates.back());
+	if ((int)(rate * 1000) != (int)(data->currentRate * 1000)){
+	    LogDebug(VB_MEDIAOUT, "Calling libvlc_media_player_set_rate(%0.6f)\n", rate);
+	    libvlc_media_player_set_rate(data->vlcPlayer, rate);
+	    }
         data->rateDiff = rateDiffI;
         data->currentRate = rate;
     }
