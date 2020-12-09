@@ -7,6 +7,12 @@ require_once('common.php');
 include 'playlistEntryTypes.php';
 include 'common/menuHead.inc';
 ?>
+<script type="text/javascript" src="/jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
+<script type="text/javascript" src="/jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
+<script type="text/javascript" src="/jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+
+<link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
+
 <script>
     PlayEntrySelected = 0;
     PlaySectionSelected = '';
@@ -22,6 +28,18 @@ include 'common/menuHead.inc';
 //        $('#playlistDetailsContents').resizable({
 //            "handles": "s"
 //        });
+
+        $('#syncStatsTable').tablesorter({
+            headers: {
+                1: { sorter: 'ipAddress' }
+            },
+            widthFixed: false,
+            theme: 'blue',
+            widgets: ['zebra', 'filter', 'staticRow'],
+            widgetOptions: {
+                filter_hideFilters : true
+            }
+        });
     });
 
 </script>
@@ -266,12 +284,12 @@ include 'common/menuHead.inc';
             </table>
             <div class='fppTableWrapper'>
                 <div class='fppTableContents'>
-                    <table>
+                    <table id='syncStatsTable'>
                         <thead>
                             <tr><th rowspan=2>Host</th>
                                 <th rowspan=2>Last Received</th>
-                                <th colspan=4>Sequence Sync</th>
-                                <th colspan=4>Media Sync</th>
+                                <th colspan=4 class="sorter-false">Sequence Sync</th>
+                                <th colspan=4 class="sorter-false">Media Sync</th>
                                 <th rowspan=2>Blank<br>Data</th>
                                 <th rowspan=2>Ping</th>
                                 <th rowspan=2>Plugin</th>

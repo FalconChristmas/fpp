@@ -2864,6 +2864,8 @@ function ShowMultiSyncStats(data) {
 
         $('#syncStats').append(row);
     }
+
+    $('#syncStats').trigger('update', true);
 }
 
 function ResetMultiSyncStats()
