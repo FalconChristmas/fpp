@@ -1085,10 +1085,10 @@ int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int disc
     ed[10] = sysInfo.ipc;
     ed[11] = sysInfo.ipd;
     
-    strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 65);
-    strncpy((char *)(ed + 77), sysInfo.version.c_str(), 41);
-    strncpy((char *)(ed + 118), sysInfo.model.c_str(), 41);
-    strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 121);
+    strncpy((char *)(ed + 12), sysInfo.hostname.c_str(), 64);
+    strncpy((char *)(ed + 77), sysInfo.version.c_str(), 40);
+    strncpy((char *)(ed + 118), sysInfo.model.c_str(), 40);
+    strncpy((char *)(ed + 159), sysInfo.ranges.c_str(), 120);
     return sizeof(ControlPkt) + cpkt->extraDataLen;
 }
 
