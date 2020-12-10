@@ -720,7 +720,7 @@ void MainLoop(void)
 	}
     if (getFPPmode() == BRIDGE_MODE) {
 		Bridge_Initialize(callbacks);
-    } else {
+    } else if (!getSettingInt("DisableFakeNetworkBridges")) {
         Fake_Bridge_Initialize(callbacks);
     }
 

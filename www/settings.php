@@ -91,7 +91,7 @@ if (isset($_GET['tab'])) {
                     <li><a href='settings-ui.php'>UI</a></li>
                     <li><a href='settings-email.php'>Email</a></li>
                     <li><a href='settings-mqtt.php'>MQTT</a></li>
-<? if ($uiLevel >= 1 || $tabId == "Output") echo "<li><a href='settings-output.php'>Output</a></li>\n"; ?>
+<? if ($uiLevel >= 1 || $tabId == "Output") echo "<li><a href='settings-output.php'>Input/Output</a></li>\n"; ?>
                     <li><a href='settings-logs.php'>Logging</a></li>
 <? if ($uiLevel >= 1 || $tabId == "Storage") echo "<li><a href='settings-storage.php'>Storage</a></li>"; ?>
                     <li><a href='settings-system.php'>System</a></li>

@@ -50,6 +50,12 @@
                 "remoteOffset"
             ]
         },
+        "input": {
+            "description": "Input Control",
+            "settings": [
+                "DisableFakeNetworkBridges"
+            ]
+        },
         "mqtt": {
             "description": "MQTT",
             "settings": [
@@ -346,6 +352,23 @@
             "tip": "Compress files during copy to speed up the sync process.  NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data.",
             "type": "checkbox",
             "textOnRight": 1
+        },
+        "DisableFakeNetworkBridges": {
+            "name": "DisableFakeNetworkBridges",
+            "description": "Disable Network Bridge Monitoring (E1.31/DDP/ArtNet)",
+            "tip": "FPP normally listens on the network bridge ports for incoming data even when not running in Bridge mode to monitor for and identify misconfigurations in the environment.  The disable setting is provided to allow the user to disable these listeners if they need to spin up their own listener software.",
+            "level": 1,
+            "fppModes": [
+                "master",
+                "player",
+                "remote"
+            ],
+            "restart": 2,
+            "reboot": 0,
+            "checkedValue": "1",
+            "uncheckedValue": "0",
+            "default": "0",
+            "type": "checkbox"
         },
         "disableIPAnnouncement": {
             "name": "disableIPAnnouncement",
