@@ -169,6 +169,13 @@ var SerialDevices = new Array();
 			(preg_match("/^ttyUSB[0-9]+/", $fileName))) {
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
 		}
+    }
+    foreach(scandir("/dev/serial/by-id") as $fileName)
+	{
+        if(strcmp($fileName, ".") != 0 && strcmp($fileName, "..") != 0) {
+            $linkDestination = basename(readlink('/dev/serial/by-id/'.$fileName));
+            echo "SerialDevices['serial/by-id/$fileName'] = '$fileName -> $linkDestination';\n";
+        }
 	}
 ?>
 
@@ -391,6 +398,131 @@ class GenericUDPDevice extends OtherBase {
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// LOR Enhanced
+var LOREnhancedSpeeds = new Array();
+LOREnhancedSpeeds["19200"] = "19.2k, 15 pixels max";
+LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels";
+LOREnhancedSpeeds["115400"] = "115.4k, 90 pixels max";
+LOREnhancedSpeeds["500000"] = "500 k, 400 pixels max";
+LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels max";
+FPPD_MAX_CHANNELS = 20000;
+
+class LOREnhanced extends OtherBaseDevice {
+    
+    constructor(name="LOREnhanced", friendlyName="LOR Enhanced", maxChannels=FPPD_MAX_CHANNELS, fixedChans=false, devices=SerialDevices, config={speed: 500000, units: []}) {
+        super(name, friendlyName, maxChannels, fixedChans, devices, config);
+    }
+
+    static CreateUnitConfigRow(uintId, numOfPixels, lorStartPixel, fppStartAddr) {
+        var result = "<span class='unitConfig'>"
+        result += "Unit Id: <input class='unitId' style='opacity: 1' type='number' value='" + uintId .toString()+ "' min='1' max='240' />&nbsp;&nbsp;";
+        result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
+        result += "LOR Start Pix: <input class='lorStartPixel' style='opacity: 1' type='number' value='" + lorStartPixel.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
+        result += "FPP Start Pix: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='200000' />&nbsp;&nbsp;";
+        result += '<input class="buttons" type="button" value="Remove" onClick="LOREnhanced.RemoveUnit(this);" />';
+        result += "<br>";
+        result += "</span>"
+        return result;
+    }
+
+    static RemoveUnit(button)
+    {
+        $(button).parent().remove();
+    }
+
+    static MaxUnits(units)
+    {
+        var maxUnitId = 0;
+        var start = 1;
+        var numOfPixels = 0;
+        units.find("span.unitConfig").each(function(){
+            var unitId = parseInt($(this).find("input.unitId").val());
+            if(unitId > maxUnitId){
+                maxUnitId = unitId;
+                start = parseInt($(this).find("input.fppStartAddr").val());
+                numOfPixels = parseInt($(this).find("input.numOfPixels").val());
+            }
+        });
+        return {
+                unitId: maxUnitId,
+                channels: numOfPixels*3,
+                start: start
+            };
+    }
+
+    static AddUnit(button) {
+        var units = $(button).parent();
+        var max = LOREnhanced.MaxUnits(units);
+        var newUnit = LOREnhanced.CreateUnitConfigRow(max.unitId + 1, 170, 1, max.channels+max.start);
+        units.append(newUnit);
+    }
+
+    PopulateHTMLRow(config) {
+        var result = super.PopulateHTMLRow(config);
+
+        result += "<br>Speed: <select class='speed'>";
+
+        for (var key in LOREnhancedSpeeds) {
+            result += "<option value='" + key + "'";
+
+            if (config.speed == key) {
+                result += " selected";
+            }
+
+            // Make 500k the default
+            if ((config.speed == "") && (key == "500000")) {
+                result += " selected";
+            }
+
+            result += ">" + LOREnhancedSpeeds[key] + "</option>";
+        }
+
+        result += "</select>";
+
+        result += "<br>";
+        result += "<span class='units'>";
+        result += '<input class="buttons" type="button" value="Add Unit" onClick="LOREnhanced.AddUnit(this);" /><br>';
+
+        for(var key in config.units)
+        {
+            result += LOREnhanced.CreateUnitConfigRow(config.units[key].unitId, config.units[key].numOfPixels, config.units[key].lorStartPixel, config.units[key].fppStartAddr);
+        }
+
+        result += "</span>";
+
+        return result;
+    }
+
+    GetOutputConfig(result, cell) {
+        result = super.GetOutputConfig(result, cell);
+        var speed =  parseInt(cell.find("select.speed").val());
+        if (result == "" || speed == "")
+            return "";
+
+        result.speed = speed;
+
+        result.units = [];
+
+        var units = cell.find("span.unitConfig");
+        units.each(function() {
+            $this = $(this);
+            var unitId = $this.find("input.unitId").val();
+            var numOfPixels = $this.find("input.numOfPixels").val();
+            var lorStartPixel = $this.find("input.lorStartPixel").val();
+            var fppStartAddr = $this.find("input.fppStartAddr").val();
+            result.units.push({
+                unitId: parseInt(unitId),
+                numOfPixels: parseInt(numOfPixels),
+                lorStartPixel: parseInt(lorStartPixel),
+                fppStartAddr: parseInt(fppStartAddr)
+            })
+        });
+        return result;
+    }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 // X11 Virtual Matrix Output
 class X11VirtualMatrixDevice extends OtherBase {
     
@@ -559,6 +691,7 @@ if (GPIOPins.size > 0) {
     output_modules.push(new GPIO595OutputDevice());
 }
 
+output_modules.push(new LOREnhanced());
 
 //Outputs for Raspberry Pi or Beagle
 <?
