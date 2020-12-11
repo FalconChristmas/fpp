@@ -309,7 +309,6 @@
             "name": "bootDelay",
             "description": "FPPD Boot Delay",
             "tip": "The time that FPP waits after system boot up to start fppd.  For environments that are powered down regularly, fppd may start up quicker than the network environment fully starts up which may cause E1.31 multicast to not work properly.  Setting a Boot Delay will cause fppd to wait 'X' number of seconds to start which can give the network switches and routers time to fully start up.",
-            "level": 1,
             "default": "0",
             "type": "select",
             "options": {
