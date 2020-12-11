@@ -289,13 +289,57 @@ void PixelOverlayModel::setPixelValue(int x, int y, int r, int g, int b) {
         channelData[channelMap[c++]] = b;
     }
 }
-void PixelOverlayModel::getDataJson(Json::Value &v) {
-    for (int c = 0; c < height*width*3; c++) {
-        unsigned char i = 0;
-        if (channelMap[c] != FPPD_OFF_CHANNEL) {
-            i = channelData[channelMap[c]];
+void PixelOverlayModel::getDataJson(Json::Value &v, bool rle) {
+    if (rle) {
+        unsigned char r = 0;
+        unsigned char g = 0;
+        unsigned char b = 0;
+        unsigned char lr = 0;
+        unsigned char lg = 0;
+        unsigned char lb = 0;
+        int count = 0;
+        for (int c = 0; c < height*width*3; c += 3) {
+            if (channelMap[c] != FPPD_OFF_CHANNEL) {
+                r = channelData[channelMap[c]];
+            }
+            if (channelMap[c+1] != FPPD_OFF_CHANNEL) {
+                g = channelData[channelMap[c+1]];
+            }
+            if (channelMap[c+2] != FPPD_OFF_CHANNEL) {
+                b = channelData[channelMap[c+2]];
+            }
+
+            if ((r == lr) && (g == lg) && (b == lb)) {
+                count++;
+            } else {
+                if (count) {
+                    v.append(count);
+                    v.append(lr);
+                    v.append(lg);
+                    v.append(lb);
+                }
+
+                count = 1;
+                lr = r;
+                lg = g;
+                lb = b;
+            }
         }
-        v.append(i);
+
+        if (count) {
+            v.append(count);
+            v.append(r);
+            v.append(g);
+            v.append(b);
+        }
+    } else {
+        for (int c = 0; c < height*width*3; c++) {
+            unsigned char i = 0;
+            if (channelMap[c] != FPPD_OFF_CHANNEL) {
+                i = channelData[channelMap[c]];
+            }
+            v.append(i);
+        }
     }
 }
 

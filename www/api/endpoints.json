@@ -480,6 +480,21 @@
                     "desc": "Gets the current channel data for the model",
                     "output": { 
                         "data": [0,0,0,0,0,0],
+                        "rle": false,
+                        "isLocked": false
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "overlays/model/:ModelName/data/rle",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current channel data for the model encoded in RLE format.  RLE data is in quads in the format count,a,b,c[,count,a,b,c]... where a,b,c are the 3 data channels for a pixel.",
+                    "output": { 
+                        "data": [10,255,0,0,3,0,255,0,4,255,255,255],
+                        "rle": true,
                         "isLocked": false
                     }
                 }

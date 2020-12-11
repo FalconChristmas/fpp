@@ -80,7 +80,7 @@ public:
 
     
     void toJson(Json::Value &v);
-    void getDataJson(Json::Value &v);
+    void getDataJson(Json::Value &v, bool rle = false);
     
     
     uint8_t *getOverlayBuffer();

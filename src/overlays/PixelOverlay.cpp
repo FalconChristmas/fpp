@@ -381,6 +381,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
         std::string p2 = req.get_path_pieces()[1];
         std::string p3 = req.get_path_pieces().size() > 2 ? req.get_path_pieces()[2] : "";
         std::string p4 = req.get_path_pieces().size() > 3 ? req.get_path_pieces()[3] : "";
+        std::string p5 = req.get_path_pieces().size() > 4 ? req.get_path_pieces()[4] : "";
         Json::Value result;
         if (p2 == "fonts") {
             loadFonts();
@@ -402,8 +403,9 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             if (m) {
                 if (p4 == "data") {
                     Json::Value data;
-                    m->getDataJson(data);
+                    m->getDataJson(data, p5 == "rle");
                     result["data"] = data;
+                    result["rle"] = p5 == "rle";
                     result["isLocked"] = m->getRunningEffect() != nullptr; //compatibility
                     result["effectRunning"] = m->getRunningEffect() != nullptr;
                 } else if (p4 == "clear") {
