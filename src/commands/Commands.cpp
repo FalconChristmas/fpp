@@ -80,6 +80,7 @@ void CommandManager::Init() {
     addCommand(new StartFSEQAsEffectCommand());
     addCommand(new StopFSEQAsEffectCommand());
     addCommand(new StopEffectCommand());
+    addCommand(new StopAllEffectsCommand());
     addCommand(new SetVolumeCommand());
     addCommand(new AdjustVolumeCommand());
     addCommand(new IncreaseVolumeCommand());

@@ -108,6 +108,11 @@ std::unique_ptr<Command::Result> StopEffectCommand::run(const std::vector<std::s
     StopEffect(args[0]);
     return std::make_unique<Command::Result>("Effect Stopped");
 }
+
+std::unique_ptr<Command::Result> StopAllEffectsCommand::run(const std::vector<std::string> &args) {
+    StopAllEffects();
+    return std::make_unique<Command::Result>("Effects Stopped");
+}
 std::unique_ptr<Command::Result> StopFSEQAsEffectCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");

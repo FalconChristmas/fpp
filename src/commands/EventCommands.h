@@ -93,10 +93,17 @@ public:
 };
 class StopEffectCommand : public Command {
 public:
-    StopEffectCommand() : Command("Effect Stop") {
+    StopEffectCommand() : Command("Effect Stop", "Stop the specified effect.") {
         args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects/ALL"));
     }
-    
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class StopAllEffectsCommand : public Command {
+public:
+    StopAllEffectsCommand() : Command("Effects Stop", "Stop all running effects.") {
+    }
+
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 class StopFSEQAsEffectCommand : public Command {
@@ -144,7 +151,7 @@ public:
 
 class AllLightsOffCommand : public Command {
 public:
-    AllLightsOffCommand() : Command("All Lights Off") {
+    AllLightsOffCommand() : Command("All Lights Off", "Turn all lights off.") {
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
