@@ -103,7 +103,7 @@ public:
         doIteration(on);
     }
     virtual bool doIteration(bool &displayOn) override {
-        std::string d = doCurlGet("http://localhost:32322/fppd/e131stats", 10000);
+        std::string d = doCurlGet("http://127.0.0.1:32322/fppd/e131stats", 10000);
         Json::Value result;
         if (LoadJsonFromString(d, result)) {
             items.clear();
@@ -237,7 +237,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         MenuOLEDPage *pg = new MenuOLEDPage("Tethering", options, [this, sp] (const std::string &item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
-                std::string nv = "http://localhost/fppjson.php?command=setSetting&plugin=&key=EnableTethering&value=";
+                std::string nv = "http://127.0.0.1/fppjson.php?command=setSetting&plugin=&key=EnableTethering&value=";
                 if (nitem == "Automatic") {
                     nv += "0";
                 } else if (nitem == "On") {
@@ -245,14 +245,14 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                 } else if (nitem == "Off") {
                     nv += "2";
                 } else if (nitem == "HostApd") {
-                    nv = "http://localhost/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=0";
+                    nv = "http://127.0.0.1/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=0";
                 } else if (nitem == "ConnMan") {
-                    nv = "http://localhost/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=1";
+                    nv = "http://127.0.0.1/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=1";
                 } else {
                     nv += "0";
                 }
                 doCurlGet(nv);
-                doCurlGet("http://localhost/fppjson.php?command=setSetting&key=rebootFlag&value=1");
+                doCurlGet("http://127.0.0.1/fppjson.php?command=setSetting&key=rebootFlag&value=1");
                 
                 
                 RebootPromptPage *pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
@@ -286,7 +286,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         MenuOLEDPage *pg = new MenuOLEDPage("FPPD Mode", options, [this, sp] (const std::string &item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
-                std::string nv = "http://localhost/fppxml.php?command=setFPPDmode&mode=";
+                std::string nv = "http://127.0.0.1/fppxml.php?command=setFPPDmode&mode=";
                 if (nitem == "Bridge") {
                     nv += "1";
                 } else if (nitem == "Master") {
@@ -297,7 +297,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                     nv += "2";
                 }
                 doCurlGet(nv);
-                doCurlGet("http://localhost/fppxml.php?command=restartFPPD", 10000);
+                doCurlGet("http://127.0.0.1/fppxml.php?command=restartFPPD", 10000);
                 SetCurrentPage(sp);
             } else {
                 SetCurrentPage(this);
@@ -310,7 +310,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         pg->autoDelete();
         SetCurrentPage(pg);
     } else if (item == "Start Playlist") {
-        std::string d = doCurlGet("http://localhost/api/playlists", 10000);
+        std::string d = doCurlGet("http://127.0.0.1/api/playlists/playable", 10000);
         Json::Value result;
         if (LoadJsonFromString(d, result)) {
             std::vector<std::string> playlists;
@@ -323,14 +323,14 @@ void FPPMainMenu::itemSelected(const std::string &item) {
             FPPStatusOLEDPage *sp = statusPage;
             MenuOLEDPage *pg = new MenuOLEDPage("Playlist", playlists, [sp] (const std::string &item) {
                 if (item == "-Stop Now-") {
-                    std::string url = "http://localhost/fppxml.php?command=stopNow";
+                    std::string url = "http://127.0.0.1/api/playlists/stop";
                     doCurlGet(url, 1000);
                 } else if (item == "-Stop Gracefully-") {
-                    std::string url = "http://localhost/fppxml.php?command=stopGracefully";
+                    std::string url = "http://127.0.0.1/api/playlists/stopgracefully";
                     doCurlGet(url, 1000);
                 } else if (item != "Back") {
-                    std::string url = "http://localhost/fppxml.php?command=startPlaylist&repeat=checked&playEntry=0&section=&playList=";
-                    url += escapeURL(item);
+                    std::string escItem = escapeURL(item);
+                    std::string url = "http://127.0.0.1/api/playlist/" + escItem + "/start";
                     doCurlGet(url, 1000);
                 }
                 SetCurrentPage(sp);

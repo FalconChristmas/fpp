@@ -92,7 +92,7 @@ function SetupHtaccess($enablePW)
 
     $data = $settings['htaccessContents'];
     if ($enablePW) {
-        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\n<If \"%{HTTP_HOST} != '127.0.0.1'\">\nRequire valid-user\n</If>\n";
+        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\nRequire local\nRequire valid-user\n";
     }
 
     file_put_contents($filename, $data);
