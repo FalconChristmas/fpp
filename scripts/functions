@@ -106,7 +106,6 @@ SetupFPPNetworkConfigViaConnMann() {
         else
             DOWAIT=1
             if [ "x$GATEWAY" != "x" ]; then
-                DEFGW="$GATEWAY"
                 echo "IPv4=$ADDRESS/$NETMASK/$GATEWAY" >> $TMPFILE
                 if [ "x$DNS" != "x" ]; then
                     echo "Nameservers=${DNS}" >> $TMPFILE
