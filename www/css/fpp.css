@@ -310,6 +310,19 @@
     width: 95%;
 }
 
+.floatLeft {
+    float: left;
+}
+
+.floatRight {
+    float: right;
+}
+
+.inlineBlock {
+    display: inline-block;
+    vertical-align: middle;
+}
+
 
 html
 {
@@ -439,6 +452,9 @@ fieldset
 	width: 60%;
 	text-align:center;
 	float:left;
+}
+.headerBreak {
+    display: none;
 }
 
 .siteName{font-size: 200%; padding-top: 13px; }
@@ -1369,7 +1385,7 @@ td.bgDarkOrange {
 	{
 		width: 100%;
 	}
-	.headerLeft, .headerRight, .headerCenter
+	.xheaderLeft, .xheaderRight, .xheaderCenter
 	{
 		width: 100%;
 		margin-left: auto;
@@ -1387,6 +1403,25 @@ td.bgDarkOrange {
 		color: white !important; }
 	#fppMenu li ul li {
 		background: #555; }
+}
+
+@media screen and (max-width: 600px) {
+    .siteName {
+        font-size: 100%;
+        padding-top: 0px;
+    }
+    .logo {
+        max-width: 50px;
+        max-height: 30px;
+        width: auto;
+        height: auto;
+    }
+    .headerBreak {
+        display: inline;
+    }
+    #restartFlag, #compileFPPDBanner, #unsupportedBanner, #rebootFlag {
+        font-size: 80%;
+    }
 }
 
 .selectable {
