@@ -37,7 +37,7 @@ function DisableKiosk() {
 }
 
 function EnableKiosk() {
-    if (confirm('Installing Kiosk components will take some time and consume around 400MB os space.')) {
+    if (confirm('Installing Kiosk components will take some time and consume around 400MB of space.')) {
         $('#kioskCloseDialogButton').hide();
         $('#kioskPopup').dialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
         $('#kioskPopup').dialog( "moveToTop" );
