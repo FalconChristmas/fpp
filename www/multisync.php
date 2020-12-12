@@ -893,7 +893,7 @@ function upgradeDone(id) {
     streamCount--;
 
     var ip = ipFromRowID(id);
-    setTimeout(function() { getFPPSystemStatus(ip, true); }, 2500);
+    setTimeout(function() { getFPPSystemStatus(ip, true); }, 3000);
 
     if (origins.hasOwnProperty(ip)) {
         for (var i = 0; i < origins[ip].length; i++) {
