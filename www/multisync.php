@@ -195,7 +195,9 @@ input.largeCheckbox {
            ipAddresses.forEach(function(entry) {
                ips += "&ip[]=" + entry;
 	   });
-	}
+	} else {
+        ips = "&ip[]=" + ipAddresses;
+    }
 		$.get("fppjson.php?command=getFPPstatus&ip=" + ips + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(alldata) {
             jQuery.each(alldata, function(ip, data) {
