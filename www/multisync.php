@@ -299,7 +299,7 @@ input.largeCheckbox {
 
                     if (wifi_html.length > 0) {
 		    	$('#' + rowID + "_ip").find(".wifi-icon").remove();
-		    	$('#' + rowID + "_ip").append(wifi_html.join(''));
+                $(wifi_html.join('')).insertAfter($('#' + rowID + "_ip > a[ip='" + ip + "']"));
 		    }
 	    }
 
@@ -426,7 +426,7 @@ input.largeCheckbox {
 	}
 
     function ipLink(ip) {
-        return "<a href='http://" + ip + "/'>" + ip + "</a>";
+        return "<a href='http://" + ip + "/' ip='" + ip + "'>" + ip + "</a>";
     }
 
     function parseFPPSystems(data) {
