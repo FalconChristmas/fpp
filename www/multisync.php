@@ -328,9 +328,11 @@ input.largeCheckbox {
             }
             rowSpanSet(rowID);
                
-			//Expert View Rows
-            if(advancedView === true && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
-                $('#' + rowID + '_platform').html(data.advancedView.Platform);
+	    //Expert View Rows
+	    if(advancedView === true && data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
+		if (data.advancedView.hasOwnProperty('Platform')) {
+			$('#' + rowID + '_platform').html(data.advancedView.Platform);
+	        }
 
                 var updatesAvailable = 0;
                 if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -425,8 +427,8 @@ input.largeCheckbox {
         return "<a href='http://" + ip + "/'>" + ip + "</a>";
     }
 
-	function parseFPPSystems(data) {
-		$('#fppSystems').empty();
+    function parseFPPSystems(data) {
+	$('#fppSystems').empty();
 	rowSpans = [];
 
         var uniqueHosts = new Object();
