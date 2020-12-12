@@ -3060,6 +3060,29 @@ function SetSetting(key, value, restart, reboot) {
     });
 }
 
+function SetPluginSetting(plugin, key, value, restart, reboot) {
+    $.ajax({
+        url: "fppjson.php?command=setPluginSetting&plugin=" + plugin + "&key=" + key + "&value=" + value,
+        timeout: 1000,
+        async: false,
+        success: function() {
+            if ((key != 'restartFlag') && (key != 'rebootFlag'))
+                $.jGrowl(key + " setting saved.");
+
+            if (restart > 0 && restart != settings['restartFlag']) {
+                SetRestartFlag(restart);
+            }
+            if (reboot > 0 && reboot != settings['rebootFlag']) {
+                SetRebootFlag(restart);
+            }
+            CheckRestartRebootFlags();
+        }
+    }).fail(function() {
+        DialogError('Save Setting', "Failed to save " + key + " setting.");
+        CheckRestartRebootFlags();
+    });
+}
+
 function ReloadSettingOptions(settingName) {
     $.get('settings.json', function(sdata) {
         $.get(sdata.settings[settingName].optionsURL, function(data) {
