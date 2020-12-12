@@ -3039,7 +3039,7 @@ function GetMultiSyncStats()
 
 function SetSetting(key, value, restart, reboot) {
     $.ajax({
-        url: "fppjson.php?command=setSetting&key=" + key + "&value=" + value,
+        url: "fppjson.php?command=setSetting&key=" + key + "&value=" + encodeURIComponent(value),
         timeout: 1000,
         async: false,
         success: function() {
@@ -3062,7 +3062,7 @@ function SetSetting(key, value, restart, reboot) {
 
 function SetPluginSetting(plugin, key, value, restart, reboot) {
     $.ajax({
-        url: "fppjson.php?command=setPluginSetting&plugin=" + plugin + "&key=" + key + "&value=" + value,
+        url: "fppjson.php?command=setPluginSetting&plugin=" + plugin + "&key=" + key + "&value=" + encodeURIComponent(value),
         timeout: 1000,
         async: false,
         success: function() {
