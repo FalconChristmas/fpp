@@ -627,6 +627,7 @@ if ($uiLevel >= 1) {
 ?>
 
         $('#fppSystems').trigger('update', true);
+        $("#fppSystemsTable").find("th:contains(Hostname)").trigger("sort");
 	}
 
     var systemsList = [];
@@ -892,7 +893,7 @@ function upgradeDone(id) {
     streamCount--;
 
     var ip = ipFromRowID(id);
-    setTimeout(function() { getFPPSystemStatus(ip, true); }, 1500);
+    setTimeout(function() { getFPPSystemStatus(ip, true); }, 2500);
 
     if (origins.hasOwnProperty(ip)) {
         for (var i = 0; i < origins[ip].length; i++) {
@@ -1379,6 +1380,7 @@ $(document).ready(function() {
         cssInfoBlock: 'tablesorter-no-sort',
         widgets: ['zebra', 'filter', 'staticRow'],
         headers: {
+            0: { sortInitialOrder: 'asc' },
             1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
         },
         widgetOptions: {
