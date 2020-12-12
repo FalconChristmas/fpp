@@ -2550,6 +2550,17 @@ function GetSequenceArray()
 		})
 	}
 
+    function modeToString(mode) {
+        switch (mode) {
+            case 1: return "Bridge";
+            case 2: return "Player";
+            case 6: return "Master";
+            case 8: return "Remote";
+        }
+
+        return "Unknown Mode";
+    }
+
 	var firstStatusLoad = 1;
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;

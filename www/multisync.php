@@ -287,6 +287,8 @@ input.largeCheckbox {
                 return;
 	    }
 
+        $('#' + rowID + '_mode').html(modeToString(data.mode));
+
 	    if (data.hasOwnProperty('wifi')) {
 		    var wifi_html = [];
 		    data.wifi.forEach(function(w) {
