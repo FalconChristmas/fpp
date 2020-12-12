@@ -548,7 +548,7 @@ input.largeCheckbox {
 
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
                     "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
-                    "<td id='" + rowID + "_ip'>" + ipTxt + "</td>" +
+                    "<td id='" + rowID + "_ip' ip='" + data[i].address + "'>" + ipTxt + "</td>" +
                     "<td><span id='" + rowID + "_platform'>" + data[i].type + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
                         + "<span class='hidden version'>" + data[i].version + "</span></td>" +
                     "<td id='" + rowID + "_mode'>" + fppMode + "</td>" +
@@ -1345,6 +1345,17 @@ $(document).ready(function() {
 
     var $table = $('#fppSystemsTable');
 
+    $.tablesorter.addParser({
+        id: 'FPPIPParser',
+        is: function() {
+            return false;
+        },
+        format: function(s, table, cell) {
+                s = $(cell).attr('ip');
+                return s;
+        }
+    });
+
     $table
 <? if (0) { ?>
     .bind('filterInit', function() {
@@ -1366,7 +1377,7 @@ $(document).ready(function() {
         cssInfoBlock: 'tablesorter-no-sort',
         widgets: ['zebra', 'filter', 'staticRow'],
         headers: {
-            2: { sorter: 'ipAddress' }
+            1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
         },
         widgetOptions: {
             filter_functions: {
