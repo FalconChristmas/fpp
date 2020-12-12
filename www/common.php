@@ -1236,7 +1236,9 @@ function get_server_cpu_usage(){
     $total = $user + $nice + $system + $idle + $iowait + $irq + $softirq;
     $val = $idle * 100.0;
     // 100 - the percent idle
-    $val = 100.0 - ($val / $total);
+    if ($total > 0) {
+	    $val = 100.0 - ($val / $total);
+    }
     
 	return $val;
 }
