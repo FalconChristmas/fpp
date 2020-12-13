@@ -910,6 +910,7 @@ function upgradeDone(id) {
 }
 
 function upgradeFailed(id) {
+    id = id.replace('_logText', '');
     var ip = ipFromRowID(id);
 
     alert('Update failed for FPP system at ' + ip);
@@ -1012,7 +1013,7 @@ function upgradeSelectedSystems() {
     });
 }
 
-function restartDone(id) {
+function actionDone(id) {
     id = id.replace('_logText', '');
     $('#' + id + '_doneButtons').show();
     streamCount--;
@@ -1024,10 +1025,11 @@ function restartDone(id) {
     EnableDisableStreamButtons();
 }
 
-function restartFailed(id) {
+function actionFailed(id) {
+    id = id.replace('_logText', '');
     var ip = ipFromRowID(id);
 
-    alert('Restart failed out for FPP system at ' + ip);
+    alert('Action failed for FPP system at ' + ip);
 
     streamCount--;
 
@@ -1042,7 +1044,7 @@ function restartSystem(rowID) {
     addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
-    StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+    StreamURL('restartRemoteFPPD.php?ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
 }
 function setSystemMode(rowID, mode) {
     streamCount++;
@@ -1052,7 +1054,7 @@ function setSystemMode(rowID, mode) {
     addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
-    StreamURL('restartRemoteFPPD.php?ip=' + ip + '&mode=' + mode, rowID + '_logText', 'restartDone', 'restartFailed');
+    StreamURL('restartRemoteFPPD.php?ip=' + ip + '&mode=' + mode, rowID + '_logText', 'actionDone', 'actionFailed');
 }
 
 function restartSelectedSystems() {
@@ -1092,7 +1094,7 @@ function rebootSystem(rowID) {
     addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
-    StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+    StreamURL('rebootRemoteFPP.php?ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
 }
 
 function rebootSelectedSystems() {
@@ -1116,7 +1118,7 @@ function shutdownSystem(rowID) {
     addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
-    StreamURL('shutdownRemoteFPP.php?ip=' + ip, rowID + '_logText', 'restartDone', 'restartFailed');
+    StreamURL('shutdownRemoteFPP.php?ip=' + ip, rowID + '_logText', 'actionDone', 'actionFailed');
 }
 function shutdownSelectedSystems() {
     $('input.remoteCheckbox').each(function() {
@@ -1173,6 +1175,7 @@ function copyDone(id) {
 }
 
 function copyFailed(id) {
+    id = id.replace('_logText', '');
     var ip = ipFromRowID(id);
 
     alert('File Copy failed for FPP system at ' + ip);
