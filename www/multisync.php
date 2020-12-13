@@ -420,6 +420,8 @@ input.largeCheckbox {
                 $('#advancedViewUtilization_' + rowID).html(u);
             }
             });
+
+            $('#fppSystems').trigger('update', true);
 		}).always(function() {
 			if ($('#MultiSyncRefreshStatus').is(":checked")) {
 				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, <? if ($advancedView) echo '2000'; else echo '1000'; ?>);
