@@ -185,13 +185,13 @@ input.largeCheckbox {
     var unavailables = [];
 
 	function getFPPSystemStatus(ipAddresses, refreshing = false) {
+	ips = "";
+	if (Array.isArray(ipAddresses)) {
         if (refreshTimer != null) {
             clearTimeout(refreshTimer);
             delete refreshTimer;
             refreshTimer = null;
         }
-	ips = "";
-	if (Array.isArray(ipAddresses)) {
            ipAddresses.forEach(function(entry) {
                ips += "&ip[]=" + entry;
 	   });
@@ -423,7 +423,7 @@ input.largeCheckbox {
 
             $('#fppSystems').trigger('update', true);
 		}).always(function() {
-			if ($('#MultiSyncRefreshStatus').is(":checked")) {
+			if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
 				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, <? if ($advancedView) echo '2000'; else echo '1000'; ?>);
             }
 		});
