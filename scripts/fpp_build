@@ -6,6 +6,8 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 cd ${FPPDIR}/src/
 
-sudo -u ${FPPUSER} make clean
-sudo -u ${FPPUSER} make optimized
+make clean
+
+CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+make -j ${CPUS} optimized
 

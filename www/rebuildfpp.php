@@ -40,7 +40,7 @@ touch("$mediaDirectory/tmp/fppd_restarted");
 ==========================================================================
 Rebuilding FPP...
 <?
-system("$fppDir/scripts/fpp_build");
+system($SUDO . " $fppDir/scripts/fpp_build");
 ?>
 ==========================================================================
 Restarting fppd...
