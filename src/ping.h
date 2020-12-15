@@ -2,7 +2,7 @@
 
 #include <string>
 
-int ping(std::string target, int timeoutms = 250);
+int ping(std::string target, int timeoutms);
 
 
 

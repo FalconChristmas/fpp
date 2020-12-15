@@ -152,7 +152,7 @@ private:
     int  networkCallbackId;
 
     
-    bool PingControllers();
+    bool PingControllers(bool failedOnly = false);
     volatile bool runPingThread;
     std::thread *pingThread;
     std::mutex pingThreadMutex;
