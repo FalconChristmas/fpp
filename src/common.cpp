@@ -134,7 +134,7 @@ void HexDump(const char *title, const void *data, int len) {
 	int y = 0;
 	unsigned char *ch = (unsigned char *)data;
 	unsigned char str[17];
-	char tmpStr[90];
+	char tmpStr[150];
 
 	sprintf( tmpStr, "%s: (%d bytes)\n", title, len);
 	LogInfo(VB_ALL, tmpStr);
