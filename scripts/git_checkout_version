@@ -1,0 +1,107 @@
+#!/bin/bash
+
+BINDIR=$(cd $(dirname $0) && pwd)
+
+. ${BINDIR}/common
+. ${BINDIR}/functions
+
+if [ "x$1" = "x" ]
+then
+    echo "USAGE: $0 SHA1_HASH"
+    exit
+fi
+
+teeOutput
+
+VERS=$1
+
+cd ${FPPDIR}/src
+
+echo "Current Info:"
+
+SHA1=$(git log | head -1 | awk '{print $2}')
+BRANCH=$(git branch -a | grep "^\*" | awk '{print $2}' | sed -e "s/[^a-zA-Z0-9\.]*//")
+if [ "x${BRANCH}" != "xHEAD" ]
+then
+    echo "    Branch : ${BRANCH}"
+    echo "    SHA1   : ${SHA1}"
+    echo "${BRANCH}" > /home/fpp/media/tmp/gitbranch
+else
+    BRANCH=$(cat /home/fpp/media/tmp/gitbranch)
+    echo "Previous Branch: ${BRANCH}"
+    echo "Current SHA1  : ${SHA1}"
+fi
+
+# clear any local changes
+## FIXME before commit
+#${SUDO} git reset --hard HEAD
+
+/bin/echo -n "    Version: "
+git describe --dirty
+
+echo "======================================================================"
+if [ "x${VERS}" = "xHEAD" ]
+then
+    echo "Attempting to switch to HEAD on ${BRANCH} branch"
+else
+    echo "Attempting to switch to SHA1 ${VERS} on ${BRANCH} branch"
+fi
+
+# Is this version already in our local clone
+DIFF=$(git show ${VERS} 2> /dev/null)
+
+if [ "x${DIFF}" = "x" ]
+then
+    # we need to do a pull to find this version
+    echo "${VERS} not found, running 'git pull' to sync with origin repository"
+    ${SUDO} git pull
+fi
+
+DIFF=$(git show ${VERS} 2> /dev/null)
+
+if [ "x${DIFF}" = "x" ]
+then
+    echo "ERROR: Unable to find git SHA1 ${VERS}"
+    exit
+fi
+
+echo "======================================================================"
+if [ "x${VERS}" = "xHEAD" ]
+then
+    echo "Checking out HEAD version"
+    ${SUDO} git checkout ${BRANCH}
+    echo "Pulling in latest changes"
+    ${SUDO} git pull
+else
+    echo "Checking out SHA1 ${VERS}"
+    ${SUDO} git checkout ${VERS}
+fi
+
+${SUDO} git branch -a | grep "^\*"
+${SUDO} git log | head -10
+
+echo "======================================================================"
+echo "Rebuilding binaries"
+# Embed this code here instead of using a script because we may
+# revert to an older version that doesn't have that script
+${SUDO} make clean
+
+CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+${SUDO} make -j ${CPUS} optimized
+
+echo "======================================================================"
+echo "Restarting fppd"
+
+# Embed this code here instead of using a script because we may
+# revert to an older version that doesn't have that script
+# Clear any restart flag
+sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
+
+if [ -f "/.dockerenv" ]
+then
+    /opt/fpp/scripts/fppd_stop
+    /opt/fpp/scripts/fppd_start
+else
+    systemctl restart fppd
+fi
+
