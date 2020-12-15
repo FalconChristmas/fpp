@@ -111,7 +111,7 @@ function PopulateInterfaces()
 			<div id='divE131Data'>
 
 				<div style="overflow: hidden; padding: 10px;">
-					<b>Enable E1.31 / ArtNet / DDP Output:</b> <input type="checkbox" id="E131Enabled"/><br><br>
+					<b>Enable E1.31 / ArtNet / DDP Output:</b> <input type="checkbox" id="E131Enabled"/><span id='outputOffWarning' style='display: none;' class='warning'> - WARNING, universe outputs are active, but the primary channel output is disabled.  No data will be sent.</span><br><br>
 					Source Interface: <select id="selE131interfaces"><? PopulateInterfaces(); ?></select>
     <span
     <? if ($uiLevel < 1) { ?>

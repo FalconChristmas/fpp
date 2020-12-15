@@ -1800,6 +1800,7 @@ function updateUniverseEndChannel(row) {
 			UniverseCount = 0;
             var inputStyle = "";
             var inputStr = 'Output';
+            var anyEnabled = 0;
 
             var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
         
@@ -1871,6 +1872,8 @@ function updateUniverseEndChannel(row) {
                     unicastAddress = "";
                 }
 
+                anyEnabled |= active == 1;
+
                 bodyHTML += "<tr>" +
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
@@ -1912,8 +1915,11 @@ function updateUniverseEndChannel(row) {
                 var ecb = $('#E131Enabled');
                 if ( channelData.enabled == 1) {
                     ecb.prop('checked', true);
+                    $('#outputOffWarning').hide();
                 } else {
-                    ecb.prop('checked', false)
+                    ecb.prop('checked', false);
+                    if (anyEnabled)
+                        $('#outputOffWarning').show();
                 }
             }
             $('#tblUniversesBody').html(bodyHTML);
@@ -2141,6 +2147,7 @@ function updateUniverseEndChannel(row) {
 
         function postUniverseJSON(input) {
             var postData = {};
+            var anyEnabled = 0;
             
             var output = {};
             output.type = "universes";
@@ -2159,6 +2166,7 @@ function updateUniverseEndChannel(row) {
             for(i = 0; i < UniverseCount; i++) {
                 var universe = {};
                 universe.active = document.getElementById("chkActive[" + i + "]").checked ? 1 : 0;
+                anyEnabled |= universe.active;
                 universe.description = document.getElementById("txtDesc[" + i + "]").value;;
                 universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
                 universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
@@ -2183,6 +2191,11 @@ function updateUniverseEndChannel(row) {
             }
             var fileName = input ? 'universeInputs' : 'universeOutputs';
             var postDataString = 'command=setChannelOutputs&file='+ fileName +'&data={' + encodeURIComponent(JSON.stringify(postData)) + '}';
+
+            if (anyEnabled && !output.enabled)
+                $('#outputOffWarning').show();
+            else
+                $('#outputOffWarning').hide();
             
             $.post("fppjson.php", postDataString).done(function(data) {
                                                        $.jGrowl("E1.31 Universes Saved");
