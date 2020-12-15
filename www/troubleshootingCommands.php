@@ -21,7 +21,7 @@ $commands = array(
 	// Networking
 	'Interfaces'         => 'ifconfig -a',
 	'Wired'              => 'ethtool eth0',
-	'Wireless'           => 'iwconfig',
+	'Wireless'           => '(iwconfig ; echo ; echo ; cat /proc/net/wireless)',
 	'Routing'            => 'netstat -rn',
 	'Default Gateway'    => 'ping -c 1 $(netstat -rn | grep \'^0.0.0.0\' | awk \'{print $2}\')',
 	'Internet Access'    => 'ping -c 1 github.com',
