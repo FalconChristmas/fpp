@@ -356,30 +356,33 @@ $(function() {
 </script>
 <script>
 $(document).ready(function(){
-	$('#tblScheduleBody').sortable({
-		start: function (event, ui) {
-			start_pos = ui.item.index();
-		},
-		update: function(event, ui) {
-			SetScheduleInputNames();
-		},
-		beforeStop: function (event, ui) {
-			//undo the firefox fix.
-			// Not sure what this is, but copied from playlists.php to here
-			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-				$(window).unbind('scroll.sortableplaylist');
-				ui.helper.css('margin-top', 0);
-			}
-		},
-		helper: function (e, ui) {
-			ui.children().each(function () {
-				$(this).width($(this).width());
-			});
-			return ui;
-		},
-		scroll: true
-	}).disableSelection();
-});</script>
+    if (window.innerWidth > 600) {
+        $('#tblScheduleBody').sortable({
+            start: function (event, ui) {
+                start_pos = ui.item.index();
+            },
+            update: function(event, ui) {
+                SetScheduleInputNames();
+            },
+            beforeStop: function (event, ui) {
+                //undo the firefox fix.
+                // Not sure what this is, but copied from playlists.php to here
+                if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+                    $(window).unbind('scroll.sortableplaylist');
+                    ui.helper.css('margin-top', 0);
+                }
+            },
+            helper: function (e, ui) {
+                ui.children().each(function () {
+                    $(this).width($(this).width());
+                });
+                return ui;
+            },
+            scroll: true
+        }).disableSelection();
+    }
+});
+</script>
 <title><? echo $pageTitle; ?></title>
 <style>
 .clear {

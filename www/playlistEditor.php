@@ -30,49 +30,45 @@ function playlistEditorDocReady() {
 	});
 
 	//make table rows sortable
-	$('.playlistEntriesBody').sortable({
-		start: function (event, ui) {
-			start_pos = ui.item.index();
+    if (window.innerWidth > 600) {
+        $('.playlistEntriesBody').sortable({
+            start: function (event, ui) {
+                start_pos = ui.item.index();
 
-			start_parent = $(ui.item).parent().attr('id');
-			start_id = start_parent.replace(/tblPlaylist/i, "");
-		},
-		update: function(event, ui) {
-			if (this === ui.item.parent()[0]) {
-                var parent = $(ui.item).parent().attr('id');
-                var rowsInNew = $('#' + start_parent + ' >tr').length;
-//                if (rowsInNew == 1)
+                start_parent = $(ui.item).parent().attr('id');
+                start_id = start_parent.replace(/tblPlaylist/i, "");
+            },
+            update: function(event, ui) {
+                if (this === ui.item.parent()[0]) {
+                    var parent = $(ui.item).parent().attr('id');
                     $('#' + parent + 'PlaceHolder').remove();
 
-                var rowsLeft = $('#' + start_parent + ' >tr').length;
-                if (rowsLeft == 0)
-                    $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
-console.log('parent: ' + parent + ', start_parent: ' + start_parent + ', rowsInNew: ' + rowsInNew + ', rowsLeft: ' + rowsLeft);
+                    var rowsLeft = $('#' + start_parent + ' >tr').length;
+                    if (rowsLeft == 0)
+                        $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
 
-                RenumberPlaylistEditorEntries();
-                UpdatePlaylistDurations();
-			}
-		},
-		beforeStop: function (event, ui) {
-			//undo the firefox fix.
-			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-				$(window).unbind('scroll.sortableplaylist');
-				ui.helper.css('margin-top', 0);
-			}
-		},
-		helper: function (e, ui) {
-			ui.children().each(function () {
-				$(this).width($(this).width());
-			});
-			return ui;
-		},
-		item: '> tr',
-		connectWith: '.playlistEntriesBody',
-		scroll: true,
-		stop: function (event, ui) {
-			//SAVE YOUR SORT ORDER                    
-			}
-		}).disableSelection();
+                    RenumberPlaylistEditorEntries();
+                    UpdatePlaylistDurations();
+                }
+            },
+            beforeStop: function (event, ui) {
+                //undo the firefox fix.
+                if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+                    $(window).unbind('scroll.sortableplaylist');
+                    ui.helper.css('margin-top', 0);
+                }
+            },
+            helper: function (e, ui) {
+                ui.children().each(function () {
+                    $(this).width($(this).width());
+                });
+                return ui;
+            },
+            item: '> tr',
+            connectWith: '.playlistEntriesBody',
+            scroll: true
+        }).disableSelection();
+    }
 
 	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
 		$('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');

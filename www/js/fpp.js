@@ -3969,7 +3969,7 @@ function SetupSelectableTableRow(info)
 		}
 	});
 
-    if (info.hasOwnProperty('sortable') && info.sortable) {
+    if (info.hasOwnProperty('sortable') && info.sortable && (window.innerWidth > 600)) {
         $('#' + info.tableName + ' > tbody').sortable({
             update: function(event, ui) {
                 if ((info.hasOwnProperty('sortableCallback')) &&

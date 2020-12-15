@@ -377,12 +377,14 @@ $(document).ready(function(){
 	SetupSelectableTableRow(tableInfo);
 	GetOutputProcessors();
 
-    $('#outputProcessorsBody').sortable({
-        update: function(event, ui) {
-            RenumberColumns("outputProcessors");
-        },
-        scroll: true
-    }).disableSelection();
+    if (window.innerWidth > 600) {
+        $('#outputProcessorsBody').sortable({
+            update: function(event, ui) {
+                RenumberColumns("outputProcessors");
+            },
+            scroll: true
+        }).disableSelection();
+    }
 
 });
 
