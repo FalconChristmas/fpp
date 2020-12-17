@@ -425,7 +425,8 @@ input.largeCheckbox {
             }
             });
 
-            $('#fppSystems').trigger('update', true);
+            if ($('.logRow:visible').length == 0)
+                $('#fppSystems').trigger('update', true);
 		}).always(function() {
 			if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
 				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, <? if ($advancedView) echo '2000'; else echo '1000'; ?>);
