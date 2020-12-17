@@ -677,6 +677,10 @@ dhcp-option=usb1,6
 dhcp-leasefile=/var/run/dnsmasq.leases
 EOF
 
+            sed -i -e "s/^IGNORE_RESOLVCONF.*/IGNORE_RESOLVCONF=yes/g" /etc/default/dnsmasq
+            sed -i -e "s/#IGNORE_RESOLVCONF.*/IGNORE_RESOLVCONF=yes/g" /etc/default/dnsmasq
+            echo "DNSMASQ_EXCEPT=lo" >> /etc/default/dnsmasq
+
             echo "FPP - Removing extraneous blacklisted modules"
             rm -f /etc/modprobe.d/blacklist-rtl8192cu.conf
             rm -f /etc/modprobe.d/blacklist-rtl8xxxu.conf
