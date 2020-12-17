@@ -22,7 +22,6 @@ $command_array = Array(
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
 	"setUniverses"        => 'SetUniverses',
-	"applyDNSInfo"        => 'ApplyDNSInfo',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
 	"getFPPDUptime"       => 'GetFPPDUptime',
@@ -1170,12 +1169,6 @@ function SetInterfaceInfo()
 }
 
 /////////////////////////////////////////////////////////////////////////////
-function ApplyDNSInfo()
-{
-	global $settings, $SUDO;
-
-	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_dns");
-}
 
 function GetDNSInfo()
 {

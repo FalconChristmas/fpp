@@ -78,13 +78,6 @@ then
 	/etc/init.d/avahi-daemon restart
 fi
 
-if [ ! -f /etc/fpp/desktop ]; then
-    echo "FPP - Configuring DNS"
-    ${BINDIR}/config_dns
-fi
-
-
-
 # Clear any restart/reboot flags
 echo "FPP - Clearing reboot flags"
 sed -i -e "s/^rebootFlag .*/rebootFlag = 0/" ${FPPHOME}/media/settings
