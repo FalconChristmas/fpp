@@ -74,7 +74,8 @@ void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
 /////////////////////////////////////////////////////////////////////////////
 
 Scheduler::Scheduler()
-  : m_loadSchedule(true),
+  : m_schedulerDisabled(false),
+    m_loadSchedule(true),
 	m_CurrentScheduleHasbeenLoaded(0),
 	m_NextScheduleHasbeenLoaded(0),
 	m_nowWeeklySeconds2(0),
@@ -87,6 +88,13 @@ Scheduler::Scheduler()
 	ConvertScheduleFile();
 
 	RegisterCommands();
+
+    m_schedulerDisabled = getSettingInt("DisableScheduler") == 1;
+
+    if (m_schedulerDisabled) {
+        WarningHolder::AddWarning("FPP Scheduler is disabled");
+        LogWarn(VB_SCHEDULE, "Scheduler is disabled!\n");
+    }
 
 	m_lastProcTime = time(NULL);
 	LoadScheduleFromFile();
@@ -149,6 +157,9 @@ void Scheduler::CheckIfShouldBePlayingNow(int ignoreRepeat, int forceStopped)
     if (m_loadSchedule) {
         LoadScheduleFromFile();
     }
+
+    if (m_schedulerDisabled)
+        return;
     
     int i,dayCount;
     time_t currTime = time(NULL);
@@ -221,6 +232,9 @@ std::string Scheduler::GetPlaylistThatShouldBePlaying(int &repeat)
 	time_t currTime = time(NULL);
 	struct tm now;
 
+    if (m_schedulerDisabled)
+        return "";
+
 	repeat = 0;
 
 	localtime_r(&currTime, &now);
@@ -268,6 +282,10 @@ int Scheduler::GetNextScheduleEntry(int *weeklySecondIndex, bool future)
     struct tm now;
 
     localtime_r(&currTime, &now);
+
+    if (m_schedulerDisabled) {
+        return nextEntryIndex;
+    }
     
     int curPlayIdx = m_currentSchedulePlaylist.ScheduleEntryIndex;
     if (curPlayIdx == SCHEDULE_INDEX_INVALID) {
@@ -877,6 +895,9 @@ void Scheduler::SchedulePrint(void)
   int i=0;
   char stopTypes[4] = "GHL";
 
+  if (m_schedulerDisabled)
+    LogInfo(VB_SCHEDULE, "WARNING: Scheduler is currently disabled\n");
+
   LogInfo(VB_SCHEDULE, "Current Schedule: (Status: '+' = Enabled, '-' = Disabled, '!' = Outside Date Range, '*' = Repeat, Stop (G)raceful/(L)oop/(H)ard\n");
   LogInfo(VB_SCHEDULE, "Stat Start & End Dates       Days         Start & End Times   Playlist\n");
   LogInfo(VB_SCHEDULE, "---- ----------------------- ------------ ------------------- ---------------------------------------------\n");
@@ -948,6 +969,10 @@ int Scheduler::FindNextStartingScheduleIndex(void)
 	int currentDate = GetCurrentDateInt();
 	int schedDate = 99999999;
 	int weeklySecondStart = 999999;
+
+    if (m_schedulerDisabled)
+        return index;
+
 	for(i = 0; i < m_Schedule.size(); i++) {
 		if ((m_Schedule[i].enabled) &&
 			(m_Schedule[i].startDate >= currentDate) &&

@@ -125,6 +125,7 @@ class Scheduler {
 
 	void RegisterCommands();
 
+    bool          m_schedulerDisabled;
 	bool          m_loadSchedule;
 	unsigned char m_CurrentScheduleHasbeenLoaded;
 	unsigned char m_NextScheduleHasbeenLoaded;

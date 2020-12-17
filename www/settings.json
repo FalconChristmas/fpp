@@ -100,6 +100,7 @@
         "system": {
             "description": "System Settings",
             "settings": [
+                "DisableScheduler",
                 "Locale",
                 "screensaver",
                 "ForceHDMI",
@@ -390,6 +391,14 @@
             "type": "checkbox",
             "checkedValue": "1",
             "uncheckedValue": "0"
+        },
+        "DisableScheduler": {
+            "name": "DisableScheduler",
+            "description": "Disable Scheduler",
+            "tip": "The Disable Scheduler setting allows disabling all scheduling rather than having to go to each schedule entry and deactivate.",
+            "type": "checkbox",
+            "level": 1,
+            "restart": 1
         },
         "E131BridgingInterval": {
             "name": "E131BridgingInterval",
