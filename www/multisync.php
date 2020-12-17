@@ -60,6 +60,14 @@ input.largeCheckbox {
 				remotes += $(this).attr("name");
 			}
 		});
+
+        var multicastChecked = $('#MultiSyncMulticast').is(":checked");
+        var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+
+        if ((remotes == '') &&
+            (!$('#MultiSyncMulticast').is(":checked")) &&
+            (!$('#MultiSyncBroadcast').is(":checked")))
+            $('#MultiSyncMulticast').prop('checked', true);
         
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).done(function() {
@@ -826,6 +834,16 @@ function syncModeUpdated(setting = '') {
         if (multicastChecked && broadcastChecked)
             $('#MultiSyncMulticast').prop('checked', false).trigger('change');
     }
+
+    var anyUnicast = 0;
+    $('input.syncCheckbox').each(function() {
+        if ($(this).is(":checked")) {
+            anyUnicast = 1;
+        }
+    });
+
+    if (!anyUnicast && !multicastChecked && !broadcastChecked)
+        $('#MultiSyncMulticast').prop('checked', true);
 }
 
 function IPsCanTalk(ip1, ip2, octets) {
