@@ -231,11 +231,6 @@ function validateDNSFields()
 	return true;
 }
 
-function ApplyDNSConfig()
-{
-	$.get("fppjson.php?command=applyDNSInfo", LoadDNSConfig);
-}
-
 function SaveDNSConfig()
 {
 	if (validateDNSFields() == false)
@@ -262,8 +257,8 @@ function SaveDNSConfig()
 	$.post("fppjson.php", postData
 	).done(function(data) {
 		LoadDNSConfig();
+        SetRebootFlag();
 		$.jGrowl(" DNS configuration saved");
-		$('#btnConfigDNS').show();
 	}).fail(function() {
 		DialogError("Save DNS Config", "Save Failed");
 	});
@@ -699,7 +694,6 @@ if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
           </table>
           <br>
           <input name="btnSetDNS" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update DNS" onClick="SaveDNSConfig();">
-          <input id="btnConfigDNS" type="" style="width:135px; display: none;" class = "buttons" value="Restart DNS" onClick="ApplyDNSConfig();">
 
         </fieldset>
         <br>
