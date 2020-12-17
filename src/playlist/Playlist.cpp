@@ -336,9 +336,6 @@ int Playlist::Load(const char *filename)
 
 	int res = Load(root);
 
-    if (m_random > 0)
-        RandomizeMainPlaylist();
-
 	GetConfigStr();
 
 	return res;
@@ -1057,7 +1054,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 
 	Load(filename);
 
-    if (m_random > 0)
+    if ((position == 0) && (m_random > 0))
         RandomizeMainPlaylist();
 
     int p = position;
