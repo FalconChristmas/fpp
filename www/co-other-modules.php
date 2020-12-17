@@ -405,7 +405,6 @@ LOREnhancedSpeeds["57600"] = "57.6k, 45 pixels";
 LOREnhancedSpeeds["115400"] = "115.4k, 90 pixels max";
 LOREnhancedSpeeds["500000"] = "500 k, 400 pixels max";
 LOREnhancedSpeeds["1000000"] = "1 Mbps, 800 pixels max";
-FPPD_MAX_CHANNELS = 20000;
 
 class LOREnhanced extends OtherBaseDevice {
     
