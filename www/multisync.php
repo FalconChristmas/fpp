@@ -635,7 +635,6 @@ if ($uiLevel >= 1) {
 ?>
 
         $('#fppSystems').trigger('update', true);
-        $("#fppSystemsTable").find("th:contains(Hostname)").trigger("sort");
 	}
 
     var systemsList = [];
@@ -1389,7 +1388,7 @@ $(document).ready(function() {
         widthFixed: false,
         theme: 'blue',
         cssInfoBlock: 'tablesorter-no-sort',
-        widgets: ['zebra', 'filter', 'staticRow'],
+        widgets: ['zebra', 'filter', 'staticRow', 'saveSort'],
         headers: {
             0: { sortInitialOrder: 'asc' },
             1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
