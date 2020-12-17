@@ -287,6 +287,13 @@ input.largeCheckbox {
                 return;
 	    }
 
+        if (status != "") {
+            $('#' + rowID + '_status').html(status);
+        }
+
+        if (status == 'unreachable')
+            return;
+
         $('#' + rowID + '_mode').html(modeToString(data.mode));
 
 	    if (data.hasOwnProperty('wifi')) {
@@ -308,9 +315,6 @@ input.largeCheckbox {
             if ($('#' + rowID).attr('ip') != ip)
                 $('#' + rowID).attr('ip', ip);
 
-            if (status != "") {
-                $('#' + rowID + '_status').html(status);
-            }
 			$('#' + rowID + '_elapsed').html(elapsed);
                
             if (data.warnings != null && data.warnings.length > 0) {
