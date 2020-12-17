@@ -66,8 +66,10 @@ input.largeCheckbox {
 
         if ((remotes == '') &&
             (!$('#MultiSyncMulticast').is(":checked")) &&
-            (!$('#MultiSyncBroadcast').is(":checked")))
+            (!$('#MultiSyncBroadcast').is(":checked"))) {
             $('#MultiSyncMulticast').prop('checked', true);
+            alert('FPP will use multicast if no other sync methods are chosen.  To disable sync entirely, switch FPP to standalone player mode instead of Master mode.');
+        }
         
 		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
 		).done(function() {
@@ -842,8 +844,10 @@ function syncModeUpdated(setting = '') {
         }
     });
 
-    if (!anyUnicast && !multicastChecked && !broadcastChecked)
+    if (!anyUnicast && !multicastChecked && !broadcastChecked) {
         $('#MultiSyncMulticast').prop('checked', true);
+        alert('FPP will use multicast if no other sync methods are chosen.  To disable sync entirely, switch FPP to standalone player mode instead of Master mode.');
+    }
 }
 
 function IPsCanTalk(ip1, ip2, octets) {
