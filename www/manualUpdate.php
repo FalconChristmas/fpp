@@ -28,15 +28,7 @@ FPP Manual Update
 }
 ?>
 Stopping fppd...
-<?php
-if (file_exists("/.dockerenv")) {
-    system($SUDO . " $fppDir/scripts/fppd_stop");
-} else {
-    exec($SUDO . " systemctl stop fppd");
-}
 
-touch("$mediaDirectory/tmp/fppd_restarted");
-?>
 ==========================================================================
 Pulling in updates...
 <?
@@ -45,11 +37,10 @@ system("$fppDir/scripts/git_pull");
 ==========================================================================
 Restarting fppd...
 <?
-if (file_exists("/.dockerenv")) {
-    system($SUDO . " $fppDir/scripts/fppd_start");
-} else {
-    exec($SUDO . " systemctl restart fppd");
-}
+touch("$mediaDirectory/tmp/fppd_restarted");
+
+system($SUDO . " $fppDir/scripts/fppd_restart");
+
 exec($SUDO . " rm -f /tmp/cache_*.cache");
 ?>
 ==========================================================================

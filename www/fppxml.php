@@ -53,7 +53,6 @@ $command_array = Array(
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi',
 	"shutdownPi" => 'ShutdownPi',
-	"manualGitUpdate" => 'ManualGitUpdate',
 	"changeGitBranch" => 'ChangeGitBranch',
 	"upgradeFPPVersion" => 'UpgradeFPPVersion',
 	"getGitOriginLog" => 'GetGitOriginLog',
@@ -125,25 +124,6 @@ function RebootPi()
 
     header( "Access-Control-Allow-Origin: *");
 	EchoStatusXML($status);
-}
-
-function ManualGitUpdate()
-{
-	global $fppDir, $SUDO, $mediaDirectory;
-
-    if (file_exists("/.dockerenv")) {
-        exec($SUDO . " $fppDir/scripts/fppd_stop");
-        touch("$mediaDirectory/tmp/fppd_restarted");
-        exec("$fppDir/scripts/git_pull");
-        exec($SUDO . " $fppDir/scripts/fppd_start");
-    } else {
-        exec($SUDO . " systemctl stop fppd");
-        touch("$mediaDirectory/tmp/fppd_restarted");
-        exec("$fppDir/scripts/git_pull");
-        exec($SUDO . " systemctl restart fppd");
-    }
-
-	EchoStatusXML("OK");
 }
 
 function UpgradeFPPVersion()
@@ -703,12 +683,13 @@ function StopFPPDNoStatus()
     // Shutdown
     SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
     // wait half a second for shutdown and outputs to close
-    
+
     if (file_exists("/.dockerenv")) {
         usleep(500000);
         // kill it if it's still running
         exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
     } else {
+        // systemctl uses fppd_stop to stop fppd, but we need systemctl to know
         exec($SUDO . " systemctl stop fppd");
     }
 }
@@ -724,14 +705,9 @@ function StartFPPD()
 
 	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
 	if($status == 'false')
-	{
-        if (file_exists("/.dockerenv")) {
-            $status=exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_start");
-        } else {
-            exec($SUDO . " systemctl restart fppd");
-        }
-	}
-	EchoStatusXML($status);
+        exec($SUDO . " /opt/fpp/scripts/fppd_start");
+
+    EchoStatusXML('true');
 }
 
 function RestartFPPD()

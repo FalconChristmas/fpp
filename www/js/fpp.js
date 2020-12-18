@@ -1562,22 +1562,6 @@ function RemovePlaylistEntry()	{
 			location.reload(true);
 		}
 
-		function ManualGitUpdate()
-		{
-			SetButtonState("#ManualUpdate", "disable");
-			document.body.style.cursor = "wait";
-
-			$.get("fppxml.php?command=manualGitUpdate"
-			).done(function() {
-				document.body.style.cursor = "pointer";
-				location.reload(true);
-			}).fail(function() {
-				SetButtonState("#ManualUpdate", "enable");
-				document.body.style.cursor = "pointer";
-				DialogError("Manual Git Update", "Update failed");
-			});
-		}
-
 		function PingIP(ip, count)
 		{
 			if (ip == "")

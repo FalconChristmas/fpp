@@ -12,17 +12,22 @@ logOutput
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 
-echo "Setup channel outputs"
-setupChannelOutputs
+if [ -f "/.dockerenv" ]
+then
+    echo "Setup channel outputs"
+    setupChannelOutputs
 
-echo "Running pre-start scripts"
-runPreStartScripts
+    echo "Running pre-start scripts"
+    runPreStartScripts
 
-echo "Starting ${FPPBINDIR}/fppd"
-nice -n -20 ${FPPBINDIR}/fppd --config-file ${FPPHOME}/media/settings --daemonize
+    echo "Starting ${FPPBINDIR}/fppd"
+    nice -n -20 ${FPPBINDIR}/fppd --config-file ${FPPHOME}/media/settings --daemonize
 
-# FIXME, find a better way to wait until fppd is up before continuing
-sleep 2
+    # FIXME, find a better way to wait until fppd is up before continuing
+    sleep 2
 
-runPostStartScripts
+    runPostStartScripts
+else
+    systemctl start fppd
+fi
 
