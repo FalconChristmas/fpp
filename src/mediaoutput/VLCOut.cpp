@@ -320,7 +320,7 @@ int VLCOutput::Process(void) {
         multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
     }
     LogExcess(VB_MEDIAOUT,
-              "Elapsed: %.2d.%.3d  Remaining: %.2d Total %.2d:%.2d.\n",
+              "Elapsed: %.2d.%.3d	Remaining: %.2d	Total %.2d:%.2d.\n",
               m_mediaOutputStatus->secondsElapsed,
               m_mediaOutputStatus->subSecondsElapsed,
               m_mediaOutputStatus->secondsRemaining,
@@ -366,7 +366,7 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         }
         
         int rawdiff = (int)(m_mediaOutputStatus->mediaSeconds * 1000) - (int)(masterMediaPosition * 1000);
-        LogExcess(VB_MEDIAOUT, "Master %0.3f    Local:  %0.3f    Diff: %dms\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds, rawdiff);
+        LogExcess(VB_MEDIAOUT, "Master %0.3f	Local: %0.3f	Diff: %dms\n", masterMediaPosition, m_mediaOutputStatus->mediaSeconds, rawdiff);
         
         int diff = rawdiff;
         int sign = 1;
@@ -395,9 +395,9 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
                 data->rateDiff = 0;
             }
             return 1;
-        } else if (diff > 1500) {
-            LogDebug(VB_MEDIAOUT, "Diff: %d    Very far, jumping\n", rawdiff);
-            // more than 1.5 seconds off, just jump to the new position
+        } else if (diff > 3000) {
+            LogDebug(VB_MEDIAOUT, "Diff: %d	Very far, jumping\n", rawdiff);
+            // more than32.0 seconds off, just jump to the new position
             int ms = std::round(masterMediaPosition * 1000);
             libvlc_media_player_set_time(data->vlcPlayer, ms, false);
             libvlc_media_player_set_rate(data->vlcPlayer, 1.0);
@@ -456,10 +456,10 @@ int VLCOutput::AdjustSpeed(float masterMediaPosition) {
         if (rate > 0.991 && rate < 1.009) {
             rate = 1.0;
         }
-        if (rate > 1.1) rate = 1.1;
-        if (rate < 0.9) rate = 0.9;
-        if (rate > 1.0 && data->currentRate < 1.0) rate = 1.0;
-        if (rate < 1.0 && data->currentRate > 1.0) rate = 1.0;
+        if (rate > 1.2) rate = 1.2;
+        if (rate < 0.8) rate = 0.8;
+//        if (rate > 1.0 && data->currentRate < 1.0) rate = 1.0;
+//        if (rate < 1.0 && data->currentRate > 1.0) rate = 1.0;
         lastRates.push_back(rate);
         rateSum += rate;
         if (lastRates.size() > RATE_AVERAGE_COUNT) {
