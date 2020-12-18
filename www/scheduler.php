@@ -561,7 +561,8 @@ a:visited {
               <ul style="margin-top:0px;">
 		 <li>If times overlap, playlist higher in the list have priority.</li>
 		 <li>Drag/Drop to change order</li>
-	         <li>CTRL+Click to select multiple items</li>
+		 <li>CTRL+Click to select multiple items</li>
+                 <li>Odd/Even for Days is used to alternate playlist over 2 days <img style="vertical-align:middle" src="images/questionmark.png" title="This is not based on the day of the week or month or year. It is odd/even starting at July 15, 2013, the day of the first commit to the FPP code repository. This was done so that it did not have two odd days in a row on the 7th and first days of the week or on months that have 31 days going into the next month, etc."></li>
               </ul>
            </font>
         </div>
