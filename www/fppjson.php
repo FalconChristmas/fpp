@@ -346,6 +346,7 @@ function GetFPPStatusJson()
                     curl_setopt($curl2, CURLOPT_FOLLOWLOCATION, true);
                     curl_setopt($curl2, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($curl2, CURLOPT_CONNECTTIMEOUT_MS, 250);
+                    curl_setopt($curl2, CURLOPT_TIMEOUT_MS, 3000);
                     $request_expert_content = curl_exec($curl2);
                     curl_close($curl2);
                     //check we have valid data
