@@ -66,7 +66,8 @@
                 "MQTTUsername",
                 "MQTTPassword",
                 "MQTTCaFile",
-                "MQTTFrequency"
+                "MQTTFrequency",
+                "MQTTSubscribe"
             ]
         },
         "multiSyncCopyFiles": {
@@ -649,7 +650,8 @@
                     "MQTTUsername",
                     "MQTTPassword",
                     "MQTTCaFile",
-                    "MQTTFrequency"
+                    "MQTTFrequency",
+                    "MQTTSubscribe"
                 ]
             }
         },
@@ -680,6 +682,15 @@
             "type": "text",
             "size": 32,
             "maxlength": 64
+        },
+        "MQTTSubscribe": {
+            "name": "MQTTSubscribe",
+            "description": "Subscribe Topic (optional)",
+            "tip": "Subscribe to this topic and below.  Use '#' (without the quotes) to subscribe to all topics from MQTT server.",
+            "restart": 2,
+            "size": 32,
+            "maxlength": 100,
+            "type": "text"
         },
         "MQTTUsername": {
             "name": "MQTTUsername",

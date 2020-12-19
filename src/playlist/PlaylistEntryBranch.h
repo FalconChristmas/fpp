@@ -70,6 +70,10 @@ class PlaylistEntryBranch : public PlaylistEntryBase {
     int  m_iterationStart;
     int  m_iterationCount;
 
+    // MQTT Topic Message
+    std::string m_mqttTopic;
+    std::string m_mqttMessage;
+
     PlaylistBranchType m_trueNextBranchType;
 	std::string m_trueNextSection;
 	int         m_trueNextItem;

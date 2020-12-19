@@ -24,6 +24,7 @@
  */
 
 #include "fpp-pch.h"
+#include "mqtt.h"
 #include "PlaylistEntryBranch.h"
 
 PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
@@ -156,6 +157,12 @@ int PlaylistEntryBranch::Init(Json::Value &config)
     if (config.isMember("iterationCount"))
         m_iterationCount = config["iterationCount"].asInt();
 
+    if (config.isMember("mqttTopic"))
+        m_mqttTopic = config["mqttTopic"].asString();
+
+    if (config.isMember("mqttMessage"))
+        m_mqttMessage = config["mqttMessage"].asString();
+
 	// compInfo is deprecated and should be removed at some point.  The fields
 	// are now parsed from the startTime and endTime string fields.
 	if (config.isMember("compInfo")) {
@@ -248,6 +255,12 @@ int PlaylistEntryBranch::StartPlaying(void)
             SetNext(1);
         else
             SetNext(0);
+    } else if (m_branchTest == "MQTT") {
+        if ((mqtt) && (mqtt->CacheCheckMessage(m_mqttTopic, m_mqttMessage))) {
+		    SetNext(1);
+        } else {
+		    SetNext(0);
+        }
     } else {
 		SetNext(0);
 	}
@@ -302,6 +315,9 @@ void PlaylistEntryBranch::Dump(void)
     } else if (m_branchTest == "Loop") {
         LogDebug(VB_PLAYLIST, "Iteration Start   : %d\n", m_iterationStart);
         LogDebug(VB_PLAYLIST, "Iteration Count   : %d\n", m_iterationCount);
+    } else if (m_branchTest == "MQTT") {
+        LogDebug(VB_PLAYLIST, "MQTT Topic        : %d\n", m_mqttTopic);
+        LogDebug(VB_PLAYLIST, "MQTT Message      : %d\n", m_mqttMessage);
     }
 
     switch (m_trueNextBranchType) {

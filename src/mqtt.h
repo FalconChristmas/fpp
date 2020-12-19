@@ -28,6 +28,7 @@
 #include <pthread.h>
 #include <string>
 #include <map>
+#include <mutex>
 #include <functional>
 
 #include <jsoncpp/json/json.h>
@@ -61,6 +62,10 @@ class MosquittoClient {
 	void PublishStatus();
 	void SetReady();
 
+    void        CacheSetMessage(std::string &topic, std::string &message);
+    std::string CacheGetMessage(std::string &topic);
+    bool        CacheCheckMessage(std::string &topic, std::string &message);
+
 	std::string GetBaseTopic() { return m_baseTopic; }
 
   private:
@@ -78,6 +83,9 @@ class MosquittoClient {
 	pthread_t         m_mqtt_publish_t;
     
     std::map<std::string, std::function<void(const std::string &topic, const std::string &payload)>> callbacks;
+
+    std::mutex messageCacheLock;
+    std::map<std::string, std::string> messageCache;
 };
 
 extern MosquittoClient *mqtt;

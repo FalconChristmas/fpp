@@ -377,6 +377,12 @@ void MosquittoClient::HandleConnect() {
     subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
+    std::string baseSubTopic = getSetting("MQTTSubscribe");
+    if (baseSubTopic != "") {
+        LogDebug(VB_CONTROL, "MQTT Subscribing to topic: '%s'\n", baseSubTopic.c_str());
+        subscribe_topics.push_back(baseSubTopic);
+    }
+
     for (auto &a : callbacks) {
         std::string topic = a.first;
         if (topic.rfind("/set/", 0) != 0) {
@@ -424,6 +430,8 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 
 	if (message->payload)
 		payload = (char *)message->payload;
+
+    CacheSetMessage(topic, payload);
 
 	// If not our base, then return.
 	// Would only happen if subscribe is wrong
@@ -508,6 +516,33 @@ void MosquittoClient::PublishStatus(){
 	buffer << json << std::endl;
 	Publish("playlist_details", buffer.str());
 }
+
+void MosquittoClient::CacheSetMessage(std::string &topic, std::string &message) {
+    std::unique_lock<std::mutex> lock(messageCacheLock);
+
+	LogDebug(VB_CONTROL, "MosquittoClient::CacheSetMessage('%s', '%s')\n", topic.c_str(), message.c_str());
+
+    messageCache[topic] = message;
+}
+
+std::string MosquittoClient::CacheGetMessage(std::string &topic) {
+    std::unique_lock<std::mutex> lock(messageCacheLock);
+
+    if (messageCache.contains(topic))
+        return messageCache[topic];
+
+    return "";
+}
+
+bool MosquittoClient::CacheCheckMessage(std::string &topic, std::string &message) {
+    std::unique_lock<std::mutex> lock(messageCacheLock);
+
+    if (messageCache.contains(topic))
+        return messageCache[topic] == message;
+
+    return false;
+}
+
 
 void *RunMqttPublishThread(void *data) {
 	sleep(3); // Give everything time to start up

@@ -381,6 +381,9 @@ function psiDetailsForEntrySimpleBranch(entry, editMode) {
         case 'Loop':
             result += 'Loop: Every ' + entry.iterationCount + ' iterations starting at ' + entry.iterationStart;
             break;
+        case 'MQTT':
+            result += 'MQTT: Topic: "' + entry.mqttTopic + '", Message: "' + entry.mqttMessage;
+            break;
     }
 
     result += psiDetailsBranchDestination(entry);
@@ -634,6 +637,9 @@ function psiDetailsForEntryBranch(entry, editMode)
             branchStr = 'Every ' + entry.iterationCount + ' iterations starting at ' + entry.iterationStart;
             branchStr += psiDetailsBranchDestination(entry);
         }
+    } else if (entry.branchTest == 'MQTT') {
+            branchStr = 'MQTT: Topic: "' + entry.mqttTopic + '", Message: "' + entry.mqttMessage;
+            branchStr += psiDetailsBranchDestination(entry);
     } else {
         branchStr = "Invalid Config: " + JSON.stringify(entry);
     }

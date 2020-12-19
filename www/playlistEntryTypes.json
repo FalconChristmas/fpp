@@ -9,7 +9,8 @@
                 "type": "string",
                 "contents": {
                     "Time": "Time",
-                    "Loop Number": "Loop"
+                    "Loop Number": "Loop",
+                    "MQTT Topic Message": "MQTT"
                 },
                 "children": {
                     "Time": [
@@ -20,6 +21,10 @@
                         "loopTest",
                         "iterationStart",
                         "iterationCount"
+                    ],
+                    "MQTT": [
+                        "mqttTopic",
+                        "mqttMessage"
                     ]
                 },
                 "optional": false,
@@ -75,6 +80,22 @@
                 "max": 99,
                 "unit": "loop iterations",
                 "optional": false,
+                "simpleUI": true
+            },
+            "mqttTopic": {
+                "name": "mqttTopic",
+                "description": "MQTT Topic",
+                "type": "string",
+                "placeholder": "MQTT Topic",
+                "optional": true,
+                "simpleUI": true
+            },
+            "mqttMessage": {
+                "name": "mqttMessage",
+                "description": "MQTT Message",
+                "type": "string",
+                "placeholder": "MQTT Message",
+                "optional": true,
                 "simpleUI": true
             },
             "trueNextBranchType": {
