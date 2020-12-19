@@ -27,9 +27,6 @@ FPP Manual Update
 <?
 }
 ?>
-Stopping fppd...
-
-==========================================================================
 Pulling in updates...
 <?
 system("$fppDir/scripts/git_pull");
