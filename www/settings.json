@@ -686,7 +686,7 @@
         "MQTTSubscribe": {
             "name": "MQTTSubscribe",
             "description": "Subscribe Topic (optional)",
-            "tip": "Subscribe to this topic and below.  Use '#' (without the quotes) to subscribe to all topics from MQTT server.",
+            "tip": "Subscribe to a MQTT topic.  Use '#' (without the quotes) to subscribe to all topics from MQTT server.  Use 'smartthings/#' to subscribe to all topics starting with 'smartthings', or use an exact topic to subscribe to a single topic.",
             "restart": 2,
             "size": 32,
             "maxlength": 100,
