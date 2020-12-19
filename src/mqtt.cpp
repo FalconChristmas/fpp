@@ -528,7 +528,8 @@ void MosquittoClient::CacheSetMessage(std::string &topic, std::string &message) 
 std::string MosquittoClient::CacheGetMessage(std::string &topic) {
     std::unique_lock<std::mutex> lock(messageCacheLock);
 
-    if (messageCache.contains(topic))
+    auto search = messageCache.find(topic);
+    if (search != messageCache.end())
         return messageCache[topic];
 
     return "";
@@ -537,7 +538,8 @@ std::string MosquittoClient::CacheGetMessage(std::string &topic) {
 bool MosquittoClient::CacheCheckMessage(std::string &topic, std::string &message) {
     std::unique_lock<std::mutex> lock(messageCacheLock);
 
-    if (messageCache.contains(topic))
+    auto search = messageCache.find(topic);
+    if (search != messageCache.end())
         return messageCache[topic] == message;
 
     return false;
