@@ -9,8 +9,10 @@ std::thread notifyThread = std::thread(WarningHolder::NotifyListenersMain);
 std::set<WarningListener *> WarningHolder::listenerList;
 
 void WarningHolder::AddWarningListener(WarningListener *l){
+    LogDebug(VB_GENERAL, "About to add listner\n");
     std::unique_lock<std::mutex> lock(listenerListLock);
     listenerList.insert(l);
+    LogDebug(VB_GENERAL, "Adding Listner Done\n");
 }
 
 void WarningHolder::RemoveWarningListener(WarningListener *l){
@@ -18,12 +20,14 @@ void WarningHolder::RemoveWarningListener(WarningListener *l){
     std::set<WarningListener *>::const_iterator it = listenerList.find(l);
     if (it != listenerList.end()) {
        listenerList.erase(it);
+       LogInfo(VB_GENERAL, "Removing Warning Listner Complete\n");
     } else {
        LogWarn(VB_GENERAL, "Requested to remove Listener, but it wasn't found\n");
     }
 }
 
 void WarningHolder::NotifyListenersMain() {
+   LogDebug(VB_GENERAL, "About to Notify\n");
    std::unique_lock<std::mutex> lck(notifyLock);
    while(true) {
       notifyCV.wait(lck);  // sleep here

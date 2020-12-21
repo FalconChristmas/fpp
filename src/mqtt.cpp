@@ -144,7 +144,6 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
     AddCallback("/set/command", f);
     AddCallback("/set/command/#", f);
 
-    WarningHolder::AddWarningListener(this);
 }
 /*
  *
@@ -184,7 +183,10 @@ void MosquittoClient::PrepareForShutdown() {
 }
 
 void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
-    if (! m_isConnected) {
+
+    LogDebug(VB_CONTROL, "in handleWarnings\n");
+    if (! m_isConnected || !m_canProcessMessages) {
+        LogWarn(VB_CONTROL, "Exiting handleWarnings as not ready\n");
         return;
     }
 
@@ -369,7 +371,6 @@ void MosquittoClient::SetReady() {
     if (!m_canProcessMessages) {
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
-
         
        int frequency = atoi(getSetting("MQTTFrequency"));
        if (frequency > 0) {
@@ -389,10 +390,16 @@ void MosquittoClient::SetReady() {
 }
         
 void MosquittoClient::HandleConnect() {
+    
+    m_isConnected = true;
 
-	m_isConnected = true;
-	LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
-	std::vector<std::string> subscribe_topics;
+    if (!m_canProcessMessages) {
+        LogWarn(VB_CONTROL, "HandleConnect() called before can process messages.  Won't Register topics yet.\n");
+        return ;
+    }
+
+    LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
+    std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
     subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
@@ -419,7 +426,8 @@ void MosquittoClient::HandleConnect() {
         }
     }
 
-    LogDebug(VB_CONTROL, "MQTT HandleConnect Complete\n" );
+    WarningHolder::AddWarningListener(this);
+    LogInfo(VB_CONTROL, "MQTT HandleConnect Complete\n" );
 }
 
 
@@ -427,7 +435,7 @@ void MosquittoClient::HandleDisconnect()
 {
 	LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
 	m_isConnected = false;
-
+        WarningHolder::AddWarningListener(this);
 }
 
 /*
