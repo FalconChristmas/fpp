@@ -37,7 +37,6 @@
 
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryBranch.h"
-#include "PlaylistEntryChannelTest.h"
 #include "PlaylistEntryCommand.h"
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
@@ -352,8 +351,6 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryBoth();
 	else if (entry["type"].asString() == "branch")
 		result = new PlaylistEntryBranch();
-	else if (entry["type"].asString() == "channelTest")
-		result = new PlaylistEntryChannelTest();
 	else if (entry["type"].asString() == "dynamic")
 		result = new PlaylistEntryDynamic();
 	else if (entry["type"].asString() == "effect")

@@ -60,7 +60,6 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
 	playlist/PlaylistEntryBranch.o \
-	playlist/PlaylistEntryChannelTest.o \
 	playlist/PlaylistEntryCommand.o \
 	playlist/PlaylistEntryDynamic.o \
 	playlist/PlaylistEntryEffect.o \
