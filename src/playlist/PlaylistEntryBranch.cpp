@@ -316,8 +316,8 @@ void PlaylistEntryBranch::Dump(void)
         LogDebug(VB_PLAYLIST, "Iteration Start   : %d\n", m_iterationStart);
         LogDebug(VB_PLAYLIST, "Iteration Count   : %d\n", m_iterationCount);
     } else if (m_branchTest == "MQTT") {
-        LogDebug(VB_PLAYLIST, "MQTT Topic        : %d\n", m_mqttTopic);
-        LogDebug(VB_PLAYLIST, "MQTT Message      : %d\n", m_mqttMessage);
+        LogDebug(VB_PLAYLIST, "MQTT Topic        : %s\n", m_mqttTopic.c_str());
+        LogDebug(VB_PLAYLIST, "MQTT Message      : %s\n", m_mqttMessage.c_str());
     }
 
     switch (m_trueNextBranchType) {
