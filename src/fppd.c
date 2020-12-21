@@ -580,21 +580,21 @@ int main(int argc, char *argv[])
     
     CommandManager::INSTANCE.Init();
 	if (strcmp(getSetting("MQTTHost"),"")) {
+                LogInfo(VB_GENERAL, "Creating MQTT\n");
 		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort",1883), getSetting("MQTTPrefix"));
 
 		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername"), getSetting("MQTTPassword"), getSetting("MQTTCaFile")))
 		{
         		LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
 
-		} else {
-			mqtt->Publish("version", getFPPVersion());
-			mqtt->Publish("branch", getFPPBranch());
 		}
 	}
 
+        LogInfo(VB_GENERAL, "Creating Scheduler, Playist, and Sequence\n");
 	scheduler = new Scheduler();
 	playlist = new Playlist();
 	sequence  = new Sequence();
+        LogInfo(VB_GENERAL, "Creationg of Scheduler, Playst, and Sequence Complete\n");
 
     if (!MultiSync::INSTANCE.Init()) {
 		exit(EXIT_FAILURE);
@@ -746,8 +746,12 @@ void MainLoop(void)
 
 	multiSync->Discover();
 
+    LogInfo(VB_GENERAL, "Checking MQTT\n");
     if (mqtt) {
         mqtt->SetReady();
+	// Wait until ready to publish
+	mqtt->Publish("version", getFPPVersion());
+	mqtt->Publish("branch", getFPPBranch());
     }
     
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");

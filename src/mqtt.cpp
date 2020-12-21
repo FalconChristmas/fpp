@@ -95,6 +95,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 	LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
 		host.c_str(), port, topicPrefix.c_str());
 
+        WarningHolder::AddWarning("MQTT Disconnected");
 	if (m_topicPrefix.size()) {
 		m_topicPrefix += "/";
 	}
@@ -143,6 +144,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
     };
     AddCallback("/set/command", f);
     AddCallback("/set/command/#", f);
+
 }
 /*
  *
@@ -162,6 +164,7 @@ MosquittoClient::~MosquittoClient()
 }
 
 void MosquittoClient::PrepareForShutdown() {
+    WarningHolder::RemoveWarningListener(this);
     while (!callbacks.empty()) {
         const std::string &n = callbacks.begin()->first;
         RemoveCallback(n);
@@ -180,6 +183,26 @@ void MosquittoClient::PrepareForShutdown() {
     m_canProcessMessages = false;
 }
 
+void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
+
+    LogWarn(VB_CONTROL, "in handleWarnings with %d warnings\n", warnings.size());
+    if (! m_isConnected || !m_canProcessMessages) {
+        LogWarn(VB_CONTROL, "Exiting handleWarnings as not ready\n");
+        return;
+    }
+
+    Json::Value rc = Json::Value(Json::arrayValue);
+    for (std::list<std::string>::iterator it=warnings.begin(); it != warnings.end(); ++it)
+    {
+        rc.append(*it);
+    }
+    std::stringstream buffer;
+    buffer << rc << std::endl;
+    
+    std::string msg = buffer.str();
+    LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
+    Publish("warnings", msg);
+}
 
 /*
  *
@@ -349,7 +372,6 @@ void MosquittoClient::SetReady() {
     if (!m_canProcessMessages) {
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
-
         
        int frequency = atoi(getSetting("MQTTFrequency"));
        if (frequency > 0) {
@@ -366,13 +388,21 @@ void MosquittoClient::SetReady() {
     if (m_isConnected) {
        HandleConnect();
     }
+
+    WarningHolder::AddWarningListener(this);
 }
         
 void MosquittoClient::HandleConnect() {
+    
+    m_isConnected = true;
 
-	m_isConnected = true;
-	LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
-	std::vector<std::string> subscribe_topics;
+    if (!m_canProcessMessages) {
+        LogWarn(VB_CONTROL, "HandleConnect() called before can process messages.  Won't Register topics yet.\n");
+        return ;
+    }
+
+    LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
+    std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
     subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
@@ -398,6 +428,9 @@ void MosquittoClient::HandleConnect() {
             LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
         }
     }
+
+    WarningHolder::RemoveWarning("MQTT Disconnected");
+    LogInfo(VB_CONTROL, "MQTT HandleConnect Complete\n" );
 }
 
 
@@ -405,7 +438,7 @@ void MosquittoClient::HandleDisconnect()
 {
 	LogWarn(VB_CONTROL, "Mosquitto Disconnected. Will try reconnect\n");
 	m_isConnected = false;
-
+        WarningHolder::AddWarning("MQTT Disconnected");
 }
 
 /*
