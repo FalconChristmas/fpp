@@ -590,11 +590,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-        LogInfo(VB_GENERAL, "Creating Scheduler, Playist, and Sequence\n");
+        LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
 	scheduler = new Scheduler();
 	playlist = new Playlist();
 	sequence  = new Sequence();
-        LogInfo(VB_GENERAL, "Creationg of Scheduler, Playst, and Sequence Complete\n");
+        LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
 
     if (!MultiSync::INSTANCE.Init()) {
 		exit(EXIT_FAILURE);
