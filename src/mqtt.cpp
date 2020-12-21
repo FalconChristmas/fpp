@@ -143,8 +143,6 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
     };
     AddCallback("/set/command", f);
     AddCallback("/set/command/#", f);
-
-    WarningHolder::AddWarningListener(this);
 }
 /*
  *
@@ -164,7 +162,6 @@ MosquittoClient::~MosquittoClient()
 }
 
 void MosquittoClient::PrepareForShutdown() {
-    WarningHolder::RemoveWarningListener(this);
     while (!callbacks.empty()) {
         const std::string &n = callbacks.begin()->first;
         RemoveCallback(n);
@@ -183,23 +180,6 @@ void MosquittoClient::PrepareForShutdown() {
     m_canProcessMessages = false;
 }
 
-void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
-    if (! m_isConnected) {
-        return;
-    }
-
-    Json::Value rc = Json::Value(Json::arrayValue);
-    for (std::list<std::string>::iterator it=warnings.begin(); it != warnings.end(); ++it)
-    {
-        rc.append(*it);
-    }
-    std::stringstream buffer;
-    buffer << rc << std::endl;
-    
-    std::string msg = buffer.str();
-    LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
-    Publish("warnings", msg);
-}
 
 /*
  *
@@ -418,8 +398,6 @@ void MosquittoClient::HandleConnect() {
             LogErr(VB_CONTROL, "Error, unable to subscribe to %s: %d\n", subscribe.c_str(), rc);
         }
     }
-
-    LogDebug(VB_CONTROL, "MQTT HandleConnect Complete\n" );
 }
 
 

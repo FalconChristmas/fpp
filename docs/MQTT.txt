@@ -1,6 +1,4 @@
 FPP has the ability to both publish status via MQTT as well as receive  commands by subscribing to specific topics.   
-Most are published when the value changes except for playlist_details which is published every xx seconds 
-(where xx is configurable)
 
 Topic Format
 ---------------------------------------------
@@ -17,7 +15,6 @@ FPP will published the following sub_topics (using the full topic format) if MQT
 */version -- The current full version of the fpp software
 */branch -- The git branch currently in use
 */status -- Status of the player (idle, playing)
-*/warnings -- A JSON string that can be parsed into an Array of Warning messages.
 
 */playlist/position/status
 */playlist/name/status - Name of current playlist. Can be {null}.

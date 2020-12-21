@@ -31,15 +31,13 @@
 #include <mutex>
 #include <functional>
 
-#include "Warnings.h"
-
 #include <jsoncpp/json/json.h>
 
 #include "mosquitto.h"
 
 void * RunMqttPublishThread(void *data);
 
-class MosquittoClient : public WarningListener {
+class MosquittoClient {
   public:
   	MosquittoClient(const std::string &host, const int port, const std::string &topicPrefix);
 	~MosquittoClient();
@@ -56,8 +54,6 @@ class MosquittoClient : public WarningListener {
 	void MessageCallback(void *obj, const struct mosquitto_message *message);
     
 	void AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback);
-	virtual void handleWarnings(std::list<std::string> &warnings);
-
     void RemoveCallback(const std::string &topic);
 	void HandleDisconnect();
 	void HandleConnect();
