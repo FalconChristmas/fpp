@@ -28,10 +28,12 @@ void WarningHolder::RemoveWarningListener(WarningListener *l){
 
 void WarningHolder::NotifyListenersMain() {
    LogDebug(VB_GENERAL, "About to Notify\n");
+   // GetWarnings uses waringsLock. Must never call waringsLock after notifyLock.
+   // Doing so could deadlock
+   std::list<std::string> warnings = WarningHolder::GetWarnings();
    std::unique_lock<std::mutex> lck(notifyLock);
    while(true) {
       notifyCV.wait(lck);  // sleep here
-      std::list<std::string> warnings = WarningHolder::GetWarnings();
       LogDebug(VB_GENERAL, "Warning has changed, notifying other threads of %d Warnings\n", warnings.size());
       std::for_each(listenerList.begin(), listenerList.end(), [&](WarningListener *l) {l->handleWarnings(warnings); });
    }
@@ -39,6 +41,7 @@ void WarningHolder::NotifyListenersMain() {
 
 
 void WarningHolder::AddWarning(const std::string &w) {
+    LogDebug(VB_GENERAL, "Adding Warning: %s\n", w.c_str());
     std::unique_lock<std::mutex> lock(warningsLock);
     warnings[w] = -1;
     // Notify Listeners
@@ -46,6 +49,7 @@ void WarningHolder::AddWarning(const std::string &w) {
     notifyCV.notify_all();
 }
 void WarningHolder::AddWarningTimeout(const std::string &w, int toSeconds) {
+    LogDebug(VB_GENERAL, "Adding Warning with Timeout: %s\n", w.c_str());
     std::unique_lock<std::mutex> lock(warningsLock);
     auto nowtime = std::chrono::steady_clock::now();
     int seconds = std::chrono::duration_cast<std::chrono::seconds>(nowtime.time_since_epoch()).count();
@@ -57,6 +61,7 @@ void WarningHolder::AddWarningTimeout(const std::string &w, int toSeconds) {
 
 
 void WarningHolder::RemoveWarning(const std::string &w) {
+    LogDebug(VB_GENERAL, "Removing Warning: %s\n", w.c_str());
     std::unique_lock<std::mutex> lock(warningsLock);
     warnings.erase(w);
     // Notify Listeners
