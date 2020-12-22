@@ -137,6 +137,11 @@ if [ ${HASSOUND} -eq 1 ]; then
     fi
 
     amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
+    
+    
+    CARDTYPE=$(aplay -l | grep "^card $CARDID" | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq | colrm 1 2)
+    echo "Found card type: $CARDTYPE \n"
+    setSetting AudioCardType "$CARDTYPE"
 fi
 
 

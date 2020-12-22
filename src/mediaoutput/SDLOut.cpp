@@ -691,6 +691,12 @@ bool SDL::openAudio() {
         _isSampleFloat = (have.format == AUDIO_F32);
         
         _state = SDLSTATE::SDLOPENED;
+        
+        
+        std::string cardType = getSetting("AudioCardType");
+        if (cardType.find("Dummy") == 0) {
+            WarningHolder::AddWarning("Outputting Audio to Dummy device.");
+        }
     }
     return true;
 }

@@ -160,6 +160,12 @@ public:
         libvlc_event_attach(libvlc_media_player_event_manager(data->vlcPlayer), libvlc_MediaPlayerOpening, startingEventCallBack, data);
         data->length = libvlc_media_player_get_length(data->vlcPlayer);
         
+        
+        std::string cardType = getSetting("AudioCardType");
+        if (cardType.find("Dummy") == 0) {
+            WarningHolder::AddWarning("Outputting Audio to Dummy device.");
+        }
+        
         return 0;
     }
     int start(VLCInternalData *data, int startPos) {
