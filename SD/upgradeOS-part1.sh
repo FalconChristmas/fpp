@@ -6,7 +6,7 @@ mount $1 /mnt
 ORIGTYPE=$(</etc/fpp/platform)
 NEWTYPE=$(</mnt/etc/fpp/platform)
 
-if [ $ORIGTYPE != $NEWTYPE ]; then
+if [ "$ORIGTYPE" != "$NEWTYPE" ]; then
     echo "Image of '${NEWTYPE}' does no match '${ORIGTYPE}'"
     umount /mnt
     exit 1;
