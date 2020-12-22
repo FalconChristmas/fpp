@@ -5,7 +5,8 @@ std::mutex WarningHolder::warningsLock;
 std::mutex WarningHolder::listenerListLock;
 std::mutex WarningHolder::notifyLock; // Must always lock this before WarningLock
 std::condition_variable WarningHolder::notifyCV;
-std::thread notifyThread = std::thread(WarningHolder::NotifyListenersMain); 
+std::thread *WarningHolder::notifyThread = nullptr;
+volatile bool WarningHolder::runNotifyThread = false;
 std::set<WarningListener *> WarningHolder::listenerList;
 
 void WarningHolder::AddWarningListener(WarningListener *l){
@@ -26,9 +27,20 @@ void WarningHolder::RemoveWarningListener(WarningListener *l){
     }
 }
 
+void WarningHolder::StartNotifyThread() {
+    runNotifyThread = true;
+    notifyThread = new std::thread(WarningHolder::NotifyListenersMain);
+}
+
+void WarningHolder::StopNotifyThread() {
+    runNotifyThread = false;
+    notifyCV.notify_all();
+    notifyThread->join();
+}
+
 void WarningHolder::NotifyListenersMain() {
    std::unique_lock<std::mutex> lck(notifyLock);
-   while(true) {
+   while(runNotifyThread) {
       notifyCV.wait(lck);  // sleep here
       std::list<std::string> warnings = WarningHolder::GetWarnings(); // Calls warning Lock
       LogDebug(VB_GENERAL, "Warning has changed, notifying other threads of %d Warnings\n", warnings.size());

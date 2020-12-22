@@ -590,6 +590,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
+    WarningHolder::StartNotifyThread();
+
         LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
 	scheduler = new Scheduler();
 	playlist = new Playlist();
@@ -658,6 +660,8 @@ int main(int argc, char *argv[])
 	delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
+
+    WarningHolder::StopNotifyThread();
     
 	if (mqtt)
 		delete mqtt;

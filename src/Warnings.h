@@ -37,6 +37,8 @@ public:
     static void RemoveWarningListener(WarningListener *l);
 
     static std::list<std::string> GetWarnings();
+    static void StartNotifyThread();
+    static void StopNotifyThread();
     static void NotifyListenersMain(); // main for notify thread
     
 private:
@@ -44,7 +46,8 @@ private:
     static std::mutex notifyLock;
     static std::condition_variable notifyCV;
     static std::map<std::string, int> warnings;
-    static std::thread notifyThread;
+    static std::thread *notifyThread;
     static std::set<WarningListener *> listenerList;
     static std::mutex listenerListLock;
+    static volatile bool runNotifyThread;
 };
