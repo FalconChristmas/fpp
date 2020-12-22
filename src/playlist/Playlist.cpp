@@ -760,11 +760,11 @@ int Playlist::Process(void)
                 m_sectionPosition = nextPosition;
             }
         } else if (currentEntry->GetNextBranchType() == PlaylistEntryBase::PlaylistBranchType::Playlist) {
-            m_sectionPosition++;
-
             std::string branchPlaylist = currentEntry->GetNextData();
             if (branchPlaylist != "")
                 InsertPlaylistImmediate(branchPlaylist, 0, -1);
+
+            m_sectionPosition++;
         } else {
             m_sectionPosition++;
         }
