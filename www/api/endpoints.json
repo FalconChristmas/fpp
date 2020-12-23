@@ -643,7 +643,7 @@
             "endpoint": "network/wifi_strength",
             "methods": {
                 "GET": {
-                    "desc": "Returns detailed information about the network interfaces and their IP addresses",
+                    "desc": "Returns detailed information about wireless network interfaces and their signal strength",
                     "output": [{"interface":"wlan0","link":45,"level":-65,"noise":-256}, {"interface":"wlan1","link":40,"level":-60,"noise":-256}]
 		}
 	    }
