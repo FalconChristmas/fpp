@@ -120,6 +120,11 @@ void LogResponse(const http_request &req, int responseCode, const std::string &c
 	}
 }
 
+PlayerResource::PlayerResource()
+  : startupTime(std::time(nullptr))
+{
+}
+
 /*
  *
  */
@@ -605,6 +610,25 @@ inline std::string toStdStringAndFree(char * v) {
 }
 inline std::string secondsToTime(int i) {
     std::stringstream sstr;
+
+    if (i > (24 * 60 * 60)) {
+        int days = i / (24 * 60 * 60);
+        sstr << days;
+        if (days == 1)
+            sstr << " day, ";
+        else
+            sstr << " days, ";
+
+        i = i % (24 * 60 * 60);
+    }
+
+    if (i > (60 * 60)) {
+        int hour = i / (60 * 60);
+        sstr << std::setw(2) << std::setfill('0') << hour;
+        sstr << ":";
+        i = i % (60 * 60);
+    }
+
     int min = i / 60;
     int sec = i % 60;
     sstr << std::setw(2) << std::setfill('0') << min;
@@ -660,7 +684,11 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     sstr << std::put_time(&tm, "%a %b %d %H:%M:%S %Z %Y");
     std::string str = sstr.str();
     result["time"] = str;
-    
+
+    std::time_t timeDiff = std::time(nullptr) - startupTime;
+    result["uptime"] = secondsToTime((int)timeDiff);
+    result["uptimeSeconds"] = timeDiff;
+
     Sensors::INSTANCE.reportSensors(result);
     std::list<std::string> warnings = WarningHolder::GetWarnings();
     for (auto & warn : warnings) {

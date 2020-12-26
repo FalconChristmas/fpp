@@ -25,6 +25,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctime>
 #include <httpserver.hpp>
 #include <jsoncpp/json/json.h>
 
@@ -36,6 +37,8 @@ using namespace httpserver;
 
 class PlayerResource : public http_resource {
   public:
+    PlayerResource();
+
 	const std::shared_ptr<http_response> render_GET(const http_request &req);
 	const std::shared_ptr<http_response> render_DELETE(const http_request &req);
 	const std::shared_ptr<http_response> render_POST(const http_request &req);
@@ -66,6 +69,8 @@ class PlayerResource : public http_resource {
 
 	void SetOKResult(Json::Value &result, const std::string &msg);
 	void SetErrorResult(Json::Value &result, const int respCode, const std::string &msg);
+
+    std::time_t startupTime;
 };
 
 class APIServer {

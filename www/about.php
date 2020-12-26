@@ -20,6 +20,11 @@ if (!file_exists("/etc/fpp/config_version") && file_exists("/etc/fpp/rfs_version
 	exec($SUDO . " $fppDir/scripts/upgrade_config");
 }
 
+$lastBoot = exec("uptime -s", $output, $return_val);
+if ( $return_val != 0 )
+    $lastBoot = 'Unknown';
+unset($output);
+
 $os_build = "Unknown";
 if (file_exists("/etc/fpp/rfs_version"))
 {
@@ -84,6 +89,7 @@ function getFileCount($dir)
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <script language="Javascript">
 $(document).ready(function() {
+UpdateVersionInfo();
 $('.default-value').each(function() {
 var default_value = this.value;
 $(this).focus(function() {
@@ -109,6 +115,7 @@ function CloseUpgradeDialog() {
 function UpdateVersionInfo() {
     $.get('fppjson.php?command=getFPPstatus&advancedView=true', function(data) {
         $('#fppVersion').html(data.advancedView.Version);
+        $('#fppdUptime').html(data.uptime);
         $('#osVersion').html(data.advancedView.OSVersion);
         $('#osRelease').html(data.advancedView.OSRelease);
         $('#localGitVersion').html(data.advancedView.LocalGitVersion);
@@ -250,6 +257,8 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
         <tr><td>Hardware Serial Number:</td><td><? echo $serialNumber; ?></td></tr>
 <? } ?>
             <tr><td>Kernel Version:</td><td><? echo $kernel_version; ?></td></tr>
+            <tr><td>System Boot Time:</td><td id='lastBoot'><? echo $lastBoot; ?></td></tr>
+            <tr><td>fppd Uptime:</td><td id='fppdUptime'></td></tr>
             <tr><td>Local Git Version:</td><td id='localGitVersion'>
 <?
   echo $git_version;
