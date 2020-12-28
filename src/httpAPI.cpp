@@ -687,7 +687,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
     std::time_t timeDiff = std::time(nullptr) - startupTime;
     result["uptime"] = secondsToTime((int)timeDiff);
-    result["uptimeSeconds"] = timeDiff;
+    result["uptimeSeconds"] = (int)timeDiff;
 
     Sensors::INSTANCE.reportSensors(result);
     std::list<std::string> warnings = WarningHolder::GetWarnings();
