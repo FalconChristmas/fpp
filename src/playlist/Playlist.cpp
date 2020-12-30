@@ -256,7 +256,7 @@ int Playlist::Load(const char *filename)
 	LogDebug(VB_PLAYLIST, "Playlist::Load(%s)\n", filename);
 
     if (mqtt) {
-		mqtt->Publish("playlist/name/status", filename);
+	mqtt->Publish("playlist/name/status", filename);
     }
 
     Json::Value root;
@@ -591,6 +591,7 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
 }
 
 void Playlist::Pause() {
+    LogDebug(VB_PLAYLIST, "Playlist::Pause called on %s\n", m_filename.c_str());
     if (IsPlaying()) {
         if (m_currentSection->at(m_sectionPosition)->IsPlaying()) {
             m_currentSection->at(m_sectionPosition)->Pause();
@@ -601,10 +602,16 @@ void Playlist::Pause() {
     }
 }
 void Playlist::Resume() {
+    LogDebug(VB_PLAYLIST, "Playlist::Resume called on %s\n", m_filename.c_str());
     if (IsPlaying()) {
         if (m_status == FPP_STATUS_PLAYLIST_PAUSED) {
             m_currentSection->at(m_sectionPosition)->Resume();
             m_status = FPP_STATUS_PLAYLIST_PLAYING;
+
+	    // Notify of current playlists because was likely changed when Paused.
+    	    if (mqtt) {
+		mqtt->Publish("playlist/name/status", m_name);
+            }
         }
     }
 }
