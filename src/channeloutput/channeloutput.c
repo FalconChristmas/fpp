@@ -438,11 +438,11 @@ int SendChannelData(const char *channelData) {
 	int i = 0;
 	FPPChannelOutputInstance *inst;
 
-	if (logMask & VB_CHANNELDATA) {
-        uint32_t minimumNeededChannel = GetOutputRanges()[0].first;
-        char buf[128];
-        sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
-		HexDump(buf, &channelData[minimumNeededChannel], 16);
+	if (WillLog(LOG_INFO, VB_CHANNELDATA)) {
+        	uint32_t minimumNeededChannel = GetOutputRanges()[0].first;
+        	char buf[128];
+        	sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
+		HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);
 	}
 
     for (i = 0; i < channelOutputCount; i++) {

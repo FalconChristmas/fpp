@@ -134,7 +134,6 @@ void initSettings(int argc, char **argv)
 	settings.controlMinor = 0;
 
 	SetLogLevel("info");
-	SetLogMask("most");
 }
 
 // Returns a string that's the white-space trimmed version
@@ -198,6 +197,7 @@ char *modeToString(int mode)
 
 int parseSetting(char *key, char *value)
 {
+    const char *logLevelPrefix = "LogLevel_";
     if (settings.keyVal[key]) {
         free(settings.keyVal[key]);
         settings.keyVal[key] = strdup(value);
@@ -330,19 +330,13 @@ int parseSetting(char *key, char *value)
 		else
 			fprintf(stderr, "Failed to apply pixelnetFile\n");
 	}
-	else if ( strcmp(key, "LogLevel") == 0 )
+	// Starts with LogLevel_
+	else if ( strncmp(key, logLevelPrefix, strlen(logLevelPrefix)) == 0 )
 	{
 		if (strlen(value))
-			SetLogLevel(value);
+			FPPLogger::INSTANCE.SetLevel(key, value);
 		else
-			SetLogLevel("warn");
-	}
-	else if ( strcmp(key, "LogMask") == 0 )
-	{
-		if (strlen(value))
-			SetLogMask(value);
-		else
-			SetLogMask("");
+			FPPLogger::INSTANCE.SetLevel(key, (char *)"warn");
 	}
 	else if ( strcmp(key, "logFile") == 0 )
 	{

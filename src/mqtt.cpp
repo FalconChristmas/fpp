@@ -185,7 +185,7 @@ void MosquittoClient::PrepareForShutdown() {
 
 void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
 
-    LogWarn(VB_CONTROL, "in handleWarnings with %d warnings\n", warnings.size());
+    LogDebug(VB_CONTROL, "in handleWarnings with %d warnings\n", warnings.size());
     if (! m_isConnected || !m_canProcessMessages) {
         LogWarn(VB_CONTROL, "Exiting handleWarnings as not ready\n");
         return;

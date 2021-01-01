@@ -29,6 +29,8 @@
 #include <vector>
 #include <string>
 
+#include "log.h"
+
 
 /////////////////////////////////////////////////////////////////////////////
 // printf macros for printing bitmaps
@@ -68,7 +70,7 @@ int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
 int       FileExists(const std::string &File);
 int       Touch(const std::string &File);
-void      HexDump(const char *title, const void *data, int len);
+void      HexDump(const char *title, const void *data, int len, FPPLoggerInstance &facility);
 int       GetInterfaceAddress(const char *interface, char *addr, char *mask, char *gw);
 char     *FindInterfaceForIP(char *ip);
 int       CheckForHostSpecificFile(const char *hostname, char *filename);

@@ -24,37 +24,12 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string>
+#include <vector>
 
-///////////////////////////////////////////////////////////////////////////////
-// LogFacility is a mask allowing multiple log facilities on at the same time.
-///////////////////////////////////////////////////////////////////////////////
-// WARNING: Do not update this enum by placing new items in the middle unless
-//          you also update the VB_MOST mask at the end.  The default of
-//          VB_MOST does not include VB_CHANNELDATA which can be very verbose.
-///////////////////////////////////////////////////////////////////////////////
-typedef enum {
-	VB_NONE        = 0x00000000,
-	VB_GENERAL     = 0x00000001,
-	VB_CHANNELOUT  = 0x00000002,
-	VB_CHANNELDATA = 0x00000004,
-	VB_COMMAND     = 0x00000008,
-	VB_E131BRIDGE  = 0x00000010,
-	VB_EFFECT      = 0x00000020,
-	VB_EVENT       = 0x00000040,
-	VB_MEDIAOUT    = 0x00000080,
-	VB_PLAYLIST    = 0x00000100,
-	VB_SCHEDULE    = 0x00000200,
-	VB_SEQUENCE    = 0x00000400,
-	VB_SETTING     = 0x00000800,
-	VB_CONTROL     = 0x00001000,
-	VB_SYNC        = 0x00002000,
-	VB_PLUGIN      = 0x00004000,
-	VB_GPIO        = 0x00008000,
-	VB_HTTP        = 0x00010000,
-	VB_ALL         = 0x7FFFFFFF,
-	VB_MOST        = 0x7FFFFFFB
-} LogFacility;
-
+/* 
+ * Define the allowed levels of Logging
+ */
 typedef enum {
 	LOG_ERR      = 1,
 	LOG_WARN,
@@ -63,13 +38,81 @@ typedef enum {
 	LOG_EXCESSIVE
 } LogLevel;
 
-#define EXCESSIVE_LOG_LEVEL_WARNING "Log Level set to Excessive"
-#define DEBUG_LOG_LEVEL_WARNING "Log Level set to Debug"
 
-extern int logLevel;
-extern char logLevelStr[16];
-extern int logMask;
-extern char logMaskStr[1024];
+/* 
+ * A Logger Instance. 
+ * In the future, this could be adjusted to allow different Instances
+ * to go to different files
+ */
+
+class FPPLoggerInstance {
+   public:
+      FPPLoggerInstance(std::string name) { this->name = name; }
+      LogLevel level = LOG_WARN;
+      std::string name;
+};
+
+/*
+ * Class to hold all the Instances
+ */
+class FPPLogger {
+   public:
+      static FPPLogger INSTANCE;
+      const std::vector<FPPLoggerInstance *>& allInstances() {return all; }
+      void Init();
+      bool SetLevel(std::string name, LogLevel level);
+      bool SetLevel(char *name, char *level);
+      void SetAllLevel(LogLevel level);
+      int  MinimumLogLevel();
+      FPPLoggerInstance General = FPPLoggerInstance("General");
+      FPPLoggerInstance ChannelOut = FPPLoggerInstance("ChannelOut");
+      FPPLoggerInstance ChannelData = FPPLoggerInstance("ChannelData");
+      FPPLoggerInstance Command = FPPLoggerInstance("Command");
+      FPPLoggerInstance E131Bridge = FPPLoggerInstance("E131Bridge");
+      FPPLoggerInstance Effect = FPPLoggerInstance("Effect");
+      FPPLoggerInstance Event = FPPLoggerInstance("Event");
+      FPPLoggerInstance MediaOut = FPPLoggerInstance("MediaOut");
+      FPPLoggerInstance Playlist = FPPLoggerInstance("Playlist");
+      FPPLoggerInstance Schedule = FPPLoggerInstance("Schedule");
+      FPPLoggerInstance Sequence = FPPLoggerInstance("Sequence");
+      FPPLoggerInstance Settings = FPPLoggerInstance("Settings");
+      FPPLoggerInstance Control = FPPLoggerInstance("Control");
+      FPPLoggerInstance Sync = FPPLoggerInstance("Sync");;
+      FPPLoggerInstance Plugin = FPPLoggerInstance("Plugin");
+      FPPLoggerInstance GPIO = FPPLoggerInstance("GPIO");
+      FPPLoggerInstance HTTP = FPPLoggerInstance("HTTP");
+   private:
+      std::vector<FPPLoggerInstance *> all;
+};
+
+
+#define VB_GENERAL      FPPLogger::INSTANCE.General
+#define VB_ALL          FPPLogger::INSTANCE.General     /* Over Load */
+#define VB_CHANNELOUT   FPPLogger::INSTANCE.ChannelOut
+#define VB_CHANNELDATA  FPPLogger::INSTANCE.ChannelData
+#define VB_COMMAND      FPPLogger::INSTANCE.Command
+#define VB_E131BRIDGE   FPPLogger::INSTANCE.E131Bridge
+#define VB_EFFECT       FPPLogger::INSTANCE.Effect
+#define VB_EVENT        FPPLogger::INSTANCE.Event
+#define VB_MEDIAOUT     FPPLogger::INSTANCE.MediaOut
+#define VB_PLAYLIST     FPPLogger::INSTANCE.Playlist
+#define VB_SCHEDULE     FPPLogger::INSTANCE.Schedule
+#define VB_SEQUENCE     FPPLogger::INSTANCE.Sequence
+#define VB_SETTING      FPPLogger::INSTANCE.Settings
+#define VB_CONTROL      FPPLogger::INSTANCE.Control
+#define VB_SYNC         FPPLogger::INSTANCE.Sync
+#define VB_PLUGIN       FPPLogger::INSTANCE.Plugin
+#define VB_GPIO         FPPLogger::INSTANCE.GPIO
+#define VB_HTTP         FPPLogger::INSTANCE.HTTP
+
+
+#define EXCESSIVE_LOG_LEVEL_WARNING "A Log Level is set to Excessive"
+#define DEBUG_LOG_LEVEL_WARNING "A Log Level is set to Debug"
+
+//extern int logLevel;
+//extern char logLevelStr[16];
+//extern int logMask;
+//extern char logMaskStr[1024];
 
 #define LogErr(facility, format, args...)   _LogWrite(__FILE__, __LINE__, LOG_ERR, facility, format, ## args)
 #define LogInfo(facility, format, args...)  _LogWrite(__FILE__, __LINE__, LOG_INFO, facility, format, ## args)
@@ -77,16 +120,14 @@ extern char logMaskStr[1024];
 #define LogDebug(facility, format, args...) _LogWrite(__FILE__, __LINE__, LOG_DEBUG, facility, format, ## args)
 #define LogExcess(facility, format, args...) _LogWrite(__FILE__, __LINE__, LOG_EXCESSIVE, facility, format, ## args)
 
-void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...);
-bool WillLog(int level, int facility);
+void _LogWrite(const char *file, int line, int level, FPPLoggerInstance &facility, const char *format, ...);
+bool WillLog(int level, FPPLoggerInstance &facility);
 
 void SetLogFile(const char *filename, bool toStdOut = true);
-int SetLogLevel(const char *newLevel);
-int SetLogMask(const char *newMask);
 int loggingToFile(void);
 void logVersionInfo(void);
 
+int SetLogLevel(const char *newLevel);
+std::string LogLevelToString(LogLevel level); /* Convert Level to String Equivilanent */
 
-#define LogMaskIsSet(x)  (logMask & x)
-#define LogLevelIsSet(x) (logLevel >= x)
 

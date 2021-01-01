@@ -129,8 +129,8 @@ int SendOutputBuffer(FPDPrivData *privData)
 		}
 	}
 
-	if (LogMaskIsSet(VB_CHANNELDATA) && LogLevelIsSet(LOG_EXCESSIVE))
-		HexDump("FPD Channel Header & Data", privData->outBuf, 256);
+	if (WillLog(LOG_EXCESSIVE, VB_CHANNELDATA))
+		HexDump("FPD Channel Header & Data", privData->outBuf, 256, VB_CHANNELDATA);
 
     i = -1;
     if (falconSpi) {
@@ -310,9 +310,9 @@ void SendFPDConfig()
 		bufferPixelnetDMX[index++] = (char)(pixelnetDMX[i].startChannel/256);
 	}
 
-	if (LogMaskIsSet(VB_CHANNELOUT) && LogLevelIsSet(LOG_DEBUG))
+	if (WillLog(LOG_DEBUG, VB_CHANNELOUT))
 		HexDump("FPD Config Header & Data", bufferPixelnetDMX,
-			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3));
+			PIXELNET_HEADER_SIZE + (pixelnetDMXcount*3), VB_CHANNELOUT);
 
     i = -1;
     if (falconSpi) {

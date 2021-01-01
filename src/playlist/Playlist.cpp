@@ -215,7 +215,7 @@ int Playlist::Load(Json::Value &config)
 	m_sectionPosition = 0;
     m_currentSection = nullptr;
 
-	if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
+        if (WillLog(LOG_DEBUG, VB_PLAYLIST))
 		Dump();
 
 	return 1;
@@ -685,7 +685,7 @@ int Playlist::Process(void)
 
 	if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
 		LogDebug(VB_PLAYLIST, "Playlist entry finished\n");
-		if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
+                if (WillLog(LOG_DEBUG, VB_PLAYLIST))
 			m_currentSection->at(m_sectionPosition)->Dump();
 
 		LogDebug(VB_PLAYLIST, "============================================================================\n");
