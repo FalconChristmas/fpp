@@ -170,7 +170,7 @@ void _LogWrite(const char *file, int line, int level, FPPLoggerInstance &facilit
     int ms = tv.tv_usec / 1000;
     
 	int size = snprintf(timeStr, sizeof(timeStr),
-                    "%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d (%ld) %s:%d [%s]: %s",
+                    "%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d (%ld) [%s] %s:%d: %s",
 					1900+tm.tm_year,
 					tm.tm_mon+1,
 					tm.tm_mday,
@@ -178,7 +178,7 @@ void _LogWrite(const char *file, int line, int level, FPPLoggerInstance &facilit
 					tm.tm_min,
 					tm.tm_sec,
                     ms,
-                    syscall(SYS_gettid), file, line, facility.name.c_str(), format);
+                    syscall(SYS_gettid), facility.name.c_str(), file, line, format);
 
 	if (logFileName[0]) {
 		FILE *logFile;
