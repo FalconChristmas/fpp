@@ -32,34 +32,130 @@
 #include <time.h>
 #include <sys/time.h>
 
-int logLevel = LOG_INFO;
-int logMask  = VB_MOST;
+//int logLevel = LOG_INFO;
+//int logMask  = VB_MOST;
+
+//Create Global Instance
+FPPLogger FPPLogger::INSTANCE = FPPLogger();
 
 char logFileName[1024] = "";
 bool logToStdOut = true;
-char logLevelStr[16];
-char logMaskStr[1024];
+//char logLevelStr[16];
+//char logMaskStr[1024];
 
-bool WillLog(int level, int facility) {
-    // Don't log if we're not logging this facility
-    if (!(logMask & facility))
-        return false;
+void FPPLogger::Init() {
+   if (all.empty()) {
+      all.push_back(&(FPPLogger::General));
+      all.push_back(&(FPPLogger::ChannelOut));
+      all.push_back(&(FPPLogger::ChannelData));
+      all.push_back(&(FPPLogger::Command));
+      all.push_back(&(FPPLogger::E131Bridge));
+      all.push_back(&(FPPLogger::Effect));
+      all.push_back(&(FPPLogger::Event));
+      all.push_back(&(FPPLogger::MediaOut));
+      all.push_back(&(FPPLogger::Playlist));
+      all.push_back(&(FPPLogger::Schedule));
+      all.push_back(&(FPPLogger::Sequence));
+      all.push_back(&(FPPLogger::Settings));
+      all.push_back(&(FPPLogger::Control));
+      all.push_back(&(FPPLogger::Sync));
+      all.push_back(&(FPPLogger::Plugin));
+      all.push_back(&(FPPLogger::GPIO));
+      all.push_back(&(FPPLogger::HTTP));
+   }
+}
+
+bool FPPLogger::SetLevel(char *name, char *level) {
+   LogLevel newLevel = LOG_ERR;
+   bool found = false;
+
+   if (strcmp(level, "error") == 0) {
+      newLevel = LOG_ERR;
+      found = true;
+   } else if (strcmp(level, "warn") == 0) {
+      newLevel = LOG_WARN;
+      found = true;
+   } else if (strcmp(level, "info") == 0) {
+      newLevel = LOG_INFO;
+      found = true;
+   } else if (strcmp(level, "debug") == 0) {
+      newLevel = LOG_DEBUG;
+      found = true;
+   } else if (strcmp(level, "excess") == 0) {
+      newLevel = LOG_EXCESSIVE;
+      found = true;
+   } 
+
+   if (!found) {
+      LogErr(VB_SETTING, "Invalid name for LogLevel: %s\n", level);
+      return false;
+   } else {
+      return SetLevel(std::string(name), newLevel);
+   }
+
+}
+
+bool FPPLogger::SetLevel(std::string name, LogLevel level) {
+   bool madeChange = false;
+   std::string prefix("LogLevel_");
+   if (name.compare(0, prefix.size(), prefix) == 0) {
+      name = name.substr(prefix.size());
+   }
+
+   std::vector<FPPLoggerInstance*>::iterator it;
+   Init(); /* Just incase */
+
+   for (it = all.begin(); it != all.end(); it++) {
+      FPPLoggerInstance *ptr = *it;
+      if (name == ptr->name) {
+         ptr->level = level;
+	 madeChange = true;
+      }
+   }
+   if (! madeChange)
+      LogWarn(VB_SETTING, "Invalid name for LogLevel: %s\n", name.c_str());
+
+   return madeChange;
+}
+
+int FPPLogger::MinimumLogLevel() {
+   int rc = LOG_ERR;
+   Init(); /* Just incase */
+   std::vector<FPPLoggerInstance*>::iterator it;
+
+   for (it = all.begin(); it != all.end(); it++) {
+      int level = (*it)->level;
+      if (level > rc) {
+         rc = level;
+      }
+   }
+
+   return rc;
+}
+
+void FPPLogger::SetAllLevel(LogLevel level) {
+   std::vector<FPPLoggerInstance*>::iterator it;
+   Init(); /* Just incase */
+
+   for (it = all.begin(); it != all.end(); it++) {
+      (*it)->level = level;
+   }
+}
+
+
+bool WillLog(int level, FPPLoggerInstance &facility) {
 
     // Don't log if we're not concerned about anything at this level
-    if (logLevel < level)
+    if (facility.level < level)
         return false;
     
     return true;
 }
 
-void _LogWrite(const char *file, int line, int level, int facility, const char *format, ...)
+void _LogWrite(const char *file, int line, int level, FPPLoggerInstance &facility, const char *format, ...)
 {
-	// Don't log if we're not logging this facility
-	if (!(logMask & facility))
-		return;
-
 	// Don't log if we're not concerned about anything at this level
-	if (logLevel < level)
+	if (!(WillLog(level, facility)))
 		return;
 
 	va_list arg;
@@ -74,7 +170,7 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
     int ms = tv.tv_usec / 1000;
     
 	int size = snprintf(timeStr, sizeof(timeStr),
-                    "%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d (%ld) %s:%d: %s",
+                    "%4d-%.2d-%.2d %.2d:%.2d:%.2d.%.3d (%ld) %s:%d [%s]: %s",
 					1900+tm.tm_year,
 					tm.tm_mon+1,
 					tm.tm_mday,
@@ -82,7 +178,7 @@ void _LogWrite(const char *file, int line, int level, int facility, const char *
 					tm.tm_min,
 					tm.tm_sec,
                     ms,
-                    syscall(SYS_gettid), file, line, format);
+                    syscall(SYS_gettid), file, line, facility.name.c_str(), format);
 
 	if (logFileName[0]) {
 		FILE *logFile;
@@ -126,26 +222,40 @@ void SetLogFile(const char *filename, bool toStdOut)
     logToStdOut = toStdOut;
 }
 
+std::string LogLevelToString(LogLevel level) {
+   if (level == LOG_WARN) {
+      return "warn";
+   } else if (level == LOG_DEBUG) {
+      return "debug";
+   } else if (level == LOG_INFO) {
+      return "info";
+   } else if (level == LOG_EXCESSIVE) {
+      return "excess";
+   } else {
+      return "unknown";
+   }
+}
+
 int SetLogLevel(const char *newLevel)
 {
+	LogErr(VB_SETTING, "Using Legacy Global Logging to set all to same Log Level of %s\n", newLevel);
 	if (!strcmp(newLevel, "warn")) {
-		logLevel = LOG_WARN;
+		FPPLogger::INSTANCE.SetAllLevel(LOG_WARN);
 	} else if (!strcmp(newLevel, "debug")) {
-		logLevel = LOG_DEBUG;
+		FPPLogger::INSTANCE.SetAllLevel(LOG_DEBUG);
 	} else if (!strcmp(newLevel, "info")) {
-		logLevel = LOG_INFO;
+		FPPLogger::INSTANCE.SetAllLevel(LOG_INFO);
 	} else if (!strcmp(newLevel, "excess")) {
-		logLevel = LOG_EXCESSIVE;
+		FPPLogger::INSTANCE.SetAllLevel(LOG_EXCESSIVE);
 	} else {
 		LogErr(VB_SETTING, "Unknown Log Level: %s\n", newLevel);
 		return 0;
 	}
 
-	strcpy(logLevelStr, newLevel);
-
 	return 1;
 }
 
+/*
 int SetLogMask(const char *newMask)
 {
 	char delim[2];
@@ -217,6 +327,7 @@ int SetLogMask(const char *newMask)
 
 	return 1;
 }
+*/
 
 int loggingToFile(void)
 {

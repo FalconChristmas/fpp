@@ -437,14 +437,13 @@ int parseArguments(int argc, char **argv)
 				settings.silenceMusic = strdup(optarg);
 				break;
 			case 2: // log-level
+				// This is legacy and shouldn't really be used.
 				if (SetLogLevel(optarg)) {
-					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", logLevel, optarg);
+					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", FPPLogger::INSTANCE.MinimumLogLevel(), optarg);
 				}
 				break;
 			case 3: // log-mask
-				if (SetLogMask(optarg)) {
-					LogInfo(VB_SETTING, "Log Mask set to %d (%s)\n", logMask, optarg);
-				}
+				LogWarn(VB_SETTING, "--log-mask is no longer supported and being ignored\n");
 				break;
 			case 'c': //config-file
 				if (FileExists(optarg))
@@ -526,8 +525,7 @@ int parseArguments(int argc, char **argv)
 			case 'C': //Configure Falcon hardware
                 PinCapabilities::InitGPIO();
 				SetLogFile("");
-				SetLogLevel("debug");
-				SetLogMask("setting");
+				FPPLogger::INSTANCE.Settings.level = LOG_DEBUG;
 				if (DetectFalconHardware((c == 'C') ? 1 : 0))
 					exit(1);
 				else
@@ -550,6 +548,7 @@ int parseArguments(int argc, char **argv)
 int main(int argc, char *argv[])
 {
     setupExceptionHandlers();
+    FPPLogger::INSTANCE.Init();
 	initSettings(argc, argv);
 
 	loadSettings("/home/fpp/media/settings");
@@ -677,7 +676,7 @@ int main(int argc, char *argv[])
 		if (!getDaemonize())
 			strcpy(darg, "-f");
 
-		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, "--log-level", logLevelStr, "--log-mask", logMaskStr, NULL);
+		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, NULL);
 	}
 
 	return 0;
@@ -760,9 +759,10 @@ void MainLoop(void)
     
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
 
-    if (logLevel == LOG_EXCESSIVE)
+    int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
+    if (lowestLogLevel == LOG_EXCESSIVE)
         WarningHolder::AddWarning(EXCESSIVE_LOG_LEVEL_WARNING);
-    else if (logLevel == LOG_DEBUG)
+    else if (lowestLogLevel == LOG_DEBUG)
         WarningHolder::AddWarning(DEBUG_LOG_LEVEL_WARNING);
 
     static const int MAX_EVENTS = 20;

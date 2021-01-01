@@ -1673,10 +1673,9 @@ int MultiSync::OpenControlSockets()
 
 void MultiSync::SendControlPacket(void *outBuf, int len)
 {
-	if ((logLevel == LOG_EXCESSIVE) &&
-		(logMask & VB_SYNC)) {
+	if (WillLog(LOG_EXCESSIVE, VB_SYNC)){
 		LogExcess(VB_SYNC, "SendControlPacket()\n");
-		HexDump("Sending Control packet with contents:", outBuf, len);
+		HexDump("Sending Control packet with contents:", outBuf, len, VB_SYNC);
 	}
 
 
@@ -1717,9 +1716,8 @@ void MultiSync::SendControlPacket(void *outBuf, int len)
 }
 void MultiSync::SendBroadcastPacket(void *outBuf, int len)
 {
-    if ((logLevel == LOG_EXCESSIVE) &&
-        (logMask & VB_SYNC)) {
-        HexDump("Sending Broadcast packet with contents:", outBuf, len);
+    if (WillLog(LOG_EXCESSIVE, VB_SYNC)) {
+        HexDump("Sending Broadcast packet with contents:", outBuf, len, VB_SYNC);
     }
 
     std::unique_lock<std::mutex> lock(m_socketLock);
@@ -2002,7 +2000,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly)
 
             if (len < sizeof(ControlPkt)) {
                 LogErr(VB_SYNC, "Error: Received control packet too short\n");
-                HexDump("Received data:", (void*)inBuf, len);
+                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
                 continue;
             }
             if (shouldSkipPacket(msg, msgcnt, v)) {
@@ -2052,20 +2050,19 @@ void MultiSync::ProcessControlPacket(bool pingOnly)
                 (pkt->fppd[2] != 'P') ||
                 (pkt->fppd[3] != 'D')) {
                 LogErr(VB_SYNC, "Error: Invalid Received Control Packet, missing 'FPPD' header\n");
-                HexDump("Received data:", (void*)inBuf, len);
+                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
                 continue;
             }
 
             if (len != (sizeof(ControlPkt) + pkt->extraDataLen)) {
                 LogErr(VB_SYNC, "Error: Expected %d data bytes, received %d\n",
                     pkt->extraDataLen, len - sizeof(ControlPkt));
-                HexDump("Received data:", (void*)inBuf, len);
+                HexDump("Received data:", (void*)inBuf, len, VB_SYNC);
                 continue;
             }
 
-            if ((logLevel == LOG_EXCESSIVE) &&
-                (logMask & VB_SYNC)) {
-                HexDump("Received MultiSync packet with contents:", (void*)inBuf, len);
+	    if (WillLog(LOG_EXCESSIVE, VB_SYNC)){
+                HexDump("Received MultiSync packet with contents:", (void*)inBuf, len, VB_SYNC);
             }
 
             if (!pingOnly || pkt->pktType == CTRL_PKT_PING) {
@@ -2255,7 +2252,7 @@ void MultiSync::ProcessSyncPacket(ControlPkt *pkt, int len, MultiSyncStats *stat
 {
 	if (pkt->extraDataLen < sizeof(SyncPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received sync packet\n");
-		HexDump("Received data:", (void*)&pkt, len);
+		HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
         stats->pktError++;
 		return;
 	}
@@ -2321,7 +2318,7 @@ void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *s
 
 	if (pkt->extraDataLen < sizeof(CommandPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received command packet\n");
-		HexDump("Received data:", (void*)&pkt, len);
+		HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
         stats->pktError++;
 		return;
 	}
@@ -2346,7 +2343,7 @@ void MultiSync::ProcessEventPacket(ControlPkt *pkt, int len, MultiSyncStats *sta
 
 	if (pkt->extraDataLen < sizeof(EventPkt)) {
 		LogErr(VB_SYNC, "Error: Invalid length of received Event packet\n");
-		HexDump("Received data:", (void*)&pkt, len);
+		HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
         stats->pktError++;
 		return;
 	}
@@ -2368,7 +2365,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stat
 
 	if (pkt->extraDataLen < 169) { // v1 packet length
 		LogErr(VB_SYNC, "ERROR: Invalid length of received Ping packet\n");
-		HexDump("Received data:", (void*)&pkt, len);
+		HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
         stats->pktError++;
 		return;
 	}
@@ -2379,13 +2376,13 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stat
 
 	if ((pingVersion == 1) && (pkt->extraDataLen > 169)) {
         LogErr(VB_SYNC, "ERROR: Ping v1 packet too long: %d\n", pkt->extraDataLen);
-		HexDump("Received data:", (void*)&pkt, len);
+		HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
         stats->pktError++;
 		return;
 	}
     if ((pingVersion == 2) && (pkt->extraDataLen > 214)) {
         LogErr(VB_SYNC, "ERROR: Ping v2 packet too long %d\n", pkt->extraDataLen);
-        HexDump("Received data:", (void*)&pkt, len);
+        HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
         stats->pktError++;
         return;
     }

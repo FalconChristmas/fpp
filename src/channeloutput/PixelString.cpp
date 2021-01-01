@@ -448,8 +448,7 @@ void PixelString::SetupMap(int vsOffset, const VirtualString &vs)
  */
 void PixelString::DumpMap(const char *msg)
 {
-	if ((logLevel == LOG_EXCESSIVE) &&
-		(logMask & VB_CHANNELOUT))
+	if (WillLog(LOG_EXCESSIVE, VB_CHANNELOUT))
 	{
 		LogExcess(VB_CHANNELOUT, "OutputMap: %s\n", msg);
 		for (int i = 0; i < m_outputChannels; i++)

@@ -127,7 +127,7 @@ int Touch(const std::string &File) {
 /*
  * Dump memory block in hex and human-readable formats
  */
-void HexDump(const char *title, const void *data, int len) {
+void HexDump(const char *title, const void *data, int len, FPPLoggerInstance &facility) {
 	int l = 0;
 	int i = 0;
 	int x = 0;
@@ -137,7 +137,7 @@ void HexDump(const char *title, const void *data, int len) {
 	char tmpStr[150];
 
 	sprintf( tmpStr, "%s: (%d bytes)\n", title, len);
-	LogInfo(VB_ALL, tmpStr);
+	LogInfo(facility, tmpStr);
 
 	while (l < len) {
 		if ( x == 0 ) {
@@ -163,7 +163,7 @@ void HexDump(const char *title, const void *data, int len) {
 			}
 
 			sprintf( tmpStr + strlen(tmpStr), "\n" );
-			LogInfo(VB_ALL, tmpStr);
+			LogInfo(facility, tmpStr);
 			x = 0;
 
 			sprintf( tmpStr, "%06x: ", i );
@@ -192,7 +192,7 @@ void HexDump(const char *title, const void *data, int len) {
 	}
 
 	sprintf( tmpStr + strlen(tmpStr), "\n" );
-	LogInfo(VB_ALL, tmpStr);
+	LogInfo(facility, tmpStr);
 }
 
 /*

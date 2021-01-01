@@ -137,12 +137,27 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Gets the current log level and mask",
+                    "desc": "Gets the current log for each log instance",
                     "output": {
-                        "log": {
-                            "level": "info",
-                            "mask":" channelout,command,control,e131bridge"
-                        },
+			    "log":{
+				 "ChannelData":"warn",
+			         "ChannelOut":"warn",
+				 "Command":"info",
+				 "Control":"warn",
+				 "E131Bridge":"warn",
+				 "Effect":"warn",
+				 "Event":"warn",
+				 "GPIO":"warn",
+				 "General":"warn",
+				 "HTTP":"warn",
+				 "MediaOut":"warn",
+				 "Playlist":"debug",
+				 "Plugin":"warn",
+				 "Schedule":"warn",
+				 "Sequence":"warn",
+				 "Settings":"warn",
+				 "Sync":"warn"
+			    },
                         "Status":"OK",
                         "Message":""
                     }

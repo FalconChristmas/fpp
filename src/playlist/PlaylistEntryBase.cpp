@@ -103,7 +103,7 @@ int PlaylistEntryBase::StartPlaying(void)
 	m_isFinished = 0;
 	m_playCount++;
 
-	if ((logLevel & LOG_DEBUG) && (logMask & VB_PLAYLIST))
+	if (WillLog(LOG_DEBUG, VB_PLAYLIST))
 		Dump();
 
 	return 1;

@@ -181,7 +181,7 @@ int SPInRF24L01Output::Init(Json::Value config) {
     
     data->radio = radio;
     
-    if (logMask & VB_CHANNELOUT && LogLevelIsSet(LOG_DEBUG)) {
+    if (WillLog(LOG_DEBUG, VB_CHANNELOUT)) {
         data->radio->printDetails();
     }
     

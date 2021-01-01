@@ -374,22 +374,26 @@ char *ProcessCommand(char *command, char *response)
         }
     } else if (!strcmp(CommandStr, "LogLevel")) {
         s = strtok(NULL,",");
+	s2 = NULL;
+	if (s != NULL)
+	   s2 = strtok(NULL, ",");
 
-        if (SetLogLevel(s)) {
-            sprintf(response,"%d,%d,Log Level Updated,%d,%d,,,,,,,,,\n",
-                getFPPmode(),COMMAND_SUCCESS,logLevel,logMask);
+        if (FPPLogger::INSTANCE.SetLevel(s,s2)) {
+            sprintf(response,"%d,%d,Log Level Updated,%s,%s,,,,,,,,,\n",
+                getFPPmode(),COMMAND_SUCCESS,s,s2);
 
             WarningHolder::RemoveWarning(EXCESSIVE_LOG_LEVEL_WARNING);
             WarningHolder::RemoveWarning(DEBUG_LOG_LEVEL_WARNING);
-
-            if (!strcmp(s, "excess"))
+            int lowestLogLevel = FPPLogger::INSTANCE.MinimumLogLevel();
+            if (lowestLogLevel == LOG_EXCESSIVE)
                 WarningHolder::AddWarning(EXCESSIVE_LOG_LEVEL_WARNING);
-            else if (!strcmp(s, "debug"))
+            else if (lowestLogLevel==LOG_DEBUG)
                 WarningHolder::AddWarning(DEBUG_LOG_LEVEL_WARNING);
         } else {
-            sprintf(response,"%d,%d,Error Updating Log Level,%d,%d,,,,,,,,,\n",
-                getFPPmode(),COMMAND_FAILED,logLevel,logMask);
+            sprintf(response,"%d,%d,Error Updating Log Level,%s,%s,,,,,,,,,\n",
+                getFPPmode(),COMMAND_FAILED,s,s2);
         }
+/*
     } else if (!strcmp(CommandStr, "LogMask")) {
         s = strtok(NULL,",");
 
@@ -400,6 +404,7 @@ char *ProcessCommand(char *command, char *response)
             sprintf(response,"%d,%d,Error Updating Log Mask,%d,%d,,,,,,,,,\n",
                 getFPPmode(),COMMAND_FAILED,logLevel,logMask);
         }
+*/
     } else if (!strcmp(CommandStr, "SetSetting")) {
         char name[128];
 

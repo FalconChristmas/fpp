@@ -81,7 +81,7 @@ int DebugOutput::SendData(unsigned char *channelData)
 {
 	LogExcess(VB_CHANNELOUT, "DebugOutput::RawSendData(%p)\n", channelData);
 
-	HexDump("DebugOutput::RawSendData", channelData, m_channelCount);
+	HexDump("DebugOutput::RawSendData", channelData, m_channelCount, VB_CHANNELOUT);
 
 	return m_channelCount;
 }

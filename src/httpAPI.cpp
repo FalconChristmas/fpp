@@ -110,9 +110,9 @@ void LogRequest(const http_request &req)
  */
 void LogResponse(const http_request &req, int responseCode, const std::string &content)
 {
-	if (LogLevelIsSet(LOG_EXCESSIVE))
+	if (WillLog(LOG_EXCESSIVE, VB_HTTP))
 	{
-		LogDebug(VB_HTTP, "API Res: %s%s %d %s\n",
+		LogExcess(VB_HTTP, "API Res: %s%s %d %s\n",
 			req.get_path().c_str(),
 			req.get_querystring().c_str(),
 			responseCode,
@@ -293,12 +293,11 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
 	else if (replaceStart(url, "log/level/"))
 	{
 		SetLogLevel(url.c_str());
-		SetOKResult(result, "Log Level set");
+		SetOKResult(result, "Log Level Updated, but this is Depreicated");
 	}
 	else if (replaceStart(url, "log/mask/"))
 	{
-		SetLogMask(url.c_str());
-		SetOKResult(result, "Log Mask set");
+		SetOKResult(result, "Log Mask Ignored. No Longer Supported");
 	}
 	else if (url == "outputs")
 	{
@@ -597,9 +596,14 @@ void PlayerResource::GetLogSettings(Json::Value &result)
 {
 	SetOKResult(result, "");
 	Json::Value log;
+	std::vector<FPPLoggerInstance *> allLoggers = FPPLogger::INSTANCE.allInstances();
+	std::vector<FPPLoggerInstance*>::iterator it;
 
-	log["level"] = logLevelStr;
-	log["mask"] = logMaskStr;
+	for (it = allLoggers.begin(); it != allLoggers.end(); it++) {
+           FPPLoggerInstance *ptr = *it;
+	   log[ptr->name] = LogLevelToString(ptr->level);
+	}
+
 	result["log"] = log;
 }
 
