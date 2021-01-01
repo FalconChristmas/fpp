@@ -35,19 +35,19 @@ $logLevels['Excessive'] = 'excess';
 PrintSetting('LogLevel_General');
 PrintSetting('LogLevel_ChannelOut');
 PrintSetting('LogLevel_ChannelData');
+PrintSetting('LogLevel_Control');
 PrintSetting('LogLevel_E131Bridge');
 PrintSetting('LogLevel_Effect');
 PrintSetting('LogLevel_Event');
-PrintSetting('LogLevel_MediaOut');
-PrintSetting('LogLevel_Playlist');
-PrintSetting('LogLevel_Schedule');
-PrintSetting('LogLevel_Sequence');
-PrintSetting('LogLevel_Settings');
-PrintSetting('LogLevel_Control');
-PrintSetting('LogLevel_Sync');
-PrintSetting('LogLevel_Plugin');
 PrintSetting('LogLevel_GPIO');
 PrintSetting('LogLevel_HTTP');
+PrintSetting('LogLevel_MediaOut');
+PrintSetting('LogLevel_Playlist');
+PrintSetting('LogLevel_Plugin');
+PrintSetting('LogLevel_Schedule');
+PrintSetting('LogLevel_Settings');
+PrintSetting('LogLevel_Sequence');
+PrintSetting('LogLevel_Sync');
 ?>
 
 <script>
