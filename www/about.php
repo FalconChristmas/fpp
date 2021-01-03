@@ -118,8 +118,18 @@ function UpdateVersionInfo() {
         $('#fppdUptime').html(data.uptime);
         $('#osVersion').html(data.advancedView.OSVersion);
         $('#osRelease').html(data.advancedView.OSRelease);
-        $('#localGitVersion').html(data.advancedView.LocalGitVersion);
-        $('#remoteGitVersion').html(data.advancedView.RemoteGitVersion);
+
+        var localVer = data.advancedView.LocalGitVersion + " <a href='changelog.php'>ChangeLog</a>";
+        var remoteVer = data.advancedView.RemoteGitVersion;
+        if ((data.advancedView.RemoteGitVersion != "") &&
+            (data.advancedView.RemoteGitVersion != "Unknown") &&
+            (data.advancedView.RemoteGitVersion != data.advancedView.LocalGitVersion)) {
+            localVer += " <font color='#FF0000'>(Update is available)</font>";
+            remoteVer += " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
+        }
+
+        $('#localGitVersion').html(localVer);
+        $('#remoteGitVersion').html(remoteVer);
     });
 }
 
@@ -262,11 +272,11 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
             <tr><td>Local Git Version:</td><td id='localGitVersion'>
 <?
   echo $git_version;
+  echo " <a href='changelog.php'>ChangeLog</a>";
   if (($git_remote_version != "") &&
       ($git_remote_version != "Unknown") &&
       ($git_version != $git_remote_version))
     echo " <font color='#FF0000'>(Update is available)</font>";
-	echo " <a href='changelog.php'>ChangeLog</a>";
 ?>
                 </td></tr>
             <tr><td>Remote Git Version:</td><td id='remoteGitVersion'>
