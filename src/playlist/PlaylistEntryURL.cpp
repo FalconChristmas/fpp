@@ -83,6 +83,13 @@ int PlaylistEntryURL::Init(Json::Value &config)
 		return 0;
 	}
 
+	status = curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT, 2L);
+	if (status != CURLE_OK)
+	{
+		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting connect timeout: %s\n", curl_easy_strerror(status));
+		return 0;
+	}
+
 	status = curl_easy_setopt(m_curl, CURLOPT_TIMEOUT, 30L);
 	if (status != CURLE_OK)
 	{
@@ -120,6 +127,7 @@ int PlaylistEntryURL::StartPlaying(void)
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting URL: %s\n", curl_easy_strerror(status));
+		FinishPlay();
 		return 0;
 	}
 
@@ -130,6 +138,7 @@ int PlaylistEntryURL::StartPlaying(void)
 		if (status != CURLE_OK)
 		{
 			LogErr(VB_PLAYLIST, "curl_easy_setopt() Error setting post data: %s\n", curl_easy_strerror(status));
+			FinishPlay();
 			return 0;
 		}
 	}
@@ -138,6 +147,7 @@ int PlaylistEntryURL::StartPlaying(void)
 	if (status != CURLE_OK)
 	{
 		LogErr(VB_PLAYLIST, "curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+		FinishPlay();
 		return 0;
 	}
 
