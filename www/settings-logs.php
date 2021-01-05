@@ -20,41 +20,30 @@ function updateSettings() {
     });
 }
 
-</script>
+function changeAll(newVal) {
+   console.log("Changing all to ", newVal);
+   $("select[id^=LogLevel]").val(newVal).trigger("change");
+}
 
-<?
-$logLevels = Array();
-$logLevels['Warn'] = 'warn';
-$logLevels['Info'] = 'info';
-$logLevels['Debug'] = 'debug';
-$logLevels['Excessive'] = 'excess';
-?>
-
-<table class='settingsTable'>
-<?
-PrintSetting('LogLevel_General');
-PrintSetting('LogLevel_ChannelOut');
-PrintSetting('LogLevel_ChannelData');
-PrintSetting('LogLevel_Control');
-PrintSetting('LogLevel_E131Bridge');
-PrintSetting('LogLevel_Effect');
-PrintSetting('LogLevel_Event');
-PrintSetting('LogLevel_GPIO');
-PrintSetting('LogLevel_HTTP');
-PrintSetting('LogLevel_MediaOut');
-PrintSetting('LogLevel_Playlist');
-PrintSetting('LogLevel_Plugin');
-PrintSetting('LogLevel_Schedule');
-PrintSetting('LogLevel_Settings');
-PrintSetting('LogLevel_Sequence');
-PrintSetting('LogLevel_Sync');
-?>
-
-<script>
-var logLevel = settings['LogLevel'];
-if (typeof logLevel === 'undefined')
-    logLevel = "info";
-
-$('#LogLevel').val(logLevel);
 
 </script>
+
+
+<div style="margin-bottom:1em;">
+   <i>Note: It is recommend that the Log Level be set to <b>Info</b> 
+      on production systems</i>
+</div>
+<?
+PrintSettingGroup('log-levels');
+?>
+
+<div>
+   <b>Bulk Change Log Level</b>
+   <div>
+      <button onclick="changeAll('error')">Errors Only</button>
+      <button onclick="changeAll('warn')">Warn</button>
+      <button onclick="changeAll('info')">Info</button>
+      <button onclick="changeAll('debug')">Debug</button>
+      <button onclick="changeAll('excess')">Excessive</button>
+   </div>
+</div>

@@ -231,6 +231,8 @@ std::string LogLevelToString(LogLevel level) {
       return "info";
    } else if (level == LOG_EXCESSIVE) {
       return "excess";
+   } else if (level == LOG_ERR) {
+      return "error";
    } else {
       return "unknown";
    }
@@ -246,7 +248,9 @@ int SetLogLevel(const char *newLevel)
 	} else if (!strcmp(newLevel, "info")) {
 		FPPLogger::INSTANCE.SetAllLevel(LOG_INFO);
 	} else if (!strcmp(newLevel, "excess")) {
-		FPPLogger::INSTANCE.SetAllLevel(LOG_EXCESSIVE);
+		FPPLogger::INSTANCE.SetAllLevel(LOG_INFO);
+	} else if (!strcmp(newLevel, "error")) {
+		FPPLogger::INSTANCE.SetAllLevel(LOG_ERR);
 	} else {
 		LogErr(VB_SETTING, "Unknown Log Level: %s\n", newLevel);
 		return 0;

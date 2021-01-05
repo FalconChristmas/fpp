@@ -22,6 +22,27 @@
                 "emailtoemail"
             ]
         },
+        "log-levels": {
+            "description": "Log Levels",
+            "settings": [
+                "LogLevel_General",
+                "LogLevel_ChannelOut",
+                "LogLevel_ChannelData",
+                "LogLevel_Control",
+                "LogLevel_E131Bridge",
+                "LogLevel_Effect",
+                "LogLevel_Event",
+                "LogLevel_GPIO",
+                "LogLevel_HTTP",
+                "LogLevel_MediaOut",
+                "LogLevel_Playlist",
+                "LogLevel_Plugin",
+                "LogLevel_Schedule",
+                "LogLevel_Settings",
+                "LogLevel_Sequence",
+                "LogLevel_Sync"
+	    ]
+	},
         "geolocation": {
             "description": "Geographic Location",
             "settings": [
@@ -538,11 +559,12 @@
         },
         "LogLevel_General": {
             "name": "LogLevel_General",
-            "description": "General Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for General Functions.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "General",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for General Functions. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -551,11 +573,12 @@
         },
         "LogLevel_ChannelOut": {
             "name": "LogLevel_ChannelOut",
-            "description": "ChannelOut Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Channel Testing and Overlays.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "ChannelOut",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Channel Testing and Overlays. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -564,11 +587,12 @@
         },
         "LogLevel_ChannelData": {
             "name": "LogLevel_ChannelData",
-            "description": "ChannelData Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Serial and LOR output.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "ChannelData",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Serial and LOR output. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -577,11 +601,12 @@
         },
         "LogLevel_Command": {
             "name": "LogLevel_Command",
-            "description": "Command Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Commands.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Command",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Commands. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -590,11 +615,12 @@
         },
         "LogLevel_E131Bridge": {
             "name": "LogLevel_E131Bridge",
-            "description": "E131Bridge Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for E131 and DDP input Bridge.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "E131Bridge",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for E131 and DDP input Bridge. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -603,11 +629,12 @@
         },
         "LogLevel_Effect": {
             "name": "LogLevel_Effect",
-            "description": "Effect Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Effects.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Effect",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Effects. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -616,11 +643,12 @@
         },
         "LogLevel_Event": {
             "name": "LogLevel_Event",
-            "description": "Event Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Events.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Event",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Events. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -629,11 +657,12 @@
         },
         "LogLevel_MediaOut": {
             "name": "LogLevel_MediaOut",
-            "description": "MediaOut Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Audio and Video Output.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "MediaOut",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Audio and Video Output. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -642,11 +671,12 @@
         },
         "LogLevel_Playlist": {
             "name": "LogLevel_Playlist",
-            "description": "Playlist Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Playlis .  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Playlist",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Playlis . ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -655,11 +685,12 @@
         },
         "LogLevel_Schedule": {
             "name": "LogLevel_Schedule",
-            "description": "Schedule Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for the Scheduler.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Schedule",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for the Scheduler. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -668,11 +699,12 @@
         },
         "LogLevel_Sequence": {
             "name": "LogLevel_Sequence",
-            "description": "Sequence Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Sequence Parsing.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Sequence",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Sequence Parsing. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -681,11 +713,12 @@
         },
         "LogLevel_Settings": {
             "name": "LogLevel_Settings",
-            "description": "Settings Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs when parsing Settings.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Settings",
+            "tip": "The Log Level controls the detail amount included in the FPP logs when parsing Settings. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -694,11 +727,12 @@
         },
         "LogLevel_Control": {
             "name": "LogLevel_Control",
-            "description": "Control Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for MQTT input  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Control",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for MQTT input ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -707,11 +741,12 @@
         },
         "LogLevel_Sync": {
             "name": "LogLevel_Sync",
-            "description": "Sync Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for MultiSync.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Sync",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for MultiSync. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -720,11 +755,12 @@
         },
         "LogLevel_Plugin": {
             "name": "LogLevel_Plugin",
-            "description": "Plugin Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Plugin Management.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "Plugin",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for Plugin Management. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -733,11 +769,12 @@
         },
         "LogLevel_GPIO": {
             "name": "LogLevel_GPIO",
-            "description": "GPIO Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for GPIO Input/Output.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "GPIO",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for GPIO Input/Output. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
@@ -746,11 +783,12 @@
         },
         "LogLevel_HTTP": {
             "name": "LogLevel_HTTP",
-            "description": "HTTP Log Level",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for fppd Rest API.  It is recommended that the Log Level be set to 'Info' on production systems",
+            "description": "HTTP",
+            "tip": "The Log Level controls the detail amount included in the FPP logs for fppd Rest API. ",
             "default": "info",
             "type": "select",
             "options": {
+                "Errors Only": "error",
                 "Warn": "warn",
                 "Info": "info",
                 "Debug": "debug",
