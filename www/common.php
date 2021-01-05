@@ -1617,7 +1617,8 @@ function getKnownFPPSystems() {
 
    if (array_key_exists("systems", $arr)) {
       foreach ($arr["systems"] as $i) {
-        if ($i["typeId"] == 1) {
+        // FPP Systems are 0x01 to 0x80
+        if ($i["typeId"] >= 1 && $i["typeId"] < 128) {
             $desc = $i["address"] . " - " . $i["hostname"];
 	    $backupHosts[$desc] = $i["address"];
          }
