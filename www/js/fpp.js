@@ -4594,6 +4594,14 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
          } else if (val['type'] == "date") {
             haveDate = 1;
             line += "<input class='date center arg_" + val['name'] + "' id='" + ID + "' type='text' size='10' value='2020-01-01'/>";
+         } else if (val['type'] == "range") {
+             line += val['min'] + "<input type='range' class='arg_" + val['name'] + ",cmdArgSlider' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
+             if (dv != "") {
+                line += " value='" + dv + "'";
+             } else if (typeof val['min'] != "undefined") {
+                line += " value='" + val['min'] + "'";
+             }
+             line += "></input>" + val['max'];
          } else if ((val['type'] == "int") || (val['type'] == "float")) {
              line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
              if (dv != "") {

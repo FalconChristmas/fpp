@@ -23,6 +23,8 @@
 #include "PixelOverlayModel.h"
 #include "PixelOverlay.h"
 
+#include "WLEDEffects.h"
+
 static uint32_t applyColorPct(uint32_t c, float pct) {
     uint32_t r = (c >> 16) & 0xFF;
     uint32_t g = (c >> 8) & 0xFF;
@@ -682,6 +684,11 @@ public:
         add(new BarsEffect());
         add(new TextEffect());
         add(new StopEffect());
+        
+        std::list<PixelOverlayEffect *> wled = WLEDEffect::getWLEDEffects();
+        for (auto a : wled) {
+            add(a);
+        }
     }
     ~PixelOverlayEffectHolder() {
         for (auto &a : effects) {

@@ -56,6 +56,7 @@ OBJECTS_fpp_so += \
 	overlays/PixelOverlay.o \
     overlays/PixelOverlayEffects.o \
 	overlays/PixelOverlayModel.o \
+    overlays/WLEDEffects.o \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \
