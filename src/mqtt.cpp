@@ -530,6 +530,8 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 
 		} else if (topic == "effect/start") {
 			StartEffect(payload.c_str(), 0);
+		} else if (topic == "effect/start/loop") {
+			StartEffect(payload.c_str(), 0, 1);
 		}
 
 		return ;
