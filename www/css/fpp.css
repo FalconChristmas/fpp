@@ -932,6 +932,11 @@ fieldset
 	margin-left: auto;
 	margin-right: auto;
 }
+
+.fppTabs {
+	min-width: 650px;
+}
+
 .fileDetails {
 	font-size: 13px;
 }
