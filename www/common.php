@@ -1609,6 +1609,25 @@ function network_wifi_strength_obj()
 }
 
 
+// Return array of FPP Only systems
+function getKnownFPPSystems() {
+   $backupHosts = Array();
+   $data = file_get_contents('http://localhost/api/fppd/multiSyncSystems');
+   $arr = json_decode($data, true);
+
+   if (array_key_exists("systems", $arr)) {
+      foreach ($arr["systems"] as $i) {
+        if ($i["typeId"] == 1) {
+            $desc = $i["address"] . " - " . $i["hostname"];
+	    $backupHosts[$desc] = $i["address"];
+         }
+      }
+      ksort($backupHosts);
+   }
+   return $backupHosts;
+}
+
+
 /////////////////////////////////////////////////////////////////////////////
 
 ?>

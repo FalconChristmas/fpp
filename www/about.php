@@ -292,12 +292,11 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
 <?
     if ($settings['uiLevel'] > 0) {
         $upgradeSources = Array();
-        $data = file_get_contents('http://localhost/api/remotes');
-        $arr = json_decode($data, true);
+        $remotes = getKnownFPPSystems();
         
         $IPs = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | sed -e 's/://g' | while read iface ; do /sbin/ifconfig \$iface | grep 'inet ' | awk '{print \$2}'; done")));
 
-        foreach ($arr as $host => $desc) {
+        foreach ($remotes as $desc => $host) {
             if ((!in_array($host, $IPs)) && (!preg_match('/^169\.254\./', $host))) {
                 $upgradeSources[$desc] = $host;
             }

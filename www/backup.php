@@ -1388,15 +1388,7 @@ moveBackupFiles_ToBackupDirectory();
 </script>
 
 <?
-$backupHosts = Array();
-$data = file_get_contents('http://localhost/api/remotes');
-$arr = json_decode($data, true);
-
-foreach ($arr as $host => $desc) {
-    $backupHosts[$desc] = $host;
-}
-ksort($backupHosts);
-
+$backupHosts = getKnownFPPSystems();
 ?>
     <script type="text/javascript">
         var settings = new Array();
