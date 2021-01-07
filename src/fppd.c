@@ -664,6 +664,7 @@ int main(int argc, char *argv[])
 
     MagickLib::DestroyMagick();
 	curl_global_cleanup();
+	std::string logLevelString = FPPLogger::INSTANCE.GetLogLevelString();
 
 	CloseOpenFiles();
 
@@ -672,8 +673,7 @@ int main(int argc, char *argv[])
 		char darg[3] = "-d";
 		if (!getDaemonize())
 			strcpy(darg, "-f");
-
-		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, NULL);
+		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, "--log-level", logLevelString.c_str(), NULL);
 	}
 
 	return 0;
