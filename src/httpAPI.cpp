@@ -292,12 +292,8 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
 	}
 	else if (replaceStart(url, "log/level/"))
 	{
-		SetLogLevel(url.c_str());
-		SetOKResult(result, "Log Level Updated, but this is Depreicated");
-	}
-	else if (replaceStart(url, "log/mask/"))
-	{
-		SetOKResult(result, "Log Mask Ignored. No Longer Supported");
+		SetLogLevelComplex(url);
+		SetOKResult(result, "Log Level Updated");
 	}
 	else if (url == "outputs")
 	{
