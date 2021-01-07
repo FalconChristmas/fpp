@@ -1,0 +1,24 @@
+{% if app.environment == 'local' %}
+    {% set page_modifiers = page_modifiers|merge(['dev']) %}
+{% endif %}
+{% set title = title|default(null) %}
+{% set body_attr = body_attr|default('page') %}
+{% set body_attrs = {
+    'class': render_classes(body_attr, page_modifiers|default([])),
+}|merge(page_attrs|default({})) %}
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <title>FPP player{% if title != null %} - {{ title }}{% endif %}</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    {% block headtags '' %}
+</head>
+
+<body {{ render_attrs(body_attrs) }}>
+{% block body '' %}
+</body>
+</html>

@@ -1,0 +1,60 @@
+{
+    "name": "ricardoper/slim4-twig-skeleton",
+    "type": "library",
+    "license": "MIT",
+    "description": "A better Slim Framework 4 Skeleton with Twig that offers a sane folder structure where everything is customizable",
+    "keywords": [
+        "PHP",
+        "Slim",
+        "Framework",
+        "Skeleton",
+        "Twig",
+        "Views",
+        "Flash",
+        "Messages"
+    ],
+    "homepage": "https://github.com/ricardoper",
+    "authors": [
+        {
+            "name": "Ricardo Pereira",
+            "email": "github@ricardopereira.es",
+            "homepage": "http://ricardopereira.es"
+        }
+    ],
+    "require": {
+        "php": "^7.2",
+        "ext-json": "*",
+        "psr/log": "^1.1",
+        "slim/slim": "^4.5",
+        "slim/psr7": "^1.1",
+        "pimple/pimple": "^3.3",
+        "vlucas/phpdotenv": "^4.1",
+        "slim/twig-view": "^3.1",
+        "slim/flash": "^0.4.0"
+    },
+    "require-dev": {
+        "ricardoper/ddumper": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        },
+        "files": [
+            "app/Kernel/Helpers/helpers.php",
+            "app/Kernel/Helpers/arrayHelpers.php"
+        ]
+    },
+    "suggest": {
+        "catfan/medoo": "The Lightweight PHP Database Framework to Accelerate Development",
+        "ext-pdo_mysql": "For MySQL or MariaDB database",
+        "ext-pdo_sqlsrv": "For MSSQL database on both Window/Liunx platform",
+        "ext-pdo_dblib": "For MSSQL or Sybase database on Linux/UNIX platform",
+        "ext-pdo_oci": "For Oracle database",
+        "ext-pdo_oci8": "For Oracle version 8 database",
+        "ext-pdo_pqsql": "For PostgreSQL database",
+        "ext-pdo_sqlite": "For SQLite database"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}
