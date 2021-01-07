@@ -356,11 +356,13 @@ printf("Usage: %s [OPTION...]\n"
 "  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
 "  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
 "  -h, --help                    - This menu.\n"
-"      --log-level LEVEL         - Set the log output level:\n"
+"      --log-level LEVEL         - Set the global log output level (all loggers):\n"
 "                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
-"      --log-mask LIST           - Set the log output mask, where LIST is a\n"
-"                                  comma-separated list made up of one or more\n"
-"                                  of the following items:\n"
+"      --log-level LEVEL:logger  - Set the loger level for one or more loggers.\n"
+"                                  each level should be spereated by semicolon\n"
+"                                  with one or more loggers seperated by comma\n"
+"                                  example: debug:schedule,player;excess:mqtt \n"
+"                                  valid loggers are: \n"
 "                                    channeldata - channel data itself\n"
 "                                    channelout  - channel output code\n"
 "                                    command     - command processing\n"
@@ -380,8 +382,7 @@ printf("Usage: %s [OPTION...]\n"
 "                                    sync        - Master/Remote Synchronization\n"
 "                                    all         - ALL log messages\n"
 "                                    most        - Most excluding \"channeldata\"\n"
-"                                  The default logging is:\n"
-"                                    '--log-level info --log-mask most'\n"
+"                                  The default logging is read from settings\n"
 	, appname);
 }
 extern SettingsConfig settings;
@@ -418,7 +419,6 @@ int parseArguments(int argc, char **argv)
 			{"help",				no_argument,		0, 'h'},
 			{"silence-music",		required_argument,	0,	1 },
 			{"log-level",			required_argument,	0,  2 },
-			{"log-mask",			required_argument,	0,  3 },
 			{0,						0,					0,	0}
 		};
 
@@ -437,13 +437,10 @@ int parseArguments(int argc, char **argv)
 				settings.silenceMusic = strdup(optarg);
 				break;
 			case 2: // log-level
-				// This is legacy and shouldn't really be used.
-				if (SetLogLevel(optarg)) {
+				if (SetLogLevelComplex(optarg)) {
+					std::cout << FPPLogger::INSTANCE.GetLogLevelString() << std::endl;
 					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", FPPLogger::INSTANCE.MinimumLogLevel(), optarg);
 				}
-				break;
-			case 3: // log-mask
-				LogWarn(VB_SETTING, "--log-mask is no longer supported and being ignored\n");
 				break;
 			case 'c': //config-file
 				if (FileExists(optarg))

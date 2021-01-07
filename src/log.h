@@ -61,9 +61,10 @@ class FPPLogger {
       const std::vector<FPPLoggerInstance *>& allInstances() {return all; }
       void Init();
       bool SetLevel(std::string name, LogLevel level);
-      bool SetLevel(char *name, char *level);
+      bool SetLevel(const char *name, const char *level);
       void SetAllLevel(LogLevel level);
       int  MinimumLogLevel();
+      std::string GetLogLevelString();
       FPPLoggerInstance General = FPPLoggerInstance("General");
       FPPLoggerInstance ChannelOut = FPPLoggerInstance("ChannelOut");
       FPPLoggerInstance ChannelData = FPPLoggerInstance("ChannelData");
@@ -127,7 +128,9 @@ void SetLogFile(const char *filename, bool toStdOut = true);
 int loggingToFile(void);
 void logVersionInfo(void);
 
-int SetLogLevel(const char *newLevel);
+bool SetLogLevel(const char *newLevel);
+bool SetLogLevelComplex(std::string &input ); /*parse debug:schedule,player;excess:mqtt*/
+bool SetLogLevelComplex(const char *input ); /*parse debug:schedule,player;excess:mqtt*/
 std::string LogLevelToString(LogLevel level); /* Convert Level to String Equivilanent */
 
 
