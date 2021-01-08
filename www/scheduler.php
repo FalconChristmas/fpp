@@ -654,12 +654,12 @@ a:visited {
                                 </table>
                             </span>
                         </td>
+                        <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
+<span class='offset startOffset'><br>Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
                                 <option value='playlist'>Playlist</option>
                                 <option value='command'>Command</option>
                             </select></td>
-                        <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset startOffset'><br>Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <!-- start 'Playlist' options -->
                         <td class='schOptionsPlaylist'><select class='schPlaylist' style='max-width: 200px;' title=''>
                             </select></td>
@@ -703,8 +703,8 @@ a:visited {
                             <th rowspan='2' title='Schedule enabled/disabled'>Act<br>ive</th>
                             <th rowspan='2' title='Start / End Dates'>Start /<br>End Dates</th>
                             <th rowspan='2' title='Day(s) of the week'>Day(s)</th>
-                            <th rowspan='2' title='Schedule Type'>Schedule<br>Type</th>
                             <th rowspan='2' title='Start Time'>Start<br>Time</th>
+                            <th rowspan='2' title='Schedule Type'>Schedule<br>Type</th>
                             <th title='Playlist'>Playlist</th>
                             <th title='End Time'>End Time</th>
                             <th title='Repeat playlist'>Repeat</th>
