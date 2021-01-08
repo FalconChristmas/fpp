@@ -107,6 +107,12 @@ function AddScheduleEntry(data = {}) {
         row.find('.schOptionsCommand').hide();
         row.find('.schPlaylist').val(data.playlist);
         row.find('.schType').val('playlist');
+
+        row.find('.schPlaylist').tooltip({
+            content: function() {
+                return $(this).val();
+            }
+        });
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
@@ -653,12 +659,12 @@ a:visited {
                                 <option value='command'>Command</option>
                             </select></td>
                         <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset startOffset'>&nbsp;Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+<span class='offset startOffset'><br>Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <!-- start 'Playlist' options -->
-                        <td class='schOptionsPlaylist'><select class='schPlaylist'>
+                        <td class='schOptionsPlaylist'><select class='schPlaylist' style='max-width: 200px;' title=''>
                             </select></td>
                         <td class='schOptionsPlaylist'><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset endOffset'>&nbsp;Offset: <input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+<span class='offset endOffset'><br>Offset: <input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <td class='schOptionsPlaylist' class='center' >
                             <select class='schRepeat'>
                                 <option value='0'>None</option>
