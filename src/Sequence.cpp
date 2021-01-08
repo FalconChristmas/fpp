@@ -498,7 +498,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         if (!frameCache.empty()) {
             FSEQFile::FrameData *data = frameCache.front();
             frameCache.pop_front();
-            if (pastFrameCache.size() > 5) {
+            if (pastFrameCache.size() > 20) {
                 if (pastFrameCache.front() != m_lastFrameData)
                     delete pastFrameCache.front();
                 pastFrameCache.pop_front();

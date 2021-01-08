@@ -116,7 +116,7 @@ void *RunChannelOutputThread(void *data)
 	long long sendTime;
 	long long readTime;
     long long processTime;
-    int onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
+    int onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
 	struct timespec ts;
     struct timeval tv;
     int slowFrameCount = 0;
@@ -229,7 +229,7 @@ void *RunChannelOutputThread(void *data)
 			(getFPPmode() == BRIDGE_MODE))
 		{
             // REMOTE mode keeps looping a few extra times before we blank
-            onceMore = (getFPPmode() == REMOTE_MODE) ? 8 : 1;
+            onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
             int sleepTime = LightDelay - (processTime - startTime);
 			if ((channelOutputFrame <= 1) || (sleepTime <= 0) || (startTime > (lastStatTime + 1000000))) {
 				if (sleepTime < 0)
