@@ -30,7 +30,7 @@
 
 class PlaylistEntryVolume : public PlaylistEntryBase {
   public:
-	PlaylistEntryVolume(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryVolume(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryVolume();
 
 	virtual int  Init(Json::Value &config) override;

@@ -29,8 +29,8 @@
 /*
  *
  */
-PlaylistEntryURL::PlaylistEntryURL(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryURL::PlaylistEntryURL(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_curl(NULL)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryURL::PlaylistEntryURL()\n");

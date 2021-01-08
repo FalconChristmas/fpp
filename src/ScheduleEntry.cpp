@@ -340,20 +340,44 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
     dayIndex           = entry["day"].asInt();
     repeatInterval     = entry["repeat"].asInt();
     repeat             = repeatInterval == 1;
+
+    if (entry.isMember("command"))
+        command = entry["command"].asString();
+
+    if (entry.isMember("args"))
+        args = entry["args"];
     
     repeatInterval /= 100;
     repeatInterval *= 60; //seconds betweeen intervals
     
 
+    if (!entry.isMember("startTime") || (entry["startTime"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid startTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
     mapTimeString(entry["startTime"].asString(), startHour, startMinute, startSecond);
+
+    if (!entry.isMember("endTime") || (entry["endTime"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
     mapTimeString(entry["endTime"].asString(), endHour, endMinute, endSecond);
+
     if (entry.isMember("startTimeOffset")) {
         startTimeOffset = atoi(entry["startTimeOffset"].asString().c_str());
     }
+
     if (entry.isMember("endTimeOffset")) {
         endTimeOffset = atoi(entry["endTimeOffset"].asString().c_str());
     }
 
+    if (!entry.isMember("startDate") || (entry["startDate"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
     startDateStr = entry["startDate"].asString();
     std::string tempStr = CheckHoliday(startDateStr);
 
@@ -364,6 +388,11 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
         startDateStr = "20190101";
     }
 
+    if (!entry.isMember("endDate") || (entry["endDate"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
     endDateStr = entry["endDate"].asString();
     tempStr = CheckHoliday(endDateStr);
 
@@ -386,6 +415,11 @@ Json::Value ScheduleEntry::GetJson(void)
 
     e["enabled"] = (int)enabled;
     e["playlist"] = playlist;
+    if (playlist == "") {
+        e["command"] = command;
+        e["args"] = args;
+    }
+
     e["day"] = dayIndex;
 
     sprintf(timeText, "%02d:%02d:%02d", startHour, startMinute, startSecond);
@@ -395,9 +429,13 @@ Json::Value ScheduleEntry::GetJson(void)
     e["endTime"] = timeText;
 
     e["repeat"] = (int)repeat;
+    e["repeatInterval"] = (int)repeatInterval;
     e["startDate"] = startDateStr;
     e["endDate"] = endDateStr;
     e["stopType"] = stopType;
+    e["stopTypeStr"] =
+        stopType == 2 ? "Graceful Loop" :
+            stopType == 1 ? "Hard" : "Graceful";
 
     return e;
 }

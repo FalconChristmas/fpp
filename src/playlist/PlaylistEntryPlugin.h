@@ -30,7 +30,7 @@
 
 class PlaylistEntryPlugin : public PlaylistEntryBase {
   public:
-	PlaylistEntryPlugin(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryPlugin(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryPlugin();
 
   private:

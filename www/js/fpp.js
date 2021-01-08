@@ -4134,34 +4134,42 @@ function LoadCommandArg() {
 }
 
 var commandList = "";
+var commandListByName = {};
 var extraCommands = "";
+function PopulateCommandListCache() {
+    if (typeof commandList != "string")
+        return;
+
+    $.ajax({
+        dataType: "json",
+        url: "api/commands",
+        async: false,
+        success: function(data) {
+           commandList = data;
+           if (extraCommands != "") {
+                $.each( extraCommands, function(key, val) {
+                    commandList.push(val);
+                });
+           }
+
+           $.each( commandList, function(key, val) {
+               commandListByName[val['name']] = val;
+           });
+        }});
+}
+
 function LoadCommandList(commandSelect) {
     if (typeof commandSelect === "string") {
         commandSelect = $('#' + commandSelect);
     }
     if (commandList == "") {
-        $.ajax({
-            dataType: "json",
-            url: "api/commands",
-            async: false,
-            success: function(data) {
-               commandList = data;
-               if (extraCommands != "") {
-                    $.each( extraCommands, function(key, val) {
-                        commandList.push(val);
-                    });
-               }
-               $.each( data, function(key, val) {
-                   option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-                   commandSelect.append(option);
-               });
-            }});
-    } else {
-        $.each( commandList, function(key, val) {
-            option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
-            commandSelect.append(option);
-        });
+        PopulateCommandListCache();
     }
+
+    $.each( commandList, function(key, val) {
+        option = "<option value='" + val['name'] + "'>" + val['name'] + "</option>";
+        commandSelect.append(option);
+    });
 }
 
 function UpdateChildVisibility() {
@@ -4805,4 +4813,43 @@ function FileChooser(dir, target)
         SetupFileChooser(dir, target);
     });
 }
+
+function ShowCommandEditor(target, data, callback, cancelCallback = '')
+{
+    if ($('#commandEditorPopup').length == 0) {
+        var dialogHTML = "<div id='commandEditorPopup'><div id='commandEditorDiv'></div></div>";
+        $(dialogHTML).appendTo('body');
+    }
+
+    $('#commandEditorPopup').dialog({
+        height: 'auto',
+        width: 600,
+        title: "FPP Command Editor",
+        modal: true,
+        open: function(event, ui) { $('#commandEditorPopup').parent().find(".ui-dialog-titlebar-close").hide(); },
+        closeOnEscape: false
+    });
+    $('#commandEditorPopup').dialog( "moveToTop" );
+    $('#commandEditorDiv').load('commandEditor.php', function() {
+        CommandEditorSetup(target, data, callback, cancelCallback);
+    });
+}
+
+function PreviewSchedule()
+{
+    if ($('#schedulePreviewPopup').length == 0) {
+        var dialogHTML = "<div id='schedulePreviewPopup'><div id='schedulePreviewDiv'></div></div>";
+        $(dialogHTML).appendTo('body');
+    }
+
+    $('#schedulePreviewPopup').dialog({
+        height: 600,
+        width: 900,
+        title: "Schedule Preview",
+        modal: true
+    });
+    $('#schedulePreviewPopup').dialog( "moveToTop" );
+    $('#schedulePreviewDiv').load('schedulePreview.php');
+}
+
 

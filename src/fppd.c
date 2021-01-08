@@ -39,7 +39,7 @@
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
-#include "playlist/Playlist.h"
+#include "Player.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 
@@ -588,7 +588,6 @@ int main(int argc, char *argv[])
 
         LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
 	scheduler = new Scheduler();
-	playlist = new Playlist();
 	sequence  = new Sequence();
         LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
 
@@ -650,7 +649,6 @@ int main(int argc, char *argv[])
     GPIOManager::INSTANCE.Cleanup();
 
 	delete scheduler;
-	delete playlist;
 	delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
@@ -798,36 +796,33 @@ void MainLoop(void)
 		}
 
 		if (getFPPmode() & PLAYER_MODE) {
-			if (playlist->IsPlaying()) {
+			if (Player::INSTANCE.IsPlaying()) {
 				if (prevFPPstatus == FPP_STATUS_IDLE) {
-					playlist->Start();
+					Player::INSTANCE.Start();
 					sleepms = 10;
 				}
 
 				// Check again here in case PlayListPlayingInit
 				// didn't find anything and put us back to IDLE
-				if (playlist->IsPlaying()) {
-					playlist->Process();
+				if (Player::INSTANCE.IsPlaying()) {
+					Player::INSTANCE.Process();
 				}
 			}
 
 			int reactivated = 0;
-			if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
+			if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
                     (prevFPPstatus == FPP_STATUS_PLAYLIST_PAUSED) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
-					playlist->Cleanup();
+					Player::INSTANCE.Cleanup();
 
-					scheduler->ReLoadCurrentScheduleInfo();
-                    scheduler->ReLoadNextScheduleInfo();
-
-					if (playlist->GetForceStop())
-						scheduler->CheckIfShouldBePlayingNow(0, playlist->GetScheduleEntry());
+					if (Player::INSTANCE.GetForceStopped())
+						scheduler->CheckIfShouldBePlayingNow(0, Player::INSTANCE.GetScheduleEntry());
                     else
 						scheduler->CheckIfShouldBePlayingNow();
 
-					if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE)
+					if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE)
 						reactivated = 1;
 					else
 						sleepms = 50;
@@ -837,12 +832,12 @@ void MainLoop(void)
 			if (reactivated)
 				prevFPPstatus = FPP_STATUS_IDLE;
 			else
-				prevFPPstatus = playlist->getPlaylistStatus();
+				prevFPPstatus = Player::INSTANCE.GetStatus();
 
 			scheduler->ScheduleProc();
 		} else if (getFPPmode() == REMOTE_MODE) {
 			if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
-				playlist->ProcessMedia();
+				Player::INSTANCE.ProcessMedia();
 			}
         } else if (getFPPmode() == BRIDGE_MODE && pushBridgeData) {
             ForceChannelOutputNow();

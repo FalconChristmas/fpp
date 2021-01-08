@@ -32,8 +32,16 @@
 	height: 18px;
 }
 
+.reallySmallButton {
+    width: 45px;
+}
+
 .smallButton {
     width: 60px;
+}
+
+.wideButton {
+    width: 120px;
 }
 
 .buttons:hover
@@ -93,6 +101,17 @@
 	-webkit-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
 	-moz-box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
 	box-shadow: inset 0 0 5px 2px #aaaaaa, 0 1px 0 0 #eeeeee;
+}
+
+.color-box {
+  width:15px;
+  height:15px;
+  margin-left: 5px;
+  margin-top: 2px;
+  margin-right: 5px;
+  margin-bottom: 5px;
+  border: 1px solid black;
+  float: left;
 }
 
 #playerControls input
@@ -956,6 +975,22 @@ fieldset
 	border: 2px solid #000000;
 }
 
+td.borderTop {
+    border-Top: 2px solid black;
+}
+
+td.borderBottom {
+    border-bottom: 2px solid black;
+}
+
+td.borderRight {
+    border-right: 2px solid black;
+}
+
+td.borderLeft {
+    border-left: 2px solid black;
+}
+
 .genericTableContents {
 	min-height:400px;
 	overflow: auto;
@@ -1443,6 +1478,15 @@ td.bgDarkOrange {
    -webkit-user-select: none;
    -ms-user-select: none;
    user-select: none;
+}
+
+select[readonly] {
+    background: #eee;
+    cursor:no-drop;
+}
+
+select[readonly] option {
+    display:none;
 }
 
 .hidden {

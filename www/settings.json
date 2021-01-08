@@ -146,10 +146,23 @@
         "ui": {
             "description": "User Interface",
             "settings": [
-                "backgroundColor",
                 "uiLevel",
                 "showAllOptions",
                 "disableUIWarnings"
+            ]
+        },
+        "uiColors": {
+            "description": "UI Colors",
+            "settings": [
+                "backgroundColor",
+                "tableColorPair1A",
+                "tableColorPair1B",
+                "tableColorPair2A",
+                "tableColorPair2B",
+                "tableColorPair3A",
+                "tableColorPair3B",
+                "tableColorPair4A",
+                "tableColorPair4B"
             ]
         }
     },
@@ -1224,6 +1237,78 @@
             "type": "checkbox",
             "checkedValue": "1",
             "uncheckedValue": "0"
+        },
+        "tableColorPair1A": {
+            "name": "tableColorPair1A",
+            "description": "Color Pair 1-A",
+            "tip": "Color Pair 1-A and 1-B are used for alternating colors in tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "00FFFF"
+        },
+        "tableColorPair1B": {
+            "name": "tableColorPair1B",
+            "description": "Color Pair 1-B",
+            "tip": "Color Pair 1-A and 1-B are used for alternating colors in tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "ADD8E6"
+        },
+        "tableColorPair2A": {
+            "name": "tableColorPair2A",
+            "description": "Color Pair 2-A",
+            "tip": "Color Pair 2-A and 2-B are used for alternating colors in nested tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "008000"
+        },
+        "tableColorPair2B": {
+            "name": "tableColorPair2B",
+            "description": "Color Pair 2-B",
+            "tip": "Color Pair 2-A and 2-B are used for alternating colors in nested tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "808000"
+        },
+        "tableColorPair3A": {
+            "name": "tableColorPair3A",
+            "description": "Color Pair 3-A",
+            "tip": "Color Pair 3-A and 3-B are used for alternating colors in nested tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "808080"
+        },
+        "tableColorPair3B": {
+            "name": "tableColorPair3B",
+            "description": "Color Pair 3-B",
+            "tip": "Color Pair 3-A and 3-B are used for alternating colors in nested tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "C0C0C0"
+        },
+        "tableColorPair4A": {
+            "name": "tableColorPair4A",
+            "description": "Color Pair 4-A",
+            "tip": "Color Pair 4-A and 4-B are used for alternating colors in nested tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "A52A2A"
+        },
+        "tableColorPair4B": {
+            "name": "tableColorPair4B",
+            "description": "Color Pair 4-B",
+            "tip": "Color Pair 4-A and 4-B are used for alternating colors in nested tables in the FPP UI",
+            "reboot": 0,
+            "restart": 0,
+            "type": "color",
+            "default": "FFFF00"
         },
         "uiLevel": {
             "name": "uiLevel",

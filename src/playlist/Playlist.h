@@ -121,7 +121,7 @@ class Playlist {
 	void               SwitchToLeadOut(void);
     
     bool               WillStopAfterCurrent();
-    bool               SwitchToInsertedPlaylist(bool isStopping = false);
+    Playlist          *SwitchToInsertedPlaylist(bool isStopping = false);
 
     volatile PlaylistStatus  m_status;
     

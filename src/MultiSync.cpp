@@ -46,10 +46,10 @@
 #include "mediaoutput/mediaoutput.h"
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
-#include "playlist/Playlist.h"
 #include "commands/Commands.h"
 #include "NetworkController.h"
 #include "NetworkMonitor.h"
+#include "Player.h"
 
 
 MultiSync MultiSync::INSTANCE;
@@ -2127,23 +2127,23 @@ void MultiSync::StopSyncedSequence(const char *filename)
 }
 
 void MultiSync::SyncPlaylistToMS(uint64_t ms, const std::string &pl, bool sendSyncPackets) {
-    if (playlist->GetPlaylistName() != pl) {
+    if (Player::INSTANCE.GetPlaylistName() != pl) {
         if (pl == "") {
             return;
         }
-        playlist->Load(pl.c_str());
+        Player::INSTANCE.Load(pl);
     }
     float seconds = ms;
     seconds /= 1000;
 
-    int desiredpos = playlist->FindPosForMS(ms);
+    int desiredpos = Player::INSTANCE.FindPosForMS(ms);
     if (desiredpos) {
         if (m_controlSock < 0 && sendSyncPackets) {
             OpenControlSockets();
         }
         
         std::string seq, med;
-        playlist->GetFilenamesForPos(desiredpos, seq, med);
+        Player::INSTANCE.GetFilenamesForPos(desiredpos, seq, med);
         if (seq != "") {
             if (!sequence->IsSequenceRunning(seq)) {
                 if (sequence->IsSequenceRunning()) {

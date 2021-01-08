@@ -53,6 +53,7 @@ OBJECTS_fpp_so += \
 	NetworkController.o \
  	NetworkMonitor.o \
 	ping.o \
+	Player.o \
 	overlays/PixelOverlay.o \
     overlays/PixelOverlayEffects.o \
 	overlays/PixelOverlayModel.o \

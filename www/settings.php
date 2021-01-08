@@ -8,7 +8,10 @@ include('common/menuHead.inc');
 
 ?>
 <link rel="stylesheet" type="text/css" href="css/jquery.timepicker.css">
+<link rel="stylesheet" type="text/css" href="jquery/colpick/css/colpick.css">
+<link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
 <script type="text/javascript" src="js/jquery.timepicker.min.js"></script>
+<script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 

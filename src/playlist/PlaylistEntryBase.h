@@ -30,9 +30,11 @@
 
 #include <jsoncpp/json/json.h>
 
+class Playlist;
+
 class PlaylistEntryBase {
   public:
-	PlaylistEntryBase(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryBase(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryBase();
 
 	virtual int  Init(Json::Value &config);
@@ -97,4 +99,5 @@ class PlaylistEntryBase {
 
 	Json::Value  m_config;
 	PlaylistEntryBase *m_parent;
+    Playlist          *m_parentPlaylist;
 };

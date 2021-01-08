@@ -32,7 +32,7 @@
 
 class PlaylistEntryBoth : public PlaylistEntryBase {
   public:
-	PlaylistEntryBoth(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryBoth(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryBoth();
 
 	virtual int  Init(Json::Value &config) override;

@@ -26,8 +26,8 @@
 #include "fpp-pch.h"
 #include "PlaylistEntryPlaylist.h"
 
-PlaylistEntryPlaylist::PlaylistEntryPlaylist(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryPlaylist::PlaylistEntryPlaylist(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_playlist(NULL)
 {
 	m_type = "playlist";

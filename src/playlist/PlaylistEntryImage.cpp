@@ -42,8 +42,8 @@ void StartPrepLoopThread(PlaylistEntryImage *fb);
 /*
  *
  */
-PlaylistEntryImage::PlaylistEntryImage(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent), FrameBuffer(),
+PlaylistEntryImage::PlaylistEntryImage(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent), FrameBuffer(),
 	m_width(800),
 	m_height(600),
 	m_buffer(NULL),

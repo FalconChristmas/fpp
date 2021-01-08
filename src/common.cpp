@@ -434,7 +434,12 @@ int CurrentDateInRange(int startDate, int endDate)
 {
 	int currentDate = GetCurrentDateInt();
 
-	LogExcess(VB_GENERAL, "CurrentDateInRange, checking if %d (s) <= %d (c) <= %d (e)\n", startDate, currentDate, endDate);
+    return DateInRange(currentDate, startDate, endDate);
+}
+
+int DateInRange(int currentDate, int startDate, int endDate)
+{
+	LogExcess(VB_GENERAL, "DateInRange, checking if %d (s) <= %d (c) <= %d (e)\n", startDate, currentDate, endDate);
 
 	if ((startDate < 10000) || (endDate < 10000))
 	{

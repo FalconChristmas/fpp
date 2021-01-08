@@ -321,11 +321,12 @@ include 'common/menuHead.inc';
                 <div class='statusBoxLeft'>
                     <table class='statusTable'>
                         <tr><th>Scheduler Status:</th>
-                            <td id='schedulerStatus'></td>
+                            <td><span id='schedulerStatus'></span>
+                                &nbsp;&nbsp;<input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></td>
                         </tr>
                         <tr>
                             <th>Next Playlist: </th>
-                            <td id='nextPlaylist' colspan=9></td>
+                            <td id='nextPlaylist'></td>
                         </tr>
                     </table>
                 </div>

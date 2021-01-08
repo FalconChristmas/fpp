@@ -47,6 +47,8 @@ class ScheduleEntry {
 
 	bool         enabled;
 	std::string  playlist;
+    std::string  command;
+    Json::Value  args;
     
     int          dayIndex;
     int          startHour;

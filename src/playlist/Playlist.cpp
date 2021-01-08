@@ -348,39 +348,39 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 	PlaylistEntryBase *result = NULL;
 
 	if (entry["type"].asString() == "both")
-		result = new PlaylistEntryBoth();
+		result = new PlaylistEntryBoth(this);
 	else if (entry["type"].asString() == "branch")
-		result = new PlaylistEntryBranch();
+		result = new PlaylistEntryBranch(this);
 	else if (entry["type"].asString() == "dynamic")
-		result = new PlaylistEntryDynamic();
+		result = new PlaylistEntryDynamic(this);
 	else if (entry["type"].asString() == "effect")
-		result = new PlaylistEntryEffect();
+		result = new PlaylistEntryEffect(this);
 	else if (entry["type"].asString() == "event")
-		result = new PlaylistEntryEvent();
+		result = new PlaylistEntryEvent(this);
 	else if (entry["type"].asString() == "image")
-		result = new PlaylistEntryImage();
+		result = new PlaylistEntryImage(this);
 	else if (entry["type"].asString() == "media")
-		result = new PlaylistEntryMedia();
+		result = new PlaylistEntryMedia(this);
 	else if (entry["type"].asString() == "mqtt")
-		result = new PlaylistEntryMQTT();
+		result = new PlaylistEntryMQTT(this);
 	else if (entry["type"].asString() == "pause")
-		result = new PlaylistEntryPause();
+		result = new PlaylistEntryPause(this);
 	else if (entry["type"].asString() == "playlist")
-		result = new PlaylistEntryPlaylist();
+		result = new PlaylistEntryPlaylist(this);
 	else if (entry["type"].asString() == "plugin")
-		result = new PlaylistEntryPlugin();
+		result = new PlaylistEntryPlugin(this);
 	else if (entry["type"].asString() == "remap")
-		result = new PlaylistEntryRemap();
+		result = new PlaylistEntryRemap(this);
 	else if (entry["type"].asString() == "script")
-		result = new PlaylistEntryScript();
+		result = new PlaylistEntryScript(this);
 	else if (entry["type"].asString() == "sequence")
-		result = new PlaylistEntrySequence();
+		result = new PlaylistEntrySequence(this);
 	else if (entry["type"].asString() == "url")
-		result = new PlaylistEntryURL();
+		result = new PlaylistEntryURL(this);
 	else if (entry["type"].asString() == "volume")
-		result = new PlaylistEntryVolume();
+		result = new PlaylistEntryVolume(this);
     else if (entry["type"].asString() == "command")
-        result = new PlaylistEntryCommand();
+        result = new PlaylistEntryCommand(this);
     else {
 		LogErr(VB_PLAYLIST, "Unknown Playlist Entry Type: %s\n", entry["type"].asString().c_str());
 		return NULL;
@@ -655,6 +655,9 @@ int Playlist::FileHasBeenModified(void)
  */
 int Playlist::Process(void)
 {
+    static time_t lastCheckTime = time(nullptr);
+    time_t procTime = time(nullptr);
+
 	//LogExcess(VB_PLAYLIST, "Playlist::Process: %s, section %s, position: %d\n", m_name.c_str(), m_currentSectionStr.c_str(), m_sectionPosition);
     
     while (!PL_CLEANUPS.empty()) {
@@ -672,15 +675,15 @@ int Playlist::Process(void)
 		return 0;
 	}
 
-
     if (!m_currentSection->at(m_sectionPosition)->IsPaused() && m_currentSection->at(m_sectionPosition)->IsPlaying()) {
 		m_currentSection->at(m_sectionPosition)->Process();
     }
-    
+
+    Playlist *pl = nullptr;
     if (m_currentSection->at(m_sectionPosition)->IsPaused()
-        && SwitchToInsertedPlaylist()) {
-        playlist->Start();
-        return playlist->Process();
+        && ((pl = SwitchToInsertedPlaylist()) != nullptr)) {
+        pl->Start();
+        return pl->Process();
     }
 
 	if (m_currentSection->at(m_sectionPosition)->IsFinished()) {
@@ -706,18 +709,18 @@ int Playlist::Process(void)
 			}
 		}
         if (m_stopAtPos != -1 && m_stopAtPos <= (GetPosition() - 1)) {
-            if (SwitchToInsertedPlaylist(true)) {
-                playlist->Start();
-                return playlist->Process();
+            if ((pl = SwitchToInsertedPlaylist(true)) != nullptr) {
+                pl->Start();
+                return pl->Process();
             }
             LogDebug(VB_PLAYLIST, "Stopping after end position\n");
             m_currentSection = nullptr;
             SetIdle();
             return 1;
         }
-        if (SwitchToInsertedPlaylist(WillStopAfterCurrent())) {
-            playlist->Start();
-            return playlist->Process();
+        if ((pl = SwitchToInsertedPlaylist(WillStopAfterCurrent())) != nullptr) {
+            pl->Start();
+            return pl->Process();
         }
 
         auto currentEntry = m_currentSection->at(m_sectionPosition);
@@ -863,7 +866,7 @@ bool Playlist::WillStopAfterCurrent() {
 }
 
 
-bool Playlist::SwitchToInsertedPlaylist(bool isStopping) {
+Playlist *Playlist::SwitchToInsertedPlaylist(bool isStopping) {
     if (m_insertedPlaylist != "") {
         Playlist *pl;
         if (isStopping && m_parent) {
@@ -878,14 +881,14 @@ bool Playlist::SwitchToInsertedPlaylist(bool isStopping) {
         pl->Play(m_insertedPlaylist.c_str(), m_insertedPlaylistPosition, 0, m_scheduleEntry, m_insertedPlaylistEndPosition);
         m_insertedPlaylist = "";
         if (pl->IsPlaying()) {
-            LogDebug(VB_PLAYLIST, "Switching to inserted playlist %s\n", m_insertedPlaylist.c_str());
+            LogDebug(VB_PLAYLIST, "Switching to inserted playlist '%s'\n", m_insertedPlaylist.c_str());
             playlist = pl;
-            return true;
+            return playlist;
         } else {
             delete pl;
         }
     }
-    return false;
+    return nullptr;
 }
 
 /*
@@ -1009,9 +1012,6 @@ void Playlist::InsertPlaylistImmediate(const std::string &filename, const int po
     }
 }
 
-/*
- *
- */
 int Playlist::Play(const char *filename, const int position, const int repeat, const int scheduleEntry, const int endPosition)
 {
 	int hadToStop = 0;
@@ -1082,6 +1082,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
     if (hadToStop) {
 		Start();
     }
+
 	return 1;
 }
 

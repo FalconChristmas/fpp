@@ -32,7 +32,7 @@
 #include "fppd.h"
 #include "httpAPI.h"
 #include "MultiSync.h"
-#include "playlist/Playlist.h"
+#include "Player.h"
 #include "Scheduler.h"
 
 #include <iomanip>
@@ -192,7 +192,8 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 	}
 	else if (url == "schedule")
 	{
-		LogDebug(VB_HTTP, "API - Getting current schedule information\n");
+        result["schedule"] = scheduler->GetSchedule();
+		SetOKResult(result, "");
 	}
 	else if (url == "version")
 	{
@@ -647,7 +648,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["fppd"] = "running";
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
-    result["status"] = playlist->getPlaylistStatus();
+    result["status"] = Player::INSTANCE.GetStatus();
     
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";
@@ -720,10 +721,8 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["time_elapsed"] = "00:00";
     result["time_remaining"] = "00:00";
 
-    char NextPlaylist[128] = "No playlist scheduled.";
-    char NextScheduleStartText[64] = "";
-    scheduler->GetNextScheduleStartText(NextScheduleStartText);
-    scheduler->GetNextPlaylistText(NextPlaylist);
+    std::string NextPlaylist = scheduler->GetNextPlaylistName();
+    std::string NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
     
     if (getFPPmode() == REMOTE_MODE) {
         int secsElapsed = 0;
@@ -756,19 +755,19 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
         result["seconds_remaining"] = std::to_string(secsRemaining);
         result["time_elapsed"] = secondsToTime(secsElapsed);
         result["time_remaining"] = secondsToTime(secsRemaining);
-    } else if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
+    } else if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
         result["next_playlist"]["playlist"] = NextPlaylist;
-        result["next_playlist"]["start_time"] = NextScheduleStartText;
+        result["next_playlist"]["start_time"] = NextPlaylistStart;
         result["repeat_mode"] = "0";
         result["scheduler"] = scheduler->GetInfo();
     } else {
-        Json::Value pl = playlist->GetInfo();
+        Json::Value pl = Player::INSTANCE.GetInfo();
         if (pl["currentEntry"].isMember("dynamic")) {
             pl["currentEntry"] = pl["currentEntry"]["dynamic"];
         }
         result["repeat_mode"] = pl["repeat"].asInt();
         result["next_playlist"]["playlist"] = NextPlaylist;
-        result["next_playlist"]["start_time"] = NextScheduleStartText;
+        result["next_playlist"]["start_time"] = NextPlaylistStart;
 
         std::string plname = pl["name"].asString();
         plname = plname.substr(plname.find_last_of("\\/") + 1);
@@ -778,7 +777,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
         result["current_playlist"]["playlist"] = plname;
         result["current_playlist"]["description"] = pl["desc"];
-        result["current_playlist"]["index"] = std::to_string(playlist->GetPosition());
+        result["current_playlist"]["index"] = std::to_string(Player::INSTANCE.GetPosition());
         result["current_playlist"]["count"] = std::to_string(pl["size"].asInt());
         result["current_playlist"]["type"] = pl["currentEntry"]["type"].asString();
 
@@ -834,8 +833,8 @@ void PlayerResource::GetCurrentPlaylists(Json::Value &result)
 
 	Json::Value names(Json::arrayValue);
 
-	if (playlist->IsPlaying())
-		names.append(playlist->GetPlaylistName());
+	if (Player::INSTANCE.IsPlaying())
+		names.append(Player::INSTANCE.GetPlaylistName());
 
 	result["playlists"] = names;
 
@@ -886,9 +885,9 @@ void PlayerResource::GetMultiSyncStats(Json::Value &result, bool reset)
  */
 void PlayerResource::GetPlaylistFileTime(Json::Value &result)
 {
-	if (playlist->IsPlaying())
+	if (Player::INSTANCE.IsPlaying())
 	{
-		uint64_t fileTime = playlist->GetFileTime();
+		uint64_t fileTime = Player::INSTANCE.GetFileTime();
 
 		result["fileTime"] = (Json::UInt64)fileTime;
 	}
@@ -905,8 +904,8 @@ void PlayerResource::GetPlaylistFileTime(Json::Value &result)
  */
 void PlayerResource::GetPlaylistConfig(Json::Value &result)
 {
-	if (playlist->IsPlaying())
-		result = playlist->GetConfig();
+	if (Player::INSTANCE.IsPlaying())
+		result = Player::INSTANCE.GetConfig();
 
 	SetOKResult(result, "");
 }
@@ -1026,10 +1025,7 @@ void PlayerResource::PostSchedule(const Json::Value data, Json::Value &result)
 
 	if (data["command"].asString() == "reload")
 	{
-		if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE)
-			scheduler->ReLoadCurrentScheduleInfo();
-
-		scheduler->ReLoadNextScheduleInfo();
+        scheduler->ReloadScheduleFile();
 
 		SetOKResult(result, "Schedule reload triggered");
 	}

@@ -34,7 +34,7 @@
 
 class PlaylistEntryDynamic : public PlaylistEntryBase {
   public:
-	PlaylistEntryDynamic(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryDynamic(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryDynamic();
 
 	virtual int  Init(Json::Value &config) override;

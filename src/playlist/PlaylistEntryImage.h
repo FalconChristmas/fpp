@@ -41,7 +41,7 @@ using namespace Magick;
 
 class PlaylistEntryImage : public PlaylistEntryBase, public FrameBuffer {
   public:
-	PlaylistEntryImage(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryImage(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryImage();
 
 	virtual int  Init(Json::Value &config) override;

@@ -26,7 +26,7 @@
 
 #include "events.h"
 #include "effects.h"
-#include "playlist/Playlist.h"
+#include "Player.h"
 
 #define FALCON_TOPIC "falcon/player"
 
@@ -543,7 +543,7 @@ void MosquittoClient::PublishStatus(){
 	if (! m_isConnected) {
 		return;
 	}
-	Json::Value json = playlist->GetMqttStatusJSON();
+	Json::Value json = Player::INSTANCE.GetMqttStatusJSON();
 
 	std::stringstream buffer;
 	buffer << json << std::endl;

@@ -28,7 +28,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#include "playlist/Playlist.h"
+#include "Player.h"
 #include "channeloutput/channeloutputthread.h"
 #include "util/SPIUtils.h"
 
@@ -384,7 +384,7 @@ void FalconSetData(int sock, struct sockaddr_in *srcAddr, unsigned char *inBuf)
 	{
 		if (inBuf[7] == 0x01)
 		{
-			playlist->StopNow();
+			Player::INSTANCE.StopNow();
 		}
 		else
 		{

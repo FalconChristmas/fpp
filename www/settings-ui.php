@@ -89,6 +89,7 @@ function CheckPasswordVerify()
     <tr><td>
 <?
 PrintSettingGroup('ui');
+PrintSettingGroup('uiColors');
 ?>
 
         </td>

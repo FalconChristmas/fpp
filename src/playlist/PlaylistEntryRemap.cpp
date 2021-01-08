@@ -32,8 +32,8 @@
 /*
  *
  */
-PlaylistEntryRemap::PlaylistEntryRemap(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryRemap::PlaylistEntryRemap(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_srcChannel(0),
 	m_dstChannel(0),
 	m_channelCount(0),

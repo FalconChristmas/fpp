@@ -27,8 +27,8 @@
 #include "PlaylistEntryBoth.h"
 #include "mediadetails.h"
 
-PlaylistEntryBoth::PlaylistEntryBoth(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryBoth::PlaylistEntryBoth(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_duration(0),
 	m_mediaEntry(NULL),
 	m_sequenceEntry(NULL)
@@ -49,11 +49,11 @@ int PlaylistEntryBoth::Init(Json::Value &config)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryBoth::Init()\n");
 
-	m_sequenceEntry = new PlaylistEntrySequence(this);
+	m_sequenceEntry = new PlaylistEntrySequence(m_parentPlaylist, this);
 	if (!m_sequenceEntry)
 		return 0;
 
-	m_mediaEntry = new PlaylistEntryMedia(this);
+	m_mediaEntry = new PlaylistEntryMedia(m_parentPlaylist, this);
 	if (!m_mediaEntry)
 		return 0;
     

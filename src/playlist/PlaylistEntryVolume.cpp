@@ -30,8 +30,8 @@
 /*
  *
  */
-PlaylistEntryVolume::PlaylistEntryVolume(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryVolume::PlaylistEntryVolume(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_volume(0)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryVolume::PlaylistEntryVolume()\n");

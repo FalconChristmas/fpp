@@ -30,7 +30,7 @@
 
 class PlaylistEntryEvent : public PlaylistEntryBase {
   public:
-	PlaylistEntryEvent(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryEvent(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryEvent();
 
 	virtual int  Init(Json::Value &config) override;
