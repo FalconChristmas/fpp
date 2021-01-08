@@ -35,6 +35,7 @@
 #include "E131.h"
 #include "DDP.h"
 #include "ArtNet.h"
+#include "KiNet.h"
 
 extern "C" {
     UDPOutput *createOutputUDPOutput(unsigned int startChannel,
@@ -264,6 +265,11 @@ int UDPOutput::Init(Json::Value config) {
             case 5:
                 //DDP types
                 outputs.push_back(new DDPOutputData(s));
+                break;
+            case 6:
+            case 7:
+                //KiNet types
+                outputs.push_back(new KiNetOutputData(s));
                 break;
             default:
                 LogErr(VB_CHANNELOUT, "Unknown IP output type %d\n", type);

@@ -1733,7 +1733,7 @@ function RemovePlaylistEntry()	{
 
                 var universe = $(item).parent().parent().find("input.txtUniverse");
                 universe.prop('min', 1);
-            } else { // 0,1 = E1.31, 2,3 = Artnet
+            } else { // 0,1 = E1.31, 2,3 = Artnet, 6,7 = KiNet
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', false);
                 if (parseInt(univ.val()) < 1) {
@@ -1774,6 +1774,8 @@ function RemovePlaylistEntry()	{
                     }
                 }
             }
+            var priority = $(item).parent().parent().find("input.txtPriority");
+            priority.prop('disabled', type > 1);
         }
 
 function updateUniverseEndChannel(row) {
@@ -1831,6 +1833,8 @@ function updateUniverseEndChannel(row) {
                 var typeUnicastArtNet = type == 3 ? "selected": "";
                 var typeDDPR = type == 4 ? "selected": "";
                 var typeDDP1 = type == 5 ? "selected": "";
+                var typeKiNet1 = type == 6 ? "selected": "";
+                var typeKiNet2 = type == 7 ? "selected": "";
                 var monitor = 1;
                 if (universe.monitor != null) {
                     monitor = universe.monitor;
@@ -1882,7 +1886,9 @@ function updateUniverseEndChannel(row) {
                                 "<option value='2' " + typeBroadcastArtNet + ">ArtNet - Broadcast</option>" +
                                 "<option value='3' " + typeUnicastArtNet + ">ArtNet - Unicast</option>" +
                                 "<option value='4' " + typeDDPR + ">DDP - Raw Channel Numbers</option>" +
-                                "<option value='5' " + typeDDP1 + ">DDP - One Based</option>";
+                                "<option value='5' " + typeDDP1 + ">DDP - One Based</option>" +
+                                "<option value='6' " + typeKiNet1 + ">KiNet v1</option>" +
+                                "<option value='7' " + typeKiNet2 + ">KiNet v2</option>";
                 }
 
                 bodyHTML += "</select></td>";
@@ -1894,7 +1900,12 @@ function updateUniverseEndChannel(row) {
                 bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='999' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
 
                 bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
-                bodyHTML += "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'/></td>";
+                bodyHTML += "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'";
+                if (type > 1) {
+                    //DDP/ArtNet/KiNet don't support priority
+                    bodyHTML += " disabled";
+                }
+                bodyHTML += "/></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "" ) + "/></td>" +
                             "<td " + inputStyle + "><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
