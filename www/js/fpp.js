@@ -2872,7 +2872,6 @@ function ShowMultiSyncStats(data) {
             + '<td class="right">' + s.pktPlugin + '</td>'
             + '<td class="right">' + s.pktFPPCommand + '</td>'
             + '<td class="right">' + s.pktEvent + '</td>'
-            + '<td class="right">' + s.pktCommand + '</td>'
             + '<td class="right">' + s.pktError + '</td>'
             + '</tr>';
 

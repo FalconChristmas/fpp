@@ -295,7 +295,6 @@ include 'common/menuHead.inc';
                                 <th rowspan=2>Plugin</th>
                                 <th rowspan=2>FPP<br>Command</th>
                                 <th rowspan=2>Event</th>
-                                <th rowspan=2>Command</th>
                                 <th rowspan=2>Errors</th>
                                 </tr>
                             <tr><th>Open</th>
