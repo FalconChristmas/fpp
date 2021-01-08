@@ -611,8 +611,8 @@ a:visited {
                     <tr class='rowScheduleDetails'>
                         <td class='center'><span class='rowID'></span></td>
                         <td class='center' ><input class='schEnable' type='checkbox' /></td>
-                        <td><input class='date center schStartDate' type='text' size='10'  /> /
-                            <input class='date center schEndDate' type='text' size='10' /></td>
+                        <td><input class='date center schStartDate' type='text' size='10'  /></td>
+                        <td><input class='date center schEndDate' type='text' size='10' /></td>
                         <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
                                 <option value='7'>Everyday</option>
                                 <option value='0'>Sunday</option>
@@ -701,7 +701,7 @@ a:visited {
                         <tr>
                             <th rowspan='2' title='Schedule Entry Number'>Line<br>#</th>
                             <th rowspan='2' title='Schedule enabled/disabled'>Act<br>ive</th>
-                            <th rowspan='2' title='Start / End Dates'>Start /<br>End Dates</th>
+                            <th colspan='2' title='Date Range'>Date Range</th>
                             <th rowspan='2' title='Day(s) of the week'>Day(s)</th>
                             <th rowspan='2' title='Start Time'>Start<br>Time</th>
                             <th rowspan='2' title='Schedule Type'>Schedule<br>Type</th>
@@ -711,6 +711,8 @@ a:visited {
                             <th title='Playlist Stop Type'>Stop Type</th>
                         </tr>
                         <tr>
+                            <th title='Start Date'>Start Date</th>
+                            <th title='End Date'>End Date</th>
                             <th colspan='4' title='FPP Command'>Command Args</th>
                         </tr>
                     </thead>
