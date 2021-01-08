@@ -119,7 +119,14 @@ function AddScheduleEntry(data = {}) {
         row.find('.schOptionsCommand').show();
         row.find('.schType').val('command');
         row.find('.schCommand').val(data.command);
-        row.find('.schArgs').html(data.args.join(' | '));
+
+        if (data.args.length) {
+            row.find('.schArgs').html(data.args.join(' | '));
+            row.find('.schArgsTable').show();
+        } else {
+            row.find('.schArgs').html('');
+            row.find('.schArgsTable').hide();
+        }
 
         var command = {};
         command.command = data.command;
@@ -133,8 +140,12 @@ function AddScheduleEntry(data = {}) {
                     return '';
 
                 var data = JSON.parse(json);
-                var tip = '<table>';
+
+                if (!data.args.length)
+                    return "No Args";
+
                 var args = commandListByName[data.command]['args'];
+                var tip = '<table>';
                 for (var j = 0; j < args.length; j++) {
                     tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
                 }
@@ -231,17 +242,18 @@ function SetScheduleRowInputNames(row, id) {
         row.find('.holEndDate').show();
     }
     
+    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]$/);
     var startTime = row.find('.schStartTime').val();
-    if (startTime == 'SunSet' || startTime == 'SunRise') {
-        row.find('.startOffset').show();
-    } else {
+    if (startTime.match(re)) {
         row.find('.startOffset').hide();
+    } else {
+        row.find('.startOffset').show();
     }
     var endTime = row.find('.schEndTime').val();
-    if (endTime == 'SunSet' || endTime == 'SunRise') {
-        row.find('.endOffset').show();
-    } else {
+    if (endTime.match(re)) {
         row.find('.endOffset').hide();
+    } else {
+        row.find('.endOffset').show();
     }
 }
 
@@ -258,12 +270,20 @@ function SetScheduleInputNames() {
 		'show2400': true,
 		'noneOption': [
 				{
+					'label': 'Dawn',
+					'value': 'Dawn'
+				},
+				{
 					'label': 'SunRise',
 					'value': 'SunRise'
 				},
 				{
 					'label': 'SunSet',
 					'value': 'SunSet'
+				},
+				{
+					'label': 'Dusk',
+					'value': 'Dusk'
 				}
 			]
 		});
@@ -294,9 +314,16 @@ function EditScheduleCommand(item)
 
 function CommandUpdated(row, data)
 {
-    $(row).find('.schCommand').val(data.command);
-    $(row).find('.schArgs').html(data.args.join(' | '));
     $(row).find('.commandJSON').html(JSON.stringify(data));
+    $(row).find('.schCommand').val(data.command);
+
+    if (data.args.length) {
+        row.find('.schArgs').html(data.args.join(' | '));
+        row.find('.schArgsTable').show();
+    } else {
+        row.find('.schArgs').html('');
+        row.find('.schArgsTable').hide();
+    }
 }
 
 function CommandEditCanceled(row)
@@ -352,15 +379,19 @@ function ScheduleEntryTypeChanged(item)
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
         row.find('.schOptionsCommand').show();
+
+        if (row.find('.schArgs').val() == '')
+            row.find('.schArgsTable').hide();
     }
 }
 
 function TimeChanged(item)
 {
-    if ($(item).val() == 'SunSet' || $(item).val() == 'SunRise') {
-        $(item).parent().find('.offset').show();
-    } else {
+    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]$/);
+    if ($(item).val().match(re)) {
         $(item).parent().find('.offset').hide();
+    } else {
+        $(item).parent().find('.offset').show();
     }
 }
 
@@ -655,7 +686,7 @@ a:visited {
                             </span>
                         </td>
                         <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset startOffset'><br>Offset: <input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+<span class='offset startOffset'><br>+<input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
                                 <option value='playlist'>Playlist</option>
                                 <option value='command'>Command</option>
@@ -664,7 +695,7 @@ a:visited {
                         <td class='schOptionsPlaylist'><select class='schPlaylist' style='max-width: 200px;' title=''>
                             </select></td>
                         <td class='schOptionsPlaylist'><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset endOffset'><br>Offset: <input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+<span class='offset endOffset'><br>+<input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                         <td class='schOptionsPlaylist' class='center' >
                             <select class='schRepeat'>
                                 <option value='0'>None</option>
@@ -689,8 +720,7 @@ a:visited {
                         <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
                             <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
                             <img class='schTooltipIcon' title='' src='images/questionmark.png'>
-                            <b>Args:</b>&nbsp;
-                            <span class='schArgs'></span>
+                            <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>
                             <span class='commandJSON' style='display: none;'></span>
                         </td>
                         <!-- end 'FPP Command' options -->
@@ -725,7 +755,7 @@ a:visited {
            <font size = -1>
 	      <b>Notes</b>:
               <ul style="margin-top:0px;">
-		 <li>If times overlap, playlist higher in the list have priority.</li>
+		 <li>If playlist times overlap, items higher in the list have priority.</li>
 		 <li>Drag/Drop to change order</li>
 		 <li>CTRL+Click to select multiple items</li>
                  <li>Odd/Even for Days is used to alternate playlist over 2 days <img style="vertical-align:middle" src="images/questionmark.png" title="This is not based on the day of the week or month or year. It is odd/even starting at July 15, 2013, the day of the first commit to the FPP code repository. This was done so that it did not have two odd days in a row on the 7th and first days of the week or on months that have 31 days going into the next month, etc."></li>

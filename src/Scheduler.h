@@ -129,7 +129,7 @@ class Scheduler {
     void SetItemRan(ScheduledItem *item, bool ran);
 
     ScheduledItem *GetNextScheduledPlaylist();
-	void GetSunInfo(int set, int moffset, int &hour, int &minute, int &second);
+	void GetSunInfo(const std::string &info, int moffset, int &hour, int &minute, int &second);
 	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry);
 	void LoadScheduleFromFile(void);
 	void SchedulePrint(void);

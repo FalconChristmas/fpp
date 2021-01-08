@@ -84,7 +84,7 @@ OBJECTS_fpp_so += \
 	sensors/Sensors.o \
 	Sequence.o \
 	settings.o \
-	SunSet.o \
+	sunset.o \
 	Warnings.o \
     util/GPIOUtils.o \
     util/I2CUtils.o \

@@ -68,6 +68,8 @@ class ScheduleEntry {
 
     int          startTimeOffset;
     int          endTimeOffset;
+    std::string  startTimeStr;
+    std::string  endTimeStr;
 	std::string  startDateStr;
 	std::string  endDateStr;
 };

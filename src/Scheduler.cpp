@@ -34,7 +34,7 @@
 #include "fpp.h"
 #include "Player.h"
 #include "Scheduler.h"
-#include "SunSet.h"
+#include "sunset.h"
 
 #define SCHEDULE_FILE     "/home/fpp/media/config/schedule.json"
 #define SCHEDULE_FILE_CSV "/home/fpp/media/schedule"
@@ -489,7 +489,10 @@ void Scheduler::CheckScheduledItems()
 
                 LogDebug(VB_SCHEDULE, "Running scheduled item:\n");
                 DumpScheduledItem(itemTime.first, item);
-                CommandManager::INSTANCE.run(item->command, item->args);
+                std::thread *t = new std::thread([this](std::string command, std::vector<std::string> args) {
+                    CommandManager::INSTANCE.run(command, args);
+                }, item->command, item->args);
+                t->detach();
             }
 
             SetItemRan(item, true);
@@ -525,7 +528,7 @@ void Scheduler::SetItemRan(ScheduledItem *item, bool ran)
     }
 }
 
-void Scheduler::GetSunInfo(int set, int moffset, int &hour, int &minute, int &second)
+void Scheduler::GetSunInfo(const std::string &info, int moffset, int &hour, int &minute, int &second)
 {
 	std::string latStr = getSetting("Latitude");
 	std::string lonStr = getSetting("Longitude");
@@ -553,13 +556,19 @@ void Scheduler::GetSunInfo(int set, int moffset, int &hour, int &minute, int &se
 	LogDebug(VB_SCHEDULE, "Today (UTC) is %02d/%02d/%04d, UTC offset is %d hours\n",
 		utc.tm_mon + 1, utc.tm_mday, utc.tm_year + 1900, local.tm_gmtoff / 3600);
 
-	SunSet sun(lat, lon, local.tm_gmtoff / 3600);
+	SunSet sun(lat, lon, (int)(local.tm_gmtoff / 3600));
 	sun.setCurrentDate(utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday);
 
-	if (set)
-		sunOffset = sun.calcSunset();
-	else
-		sunOffset = sun.calcSunrise();
+    if (info == "SunRise")
+        sunOffset = sun.calcSunrise();
+    else if (info == "SunSet")
+        sunOffset = sun.calcSunset();
+    else if (info == "Dawn")
+        sunOffset = sun.calcCivilSunrise();
+    else if (info == "Dusk")
+        sunOffset = sun.calcCivilSunset();
+    else
+        sunOffset = 0;
     
     sunOffset += moffset;
 
@@ -577,15 +586,12 @@ void Scheduler::GetSunInfo(int set, int moffset, int &hour, int &minute, int &se
         return;
     }
 
-	LogDebug(VB_SCHEDULE, "SunRise/Set Time Offset: %.2f minutes\n", sunOffset);
+	LogDebug(VB_SCHEDULE, "%s Time Offset: %.2f minutes\n", info.c_str(), sunOffset);
 	hour = (int)sunOffset / 60;
 	minute = (int)sunOffset % 60;
 	second = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
 
-	if (set)
-		LogDebug(VB_SCHEDULE, "Sunset is at %02d:%02d:%02d\n", hour, minute, second);
-	else
-		LogDebug(VB_SCHEDULE, "Sunrise is at %02d:%02d:%02d\n", hour, minute, second);
+    LogDebug(VB_SCHEDULE, "%s is at %02d:%02d:%02d\n", info.c_str(), hour, minute, second);
 }
 
 
@@ -790,31 +796,23 @@ void Scheduler::LoadScheduleFromFile(void)
     }
 
 	// Check for sunrise/sunset flags
-	if (scheduleEntry.startHour == 25)
-		GetSunInfo( 0,
+    std::size_t found = scheduleEntry.startTimeStr.find(":");
+    if (found == std::string::npos) {
+		GetSunInfo( scheduleEntry.startTimeStr,
                     scheduleEntry.startTimeOffset,
 					scheduleEntry.startHour,
 					scheduleEntry.startMinute,
 					scheduleEntry.startSecond);
-	else if (scheduleEntry.startHour == 26)
-		GetSunInfo( 1,
-                    scheduleEntry.startTimeOffset,
-					scheduleEntry.startHour,
-					scheduleEntry.startMinute,
-					scheduleEntry.startSecond);
+    }
 
-	if (scheduleEntry.endHour == 25)
-		GetSunInfo( 0,
+    found = scheduleEntry.endTimeStr.find(":");
+    if (found == std::string::npos) {
+		GetSunInfo( scheduleEntry.endTimeStr,
                     scheduleEntry.endTimeOffset,
 					scheduleEntry.endHour,
 					scheduleEntry.endMinute,
 					scheduleEntry.endSecond);
-	else if (scheduleEntry.endHour == 26)
-		GetSunInfo( 1,
-                    scheduleEntry.endTimeOffset,
-					scheduleEntry.endHour,
-					scheduleEntry.endMinute,
-					scheduleEntry.endSecond);
+    }
 
     // Set WeeklySecond start and end times
     SetScheduleEntrysWeeklyStartAndEndSeconds(&scheduleEntry);

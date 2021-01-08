@@ -264,20 +264,10 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 }
 
 static void mapTimeString(const std::string &tm, int &h, int &m, int &s) {
-    if (tm == "SunSet") {
-        h = 26;
-        m = 0;
-        s = 0;
-    } else if (tm == "SunRise") {
-        h = 25;
-        m = 0;
-        s = 0;
-    } else {
-        std::vector<std::string> sparts = split(tm, ':');
-        h = atoi(sparts[0].c_str());
-        m = atoi(sparts[1].c_str());
-        s = atoi(sparts[2].c_str());
-    }
+    std::vector<std::string> sparts = split(tm, ':');
+    h = atoi(sparts[0].c_str());
+    m = atoi(sparts[1].c_str());
+    s = atoi(sparts[2].c_str());
 }
 
 void ScheduleEntry::pushStartEndTimes(int start, int end) {
@@ -356,14 +346,20 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
             playlist.c_str());
         return 0;
     }
-    mapTimeString(entry["startTime"].asString(), startHour, startMinute, startSecond);
+    startTimeStr = entry["startTime"].asString();
+    std::size_t found = startTimeStr.find(":");
+    if (found != std::string::npos)
+        mapTimeString(startTimeStr, startHour, startMinute, startSecond);
 
     if (!entry.isMember("endTime") || (entry["endTime"].asString() == "")) {
         LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
             playlist.c_str());
         return 0;
     }
-    mapTimeString(entry["endTime"].asString(), endHour, endMinute, endSecond);
+    endTimeStr = entry["endTime"].asString();
+    found = endTimeStr.find(":");
+    if (found != std::string::npos)
+        mapTimeString(endTimeStr, endHour, endMinute, endSecond);
 
     if (entry.isMember("startTimeOffset")) {
         startTimeOffset = atoi(entry["startTimeOffset"].asString().c_str());
