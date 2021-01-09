@@ -644,6 +644,13 @@
                 "description": "POST Data",
                 "type": "string",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
