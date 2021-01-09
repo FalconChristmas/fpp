@@ -242,7 +242,7 @@ function SetScheduleRowInputNames(row, id) {
         row.find('.holEndDate').show();
     }
     
-    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]$/);
+    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/);
     var startTime = row.find('.schStartTime').val();
     if (startTime.match(re)) {
         row.find('.startOffset').hide();
@@ -387,7 +387,7 @@ function ScheduleEntryTypeChanged(item)
 
 function TimeChanged(item)
 {
-    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]$/);
+    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/);
     if ($(item).val().match(re)) {
         $(item).parent().find('.offset').hide();
     } else {
