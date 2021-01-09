@@ -219,6 +219,7 @@ Json::Value PlaylistEntryBase::GetConfig(void)
 	Json::Value result = m_config;
 
 	result["type"]       = m_type;
+	result["note"]       = m_note;
 	result["enabled"]    = m_enabled;
 	result["isStarted"]  = m_isStarted;
 	result["isPlaying"]  = m_isPlaying;
