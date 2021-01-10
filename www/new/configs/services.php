@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-use App\Services\Database\DatabaseServiceProvider;
+use App\Services\Slugify\SlugifyServiceProvider;
 
 return [
 
-    // 'database' => DatabaseServiceProvider::class,
+    'slugifier' => SlugifyServiceProvider::class,
 
 ];

@@ -10,15 +10,37 @@
 <html class="no-js" lang="">
 
 <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8"/>
     <title>FPP player{% if title != null %} - {{ title }}{% endif %}</title>
+
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="{{ page_meta_robots|default('no-index,no-follow') }}"/>
+    <meta name="google" content="notranslate"/>
+
+    <link rel="stylesheet" href="css/main.min.css">
+
+    <script>
+        {% autoescape 'js' %}
+        window.FPP = {
+            settings: {
+                url: '{{ app.url|raw }}', // always empty. Using parent domain
+            }
+        };
+        {% endautoescape %}
+    </script>
 
     {% block headtags '' %}
 </head>
 
 <body {{ render_attrs(body_attrs) }}>
 {% block body '' %}
+{% block javascripts '' %}
+<script type="text/javascript" src="js/main.min.js"></script>
+{% if app.environment == 'local' %}
+    <script
+        type="text/javascript">document.write('<script src="https://localhost:35729/livereload.js?snipver=1" type="text/javascript"><\/script>')</script>
+{% endif %}
 </body>
 </html>

@@ -1,0 +1,8 @@
+@import "fonts/opensans";
+
+html {
+    @include font-opensans();
+    font-size: 100%;
+    font-weight: normal;
+    line-height: 1.5;
+}

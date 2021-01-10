@@ -1,0 +1,10 @@
+@mixin grid-columns($columns: repeat(1, 1fr), $gap: rem($default-gutter)) {
+    display: grid;
+    grid-column-gap: $gap;
+    grid-template-columns: $columns;
+
+    @media (max-width: map-get($breakpoints, "tablet")) {
+        flex-direction: column;
+        grid-template-columns: unset;
+    }
+}

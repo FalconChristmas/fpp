@@ -2,12 +2,27 @@
 
 namespace App\Kernel\Abstracts;
 
+use Cocur\Slugify\Slugify;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
+use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 class TwigViewAbstract extends AbstractExtension implements GlobalsInterface
 {
+    /**
+     * @var Slugify
+     */
+    private $slugifier;
+
+    /**
+     * TwigViewAbstract constructor.
+     */
+    public function __construct()
+    {
+        $this->slugifier = container('slugifier');
+    }
+
     public function getName(): string
     {
         return 'fpp-functions';
@@ -18,6 +33,7 @@ class TwigViewAbstract extends AbstractExtension implements GlobalsInterface
         return [
             'app' => [
                 'environment' => env('APP_ENV'),
+                'url' => env('APP_URL'),
             ],
         ];
     }
@@ -35,6 +51,17 @@ class TwigViewAbstract extends AbstractExtension implements GlobalsInterface
             new TwigFunction('render_stimulus_target', [$this, 'renderStimulusTargetFunction']),
             new TwigFunction('merge_component_options', [$this, 'mergeComponentOptionsFunction']),
             new TwigFunction('merge_modifiers', [$this, 'mergeModifiers']),
+        ];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getFilters()
+    {
+        return [
+            new TwigFilter('kebab', [$this, 'kebabCaseFilter'], ['is_safe' => ['html']]),
+            new TwigFilter('snake', [$this, 'snakeCaseFilter'], ['is_safe' => ['html']]),
         ];
     }
 
@@ -198,5 +225,29 @@ class TwigViewAbstract extends AbstractExtension implements GlobalsInterface
     public function renderStimulusActionFunction($controller, $event, $method): string
     {
         return sprintf('%s->%s#%s', $event, $controller, $method);
+    }
+
+    /**
+     * Converts snake_cased strings to kebab-case.
+     *
+     * @param string $string
+     *
+     * @return string
+     */
+    public function kebabCaseFilter(string $string)
+    {
+        return $this->slugifier->slugify($string);
+    }
+
+    /**
+     * Converts kebab-cased strings to snake_case.
+     *
+     * @param string $string
+     *
+     * @return string
+     */
+    public function snakeCaseFilter(string $string)
+    {
+        return $this->slugifier->slugify($string, '_');
     }
 }

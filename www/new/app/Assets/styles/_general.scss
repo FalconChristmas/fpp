@@ -1,0 +1,53 @@
+html {
+    @include font-opensans();
+    font-size: 100%;
+    font-weight: normal;
+    height: 100%;
+    line-height: 1.5;
+    min-height: 100%;
+    position: relative;
+}
+
+body {
+    @include adjust-font-size-to(16px, 24px);
+    background: $almost-white;
+    color: $text-color;
+    height: 100%;
+    min-height: 100%;
+
+    /* IE11 fix */
+    @media all and (-ms-high-contrast: none) {
+        display: block;
+    }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0;
+}
+
+a {
+    color: $text-color;
+
+    &:hover {
+        text-decoration: none;
+    }
+}
+
+p {
+    @include adjust-line-height-to(28px);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+.body-no-scroll {
+    overflow: hidden;
+}

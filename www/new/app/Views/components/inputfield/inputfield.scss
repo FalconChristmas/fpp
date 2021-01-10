@@ -1,0 +1,11 @@
+$name: "inputfield";
+
+@include bem-block($name) {
+    @include bem-element('input') {
+        background-color: #FCFDFE;
+        border: 1px solid #EBEBEB;
+        border-radius: rem(2px);
+        color: #596579;
+        padding: 9px 13px;
+    }
+}

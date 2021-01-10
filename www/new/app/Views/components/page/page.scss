@@ -1,0 +1,49 @@
+$name: "page";
+
+@include bem-block($name) {
+    background-color: $almost-white;
+
+    @include bem-element("row") {
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: rem(16px);
+        padding-right: rem(16px);
+        width: 100%;
+    }
+
+    @include bem-element("title") {
+        @include adjust-font-size-to(38px, 36px);
+        color: $bluegray-70;
+        font-weight: 400;
+    }
+
+    @include bem-element("centered_block") {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 300px;
+        margin: 0 auto;
+    }
+}
+
+@include bem-block($name, $media: "tablet") {
+    @include bem-element("row") {
+        max-width: map-get($breakpoints, "tablet");
+    }
+}
+
+@include bem-block($name, $media: "desktop") {
+    @include bem-element("row") {
+        max-width: map-get($breakpoints, "desktop");
+    }
+}
+
+@include bem-block($name, $media: "large-desktop") {
+    @include bem-element("row") {
+        max-width: map-get($breakpoints, "large-desktop");
+    }
+}
+
+/** include pages here **/

@@ -1,0 +1,12 @@
+/* stylelint-disable */
+@mixin adjust-line-height-to($line-height, $font-size: $base-font-size) {
+    line-height: $line-height/$font-size;
+}
+
+@mixin adjust-font-size-to($font-size, $line-height: false) {
+    font-size: $font-size/$base-font-size + 0rem;
+    @if $line-height {
+        @include adjust-line-height-to($line-height, $font-size);
+    }
+}
+/* stylelint-enable */

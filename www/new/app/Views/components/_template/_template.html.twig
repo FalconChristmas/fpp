@@ -1,0 +1,41 @@
+{#
+name: Components / %name%
+description: |
+  Render the template code you've just created
+
+  - Data:
+    - 'value': (string)
+
+  - Options:
+    - 'modifiers': (array) []
+    - 'class': (string) null
+variants:
+  0:
+    name: 'Default'
+    twig: |
+      {% from 'components/%name_kebab_cased%/%name_kebab_cased%.html.twig' import %name_snake_cased% %}
+      {{ %name_snake_cased%({
+          'value': 'value here',
+        }) }}
+    styles: Views/components/%name_kebab_cased%/%name_kebab_cased%.scss
+#}
+{% macro %name_snake_cased%(data, options) %}
+    {% set name = '%name%' %}
+
+    {% set defaults = {
+        'class': null,
+        'modifiers': [],
+    } %}
+
+    {% set options = merge_component_options(options, defaults) %}
+    {% set class = render_classes(name, options.modifiers, options.class) %}
+
+    {% set attrs = {
+        'class': class,
+        %jscontroller%
+    } %}
+
+    <div {{ render_attrs(attrs) }}>
+        Hello from component '%name%'
+    </div>
+{% endmacro %}

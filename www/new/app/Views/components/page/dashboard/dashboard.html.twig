@@ -1,8 +1,21 @@
 {% extends 'components/page/page.html.twig' %}
 
+{% from 'components/inputfield/inputfield.html.twig' import inputfield %}
+
 {% set name = 'dashboard' %}
 {% set page_modifiers = [name] %}
 
 {% block body %}
-    <h3>Hello from the dashboard!</h3>
+    <div class="{{ render_element_classes('page', 'centered_block') }}">
+        <h3>Just an example how it works</h3>
+        <label>Type something</label>
+        {{ inputfield({}, {
+            'data_action': render_stimulus_action('inputfield', 'keyup', 'changeBackgroundColor')
+        }) }}
+
+        <label>Same inputfield, no JS triggert</label>
+        {{ inputfield({
+            'value': 'Awesome!',
+        }) }}
+    </div>
 {% endblock %}

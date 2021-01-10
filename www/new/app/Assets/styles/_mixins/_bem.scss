@@ -1,0 +1,132 @@
+// see: https://mindtheshift.wordpress.com/2014/10/15/getting-the-best-out-of-bem-with-sass/
+
+/**************************************************
+ * Sass mixins that allow you to write proper BEM
+ * with one level nesting for cascading block
+ * modifiers in a very convenient way.
+ *
+ * Free to use under the WTFPL license.
+ * http://www.wtfpl.net/
+ **************************************************/
+
+$bem-block-prefix: "" !default;
+$bem-element-prefix: "__" !default;
+$bem-modifier-prefix: "--" !default;
+
+@function str-index-or($heystack, $needle, $or) {
+    $index: str-index($heystack, $needle);
+    @if ($index == null) {
+        $index: $or;
+    }
+    @return $index;
+}
+
+@function extract-block-name($selector) {
+    $selector: #{$selector};
+    $inf: 9999999999;
+
+    $dot-index: str-index-or($selector, ".", 1);
+    $space-index: str-index-or($selector, " ", $inf);
+    $modifier-index: str-index-or($selector, $bem-modifier-prefix, $inf);
+    $element-index: str-index-or($selector, $bem-element-prefix, $inf);
+    $pseudo-index: str-index-or($selector, ":", $inf);
+    $min-index: min($space-index, $modifier-index, $element-index, $pseudo-index);
+
+    @return str-slice($selector, $dot-index + 1, $min-index - 1);
+}
+
+@mixin bem($name: false, $modifier: "", $pseudo-class: "", $media: false, $prefix: "") {
+    @if (not $name) {
+        @error "You always need to specify the name of a block or an element!";
+    }
+
+    @if ($modifier != "") {
+        $modifier: #{$bem-modifier-prefix + $modifier};
+    }
+
+    @if ($pseudo-class != "") {
+        $pseudo-class: #{":" + $pseudo-class};
+    }
+
+    @if ($media) {
+        @include media-breakpoint-up($media) {
+            #{"." + $prefix + $name + $modifier + $pseudo-class} {
+                @content;
+            }
+        }
+    } @else {
+        #{"." + $prefix + $name + $modifier + $pseudo-class} {
+            @content;
+        }
+    }
+}
+
+@mixin bem-block($name, $modifier: "", $pseudo-class: "", $media: false) {
+    @include bem($name, $modifier, $pseudo-class, $media, $bem-block-prefix) {
+        @content;
+    }
+}
+
+@mixin bem-element($name, $modifier: "", $pseudo-class: "", $media: false) {
+    @include bem($name, $modifier, $pseudo-class, $media, #{$bem-block-prefix + extract-block-name(&) + $bem-element-prefix}) {
+        @content;
+    }
+}
+
+
+//
+// Example usages for common situations
+//
+
+/*$mq-large: "screen and (min-width: 1024px)";
+
+// Regular block styling and basic element stylings
+@include bem-block(my-block) {
+  font-family: "Block " + extract-block-name(&);
+
+  @include bem-element(my-element) {
+    font-family: "Block " + extract-block-name(&);
+  }
+}
+
+// Block modifier with cascading element styles and element modifier
+@include bem-block(my-block, prominent) {
+  font-family: "Block " + extract-block-name(&);
+
+  @include bem-element(my-element) {
+    font-family: "Block " + extract-block-name(&);
+  }
+
+  @include bem-element(my-element, huge) {
+    font-family: "Block " + extract-block-name(&);
+  }
+}
+
+// Block with modifier and pseudo selector as well as element with modifier and pseudo selector
+@include bem-block(my-block, prominent, hover) {
+  font-family: "Block " + extract-block-name(&);
+
+  @include bem-element(my-element, huge, active) {
+    font-family: "Block " + extract-block-name(&);
+  }
+}
+
+// Lets define some media queries for the above block
+@include bem-block(my-block, $media: $mq-large) {
+  font-family: "Block " + extract-block-name(&);
+
+  @include bem-element(my-element) {
+    font-family: "Block " + extract-block-name(&);
+  }
+}
+
+// And also for some of the modifiers and element modifiers
+@include bem-block(my-block, prominent, $media: $mq-large) {
+  font-family: "Block " + extract-block-name(&);
+
+  @include bem-element(my-element, huge, active) {
+    font-family: "Block " + extract-block-name(&);
+  }
+}
+
+*/

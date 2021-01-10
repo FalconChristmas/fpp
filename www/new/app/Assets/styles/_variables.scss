@@ -1,0 +1,19 @@
+$base-font-size: 16px;
+$font-path: "../fonts";
+$default-padding: 16px;
+$default-gutter: $default-padding;
+$default-border-radius: 4px;
+
+$breakpoints: (
+    mobile: 0,
+    tablet: 768px,
+    desktop: 992px,
+    large-desktop: 1200px,
+) !default;
+
+
+$almost-white: #F5F6FA;
+
+$text-color: #444;
+
+$bluegray-70: #4D5259;

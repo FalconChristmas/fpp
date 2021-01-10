@@ -30,7 +30,8 @@
         "pimple/pimple": "^3.3",
         "vlucas/phpdotenv": "^4.1",
         "slim/twig-view": "^3.1",
-        "slim/flash": "^0.4.0"
+        "slim/flash": "^0.4.0",
+        "cocur/slugify": "^4.0"
     },
     "require-dev": {
         "ricardoper/ddumper": "^1.2"
