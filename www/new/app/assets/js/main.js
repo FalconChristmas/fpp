@@ -2,12 +2,12 @@
 import {Application} from 'stimulus';
 import App from '../../assets/js/app';
 import {ComponentController} from "./helpers/stimulus/component-controller";
-import Inputfield from 'Views/components/inputfield/inputfield';
+import Deviceinformation from 'Views/components/deviceinformation/deviceinformation';
 /* component generator replace here */
 
 new ComponentController();
 const controllers = [
-    Inputfield,
+    Deviceinformation,
     /* js component here */
 ];
 

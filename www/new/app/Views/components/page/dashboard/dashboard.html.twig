@@ -1,21 +1,15 @@
 {% extends 'components/page/page.html.twig' %}
 
-{% from 'components/inputfield/inputfield.html.twig' import inputfield %}
-
 {% set name = 'dashboard' %}
 {% set page_modifiers = [name] %}
+{% set title = 'Dashboard' %}
 
 {% block body %}
     <div class="{{ render_element_classes('page', 'centered_block') }}">
-        <h3>Just an example how it works</h3>
-        <label>Type something</label>
-        {{ inputfield({}, {
-            'data_action': render_stimulus_action('inputfield', 'keyup', 'changeBackgroundColor')
-        }) }}
-
-        <label>Same inputfield, no JS triggert</label>
-        {{ inputfield({
-            'value': 'Awesome!',
-        }) }}
+        <header class="{{ render_element_classes('page', 'header') }}">
+            <h1 class="{{ render_element_classes('page', 'title') }}">Dashboard</h1>
+            <h2 class="{{ render_element_classes('page', 'subtitle') }}">An overview of your current Falcon Player
+                setup</h2>
+        </header>
     </div>
 {% endblock %}

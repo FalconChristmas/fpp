@@ -35,7 +35,16 @@
 </head>
 
 <body {{ render_attrs(body_attrs) }}>
-{% block body '' %}
+<aside class="{{ render_element_classes('page', 'sidenav') }}">
+
+</aside>
+<main class="{{ render_element_classes('page', 'main') }}">
+    {% block body '' %}
+</main>
+<footer class="{{ render_element_classes('page', 'footer') }}">
+    <a href="http://www.falconchristmas.com" class="{{ render_element_classes('page', 'footer-link') }}">Falcon Player Christmas</a> 2013 - {{ ''|date('Y')}}
+</footer>
+
 {% block javascripts '' %}
 <script type="text/javascript" src="js/main.min.js"></script>
 {% if app.environment == 'local' %}

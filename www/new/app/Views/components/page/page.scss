@@ -2,6 +2,14 @@ $name: "page";
 
 @include bem-block($name) {
     background-color: $almost-white;
+    display: flex;
+    flex-wrap: wrap;
+
+    display: grid;
+    grid-template-rows:     1fr 40px;
+    grid-template-columns:  1fr;
+    grid-template-areas:  "main"
+                          "footer";
 
     @include bem-element("row") {
         margin-left: auto;
@@ -11,26 +19,68 @@ $name: "page";
         width: 100%;
     }
 
+    @include bem-element("header") {
+        margin-bottom: rem(35px);
+    }
+
     @include bem-element("title") {
-        @include adjust-font-size-to(38px, 36px);
+        @include adjust-font-size-to(38px, 45px);
         color: $bluegray-70;
+        font-weight: 400;
+        text-transform: uppercase;
+    }
+
+    @include bem-element("subtitle") {
+        @include adjust-font-size-to(16px, 22px);
+        color: $bluegray-40;
         font-weight: 400;
     }
 
-    @include bem-element("centered_block") {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+    @include bem-element("sidenav") {
+        display: none;
+        position: absolute;
+        left: 0;
+        top: 0;
+        background-color: $blue-50;
+        flex-basis: rem(370px);
+        width: rem(370px);
         height: 100vh;
-        width: 300px;
-        margin: 0 auto;
+    }
+
+    @include bem-element("main") {
+        grid-area: main;
+        flex: 1;
+        margin-top: rem(30px);
+        margin-left: rem(50px);
+    }
+
+    @include bem-element("footer") {
+        @include adjust-font-size-to(14px);
+        grid-area: footer;
+        flex-basis: 100%;
+        text-align: right;
+        padding-right: rem(15px);
+        font-weight: 600;
+    }
+
+    @include bem-element("footer-link") {
+        @include adjust-font-size-to(15px);
+        font-weight: 400;
     }
 }
 
 @include bem-block($name, $media: "tablet") {
+    grid-template-columns:  rem(370px) 1fr;
+    grid-template-areas:  "sidenav main"
+                          "sidenav footer";
+
     @include bem-element("row") {
         max-width: map-get($breakpoints, "tablet");
+    }
+
+    @include bem-element("sidenav") {
+        display: block;
+        grid-area: sidenav;
     }
 }
 

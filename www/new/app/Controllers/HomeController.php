@@ -26,8 +26,6 @@ class HomeController extends ControllerAbstract
      */
     public function index(Request $request, Response $response): Response
     {
-        unset($request, $response);
-
         return $this->render('components/page/dashboard/dashboard.html.twig');
     }
 }
