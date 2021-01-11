@@ -39,7 +39,7 @@
 #include "mediadetails.h"
 #include "mediaoutput/mediaoutput.h"
 #include "overlays/PixelOverlay.h"
-#include "playlist/Playlist.h"
+#include "Player.h"
 #include "Plugins.h"
 #include "Scheduler.h"
 
@@ -356,32 +356,31 @@ printf("Usage: %s [OPTION...]\n"
 "  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
 "  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
 "  -h, --help                    - This menu.\n"
-"      --log-level LEVEL         - Set the log output level:\n"
+"      --log-level LEVEL         - Set the global log output level (all loggers):\n"
 "                                  \"info\", \"warn\", \"debug\", \"excess\")\n"
-"      --log-mask LIST           - Set the log output mask, where LIST is a\n"
-"                                  comma-separated list made up of one or more\n"
-"                                  of the following items:\n"
-"                                    channeldata - channel data itself\n"
-"                                    channelout  - channel output code\n"
-"                                    command     - command processing\n"
-"                                    control     - Control socket debugging\n"
-"                                    e131bridge  - E1.31 bridge\n"
-"                                    effect      - Effects sequences\n"
-"                                    event       - Event handling\n"
-"                                    general     - general messages\n"
-"                                    gpio        - GPIO Input handling\n"
-"                                    http        - HTTP API requests\n"
-"                                    mediaout    - Media file handling\n"
-"                                    playlist    - Playlist handling\n"
-"                                    plugin      - Plugin handling\n"
-"                                    schedule    - Playlist scheduling\n"
-"                                    sequence    - Sequence parsing\n"
-"                                    setting     - Settings parsing\n"
-"                                    sync        - Master/Remote Synchronization\n"
-"                                    all         - ALL log messages\n"
-"                                    most        - Most excluding \"channeldata\"\n"
-"                                  The default logging is:\n"
-"                                    '--log-level info --log-mask most'\n"
+"      --log-level LEVEL:logger  - Set the loger level for one or more loggers.\n"
+"                                  each level should be spereated by semicolon\n"
+"                                  with one or more loggers seperated by comma\n"
+"                                  example: debug:schedule,player;excess:mqtt \n"
+"                                  valid loggers are: \n"
+"                                    ChannelData - channel data itself\n"
+"                                    ChannelOut  - channel output code\n"
+"                                    Command     - command processing\n"
+"                                    Control     - Control socket debugging\n"
+"                                    E131Bridge  - E1.31 bridge\n"
+"                                    Effect      - Effects sequences\n"
+"                                    Event       - Event handling\n"
+"                                    General     - general messages\n"
+"                                    GPIO        - GPIO Input handling\n"
+"                                    HTTP        - HTTP API requests\n"
+"                                    MediaOut    - Media file handling\n"
+"                                    Playlist    - Playlist handling\n"
+"                                    Plugin      - Plugin handling\n"
+"                                    Schedule    - Playlist scheduling\n"
+"                                    Sequence    - Sequence parsing\n"
+"                                    Setting     - Settings parsing\n"
+"                                    Sync        - Master/Remote Synchronization\n"
+"                                  The default logging is read from settings\n"
 	, appname);
 }
 extern SettingsConfig settings;
@@ -418,7 +417,6 @@ int parseArguments(int argc, char **argv)
 			{"help",				no_argument,		0, 'h'},
 			{"silence-music",		required_argument,	0,	1 },
 			{"log-level",			required_argument,	0,  2 },
-			{"log-mask",			required_argument,	0,  3 },
 			{0,						0,					0,	0}
 		};
 
@@ -437,13 +435,10 @@ int parseArguments(int argc, char **argv)
 				settings.silenceMusic = strdup(optarg);
 				break;
 			case 2: // log-level
-				// This is legacy and shouldn't really be used.
-				if (SetLogLevel(optarg)) {
+				if (SetLogLevelComplex(optarg)) {
+					std::cout << FPPLogger::INSTANCE.GetLogLevelString() << std::endl;
 					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", FPPLogger::INSTANCE.MinimumLogLevel(), optarg);
 				}
-				break;
-			case 3: // log-mask
-				LogWarn(VB_SETTING, "--log-mask is no longer supported and being ignored\n");
 				break;
 			case 'c': //config-file
 				if (FileExists(optarg))
@@ -593,7 +588,6 @@ int main(int argc, char *argv[])
 
         LogInfo(VB_GENERAL, "Creating Scheduler, Playlist, and Sequence\n");
 	scheduler = new Scheduler();
-	playlist = new Playlist();
 	sequence  = new Sequence();
         LogInfo(VB_GENERAL, "Creation of Scheduler, Playlist, and Sequence Complete\n");
 
@@ -655,7 +649,6 @@ int main(int argc, char *argv[])
     GPIOManager::INSTANCE.Cleanup();
 
 	delete scheduler;
-	delete playlist;
 	delete sequence;
     runMainFPPDLoop = -1;
     Sensors::INSTANCE.Close();
@@ -667,6 +660,7 @@ int main(int argc, char *argv[])
 
     MagickLib::DestroyMagick();
 	curl_global_cleanup();
+	std::string logLevelString = FPPLogger::INSTANCE.GetLogLevelString();
 
 	CloseOpenFiles();
 
@@ -675,8 +669,7 @@ int main(int argc, char *argv[])
 		char darg[3] = "-d";
 		if (!getDaemonize())
 			strcpy(darg, "-f");
-
-		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, NULL);
+		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, "--log-level", logLevelString.c_str(), NULL);
 	}
 
 	return 0;
@@ -803,36 +796,33 @@ void MainLoop(void)
 		}
 
 		if (getFPPmode() & PLAYER_MODE) {
-			if (playlist->IsPlaying()) {
+			if (Player::INSTANCE.IsPlaying()) {
 				if (prevFPPstatus == FPP_STATUS_IDLE) {
-					playlist->Start();
+					Player::INSTANCE.Start();
 					sleepms = 10;
 				}
 
 				// Check again here in case PlayListPlayingInit
 				// didn't find anything and put us back to IDLE
-				if (playlist->IsPlaying()) {
-					playlist->Process();
+				if (Player::INSTANCE.IsPlaying()) {
+					Player::INSTANCE.Process();
 				}
 			}
 
 			int reactivated = 0;
-			if (playlist->getPlaylistStatus() == FPP_STATUS_IDLE) {
+			if (Player::INSTANCE.GetStatus() == FPP_STATUS_IDLE) {
 				if ((prevFPPstatus == FPP_STATUS_PLAYLIST_PLAYING) ||
                     (prevFPPstatus == FPP_STATUS_PLAYLIST_PAUSED) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY) ||
 					(prevFPPstatus == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
-					playlist->Cleanup();
+					Player::INSTANCE.Cleanup();
 
-					scheduler->ReLoadCurrentScheduleInfo();
-                    scheduler->ReLoadNextScheduleInfo();
-
-					if (playlist->GetForceStop())
-						scheduler->CheckIfShouldBePlayingNow(0, playlist->GetScheduleEntry());
+					if (Player::INSTANCE.GetForceStopped())
+						scheduler->CheckIfShouldBePlayingNow(0, Player::INSTANCE.GetScheduleEntry());
                     else
 						scheduler->CheckIfShouldBePlayingNow();
 
-					if (playlist->getPlaylistStatus() != FPP_STATUS_IDLE)
+					if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE)
 						reactivated = 1;
 					else
 						sleepms = 50;
@@ -842,12 +832,12 @@ void MainLoop(void)
 			if (reactivated)
 				prevFPPstatus = FPP_STATUS_IDLE;
 			else
-				prevFPPstatus = playlist->getPlaylistStatus();
+				prevFPPstatus = Player::INSTANCE.GetStatus();
 
 			scheduler->ScheduleProc();
 		} else if (getFPPmode() == REMOTE_MODE) {
 			if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
-				playlist->ProcessMedia();
+				Player::INSTANCE.ProcessMedia();
 			}
         } else if (getFPPmode() == BRIDGE_MODE && pushBridgeData) {
             ForceChannelOutputNow();

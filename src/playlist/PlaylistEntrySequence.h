@@ -31,7 +31,7 @@
 
 class PlaylistEntrySequence : public PlaylistEntryBase {
   public:
-	PlaylistEntrySequence(PlaylistEntryBase *parent = NULL);
+	PlaylistEntrySequence(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntrySequence();
 
 	virtual int  Init(Json::Value &config) override;

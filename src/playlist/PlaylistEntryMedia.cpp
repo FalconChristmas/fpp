@@ -47,8 +47,8 @@ int PlaylistEntryMedia::m_openStartDelay = -1;
 /*
  *
  */
-PlaylistEntryMedia::PlaylistEntryMedia(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryMedia::PlaylistEntryMedia(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_status(0),
 	m_mediaOutput(NULL),
     m_videoOutput("--Default--"),
@@ -338,7 +338,7 @@ int PlaylistEntryMedia::OpenMediaOutput(void)
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia - Starting %s\n", tmpFile.c_str());
 
     MediaDetails::INSTANCE.ParseMedia(m_mediaFilename.c_str());
-    PluginManager::INSTANCE.mediaCallback(playlist->GetInfo(), MediaDetails::INSTANCE);
+    PluginManager::INSTANCE.mediaCallback(m_parentPlaylist->GetInfo(), MediaDetails::INSTANCE);
 
     std::string vOut = m_videoOutput;
     if (vOut == "--Default--") {

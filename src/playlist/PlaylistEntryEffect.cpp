@@ -30,8 +30,8 @@
 /*
  *
  */
-PlaylistEntryEffect::PlaylistEntryEffect(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryEffect::PlaylistEntryEffect(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_startChannel(0),
 	m_repeat(0),
 	m_blocking(0),

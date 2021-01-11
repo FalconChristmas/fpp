@@ -30,7 +30,7 @@
 
 class PlaylistEntryMQTT : public PlaylistEntryBase {
   public:
-	PlaylistEntryMQTT(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryMQTT(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryMQTT();
 
 	virtual int  Init(Json::Value &config) override;

@@ -133,6 +133,7 @@ void initSettings(int argc, char **argv)
 	settings.controlMajor = 0;
 	settings.controlMinor = 0;
 
+	// Default all to info
 	SetLogLevel("info");
 }
 

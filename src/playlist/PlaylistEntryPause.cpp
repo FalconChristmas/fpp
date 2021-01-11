@@ -29,8 +29,8 @@
 /*
  *
  */
-PlaylistEntryPause::PlaylistEntryPause(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryPause::PlaylistEntryPause(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_duration(0.0f),
 	m_startTime(0),
 	m_endTime(0),

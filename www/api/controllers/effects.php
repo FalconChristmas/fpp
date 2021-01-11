@@ -14,6 +14,7 @@ function effects_list()
         }
         closedir($d);
     }
+    sort($effects);
     return json($effects);
 }
 
@@ -41,6 +42,7 @@ function effects_list_ALL()
         }
         closedir($d);
     }
+    sort($effects);
     return json($effects);
 }
 ?>

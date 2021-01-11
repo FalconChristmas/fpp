@@ -30,7 +30,7 @@
 
 class PlaylistEntryScript : public PlaylistEntryBase {
   public:
-	PlaylistEntryScript(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryScript(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryScript();
 
 	virtual int  Init(Json::Value &config) override;

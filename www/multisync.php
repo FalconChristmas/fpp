@@ -1282,6 +1282,15 @@ function multiActionChanged() {
 	<div id="uifppsystems" class="settings">
 		<fieldset>
 			<legend>FPP MultiSync</legend>
+            <table style='width: 100%' class='statusTable'>
+                <tr>
+                    <td align='left'>&nbsp;</td>
+                    <td align='right'>
+<? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> Auto Refresh Status
+                    </td>
+                </tr>
+            </table>
+
             <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
                 <div class='fppTableContents'>
 			<table id='fppSystemsTable' cellpadding='3'>
@@ -1359,7 +1368,6 @@ PrintSetting('MultiSyncHTTPSubnets');
 PrintSetting('MultiSyncHide10', 'getFPPSystems');
 PrintSetting('MultiSyncHide172', 'getFPPSystems');
 PrintSetting('MultiSyncHide192', 'getFPPSystems');
-PrintSetting('MultiSyncRefreshStatus', 'autoRefreshToggled');
 PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
 ?>
             </table>

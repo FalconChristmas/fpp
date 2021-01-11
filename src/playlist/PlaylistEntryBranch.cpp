@@ -27,8 +27,8 @@
 #include "mqtt.h"
 #include "PlaylistEntryBranch.h"
 
-PlaylistEntryBranch::PlaylistEntryBranch(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryBranch::PlaylistEntryBranch(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_sHour(0),
 	m_sMinute(0),
 	m_sSecond(0),
@@ -247,7 +247,7 @@ int PlaylistEntryBranch::StartPlaying(void)
 
         LogDebug(VB_PLAYLIST, "Now: %02d:%02d:%02d, Start: %02d:%02d:%02d, End: %02d:%02d:%02d, NS: %s, NI: %d\n", now.tm_hour, now.tm_min, now.tm_sec, m_sHour, m_sMinute, m_sSecond, m_eHour, m_eMinute, m_eSecond, m_nextSection.c_str(), m_nextItem);
     } else if (m_branchTest == "Loop") {
-        int curLoop = playlist->GetLoopNumber();
+        int curLoop = m_parentPlaylist->GetLoopNumber();
 
         LogDebug(VB_PLAYLIST, "Current Loop is %d, we want every %d iteration(s) starting at %d\n", curLoop, m_iterationCount, m_iterationStart);
         if ((curLoop >= m_iterationStart) &&

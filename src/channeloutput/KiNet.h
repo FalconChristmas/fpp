@@ -1,13 +1,8 @@
 #pragma once
 /*
- *   Playlist Entry Volume Class for Falcon Player (FPP)
+ *   DDP Channel Output driver for Falcon Player (FPP)
  *
  *   Copyright (C) 2013-2018 the Falcon Player Developers
- *      Initial development by:
- *      - David Pitts (dpitts)
- *      - Tony Mace (MyKroFt)
- *      - Mathew Mrosko (Materdaddy)
- *      - Chris Pinkham (CaptainMurdoch)
  *      For additional credits and developers, see credits.php.
  *
  *   The Falcon Player (FPP) is free software; you can redistribute it
@@ -24,24 +19,29 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string>
+#include <list>
+#include "UDPOutput.h"
 
-#include "PlaylistEntryBase.h"
+#define KINET_PORT 6038
 
-class PlaylistEntryVolume : public PlaylistEntryBase {
-  public:
-	PlaylistEntryVolume(Playlist *playlist, PlaylistEntryBase *parent = NULL);
-	virtual ~PlaylistEntryVolume();
 
-	virtual int  Init(Json::Value &config) override;
+class KiNetOutputData : public UDPOutputData {
+public:
+    explicit KiNetOutputData(const Json::Value &config);
+    virtual ~KiNetOutputData();
+    
+    virtual bool IsPingable() override { return true; }
+    virtual void PrepareData(unsigned char *channelData, UDPOutputMessages &msgs) override;
+    virtual void DumpConfig() override;
+    
+    virtual const std::string &GetOutputTypeString() const override;
+    virtual void GetRequiredChannelRange(int &min, int & max) override;
 
-	virtual int  StartPlaying(void) override;
+    int           port = 1;
+    int           portCount = 1;
 
-	virtual void Dump(void) override;
-
-	Json::Value GetConfig(void) override;
-
-  private:
-	int                  m_volume;
-    bool                 m_volAdjust;
+    sockaddr_in   kinetAddress;
+    
+    struct iovec *kinetIovecs = nullptr;
+    unsigned char **kinetBuffers = nullptr;
 };

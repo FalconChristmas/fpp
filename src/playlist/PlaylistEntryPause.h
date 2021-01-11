@@ -30,7 +30,7 @@
 
 class PlaylistEntryPause : public PlaylistEntryBase {
   public:
-	PlaylistEntryPause(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryPause(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	~PlaylistEntryPause();
 
 	virtual int  Init(Json::Value &config) override;

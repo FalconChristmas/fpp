@@ -29,8 +29,8 @@
 /*
  *
  */
-PlaylistEntryMQTT::PlaylistEntryMQTT(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent)
+PlaylistEntryMQTT::PlaylistEntryMQTT(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMQTT::PlaylistEntryMQTT()\n");
 

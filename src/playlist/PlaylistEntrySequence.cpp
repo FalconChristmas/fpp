@@ -29,8 +29,8 @@
 
 #include "channeloutput/channeloutputthread.h"
 
-PlaylistEntrySequence::PlaylistEntrySequence(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntrySequence::PlaylistEntrySequence(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_duration(0),
     m_prepared(false),
     m_adjustTiming(true),

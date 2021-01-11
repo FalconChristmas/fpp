@@ -31,7 +31,7 @@
 
 class PlaylistEntryURL : public PlaylistEntryBase {
   public:
-	PlaylistEntryURL(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryURL(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryURL();
 
 	virtual int  Init(Json::Value &config) override;

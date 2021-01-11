@@ -44,8 +44,8 @@
 /*
  *
  */
-PlaylistEntryDynamic::PlaylistEntryDynamic(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent),
+PlaylistEntryDynamic::PlaylistEntryDynamic(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent),
 	m_curl(NULL),
 	m_drainQueue(0),
 	m_currentEntry(-1)
@@ -190,8 +190,8 @@ int PlaylistEntryDynamic::Process(void)
 		m_playlistEntries[m_currentEntry]->Process();
 		if (m_playlistEntries[m_currentEntry]->IsFinished())
 		{
-			if ((playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
-				(playlist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP))
+			if ((m_parentPlaylist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY) ||
+				(m_parentPlaylist->getPlaylistStatus() == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP))
 			{
 				FinishPlay();
 			}
@@ -396,29 +396,29 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 		playlistEntry = NULL;
 
 		if (pe["type"].asString() == "both")
-			playlistEntry = new PlaylistEntryBoth();
+			playlistEntry = new PlaylistEntryBoth(m_parentPlaylist);
 		else if (pe["type"].asString() == "command")
-			playlistEntry = new PlaylistEntryCommand();
+			playlistEntry = new PlaylistEntryCommand(m_parentPlaylist);
 		else if (pe["type"].asString() == "effect")
-			playlistEntry = new PlaylistEntryEffect();
+			playlistEntry = new PlaylistEntryEffect(m_parentPlaylist);
 		else if (pe["type"].asString() == "event")
-			playlistEntry = new PlaylistEntryEvent();
+			playlistEntry = new PlaylistEntryEvent(m_parentPlaylist);
 		else if (pe["type"].asString() == "media")
-			playlistEntry = new PlaylistEntryMedia();
+			playlistEntry = new PlaylistEntryMedia(m_parentPlaylist);
 		else if (pe["type"].asString() == "mqtt")
-			playlistEntry = new PlaylistEntryMQTT();
+			playlistEntry = new PlaylistEntryMQTT(m_parentPlaylist);
 		else if (pe["type"].asString() == "pause")
-			playlistEntry = new PlaylistEntryPause();
+			playlistEntry = new PlaylistEntryPause(m_parentPlaylist);
 		else if (pe["type"].asString() == "remap")
-			playlistEntry = new PlaylistEntryRemap();
+			playlistEntry = new PlaylistEntryRemap(m_parentPlaylist);
 		else if (pe["type"].asString() == "script")
-			playlistEntry = new PlaylistEntryScript();
+			playlistEntry = new PlaylistEntryScript(m_parentPlaylist);
 		else if (pe["type"].asString() == "sequence")
-			playlistEntry = new PlaylistEntrySequence();
+			playlistEntry = new PlaylistEntrySequence(m_parentPlaylist);
 		else if (pe["type"].asString() == "url")
-			playlistEntry = new PlaylistEntryURL();
+			playlistEntry = new PlaylistEntryURL(m_parentPlaylist);
 		else if (pe["type"].asString() == "volume")
-			playlistEntry = new PlaylistEntryVolume();
+			playlistEntry = new PlaylistEntryVolume(m_parentPlaylist);
 		else
 		{
 			LogErr(VB_PLAYLIST, "Invalid Playlist Entry Type: %s\n", pe["type"].asString().c_str());

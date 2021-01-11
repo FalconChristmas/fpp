@@ -30,7 +30,7 @@
 
 class PlaylistEntryEffect : public PlaylistEntryBase {
   public:
-	PlaylistEntryEffect(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryEffect(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryEffect();
 
 	virtual int  Init(Json::Value &config) override;

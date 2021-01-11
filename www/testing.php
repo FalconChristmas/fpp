@@ -180,13 +180,6 @@ else
   float: left;
 }
 
-.color-box {
-  width:10px;
-  height:10px;
-  margin:5px;
-  border: 1px solid black;
-}
-
 .container div {
   float: left;
   height: 10px;

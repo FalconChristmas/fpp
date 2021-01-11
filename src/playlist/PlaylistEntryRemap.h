@@ -32,7 +32,7 @@ class RemapOutputProcessor;
 
 class PlaylistEntryRemap : public PlaylistEntryBase {
   public:
-	PlaylistEntryRemap(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryRemap(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryRemap();
 
 	virtual int  Init(Json::Value &config) override;

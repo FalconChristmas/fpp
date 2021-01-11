@@ -39,7 +39,7 @@ function StartSelectedEffect() {
     if (startChannel == undefined || startChannel == '')
         startChannel = 0;
     else
-        startChannel = parseInt(startChannel) - 1;
+        startChannel = parseInt(startChannel);
 
     if ($('#loopEffect').is(':checked'))
         loop = 1;

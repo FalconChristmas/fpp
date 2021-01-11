@@ -26,8 +26,8 @@
 #include "fpp-pch.h"
 #include "PlaylistEntryPlugin.h"
 
-PlaylistEntryPlugin::PlaylistEntryPlugin(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent)
+PlaylistEntryPlugin::PlaylistEntryPlugin(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent)
 {
     m_type = "plugin";
 }

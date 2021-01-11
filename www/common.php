@@ -271,6 +271,13 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
 
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
                 break;
+            case 'color':
+                $size = 7;
+                $maxlength = 7;
+                $default = isset($s['default']) ? $s['default'] : "800000";
+
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'color', $s);
+                break;
             case 'password':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
@@ -642,6 +649,10 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 	global $settings;
 	global $pluginSettings;
 
+    $subType = $inputType;
+    if ($inputType == 'color')
+        $inputType = 'text';
+
 	$plugin = "";
 	$settingsName = "settings";
 
@@ -736,16 +747,18 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     else
         echo "<input type='$inputType' id='$setting' $maxTag='$maxlength' $sizeTag='$size' onChange='" . $changedFunction . "();' value=\"";
 
+    $curValue = "";
     if ((isset($sData['alwaysReset'])) && ($sData['alwaysReset'] == 1)) {
-        echo $defaultValue;
+        $curValue = $defaultValue;
     } else {
         if (isset($settings[$setting]))
-            echo $settings[$setting];
+            $curValue = $settings[$setting];
         elseif (isset($pluginSettings[$setting]))
-            echo $pluginSettings[$setting];
+            $curValue = $pluginSettings[$setting];
         else
-            echo $defaultValue;
+            $curValue = $defaultValue;
     }
+    echo $curValue;
 
 	echo "\" \n";
 
@@ -762,7 +775,16 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     }
 
 	echo ">\n";
+
+    if ($subType == 'color') {
+        echo "<span id='$setting" . "_colorBox' class='color-box' style='background-color: #" . $curValue . ";'></span>";
+        echo "<script>";
+        echo "var $setting" . "SaveTimer = null;\n";
+        echo "$('#$setting" . "_colorBox').colpick({ layout: 'rgbhex', color: '" . $curValue . "', submit: false, onChange: function(hsb,hex,rgb,el,bySetColor) { clearTimeout($setting" . "SaveTimer); $(el).css('background-color', '#'+hex); $('#$setting').val(hex); $setting" . "SaveTimer = setTimeout( function() { " . $changedFunction . "(); }, 500)}}).css('background-color', '#" . $curValue . "');";
+        echo "</script>";
+    }
 }
+
 function PrintSettingPasswordSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "")
 {
     $sData = Array();

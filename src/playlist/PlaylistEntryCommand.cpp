@@ -29,8 +29,8 @@
 /*
  *
  */
-PlaylistEntryCommand::PlaylistEntryCommand(PlaylistEntryBase *parent)
-  : PlaylistEntryBase(parent)
+PlaylistEntryCommand::PlaylistEntryCommand(Playlist *playlist, PlaylistEntryBase *parent)
+  : PlaylistEntryBase(playlist, parent)
 {
 	LogDebug(VB_PLAYLIST, "PlaylistEntryCommand::PlaylistEntryCommand()\n");
 

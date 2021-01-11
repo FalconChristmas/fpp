@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sstream>
 
 //int logLevel = LOG_INFO;
 //int logMask  = VB_MOST;
@@ -65,7 +66,7 @@ void FPPLogger::Init() {
    }
 }
 
-bool FPPLogger::SetLevel(char *name, char *level) {
+bool FPPLogger::SetLevel(const char *name, const char *level) {
    LogLevel newLevel = LOG_ERR;
    bool found = false;
 
@@ -112,8 +113,9 @@ bool FPPLogger::SetLevel(std::string name, LogLevel level) {
 	 madeChange = true;
       }
    }
-   if (! madeChange)
-      LogWarn(VB_SETTING, "Invalid name for LogLevel: %s\n", name.c_str());
+   if (! madeChange){
+      LogWarn(VB_SETTING, "Invalid name for LoggerInstance: %s\n", name.c_str());
+   }
 
    return madeChange;
 }
@@ -132,6 +134,34 @@ int FPPLogger::MinimumLogLevel() {
 
    return rc;
 }
+
+std::string FPPLogger::GetLogLevelString() {
+   std::stringstream rc;
+   LogLevel currentLevel = LOG_ERR;
+   bool firstLevel = true;
+   bool firstLogger = true;
+   std::vector<FPPLoggerInstance*>::iterator it;
+
+   for (it = all.begin(); it != all.end(); it++) {
+      if ((currentLevel != (*it)->level) || firstLevel) {
+         if (!firstLevel) {
+            rc << ";";
+	 }
+	 firstLevel = false;
+	 firstLogger = true;
+	 rc << LogLevelToString((*it)->level) << ":";
+	 currentLevel = (*it)->level;
+      }
+      if (firstLogger) {
+         firstLogger = false;
+      } else {
+         rc << ",";
+      }
+      rc << (*it)->name;
+   }
+   return rc.str();
+}
+
 
 void FPPLogger::SetAllLevel(LogLevel level) {
    std::vector<FPPLoggerInstance*>::iterator it;
@@ -238,7 +268,59 @@ std::string LogLevelToString(LogLevel level) {
    }
 }
 
-int SetLogLevel(const char *newLevel)
+/*
+ * Parse a string like debug:schedule,player;excess:mqtt for log level
+ */
+bool SetLogLevelComplex(std::string &input) {
+	LogDebug(VB_SETTING, "Attempting to parse Log Levels from %s\n", input.c_str());
+
+	if (input.length() == 0) {
+		LogWarn(VB_SETTING, "Ignoring Empty String sent to SetLogLevelComplex");
+		return false;
+	}
+	// Check if simple method
+	if (input.find(':') == std::string::npos) {
+		LogDebug(VB_SETTING, "Using simple loging for input \"%s\" as no colon found.\n", input.c_str());
+		return SetLogLevel(input.c_str());
+	}
+	if (input.find(';') == std::string::npos) {
+		input = input + ';';
+	}
+
+	bool madeChange = false;
+	std::istringstream ss(input);
+	std::string token1;
+
+	while(std::getline(ss, token1, ';')) {
+		// token1 should be debug:scheduler,player
+		
+		LogDebug(VB_SETTING, "Outer Prase is %s\n", token1.c_str());
+		size_t pos = token1.find(':');
+		if (pos != std::string::npos) {
+			std::string level = token1.substr(0,pos);
+			std::string loggers = token1.substr(pos+1);
+			std::istringstream st(loggers);
+			std::string logger;
+			if (loggers.find(',') == std::string::npos) {
+				loggers = loggers + ",";
+			}
+			while (std::getline(st, logger, ',')) {
+				LogDebug(VB_SETTING, "Attempting to set %s to %s \n", logger.c_str(), level.c_str());
+				madeChange = FPPLogger::INSTANCE.SetLevel(logger.c_str(), level.c_str()) || madeChange;
+			}
+		} else {
+			LogErr(VB_SETTING, "Invalid Log Level Token: %s\n", token1.c_str());
+		}
+	}
+
+	return madeChange;
+}
+bool SetLogLevelComplex(const char *input) {
+	std::string s = input;
+	return SetLogLevelComplex(s);
+}
+
+bool SetLogLevel(const char *newLevel)
 {
 	LogErr(VB_SETTING, "Using Legacy Global Logging to set all to same Log Level of %s\n", newLevel);
 	if (!strcmp(newLevel, "warn")) {
@@ -253,10 +335,10 @@ int SetLogLevel(const char *newLevel)
 		FPPLogger::INSTANCE.SetAllLevel(LOG_ERR);
 	} else {
 		LogErr(VB_SETTING, "Unknown Log Level: %s\n", newLevel);
-		return 0;
+		return false;
 	}
 
-	return 1;
+	return true;
 }
 
 int loggingToFile(void)

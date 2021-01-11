@@ -205,6 +205,13 @@
                 "type": "string",
                 "contentListUrl": "api/playlists",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -273,6 +280,13 @@
                 "description": "Drain Queue",
                 "type": "bool",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -305,6 +319,13 @@
                 "type": "string",
                 "optional": true,
                 "simpleUI": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -340,6 +361,13 @@
                 "description": "Args",
                 "type": "args",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -384,6 +412,13 @@
                 "contentListUrl": "api/options/FrameBuffer",
                 "type": "string",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -425,6 +460,13 @@
                 "type": "string",
                 "contentListUrl": "api/options/PlaylistVideoOutput",
                 "optional": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -446,6 +488,13 @@
                 "description": "Message",
                 "optional": false,
                 "simpleUI": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -464,6 +513,13 @@
                 "unit": "seconds",
                 "optional": false,
                 "simpleUI": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -478,6 +534,13 @@
                 "contentListUrl": "api/playlists",
                 "optional": false,
                 "simpleUI": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -534,6 +597,13 @@
                 "description": "Reverse",
                 "type": "bool",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -561,6 +631,13 @@
                 "description": "Blocking",
                 "type": "bool",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -593,6 +670,13 @@
                 "type": "string",
                 "contentListUrl": "api/options/PlaylistVideoOutput",
                 "optional": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -609,6 +693,13 @@
                 "onChange": "SequenceChanged",
                 "optional": false,
                 "simpleUI": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -644,6 +735,13 @@
                 "description": "POST Data",
                 "type": "string",
                 "optional": false
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     },
@@ -661,6 +759,13 @@
                 "default": 80,
                 "optional": false,
                 "simpleUI": true
+            },
+            "note": {
+                "name": "note",
+                "description": "Note",
+                "type": "string",
+                "optional": true,
+                "simpleUI": false
             }
         }
     }

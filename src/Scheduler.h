@@ -24,9 +24,11 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <map>
 #include <mutex>
 #include <vector>
 
+#include <time.h>
 #include <pthread.h>
 
 #include <jsoncpp/json/json.h>
@@ -87,6 +89,22 @@ public:
 	time_t scheduledEndTime = 0;
 };
 
+class ScheduledItem {
+  public:
+    ScheduledItem();
+    ScheduledItem(ScheduledItem *item);
+   ~ScheduledItem() {}
+
+    int            priority;
+    ScheduleEntry *entry;
+    int            entryIndex;
+    bool           ran;
+    time_t         startTime;
+    time_t         endTime;
+    std::string    command;
+    std::vector<std::string> args;
+};
+
 class Scheduler {
   public:
 	Scheduler();
@@ -95,52 +113,41 @@ class Scheduler {
 	void ScheduleProc(void);
 	void CheckIfShouldBePlayingNow(int ignoreRepeat = 0, int forceStopped = -1);
 	void ReloadScheduleFile(void);
-	void ReLoadCurrentScheduleInfo(void);
-	void ReLoadNextScheduleInfo(void);
-	void GetNextScheduleStartText(char * txt);
-	void GetNextPlaylistText(char * txt);
+
+    std::string    GetNextPlaylistName();
+    std::string    GetNextPlaylistStartStr();
 
 	std::string GetPlaylistThatShouldBePlaying(int &repeat);
 	Json::Value GetInfo(void);
-
-	int  ExtendRunningSchedule(int seconds = 300);
+	Json::Value GetSchedule(void);
 
   private:
-	int  GetNextScheduleEntry(int *weeklySecondIndex, bool future);
-	void LoadCurrentScheduleInfo(bool future = false);
-	void LoadNextScheduleInfo(void);
-	void GetSunInfo(int set, int moffset, int &hour, int &minute, int &second);
+    void CalculateScheduledItems();
+    void DumpScheduledItem(std::time_t itemTime, ScheduledItem *item);
+    void DumpScheduledItems();
+    void CheckScheduledItems();
+    void SetItemRan(ScheduledItem *item, bool ran);
+
+    ScheduledItem *GetNextScheduledPlaylist();
+	void GetSunInfo(const std::string &info, int moffset, int &hour, int &minute, int &second);
 	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry);
-	void PlayListLoadCheck(void);
-	void PlayListStopCheck(void);
-	void ConvertScheduleFile(void);
 	void LoadScheduleFromFile(void);
 	void SchedulePrint(void);
-	std::string GetWeekDayStrFromSeconds(int weeklySeconds);
-	int  GetWeeklySecondDifference(int weeklySeconds1, int weeklySeconds2);
-	int  GetDayFromWeeklySeconds(int weeklySeconds);
-	int  FindNextStartingScheduleIndex(void);
-	void GetScheduleEntryStartText(int index,int weeklySecondIndex, char * txt);
-	void GetDayTextFromDayIndex(int index,char * txt);
+	std::string GetDayTextFromDayIndex(const int index);
 
 	void RegisterCommands();
 
     bool          m_schedulerDisabled;
 	bool          m_loadSchedule;
-	unsigned char m_CurrentScheduleHasbeenLoaded;
-	unsigned char m_NextScheduleHasbeenLoaded;
-	int           m_nowWeeklySeconds2;
 	int           m_lastLoadDate;
 
 	time_t        m_lastProcTime;
-	time_t        m_lastLoadTime;
-	time_t        m_lastCalculateTime;
 
 	std::mutex                  m_scheduleLock;
 	std::vector<ScheduleEntry>  m_Schedule;
+    std::map<std::time_t, std::vector<ScheduledItem*>*> m_scheduledItems;
+    std::map<std::time_t, std::vector<ScheduledItem*>*> m_ranItems;
 
-	SchedulePlaylistDetails m_currentSchedulePlaylist;
-	SchedulePlaylistDetails m_nextSchedulePlaylist;
     int                     m_forcedNextPlaylist;
 };
 

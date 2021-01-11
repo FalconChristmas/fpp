@@ -264,20 +264,10 @@ int ScheduleEntry::LoadFromString(std::string entryStr)
 }
 
 static void mapTimeString(const std::string &tm, int &h, int &m, int &s) {
-    if (tm == "SunSet") {
-        h = 26;
-        m = 0;
-        s = 0;
-    } else if (tm == "SunRise") {
-        h = 25;
-        m = 0;
-        s = 0;
-    } else {
-        std::vector<std::string> sparts = split(tm, ':');
-        h = atoi(sparts[0].c_str());
-        m = atoi(sparts[1].c_str());
-        s = atoi(sparts[2].c_str());
-    }
+    std::vector<std::string> sparts = split(tm, ':');
+    h = atoi(sparts[0].c_str());
+    m = atoi(sparts[1].c_str());
+    s = atoi(sparts[2].c_str());
 }
 
 void ScheduleEntry::pushStartEndTimes(int start, int end) {
@@ -340,20 +330,50 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
     dayIndex           = entry["day"].asInt();
     repeatInterval     = entry["repeat"].asInt();
     repeat             = repeatInterval == 1;
+
+    if (entry.isMember("command"))
+        command = entry["command"].asString();
+
+    if (entry.isMember("args"))
+        args = entry["args"];
     
     repeatInterval /= 100;
     repeatInterval *= 60; //seconds betweeen intervals
     
 
-    mapTimeString(entry["startTime"].asString(), startHour, startMinute, startSecond);
-    mapTimeString(entry["endTime"].asString(), endHour, endMinute, endSecond);
+    if (!entry.isMember("startTime") || (entry["startTime"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid startTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
+    startTimeStr = entry["startTime"].asString();
+    std::size_t found = startTimeStr.find(":");
+    if (found != std::string::npos)
+        mapTimeString(startTimeStr, startHour, startMinute, startSecond);
+
+    if (!entry.isMember("endTime") || (entry["endTime"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
+    endTimeStr = entry["endTime"].asString();
+    found = endTimeStr.find(":");
+    if (found != std::string::npos)
+        mapTimeString(endTimeStr, endHour, endMinute, endSecond);
+
     if (entry.isMember("startTimeOffset")) {
         startTimeOffset = atoi(entry["startTimeOffset"].asString().c_str());
     }
+
     if (entry.isMember("endTimeOffset")) {
         endTimeOffset = atoi(entry["endTimeOffset"].asString().c_str());
     }
 
+    if (!entry.isMember("startDate") || (entry["startDate"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
     startDateStr = entry["startDate"].asString();
     std::string tempStr = CheckHoliday(startDateStr);
 
@@ -364,6 +384,11 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
         startDateStr = "20190101";
     }
 
+    if (!entry.isMember("endDate") || (entry["endDate"].asString() == "")) {
+        LogErr(VB_SCHEDULE, "Missing or invalid endTime for playlist %s\n",
+            playlist.c_str());
+        return 0;
+    }
     endDateStr = entry["endDate"].asString();
     tempStr = CheckHoliday(endDateStr);
 
@@ -386,6 +411,11 @@ Json::Value ScheduleEntry::GetJson(void)
 
     e["enabled"] = (int)enabled;
     e["playlist"] = playlist;
+    if (playlist == "") {
+        e["command"] = command;
+        e["args"] = args;
+    }
+
     e["day"] = dayIndex;
 
     sprintf(timeText, "%02d:%02d:%02d", startHour, startMinute, startSecond);
@@ -395,9 +425,13 @@ Json::Value ScheduleEntry::GetJson(void)
     e["endTime"] = timeText;
 
     e["repeat"] = (int)repeat;
+    e["repeatInterval"] = (int)repeatInterval;
     e["startDate"] = startDateStr;
     e["endDate"] = endDateStr;
     e["stopType"] = stopType;
+    e["stopTypeStr"] =
+        stopType == 2 ? "Graceful Loop" :
+            stopType == 1 ? "Hard" : "Graceful";
 
     return e;
 }

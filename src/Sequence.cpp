@@ -41,7 +41,7 @@
 #include "Plugins.h"
 #include "channeloutput/E131.h"
 #include "channeloutput/channeloutputthread.h"
-#include "playlist/Playlist.h"
+#include "Player.h"
 #include "channeloutput/channeloutput.h"
 
 using namespace std::literals;
@@ -498,7 +498,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
         if (!frameCache.empty()) {
             FSEQFile::FrameData *data = frameCache.front();
             frameCache.pop_front();
-            if (pastFrameCache.size() > 5) {
+            if (pastFrameCache.size() > 20) {
                 if (pastFrameCache.front() != m_lastFrameData)
                     delete pastFrameCache.front();
                 pastFrameCache.pop_front();
@@ -545,7 +545,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             } else {
                 m_remoteBlankCount++;
             }
-        } else if (!playlist->IsPlaying()
+        } else if (!Player::INSTANCE.IsPlaying()
                    && (getFPPmode() & PLAYER_MODE)) {
             //Standalone or Master, but not playlist running (so not between sequences)
             //yet we are likely outputting something (overlay, etc...)  Need to blank
@@ -661,7 +661,7 @@ void Sequence::CloseSequenceFile(void) {
 
     if ((!IsEffectRunning()) &&
         ((getFPPmode() != REMOTE_MODE) &&
-         (playlist->getPlaylistStatus() != FPP_STATUS_PLAYLIST_PLAYING)) ||
+         (Player::INSTANCE.GetStatus() != FPP_STATUS_PLAYLIST_PLAYING)) ||
         (m_blankBetweenSequences)) {
         SendBlankingData();
     }

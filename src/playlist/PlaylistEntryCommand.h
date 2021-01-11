@@ -24,7 +24,7 @@
 
 class PlaylistEntryCommand : public PlaylistEntryBase {
   public:
-	PlaylistEntryCommand(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryCommand(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryCommand();
 
     virtual int  Init(Json::Value &config) override;

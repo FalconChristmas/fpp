@@ -31,7 +31,7 @@
 
 class PlaylistEntryBranch : public PlaylistEntryBase {
   public:
-	PlaylistEntryBranch(PlaylistEntryBase *parent = NULL);
+	PlaylistEntryBranch(Playlist *playlist, PlaylistEntryBase *parent = NULL);
 	virtual ~PlaylistEntryBranch();
 
 	virtual int  Init(Json::Value &config) override;
