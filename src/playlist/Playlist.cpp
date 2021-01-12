@@ -1201,21 +1201,51 @@ void Playlist::NextItem(void)
     }
     
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
-    int pos = GetPosition() - 1;
-    if (m_currentSectionStr == "MainPlaylist") {
-        if (pos < (m_leadIn.size() + m_mainPlaylist.size())) {
+    bool somewhereToGo = true;
+    int pos = GetPosition();
+    if (m_currentSectionStr == "LeadIn") {
+        if ((pos < m_leadIn.size()) ||
+            (m_mainPlaylist.size()) ||
+            (m_leadOut.size())) {
+            // as long as we have somewhere to go then go to next
             pos++;
         } else {
-            pos = m_leadIn.size();
+            // nowhere to go, stop playlist
+            somewhereToGo = false;
+        }
+    } else if (m_currentSectionStr == "MainPlaylist") {
+        if (pos < (m_leadIn.size() + m_mainPlaylist.size())) {
+            // if not at end of main go to next item
+            pos++;
+        } else if (m_repeat) {
+            // if at end of main and repeating, go to first item in main
+            pos = m_leadIn.size() + 1;
+        } else if (m_leadOut.size()) {
+            // if at end of main and non-repeating, go to first in LeadOut
+            pos++;
+        } else {
+            // nowhere to go, stop playlist
+            somewhereToGo = false;
+        }
+    } else if (m_currentSectionStr == "LeadOut") {
+        if (pos < (m_leadIn.size() + m_mainPlaylist.size() + m_leadOut.size())) {
+            // more in leadOut so go to next
+            pos++;
+        } else {
+            // nowhere to go, stop playlist
+            somewhereToGo = false;
         }
     }
     
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
         m_currentSection->at(m_sectionPosition)->Stop();
 
-    m_sectionPosition = 0;
-    m_startPosition = pos;
-    Start();
+    if (somewhereToGo) {
+        pos--;
+        m_sectionPosition = 0;
+        m_startPosition = pos;
+        Start();
+    }
 }
 
 /*
@@ -1232,20 +1262,30 @@ void Playlist::PrevItem(void)
     }
 
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
-    int pos = GetPosition() - 1;
-    if (m_currentSectionStr == "MainPlaylist") {
-        if (pos > m_leadIn.size()) {
+    int pos = GetPosition();
+    if ((m_currentSectionStr == "LeadIn") ||
+        (m_currentSectionStr == "LeadOut")) {
+        // No repeat on LeadIn/Out so just go to previous item
+        if (pos > 1)
             pos--;
-        } else {
-            pos = m_leadIn.size() + m_mainPlaylist.size() - 1;
+    } else if (m_currentSectionStr == "MainPlaylist") {
+        if (pos > (m_leadIn.size() + 1)) {
+            // If not first item in Main, go to prev item
+            pos--;
+        } else if (m_repeat) {
+            // if first item in main and repeating, go to end of main
+            pos = m_leadIn.size() + m_mainPlaylist.size();
+        } else if (m_leadIn.size()) {
+            // if first item in main and non-repeating go to end of LeadIn
+            pos = m_leadIn.size();
         }
     }
 
     if (m_currentSection->at(m_sectionPosition)->IsPlaying())
-    m_currentSection->at(m_sectionPosition)->Stop();
+        m_currentSection->at(m_sectionPosition)->Stop();
     
     m_sectionPosition = 0;
-    m_startPosition = pos;
+    m_startPosition = pos - 1;
     Start();
 }
 
