@@ -1,3 +1,4 @@
+{% from 'components/sidenav/sidenav.html.twig' import sidenav %}
 {% if app.environment == 'local' %}
     {% set page_modifiers = page_modifiers|merge(['dev']) %}
 {% endif %}
@@ -36,13 +37,14 @@
 
 <body {{ render_attrs(body_attrs) }}>
 <aside class="{{ render_element_classes('page', 'sidenav') }}">
-
+    {{ sidenav() }}
 </aside>
 <main class="{{ render_element_classes('page', 'main') }}">
     {% block body '' %}
 </main>
 <footer class="{{ render_element_classes('page', 'footer') }}">
-    <a href="https://www.falconchristmas.com" class="{{ render_element_classes('page', 'footer-link') }}" target="_blank">Falcon Player Christmas</a> 2013 - {{ ''|date('Y')}}
+    <a href="https://www.falconchristmas.com" class="{{ render_element_classes('page', 'footer-link') }}"
+       target="_blank">Falcon Player Christmas</a> 2013 - {{ ''|date('Y') }}
 </footer>
 
 {% block javascripts '' %}

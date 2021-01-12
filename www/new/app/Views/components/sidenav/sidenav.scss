@@ -1,0 +1,37 @@
+$name: "sidenav";
+
+@include bem-block($name) {
+    background-color: $red-40;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    padding: rem(9px) rem(20px) rem(6px);
+
+    height: rem(68px);
+
+    @include bem-element("brandname") {
+        @include adjust-font-size-to(22px, 30px);
+        font-weight: 600;
+        color: $white;
+        text-transform: uppercase;
+    }
+
+    @include bem-element("brandversion") {
+        @include adjust-font-size-to(12px, 17px);
+        color: $white;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    @include bem-element("brandlogo") {
+        align-self: center;
+        width: rem(80px);
+        opacity: .3;
+    }
+
+    @include bem-element("brandlogoimage") {
+        height: auto;
+        max-width: 100%;
+    }
+}
