@@ -68,8 +68,6 @@ function AddScheduleEntry(data = {}) {
 
     var row = AddTableRowFromTemplate('tblScheduleBody');
 
-    row.find('.rowID').val($('#tblScheduleBody > tr').length + 1);
-
     if (data.enabled == 1)
         row.find('.schEnable').prop('checked', true);
 
@@ -228,9 +226,7 @@ function ScheduleDaysSelectChanged(item)
         $(item).parent().parent().find('.dayMask').hide();
 }
 
-function SetScheduleRowInputNames(row, id) {
-	row.find('span.rowID').html((id + 1).toString());
-
+function SetRowDateTimeFieldVisibility(row) {
     var startDate = row.find('.schStartDate').val().replace(/[-0-9]/g,'');
     if (startDate != '') {
         row.find('.schStartDate').hide();
@@ -258,10 +254,8 @@ function SetScheduleRowInputNames(row, id) {
 }
 
 function SetScheduleInputNames() {
-	var id = 0;
 	$('#tblScheduleBody > tr').each(function() {
-		SetScheduleRowInputNames($(this), id);
-		id += 1;
+		SetRowDateTimeFieldVisibility($(this));
 	});
 
 	$('.time').timepicker({
@@ -640,7 +634,6 @@ a:visited {
             <div class='fppTableContents'>
                 <table class='fppTableRowTemplate template-tblScheduleBody'>
                     <tr class='rowScheduleDetails'>
-                        <td class='center'><span class='rowID'></span></td>
                         <td class='center' ><input class='schEnable' type='checkbox' /></td>
                         <td><input class='date center schStartDate' type='text' size='10'  /></td>
                         <td><input class='date center schEndDate' type='text' size='10' /></td>
@@ -729,7 +722,6 @@ a:visited {
                 <table id='tblSchedule'>
                     <thead id='tblScheduleHead'>
                         <tr>
-                            <th rowspan='2' title='Schedule Entry Number'>Line<br>#</th>
                             <th rowspan='2' title='Schedule enabled/disabled'>Act<br>ive</th>
                             <th colspan='2' title='Date Range'>Date Range</th>
                             <th rowspan='2' title='Day(s) of the week'>Day(s)</th>
