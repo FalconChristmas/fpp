@@ -95,7 +95,7 @@ Playlist::Playlist(Playlist *parent)
         };
         mqtt->AddCallback("/playlist/name/set", f1);
         mqtt->AddCallback("/playlist/repeat/set", f1);
-        mqtt->AddCallback("/playlist/selectionPosition/set", f1);
+        mqtt->AddCallback("/playlist/sectionPosition/set", f1);
 
         std::function<void(const std::string &t, const std::string &payload)> f2 = [this] (const std::string &t, const std::string &payload) {
             std::string emptyStr;
