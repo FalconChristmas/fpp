@@ -1055,6 +1055,39 @@ Json::Value Scheduler::GetSchedule()
 
     struct tm timeStruct;
     char timeStr[32];
+    time_t tmpTime;
+
+    if ((Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) &&
+        (Player::INSTANCE.WasScheduled())) {
+        // If we are playing a scheduled playlist, then insert an item for
+        // it since it is already marked as ran and will get skipped by.
+        // We do this here instead of just using a more complicated if continue
+        // statement below because the player may have more up to date info
+        // on the end time than our old schedule entry if the end time has
+        // been extended or shortened.
+        scheduledItem["priority"] = Player::INSTANCE.GetPriority();
+        scheduledItem["id"] = Player::INSTANCE.GetScheduleEntry();
+
+        tmpTime = Player::INSTANCE.GetOrigStartTime();
+        localtime_r(&tmpTime, &timeStruct);
+        strftime(timeStr, 32, timeFmt, &timeStruct);
+        scheduledItem["startTimeStr"] = timeStr;
+        scheduledItem["startTime"] = (Json::UInt64)tmpTime;
+
+        tmpTime = Player::INSTANCE.GetStopTime();
+        localtime_r(&tmpTime, &timeStruct);
+        strftime(timeStr, 32, timeFmt, &timeStruct);
+        scheduledItem["endTimeStr"] = timeStr;
+        scheduledItem["endTime"] = (Json::UInt64)tmpTime;
+
+        scheduledItem["command"] = "Start Playlist";
+
+        Json::Value args(Json::arrayValue);
+        args.append(Player::INSTANCE.GetPlaylistName());
+        scheduledItem["args"] = args;
+
+        items.append(scheduledItem);
+    }
 
     for (auto& itemTime: m_scheduledItems) {
         for (auto& item: *itemTime.second) {
