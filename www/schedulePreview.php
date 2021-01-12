@@ -105,6 +105,11 @@ if ($data["schedule"]["enabled"] == 0) {
     echo "<center><font color='red'><b>Scheduler is currently disabled.</b></font></center>\n";
 }
 
+if (count($data["schedule"]["items"]) == 0) {
+	echo "<center><font color='red'><b>Nothing Scheduled.</b></font></center>\n";
+	exit;
+}
+
 echo "<table border=0 cellpadding=0 cellspacing=0 style='color: #000000;'>\n";
 echo "<thead><tr>";
 for ($j = -1; $j < $maxDepth; $j++) {

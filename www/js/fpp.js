@@ -4852,6 +4852,7 @@ function PreviewSchedule()
         $(dialogHTML).appendTo('body');
     }
 
+    $('#schedulePreviewDiv').html('');
     $('#schedulePreviewPopup').dialog({
         height: 600,
         width: 900,
