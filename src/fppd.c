@@ -571,6 +571,7 @@ int main(int argc, char *argv[])
     PinCapabilities::InitGPIO();
     GPIOManager::ConvertOldSettings();
 
+    std::srand(std::time(nullptr));
     
     CommandManager::INSTANCE.Init();
 	if (strcmp(getSetting("MQTTHost"),"")) {

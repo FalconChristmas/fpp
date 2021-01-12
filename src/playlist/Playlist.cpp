@@ -1066,7 +1066,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
         //random
         int l = m_mainPlaylist.size();
         if (l > 2) {
-            p = rand() % l;
+            p = std::rand() % l;
             p = p + m_leadIn.size();
         }
     }
@@ -1123,7 +1123,7 @@ void Playlist::RandomizeMainPlaylist()
     while (tmpPlaylist.size()) {
         int l = tmpPlaylist.size();
         if (l > 1) {
-            int p = rand() % l;
+            int p = std::rand() % l;
             m_mainPlaylist.push_back(tmpPlaylist[p]);
             tmpPlaylist.erase(tmpPlaylist.begin() + p);
         } else {
