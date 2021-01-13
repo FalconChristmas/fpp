@@ -3,3 +3,4 @@
 /.env
 /.idea
 /composer.lock
+/public/assets/
