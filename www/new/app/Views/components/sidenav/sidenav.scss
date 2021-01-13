@@ -34,4 +34,34 @@ $name: "sidenav";
         height: auto;
         max-width: 100%;
     }
+
+    @include bem-element("toggle") {
+        background: #33CABB url("../assets/views/components/sidenav/images/menu-toggle--open.png") center center no-repeat;
+        background-size: rem(18px);
+        display: block;
+        position: absolute;
+        top: rem(3px);
+        right: rem(-30px);
+        width: rem(30px);
+        height: rem(30px);
+        border: 0;
+        text-indent: rem(-9999px);
+        padding: rem(15px);
+        outline: none;
+    }
+
+    @include bem-element("toggle", $pseudo-class: "hover") {
+        cursor: pointer;
+    }
+
+    @include bem-element("toggle", $modifier: "close") {
+        background-image: url("../assets/views/components/sidenav/images/menu-toggle--close.png") center center no-repeat;
+        background-size: rem(18px);
+    }
+}
+
+@include bem-block($name, $media: "tablet") {
+    @include bem-element("toggle") {
+        display: none;
+    }
 }

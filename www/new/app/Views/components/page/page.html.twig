@@ -37,7 +37,9 @@
 
 <body {{ render_attrs(body_attrs) }}>
 <aside class="{{ render_element_classes('page', 'sidenav') }}">
-    {{ sidenav() }}
+    <div class="{{ render_element_classes('page', 'navigation') }}">
+        {{ sidenav() }}
+    </div>
 </aside>
 <main class="{{ render_element_classes('page', 'main') }}">
     {% block body '' %}

@@ -47,5 +47,10 @@ variants:
             } %}
             <img {{ render_attrs(image_attrs) }}/>
         </div>
+        {% set toggle_attrs = {
+            'class': render_element_classes(name, 'toggle'),
+            'data-action': render_stimulus_action(name, 'click', 'toggleMenu'),
+        } %}
+        <button {{ render_attrs(toggle_attrs) }}">menu</button>
     </div>
 {% endmacro %}

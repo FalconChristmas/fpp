@@ -37,21 +37,25 @@ $name: "page";
     }
 
     @include bem-element("sidenav") {
-        display: none;
         position: absolute;
-        left: 0;
+        left: rem(-340px);
         top: 0;
         background-color: $blue-50;
-        flex-basis: rem(370px);
-        width: rem(370px);
+        flex-basis: rem(340px);
+        width: rem(340px);
         height: 100vh;
+        transition: left ease-in-out 0.5s;
+    }
+
+    @include bem-element("sidenav", $modifier: "open") {
+        left: 0;
     }
 
     @include bem-element("main") {
         grid-area: main;
         flex: 1;
         margin-top: rem(30px);
-        margin-left: rem(50px);
+        margin-left: rem(30px);
     }
 
     @include bem-element("footer") {
@@ -81,6 +85,14 @@ $name: "page";
     @include bem-element("sidenav") {
         display: block;
         grid-area: sidenav;
+        position: initial;
+        left: rem(-340px);
+        flex-basis: rem(340px);
+        width: rem(340px);
+    }
+
+    @include bem-element("main") {
+        margin-left: rem(50px);
     }
 }
 
