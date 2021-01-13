@@ -102,7 +102,7 @@ class ScheduledItem {
     time_t         startTime;
     time_t         endTime;
     std::string    command;
-    std::vector<std::string> args;
+    Json::Value    args;
 };
 
 class Scheduler {

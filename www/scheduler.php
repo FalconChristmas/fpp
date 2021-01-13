@@ -129,6 +129,23 @@ function AddScheduleEntry(data = {}) {
         var command = {};
         command.command = data.command;
         command.args = data.args;
+        var mInfo = "";
+        if (data.hasOwnProperty('multisyncCommand')) {
+            if (data.multisyncCommand) {
+                mInfo = "<b>MCast:</b> Y";
+            } else {
+                mInfo = "<b>MCast:</b> N";
+            }
+
+            command.multisyncCommand = data.multisyncCommand;
+            if (data.hasOwnProperty('multisyncHosts')) {
+                mInfo += " <b>Hosts:</b> " + data.multisyncHosts;
+                command.multisyncHosts = data.multisyncHosts;
+            }
+        } else {
+            mInfo = "<b>MCast:</b> N";
+        }
+        row.find('.schMulticastInfo').html(mInfo);
         row.find('.commandJSON').html(JSON.stringify(command));
 
         row.find('.schTooltipIcon').tooltip({
@@ -139,13 +156,28 @@ function AddScheduleEntry(data = {}) {
 
                 var data = JSON.parse(json);
 
-                if (!data.args.length)
-                    return "No Args";
-
                 var args = commandListByName[data.command]['args'];
                 var tip = '<table>';
-                for (var j = 0; j < args.length; j++) {
-                    tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+
+                if (data.hasOwnProperty('multisyncCommand')) {
+                    tip += "<tr><th class='left'>Multicast:</th><td>";
+                    if (data.multisyncCommand)
+                        tip += "Yes";
+                    else
+                        tip += "No";
+
+                    tip += "</td></tr>";
+
+                    if (data.hasOwnProperty('multisyncHosts')) {
+                        tip += "<tr><th class='left'>Multicast Hosts:</th><td>" +
+                            data.multisyncHosts + "</td></tr>";
+                    }
+                }
+
+                if (data.args.length) {
+                    for (var j = 0; j < args.length; j++) {
+                        tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+                    }
                 }
 
                 tip += '</table>';
@@ -311,6 +343,20 @@ function CommandUpdated(row, data)
     $(row).find('.commandJSON').html(JSON.stringify(data));
     $(row).find('.schCommand').val(data.command);
 
+    var mInfo = "";
+    if (data.multisyncCommand) {
+        mInfo = "<b>MCast:</b> Y";
+    } else {
+        mInfo = "<b>MCast:</b> N";
+    }
+
+    if ((data.hasOwnProperty("multisyncHosts")) &&
+        (data.multisyncHosts != "")) {
+        mInfo += " <b>Hosts:</b> " + data.multisyncHosts;
+    }
+
+    row.find('.schMulticastInfo').html(mInfo);
+
     if (data.args.length) {
         row.find('.schArgs').html(data.args.join(' | '));
         row.find('.schArgsTable').show();
@@ -454,9 +500,15 @@ function GetScheduleEntryRowData(item) {
         }
 
         var jdata = JSON.parse(json);
+        e.playlist = '';
         e.command = $(item).find('.schCommand').val();
         e.args = jdata.args;
-        e.playlist = '';
+
+        if (jdata.hasOwnProperty('multisyncCommand')) {
+            e.multisyncCommand = jdata.multisyncCommand;
+            if (e.multisyncCommand)
+                e.multisyncHosts = jdata.multisyncHosts;
+        }
     }
 
     if (e.day & 0x10000) {
@@ -713,6 +765,7 @@ a:visited {
                         <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
                             <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
                             <img class='schTooltipIcon' title='' src='images/questionmark.png'>
+                            <span class='schMulticastInfo'></span>
                             <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>
                             <span class='commandJSON' style='display: none;'></span>
                         </td>

@@ -288,13 +288,13 @@ void Scheduler::CalculateScheduledItems()
 
                 if (m_Schedule[i].playlist != "") {
                     // Old style schedule entry without a FPP Command
-                    std::vector<std::string> startArgs;
-                    startArgs.push_back(m_Schedule[i].playlist);
-                    startArgs.push_back(m_Schedule[i].repeat ? "true" : "false");
-                    startArgs.push_back("false");
+                    Json::Value args(Json::arrayValue);
+                    args.append(m_Schedule[i].playlist);
+                    args.append(m_Schedule[i].repeat ? "true" : "false");
+                    args.append("false");
 
                     newItem->command = "Start Playlist";
-                    newItem->args = startArgs;
+                    newItem->args = args;
                     newItem->endTime = endTime;
 
                     // Check to see if this item already ran
@@ -306,7 +306,7 @@ void Scheduler::CalculateScheduledItems()
                                 (newItem->endTime == item->endTime) &&
                                 (newItem->args.size() == item->args.size()) &&
                                 ((!newItem->args.size() && !item->args.size()) ||
-                                 (newItem->args[0] == item->args[0]))) {
+                                 (newItem->args[0].asString() == item->args[0].asString()))) {
                                 LogDebug(VB_SCHEDULE, "Marking playlist item as already ran:\n");
                                 DumpScheduledItem(newItem->startTime, newItem);
                                 newItem->ran = true;
@@ -315,13 +315,8 @@ void Scheduler::CalculateScheduledItems()
                     }
                 } else {
                     // New style schedule entry with a FPP Command
-                    std::vector<std::string> startArgs;
-                    for (int j = 0; j < m_Schedule[i].args.size(); j++) {
-                        startArgs.push_back(m_Schedule[i].args[j].asString());
-                    }
-
                     newItem->command = m_Schedule[i].command;
-                    newItem->args = startArgs;
+                    newItem->args = m_Schedule[i].args;
                 }
 
                 auto sVec = m_scheduledItems.find(startTime);
@@ -344,9 +339,9 @@ void Scheduler::DumpScheduledItem(std::time_t itemTime, ScheduledItem *item)
     std::string timeStr = ctime(&itemTime);
 
     std::string argStr;
-    for (const auto& arg: item->args) {
+    for (int i = 0; i < item->args.size(); i++) {
         argStr += "\"";
-        argStr += arg;
+        argStr += item->args[i].asString();
         argStr += "\" ";
     }
 
@@ -489,9 +484,15 @@ void Scheduler::CheckScheduledItems()
 
                 LogDebug(VB_SCHEDULE, "Running scheduled item:\n");
                 DumpScheduledItem(itemTime.first, item);
-                std::thread *t = new std::thread([this](std::string command, std::vector<std::string> args) {
-                    CommandManager::INSTANCE.run(command, args);
-                }, item->command, item->args);
+                Json::Value cmd;
+                cmd["command"] = item->command;
+                cmd["args"] = item->args;
+                cmd["multisyncCommand"] = item->entry->multisyncCommand;
+                cmd["multisyncHosts"] = item->entry->multisyncHosts;
+
+                std::thread *t = new std::thread([this](Json::Value cmd) {
+                    CommandManager::INSTANCE.run(cmd);
+                }, cmd);
                 t->detach();
             }
 
@@ -513,7 +514,7 @@ void Scheduler::SetItemRan(ScheduledItem *item, bool ran)
                 (item->endTime == ranItem->endTime) &&
                 (item->args.size() == ranItem->args.size()) &&
                 ((!item->args.size() && !ranItem->args.size()) ||
-                 (item->args[0] == ranItem->args[0]))) {
+                 (item->args[0].asString() == ranItem->args[0].asString()))) {
                 ranItem->ran = ran;
                 found = true;
             }
@@ -1109,11 +1110,10 @@ Json::Value Scheduler::GetSchedule()
 
             scheduledItem["command"] = item->command;
 
-            Json::Value args(Json::arrayValue);
-            for (auto& arg: item->args) {
-                args.append(arg);
-            }
-            scheduledItem["args"] = args;
+            scheduledItem["args"] = item->args;
+            scheduledItem["multisyncCommand"] = item->entry->multisyncCommand;
+            scheduledItem["multisyncHosts"] = item->entry->multisyncHosts;
+
 
             items.append(scheduledItem);
         }

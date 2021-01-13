@@ -49,6 +49,8 @@ class ScheduleEntry {
 	std::string  playlist;
     std::string  command;
     Json::Value  args;
+    bool         multisyncCommand;
+    std::string  multisyncHosts;
     
     int          dayIndex;
     int          startHour;
