@@ -4824,8 +4824,57 @@ function FileChooser(dir, target)
     });
 }
 
-function ShowCommandEditor(target, data, callback, cancelCallback = '')
+function RunCommandSaved(item, data)
 {
+    if (data.command == null)
+        return;
+
+    var json = JSON.stringify(data);
+    $('#runCommandJSON').html(json);
+
+    $.ajax({
+        url: "api/command",
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        async: true,
+        success: function(data) {
+            $.jGrowl('Command ran');
+        },
+        error: function() {
+            DialogError('Command failed', 'Command failed');
+        }
+    });
+}
+
+function RunCommand()
+{
+    var item = $('#runCommandJSON');
+    var cmd = {};
+    var json = $(item).text();
+
+    if (json != '')
+        cmd = JSON.parse(json);
+
+    allowMultisyncCommands = true;
+
+    var args = {};
+    args.title = 'Run FPP Command';
+    args.saveButton = 'Run';
+    args.cancelButton = 'Cancel';
+
+    ShowCommandEditor(item, cmd, 'RunCommandSaved', '', args);
+}
+
+function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '')
+{
+    if (typeof args === 'string') {
+        args = {};
+        args.title = 'FPP Command Editor';
+        args.saveButton = 'Accept Changes';
+        args.cancelButton = 'Cancel Edit';
+    }
+
     if ($('#commandEditorPopup').length == 0) {
         var dialogHTML = "<div id='commandEditorPopup'><div id='commandEditorDiv'></div></div>";
         $(dialogHTML).appendTo('body');
@@ -4834,14 +4883,14 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '')
     $('#commandEditorPopup').dialog({
         height: 'auto',
         width: 600,
-        title: "FPP Command Editor",
+        title: args.title,
         modal: true,
         open: function(event, ui) { $('#commandEditorPopup').parent().find(".ui-dialog-titlebar-close").hide(); },
         closeOnEscape: false
     });
     $('#commandEditorPopup').dialog( "moveToTop" );
     $('#commandEditorDiv').load('commandEditor.php', function() {
-        CommandEditorSetup(target, data, callback, cancelCallback);
+        CommandEditorSetup(target, data, callback, cancelCallback, args);
     });
 }
 

@@ -24,6 +24,7 @@
  */
 #include "fpp-pch.h"
 
+#include <fnmatch.h>
 
 #include "effects.h"
 #include "channeloutput/channeloutputthread.h"
@@ -246,10 +247,19 @@ int StopEffect(const std::string &effectName)
 	LogDebug(VB_EFFECT, "StopEffect(%s)\n", effectName.c_str());
 
     std::unique_lock<std::mutex> lock(effectsLock);
-	for (int i = 0; i < MAX_EFFECTS; i++) {
-		if (effects[i] && effects[i]->name == effectName)
-			StopEffectHelper(i);
-	}
+    std::vector<std::string> names = split(effectName, ',');
+
+    for (int j = 0; j < names.size(); j++) {
+        for (int i = 0; i < MAX_EFFECTS; i++) {
+            if (effects[i]) {
+                if ((effects[i]->name == names[j]) ||
+                    (!fnmatch(names[j].c_str(), effects[i]->name.c_str(), FNM_PATHNAME))) {
+                    StopEffectHelper(i);
+                }
+            }
+        }
+    }
+
     lock.unlock();
 
 	if ((!IsEffectRunning()) &&

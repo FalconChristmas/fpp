@@ -94,7 +94,7 @@ public:
 class StopEffectCommand : public Command {
 public:
     StopEffectCommand() : Command("Effect Stop", "Stop the specified effect.") {
-        args.push_back(CommandArg("effect", "string", "Effect Name").setContentListUrl("api/effects/ALL"));
+        args.push_back(CommandArg("effect", "datalist", "Effect Name").setContentListUrl("api/effects/ALL"));
     }
 
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

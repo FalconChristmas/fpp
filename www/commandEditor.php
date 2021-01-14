@@ -4,7 +4,7 @@ var commandEditorData = {};
 var commandEditorCallback = '';
 var commandEditorCancelCallback = '';
 
-function CommandEditorSetup(target, data, callback, cancelCallback = '')
+function CommandEditorSetup(target, data, callback, cancelCallback, args)
 {
     commandEditorTarget = target;
     commandEditorData = data;
@@ -12,6 +12,9 @@ function CommandEditorSetup(target, data, callback, cancelCallback = '')
     commandEditorCancelCallback = cancelCallback;
 
     LoadCommandList($('#editorCommand'));
+
+    $('#btnSaveEditorCommand').val(args.saveButton);
+    $('#btnCancelCommandEditor').val(args.cancelButton);
 
     $('#editorCommand').val(data['command']);
     CommandSelectChanged('editorCommand', 'tblCommandEditor');
@@ -64,8 +67,8 @@ function CommandEditorCancel()
 </table>
 <hr>
 <center>
-    <input id= "btnSaveEditorCommand" type="button" class ="buttons wideButton" value="Accept Changes" onClick="CommandEditorSave();">
-    <input id= "btnCancelCommandEditor" type="button" class ="buttons wideButton" value="Cancel Edit" onClick="CommandEditorCancel();">
+    <input id="btnSaveEditorCommand" type="button" class="buttons wideButton" value="Accept Changes" onClick="CommandEditorSave();">
+    <input id="btnCancelCommandEditor" type="button" class="buttons wideButton" value="Cancel Edit" onClick="CommandEditorCancel();">
 
 </center>
 
