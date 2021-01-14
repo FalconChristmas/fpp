@@ -3624,7 +3624,7 @@ function PopulatePlaylistDetails(data, editMode, name = "")
         UpdatePlaylistDurations();
     }
     var desc = "";
-    if ("desc" in data) {
+    if (data.hasOwnProperty('desc')) {
         desc = data.desc
     }
     $("#txtPlaylistDesc").val(desc)
