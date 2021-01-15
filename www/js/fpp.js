@@ -4526,7 +4526,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 }
 
                 if (typeof val['children'] === 'object') {
-                    line += " onChange='UpdateChildVisibility();";
+                    if (tblCommand == 'playlistEntryCommandOptions')
+                        line += " onChange='UpdateChildVisibility();";
                     if (typeof val['onChange'] === 'string') {
                         line += ' ' + val['onChange'] + '();';
                         initFuncs.push(val['onChange']);
@@ -4583,7 +4584,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                     line += " data-contentlisturl='" + val['contentListUrl'] + "'";
                 }
                 if (typeof val['children'] === 'object') {
-                    line += " onChange='UpdateChildVisibility();";
+                    if (tblCommand == 'playlistEntryCommandOptions')
+                        line += " onChange='UpdateChildVisibility();";
                     if (typeof val['onChange'] === 'string') {
                         line += ' ' + val['onChange'] + '();';
                         initFuncs.push(val['onChange']);
@@ -4730,7 +4732,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
         InitializeDateInputs();
     }
 
-    UpdateChildVisibility();
+    if (tblCommand == 'playlistEntryCommandOptions')
+        UpdateChildVisibility();
 
     for (var i = 0; i < initFuncs.length; i++) {
         if (typeof window[initFuncs[i]] == 'function' ) {
