@@ -456,6 +456,26 @@ function DisableTestMode()
 	SetTestMode();
 }
 
+function incrementEndChannel(delta)
+{
+    var start = parseInt($('#testModeStartChannel').val());
+    var end = parseInt($('#testModeEndChannel').val());
+
+    end += delta;
+
+    if (end > <? echo FPPD_MAX_CHANNELS; ?>)
+        end = <? echo FPPD_MAX_CHANNELS; ?>;
+    else if (end < 1)
+        end = 1;
+
+    if (end < start)
+        end = start;
+
+    $('#testModeEndChannel').val(end);
+
+    SetTestMode();
+}
+
 function dec2hex(i) {
 	return (i+0x100).toString(16).substr(-2).toUpperCase();
 }
@@ -680,7 +700,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 				<b>Channel Range to Test</b><br>
 				<table border=0 cellspacing='2' cellpadding='2'>
 				<tr><td>Start Channel:</td>
-						<td><input type='text' size='7' maxlength='7' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
 						<td width=40>&nbsp;</td>
 						<td>Model Name:</td>
 						<td>
@@ -702,7 +722,13 @@ if (file_exists($settings['model-overlays'])) {
 							</td>
 						</tr>
 				<tr><td>End Channel:</td>
-						<td><input type='text' size='7' maxlength='7' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+                        <td colspan='3'>
+                            &nbsp;&nbsp;
+                            <input type='button' class='buttons reallySmallButton' value='+3' onClick='incrementEndChannel(3);'>
+                            &nbsp;&nbsp;
+                            <input type='button' class='buttons reallySmallButton' value='-3' onClick='incrementEndChannel(-3);'>
+                            </td>
 						</tr>
 				</table>
 				<br>
