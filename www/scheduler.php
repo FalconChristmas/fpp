@@ -132,14 +132,14 @@ function AddScheduleEntry(data = {}) {
         var mInfo = "";
         if (data.hasOwnProperty('multisyncCommand')) {
             if (data.multisyncCommand) {
-                mInfo = "<b>MCast:</b> Y";
+                mInfo = "<b>MCast:</b>&nbsp;Y";
             } else {
-                mInfo = "<b>MCast:</b> N";
+                mInfo = "<b>MCast:</b>&nbsp;N";
             }
 
             command.multisyncCommand = data.multisyncCommand;
             if (data.hasOwnProperty('multisyncHosts')) {
-                mInfo += " <b>Hosts:</b> " + data.multisyncHosts;
+                mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
                 command.multisyncHosts = data.multisyncHosts;
             }
         } else {
@@ -345,14 +345,14 @@ function CommandUpdated(row, data)
 
     var mInfo = "";
     if (data.multisyncCommand) {
-        mInfo = "<b>MCast:</b> Y";
+        mInfo = "<b>MCast:</b>&nbsp;Y";
     } else {
-        mInfo = "<b>MCast:</b> N";
+        mInfo = "<b>MCast:</b>&nbsp;N";
     }
 
     if ((data.hasOwnProperty("multisyncHosts")) &&
         (data.multisyncHosts != "")) {
-        mInfo += " <b>Hosts:</b> " + data.multisyncHosts;
+        mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
     }
 
     row.find('.schMulticastInfo').html(mInfo);
@@ -764,6 +764,7 @@ a:visited {
                         <!-- start 'FPP Command' options -->
                         <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
                             <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
+                            <input type='button' class='buttons reallySmallButton' value='Run' onClick='RunCommandJSON($(this).parent().find(".commandJSON").text());'>
                             <img class='schTooltipIcon' title='' src='images/questionmark.png'>
                             <span class='schMulticastInfo'></span>
                             <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>

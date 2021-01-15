@@ -4824,19 +4824,13 @@ function FileChooser(dir, target)
     });
 }
 
-function RunCommandSaved(item, data)
+function RunCommandJSON(cmdJSON)
 {
-    if (data.command == null)
-        return;
-
-    var json = JSON.stringify(data);
-    $('#runCommandJSON').html(json);
-
     $.ajax({
         url: "api/command",
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify(data),
+        data: cmdJSON,
         async: true,
         success: function(data) {
             $.jGrowl('Command ran');
@@ -4847,7 +4841,23 @@ function RunCommandSaved(item, data)
     });
 }
 
-function RunCommand()
+function RunCommand(cmd)
+{
+    RunCommandJSON(JSON.stringify(cmd));
+}
+
+function RunCommandSaved(item, data)
+{
+    if (data.command == null)
+        return;
+
+    var json = JSON.stringify(data);
+    $('#runCommandJSON').html(json);
+
+    RunCommand(data);
+}
+
+function ShowRunCommandPopup()
 {
     var item = $('#runCommandJSON');
     var cmd = {};
@@ -4874,6 +4884,8 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         args.saveButton = 'Accept Changes';
         args.cancelButton = 'Cancel Edit';
     }
+
+    allowMultisyncCommands = true;
 
     if ($('#commandEditorPopup').length == 0) {
         var dialogHTML = "<div id='commandEditorPopup'><div id='commandEditorDiv'></div></div>";
