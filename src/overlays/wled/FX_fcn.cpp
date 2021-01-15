@@ -1063,7 +1063,18 @@ void WS2812FX::setColorOrder(uint8_t co) {
 }
 
 void WS2812FX::BusSetBrightness(uint8_t b) {
-    
+    if (lastBrightness != b) {
+        lastBrightness = b;
+        for (int x = 0; x < 256; x++) {
+            int v = x;
+            v *= b;
+            v /= 128;
+            if (v > 255) {
+                v = 255;
+            }
+            brightnessValues[x] = v;
+        }
+    }
 }
 
 void mapXY(PixelOverlayModel *m, uint16_t indexPixel, int &x, int &y) {
@@ -1074,7 +1085,7 @@ void mapXY(PixelOverlayModel *m, uint16_t indexPixel, int &x, int &y) {
 void WS2812FX::BusSetPixelColor(uint16_t indexPixel, RgbwColor c) {
     int x, y;
     mapXY(model, indexPixel, x, y);
-    model->setOverlayPixelValue(x, y, c.R, c.G, c.B);
+    model->setOverlayPixelValue(x, y, brightnessValues[c.R], brightnessValues[c.G], brightnessValues[c.B]);
 }
 RgbwColor WS2812FX::BusGetPixelColorRaw(uint16_t indexPixel) {
     int x, y;
@@ -1099,5 +1110,7 @@ WS2812FX::WS2812FX(PixelOverlayModel *m) : WS2812FX() {
     if (i > 0xFFFF) {
         i = 0xFFFF;
     }
+    lastBrightness = 0;
+    BusSetBrightness(128);
     init(false, i, false);
 }

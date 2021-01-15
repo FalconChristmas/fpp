@@ -1262,6 +1262,8 @@ public:
     void DoShow();
     
     PixelOverlayModel *model;
+    uint8_t brightnessValues[256];
+    uint8_t lastBrightness;
 };
 
 //10 names per line
@@ -1287,7 +1289,8 @@ static const char * wled_palette_names[] = {
 "Pastel","Sunset 2","Beech","Vintage","Departure","Landscape","Beach","Sherbet","Hult","Hult 64",
 "Drywet","Jul","Grintage","Rewhi","Tertiary","Fire","Icefire","Cyane","Light Pink","Autumn",
 "Magenta","Magred","Yelmag","Yelblu","Orange & Teal","Tiamat","April Night","Orangery","C9","Sakura",
-"Aurora","Atlantica","C9 2","C9 New","Temperature","Aurora 2"
+"Aurora","Atlantica","C9 2","C9 New","Temperature","Aurora 2",
+    nullptr
 };
 
 #endif
