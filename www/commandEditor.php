@@ -19,20 +19,7 @@ function CommandEditorSetup(target, data, callback, cancelCallback, args)
     $('#editorCommand').val(data['command']);
     CommandSelectChanged('editorCommand', 'tblCommandEditor');
 
-    if (data.hasOwnProperty('args')) {
-        for (var i = 0; i < data['args'].length; i++) {
-            var inp =  $("#tblCommandEditor_arg_" + (i+1));
-            if (inp.attr('type') == 'checkbox') {
-                var checked = false;
-                if (data['args'][i] == "true" || data['args'][i] == "1") {
-                    checked = true;
-                }
-                inp.prop( "checked", checked);
-            } else {
-                inp.val(data['args'][i]).trigger('change');
-            }
-        }
-    }
+    PopulateExistingCommand(data, 'editorCommand', 'tblCommandEditor');
 }
 
 function CommandEditorCommandChanged()
