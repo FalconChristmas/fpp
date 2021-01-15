@@ -209,6 +209,7 @@ function UpgradeFirmware() {
 .pl_title {
   font-size: larger;
 }
+
 h4, h3 {
   padding: 0;
   margin: 0;

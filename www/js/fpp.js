@@ -2596,7 +2596,7 @@ function GetSequenceArray()
 		var Volume = parseInt(jsonStatus.volume);
 		$('#volume').html(Volume);
         $('#remoteVolume').html(Volume);
-		$('#slider').slider('value', Volume);
+		$('#slider').val( Volume);
         $('#remoteVolumeSlider').slider('value', Volume);
 		SetSpeakerIndicator(Volume);
 
@@ -3597,7 +3597,7 @@ function PopulatePlaylistDetails(data, editMode, name = "")
                 entries++;
             }
             $('#tblPlaylist' + idPart).html(innerHTML);
-            $('#tblPlaylist' + idPart + 'Header').show();
+            $('#tblPlaylist' + idPart + 'Header').show().parent().addClass('tblPlaylistActive');
 
             if (!data[sections[s]].length)
                 $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
@@ -3610,10 +3610,10 @@ function PopulatePlaylistDetails(data, editMode, name = "")
         {
             $('#tblPlaylist' + idPart).html("");
             if (editMode) {
-                $('#tblPlaylist' + idPart + 'Header').show();
+                $('#tblPlaylist' + idPart + 'Header').show().parent().addClass('tblPlaylistActive');
                 $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
             } else {
-                $('#tblPlaylist' + idPart + 'Header').hide();
+                $('#tblPlaylist' + idPart + 'Header').hide().parent().removeClass('tblPlaylistActive');;
             }
         }
     }
@@ -3730,7 +3730,7 @@ function GetVolume()
 					}
 					$('#volume').html(Volume);
                     $('#remoteVolume').html(Volume);
-					$('#slider').slider('value', Volume);
+					$('#slider').val( Volume);
                     $('#remoteVolumeSlider').slider('value', Volume);
 					SetSpeakerIndicator(Volume);
 			}

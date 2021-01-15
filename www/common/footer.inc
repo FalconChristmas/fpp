@@ -12,7 +12,10 @@
     <input name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();" class = "buttons" value="Restart FPPD">
   </div>
 <br />
+<div class="footerLink">
 <a href="http://www.falconchristmas.com">www.falconchristmas.com</a>
+</div>
+
 <br />
 <br />
 </div>
