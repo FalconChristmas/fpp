@@ -764,7 +764,7 @@ a:visited {
                         <!-- start 'FPP Command' options -->
                         <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
                             <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
-                            <input type='button' class='buttons reallySmallButton' value='Run' onClick='RunCommandJSON($(this).parent().find(".commandJSON").text());'>
+                            <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".commandJSON").text());'>
                             <img class='schTooltipIcon' title='' src='images/questionmark.png'>
                             <span class='schMulticastInfo'></span>
                             <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>
