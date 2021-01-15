@@ -233,7 +233,31 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
         }
     });
 }
-function Get(url, async) {
+
+function Post(url, async, data, silent = false) {
+    var result = {};
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: data,
+        async: async,
+        dataType: 'json',
+        success: function(data) {
+            result = data;
+        },
+        error: function() {
+            if (!silent) {
+                $.jGrowl('Error posting to ' + url);
+            }
+        }
+    });
+
+    return result;
+}
+
+function Get(url, async, silent = false) {
     var result = {};
 
     $.ajax({
@@ -245,7 +269,8 @@ function Get(url, async) {
             result = data;
         },
         error: function() {
-            $.jGrowl('Error: Unable to get ' + url);
+            if (!silent)
+                $.jGrowl('Error: Unable to get ' + url);
         }
     });
 
@@ -4854,6 +4879,8 @@ function RunCommandSaved(item, data)
     var json = JSON.stringify(data);
     $('#runCommandJSON').html(json);
 
+    Post('api/configfile/instantCommand.json', false, json);
+
     RunCommand(data);
 }
 
@@ -4865,6 +4892,8 @@ function ShowRunCommandPopup()
 
     if (json != '')
         cmd = JSON.parse(json);
+    else
+        cmd = Get('api/configfile/instantCommand.json', false, true);
 
     allowMultisyncCommands = true;
 
