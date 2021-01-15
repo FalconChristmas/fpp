@@ -807,7 +807,7 @@ void WS2812FX::load_gradient_palette(uint8_t index)
 {
   uint8_t i = constrain(index, 0, GRADIENT_PALETTE_COUNT -1);
   uint8_t tcp[72]; //support gradient palettes with up to 18 entries
-  memcpy(tcp, (uint8_t*)pgm_read_dword(&(gGradientPalettes[i])), 72);
+  memcpy(tcp, gGradientPalettes[i], 72);
   targetPalette.loadDynamicGradientPalette(tcp);
 }
 
@@ -1076,27 +1076,44 @@ void WS2812FX::BusSetBrightness(uint8_t b) {
         }
     }
 }
-
-void mapXY(PixelOverlayModel *m, uint16_t indexPixel, int &x, int &y) {
-    y = indexPixel / m->getWidth();
-    x = indexPixel - (y * m->getWidth());
+void WS2812FX::mapXY(uint16_t indexPixel, int &x, int &y) {
+    switch (mapping) {
+        case 3:
+            x = indexPixel / model->getHeight();
+            y = indexPixel - (x * model->getHeight());
+            x = model->getWidth() - 1 - x;
+            break;
+        case 1:
+            x = indexPixel / model->getHeight();
+            y = indexPixel - (x * model->getHeight());
+            break;
+        case 2:
+            y = indexPixel / model->getWidth();
+            x = indexPixel - (y * model->getWidth());
+            y = model->getHeight() - 1 - y;
+            break;
+        default:
+            y = indexPixel / model->getWidth();
+            x = indexPixel - (y * model->getWidth());
+            break;
+    }
 }
 
 void WS2812FX::BusSetPixelColor(uint16_t indexPixel, RgbwColor c) {
     int x, y;
-    mapXY(model, indexPixel, x, y);
+    mapXY(indexPixel, x, y);
     model->setOverlayPixelValue(x, y, brightnessValues[c.R], brightnessValues[c.G], brightnessValues[c.B]);
 }
 RgbwColor WS2812FX::BusGetPixelColorRaw(uint16_t indexPixel) {
     int x, y;
-    mapXY(model, indexPixel, x, y);
+    mapXY(indexPixel, x, y);
     int r, g, b;
     model->getOverlayPixelValue(x, y, r, g, b);
     return RgbwColor(r, g, b, 0);
 }
 uint32_t WS2812FX::BusGetPixelColorRgbw(uint16_t indexPixel) {
     int x, y;
-    mapXY(model, indexPixel, x, y);
+    mapXY(indexPixel, x, y);
     int r, g, b;
     model->getOverlayPixelValue(x, y, r, g, b);
     return (r << 16) | (g << 8) | b;
@@ -1104,7 +1121,7 @@ uint32_t WS2812FX::BusGetPixelColorRgbw(uint16_t indexPixel) {
 void WS2812FX::DoShow() {
     model->flushOverlayBuffer();
 }
-WS2812FX::WS2812FX(PixelOverlayModel *m) : WS2812FX() {
+WS2812FX::WS2812FX(PixelOverlayModel *m, int h) : WS2812FX() {
     model = m;
     int i = model->getWidth() * model->getHeight();
     if (i > 0xFFFF) {
@@ -1112,5 +1129,6 @@ WS2812FX::WS2812FX(PixelOverlayModel *m) : WS2812FX() {
     }
     lastBrightness = 0;
     BusSetBrightness(128);
+    mapping = h;
     init(false, i, false);
 }

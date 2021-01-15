@@ -1254,23 +1254,26 @@ class WS2812FX {
     
     
 public:
-    WS2812FX(PixelOverlayModel *m);
+    WS2812FX(PixelOverlayModel *m, int mapping);
     void BusSetPixelColor(uint16_t indexPixel, RgbwColor c);
     void BusSetBrightness(uint8_t b);
     RgbwColor BusGetPixelColorRaw(uint16_t indexPixel);
     uint32_t BusGetPixelColorRgbw(uint16_t indexPixel);
     void DoShow();
     
+    void mapXY(uint16_t indexPixel, int &x, int &y);
+    
     PixelOverlayModel *model;
     uint8_t brightnessValues[256];
     uint8_t lastBrightness;
+    int mapping = 0;
 };
 
 //10 names per line
 static const char *wled_mode_names[] = {
 "Solid","Blink","Breathe","Wipe","Wipe Random","Random Colors","Sweep","Dynamic","Colorloop","Rainbow",
 "Scan","Scan Dual","Fade","Theater","Theater Rainbow","Running","Saw","Twinkle","Dissolve","Dissolve Rnd",
-"Sparkle","Sparkle Dark","Sparkle+","Strobe","Strobe Rainbow","Strobe Mega","Blink Rainbow","Android","Chase","Chase Random",
+"Sparkle","Sparkle Dark","Sparkle Plus","Strobe","Strobe Rainbow","Strobe Mega","Blink Rainbow","Android","Chase","Chase Random",
 "Chase Rainbow","Chase Flash","Chase Flash Rnd","Rainbow Runner","Colorful","Traffic Light","Sweep Random","Running 2","Aurora","Stream",
 "Scanner","Lighthouse","Fireworks","Rain","Merry Christmas","Fire Flicker","Gradient","Loading","Police","Police All",
 "Two Dots","Two Areas","Circus","Halloween","Tri Chase","Tri Wipe","Tri Fade","Lightning","ICU","Multi Comet",
