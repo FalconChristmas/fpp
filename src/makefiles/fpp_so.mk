@@ -58,6 +58,12 @@ OBJECTS_fpp_so += \
     overlays/PixelOverlayEffects.o \
 	overlays/PixelOverlayModel.o \
     overlays/WLEDEffects.o \
+    overlays/wled/FX.o \
+    overlays/wled/FX_fcn.o \
+    overlays/wled/colorpalettes.o \
+    overlays/wled/colorutils.o \
+    overlays/wled/noise.o \
+    overlays/wled/hsv2rgb.o \
 	playlist/Playlist.o \
 	playlist/PlaylistEntryBase.o \
 	playlist/PlaylistEntryBoth.o \

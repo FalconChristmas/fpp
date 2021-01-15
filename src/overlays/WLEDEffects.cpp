@@ -20,6 +20,8 @@
 #include "PixelOverlay.h"
 #include "PixelOverlayModel.h"
 
+#include "wled/FX.h"
+
 
 WLEDEffect::WLEDEffect(const std::string &name) : PixelOverlayEffect(name) {
 }
@@ -146,6 +148,60 @@ public:
 
 
 
+class RawWLEDEffect : public WLEDEffect {
+public:
+    RawWLEDEffect(const std::string &name, int m) : WLEDEffect(name), mode(m) {
+        args.push_back(CommandArg("Brightness", "range", "Brightness").setRange(0, 100).setDefaultValue("100"));
+        args.push_back(CommandArg("Speed", "range", "Speed").setRange(1, 5000).setDefaultValue("1000"));
+        args.push_back(CommandArg("Intensity", "range", "Intensity").setRange(0, 100).setDefaultValue("50"));
+        args.push_back(CommandArg("Color1", "color", "Color1").setDefaultValue("#FF0000"));
+        args.push_back(CommandArg("Color2", "color", "Color2").setDefaultValue("#0000FF"));
+        args.push_back(CommandArg("Color3", "color", "Color3").setDefaultValue("#000000"));
+    }
+    
+    
+    virtual bool apply(PixelOverlayModel *model, const std::string &autoEnable, const std::vector<std::string> &args) override {
+        model->setRunningEffect(new RawWLEDEffectInternal(model, name, autoEnable, args, mode), 25);
+        return true;
+    }
+    
+    class RawWLEDEffectInternal : public WLEDRunningEffect {
+    public:
+        RawWLEDEffectInternal(PixelOverlayModel *m, const std::string &n, const std::string &ad, const std::vector<std::string> &args, int mode)
+        : WLEDRunningEffect(m, n, ad) {
+            brightness = parseInt(args[0]);
+            speed = parseInt(args[1]);
+            intensity = parseInt(args[2]);
+            color1 = adjustColor(parseColor(args[3]), brightness);
+            color2 = adjustColor(parseColor(args[4]), brightness);
+            color3 = adjustColor(parseColor(args[5]), brightness);
+            
+            wled = new WS2812FX(m);
+            wled->setMode(0, mode);
+            wled->setColor(0, color1);
+            wled->setColor(1, color2);
+            wled->setColor(2, color3);
+        }
+        virtual ~RawWLEDEffectInternal() {
+            delete wled;
+        }
+        virtual int32_t doIteration() {
+            wled->service();
+            return 25;
+        }
+        
+        int brightness;
+        int speed;
+        int intensity;
+        uint32_t color1;
+        uint32_t color2;
+        uint32_t color3;
+        
+        WS2812FX *wled;
+    };
+    
+    int mode;
+};
 
 
 
@@ -153,6 +209,12 @@ public:
 std::list<PixelOverlayEffect *> WLEDEffect::getWLEDEffects() {
     std::list<PixelOverlayEffect *> v;
     v.push_back(new BlinkEffect());
+    
+    for (int x = 2; x < MODE_COUNT; x++) {
+        std::string name = "WLED - ";
+        name +=  wled_mode_names[x];
+        v.push_back(new RawWLEDEffect(name, x));
+    }
     
     return v;
 }

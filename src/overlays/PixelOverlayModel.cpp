@@ -383,6 +383,17 @@ void PixelOverlayModel::setOverlayPixelValue(int x, int y, int r, int g, int b) 
     buf[idx++] = g;
     buf[idx] = b;
 }
+void PixelOverlayModel::getOverlayPixelValue(int x, int y, int &r, int &g, int &b) {
+    if (y >= height || x >= width || x < 0 || y < 0) {
+        r = g = b = 0;
+        return;
+    }
+    int idx = y * width * 3 + x * 3;
+    uint8_t *buf = getOverlayBuffer();
+    r = buf[idx++];
+    g = buf[idx++];
+    b = buf[idx];
+}
 
 void PixelOverlayModel::flushOverlayBuffer() {
     setData(getOverlayBuffer());

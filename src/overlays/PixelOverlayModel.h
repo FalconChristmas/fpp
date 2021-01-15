@@ -88,6 +88,7 @@ public:
     void setOverlayBufferScaledData(uint8_t *data, int w, int h);
     void fillOverlayBuffer(int r, int g, int b);
     void setOverlayPixelValue(int x, int y, int r, int g, int b);
+    void getOverlayPixelValue(int x, int y, int &r, int &g, int &b);
     void setOverlayBufferDirty();
     void flushOverlayBuffer();
 
