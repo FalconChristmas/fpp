@@ -57,8 +57,20 @@ function GetSequenceMetaData() {
     if (file_exists($file)) {
         $cmd = "/opt/fpp/src/fsequtils -j \"$file\" 2> /dev/null";
         exec( $cmd, $output);
-        $js = json_decode($output[0]);
-        return json($js);
+        if (isset($output[0])) {
+            $js = json_decode($output[0]);
+            return json($js);
+        } else {
+            $data = Array();
+            $data['Name'] = $sequence . '.fseq';
+            $data['Version'] = '?.?';
+            $data['ID'] = '';
+            $data['StepTime'] = -1;
+            $data['NumFrames'] = -1;
+            $data['MaxChannel'] = -1;
+            $data['ChannelCount'] = -1;
+            return json($data);
+        }
     }
     halt(404, "Not found: ". $sequence);
 }

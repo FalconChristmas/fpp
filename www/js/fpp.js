@@ -1004,6 +1004,12 @@ function GetSequenceDuration(sequence, updateUI, row) {
         async: updateUI,
         dataType: 'json',
         success: function(data) {
+            if (data.NumFrames <= 0) {
+                row.find('.psiDurationSeconds').html(0);
+                row.find('.humanDuration').html('<b>Length: </b>??:??');
+                return;
+            }
+
             durationInSeconds = 1.0 * data.NumFrames / (1000 / data.StepTime);
             if (updateUI) {
                 var humanDuration = SecondsToHuman(durationInSeconds);
