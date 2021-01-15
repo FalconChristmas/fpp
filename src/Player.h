@@ -19,10 +19,12 @@
 
 #include <ctime>
 #include <map>
+#include <jsoncpp/json/json.h>
+#include <httpserver.hpp>
 
 #include "playlist/Playlist.h"
 
-class Player {
+class Player : public httpserver::http_resource {
   public:
     Player();
    ~Player();
@@ -81,6 +83,12 @@ class Player {
     void               Resume();
 
     int                Cleanup();
+
+    Json::Value        GetStatusJSON();
+
+    virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request &req) override;
+    virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request &req) override;
+    virtual const std::shared_ptr<httpserver::http_response> render_PUT(const httpserver::http_request &req) override;
 
     static Player INSTANCE;
 

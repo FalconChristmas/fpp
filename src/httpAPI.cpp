@@ -90,6 +90,7 @@ void APIServer::Init(void)
     m_ws->register_resource("/command", &CommandManager::INSTANCE, true);
     m_ws->register_resource("/commands", &CommandManager::INSTANCE, true);
     m_ws->register_resource("/gpio", &GPIOManager::INSTANCE, true);
+    m_ws->register_resource("/player", &Player::INSTANCE, true);
 
     PluginManager::INSTANCE.registerApis(m_ws);
 

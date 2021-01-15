@@ -17,6 +17,7 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common.h"
 #include "log.h"
 #include "Player.h"
 
@@ -328,3 +329,64 @@ int Player::Cleanup(void)
 {
     return playlist->Cleanup();
 }
+
+Json::Value Player::GetStatusJSON()
+{
+    Json::Value result;
+    Json::Value playlists(Json::arrayValue);
+    Json::Value pl;
+
+    pl = playlist->GetInfo();
+    pl["details"] = playlist->GetConfig();
+    pl["status"] = (int)playlist->getPlaylistStatus();
+    pl["scheduled"] = playlist->WasScheduled() ? true : false;
+    pl["position"] = playlist->GetPosition();
+    pl["lastModified"] = (Json::UInt64)playlist->GetFileTime();
+
+    // things we store locally that would need to be in an array if we can
+    // play multiple playlists concurrently
+    pl["origStartTime"] = (Json::UInt64)origStartTime;
+    pl["origStopTime"] = (Json::UInt64)origStopTime;
+    pl["startTime"] = (Json::UInt64)startTime;
+    pl["stopTime"] = (Json::UInt64)stopTime;
+    pl["stopMethod"] = stopMethod;
+    pl["priority"] = priority;
+
+    playlists.append(pl);
+
+    result["playlists"] = playlists;
+
+    return result;
+}
+
+const std::shared_ptr<httpserver::http_response> Player::render_GET(const httpserver::http_request &req)
+{
+    int plen = req.get_path_pieces().size();
+    std::string p1 = req.get_path_pieces()[0];
+
+    Json::Value result;
+
+    if ((plen == 1) || ((plen == 2) && (req.get_path_pieces()[1] == "status"))) {
+        result = GetStatusJSON();
+        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(SaveJsonToString(result, "  "), 200, "application/json"));
+    }
+
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
+}
+
+const std::shared_ptr<httpserver::http_response> Player::render_POST(const httpserver::http_request &req)
+{
+    int plen = req.get_path_pieces().size();
+    std::string p1 = req.get_path_pieces()[0];
+
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
+}
+
+const std::shared_ptr<httpserver::http_response> Player::render_PUT(const httpserver::http_request &req)
+{
+    int plen = req.get_path_pieces().size();
+    std::string p1 = req.get_path_pieces()[0];
+
+    return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
+}
+
