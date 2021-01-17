@@ -1,14 +1,16 @@
 $name: "sidenav";
 
 @include bem-block($name) {
-    background-color: $red-40;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: space-between;
-    padding: rem(9px) rem(20px) rem(6px);
+    @include bem-element("header") {
+        background-color: $red-40;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        padding: rem(9px) rem(20px) rem(6px);
 
-    height: rem(68px);
+        height: rem(68px);
+    }
 
     @include bem-element("brandname") {
         @include adjust-font-size-to(22px, 30px);
@@ -33,6 +35,14 @@ $name: "sidenav";
     @include bem-element("brandlogoimage") {
         height: auto;
         max-width: 100%;
+    }
+
+    @include bem-element("devicecontrols") {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        width: rem(210px);
+        margin: 0 auto;
     }
 
     @include bem-element("toggle") {

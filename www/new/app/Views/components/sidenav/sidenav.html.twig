@@ -18,6 +18,8 @@ variants:
     styles: views/components/sidenav/sidenav.scss
 #}
 {% macro sidenav(data, options) %}
+    {% from 'components/deviceinformation/deviceinformation.html.twig' import deviceinformation %}
+    {% from 'components/button/button.html.twig' import button %}
     {% set name = 'sidenav' %}
 
     {% set defaults = {
@@ -34,18 +36,47 @@ variants:
     } %}
 
     <div {{ render_attrs(attrs) }}>
-        <div class="{{ render_element_classes(name, 'brand') }}">
-            <h1 class="{{ render_element_classes(name, 'brandname') }}">Falcon Player</h1>
-            <div class="{{ render_element_classes(name, 'brandversion') }}">Version 6</div>
+        <div class="{{ render_element_classes(name, 'header') }}">
+            <div class="{{ render_element_classes(name, 'brand') }}">
+                <h1 class="{{ render_element_classes(name, 'brandname') }}">Falcon Player</h1>
+                <div class="{{ render_element_classes(name, 'brandversion') }}">Version 6</div>
+            </div>
+            <div class="{{ render_element_classes(name, 'brandlogo') }}">
+                {% set image_attrs = {
+                    'src': 'assets/views/components/sidenav/images/fpp-player-logo.png',
+                    'class': render_element_classes(name, 'brandlogoimage'),
+                    'title': 'Falcon Player logo',
+                    'alt': '',
+                } %}
+                <img {{ render_attrs(image_attrs) }}/>
+            </div>
         </div>
-        <div class="{{ render_element_classes(name, 'brandlogo') }}">
-            {% set image_attrs = {
-                'src': 'assets/views/components/sidenav/images/fpp-player-logo.png',
-                'class': render_element_classes(name, 'brandlogoimage'),
-                'title': 'Falcon Player logo',
-                'alt': '',
-            } %}
-            <img {{ render_attrs(image_attrs) }}/>
+
+        <div class="{{ render_element_classes(name, 'deviceinformation') }}">
+            {{ deviceinformation({
+                'items': [{
+                    'name': 'Mode',
+                    'value': 'Standalone',
+                }],
+            }) }}
+            <div class="{{ render_element_classes(name, 'devicecontrols') }}">
+                {{ button({
+                    'label': 'reboot',
+                }, {
+                    'modifiers': ['small'],
+                    'actions': [
+                        render_stimulus_action(name, 'click', 'reboot')
+                    ]
+                }) }}
+                {{ button({
+                    'label': 'shutdown',
+                }, {
+                    'modifiers': ['small'],
+                    'actions': [
+                        render_stimulus_action(name, 'click', 'shutdown')
+                    ]
+                }) }}
+            </div>
         </div>
         {% set toggle_attrs = {
             'class': render_element_classes(name, 'toggle'),

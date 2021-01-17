@@ -1,0 +1,41 @@
+{#
+name: Components / button
+description: |
+  Render the template code you've just created
+
+  - Data:
+    - 'label': (string)
+
+  - Options:
+    - 'modifiers': (array) []
+    - 'class': (string) null
+variants:
+  0:
+    name: 'Default'
+    twig: |
+      {% from 'components/button/button.html.twig' import button %}
+      {{ button({
+          'label': 'Text here!',
+        }) }}
+    styles: views/components/button/button.scss
+#}
+{% macro button(data, options) %}
+    {% set name = 'button' %}
+
+    {% set defaults = {
+        'class': null,
+        'modifiers': [],
+    } %}
+
+    {% set options = merge_component_options(options, defaults) %}
+    {% set class = render_classes(name, options.modifiers, options.class) %}
+
+    {% set attrs = {
+        'class': class,
+        'data-action': (options.actions|merge([])|join(' ')),
+    } %}
+
+    <button {{ render_attrs(attrs) }}>
+        {{ data.label|default('button') }}
+    </button>
+{% endmacro %}

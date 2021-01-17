@@ -5,6 +5,7 @@ const NAME = 'notification-modal';
 
 const MESSAGE_HANDLERS = [
     'revealNotification.all',
+    'revealErrorNotification.all',
     'closeNotification.all',
 ];
 
@@ -15,11 +16,19 @@ class NotificationModal {
         this.messageBus.connect(this);
         this.modal = new tingle.modal({
             closeMethods: ['overlay', 'button', 'escape'],
-            closeLabel: "sluiten",
+            closeLabel: "close",
         });
     }
 
     onRevealNotification (evt) {
+        this.modal.setContent(evt.data.data.message);
+        this.modal.open();
+    }
+
+    onRevealErrorNotification (evt) {
+        this.modal({
+            closeMethods: [],
+        });
         this.modal.setContent(evt.data.data.message);
         this.modal.open();
     }

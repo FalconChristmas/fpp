@@ -19,15 +19,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="{{ page_meta_robots|default('no-index,no-follow') }}"/>
     <meta name="google" content="notranslate"/>
+    <base href="/">
 
     <link rel="stylesheet" href="css/main.min.css">
 
     <script>
         {% autoescape 'js' %}
         window.FPP = {
-            settings: {
-                url: '{{ app.url|raw }}', // always empty. Using parent domain
-            }
+            url: '{{ app.url|raw }}', // always empty. Using parent domain
         };
         {% endautoescape %}
     </script>

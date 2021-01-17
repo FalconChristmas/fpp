@@ -11,15 +11,17 @@ $breakpoints: (
     large-desktop: 1200px,
 ) !default;
 
-
-$almost-white: #f5f6fa;
-
-$text-color: #444;
-
 $bluegray-70: #4d5259;
 $bluegray-40: #6f7681;
 
 $blue-50: #3f4a59;
 
 $red-40: #da5b6f;
+
 $white: #fff;
+$black: #000;
+
+$text-color: #444;
+$primary-color: #33cabb;
+$secondary-color: $blue-50;
+$almost-white: #f5f6fa;
