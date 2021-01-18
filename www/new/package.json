@@ -47,7 +47,7 @@
         "run-sequence": "^2.2.1",
         "stimulus": "^1.1.0",
         "tingle.js": "^0.15.2",
-        "toastify-js": "^1.9.1",
+        "toastify-js": "^1.9.3",
         "webpack": "^4.2.0",
         "webpack-cli": "^3.3.4",
         "webpack-stream": "^5.2.1",

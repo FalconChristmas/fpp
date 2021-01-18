@@ -4,6 +4,7 @@ import App from '../../assets/js/app';
 import {ComponentController} from "./helpers/stimulus/component-controller";
 import Deviceinformation from 'Views/components/deviceinformation/deviceinformation';
 import Sidenav from 'Views/components/sidenav/sidenav';
+import Page from 'Views/components/page/page';
 /* component generator replace here */
 
 new ComponentController();

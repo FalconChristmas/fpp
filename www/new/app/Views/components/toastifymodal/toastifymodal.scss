@@ -1,0 +1,102 @@
+/*!
+ * Toastify js
+ * https://github.com/apvarun/toastify-js
+ */
+$name: "toastify";
+
+@include bem-block($name) {
+    background: linear-gradient(15deg, $blue, $blue-30);
+    border-radius: rem(2px);
+    box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.12), 0 10px 36px -4px rgba(77, 96, 232, 0.3);
+    color: $white;
+    cursor: pointer;
+    display: inline-block;
+    max-width: calc(50% - 20px);
+    opacity: 0;
+    padding: rem(20px);
+    position: fixed;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
+    width: rem(220px);
+    z-index: 999999999;
+
+    &.on {
+        opacity: 1;
+    }
+}
+
+@include bem-block($name, $modifier: "success") {
+    background: linear-gradient(15deg, #29bf57, #5cdeae);
+
+    .toast-close {
+        color: $blue-90;
+    }
+}
+
+@include bem-block($name, $modifier: "error") {
+    background: linear-gradient(15deg, #b00000, #c93d3d);
+
+    .toast-close {
+        color: $blue-90;
+    }
+}
+
+@include bem-block($name, $modifier: "info") {
+    background: linear-gradient(15deg, #0067b0, #3d42c9);
+
+    .toast-close {
+        color: $blue-90;
+    }
+}
+
+.toast-close {
+    float: right;
+    opacity: 0.4;
+    padding: 0 rem(5px);
+}
+
+.toastify-right {
+    right: rem(15px);
+}
+
+.toastify-left {
+    left: rem(15px);
+}
+
+.toastify-top {
+    top: rem(-150px);
+}
+
+.toastify-bottom {
+    bottom: rem(-150px);
+}
+
+.toastify-rounded {
+    border-radius: rem(25px);
+}
+
+.toastify-avatar {
+    border-radius: rem(2px);
+    height: rem(24px);
+    margin: 0 rem(5px);
+    width: rem(24px);
+}
+
+.toastify-center {
+    left: 0;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: fit-content;
+    right: 0;
+}
+
+@media only screen and (max-width: 360px) {
+    .toastify-right,
+    .toastify-left {
+        left: 0;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: fit-content;
+        right: 0;
+    }
+}

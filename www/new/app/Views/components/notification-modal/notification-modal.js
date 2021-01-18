@@ -1,5 +1,5 @@
 import tingle from "tingle.js";
-import {MessageBus} from "../../../assets/js/helpers/message-bus/message-bus";
+import {MessageBus} from "assets/js/helpers/message-bus/message-bus";
 
 const NAME = 'notification-modal';
 
@@ -26,9 +26,6 @@ class NotificationModal {
     }
 
     onRevealErrorNotification (evt) {
-        this.modal({
-            closeMethods: [],
-        });
         this.modal.setContent(evt.data.data.message);
         this.modal.open();
     }
