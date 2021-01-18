@@ -233,7 +233,31 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
         }
     });
 }
-function Get(url, async) {
+
+function Post(url, async, data, silent = false) {
+    var result = {};
+
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: data,
+        async: async,
+        dataType: 'json',
+        success: function(data) {
+            result = data;
+        },
+        error: function() {
+            if (!silent) {
+                $.jGrowl('Error posting to ' + url);
+            }
+        }
+    });
+
+    return result;
+}
+
+function Get(url, async, silent = false) {
     var result = {};
 
     $.ajax({
@@ -245,7 +269,8 @@ function Get(url, async) {
             result = data;
         },
         error: function() {
-            $.jGrowl('Error: Unable to get ' + url);
+            if (!silent)
+                $.jGrowl('Error: Unable to get ' + url);
         }
     });
 
@@ -979,6 +1004,12 @@ function GetSequenceDuration(sequence, updateUI, row) {
         async: updateUI,
         dataType: 'json',
         success: function(data) {
+            if (data.NumFrames <= 0) {
+                row.find('.psiDurationSeconds').html(0);
+                row.find('.humanDuration').html('<b>Length: </b>??:??');
+                return;
+            }
+
             durationInSeconds = 1.0 * data.NumFrames / (1000 / data.StepTime);
             if (updateUI) {
                 var humanDuration = SecondsToHuman(durationInSeconds);
@@ -3624,7 +3655,7 @@ function PopulatePlaylistDetails(data, editMode, name = "")
         UpdatePlaylistDurations();
     }
     var desc = "";
-    if ("desc" in data) {
+    if (data.hasOwnProperty('desc')) {
         desc = data.desc
     }
     $("#txtPlaylistDesc").val(desc)
@@ -4501,7 +4532,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 }
 
                 if (typeof val['children'] === 'object') {
-                    line += " onChange='UpdateChildVisibility();";
+                    if (tblCommand == 'playlistEntryCommandOptions')
+                        line += " onChange='UpdateChildVisibility();";
                     if (typeof val['onChange'] === 'string') {
                         line += ' ' + val['onChange'] + '();';
                         initFuncs.push(val['onChange']);
@@ -4558,7 +4590,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                     line += " data-contentlisturl='" + val['contentListUrl'] + "'";
                 }
                 if (typeof val['children'] === 'object') {
-                    line += " onChange='UpdateChildVisibility();";
+                    if (tblCommand == 'playlistEntryCommandOptions')
+                        line += " onChange='UpdateChildVisibility();";
                     if (typeof val['onChange'] === 'string') {
                         line += ' ' + val['onChange'] + '();';
                         initFuncs.push(val['onChange']);
@@ -4705,7 +4738,8 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
         InitializeDateInputs();
     }
 
-    UpdateChildVisibility();
+    if (tblCommand == 'playlistEntryCommandOptions')
+        UpdateChildVisibility();
 
     for (var i = 0; i < initFuncs.length; i++) {
         if (typeof window[initFuncs[i]] == 'function' ) {
@@ -4824,8 +4858,73 @@ function FileChooser(dir, target)
     });
 }
 
-function ShowCommandEditor(target, data, callback, cancelCallback = '')
+function RunCommandJSON(cmdJSON)
 {
+    $.ajax({
+        url: "api/command",
+        type: 'POST',
+        contentType: 'application/json',
+        data: cmdJSON,
+        async: true,
+        success: function(data) {
+            $.jGrowl('Command ran');
+        },
+        error: function() {
+            DialogError('Command failed', 'Command failed');
+        }
+    });
+}
+
+function RunCommand(cmd)
+{
+    RunCommandJSON(JSON.stringify(cmd));
+}
+
+function RunCommandSaved(item, data)
+{
+    if (data.command == null)
+        return;
+
+    var json = JSON.stringify(data);
+    $('#runCommandJSON').html(json);
+
+    Post('api/configfile/instantCommand.json', false, json);
+
+    RunCommand(data);
+}
+
+function ShowRunCommandPopup()
+{
+    var item = $('#runCommandJSON');
+    var cmd = {};
+    var json = $(item).text();
+
+    if (json != '')
+        cmd = JSON.parse(json);
+    else
+        cmd = Get('api/configfile/instantCommand.json', false, true);
+
+    allowMultisyncCommands = true;
+
+    var args = {};
+    args.title = 'Run FPP Command';
+    args.saveButton = 'Run';
+    args.cancelButton = 'Cancel';
+
+    ShowCommandEditor(item, cmd, 'RunCommandSaved', '', args);
+}
+
+function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '')
+{
+    if (typeof args === 'string') {
+        args = {};
+        args.title = 'FPP Command Editor';
+        args.saveButton = 'Accept Changes';
+        args.cancelButton = 'Cancel Edit';
+    }
+
+    allowMultisyncCommands = true;
+
     if ($('#commandEditorPopup').length == 0) {
         var dialogHTML = "<div id='commandEditorPopup'><div id='commandEditorDiv'></div></div>";
         $(dialogHTML).appendTo('body');
@@ -4834,14 +4933,14 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '')
     $('#commandEditorPopup').dialog({
         height: 'auto',
         width: 600,
-        title: "FPP Command Editor",
+        title: args.title,
         modal: true,
         open: function(event, ui) { $('#commandEditorPopup').parent().find(".ui-dialog-titlebar-close").hide(); },
         closeOnEscape: false
     });
     $('#commandEditorPopup').dialog( "moveToTop" );
     $('#commandEditorDiv').load('commandEditor.php', function() {
-        CommandEditorSetup(target, data, callback, cancelCallback);
+        CommandEditorSetup(target, data, callback, cancelCallback, args);
     });
 }
 

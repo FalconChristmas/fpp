@@ -336,7 +336,17 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
 
     if (entry.isMember("args"))
         args = entry["args"];
+
+    if (entry.isMember("multisyncCommand"))
+        multisyncCommand = (bool)entry["multisyncCommand"].asInt();
+    else
+        multisyncCommand = false;
     
+    if (entry.isMember("multisyncCommand"))
+        multisyncHosts = entry["multisyncHosts"].asString();
+    else
+        multisyncHosts = "";
+
     repeatInterval /= 100;
     repeatInterval *= 60; //seconds betweeen intervals
     
@@ -414,6 +424,8 @@ Json::Value ScheduleEntry::GetJson(void)
     if (playlist == "") {
         e["command"] = command;
         e["args"] = args;
+        e["multisyncCommand"] = multisyncCommand;
+        e["multisyncHosts"] = multisyncHosts;
     }
 
     e["day"] = dayIndex;

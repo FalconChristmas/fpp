@@ -456,6 +456,26 @@ function DisableTestMode()
 	SetTestMode();
 }
 
+function incrementEndChannel(delta)
+{
+    var start = parseInt($('#testModeStartChannel').val());
+    var end = parseInt($('#testModeEndChannel').val());
+
+    end += delta;
+
+    if (end > <? echo FPPD_MAX_CHANNELS; ?>)
+        end = <? echo FPPD_MAX_CHANNELS; ?>;
+    else if (end < 1)
+        end = 1;
+
+    if (end < start)
+        end = start;
+
+    $('#testModeEndChannel').val(end);
+
+    SetTestMode();
+}
+
 function dec2hex(i) {
 	return (i+0x100).toString(16).substr(-2).toUpperCase();
 }
@@ -662,10 +682,55 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <div class="container">
-	  <h2 class="title">Display Testing</h2>
-	  <div class="pageContent">
-			<div id='channelTester'>
+  <div id='channelTester'>
+		<br>
+		<div class='title'>Display Testing</div>
+		<div id="tabs">
+			<ul>
+				<li><a href='#tab-channels'>Channel Testing</a></li>
+				<li><a href='#tab-sequence'>Sequence</a></li>
+			</ul>
+		<div id='tab-channels'>
+		<div>
+			<fieldset class='fs'>
+      <legend>Channel Output Testing</legend>
+      <div>
+				Enable Test Mode: <input type='checkbox' id='testModeEnabled' onClick='SetTestMode();'><br>
+				<hr>
+				<b>Channel Range to Test</b><br>
+				<table border=0 cellspacing='2' cellpadding='2'>
+				<tr><td>Start Channel:</td>
+						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+						<td width=40>&nbsp;</td>
+						<td>Model Name:</td>
+						<td>
+							<select onChange='UpdateStartEndFromModel();' id='modelName'>
+								<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
+<?
+
+if (file_exists($settings['model-overlays'])) {
+    $json = json_decode(file_get_contents($settings['model-overlays']));
+    foreach ($json->models as $entry) {
+        printf( "<option value='%d,%d'>%s</option>\n",
+               intval($entry->StartChannel),
+               intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
+    }
+}
+
+?>
+							</select>
+							</td>
+						</tr>
+				<tr><td>End Channel:</td>
+						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+                        <td colspan='3'>
+                            &nbsp;&nbsp;
+                            <input type='button' class='buttons reallySmallButton' value='+3' onClick='incrementEndChannel(3);'>
+                            &nbsp;&nbsp;
+                            <input type='button' class='buttons reallySmallButton' value='-3' onClick='incrementEndChannel(-3);'>
+                            </td>
+						</tr>
+				</table>
 				<br>
 				
 				<div id="tabs">

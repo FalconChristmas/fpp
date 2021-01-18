@@ -98,8 +98,12 @@ include 'common/menuHead.inc';
                 content: function() {
                     $('.ui-tooltip').hide();
                     var id = $(this).attr('id');
-                    id = id.replace('_img', '_tip');
-                    return $('#' + id).html();
+                    if (typeof id != 'undefined') {
+                        id = id.replace('_img', '_tip');
+                        return $('#' + id).html();
+                    } else {
+                        return '';
+                    }
                 },
                 hide: { delay: 1000 }
             });

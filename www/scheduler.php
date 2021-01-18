@@ -129,6 +129,23 @@ function AddScheduleEntry(data = {}) {
         var command = {};
         command.command = data.command;
         command.args = data.args;
+        var mInfo = "";
+        if (data.hasOwnProperty('multisyncCommand')) {
+            if (data.multisyncCommand) {
+                mInfo = "<b>MCast:</b>&nbsp;Y";
+            } else {
+                mInfo = "<b>MCast:</b>&nbsp;N";
+            }
+
+            command.multisyncCommand = data.multisyncCommand;
+            if (data.hasOwnProperty('multisyncHosts')) {
+                mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
+                command.multisyncHosts = data.multisyncHosts;
+            }
+        } else {
+            mInfo = "<b>MCast:</b> N";
+        }
+        row.find('.schMulticastInfo').html(mInfo);
         row.find('.commandJSON').html(JSON.stringify(command));
 
         row.find('.schTooltipIcon').tooltip({
@@ -139,13 +156,28 @@ function AddScheduleEntry(data = {}) {
 
                 var data = JSON.parse(json);
 
-                if (!data.args.length)
-                    return "No Args";
-
                 var args = commandListByName[data.command]['args'];
                 var tip = '<table>';
-                for (var j = 0; j < args.length; j++) {
-                    tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+
+                if (data.hasOwnProperty('multisyncCommand')) {
+                    tip += "<tr><th class='left'>Multicast:</th><td>";
+                    if (data.multisyncCommand)
+                        tip += "Yes";
+                    else
+                        tip += "No";
+
+                    tip += "</td></tr>";
+
+                    if (data.hasOwnProperty('multisyncHosts')) {
+                        tip += "<tr><th class='left'>Multicast Hosts:</th><td>" +
+                            data.multisyncHosts + "</td></tr>";
+                    }
+                }
+
+                if (data.args.length) {
+                    for (var j = 0; j < args.length; j++) {
+                        tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+                    }
                 }
 
                 tip += '</table>';
@@ -311,6 +343,20 @@ function CommandUpdated(row, data)
     $(row).find('.commandJSON').html(JSON.stringify(data));
     $(row).find('.schCommand').val(data.command);
 
+    var mInfo = "";
+    if (data.multisyncCommand) {
+        mInfo = "<b>MCast:</b>&nbsp;Y";
+    } else {
+        mInfo = "<b>MCast:</b>&nbsp;N";
+    }
+
+    if ((data.hasOwnProperty("multisyncHosts")) &&
+        (data.multisyncHosts != "")) {
+        mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
+    }
+
+    row.find('.schMulticastInfo').html(mInfo);
+
     if (data.args.length) {
         row.find('.schArgs').html(data.args.join(' | '));
         row.find('.schArgsTable').show();
@@ -454,9 +500,15 @@ function GetScheduleEntryRowData(item) {
         }
 
         var jdata = JSON.parse(json);
+        e.playlist = '';
         e.command = $(item).find('.schCommand').val();
         e.args = jdata.args;
-        e.playlist = '';
+
+        if (jdata.hasOwnProperty('multisyncCommand')) {
+            e.multisyncCommand = jdata.multisyncCommand;
+            if (e.multisyncCommand)
+                e.multisyncHosts = jdata.multisyncHosts;
+        }
     }
 
     if (e.day & 0x10000) {
@@ -675,48 +727,77 @@ a:visited {
                                             <td><input class='maskFriday' type='checkbox' /></td>
                                             <td><input class='maskSaturday' type='checkbox' /></td>
                                         </tr>
-                                    </table>
-                                </span>
-                            </td>
-                            <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
-    <span class='offset startOffset'><br>+<input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
-                            <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
-                                    <option value='playlist'>Playlist</option>
-                                    <option value='command'>Command</option>
-                                </select></td>
-                            <!-- start 'Playlist' options -->
-                            <td class='schOptionsPlaylist'><select class='schPlaylist' style='max-width: 200px;' title=''>
-                                </select></td>
-                            <td class='schOptionsPlaylist'><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
-    <span class='offset endOffset'><br>+<input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
-                            <td class='schOptionsPlaylist' class='center' >
-                                <select class='schRepeat'>
-                                    <option value='0'>None</option>
-                                    <option value='1'>Immediate</option>
-                                    <option value='500'>5 Min.</option>
-                                    <option value='1000'>10 Min.</option>
-                                    <option value='1500'>15 Min.</option>
-                                    <option value='2000'>20 Min.</option>
-                                    <option value='3000'>30 Min.</option>
-                                    <option value='6000'>60 Min.</option>
-                                </select>
-                            </td>
-                            <td class='schOptionsPlaylist' class='center' >
-                                <select class='schStopType'>
-                                    <option value='0'>Graceful</option>
-                                    <option value='2'>Graceful Loop</option>
-                                    <option value='1'>Hard Stop</option>
-                                </select>
-                            </td>
-                            <!-- end 'Playlist' options -->
-                            <!-- start 'FPP Command' options -->
-                            <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
-                                <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
-                                <img class='schTooltipIcon' title='' src='images/questionmark.png'>
-                                <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>
-                                <span class='commandJSON' style='display: none;'></span>
-                            </td>
-                            <!-- end 'FPP Command' options -->
+                                    <tr><td><input class='maskSunday' type='checkbox' /></td>
+                                        <td><input class='maskMonday' type='checkbox' /></td>
+                                        <td><input class='maskTuesday' type='checkbox' /></td>
+                                        <td><input class='maskWednesday' type='checkbox' /></td>
+                                        <td><input class='maskThursday' type='checkbox' /></td>
+                                        <td><input class='maskFriday' type='checkbox' /></td>
+                                        <td><input class='maskSaturday' type='checkbox' /></td>
+                                    </tr>
+                                </table>
+                            </span>
+                        </td>
+                        <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
+<span class='offset startOffset'><br>+<input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+                        <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
+                                <option value='playlist'>Playlist</option>
+                                <option value='command'>Command</option>
+                            </select></td>
+                        <!-- start 'Playlist' options -->
+                        <td class='schOptionsPlaylist'><select class='schPlaylist' style='max-width: 200px;' title=''>
+                            </select></td>
+                        <td class='schOptionsPlaylist'><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
+<span class='offset endOffset'><br>+<input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+                        <td class='schOptionsPlaylist' class='center' >
+                            <select class='schRepeat'>
+                                <option value='0'>None</option>
+                                <option value='1'>Immediate</option>
+                                <option value='500'>5 Min.</option>
+                                <option value='1000'>10 Min.</option>
+                                <option value='1500'>15 Min.</option>
+                                <option value='2000'>20 Min.</option>
+                                <option value='3000'>30 Min.</option>
+                                <option value='6000'>60 Min.</option>
+                            </select>
+                        </td>
+                        <td class='schOptionsPlaylist' class='center' >
+                            <select class='schStopType'>
+                                <option value='0'>Graceful</option>
+                                <option value='2'>Graceful Loop</option>
+                                <option value='1'>Hard Stop</option>
+                            </select>
+                        </td>
+                        <!-- end 'Playlist' options -->
+                        <!-- start 'FPP Command' options -->
+                        <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
+                            <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
+                            <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".commandJSON").text());'>
+                            <img class='schTooltipIcon' title='' src='images/questionmark.png'>
+                            <span class='schMulticastInfo'></span>
+                            <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>
+                            <span class='commandJSON' style='display: none;'></span>
+                        </td>
+                        <!-- end 'FPP Command' options -->
+                    </tr>
+                </table>
+                <table id='tblSchedule'>
+                    <thead id='tblScheduleHead'>
+                        <tr>
+                            <th rowspan='2' title='Schedule enabled/disabled'>Act<br>ive</th>
+                            <th colspan='2' title='Date Range'>Date Range</th>
+                            <th rowspan='2' title='Day(s) of the week'>Day(s)</th>
+                            <th rowspan='2' title='Start Time'>Start<br>Time</th>
+                            <th rowspan='2' title='Schedule Type'>Schedule<br>Type</th>
+                            <th title='Playlist'>Playlist</th>
+                            <th title='End Time'>End Time</th>
+                            <th title='Repeat playlist'>Repeat</th>
+                            <th title='Playlist Stop Type'>Stop Type</th>
+                        </tr>
+                        <tr>
+                            <th title='Start Date'>Start Date</th>
+                            <th title='End Date'>End Date</th>
+                            <th colspan='4' title='FPP Command'>Command Args</th>
                         </tr>
                     </table>
                     <table id='tblSchedule'>

@@ -2481,9 +2481,11 @@ static bool MyHostMatches(const std::string &host, const std::string &hostName, 
     if (std::find(names.begin(), names.end(), hostName) != names.end()) {
         return true;
     }
-    for (auto &ls : localSystems) {
-        if (host == ls.address || host == ls.hostname) {
-            return true;
+    for (auto &h : names) {
+        for (auto &ls : localSystems) {
+            if (h == ls.address || h == ls.hostname) {
+                return true;
+            }
         }
     }
     return false;
