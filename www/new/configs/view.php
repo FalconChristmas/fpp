@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 return [
 
-//    'cache' => storage_path('cache/views'),
-    'cache' => false,
+    'cache' => storage_path('cache/views'),
+//    'cache' => false,
     'templates' => app_path('Views'),
 
     'debug' => env('APP_DEBUG', false),

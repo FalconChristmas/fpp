@@ -1,5 +1,6 @@
 import {MessageBus} from "assets/js/helpers/message-bus/message-bus";
 import Toastify from 'toastify-js';
+import {renderClasses} from "assets/js/helpers/bem";
 
 const NAME = 'toastifymodal';
 
@@ -39,6 +40,19 @@ class ToastifyModal {
         });
 
         toastify.showToast();
+    }
+
+    onRevealErrorToastify (evt) {
+        this.messageBus.postMessage({
+            'message': 'revealToastify',
+            'data': {
+                'message': evt.data.data.message,
+                'type': 'error',
+            }
+        }, {
+            'name': this.componentName,
+            'scope': 'all',
+        });
     }
 
     get componentName () {

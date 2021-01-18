@@ -5,7 +5,7 @@
 $name: "toastify";
 
 @include bem-block($name) {
-    background: linear-gradient(15deg, $blue, $blue-30);
+    background: linear-gradient(15deg, $lightblue, $lightblue-30);
     border-radius: rem(2px);
     box-shadow: 0 3px 6px -1px rgba(0, 0, 0, 0.12), 0 10px 36px -4px rgba(77, 96, 232, 0.3);
     color: $white;
@@ -29,7 +29,7 @@ $name: "toastify";
     background: linear-gradient(15deg, #29bf57, #5cdeae);
 
     .toast-close {
-        color: $blue-90;
+        color: $lightblue-90;
     }
 }
 
@@ -37,7 +37,7 @@ $name: "toastify";
     background: linear-gradient(15deg, #b00000, #c93d3d);
 
     .toast-close {
-        color: $blue-90;
+        color: $lightblue-90;
     }
 }
 
@@ -45,7 +45,7 @@ $name: "toastify";
     background: linear-gradient(15deg, #0067b0, #3d42c9);
 
     .toast-close {
-        color: $blue-90;
+        color: $lightblue-90;
     }
 }
 
