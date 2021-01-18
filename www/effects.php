@@ -105,43 +105,50 @@ function StartSelectedEffect() {
 
   ?>
 <br/>
-<div id="top" class="settings">
-  <fieldset class="fs">
-	  <legend> Effects </legend>
-        <div id= "divEffectLibrary">
-              <table>
-                <tr><td>Loop Effect:</td><td><input type='checkbox' id='loopEffect'></td>
-                    <td width='20px'></td>
-                    <td>Run in Background:</td><td><input type='checkbox' id='backgroundEffect'></td>
+<div class="container">
+<h1 class="title">Effects</h1>
+  <div class="pageContent">
+    
+    <div id="top" class="settings">
+      <fieldset class="fs">
+    	  <legend> Effects </legend>
+            <div id= "divEffectLibrary">
+                  <table>
+                    <tr><td>Loop Effect:</td><td><input type='checkbox' id='loopEffect'></td>
+                        <td width='20px'></td>
+                        <td>Run in Background:</td><td><input type='checkbox' id='backgroundEffect'></td>
+                        </tr>
+                    <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></td></tr>
+                    <tr><td><input id= "btnStartEffect" type="button" class ="disableButtons" value="Start Effect" onClick="StartSelectedEffect();"></td>
                     </tr>
-                <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></td></tr>
-                <tr><td><input id= "btnStartEffect" type="button" class ="disableButtons" value="Start Effect" onClick="StartSelectedEffect();"></td>
-                </tr>
-              </table>
-            <div class='fppTableWrapper'>
-                <div class='fppTableContents'>
-                    <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0>
-                        <thead><tr><th>Effects Library</th><th>Type</th></tr></thead>
-                        <tbody id='tblEffectLibraryBody'>
-<? PrintEffectRows(); ?>
-                        </tbody>
-                    </table>
+                  </table>
+                <div class='fppTableWrapper'>
+                    <div class='fppTableContents'>
+                        <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0>
+                            <thead><tr><th>Effects Library</th><th>Type</th></tr></thead>
+                            <tbody id='tblEffectLibraryBody'>
+    <? PrintEffectRows(); ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-      </div>
-      <div id= "divRunningEffects">
-          <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br>
-          <div class='fppTableWrapper'>
-            <div class='fppTableContents'>
-              <table id="tblRunningEffects" width="100%" cellpadding=1 cellspacing=0>
-                <thead><tr><th width='8%'>ID</th><th>Running Effects</th></tr></thead>
-                <tbody id='tblRunningEffectsBody'></tbody>
-              </table>
-            </div>
           </div>
-      </div>
-   </fieldset>
+          <div id= "divRunningEffects">
+              <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br>
+              <div class='fppTableWrapper'>
+                <div class='fppTableContents'>
+                  <table id="tblRunningEffects" width="100%" cellpadding=1 cellspacing=0>
+                    <thead><tr><th width='8%'>ID</th><th>Running Effects</th></tr></thead>
+                    <tbody id='tblRunningEffectsBody'></tbody>
+                  </table>
+                </div>
+              </div>
+          </div>
+       </fieldset>
+    </div>
+  </div>
 </div>
+
 <?php include 'common/footer.inc'; ?>
 </div>
 </body>

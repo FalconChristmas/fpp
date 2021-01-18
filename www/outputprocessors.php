@@ -398,37 +398,41 @@ $(document).tooltip();
 	<div id="bodyWrapper">
 		<?php include 'menu.inc'; ?>
 		<br/>
-
-		<div id="time" class="settings">
-			<fieldset>
-				<legend>Output Processors</legend>
-				<table>
-					<tr>
-						<td width='70px'><input type=button value='Save' onClick='SetOutputProcessors();' class='buttons'></td>
-						<td width='70px'><input type=button value='Add' onClick='AddNewProcessorRow();' class='buttons'></td>
-						<td width='40px'>&nbsp;</td>
-						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'></td>
-					</tr>
-				</table>
-				<div class='fppTableWrapper fppTableWrapperAsTable'>
-                    <div class='fppTableContents'>
-                        <table id="outputProcessors">
-                            <thead>
-                                <tr>
-                                    <th>#</td>
-                                    <th>Active</td>
-                                    <th>Type</th>
-                                    <th>Description</th>
-                                    <th>Configuration</th>
-                                </tr>
-                            </thead>
-                            <tbody id='outputProcessorsBody'>
-                            </tbody>
-                        </table>
-                    </div>
-				</div>
-			</fieldset>
-		</div>
+<div class="container">
+    <h1 class="title">Output Processors</h1>
+    <div class="pageContent">
+        
+        		<div id="time" class="settings">
+        		
+        				<table>
+        					<tr>
+        						<td width='70px'><input type=button value='Save' onClick='SetOutputProcessors();' class='buttons'></td>
+        						<td width='70px'><input type=button value='Add' onClick='AddNewProcessorRow();' class='buttons'></td>
+        						<td width='40px'>&nbsp;</td>
+        						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'></td>
+        					</tr>
+        				</table>
+        				<div class='fppTableWrapper fppTableWrapperAsTable'>
+                            <div class='fppTableContents'>
+                                <table id="outputProcessors">
+                                    <thead>
+                                        <tr>
+                                            <th>#</td>
+                                            <th>Active</td>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th>Configuration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id='outputProcessorsBody'>
+                                    </tbody>
+                                </table>
+                            </div>
+        				</div>
+        
+        		</div>
+    </div>
+</div>
 
 	<?php	include 'common/footer.inc'; ?>
 	</div>

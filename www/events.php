@@ -271,66 +271,71 @@ function SaveControlChannels()
 		echo $eventIDoptions;
 	}
 	?>
-<br/>
-<div id="programControl" class="settings">
-	<fieldset>
-		<legend>Events</legend>
-		<table>
-			<tr><td colspan='5'>Event Control Channels: </td>
-					<td width='30'></td>
-					<td>Major:</td><td><? PrintSettingText("controlMajor", 1, 0, 6, 6); ?></td>
-					<td width='20'></td>
-					<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td>
-					<td width='20'></td>
-					<td>Use legacy 10x multiplier for Event ID's in Control Channels: <? PrintSettingCheckbox("10x Event IDs", "RawEventIDs", 2, 0, "0", "1", "", ""); ?></td>
-					</tr>
-		</table>
-		<input type='Submit' value='Save' onClick='SaveControlChannels();'>
-		<br>
-		<br>
-		<div>
-            <div class='fppTableWrapper'>
-                <div class='fppTableContents fullWidth'>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th class='eventTblID'>ID</th>
-                                <th class='eventTblName'>Name</th>
-                                <th class='eventTblCommand'>Command</th>
-                                <th class='eventTblArgs'>Arguments</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tblEventEntries" width="100%">
-<? PrintEventRows(); ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-			<div id="eventControls" style="margin-top:5px">
-				<input id= "btnAddEvent" type="button" class ="buttons" value="Add Event" onClick="AddEvent();">
-				<input id= "btnTriggerEvent" type="button" class ="disableButtons" value="Trigger Event" onClick="TriggerEvent();">
-				<input id= "btnEditEvent" type="button" class ="disableButtons" value="Edit Event" onClick="EditEvent();">
-				<input id= "btnDeleteEvent" type="button" class ="disableButtons" value="Delete Event" onClick="DeleteEvent();">
-			 </div>
-			<div id="newEvent" style="display: none;">
-				<hr>
-				<table width="100%">
-					<tr>
-						<td><b><center>Event Editor</center></b></td>
-					</tr>
+<br/><div class="container">
+	<h1 class="title">Events</h1>
+	<div class="pageContent">
+		
+		<div id="programControl" class="settings">
+			<fieldset>
+				<legend>Events</legend>
+				<table>
+					<tr><td colspan='5'>Event Control Channels: </td>
+							<td width='30'></td>
+							<td>Major:</td><td><? PrintSettingText("controlMajor", 1, 0, 6, 6); ?></td>
+							<td width='20'></td>
+							<td>Minor:</td><td><? PrintSettingText("controlMinor", 1, 0, 6, 6); ?></td>
+							<td width='20'></td>
+							<td>Use legacy 10x multiplier for Event ID's in Control Channels: <? PrintSettingCheckbox("10x Event IDs", "RawEventIDs", 2, 0, "0", "1", "", ""); ?></td>
+							</tr>
 				</table>
-				<table width="100%"  class="tblNewEvent" id="tblNewEvent">
-					<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
-					<tr><td width="20%">Event Name:</td><td width="80%"><input id="newEventName" class="default-value" type="text" value="" size="30" maxlength="60" /></td></tr>
-					<tr><td width="20%">Effect Command:</td><td width="80%"><select id="newEventCommand" onChange="NewEventCommandChanged();"></select></td></tr>
-				</table>
-				<input id= "btnSaveNewEvent" type="button" class ="buttons" value="Save Event" onClick="SaveEvent();">
-				<input id= "btnCancelNewEvent" type="button" class ="buttons" value="Cancel Edit" onClick="CancelNewEvent();">
-			</div>
-		</div>
-	</fieldset>
-  </div>
+				<input type='Submit' value='Save' onClick='SaveControlChannels();'>
+				<br>
+				<br>
+				<div>
+		            <div class='fppTableWrapper'>
+		                <div class='fppTableContents fullWidth'>
+		                    <table>
+		                        <thead>
+		                            <tr>
+		                                <th class='eventTblID'>ID</th>
+		                                <th class='eventTblName'>Name</th>
+		                                <th class='eventTblCommand'>Command</th>
+		                                <th class='eventTblArgs'>Arguments</th>
+		                            </tr>
+		                        </thead>
+		                        <tbody id="tblEventEntries" width="100%">
+		<? PrintEventRows(); ?>
+		                        </tbody>
+		                    </table>
+		                </div>
+		            </div>
+		
+					<div id="eventControls" style="margin-top:5px">
+						<input id= "btnAddEvent" type="button" class ="buttons" value="Add Event" onClick="AddEvent();">
+						<input id= "btnTriggerEvent" type="button" class ="disableButtons" value="Trigger Event" onClick="TriggerEvent();">
+						<input id= "btnEditEvent" type="button" class ="disableButtons" value="Edit Event" onClick="EditEvent();">
+						<input id= "btnDeleteEvent" type="button" class ="disableButtons" value="Delete Event" onClick="DeleteEvent();">
+					 </div>
+					<div id="newEvent" style="display: none;">
+						<hr>
+						<table width="100%">
+							<tr>
+								<td><b><center>Event Editor</center></b></td>
+							</tr>
+						</table>
+						<table width="100%"  class="tblNewEvent" id="tblNewEvent">
+							<tr><td width="20%">Event ID (Major/Minor):</td><td width="80%"><select id='newEventID'><? PrintEventIDoptions(); ?></select></td></tr>
+							<tr><td width="20%">Event Name:</td><td width="80%"><input id="newEventName" class="default-value" type="text" value="" size="30" maxlength="60" /></td></tr>
+							<tr><td width="20%">Effect Command:</td><td width="80%"><select id="newEventCommand" onChange="NewEventCommandChanged();"></select></td></tr>
+						</table>
+						<input id= "btnSaveNewEvent" type="button" class ="buttons" value="Save Event" onClick="SaveEvent();">
+						<input id= "btnCancelNewEvent" type="button" class ="buttons" value="Cancel Edit" onClick="CancelNewEvent();">
+					</div>
+				</div>
+			</fieldset>
+		  </div>
+	</div>
+</div>
   <?php	include 'common/footer.inc'; ?>
 </div>
 </body>

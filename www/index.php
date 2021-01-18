@@ -187,7 +187,7 @@ include 'common/menuHead.inc';
 
 
 <div class="mainContainer container">
-<h1 class="pageTitle">Status</h1>
+<h1 class="title">Status</h1>
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
@@ -325,7 +325,7 @@ include 'common/menuHead.inc';
             </div>
 
             <!-- Player/Master Mode Info -->
-            <div id="playerModeInfo" class='statusDiv  card mainCard'>
+            <div id="playerModeInfo" class='statusDiv  card pageContent'>
 
                 <div id="playerStatusTop">
                     <div class='statusBoxLeft'>

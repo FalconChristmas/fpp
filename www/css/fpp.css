@@ -5,6 +5,39 @@ body{
 	margin: 0;
 	padding: 0;
 }
+body .ui-widget{
+	font-family: Helvetica,Arial,sans-serif;
+}
+
+.ui-tabs .ui-tabs-nav .ui-tabs-anchor{
+	padding: 0.75em 1.5em;
+}
+
+body .ui-widget input, body .ui-widget select, body .ui-widget textarea, body .ui-widget button {
+	font-family: Helvetica,Arial,sans-serif;
+}
+.ui-state-default,
+ .ui-widget-content .ui-state-default,
+  .ui-widget-header .ui-state-default,
+  .ui-button, html .ui-button.ui-state-disabled:hover, html .ui-button.ui-state-disabled:active{
+	background:#ECECEC;
+}
+.ui-state-active, .ui-widget-content .ui-state-active, .ui-widget-header .ui-state-active, a.ui-button:active, .ui-button:active, .ui-button.ui-state-active:hover{
+	background: #fff;
+}
+body .pageContent .ui-widget.ui-widget-content{
+	border:none;
+	background: none;
+}
+body .ui-widget-header {
+	background: none;
+	border:0;
+	border-bottom:1px solid #aaaaaa;
+	border-radius: 0;
+}
+body .ui-tabs .ui-tabs-nav li {
+	font-weight: bold;
+}
 .header{
 	border-bottom:1px solid #2D3043;
 	display: flex;
@@ -39,17 +72,19 @@ body{
 	margin-left: 0.5em;
 	margin-right: 0.5em;
 }
-.headerCenter a{
+body .headerCenter a{
 	color:rgba(255,255,255,0.75);
 	text-decoration: none;
 }
-.headerCenter a:hover{
+body .headerCenter a:hover{
 	color:rgba(255,255,255,1);
 	text-decoration: none;
 }
 .container{
 	max-width: 1500px;
 	margin: auto;
+	/* margin-left: 5%;
+	margin-right: 5%; */
 }
 .row{
 	display: flex;
@@ -58,18 +93,31 @@ body{
 	padding-top: 2em;
 	padding-bottom: 2em;
 }
-.pageTitle{
+.title{
 	font-size: 2.75em;
 	margin-top: -1em;
 	margin-bottom: 0.75em;
+	font-weight: bold;
 }
-.settings fieldset{
+body fieldset{
 	border:0;
 	padding: 0;
 	margin: 0;
+	border-bottom: 1px solid #D2D2D2;
+	padding-bottom: 2em;
+	margin-bottom: 1em;
+	margin-top: 1.5em;
 }
-.settings legend{
-
+body legend{
+	border:0;
+	padding:0;
+	font-size: 1.6em;
+	font-weight: bold;
+	margin-bottom: 0.5em;
+	display: block;
+	margin-bottom: 0.5em;
+	
+	
 }
 .settings .row{
 	margin-bottom: 1.1em;
@@ -147,20 +195,14 @@ body{
 .settingLabelHeading{
 	font-weight: normal;
 }
-.mainContainerWrap{
-	background-color: #2A2A2A;
-}
-.cardWrap{
-	padding-top: 40px;
-	box-shadow: 50px 0px 0px 0px red;
-}
-.card {
-	background: #F5F5F5;
+
+.card, .pageContent {
+	background: #fff;
 	border-radius: 8px;
 	color:#000;
 	padding:2.5em 3em;
 }
-.mainCard {
+.pageContent {
 	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E;
 }
 #selFPPDmode{
@@ -185,14 +227,13 @@ body{
 	font-size: 1.3em;
 	font-weight: bold;
 }
-input[type=text], select{
-	border-color:#000;
+input[type=text], input[type=number], select{
+	border: 1px solid #D2D2D2;
 	color:#000;
 	appearance: none;
-	border:1px solid #000;
 	border-radius:3px;
 	padding: 0.6em 1em;
-	font-weight: bold;
+	font-weight: normal;
 	font-size: 1.02em;
 }
 input[type=checkbox]{
@@ -259,6 +300,7 @@ input[type=range]::-webkit-slider-thumb {
 	padding: 0.85em 1.0em;
 	background: url(/images/redesign/chevron-down-grey.svg) no-repeat;
 	background-position: right 20px center;
+	font-weight: bold;
 
 }
 .playlistRepeatCol{
@@ -284,21 +326,21 @@ input[type=range]::-webkit-slider-thumb {
 	margin-right: 0.5em;
 	
 }
-.card .volumeControls .buttons{
+.pageContent .volumeControls .buttons{
 	border-color:#D2D2D2;
 	border-radius:29px;
 	width: 58px;
 }
-.card .buttons{
+.pageContent .buttons{
 	border-color:#000;
 	color:#000
 }
-.card .disableButtons{
+.pageContent .disableButtons{
 	background-color: rgba(0,0,0,0.1);
 	border-color: rgba(0,0,0,0.1);
 	color:  rgba(0,0,0,0.3);
 }
-.card hr {
+hr {
 	border:0px;
 	border-style: solid;
 	border-top: 1px solid #D2D2D2;
@@ -381,7 +423,7 @@ input[type=range]::-webkit-slider-thumb {
 .tblPlaylistContainer.tblPlaylistActive{
 	display: block;
 }
-.PlaylistRowPlaying{
+.PlaylistRowPlaying,.fileDetails.selectedEntry{
 	color: #fff;
 	background-color: #56B760;
 }
@@ -399,6 +441,16 @@ input[type=range]::-webkit-slider-thumb {
 .playlistRow td:last-child {
 	padding:1em 1em;
 	border-radius:0 5px 5px 0;
+}
+.fileDetails.selectedEntry td:first-child {
+	border-radius:5px 0 0 5px;
+}
+.fileDetails.selectedEntry td:last-child {
+	border-radius:0 5px 5px 0;
+}
+.fileDetails td{
+	padding:0.4em 0.4em;
+	cursor: pointer;
 }
 .tblPlaylistHeaderDetails{
 	display: flex;

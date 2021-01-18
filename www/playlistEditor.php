@@ -194,7 +194,7 @@ $(document).ready(function() {
 
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
-    <fieldset style="padding: 10px; border: 2px solid #000;">
+    <fieldset class="fieldSection">
         <legend>Playlist Details</legend>
         <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
             <div style="float:left; margin-right: 50px;">

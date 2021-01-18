@@ -91,7 +91,7 @@ function GitCheckoutVersion(version) {
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <div style="margin:0 auto;"> <br />
-    <fieldset style="padding: 10px; border: 2px solid #000;">
+    <fieldset class="fieldSection">
       <legend>ChangeLog</legend>
 <?
 if ($uiLevel >= 1) {
