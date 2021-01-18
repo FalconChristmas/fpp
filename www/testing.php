@@ -682,9 +682,11 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <div id='channelTester'>
-		<br>
-		<div class='title'>Display Testing</div>
+  <div class="container">
+	  <h2 class="title">Display Testing</h2>
+	  <div class="pageContent">
+			<div id='channelTester'>
+
 		<div id="tabs">
 			<ul>
 				<li><a href='#tab-channels'>Channel Testing</a></li>
