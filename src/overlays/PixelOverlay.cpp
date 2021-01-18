@@ -395,6 +395,15 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
                 PixelOverlayModel *m = models[mn];
                 m->toJson(model);
                 model["isActive"] = (int)m->getState().getState();
+                if (m->getRunningEffect()) {
+                    model["effectName"] = m->getRunningEffect()->name();
+                    model["isLocked"] = true;
+                    model["effectRunning"] = true;
+                } else {
+                    model["effectRunning"] = false;
+                }
+                model["width"] = m->getWidth();
+                model["height"] = m->getHeight();
                 result.append(model);
             }
         } else if (p2 == "model") {
@@ -677,7 +686,7 @@ public:
 class EnableOverlayCommand : public OverlayCommand {
 public:
     EnableOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model State", m) {
-        args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("Model", "multistring", "Model").setContentListUrl("api/models?simple=true", false));
         args.push_back(CommandArg("State", "string", "State").setContentList({"Disabled", "Enabled", "Transparent", "TransparentRGB"}));
     }
     
@@ -686,18 +695,25 @@ public:
             return std::make_unique<Command::ErrorResult>("Command needs 2 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        auto m = manager->getModel(args[0]);
-        if (m) {
-            m->setState(PixelOverlayState(args[1]));
-            return std::make_unique<Command::Result>("Model State Set");
+        std::list<PixelOverlayModel *> models;
+        for (auto &ms : split(args[0], ',')) {
+            auto m = manager->getModel(ms);
+            if (m) {
+                models.push_back(m);
+            } else {
+                return std::make_unique<Command::ErrorResult>("No model found: " + ms);
+            }
         }
-        return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
+        for (auto m : models) {
+            m->setState(PixelOverlayState(args[1]));
+        }
+        return std::make_unique<Command::Result>("Model State Set");
     }
 };
 class ClearOverlayCommand : public OverlayCommand {
 public:
     ClearOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Clear", m) {
-        args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("Model", "multistring", "Model").setContentListUrl("api/models?simple=true", false));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
@@ -705,18 +721,25 @@ public:
             return std::make_unique<Command::ErrorResult>("Command needs 1 argument, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        auto m = manager->getModel(args[0]);
-        if (m) {
-            m->clear();
-            return std::make_unique<Command::Result>("Model Cleared");
+        std::list<PixelOverlayModel *> models;
+        for (auto &ms : split(args[0], ',')) {
+            auto m = manager->getModel(ms);
+            if (m) {
+                models.push_back(m);
+            } else {
+                return std::make_unique<Command::ErrorResult>("No model found: " + ms);
+            }
         }
-        return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
+        for (auto m : models) {
+            m->clear();
+        }
+        return std::make_unique<Command::Result>("Models Cleared");
     }
 };
 class FillOverlayCommand : public OverlayCommand {
 public:
     FillOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Fill", m) {
-        args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("Model", "multistring", "Model").setContentListUrl("api/models?simple=true", false));
         args.push_back(CommandArg("State", "string", "State").setContentList({"Don't Set", "Enabled", "Transparent", "TransparentRGB"}));
         args.push_back(CommandArg("Color", "color", "Color").setDefaultValue("#FF0000"));
     }
@@ -726,8 +749,16 @@ public:
             return std::make_unique<Command::ErrorResult>("Command needs 2 or 3 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        auto m = manager->getModel(args[0]);
-        if (m) {
+        std::list<PixelOverlayModel *> models;
+        for (auto &ms : split(args[0], ',')) {
+            auto m = manager->getModel(ms);
+            if (m) {
+                models.push_back(m);
+            } else {
+                return std::make_unique<Command::ErrorResult>("No model found: " + ms);
+            }
+        }
+        for (auto m : models) {
             std::string color;
             std::string state = "Don't Set";
             if (args.size() == 2) {
@@ -744,9 +775,8 @@ public:
                                  (x >> 8) & 0xFF,
                                  x & 0xFF);
             m->flushOverlayBuffer();
-            return std::make_unique<Command::Result>("Model Filled");
         }
-        return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
+        return std::make_unique<Command::Result>("Models Filled");
     }
 };
 class TextOverlayCommand : public OverlayCommand {
@@ -796,8 +826,8 @@ public:
 class ApplyEffectOverlayCommand : public OverlayCommand {
 public:
     ApplyEffectOverlayCommand(PixelOverlayManager *m) : OverlayCommand("Overlay Model Effect", m) {
-        args.push_back(CommandArg("Model", "string", "Model").setContentListUrl("api/models?simple=true", false));
-        args.push_back(CommandArg("AutoEnable", "string", "Auto Enable/Disable").setContentList({"False", "Enabled", "Transparent", "Transparent RGB"}).setDefaultValue("false"));
+        args.push_back(CommandArg("Models", "multistring", "Models").setContentListUrl("api/models?simple=true", false));
+        args.push_back(CommandArg("AutoEnable", "string", "Auto Enable/Disable").setContentList({"False", "Enabled", "Transparent", "Transparent RGB"}).setDefaultValue("Enabled"));
         args.push_back(CommandArg("Effect", "subcommand", "Effect").setContentListUrl("api/overlays/effects/", false));
     }
     
@@ -806,17 +836,23 @@ public:
             return std::make_unique<Command::ErrorResult>("Command needs at least 3 arguments, found " + std::to_string(args.size()));
         }
         std::unique_lock<std::mutex> lock(getLock());
-        auto m = manager->getModel(args[0]);
-        if (m) {
+        std::list<PixelOverlayModel *> models;
+        for (auto &ms : split(args[0], ',')) {
+            auto m = manager->getModel(ms);
+            if (m) {
+                models.push_back(m);
+            } else {
+                return std::make_unique<Command::ErrorResult>("No model found: " + ms);
+            }
+        }
+        for (auto m : models) {
             std::string effect = args[2];
             std::vector<std::string> newArgs(args.begin() + 3, args.end());
-
-            if (m->applyEffect(args[1], effect, newArgs)) {
-                return std::make_unique<Command::Result>("Model Effect Started");
+            if (!m->applyEffect(args[1], effect, newArgs)) {
+                return std::make_unique<Command::ErrorResult>("Could not start effect: " + effect);
             }
-            return std::make_unique<Command::ErrorResult>("Could not start effect: " + effect);
         }
-        return std::make_unique<Command::ErrorResult>("No model found: " + args[0]);
+        return std::make_unique<Command::Result>("Model Effect Started");
     }
 };
 

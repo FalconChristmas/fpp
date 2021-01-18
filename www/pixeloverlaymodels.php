@@ -75,18 +75,21 @@ function PopulateChannelMemMapTable(data) {
         if (data[i].Orientation != "custom") {
             postr += "<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
 		    "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
-            "<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td>";
+            "<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td><td>";
         } else {
             postr += "<td><input class='corner' type='hidden' value='" + data[i].StartCorner + "'><input class='data' type='hidden' value='" + data[i].data + "'></td>" +
                 "<td><input class='strcnt' type='hidden' value='" + data[i].StringCount + "'></td>" +
-                "<td><input class='strands' type='hidden' value='" + data[i].StrandsPerString + "'></td>";
+                "<td><input class='strands' type='hidden' value='" + data[i].StrandsPerString + "'></td><td>";
         }
-		$('#channelMemMaps tbody').append(postr + "</tr>");
+        if (data[i].effectRunning) {
+            postr += data[i].effectName;
+        }
+		$('#channelMemMaps tbody').append(postr + "</td></tr>");
 	}
 }
 
 function GetChannelMemMaps() {
-	$.get("api/models", function(data) {
+	$.get("api/overlays/models", function(data) {
 		PopulateChannelMemMapTable(data);
 	}).fail(function() {
 		DialogError("Load Pixel Overlay Models", "Load Failed, is fppd running?");
@@ -164,6 +167,7 @@ function AddNewMemMap() {
 			"<td>" + GetStartingCornerInput('') + "</td>" +
 			"<td><input class='strcnt' type='text' size='3' maxlength='3' value='1'></td>" +
 			"<td><input class='strands' type='text' size='2' maxlength='2' value='1'></td>" +
+            "<td></td>" +
 			"</tr>");
 }
 
@@ -215,14 +219,15 @@ $(document).tooltip();
                         <table id="channelMemMaps">
                             <thead>
                                 <tr>
-                                    <th title='Name of Model'>Model Name</td>
-                                    <th title='Start Channel'>Start Ch.</td>
-                                    <th title='Channel Count'>Ch. Count</td>
-                                    <th title='Chan Per Node'>Ch./Node</td>
-                                    <th title='String Orientation'>Orientation</td>
-                                    <th title='Starting Corner'>Start Corner</td>
-                                    <th title='Number of Strings'>Strings</td>
-                                    <th title='Number of Strands Per String'>Strands</td>
+                                    <th title='Name of Model'>Model Name</th>
+                                    <th title='Start Channel'>Start Ch.</th>
+                                    <th title='Channel Count'>Ch. Count</th>
+                                    <th title='Chan Per Node'>Ch./Node</th>
+                                    <th title='String Orientation'>Orientation</th>
+                                    <th title='Starting Corner'>Start Corner</th>
+                                    <th title='Number of Strings'>Strings</th>
+                                    <th title='Number of Strands Per String'>Strands</th>
+                                    <th title='Running Effect'>Running Effect</th>
                                 </tr>
                             </thead>
                             <tbody>

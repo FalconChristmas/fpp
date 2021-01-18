@@ -4155,6 +4155,11 @@ function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {
                 if (addArgTypes) {
                     argTypes.push(inp.data("arg-type"));
                 }
+            } else if (Array.isArray(val)) {
+                args.push(val.toString());
+                if (addArgTypes) {
+                    argTypes.push(inp.data("arg-type"));
+                }
             } else if (typeof val != "undefined") {
                 args.push(val);
                 if (addArgTypes) {
@@ -4520,7 +4525,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             dv = val['default'];
          }
          var contentListPostfix = "";
-         if ((val['type'] == "string") || (val['type'] == 'file')) {
+         if ((val['type'] == "string") || (val['type'] == 'file') || (val['type'] == "multistring")) {
             if (typeof val['init'] === 'string') {
                 initFuncs.push(val['init']);
             }
@@ -4529,6 +4534,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
                 if (typeof val['contentListUrl'] != "undefined") {
                     line += " data-contentlisturl='" + val['contentListUrl'] + "'";
+                }
+                if (val['type'] == "multistring") {
+                    line += " multiple";
                 }
 
                 if (typeof val['children'] === 'object') {
@@ -4586,6 +4594,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             } else {
                 // Has a contentListUrl OR a init script
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' id='" + ID + "'";
+                if (val['type'] == "multistring") {
+                    line += " multiple";
+                }
                 if (typeof val['contentListUrl'] != "undefined") {
                     line += " data-contentlisturl='" + val['contentListUrl'] + "'";
                 }
@@ -4814,13 +4825,21 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    if (inp.data('contentlisturl') != null && baseUrl != "") {
                        ReloadContentList(baseUrl, inp);
                    }
-                                
+                          
+                   var multattr = inp.attr('multiple');
                    if (inp.attr('type') == 'checkbox') {
                        var checked = false;
                        if (v == "true" || v == "1") {
                            checked = true;
                        }
                        inp.prop( "checked", checked);
+                   } else if (typeof multattr !== typeof undefined && multattr !== false) {
+                       var split = v.split(",");
+                       console.log(inp.attr('type') + "  " + inp.attr('multiple') + "  " + v + "  " + split + " " + split.length + "\n");
+                       
+                       $("#" + tblCommand + "_arg_" + count + " option").prop("selected", function () {
+                           return ~$.inArray(this.text, split);
+                       });
                    } else {
                        inp.val(v);
                    }
