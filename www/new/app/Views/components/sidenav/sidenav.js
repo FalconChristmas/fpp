@@ -36,7 +36,7 @@ class Sidenav extends ComponentController {
         evt.preventDefault();
 
         this.messageBus.postMessage({
-            'message': 'rebootpi',
+            'message': 'rebootPi',
         });
     }
 
@@ -44,7 +44,7 @@ class Sidenav extends ComponentController {
         evt.preventDefault();
 
         this.messageBus.postMessage({
-            'message': 'shutdownpi',
+            'message': 'shutdownPi',
         });
     }
 }

@@ -6,7 +6,7 @@ import tingle from "tingle.js";
 const NAME = 'page';
 
 const MESSAGE_HANDLERS = [
-    'rebootpi.all',
+    'rebootPi.all',
     'shutdownPi.all',
     'setSetting.all',
 ];
@@ -18,7 +18,7 @@ class Page {
         this.messageBus.connect(this);
     }
 
-    onRebootpi () {
+    onRebootPi () {
         this.showConformation({
             'content': 'Are you sure you want to reboot?',
             'callback': () => {
@@ -76,7 +76,7 @@ class Page {
         });
     }
 
-    onShutdownpi () {
+    onShutdownPi () {
         this.showConformation({
             'content': 'Are you sure you want to shutdown?',
             'callback': () => {
