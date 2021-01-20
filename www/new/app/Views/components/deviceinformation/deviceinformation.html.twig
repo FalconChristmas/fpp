@@ -1,0 +1,50 @@
+{#
+name: Components / deviceinformation
+description: |
+  Render the template code you've just created
+
+  - Data:
+    - 'value': (string)
+
+  - Options:
+    - 'modifiers': (array) []
+    - 'class': (string) null
+variants:
+  0:
+    name: 'Default'
+    twig: |
+      {% from 'components/deviceinformation/deviceinformation.html.twig' import deviceinformation %}
+      {{ deviceinformation({
+          'items': [{
+            'name': 'value'
+          }],
+        }) }}
+    styles: views/components/deviceinformation/deviceinformation.scss
+#}
+{% macro deviceinformation(data, options) %}
+    {% set name = 'deviceinformation' %}
+    {% set defaults = {
+        'class': null,
+        'modifiers': [],
+    } %}
+    {% set options = merge_component_options(options, defaults) %}
+    {% set class = render_classes(name, options.modifiers, options.class) %}
+
+    {% set attrs = {
+        'class': class,
+        'data-controller': name,
+    } %}
+    <div {{ render_attrs(attrs) }}>
+        {% set table_attrs = {
+            'class': render_element_classes(name, 'table'),
+        } %}
+        <table {{ render_attrs(table_attrs) }}>
+            <tbody>
+            <tr class="{{ render_element_classes(name, 'item', ['mode']) }}">
+                <td>Mode</td>
+                <td>-</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+{% endmacro %}

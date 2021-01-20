@@ -1,0 +1,14 @@
+$name: "button";
+
+@include bem-block($name) {
+    display: block;
+    background: $primary-color;
+    color: $white;
+}
+
+@include bem-block($name, $pseudo-class: "hover") {
+    cursor: pointer;
+}
+
+// Custom button layouts
+@import "small/small";

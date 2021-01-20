@@ -1,0 +1,25 @@
+$name: "deviceinformation";
+
+@include bem-block($name) {
+    color: $white;
+
+    @include bem-element("table") {
+        border: 0;
+        margin: rem(19px) rem(14px);
+    }
+
+    @include bem-element("item") {
+        @include adjust-font-size-to(15px, 20px);
+        color: $white;
+        padding: rem(4px) 0;
+
+        > td {
+            padding-right: rem(13px);
+        }
+    }
+
+    @include bem-element("no-items-available") {
+        color: $white;
+        text-align: center;
+    }
+}

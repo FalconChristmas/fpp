@@ -33,3 +33,17 @@ The Slim Skeleton framework has a simple php server which we can start to develo
 Run the following command (the port can vary if you like);
 
 `$ php -S localhost:8080 -t public public/index.php`
+
+### Component generator
+To use the Gulp component generator:
+
+`$ gulp generate --name "here-youre-name"`
+
+The string is not escaped, use a string that has dashes ([kebab-case](https://wiki.c2.com/?KebabCase))
+
+Optional parameters can be added like;<br>
+(When such a parameter is used the specific file isn't generated)
+
+* `--nojs`
+* `--noscss`
+* `--notwig`
