@@ -5,11 +5,22 @@
 {% set title = 'Dashboard' %}
 
 {% block body %}
-    <div class="{{ render_element_classes('page', 'centered_block') }}">
-        <header class="{{ render_element_classes('page', 'header') }}">
-            <h1 class="{{ render_element_classes('page', 'title') }}">Dashboard</h1>
-            <h2 class="{{ render_element_classes('page', 'subtitle') }}">An overview of your current Falcon Player
-                setup</h2>
-        </header>
+    <header class="{{ render_element_classes('page', 'header') }}">
+        <h1 class="{{ render_element_classes('page', 'title') }}">Dashboard</h1>
+        <h2 class="{{ render_element_classes('page', 'subtitle') }}">An overview of your current Falcon Player
+            setup</h2>
+    </header>
+
+    <div class="{{ render_classes('main') }}">
+        <div class="{{ render_element_classes('main', 'item') }}">
+            <div class="{{ render_element_classes('main', 'contentbox') }}">
+                <strong>41</strong> Foobars
+            </div>
+        </div>
+        <div class="{{ render_element_classes('main', 'item') }}">
+            <div class="{{ render_element_classes('main', 'contentbox') }}">
+                <strong>81.712</strong> Doohickeys
+            </div>
+        </div>
     </div>
 {% endblock %}

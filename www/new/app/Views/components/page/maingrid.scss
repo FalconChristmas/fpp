@@ -1,0 +1,59 @@
+$name: "main";
+
+@include bem-block($name) {
+    --column-count: 2;
+
+    // Flexbox Fallback
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 calc(16px * -0.5);
+
+    // Grid
+    display: grid;
+    grid-template-columns: repeat(var(--column-count), 1fr);
+    grid-gap: rem(16px);
+
+    @include bem-element("item") {
+        // By default, items span 2 columns
+        flex: 1 1 50%;
+        grid-column-end: span 2;
+        padding: calc(16px / 2);
+    }
+
+    // these span the full width
+    @include bem-element("item", $modifier: "full") {
+        flex-basis: 100%;
+        grid-column: 1 / -1;
+    }
+
+    // these span only one column
+    @include bem-element("item", $modifier: "col") {
+        flex-basis: calc(100% / var(--column-count));
+        grid-column-end: span 1;
+    }
+
+    // If we have grid support, reset the margins and paddings;
+    // grid-gap handles the spacing for us.
+    @supports (display: grid) {
+        margin: 0;
+
+        @include bem-element("item") {
+            padding: 0;
+        }
+    }
+
+    @include bem-element("contentbox") {
+        height: 100%;
+        padding: 1rem;
+        font-size: 2rem;
+        font-weight: 300;
+        background-color: $white;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+}
+
+// Switch to 4-col grid on larger screens
+@include bem-block($name, $media: "tablet") {
+    --column-count: 4;
+}

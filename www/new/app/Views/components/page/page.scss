@@ -2,7 +2,7 @@ $name: "page";
 
 @include bem-block($name) {
     background-color: $almost-white;
-    display: flex;
+    display: flex; // create flex fallback
     flex-wrap: wrap;
 
     display: grid;
@@ -54,8 +54,7 @@ $name: "page";
     @include bem-element("main") {
         grid-area: main;
         flex: 1;
-        margin-top: rem(30px);
-        margin-left: rem(30px);
+        margin: rem(30px) rem(30px) rem(15px);
     }
 
     @include bem-element("footer") {
@@ -86,9 +85,9 @@ $name: "page";
         display: block;
         grid-area: sidenav;
         position: initial;
-        left: rem(-340px);
-        flex-basis: rem(340px);
-        width: rem(340px);
+        left: rem(-370px);
+        flex-basis: rem(370px);
+        width: rem(370px);
     }
 
     @include bem-element("main") {
