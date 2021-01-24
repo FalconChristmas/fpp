@@ -1,5 +1,5 @@
 {
-    "endpoints" : [
+    "endpoints": [
         {
             "endpoint": "help",
             "methods": {
@@ -23,7 +23,7 @@
                             "args": [
                                 {
                                     "description": "Playlist Name",
-                                    "type" : "string"
+                                    "type": "string"
                                 }
                             ]
                         }
@@ -91,7 +91,10 @@
             "methods": {
                 "POST": {
                     "desc": "Configure outbound email using existing settings",
-                    "output": { "Status": "OK", "Message": "" }
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
                 }
             }
         },
@@ -139,27 +142,27 @@
                 "GET": {
                     "desc": "Gets the current log for each log instance",
                     "output": {
-			    "log":{
-				 "ChannelData":"warn",
-			         "ChannelOut":"warn",
-				 "Command":"info",
-				 "Control":"warn",
-				 "E131Bridge":"warn",
-				 "Effect":"warn",
-				 "Event":"warn",
-				 "GPIO":"warn",
-				 "General":"warn",
-				 "HTTP":"warn",
-				 "MediaOut":"warn",
-				 "Playlist":"debug",
-				 "Plugin":"warn",
-				 "Schedule":"warn",
-				 "Sequence":"warn",
-				 "Settings":"warn",
-				 "Sync":"warn"
-			    },
-                        "Status":"OK",
-                        "Message":""
+                        "log": {
+                            "ChannelData": "warn",
+                            "ChannelOut": "warn",
+                            "Command": "info",
+                            "Control": "warn",
+                            "E131Bridge": "warn",
+                            "Effect": "warn",
+                            "Event": "warn",
+                            "GPIO": "warn",
+                            "General": "warn",
+                            "HTTP": "warn",
+                            "MediaOut": "warn",
+                            "Playlist": "debug",
+                            "Plugin": "warn",
+                            "Schedule": "warn",
+                            "Sequence": "warn",
+                            "Settings": "warn",
+                            "Sync": "warn"
+                        },
+                        "Status": "OK",
+                        "Message": ""
                     }
                 }
             }
@@ -245,7 +248,7 @@
                         "MQTT": {
                             "configured": false,
                             "connected": false
-                        },                    
+                        },
                         "current_playlist": {
                             "count": "0",
                             "index": "0",
@@ -282,7 +285,7 @@
                                 "value": 53.692,
                                 "valueType": "Temperature"
                             }
-                        ],                    
+                        ],
                         "status": 0,
                         "status_name": "idle",
                         "time": "Tue Apr 02 08:06:34 EDT 2019",
@@ -402,7 +405,7 @@
                             "StartChannel": 6145,
                             "StartCorner": "BL",
                             "StrandsPerString": 1,
-                            "StringCount": 16 
+                            "StringCount": 16
                         }
                     ]
                 },
@@ -522,8 +525,15 @@
             "methods": {
                 "GET": {
                     "desc": "Gets the current channel data for the model",
-                    "output": { 
-                        "data": [0,0,0,0,0,0],
+                    "output": {
+                        "data": [
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0
+                        ],
                         "rle": false,
                         "isLocked": false
                     }
@@ -536,8 +546,21 @@
             "methods": {
                 "GET": {
                     "desc": "Gets the current channel data for the model encoded in RLE format.  RLE data is in quads in the format count,a,b,c[,count,a,b,c]... where a,b,c are the 3 data channels for a pixel.",
-                    "output": { 
-                        "data": [10,255,0,0,3,0,255,0,4,255,255,255],
+                    "output": {
+                        "data": [
+                            10,
+                            255,
+                            0,
+                            0,
+                            3,
+                            0,
+                            255,
+                            0,
+                            4,
+                            255,
+                            255,
+                            255
+                        ],
                         "rle": true,
                         "isLocked": false
                     }
@@ -564,7 +587,11 @@
                 "PUT": {
                     "desc": "Fills the entire overlay with the given color",
                     "input": {
-                        "RGB": [ 255, 0, 0 ]
+                        "RGB": [
+                            255,
+                            0,
+                            0
+                        ]
                     },
                     "output": "OK"
                 }
@@ -579,7 +606,11 @@
                     "input": {
                         "X": 10,
                         "Y": 12,
-                        "RGB": [ 255, 0, 0 ]
+                        "RGB": [
+                            255,
+                            0,
+                            0
+                        ]
                     },
                     "output": "OK"
                 }
@@ -688,10 +719,23 @@
             "methods": {
                 "GET": {
                     "desc": "Returns detailed information about wireless network interfaces and their signal strength",
-                    "output": [{"interface":"wlan0","link":45,"level":-65,"noise":-256}, {"interface":"wlan1","link":40,"level":-60,"noise":-256}]
-		}
-	    }
-	},
+                    "output": [
+                        {
+                            "interface": "wlan0",
+                            "link": 45,
+                            "level": -65,
+                            "noise": -256
+                        },
+                        {
+                            "interface": "wlan1",
+                            "link": 40,
+                            "level": -60,
+                            "noise": -256
+                        }
+                    ]
+                }
+            }
+        },
         {
             "endpoint": "playlists",
             "methods": {
@@ -845,7 +889,7 @@
             "methods": {
                 "POST": {
                     "desc": "Insert an item into the :SectionName section of the playlist :PlaylistName",
-                    "input" : {
+                    "input": {
                         "type": "pause",
                         "enabled": 1,
                         "playOnce": 0,
@@ -1012,7 +1056,7 @@
                         "StepTime": 25,
                         "NumFrames": 10750,
                         "MaxChannel": 84992,
-                        "ChannelCount":84992
+                        "ChannelCount": 84992
                     }
                 }
             }
