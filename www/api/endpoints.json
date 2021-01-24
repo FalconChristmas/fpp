@@ -242,6 +242,10 @@
                 "GET": {
                     "desc": "Gets the current status of the FPPD daemon",
                     "output": {
+                        "MQTT": {
+                            "configured": false,
+                            "connected": false
+                        },                    
                         "current_playlist": {
                             "count": "0",
                             "index": "0",
@@ -260,12 +264,37 @@
                         "repeat_mode": "0",
                         "seconds_played": "0",
                         "seconds_remaining": "0",
+                        "scheduler": {
+                            "enabled": 1,
+                            "nextPlaylist": {
+                                "playlistName": "No playlist scheduled.",
+                                "scheduledStartTime": 0,
+                                "scheduledStartTimeStr": ""
+                            },
+                            "status": "idle"
+                        },
+                        "sensors": [
+                            {
+                                "formatted": "53.7",
+                                "label": "CPU: ",
+                                "postfix": "",
+                                "prefix": "",
+                                "value": 53.692,
+                                "valueType": "Temperature"
+                            }
+                        ],                    
                         "status": 0,
                         "status_name": "idle",
                         "time": "Tue Apr 02 08:06:34 EDT 2019",
                         "time_elapsed": "00:00",
                         "time_remaining": "00:00",
-                        "volume": 0
+                        "volume": 0,
+                        "uptime": "00:22",
+                        "uptimeDays": 0.00025462962962962961,
+                        "uptimeHours": 0.0061111111111111114,
+                        "uptimeMinutes": 0.36666666666666664,
+                        "uptimeSeconds": 22,
+                        "uptimeStr": "0 days, 0 hours, 0 minutes, 22 seconds"
                     }
                 }
             }

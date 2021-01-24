@@ -36,6 +36,7 @@
 #include "Scheduler.h"
 
 #include <iomanip>
+#include <sstream>
 
 #include "mediaoutput/mediaoutput.h"
 #include "sensors/Sensors.h"
@@ -688,8 +689,24 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["time"] = str;
 
     std::time_t timeDiff = std::time(nullptr) - startupTime;
+	int totalseconds = (int)timeDiff;
+	double days =  ((double) timeDiff) / 86400;
+	double hours = ((double)(totalseconds % 86400)) / 3600;
+	int seconds = totalseconds % 86400 % 3600;
+	double minutes = ((double)seconds) / 60;
+	seconds = seconds % 60;
+
+
     result["uptime"] = secondsToTime((int)timeDiff);
-    result["uptimeSeconds"] = (int)timeDiff;
+    result["uptimeSeconds"] = seconds;
+    result["uptimeDays"] = days;
+    result["uptimeMinutes"] = minutes;
+    result["uptimeHours"] = hours; 
+    result["uptimeDays"] = days;
+
+	std::stringstream totalTime;
+	totalTime << (int) days << " days, " << (int) hours << " hours, " << (int) minutes << " minutes, " << seconds << " seconds";
+	result["uptimeStr"] = totalTime.str();
 
     Sensors::INSTANCE.reportSensors(result);
     std::list<std::string> warnings = WarningHolder::GetWarnings();

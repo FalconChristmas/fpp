@@ -3228,11 +3228,6 @@ function ReloadSettingOptions(settingName) {
 		}
 	}
 
-function GetFPPDUptime()
-	{
-		$.get("fppxml.php?command=getFPPDUptime");
-	}
-
 function RestartFPPD() {
 		var args = "";
 
