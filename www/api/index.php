@@ -33,7 +33,11 @@ dispatch_get   ('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
 
 dispatch_get   ('/network/interface', 'network_list_interfaces');
+dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
+dispatch_post  ('/network/presisentNames', 'network_presisentNames_create');
 dispatch_get   ('/network/wifi_strength', 'network_wifi_strength');
+
+
 dispatch_get   ('/options/:SettingName', 'GetOptions');
 
 dispatch_get   ('/playlists', 'playlist_list');

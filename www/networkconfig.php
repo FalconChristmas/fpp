@@ -367,7 +367,7 @@ function CreatePersistentNames() {
             "Yes" : function() {
                 $(this).dialog("close");
                 SetRebootFlag();
-                $.get("fppjson.php?command=createPersistentNetNames", "", function() {location.reload(true);});
+                $.post("api/network/presisentNames", "", function() {location.reload(true);});
             },
             "No" : function() {
             $(this).dialog("close");
@@ -385,7 +385,12 @@ function ClearPersistentNames() {
             "Yes" : function() {
                 $(this).dialog("close");
                 SetRebootFlag();
-                $.get("fppjson.php?command=clearPersistentNetNames", "", function() {location.reload(true);});
+                $.ajax( {
+                  type: "DELETE",
+                  url: "api/network/presisentNames",
+                  data: "", 
+                  success: function() {location.reload(true);},
+                });
             },
             "No" : function() {
             $(this).dialog("close");

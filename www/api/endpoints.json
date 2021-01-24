@@ -715,6 +715,23 @@
             }
         },
         {
+            "endpoint": "network/presisentNames",
+            "methods": {
+                "DELETE": {
+                    "desc": "Removes the Interface Persistent names",
+                    "output": {
+                        "status": "OK"
+                    }
+                },
+                "POST": {
+                    "desc": "Creates the Interface Persistent names",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/wifi_strength",
             "methods": {
                 "GET": {

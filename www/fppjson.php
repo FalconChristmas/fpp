@@ -54,8 +54,8 @@ $command_array = Array(
 	"extGPIO"             => 'ExtGPIOJson',
     "getSysInfo"          => 'GetSystemInfoJson',
     "getHostNameInfo"     => 'GetSystemHostInfo',
-    "clearPersistentNetNames" => 'ClearPersistentNetNames',
-    "createPersistentNetNames" => 'CreatePersistentNetNames'
+    // "clearPersistentNetNames" => 'ClearPersistentNetNames', // use DELETE /api/network/presisentName
+    // "createPersistentNetNames" => 'CreatePersistentNetNames' // use POST /api/network/presisentName
 );
 
 $command = "";
