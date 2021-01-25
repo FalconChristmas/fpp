@@ -698,6 +698,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
 
     result["uptime"] = secondsToTime((int)timeDiff);
+    result["uptimeTotalSeconds"] = (int)timeDiff;
     result["uptimeSeconds"] = seconds;
     result["uptimeDays"] = days;
     result["uptimeMinutes"] = minutes;
