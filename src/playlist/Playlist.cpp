@@ -104,6 +104,8 @@ Playlist::Playlist(Playlist *parent)
             this->MQTTHandler(topic, payload);
         };
         mqtt->AddCallback("/set/playlist/#", f2);
+    } else {
+            LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
     }
 }
 

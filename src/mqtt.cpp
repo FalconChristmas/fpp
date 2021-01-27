@@ -340,6 +340,7 @@ bool MosquittoClient::IsConnected() {
 }
 
 void MosquittoClient::AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback) {
+    LogDebug(VB_CONTROL, "MQTT: In AddCallback with %s\n", topic.c_str());
     callbacks[topic] = callback;
     if (m_canProcessMessages && m_isConnected) {
         if (topic.rfind("/set/", 0) != 0) {
@@ -469,6 +470,7 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 	// If not our base, then return.
 	// Would only happen if subscribe is wrong
     if (topic.find(m_baseTopic) != 0) {
+	    LogWarn(VB_CONTROL, "Topic '%s' doesn't match base. How is that possible?\n", message->topic);
 		return;
 	}
     
