@@ -170,13 +170,15 @@ var SerialDevices = new Array();
 			echo "SerialDevices['$fileName'] = '$fileName';\n";
 		}
     }
-    foreach(scandir("/dev/serial/by-id") as $fileName)
-	{
-        if(strcmp($fileName, ".") != 0 && strcmp($fileName, "..") != 0) {
-            $linkDestination = basename(readlink('/dev/serial/by-id/'.$fileName));
-            echo "SerialDevices['serial/by-id/$fileName'] = '$fileName -> $linkDestination';\n";
+    if (is_dir("/dev/serial/by-id")) {
+        foreach(scandir("/dev/serial/by-id") as $fileName)
+        {
+            if(strcmp($fileName, ".") != 0 && strcmp($fileName, "..") != 0) {
+                $linkDestination = basename(readlink('/dev/serial/by-id/'.$fileName));
+                echo "SerialDevices['serial/by-id/$fileName'] = '$fileName -> $linkDestination';\n";
+            }
         }
-	}
+    }
 ?>
 
 var I2CDevices = new Array();
@@ -417,7 +419,7 @@ class LOREnhanced extends OtherBaseDevice {
         result += "Unit Id: <input class='unitId' style='opacity: 1' type='number' value='" + uintId .toString()+ "' min='1' max='240' />&nbsp;&nbsp;";
         result += "Pixels: <input class='numOfPixels' style='opacity: 1' type='number' value='" + numOfPixels.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
         result += "LOR Start Pix: <input class='lorStartPixel' style='opacity: 1' type='number' value='" + lorStartPixel.toString() + "' min='1' max='170' />&nbsp;&nbsp;";
-        result += "FPP Start Pix: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='200000' />&nbsp;&nbsp;";
+        result += "FPP Start Ch: <input class='fppStartAddr' style='opacity: 1' type='number' value='" + fppStartAddr.toString() + "' min='1' max='" + this._maxChannels + "' />&nbsp;&nbsp;";
         result += '<input class="buttons" type="button" value="Remove" onClick="LOREnhanced.RemoveUnit(this);" />';
         result += "<br>";
         result += "</span>"
