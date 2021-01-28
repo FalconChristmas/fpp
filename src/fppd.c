@@ -606,6 +606,7 @@ int main(int argc, char *argv[])
         }
     }
 
+	Player::INSTANCE.Init();
 	PluginManager::INSTANCE.init();
 
 	CheckExistanceOfDirectoriesAndFiles();
