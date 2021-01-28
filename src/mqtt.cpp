@@ -196,10 +196,8 @@ void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
     {
         rc.append(*it);
     }
-    std::stringstream buffer;
-    buffer << rc << std::endl;
-    
-    std::string msg = buffer.str();
+
+    std::string msg = SaveJsonToString(rc);
     LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
     Publish("warnings", msg);
 }
