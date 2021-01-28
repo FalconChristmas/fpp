@@ -90,6 +90,8 @@ dispatch_get   ('/scripts', 'scripts_list');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 
+dispatch_get   ('/system/reboot', 'RebootDevice');
+
 dispatch_get   ('/time', 'GetTime');
 
 run();

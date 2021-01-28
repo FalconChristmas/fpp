@@ -3434,14 +3434,17 @@ function GetRunningEffects()
 
 			//Delay reboot for 1 second to allow flags to be cleared
             setTimeout(function () {
-                var xmlhttp = new XMLHttpRequest();
-                var url = "fppxml.php?command=rebootPi";
-                xmlhttp.open("GET", url, true);
-                xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-                xmlhttp.send();
-
-                //Show FPP is rebooting notification for 10 seconds
-                $.jGrowl('FPP is rebooting..', {life: 10000});
+                $.get({
+                    url: "api/system/reboot",
+                    data: "",
+                    success: function(data) {
+                        //Show FPP is rebooting notification for 60 seconds then reload the page
+                        $.jGrowl('FPP is rebooting..', {life: 60000});
+                        setTimeout(function () {
+                                location.href="index.php";
+                        }, 60000);
+                    }
+                });    
             }, 1000);
 		} 
 	}
