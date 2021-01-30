@@ -115,12 +115,6 @@ function GetSetting()
 	returnJSON($result);
 }
 
-function startsWith( $haystack, $needle ) {
-       $length = strlen( $needle );
-       return substr( $haystack, 0, $length ) === $needle;
-}
-
-
 function SetSetting()
 {
 	global $args, $SUDO;
