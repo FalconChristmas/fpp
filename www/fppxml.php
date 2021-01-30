@@ -14,7 +14,6 @@ error_reporting(E_ALL);
 $nonXML = Array(
 	"getFile" => 1,
 	"tailFile" => 1,
-	"getGitOriginLog" => 1,
 	"gitStatus" => 1,
 	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
@@ -55,7 +54,6 @@ $command_array = Array(
 	"shutdownPi" => 'ShutdownPi',
 	"changeGitBranch" => 'ChangeGitBranch',
 	"upgradeFPPVersion" => 'UpgradeFPPVersion',
-	"getGitOriginLog" => 'GetGitOriginLog',
 	"gitStatus" => 'GitStatus',
 	"resetGit" => 'ResetGit',
 	"setVolume" => 'SetVolume',
@@ -146,19 +144,6 @@ function ChangeGitBranch()
 	exec("$fppDir/scripts/git_branch $branch");
 
 	EchoStatusXML("OK");
-}
-
-function GetGitOriginLog()
-{
-	header('Content-type: text/plain');
-
-	global $fppDir;
-	$fullLog = "";
-	exec("$fppDir/scripts/git_fetch", $log);
-	exec("$fppDir/scripts/git_origin_log", $log);
-	$fullLog .= implode("\n", $log);
-
-	echo $fullLog;
 }
 
 function GitStatus()
