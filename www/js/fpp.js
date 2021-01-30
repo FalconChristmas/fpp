@@ -3855,7 +3855,7 @@ function DisplayHelp()
 
 function GetGitOriginLog()
 {
-    $('#logText').html("Loading list of changes from github.");
+    $('#logText').html('Loading list of changes from github. <div class="ajax-loading-60px"></div>');
 	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
 	$('#logViewer').dialog( "moveToTop" );
     $.get({
