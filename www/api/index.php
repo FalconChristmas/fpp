@@ -28,6 +28,9 @@ dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
 
 dispatch_get   ('/files/:DirName', 'GetFiles');
 
+dispatch_get   ('/git/originLog', 'GetGitOriginLog');
+
+
 dispatch_get   ('/media', 'GetMedia');
 dispatch_get   ('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
