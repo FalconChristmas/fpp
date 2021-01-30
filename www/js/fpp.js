@@ -3852,10 +3852,30 @@ function DisplayHelp()
 
 function GetGitOriginLog()
 {
-	$('#logText').html("Loading list of changes from github.");
-	$('#logText').load("fppxml.php?command=getGitOriginLog");
+    $('#logText').html("Loading list of changes from github.");
 	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
 	$('#logViewer').dialog( "moveToTop" );
+    $.get({
+        url: "api/git/originLog",
+        data: "",
+        success: function(data) {
+            if ("rows" in data) {
+                html = [];
+                html.push("<table>")
+                data.rows.forEach(function(r) {
+                    html.push('<tr><td><a href="https://github.com/FalconChristmas/fpp/commit/');
+                    html.push(r.hash);
+                    html.push('">');
+                    html.push(r.hash.substring(0,8));
+                    html.push('</a></td><td>');
+                    html.push(r.msg);
+                    html.push('</td></tr>');
+                });
+                html.push('</table>');
+                $('#logText').html(html.join(''));
+            }
+        }
+    });
 }
 
 function GetVideoInfo(file)

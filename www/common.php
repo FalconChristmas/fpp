@@ -15,6 +15,11 @@ function check($var, $var_name = "", $function_name = "")
 		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
 }
 
+function startsWith( $haystack, $needle ) {
+	$length = strlen( $needle );
+	return substr( $haystack, 0, $length ) === $needle;
+}
+
 function getFileList($dir, $ext)
 {
   $i = array();
