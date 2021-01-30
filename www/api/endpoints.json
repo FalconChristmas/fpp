@@ -303,6 +303,27 @@
             }
         },
         {
+            "endpoint": "git/originLog",
+            "methods": {
+                "GET": {
+                    "desc": "Returns a a list of the commits that are in the Origin (usually Github) but not the local repository.",
+                    "output": {
+                        "status": "OK",
+                        "rows": [
+                            {
+                                "hash": "95ccb370e45272d8aed76aabfa55e60d489a8280",
+                                "msg": "Use our SaveJsonToString() when generating MQTT warnings JSON message."
+                            },
+                            {
+                                "hash": "2fad5ad941baea49edaab834429343b42981bcc5",
+                                "msg": "Move Playlist initialization into main() via Player::Init()"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "media",
             "methods": {
                 "GET": {
@@ -724,9 +745,10 @@
                     }
                 },
                 "POST": {
-                    "desc": "Creates the Interface Persistent names",
+                    "desc": "Creates the Interface Persistent names.",
                     "output": {
-                        "status": "OK"
+                        "status": "OK",
+                        "interfaceCnt": 2
                     }
                 }
             }
@@ -1161,6 +1183,17 @@
                         "HDMI": "HDMI",
                         "Disabled": "Disabled",
                         "Matrix": "Matrix"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/reboot",
+            "methods": {
+                "GET": {
+                    "desc": "Results in reboot of the operating system",
+                    "output": {
+                        "status": "OK"
                     }
                 }
             }
