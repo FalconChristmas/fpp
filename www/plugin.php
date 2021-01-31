@@ -14,6 +14,16 @@ if (isset($_GET['plugin']))
 		$pluginSettings = parse_ini_file($pluginConfigFile);
 }
 
+$infoFile = $pluginDirectory . '/' . $_GET['plugin'] . '/pluginInfo.json';
+
+if (file_exists($infoFile))
+{
+	$json = file_get_contents($infoFile);
+	$pluginInfo = json_decode($json, true);
+}
+
+
+
 ?>
 
 <!DOCTYPE html>
@@ -69,7 +79,10 @@ if ( file_exists($cssDir))
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <br/>
+  <div class="container">
+    <h1 class="title"><? echo $pluginInfo['name']; ?></h1>
+    <div class="pageContent">
+        
 
 <?php
 else:
@@ -142,7 +155,8 @@ else
 }
 
 if ( !isset($_GET['nopage']) ): ?>
-
+</div>
+</div>
 <?php	include 'common/footer.inc'; ?>
 </div>
 </body>

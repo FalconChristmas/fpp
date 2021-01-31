@@ -1,9 +1,15 @@
 body{
 	background-color: #171720;
-	color:#fff;
 	font-family: Helvetica,Arial,sans-serif;
 	margin: 0;
 	padding: 0;
+}
+a:focus,  button:focus, input:focus{
+
+	outline-width: 3px;
+	outline-color:rgba(0,128,255,0.4);
+	outline-offset: 2px;
+	box-shadow:0px 0px 15px rgba(0,128,255,0.1) 
 }
 body .ui-widget{
 	font-family: Helvetica,Arial,sans-serif;
@@ -41,6 +47,7 @@ body .ui-tabs .ui-tabs-nav li {
 .header{
 	border-bottom:1px solid #2D3043;
 	display: flex;
+	color:#fff;
 }
 .helpLinkDiv{
 	margin-bottom: 1.5em;
@@ -98,6 +105,7 @@ body .headerCenter a:hover{
 	margin-top: -1em;
 	margin-bottom: 0.75em;
 	font-weight: bold;
+	color:#fff;
 }
 body fieldset{
 	border:0;
@@ -153,6 +161,9 @@ body legend{
 
 #btnDaemonControl{
 	margin-left: 1em;
+}
+#programControl{
+	color:#fff;
 }
 #daemonControl .statusTable{
 	display: flex;
@@ -236,6 +247,11 @@ input[type=text], input[type=number], select{
 	font-weight: normal;
 	font-size: 1.02em;
 }
+.pageContent select{
+	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
+	background-position: right 20px center;
+	background-size: 15px;
+}
 input[type=checkbox]{
 
 	appearance: none;
@@ -303,6 +319,7 @@ input[type=range]::-webkit-slider-thumb {
 	font-weight: bold;
 
 }
+
 .playlistRepeatCol{
 	display: flex;
 	align-items: center;
@@ -508,6 +525,7 @@ hr {
 	text-align: center;
 	padding: 2em;
 	background-color: #20222E;
+	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E;
 }
 .footerLink{
 	border-top:1px solid #4C4C4C;
