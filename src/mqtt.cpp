@@ -51,7 +51,7 @@ public:
             retain = true;
         }
 
-        mqtt->PublishRaw(args[0], args[1], 1, retain);
+        mqtt->PublishRaw(args[0], args[1], retain);
         return std::make_unique<Command::Result>("OK");
     }
 };
@@ -206,7 +206,7 @@ void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
 
     std::string msg = SaveJsonToString(rc);
     LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
-    Publish("warnings", msg, 1, true);
+    Publish("warnings", msg, true);
 }
 
 /*
@@ -283,7 +283,7 @@ int MosquittoClient::Init(const std::string &username, const std::string &passwo
 /*
  *
  */
-int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg, const int qos, const bool retain)
+int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg, const bool retain, const int qos)
 {
 	LogDebug(VB_CONTROL, "Publishing message '%s' on topic '%s'\n", msg.c_str(), topic.c_str());
 
@@ -305,7 +305,7 @@ int MosquittoClient::PublishRaw(const std::string &topic, const std::string &msg
 /*
  *
  */
-int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg, const int qos, const bool retain)
+int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg, const bool retain, const int qos)
 {
 	std::string topic = m_baseTopic + "/" + subTopic;
 
@@ -315,7 +315,7 @@ int MosquittoClient::Publish(const std::string &subTopic, const std::string &msg
 /*
  *
  */
-int MosquittoClient::Publish(const std::string &subTopic, const int value, const int qos, const bool retain)
+int MosquittoClient::Publish(const std::string &subTopic, const int value, const bool retain, const int qos)
 {
 	std::string topic = m_baseTopic + "/" + subTopic;
 	std::string msg = std::to_string(value);
