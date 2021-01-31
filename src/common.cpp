@@ -780,6 +780,47 @@ bool replaceEnd(std::string& str, const std::string& from, const std::string& to
     return true;
 }
 
+void ReplaceString(std::string &str, std::string pattern, std::string replacement)
+{
+    std::size_t found = str.find(pattern);
+    while (found != std::string::npos)
+    {
+        str.replace(found, pattern.length(), replacement);
+
+        found = str.find(pattern);
+    }
+}
+
+std::string ReplaceKeywords(std::string str, std::map<std::string, std::string> &keywords)
+{
+    std::string key;
+
+    for (auto &k: keywords) {
+        key = "%";
+        key += k.first;
+        key += "%";
+
+        ReplaceString(str, key, k.second);
+    }
+
+    std::time_t currTime = std::time(NULL);
+    struct tm now;
+    localtime_r(&currTime, &now);
+    char tmpStr[20];
+
+    sprintf(tmpStr, "%02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
+    ReplaceString(str, "%TIME%", tmpStr);
+
+    sprintf(tmpStr, "%04d-%02d-%02d", now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
+    ReplaceString(str, "%DATE%", tmpStr);
+
+    ReplaceString(str, "%FPP_VERSION%", getFPPVersionTriplet());
+    ReplaceString(str, "%FPP_SOURCE_VERSION%", getFPPVersion());
+    ReplaceString(str, "%FPP_BRANCH%", getFPPBranch());
+
+    return str;
+}
+
 void toUpper(std::string& str) {
     std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }

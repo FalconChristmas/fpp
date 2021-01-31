@@ -1535,7 +1535,7 @@ a[href="backup.php"]:before{
 a[href="proxies.php"]:before{
    content: "\f0ac";
 }
-a[href="events.php"]:before{
+a[href="commandPresets.php"]:before{
    content: "\f073";
 }
 a[href="uploadfile.php?tab=4"]:before{

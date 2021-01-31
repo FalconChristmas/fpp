@@ -38,9 +38,9 @@
 
 #define FPP_CTRL_PORT 32320
 
-#define CTRL_PKT_CMD    0
+#define CTRL_PKT_CMD    0 // deprecated in favor of FPP Commands
 #define CTRL_PKT_SYNC   1
-#define CTRL_PKT_EVENT  2
+#define CTRL_PKT_EVENT  2 // deprecated in favor of FPP Commands
 #define CTRL_PKT_BLANK  3
 #define CTRL_PKT_PING   4
 #define CTRL_PKT_PLUGIN 5
@@ -55,10 +55,6 @@ typedef struct __attribute__((packed)) {
 typedef struct {
 	char   command[1];       // Null-terminated Command to process
 } CommandPkt;
-
-typedef struct {
-	char eventID[6];         // Event ID MAJOR_MINOR, NULL terminated
-} EventPkt;
 
 #define SYNC_PKT_START 0
 #define SYNC_PKT_STOP  1
@@ -169,7 +165,6 @@ class MultiSyncStats {
     uint32_t          pktSyncMedStart;
     uint32_t          pktSyncMedStop;
     uint32_t          pktSyncMedSync;
-    uint32_t          pktEvent;
     uint32_t          pktBlank;
     uint32_t          pktPing;
     uint32_t          pktPlugin;
@@ -193,7 +188,6 @@ class MultiSyncPlugin {
     virtual void SendMediaSyncStopPacket(const std::string &filename) {}
     virtual void SendMediaSyncPacket(const std::string &filename, float seconds) {}
     
-    virtual void SendEventPacket(const std::string &eventID) {}
     virtual void SendBlankingDataPacket(void) {}
     
     virtual void SendPluginData(const std::string &name, const uint8_t *data, int len) {}
@@ -257,7 +251,6 @@ class MultiSync {
 	void SendMediaSyncStopPacket(const std::string &filename);
 	void SendMediaSyncPacket(const std::string &filename, float seconds);
 
-	void SendEventPacket(const std::string &eventID);
     void SendFPPCommandPacket(const std::string &host, const std::string &cmd, const std::vector<std::string> &args);
 	void SendBlankingDataPacket(void);
 
@@ -315,7 +308,6 @@ class MultiSync {
 
     void ProcessSyncPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
     void ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
-    void ProcessEventPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
     void ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
     void ProcessPluginPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
     void ProcessFPPCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);

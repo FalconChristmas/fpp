@@ -2913,7 +2913,6 @@ function ShowMultiSyncStats(data) {
             + '<td class="right">' + s.pktPing + '</td>'
             + '<td class="right">' + s.pktPlugin + '</td>'
             + '<td class="right">' + s.pktFPPCommand + '</td>'
-            + '<td class="right">' + s.pktEvent + '</td>'
             + '<td class="right">' + s.pktError + '</td>'
             + '</tr>';
 
@@ -4892,6 +4891,159 @@ function FileChooser(dir, target)
     $('#fileChooserPopup').dialog( "moveToTop" );
     $('#fileChooserDiv').load('fileChooser.php', function() {
         SetupFileChooser(dir, target);
+    });
+}
+
+function EditCommandTemplateCanceled(row)
+{
+    var json = $(row).find('.cmdTmplJSON').text();
+    var data = JSON.parse(json);
+    $(row).find('.cmdTmplCommand').val(data.command);
+}
+
+function EditCommandTemplateSaved(row, data)
+{
+    FillInCommandTemplate(row, data);
+}
+
+function EditCommandTemplate(row)
+{
+    var command = $(row).find('.cmdTmplCommand').val();
+    var json = $(row).find('.cmdTmplJSON').text();
+
+    var cmd = {};
+    if (json == '') {
+        cmd.command = command;
+        cmd.args = [];
+        cmd.multisyncCommand = false;
+        cmd.multisyncHosts = '';
+    } else {
+        cmd = JSON.parse(json);
+        if (cmd.command != command) {
+            cmd.command = command;
+            cmd.args = [];
+            cmd.multisyncCommand = false;
+            cmd.multisyncHosts = '';
+        }
+    }
+
+    ShowCommandEditor(row, cmd, 'EditCommandTemplateSaved', 'EditCommandTemplateCanceled');
+}
+
+function GetCommandTemplateData(row)
+{
+    var json = $(row).find('.cmdTmplJSON').text();
+
+    if (json != '')
+        return JSON.parse(json);
+
+    var data = {};
+    data.command = '';
+    data.args = [];
+    data.multisyncCommand = false;
+    data.multisyncHosts = '';
+
+    return data;
+}
+
+function FillInCommandTemplate(row, data)
+{
+    if ((row.find('.cmdTmplName').val() == '') &&
+        (data.hasOwnProperty('name'))) {
+        row.find('.cmdTmplName').val(data.name);
+    }
+
+    row.find('.cmdTmplCommand').val(data.command);
+
+    if (data.hasOwnProperty('presetSlot'))
+        row.find('.cmdTmplPresetSlot').val(data.presetSlot);
+
+    if (data.args.length) {
+        var args = '';
+        if (data.command == 'Run Script') {
+            if (data.args.length > 1)
+                args = data.args[0] + ' | ' + data.args[1];
+            else
+                args = data.args[0];
+        } else {
+            args = data.args.join(' | ');
+        }
+
+        row.find('.cmdTmplArgs').html(args);
+        row.find('.cmdTmplArgsTable').show();
+    } else {
+        row.find('.cmdTmplArgs').html('');
+        row.find('.cmdTmplArgsTable').hide();
+    }
+
+    var command = {};
+    command.command = data.command;
+    command.args = data.args;
+    var mInfo = "";
+    if (data.hasOwnProperty('multisyncCommand')) {
+        if (data.multisyncCommand) {
+            mInfo = "<b>MCast:</b>&nbsp;Y";
+        } else {
+            mInfo = "<b>MCast:</b>&nbsp;N";
+        }
+
+        command.multisyncCommand = data.multisyncCommand;
+        if ((data.multisyncCommand) &&
+            (data.hasOwnProperty('multisyncHosts'))) {
+            mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
+            command.multisyncHosts = data.multisyncHosts;
+        }
+    } else {
+        mInfo = "<b>MCast:</b> N";
+    }
+
+    row.find('.cmdTmplMulticastInfo').html(mInfo);
+    row.find('.cmdTmplJSON').html(JSON.stringify(command));
+
+    row.find('.cmdTmplTooltipIcon').tooltip({
+        content: function() {
+            var json = $(this).parent().find('.cmdTmplJSON').text();
+            if (json == '')
+                return 'No command selected.';
+
+            var data = JSON.parse(json);
+
+            if (data.command == '')
+                return 'No command selected.';
+
+            var args = commandListByName[data.command]['args'];
+            var tip = '<table>';
+
+            tip += "<tr><th class='left'>Command:</th><td>" + data.command + "</td></tr>";
+
+            if (data.hasOwnProperty('multisyncCommand')) {
+                tip += "<tr><th class='left'>Multicast:</th><td>";
+                if (data.multisyncCommand)
+                    tip += "Yes";
+                else
+                    tip += "No";
+
+                tip += "</td></tr>";
+
+                if (data.hasOwnProperty('multisyncHosts')) {
+                    tip += "<tr><th class='left'>Multicast Hosts:</th><td>" +
+                        data.multisyncHosts + "</td></tr>";
+                }
+            }
+
+            if (data.args.length) {
+                for (var j = 0; j < args.length; j++) {
+                    tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+                }
+            }
+
+            tip += '</table>';
+
+            return tip;
+        },
+        open: function (event, ui) {
+            ui.tooltip.css("max-width", "600px");
+        }
     });
 }
 

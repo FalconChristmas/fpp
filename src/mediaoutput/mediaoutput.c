@@ -31,6 +31,7 @@
 #include <set>
 
 #include "log.h"
+#include "commands/Commands.h"
 #include "common.h"
 #include "mediaoutput.h"
 #include "MultiSync.h"
@@ -395,6 +396,11 @@ int StartMediaOutput(const char *filename) {
     }
 
     pthread_mutex_unlock(&mediaOutputLock);
+
+    std::map<std::string, std::string> keywords;
+    keywords["MEDIA_NAME"] = filename;
+    CommandManager::INSTANCE.TriggerPreset("MEDIA_STARTED", keywords);
+
     return 1;
 }
 void CloseMediaOutput() {
@@ -417,6 +423,10 @@ void CloseMediaOutput() {
 
 	if (getFPPmode() == MASTER_MODE)
 		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
+
+    std::map<std::string, std::string> keywords;
+    keywords["MEDIA_NAME"] = mediaOutput->m_mediaFilename;
+    CommandManager::INSTANCE.TriggerPreset("MEDIA_STOPPED", keywords);
 
     delete mediaOutput;
     mediaOutput = 0;

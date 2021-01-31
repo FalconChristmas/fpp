@@ -30,7 +30,6 @@
 #include "command.h"
 #include "e131bridge.h"
 #include "effects.h"
-#include "events.h"
 #include "fppd.h"
 #include "fpp.h"
 #include "gpio.h"
@@ -369,7 +368,6 @@ printf("Usage: %s [OPTION...]\n"
 "                                    Control     - Control socket debugging\n"
 "                                    E131Bridge  - E1.31 bridge\n"
 "                                    Effect      - Effects sequences\n"
-"                                    Event       - Event handling\n"
 "                                    General     - general messages\n"
 "                                    GPIO        - GPIO Input handling\n"
 "                                    HTTP        - HTTP API requests\n"
@@ -406,7 +404,6 @@ int parseArguments(int argc, char **argv)
 			{"music-directory",		required_argument,	0, 'M'},
 			{"sequence-directory",	required_argument,	0, 'S'},
 			{"playlist-directory",	required_argument,	0, 'P'},
-			{"event-directory",		required_argument,	0, 'E'},
 			{"video-directory",		required_argument,	0, 'F'},
 			{"pixelnet-file",		required_argument,	0, 'p'},
 			{"schedule-file",		required_argument,	0, 's'},
@@ -495,10 +492,6 @@ int parseArguments(int argc, char **argv)
 				free(settings.sequenceDirectory);
 				settings.sequenceDirectory = strdup(optarg);
 				break;
-			case 'E': //event-directory
-				free(settings.eventDirectory);
-				settings.eventDirectory = strdup(optarg);
-				break;
 			case 'F': //video-directory
 				free(settings.videoDirectory);
 				settings.videoDirectory = strdup(optarg);
@@ -569,7 +562,6 @@ int main(int argc, char *argv[])
 		CreateDaemon();
     }
     PinCapabilities::InitGPIO();
-    GPIOManager::ConvertOldSettings();
 
     std::srand(std::time(nullptr));
     
@@ -626,11 +618,14 @@ int main(int argc, char *argv[])
 
 	InitEffects();
     PixelOverlayManager::INSTANCE.Initialize();
-    UpgradeEvents();
-    
+
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
 
+    CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
+
 	MainLoop();
+
+    CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
 
     //turn off processessing of events so we don't get
     //events while we are shutting down
@@ -800,7 +795,7 @@ void MainLoop(void)
 		if (getFPPmode() & PLAYER_MODE) {
 			if (Player::INSTANCE.IsPlaying()) {
 				if (prevFPPstatus == FPP_STATUS_IDLE) {
-					Player::INSTANCE.Start();
+//					Player::INSTANCE.Start();
 					sleepms = 10;
 				}
 

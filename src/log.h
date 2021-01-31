@@ -71,7 +71,6 @@ class FPPLogger {
       FPPLoggerInstance Command = FPPLoggerInstance("Command");
       FPPLoggerInstance E131Bridge = FPPLoggerInstance("E131Bridge");
       FPPLoggerInstance Effect = FPPLoggerInstance("Effect");
-      FPPLoggerInstance Event = FPPLoggerInstance("Event");
       FPPLoggerInstance MediaOut = FPPLoggerInstance("MediaOut");
       FPPLoggerInstance Playlist = FPPLoggerInstance("Playlist");
       FPPLoggerInstance Schedule = FPPLoggerInstance("Schedule");
@@ -94,7 +93,6 @@ class FPPLogger {
 #define VB_COMMAND      FPPLogger::INSTANCE.Command
 #define VB_E131BRIDGE   FPPLogger::INSTANCE.E131Bridge
 #define VB_EFFECT       FPPLogger::INSTANCE.Effect
-#define VB_EVENT        FPPLogger::INSTANCE.Event
 #define VB_MEDIAOUT     FPPLogger::INSTANCE.MediaOut
 #define VB_PLAYLIST     FPPLogger::INSTANCE.Playlist
 #define VB_SCHEDULE     FPPLogger::INSTANCE.Schedule

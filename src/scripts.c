@@ -42,7 +42,7 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 	char  userScript[1024];
 	char  eventScript[1024];
 
-    LogDebug(VB_EVENT, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
+    LogDebug(VB_COMMAND, "Script %s:  Args: %s\n", script.c_str(), scriptArgs.c_str());
     
 	// Setup the script from our user
 	strcpy(userScript, getScriptDirectory());
@@ -142,16 +142,16 @@ pid_t RunScript(std::string script, std::string scriptArgs, std::vector<std::pai
 
         if (chdir(getScriptDirectory()))
         {
-            LogErr(VB_EVENT, "Unable to change directory to %s: %s\n",
+            LogErr(VB_COMMAND, "Unable to change directory to %s: %s\n",
                 getScriptDirectory(), strerror(errno));
             exit(EXIT_FAILURE);
         }
         for (int x = 0; x < i; x++) {
-            LogExcess(VB_EVENT, "Script Arg %d:  %s\n", x, args[x]);
+            LogExcess(VB_COMMAND, "Script Arg %d:  %s\n", x, args[x]);
         }
         execvp(eventScript, args);
 
-        LogErr(VB_EVENT, "RunScript(), ERROR, we shouldn't be here, "
+        LogErr(VB_COMMAND, "RunScript(), ERROR, we shouldn't be here, "
             "this means that execvp() failed trying to run '%s %s': %s\n",
             eventScript, args[0], strerror(errno));
         exit(EXIT_FAILURE);

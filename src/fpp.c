@@ -154,7 +154,7 @@ int main (int argc, char *argv[])
         sprintf(command,"StopEffectByName,%s,",argv[2]);
       SendCommand(command);
     }
-    // Trigger an event - example "fpp -t eventName"
+    // Trigger a FPP Command Preset Slot - example "fpp -t 12"
     else if((strncmp(argv[1],"-t",2) == 0) &&  argc > 2)
     {
       sprintf(command,"t,%s,",argv[2]);
@@ -328,7 +328,7 @@ void Usage(char *appname)
 "                                 start channel set to CH and optional\n"
 "                                 looping if LOOP is set to 1\n"
 "  -E EFFECTNAME                - Stop Effect EFFECTNAME\n"
-"  -t EVENTID                   - Trigger Event EVENTID (MAJOR_MINOR - 03_04)\n"
+"  -t Slot#                     - Trigger FPP Command Preset in Slot#\n"
 "  -G GPIO MODE                 - Configure the given GPIO to MODE. MODEs include:\n"
 "                                 Input    - Set to Input. For PiFace inputs this only enables the pull-up\n"
 "                                 Output   - Set to Output. (This is not needed for PiFace outputs)\n"

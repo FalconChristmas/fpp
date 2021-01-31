@@ -146,10 +146,6 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 	{
 		GetRunningEffects(result);
 	}
-	else if (url == "events")
-	{
-		GetRunningEvents(result);
-	}
 	else if (url == "log")
 	{
 		GetLogSettings(result);
@@ -280,10 +276,6 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
     if (replaceStart(url, "effects/"))
 	{
 		PostEffects(url, data, result);
-	}
-	else if (replaceStart(url, "events/"))
-	{
-		PostEvents(url, data, result);
 	}
 	else if (replaceStart(url, "falcon/hardware"))
 	{
@@ -473,10 +465,9 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(c
 	LogDebug(VB_HTTP, "DELETE URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-	if (replaceStart(url, "event/"))
+	if (replaceStart(url, "somethingaturlbeginninghere/"))
 	{
-		int id = atoi(url.c_str());
-		LogDebug(VB_HTTP, "API - Deleting event with running ID %d\n", id);
+		LogDebug(VB_HTTP, "API - Deleting somethingaturlbeginninghere/\n");
 	}
 	else
 	{
@@ -578,14 +569,6 @@ void PlayerResource::SetErrorResult(Json::Value &result, const int respCode, con
 void PlayerResource::GetRunningEffects(Json::Value &result)
 {
 	LogDebug(VB_HTTP, "API - Getting list of running effects\n");
-}
-
-/*
- *
- */
-void PlayerResource::GetRunningEvents(Json::Value &result)
-{
-	LogDebug(VB_HTTP, "API - Getting list of running events\n");
 }
 
 /*
@@ -945,24 +928,6 @@ void PlayerResource::PostEffects(const std::string &effectName, const Json::Valu
 	LogDebug(VB_HTTP, "API - PostEffect(%s) cmd: %s\n", effectName.c_str(), command.c_str());
 
 	SetOKResult(result, "PostEffect result would go here");
-}
-
-/*
- *
- */
-void PlayerResource::PostEvents(const std::string &eventID, const Json::Value &data, Json::Value &result)
-{
-	if (!data.isMember("command"))
-	{
-		SetErrorResult(result, 400, "'command' field not specified");
-		return;
-	}
-
-	std::string command = data["command"].asString();
-
-	LogDebug(VB_HTTP, "API - PostEvent(%s) cmd: %s\n", eventID.c_str(), command.c_str());
-
-	SetOKResult(result, "PostEvent result would go here");
 }
 
 /*

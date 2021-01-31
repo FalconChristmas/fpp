@@ -16,33 +16,49 @@
 
 #include "Commands.h"
 
-class TriggerEventCommand : public Command {
+class TriggerPresetCommand : public Command {
 public:
-    TriggerEventCommand() : Command("Trigger Event") {
-        args.push_back(CommandArg("major", "int", "Event Major").setRange(1, 25));
-        args.push_back(CommandArg("minor", "int", "Event Minor").setRange(1, 25));
+    TriggerPresetCommand() : Command("Trigger Command Preset") {
+        args.push_back(CommandArg("name", "string", "Preset Name"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
-class TriggerRemoteEventCommand : public Command {
+class TriggerRemotePresetCommand : public Command {
 public:
-    TriggerRemoteEventCommand() : Command("Remote Trigger Event") {
+    TriggerRemotePresetCommand() : Command("Remote Trigger Command Preset") {
         args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
-        args.push_back(CommandArg("major", "int", "Event Major").setRange(1, 25));
-        args.push_back(CommandArg("minor", "int", "Event Minor").setRange(1, 25));
+        args.push_back(CommandArg("name", "string", "Preset Name"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 
-class TriggerMultipleEventsCommand : public Command {
+class TriggerPresetSlotCommand : public Command {
 public:
-    TriggerMultipleEventsCommand() : Command("Trigger Multiple Events") {
-        args.push_back(CommandArg("Event1", "string", "Event 1").setContentListUrl("api/events/ids", true));
-        args.push_back(CommandArg("Event2", "string", "Event 2").setContentListUrl("api/events/ids", true));
-        args.push_back(CommandArg("Event3", "string", "Event 3").setContentListUrl("api/events/ids", true));
-        args.push_back(CommandArg("Event4", "string", "Event 4").setContentListUrl("api/events/ids", true));
+    TriggerPresetSlotCommand() : Command("Trigger Command Preset Slot") {
+        args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+class TriggerRemotePresetSlotCommand : public Command {
+public:
+    TriggerRemotePresetSlotCommand() : Command("Remote Trigger Command Preset Slot") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("slot", "int", "Preset Slot").setRange(1, 255));
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
+
+class TriggerMultiplePresetSlotsCommand : public Command {
+public:
+    TriggerMultiplePresetSlotsCommand() : Command("Trigger Multiple Command Preset Slots") {
+        args.push_back(CommandArg("SlotA", "int", "Preset Slot A").setRange(1,255));
+        args.push_back(CommandArg("SlotB", "int", "Preset Slot B").setRange(1,255));
+        args.push_back(CommandArg("SlotC", "int", "Preset Slot C").setRange(1,255));
+        args.push_back(CommandArg("SlotD", "int", "Preset Slot D").setRange(1,255));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

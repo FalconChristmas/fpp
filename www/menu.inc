@@ -142,7 +142,7 @@ if (!file_exists("/etc/fpp/desktop")) {
           <li><a href="settings.php">FPP Settings</a></li>
           <li><a href="backup.php">FPP Backup</a></li>
           <li><a href="proxies.php">Proxy Settings</a></li>
-          <li><a href="events.php">Events</a></li>
+          <li><a href="commandPresets.php">Command Presets</a></li>
           <li><a href="effects.php">Effects</a></li>
           <li><a href="testing.php">Display Testing</a></li>
           <?

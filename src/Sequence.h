@@ -83,7 +83,6 @@ class Sequence {
     
     void SetBridgeData(uint8_t *data, int startChannel, int len);
   private:
-	char  NormalizeControlValue(char in);
     void  SetLastFrameData(FSEQFile::FrameData *data);
     
     uint8_t      *m_bridgeData;
@@ -96,9 +95,7 @@ class Sequence {
 	int           m_seqSingleStep;
 	int           m_seqSingleStepBack;
 	float           m_seqRefreshRate;
-	int           m_seqControlRawIDs;
-	char          m_seqLastControlMajor;
-	char          m_seqLastControlMinor;
+	unsigned char m_seqLastControlValue;
     int           m_remoteBlankCount;
     bool          m_dataProcessed;
     int           m_numSeek;

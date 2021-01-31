@@ -1425,6 +1425,9 @@ $(document).ready(function() {
             1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
         },
         widgetOptions: {
+            filter_childRows     : true,
+            filter_childByColumn : true,
+            filter_childWithSibs : false,
             filter_functions: {
                 2: {
                     "FPP (All)": function(e,n,f,i,$r,c,data) {

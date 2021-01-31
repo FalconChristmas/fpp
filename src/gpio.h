@@ -39,9 +39,6 @@ public:
     
     virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request &req) override;
     
-    static void ConvertOldSettings();
-    
-    
     void Initialize(std::map<int, std::function<bool(int)>> &callbacks);
     void CheckGPIOInputs(void);
     void Cleanup();

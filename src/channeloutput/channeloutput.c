@@ -389,10 +389,9 @@ int InitializeChannelOutputs(void) {
         LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
         addRange(m1, m2);
     });
-    if (getControlMajor() || getControlMinor()) {
-        int min = std::min(getControlMajor(), getControlMinor());
-        int max = std::max(getControlMajor(), getControlMinor());
-        addRange(min, max);
+    if (getControlChannel()) {
+        int val = getControlChannel();
+        addRange(val, val);
     }
     sortRanges();
     for (auto &r : outputRanges) {

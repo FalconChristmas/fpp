@@ -116,6 +116,7 @@ bool contains(const std::string &str, const std::string &v);
 void replaceAll(std::string& str, const std::string& from, const std::string& to);
 bool replaceStart(std::string& str, const std::string& from, const std::string& to = "");
 bool replaceEnd(std::string& str, const std::string& from, const std::string& to = "");
+std::string ReplaceKeywords(std::string str, std::map<std::string, std::string> &keywords);
 void toUpper(std::string& str);
 void toLower(std::string& str);
 std::string toUpperCopy(const std::string& str);

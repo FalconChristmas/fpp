@@ -116,79 +116,8 @@ function AddScheduleEntry(data = {}) {
         row.find('.schOptionsPlaylist').hide();
         row.find('.schOptionsCommand').show();
         row.find('.schType').val('command');
-        row.find('.schCommand').val(data.command);
 
-        if (data.args.length) {
-            row.find('.schArgs').html(data.args.join(' | '));
-            row.find('.schArgsTable').show();
-        } else {
-            row.find('.schArgs').html('');
-            row.find('.schArgsTable').hide();
-        }
-
-        var command = {};
-        command.command = data.command;
-        command.args = data.args;
-        var mInfo = "";
-        if (data.hasOwnProperty('multisyncCommand')) {
-            if (data.multisyncCommand) {
-                mInfo = "<b>MCast:</b>&nbsp;Y";
-            } else {
-                mInfo = "<b>MCast:</b>&nbsp;N";
-            }
-
-            command.multisyncCommand = data.multisyncCommand;
-            if (data.hasOwnProperty('multisyncHosts')) {
-                mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
-                command.multisyncHosts = data.multisyncHosts;
-            }
-        } else {
-            mInfo = "<b>MCast:</b> N";
-        }
-        row.find('.schMulticastInfo').html(mInfo);
-        row.find('.commandJSON').html(JSON.stringify(command));
-
-        row.find('.schTooltipIcon').tooltip({
-            content: function() {
-                var json = $(this).parent().find('.commandJSON').text();
-                if (json == '')
-                    return '';
-
-                var data = JSON.parse(json);
-
-                var args = commandListByName[data.command]['args'];
-                var tip = '<table>';
-
-                if (data.hasOwnProperty('multisyncCommand')) {
-                    tip += "<tr><th class='left'>Multicast:</th><td>";
-                    if (data.multisyncCommand)
-                        tip += "Yes";
-                    else
-                        tip += "No";
-
-                    tip += "</td></tr>";
-
-                    if (data.hasOwnProperty('multisyncHosts')) {
-                        tip += "<tr><th class='left'>Multicast Hosts:</th><td>" +
-                            data.multisyncHosts + "</td></tr>";
-                    }
-                }
-
-                if (data.args.length) {
-                    for (var j = 0; j < args.length; j++) {
-                        tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
-                    }
-                }
-
-                tip += '</table>';
-
-                return tip;
-            },
-            open: function (event, ui) {
-                ui.tooltip.css("max-width", "600px");
-            }
-        });
-
+        FillInCommandTemplate(row, data);
     }
 
     if (data.startTime == '25:00:00')
@@ -317,62 +246,6 @@ function SetScheduleInputNames() {
     SetupDatePicker("#tblScheduleBody > tr > td > input.date");
 }
 
-function EditScheduleCommand(item)
-{
-    var row = $(item).parent().parent();
-    var command = $(row).find('.schCommand').val();
-    var json = $(row).find('.commandJSON').text();
-
-    var cmd = {};
-    if (json == '') {
-        cmd.command = command;
-        cmd.args = [];
-    } else {
-        cmd = JSON.parse(json);
-        if (cmd.command != command) {
-            cmd.command = command;
-            cmd.args = [];
-        }
-    }
-
-    ShowCommandEditor(row, cmd, 'CommandUpdated', 'CommandEditCanceled');
-}
-
-function CommandUpdated(row, data)
-{
-    $(row).find('.commandJSON').html(JSON.stringify(data));
-    $(row).find('.schCommand').val(data.command);
-
-    var mInfo = "";
-    if (data.multisyncCommand) {
-        mInfo = "<b>MCast:</b>&nbsp;Y";
-    } else {
-        mInfo = "<b>MCast:</b>&nbsp;N";
-    }
-
-    if ((data.hasOwnProperty("multisyncHosts")) &&
-        (data.multisyncHosts != "")) {
-        mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
-    }
-
-    row.find('.schMulticastInfo').html(mInfo);
-
-    if (data.args.length) {
-        row.find('.schArgs').html(data.args.join(' | '));
-        row.find('.schArgsTable').show();
-    } else {
-        row.find('.schArgs').html('');
-        row.find('.schArgsTable').hide();
-    }
-}
-
-function CommandEditCanceled(row)
-{
-    var json = $(row).find('.commandJSON').text();
-    var data = JSON.parse(json);
-    $(row).find('.schCommand').val(data.command);
-}
-
 function SetupDatePicker(item)
 {
 	$(item).datepicker({
@@ -420,8 +293,18 @@ function ScheduleEntryTypeChanged(item)
         row.find('.schOptionsPlaylist').hide();
         row.find('.schOptionsCommand').show();
 
-        if (row.find('.schArgs').val() == '')
-            row.find('.schArgsTable').hide();
+        if (row.find('.cmdTmplArgs').val() == '')
+            row.find('.cmdTmplArgsTable').hide();
+
+        var json = row.find('.cmdTmplJSON').text();
+        if (json == '') {
+            var data = {};
+            data.command = '';
+            data.args = [];
+            data.multisyncCommand = false;
+            data.multisyncHosts = '';
+            FillInCommandTemplate(row, data);
+        }
     }
 }
 
@@ -489,19 +372,19 @@ function GetScheduleEntryRowData(item) {
     e.stopType = parseInt($(item).find('.schStopType').val());
 
     if (schType == 'command') {
-        var json = $(item).find('.commandJSON').text();
+        var json = $(item).find('.cmdTmplJSON').text();
 
         if (json == '') {
             var cmd = {};
             cmd.command = command;
             cmd.args = [];
             json = JSON.stringify(cmd);
-            $(row).find('.commandJSON').html(json);
+            $(row).find('.cmdTmplJSON').html(json);
         }
 
         var jdata = JSON.parse(json);
         e.playlist = '';
-        e.command = $(item).find('.schCommand').val();
+        e.command = $(item).find('.cmdTmplCommand').val();
         e.args = jdata.args;
 
         if (jdata.hasOwnProperty('multisyncCommand')) {
@@ -762,13 +645,13 @@ a:visited {
                         </td>
                         <!-- end 'Playlist' options -->
                         <!-- start 'FPP Command' options -->
-                        <td class='schOptionsCommand' colspan='4'><select class='schCommand' onChange='EditScheduleCommand(this);'><? echo $commandOptions; ?></select>
-                            <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditScheduleCommand(this);'>
-                            <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".commandJSON").text());'>
-                            <img class='schTooltipIcon' title='' src='images/questionmark.png'>
-                            <span class='schMulticastInfo'></span>
-                            <table class='schArgsTable'><tr><th class='left'>Args:</th><td><span class='schArgs'></span></td></tr></table>
-                            <span class='commandJSON' style='display: none;'></span>
+                        <td class='schOptionsCommand' colspan='4'><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                            <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
+                            <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
+                            <img class='cmdTmplTooltipIcon' title='' src='images/questionmark.png'>
+                            <span class='cmdTmplMulticastInfo'></span>
+                            <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
+                            <span class='cmdTmplJSON' style='display: none;'></span>
                         </td>
                         <!-- end 'FPP Command' options -->
                     </tr>
