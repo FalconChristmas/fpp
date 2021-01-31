@@ -206,7 +206,7 @@ void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
 
     std::string msg = SaveJsonToString(rc);
     LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
-    Publish("warnings", msg);
+    Publish("warnings", msg, 1, true);
 }
 
 /*
