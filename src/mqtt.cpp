@@ -36,13 +36,22 @@ public:
     MQTTCommand() : Command("MQTT") {
         args.push_back(CommandArg("topic", "string", "Topic"));
         args.push_back(CommandArg("message", "string", "Message"));
+        args.push_back(CommandArg("retain", "bool", "Retain").setDefaultValue("false"));
+
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() < 2) {
             return  std::make_unique<Command::ErrorResult>("MQTT Requires two arguments");
         }
-        mqtt->PublishRaw(args[0], args[1]);
+        bool retain = false;
+        if ((args.size() >= 3) &&
+            ((args[2] == "true") ||
+             (args[2] == "1"))) {
+            retain = true;
+        }
+
+        mqtt->PublishRaw(args[0], args[1], 1, retain);
         return std::make_unique<Command::Result>("OK");
     }
 };

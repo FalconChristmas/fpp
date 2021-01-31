@@ -743,8 +743,8 @@ void MainLoop(void)
     if (mqtt) {
         mqtt->SetReady();
 	// Wait until ready to publish
-	mqtt->Publish("version", getFPPVersion());
-	mqtt->Publish("branch", getFPPBranch());
+	mqtt->Publish("version", getFPPVersion(), 1, true);
+	mqtt->Publish("branch", getFPPBranch(), 1, true);
     }
     
 	LogInfo(VB_GENERAL, "Starting main processing loop\n");
