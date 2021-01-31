@@ -38,3 +38,4 @@ external/RF24/librf24-bcm.*
 plugins/
 .idea/
 ._*
+.vscode/
