@@ -41,24 +41,27 @@ if (isset($_GET['playlist'])) {
 <?php
 include 'menu.inc';
 ?>
-    <div class='pageContent'> <br/>
-        <fieldset style="padding: 10px; border: 2px solid #000;">
-            <legend>Playlists</legend>
-            <div class='playlistBoxLeft'>
-                <b>Select Playlist to Edit:</b><br>
-                <select id='playlistSelect' size='5' style='width: 400px;' onChange='EditPlaylist();'>
-                </select><br>
-            </div>
-            <div class='playlistBoxRight'>
-                <b>Create New Playlist:</b><br/>
-                <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
-                <input id="btnNew" onclick="CreateNewPlaylist();" type="button" class="buttons" value="Create" />
-            </div>
-            <div class='clear'></div>
-        </fieldset>
-        <br/>
-        <a name='editor'></a>
-<? include_once('playlistEditor.php'); ?>
+    <div class="container">
+        <h1 class="title">Playlists</h1>
+        <div class='pageContent'> <br/>
+            <fieldset class="fieldSection">
+                <legend>Playlists</legend>
+                <div class='playlistBoxLeft'>
+                    <b>Select Playlist to Edit:</b><br>
+                    <select id='playlistSelect' size='5' style='width: 400px;' onChange='EditPlaylist();'>
+                    </select><br>
+                </div>
+                <div class='playlistBoxRight'>
+                    <b>Create New Playlist:</b><br/>
+                    <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
+                    <input id="btnNew" onclick="CreateNewPlaylist();" type="button" class="buttons" value="Create" />
+                </div>
+                <div class='clear'></div>
+            </fieldset>
+            <br/>
+            <a name='editor'></a>
+    <? include_once('playlistEditor.php'); ?>
+        </div>
     </div>
 <?php include 'common/footer.inc'; ?>
 </div>

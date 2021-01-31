@@ -204,90 +204,97 @@ $(document).ready(function(){
 <body>
 	<div id="bodyWrapper">
 		<?php include 'menu.inc'; ?>
-		<br/>
 
-<div id='channelOutputManager'>
-		<div class='title'>Channel Outputs</div>
-		<div id="tabs">
-			<ul>
-				<li><a href="#tab-e131">E1.31 / ArtNet / DDP</a></li>
-<?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-        if (in_array('fpd', $currentCapeInfo["provides"])) {
-            echo "<li><a href='#tab-fpd'>Falcon Pixelnet/DMX</a></li>\n";
-        }
-        if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-            echo "<li><a href='#tab-PixelStrings'>Pi Pixel Strings</a></li>\n";
-        }
-	}
-	if ($settings['Platform'] == "BeagleBone Black") {
-        if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-            echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
-        }
-	}
-    if ((file_exists('/usr/include/X11/Xlib.h')) &&
-        ($settings['Platform'] == "Linux")) {
-        echo "<li><a href='#tab-PixelStrings'>X11 Pixel Strings</a></li>\n";
-    }
-    if (in_array('all', $currentCapeInfo["provides"])
-	|| in_array('panels', $currentCapeInfo["provides"])
-	|| !in_array('strings', $currentCapeInfo["provides"])) {
-        echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
-    }
-?>
-				<li><a href="#tab-other">Other</a></li>
-			</ul>
 
-<!-- --------------------------------------------------------------------- -->
+<div class="container mainContainer">
+	<div id='channelOutputManager'>
+			<h2 class='title pageTitle'>Channel Outputs</h2>
+			<div class="card pageContent">
+				<div id="tabs">
+					<ul>
+						<li><a href="#tab-e131">E1.31 / ArtNet / DDP</a></li>
+		<?
+			if ($settings['Platform'] == "Raspberry Pi")
+			{
+		        if (in_array('fpd', $currentCapeInfo["provides"])) {
+		            echo "<li><a href='#tab-fpd'>Falcon Pixelnet/DMX</a></li>\n";
+		        }
+		        if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+		            echo "<li><a href='#tab-PixelStrings'>Pi Pixel Strings</a></li>\n";
+		        }
+			}
+			if ($settings['Platform'] == "BeagleBone Black") {
+		        if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+		            echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
+		        }
+			}
+		    if ((file_exists('/usr/include/X11/Xlib.h')) &&
+		        ($settings['Platform'] == "Linux")) {
+		        echo "<li><a href='#tab-PixelStrings'>X11 Pixel Strings</a></li>\n";
+		    }
+		    if (in_array('all', $currentCapeInfo["provides"])
+			|| in_array('panels', $currentCapeInfo["provides"])
+			|| !in_array('strings', $currentCapeInfo["provides"])) {
+		        echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
+		    }
+		?>
+						<li><a href="#tab-other">Other</a></li>
+					</ul>
+		
+		<!-- --------------------------------------------------------------------- -->
+		
+		<?
+		
+		include_once('co-universes.php');
+		
+		if ($settings['Platform'] == "Raspberry Pi")
+		{
+		    if (in_array('fpd', $currentCapeInfo["provides"])) {
+		        include_once('co-fpd.php');
+		    }
+		    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+		        include_once('co-piPixelString.php');
+		    }
+		}
+		
+		if (in_array('all', $currentCapeInfo["provides"]) 
+		    || in_array('panels', $currentCapeInfo["provides"])
+		    || !in_array('strings', $currentCapeInfo["provides"])) {
+		    include_once('co-ledPanels.php');
+		}
+		
+		if ($settings['Platform'] == "BeagleBone Black")
+		{
+		    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+		        include_once('co-bbbStrings.php');
+		    }
+		}
+		
+		if ((file_exists('/usr/include/X11/Xlib.h')) &&
+		    ($settings['Platform'] == "Linux")) {
+		    include_once('co-piPixelString.php');
+		}
+		
+		include_once("co-other.php");
+		?>
+		
+		<!-- --------------------------------------------------------------------- -->
+		
+		</div>
+			</div>
 
-<?
 
-include_once('co-universes.php');
 
-if ($settings['Platform'] == "Raspberry Pi")
-{
-    if (in_array('fpd', $currentCapeInfo["provides"])) {
-        include_once('co-fpd.php');
-    }
-    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-        include_once('co-piPixelString.php');
-    }
-}
-
-if (in_array('all', $currentCapeInfo["provides"]) 
-    || in_array('panels', $currentCapeInfo["provides"])
-    || !in_array('strings', $currentCapeInfo["provides"])) {
-    include_once('co-ledPanels.php');
-}
-
-if ($settings['Platform'] == "BeagleBone Black")
-{
-    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-        include_once('co-bbbStrings.php');
-    }
-}
-
-if ((file_exists('/usr/include/X11/Xlib.h')) &&
-    ($settings['Platform'] == "Linux")) {
-    include_once('co-piPixelString.php');
-}
-
-include_once("co-other.php");
-?>
-
-<!-- --------------------------------------------------------------------- -->
-
-</div>
-</div>
-
-<div id='debugOutput'>
-</div>
-
-<!-- FIXME, can we put this in co-ledPanels.php? -->
-<div id="dialog-panelLayout" title="panelLayout" style="display: none">
-  <div id="layoutText">
-  </div>
+	</div>
+	
+	<div id='debugOutput'>
+	</div>
+	
+	<!-- FIXME, can we put this in co-ledPanels.php? -->
+	<div id="dialog-panelLayout" title="panelLayout" style="display: none">
+	  <div id="layoutText">
+	  </div>
+	</div>
 </div>
 
 	<?php	include 'common/footer.inc'; ?>

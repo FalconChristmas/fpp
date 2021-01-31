@@ -202,6 +202,10 @@ $(document).tooltip();
 	<div id="bodyWrapper">
 		<?php include 'menu.inc'; ?>
 		<br/>
+<div class="container">
+	<h1 class="title">Pixel Overlay Models</h1>
+	<div class="pageContent">
+		
 
 		<div id="time" class="settings">
 			<fieldset>
@@ -235,8 +239,8 @@ $(document).tooltip();
                         </table>
                     </div>
 				</div>
-			</fieldset>
-		</div>
+	</div>
+</div>
 
 		<?php	include 'common/footer.inc'; ?>
 	</div>

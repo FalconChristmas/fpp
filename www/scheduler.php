@@ -547,60 +547,68 @@ a:visited {
 <body onload="PopulateCommandListCache(); getSchedule();">
 <div id="bodyWrapper">
   <?php	include 'menu.inc'; ?>
-  <div style="width:100%;margin:0 auto;"> <br />
-    <fieldset style="padding: 10px; border: 2px solid #000;">
-      <legend>Schedule</legend>
-      <div style="overflow: hidden; padding: 10px;">
-        <table>
-          <tr>
-            <td width='70px'><input class="buttons" type='button' value="Save" onClick='SaveSchedule();' /></td>
-            <td width = "70 px"><input class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
-            <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></td>
-            <td width = "70 px"><input class="buttons disableButtons deleteSchButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></td>
-            <td width = "70 px"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></td>
-            <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
-            <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></td>
-          </tr>
-        </table>
-        <div class='fppTableWrapper'>
-            <div class='fppTableContents'>
-                <table class='fppTableRowTemplate template-tblScheduleBody'>
-                    <tr class='rowScheduleDetails'>
-                        <td class='center' ><input class='schEnable' type='checkbox' /></td>
-                        <td><input class='date center schStartDate' type='text' size='10'  /></td>
-                        <td><input class='date center schEndDate' type='text' size='10' /></td>
-                        <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
-                                <option value='7'>Everyday</option>
-                                <option value='0'>Sunday</option>
-                                <option value='1'>Monday</option>
-                                <option value='2'>Tuesday</option>
-                                <option value='3'>Wednesday</option>
-                                <option value='4'>Thursday</option>
-                                <option value='5'>Friday</option>
-                                <option value='6'>Saturday</option>
-                                <option value='8'>Mon-Fri</option>
-                                <option value='9'>Sat/Sun</option>
-                                <option value='10'>Mon/Wed/Fri</option>
-                                <option value='11'>Tues/Thurs</option>
-                                <option value='12'>Sun-Thurs</option>
-                                <option value='13'>Fri/Sat</option>
-                                <option value='14'>Odd</option>
-                                <option value='15'>Even</option>
-                                <option value='65536'>Day Mask</option>
-                                </select>
-                            <br>
-                            <span class='dayMask'>
-                                <table border=0 cellpadding=0 cellspacing=0>
-                                    <tr><th>S</th>
-                                        <th>M</th>
-                                        <th>T</th>
-                                        <th>W</th>
-                                        <th>T</th>
-                                        <th>F</th>
-                                        <th>S</th>
+  <div class="container">
+      <h1 class="title">Scheduler</h1>
+      <div class="pageContent"> 
+          <div style="overflow: hidden; padding: 10px;">
+            <table>
+              <tr>
+                <td width='70px'><input class="buttons" type='button' value="Save" onClick='SaveSchedule();' /></td>
+                <td width = "70 px"><input class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
+                <td width = "40 px">&nbsp;</td>
+                <td width = "70 px"><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></td>
+                <td width = "70 px"><input class="buttons disableButtons deleteSchButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></td>
+                <td width = "70 px"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></td>
+                <td width = "40 px">&nbsp;</td>
+                <td width = "70 px"><input class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
+                <td width = "40 px">&nbsp;</td>
+                <td width = "70 px"><input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></td>
+              </tr>
+            </table>
+            <div class='fppTableWrapper'>
+                <div class='fppTableContents'>
+                    <table class='fppTableRowTemplate template-tblScheduleBody'>
+                        <tr class='rowScheduleDetails'>
+                            <td class='center' ><input class='schEnable' type='checkbox' /></td>
+                            <td><input class='date center schStartDate' type='text' size='10'  /></td>
+                            <td><input class='date center schEndDate' type='text' size='10' /></td>
+                            <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
+                                    <option value='7'>Everyday</option>
+                                    <option value='0'>Sunday</option>
+                                    <option value='1'>Monday</option>
+                                    <option value='2'>Tuesday</option>
+                                    <option value='3'>Wednesday</option>
+                                    <option value='4'>Thursday</option>
+                                    <option value='5'>Friday</option>
+                                    <option value='6'>Saturday</option>
+                                    <option value='8'>Mon-Fri</option>
+                                    <option value='9'>Sat/Sun</option>
+                                    <option value='10'>Mon/Wed/Fri</option>
+                                    <option value='11'>Tues/Thurs</option>
+                                    <option value='12'>Sun-Thurs</option>
+                                    <option value='13'>Fri/Sat</option>
+                                    <option value='14'>Odd</option>
+                                    <option value='15'>Even</option>
+                                    <option value='65536'>Day Mask</option>
+                                    </select>
+                                <br>
+                                <span class='dayMask'>
+                                    <table border=0 cellpadding=0 cellspacing=0>
+                                        <tr><th>S</th>
+                                            <th>M</th>
+                                            <th>T</th>
+                                            <th>W</th>
+                                            <th>T</th>
+                                            <th>F</th>
+                                            <th>S</th>
+                                            </tr>
+                                        <tr><td><input class='maskSunday' type='checkbox' /></td>
+                                            <td><input class='maskMonday' type='checkbox' /></td>
+                                            <td><input class='maskTuesday' type='checkbox' /></td>
+                                            <td><input class='maskWednesday' type='checkbox' /></td>
+                                            <td><input class='maskThursday' type='checkbox' /></td>
+                                            <td><input class='maskFriday' type='checkbox' /></td>
+                                            <td><input class='maskSaturday' type='checkbox' /></td>
                                         </tr>
                                     <tr><td><input class='maskSunday' type='checkbox' /></td>
                                         <td><input class='maskMonday' type='checkbox' /></td>
@@ -674,24 +682,45 @@ a:visited {
                             <th title='End Date'>End Date</th>
                             <th colspan='4' title='FPP Command'>Command Args</th>
                         </tr>
-                    </thead>
-                    <tbody id='tblScheduleBody'>
-                    </tbody>
-                </table>
+                    </table>
+                    <table id='tblSchedule'>
+                        <thead id='tblScheduleHead'>
+                            <tr>
+                                <th rowspan='2' title='Schedule enabled/disabled'>Act<br>ive</th>
+                                <th colspan='2' title='Date Range'>Date Range</th>
+                                <th rowspan='2' title='Day(s) of the week'>Day(s)</th>
+                                <th rowspan='2' title='Start Time'>Start<br>Time</th>
+                                <th rowspan='2' title='Schedule Type'>Schedule<br>Type</th>
+                                <th title='Playlist'>Playlist</th>
+                                <th title='End Time'>End Time</th>
+                                <th title='Repeat playlist'>Repeat</th>
+                                <th title='Playlist Stop Type'>Stop Type</th>
+                            </tr>
+                            <tr>
+                                <th title='Start Date'>Start Date</th>
+                                <th title='End Date'>End Date</th>
+                                <th colspan='4' title='FPP Command'>Command Args</th>
+                            </tr>
+                        </thead>
+                        <tbody id='tblScheduleBody'>
+                        </tbody>
+                    </table>
+                </div>
+    	</div>
+    	<div>
+               <font size = -1>
+    	      <b>Notes</b>:
+                  <ul style="margin-top:0px;">
+    		 <li>If playlist times overlap, items higher in the list have priority.</li>
+    		 <li>Drag/Drop to change order</li>
+    		 <li>CTRL+Click to select multiple items</li>
+                     <li>Odd/Even for Days is used to alternate playlist over 2 days <img style="vertical-align:middle" src="images/questionmark.png" title="This is not based on the day of the week or month or year. It is odd/even starting at July 15, 2013, the day of the first commit to the FPP code repository. This was done so that it did not have two odd days in a row on the 7th and first days of the week or on months that have 31 days going into the next month, etc."></li>
+                  </ul>
+               </font>
             </div>
-	</div>
-	<div>
-           <font size = -1>
-	      <b>Notes</b>:
-              <ul style="margin-top:0px;">
-		 <li>If playlist times overlap, items higher in the list have priority.</li>
-		 <li>Drag/Drop to change order</li>
-		 <li>CTRL+Click to select multiple items</li>
-                 <li>Odd/Even for Days is used to alternate playlist over 2 days <img style="vertical-align:middle" src="images/questionmark.png" title="This is not based on the day of the week or month or year. It is odd/even starting at July 15, 2013, the day of the first commit to the FPP code repository. This was done so that it did not have two odd days in a row on the 7th and first days of the week or on months that have 31 days going into the next month, etc."></li>
-              </ul>
-           </font>
-        </div>
-    </fieldset>
+
+      </div>
+      
   </div>
   <?php	include 'common/footer.inc'; ?>
 </div>

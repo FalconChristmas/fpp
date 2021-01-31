@@ -82,39 +82,45 @@ if (isset($_GET['tab'])) {
 <body>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
-    <div class='fppTabs'>
-        <div id="settingsManager">
-        <br />
-            <div class='title'>FPP Settings</div>
-            <div id="tabs" style='display:none'>
-                <ul>
-                    <li><a href='settings-playback.php'>Playback</a></li>
-                    <li><a href='settings-av.php'>Audio/Video</a></li>
-                    <li><a href='settings-time.php'>Time</a></li>
-                    <li><a href='settings-ui.php'>UI</a></li>
-                    <li><a href='settings-email.php'>Email</a></li>
-                    <li><a href='settings-mqtt.php'>MQTT</a></li>
-<? if ($uiLevel >= 1 || $tabId == "Output") echo "<li><a href='settings-output.php'>Input/Output</a></li>\n"; ?>
-                    <li><a href='settings-logs.php'>Logging</a></li>
-<? if ($uiLevel >= 1 || $tabId == "Storage") echo "<li><a href='settings-storage.php'>Storage</a></li>"; ?>
-                    <li><a href='settings-system.php'>System</a></li>
-<? if ($uiLevel >= 3 || $tabId == "Developer") echo "<li><a href='settings-developer.php'>Developer</a></li>\n"; ?>
-                </ul>
-            </div>
-        </div>
 
-        <table>
-<? if ($uiLevel >= 1) { ?>
-            <tr><th align='right'>*</th><th align='left'>- Advanced Level Setting</th></tr>
-<? } ?>
-<? if ($uiLevel >= 2) { ?>
-            <tr><th align='right'>**</th><th align='left'>- Experimental Level Setting</th></tr>
-<? } ?>
-<? if ($uiLevel >= 3) { ?>
-            <tr><th align='right'>***</th><th align='left'>- Developer Level Setting</th></tr>
-<? } ?>
-        </table>
+<div class="container">
+<h1 class="title">FPP Settings</h1>
+    <div class="pageContent">
+        
+            <div class='fppTabs'>
+                <div id="settingsManager">
+
+                    <div id="tabs" style='display:none'>
+                        <ul>
+                            <li><a href='settings-playback.php'>Playback</a></li>
+                            <li><a href='settings-av.php'>Audio/Video</a></li>
+                            <li><a href='settings-time.php'>Time</a></li>
+                            <li><a href='settings-ui.php'>UI</a></li>
+                            <li><a href='settings-email.php'>Email</a></li>
+                            <li><a href='settings-mqtt.php'>MQTT</a></li>
+        <? if ($uiLevel >= 1 || $tabId == "Output") echo "<li><a href='settings-output.php'>Input/Output</a></li>\n"; ?>
+                            <li><a href='settings-logs.php'>Logging</a></li>
+        <? if ($uiLevel >= 1 || $tabId == "Storage") echo "<li><a href='settings-storage.php'>Storage</a></li>"; ?>
+                            <li><a href='settings-system.php'>System</a></li>
+        <? if ($uiLevel >= 3 || $tabId == "Developer") echo "<li><a href='settings-developer.php'>Developer</a></li>\n"; ?>
+                        </ul>
+                    </div>
+                </div>
+        
+                <table>
+        <? if ($uiLevel >= 1) { ?>
+                    <tr><th align='right'>*</th><th align='left'>- Advanced Level Setting</th></tr>
+        <? } ?>
+        <? if ($uiLevel >= 2) { ?>
+                    <tr><th align='right'>**</th><th align='left'>- Experimental Level Setting</th></tr>
+        <? } ?>
+        <? if ($uiLevel >= 3) { ?>
+                    <tr><th align='right'>***</th><th align='left'>- Developer Level Setting</th></tr>
+        <? } ?>
+                </table>
+            </div>
     </div>
+</div>
 
 <?php	include 'common/footer.inc'; ?>
 

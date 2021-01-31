@@ -17,7 +17,7 @@ include_once 'common/menuHead.inc';
   <?php include 'menu.inc'; ?>
   <br>
   <div>
-    <fieldset style="padding: 10px; border: 2px solid #000;">
+    <fieldset class="fieldSection">
       <legend>Virtual Display</legend>
 <?
 require_once('virtualdisplaybody.php');

@@ -416,44 +416,50 @@ $(document).ready(function() {
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
   <br/>
-
-<div id=plugins" class="settings">
-<fieldset>
-<legend>Plugins</legend>
-
-<table class='pluginTable' border=0 cellpadding=0>
-<tbody id='pluginTableHead'>
-	<tr><td colspan=7>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
-pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
-		<input type='button' onClick='ManualLoadInfo();' value='Retrieve Plugin Info'>
-		</td></tr>
-</tbody>
-<tbody id='installedPlugins' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgBlue'>Installed Plugins</td></tr>
-</tbody>
-<tbody id='pluginTable'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
-</tbody>
-<tbody id='untestedPlugins' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgGreen'>Plugins not tested with this FPP version</td></tr>
-</tbody>
-<tbody id='templatePlugin' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
-</tbody>
-<tbody id='incompatiblePlugins' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgRed'>Incompatible Plugins</td></tr>
-</tbody>
-</table>
-
-<div id="overlay">
+<div class="container">
+	<h1 class="title">Plugins</h1>
+	<div class="pageContent">
+		
+		<div id=plugins" class="settings">
+		<fieldset>
+		<legend>Plugins</legend>
+		
+		<table class='pluginTable' border=0 cellpadding=0>
+		<tbody id='pluginTableHead'>
+			<tr><td colspan=7>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
+		pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
+				<input type='button' onClick='ManualLoadInfo();' value='Retrieve Plugin Info'>
+				</td></tr>
+		</tbody>
+		<tbody id='installedPlugins' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgBlue'>Installed Plugins</td></tr>
+		</tbody>
+		<tbody id='pluginTable'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
+		</tbody>
+		<tbody id='untestedPlugins' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgGreen'>Plugins not tested with this FPP version</td></tr>
+		</tbody>
+		<tbody id='templatePlugin' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
+		</tbody>
+		<tbody id='incompatiblePlugins' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgRed'>Incompatible Plugins</td></tr>
+		</tbody>
+		</table>
+		
+		<div id="overlay">
+		</div>
+		
+		</div>
+	</div>
 </div>
 
-</div>
 
 <?php	include 'common/footer.inc'; ?>
 </div>

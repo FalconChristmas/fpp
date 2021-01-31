@@ -180,7 +180,7 @@ else
   float: left;
 }
 
-.container div {
+.testContainer div {
   float: left;
   height: 10px;
 }
@@ -682,9 +682,11 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <div id='channelTester'>
-		<br>
-		<div class='title'>Display Testing</div>
+  <div class="container">
+	  <h2 class="title">Display Testing</h2>
+	  <div class="pageContent">
+			<div id='channelTester'>
+
 		<div id="tabs">
 			<ul>
 				<li><a href='#tab-channels'>Channel Testing</a></li>
@@ -732,91 +734,131 @@ if (file_exists($settings['model-overlays'])) {
 						</tr>
 				</table>
 				<br>
-				<span style='float: left'>Update Interval: </span><span id="testModeCycleMS"></span> <span style='float: left' id='testModeCycleMSText'>1000</span><span style='float: left'> ms</span></br>
-				<hr>
-				<div id='testModeModeDiv'>
-<b>Test Patterns:</b><br><small>Note: RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</small><br>
-				<table border=0 cellpadding=0 cellspacing=0>
-				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
-				<tr><td colspan=3>&nbsp;<b>Color Order:</b>
-					<select id='colorOrder' onChange='SetTestMode();'>
-						<option>RGB</option>
-						<option>RBG</option>
-						<option>GRB</option>
-						<option>GBR</option>
-						<option>BRG</option>
-						<option>BGR</option>
-					</select>
-					</td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: R-G-B</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBCustom' onChange='SetTestMode();'></td><td><b>Chase: Custom Pattern: </b> <input id='testModeRGBCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
-                <tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGB' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBA' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-All</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBN' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBAN' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-All-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBCustom' onChange='SetTestMode();'></td><td><b>Cycle: Custom Pattern: </b> <input id='testModeRGBCycleCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBFill' onChange='SetTestMode();'></td><td><div class="container"><div><b>Fill:</b></div><div class="color-box"></div></div><div style='clear: both'></div></td></tr>
-				<tr><td>&nbsp;</td><td>
-					<table border=0 cellspacing=10 cellpadding=0>
-						<tr><td><span style='float: left'>R: </span><span id="testModeColorR"></span> <span style='float: left' id='testModeColorRText'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
-					</table>
-					<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
-					</td></tr>
-				<tr><td>&nbsp;</td></tr>
-				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
-				<tr><td colspan=3><span style='float: left'><b>&nbsp;Channel Data Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
-				<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
-						<option value='2'>2</option>
-						<option value='3'>3</option>
-						<option value='4'>4</option>
-						<option value='5'>5</option>
-						<option value='6'>6</option>
-					</select></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
-				</table>
-				</div>
-			</div>
-			</fieldset>
-		</div>
-		</div>
-			<div id='tab-sequence'>
-			<div>
-    <fieldset class='fs'>
-			<legend> Sequence Testing </legend>
-      <div>
-				<table border='0' cellspacing='3'>
-					<tr><td>Sequence:</td>
-							<td><?php PrintSequenceOptions();?></td></tr>
-					<tr><td>Start Time:</td>
-							<td><input type='text' size='4' maxlength='4' value='0' id='startSecond'> (Seconds from beginning of sequence)</td></tr>
+				
+				<div id="tabs">
+					<ul>
+						<li><a href='#tab-channels'>Channel Testing</a></li>
+						<li><a href='#tab-sequence'>Sequence</a></li>
+					</ul>
+					<div id='tab-channels'>
+						<div>
+	
+								<div>
+								Enable Test Mode: <input type='checkbox' id='testModeEnabled' onClick='SetTestMode();'><br>
+								<hr>
+								<b>Channel Range to Test</b><br>
+								<table border=0 cellspacing='2' cellpadding='2'>
+								<tr><td>Start Channel:</td>
+										<td><input type='text' size='7' maxlength='7' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+										<td width=40>&nbsp;</td>
+										<td>Model Name:</td>
+										<td>
+											<select onChange='UpdateStartEndFromModel();' id='modelName'>
+												<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
+														<?
 
-					<tr><td><input type='button' value='Play' onClick='PlaySequence();' id='playSequence'><input type='button' value='Stop' onClick='StopSequence();' id='stopSequence'></td>
-							<td>Play/stop the selected sequence</td></tr>
-					<tr><td><input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
-							<td>Pause a running sequence or UnPause a paused sequence</td></tr>
-					<tr><td><input type='button' value='Step' onClick='SingleStepSequence();'></td>
-							<td>Single-step a paused sequence one frame</td></tr>
-					<tr><td><input type='button' value='Step Back' onClick='SingleStepSequenceBack();'></td>
-							<td>Single-step a paused sequence backwards one frame</td></tr>
-				</table>
-				<br>
-				<b>Sequence Testing Limitations:</b>
-				<ol>
-					<li>This page is for testing sequences, it does not test audio or video or synchronization of a sequence with any media file.  It does test Master/Remote sequence synchronization.</li>
-					<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
-				</ol>
-      </div>
-			</fieldset>
-		</div>
-		</div>
+														if (file_exists($settings['model-overlays'])) {
+															$json = json_decode(file_get_contents($settings['model-overlays']));
+															foreach ($json->models as $entry) {
+																printf( "<option value='%d,%d'>%s</option>\n",
+																	intval($entry->StartChannel),
+																	intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
+															}
+														}
+
+														?>
+											</select>
+											</td>
+										</tr>
+								<tr><td>End Channel:</td>
+										<td><input type='text' size='7' maxlength='7' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+										</tr>
+								</table>
+								<br>
+								<span style='float: left'>Update Interval: </span><span id="testModeCycleMS"></span> <span style='float: left' id='testModeCycleMSText'>1000</span><span style='float: left'> ms</span></br>
+								<hr>
+								<div id='testModeModeDiv'>
+								<b>Test Patterns:</b><br><small>Note: RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</small><br>
+								<table border=0 cellpadding=0 cellspacing=0>
+								<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
+								<tr><td colspan=3>&nbsp;<b>Color Order:</b>
+									<select id='colorOrder' onChange='SetTestMode();'>
+										<option>RGB</option>
+										<option>RBG</option>
+										<option>GRB</option>
+										<option>GBR</option>
+										<option>BRG</option>
+										<option>BGR</option>
+									</select>
+									</td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: R-G-B</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-None</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All-None</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBCustom' onChange='SetTestMode();'></td><td><b>Chase: Custom Pattern: </b> <input id='testModeRGBCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGB' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBA' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-All</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBN' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-None</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBAN' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-All-None</b></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBCustom' onChange='SetTestMode();'></td><td><b>Cycle: Custom Pattern: </b> <input id='testModeRGBCycleCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='RGBFill' onChange='SetTestMode();'></td><td><div class="testContainer"><div><b>Fill:</b></div><div class="color-box"></div></div><div style='clear: both'></div></td></tr>
+								<tr><td>&nbsp;</td><td>
+									<table border=0 cellspacing=10 cellpadding=0>
+										<tr><td><span style='float: left'>R: </span><span id="testModeColorR"></span> <span style='float: left' id='testModeColorRText'>255</span><span style='float: left'></span></td></tr>
+										<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
+										<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
+									</table>
+									<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
+									</td></tr>
+								<tr><td>&nbsp;</td></tr>
+								<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
+								<tr><td colspan=3><span style='float: left'><b>&nbsp;Channel Data Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
+								<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
+										<option value='2'>2</option>
+										<option value='3'>3</option>
+										<option value='4'>4</option>
+										<option value='5'>5</option>
+										<option value='6'>6</option>
+									</select></td></tr>
+								<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
+								</table>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div id='tab-sequence'>
+						<div>
+								<div>
+									<table border='0' cellspacing='3'>
+										<tr><td>Sequence:</td>
+												<td><?php PrintSequenceOptions();?></td></tr>
+										<tr><td>Start Time:</td>
+												<td><input type='text' size='4' maxlength='4' value='0' id='startSecond'> (Seconds from beginning of sequence)</td></tr>
+
+										<tr><td><input type='button' value='Play' onClick='PlaySequence();' id='playSequence'><input type='button' value='Stop' onClick='StopSequence();' id='stopSequence'></td>
+												<td>Play/stop the selected sequence</td></tr>
+										<tr><td><input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
+												<td>Pause a running sequence or UnPause a paused sequence</td></tr>
+										<tr><td><input type='button' value='Step' onClick='SingleStepSequence();'></td>
+												<td>Single-step a paused sequence one frame</td></tr>
+										<tr><td><input type='button' value='Step Back' onClick='SingleStepSequenceBack();'></td>
+												<td>Single-step a paused sequence backwards one frame</td></tr>
+									</table>
+									<br>
+									<b>Sequence Testing Limitations:</b>
+									<ol>
+										<li>This page is for testing sequences, it does not test audio or video or synchronization of a sequence with any media file.  It does test Master/Remote sequence synchronization.</li>
+										<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
+									</ol>
+								</div>
+						</div>
+					</div>
+				</div>
+			</div>	  	  
+	    </div>
   </div>
-  </div>
+
 
   <?php include 'common/footer.inc'; ?>
 </div>

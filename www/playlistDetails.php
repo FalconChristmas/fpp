@@ -1,33 +1,85 @@
 <?
 $simplifiedPlaylist = 0;
 ?>
-
+<?  if (!$simplifiedPlaylist) { ?>
+<? } ?>
 <div id="playlistDetails"  class="unselectable">
     <div id= "playlistDetailsContents">
-        <table id="tblPlaylistDetails" width="100%">
-            <colgroup>
-                <col class='colPlaylistNumber'></col>
-                <col class='colPlaylistData1'></col>
-            </colgroup>
+        <div id="tblPlaylistDetails" width="100%">
+            <div>
+                <div class='colPlaylistNumber'></div>
+                <div class='colPlaylistData1'></div>
+            </div>
 <?  if (!$simplifiedPlaylist) { ?>
-            <tbody id='tblPlaylistLeadInHeader' style='display: none;' class='tblPlaylistDetailsHeader'>
-                <tr><th colspan=4>-- Lead In -- (<span class='playlistItemCountWithLabelLeadIn'>0 items</span>, <span class='playlistDurationLeadIn'>00m:00s</span>)</th></tr>
-            </tbody>
-            <tbody id="tblPlaylistLeadIn" class='playlistEntriesBody'>
-            </tbody>
+            <div class="tblPlaylistLeadInContainer tblPlaylistContainer">
+                <div id='tblPlaylistLeadInHeader' style='display: none;' class='tblPlaylistDetailsHeader'>
+                    <div>
+                        <h2>Lead In</h2>
+                        <div class="tblPlaylistHeaderDetails">
+                            <div>
+                                <div class="labelHeading">Items</div>
+                                <div class="labelValue"><span class='playlistItemCountWithLabelLeadIn'>0</span></div>
+                            </div>
+                            <div>
+                                <div class="labelHeading">Duration</div>
+                                <div class="labelValue"><span class='playlistDurationLeadIn'>00m:00s</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <table id="tblPlaylistLeadIn" class='playlistEntriesBody'>
+                </table>
+            </div>
 <? } ?>
-            <tbody id='tblPlaylistMainPlaylistHeader' style='display: none;' class='tblPlaylistDetailsHeader'>
-                <tr><th colspan=4>-- Main Playlist -- (<span class='playlistItemCountWithLabelMainPlaylist'>0 items</span>, <span class='playlistDurationMainPlaylist'>00m:00s</span>)</th></tr>
-            </tbody>
-            <tbody id="tblPlaylistMainPlaylist" class='playlistEntriesBody'>
-            </tbody>
+            <div class="tblPlaylisttMainPlaylistContainer tblPlaylistContainer">
+                <div id='tblPlaylistMainPlaylistHeader' style='display: none;' class='tblPlaylistDetailsHeader'>
+                    <div>
+                        <h2>Main Playlist</h2>
+                        <div class="tblPlaylistHeaderDetails">
+                            <div>
+                                <div class="labelHeading">Items</div>
+                                <div class="labelValue">
+                                    <span class='playlistItemCountWithLabelMainPlaylist'>0</span>
+                                </div>
+                            </div>
+                            <div>
+                            	<div class="labelHeading">Duration</div>
+                            	<div class="labelValue">
+                            	 <span class='playlistDurationMainPlaylist'>00m:00s</span>
+                            	</div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </div>
+                <table id="tblPlaylistMainPlaylist" class='playlistEntriesBody'>
+                </table>
+            </div>
 <?  if (!$simplifiedPlaylist) { ?>
-            <tbody id='tblPlaylistLeadOutHeader' style='display: none;' class='tblPlaylistDetailsHeader'>
-                <tr><th colspan=4>-- Lead Out -- (<span class='playlistItemCountWithLabelLeadOut'>0 items</span>, <span class='playlistDurationLeadOut'>00m:00s</span>)</th></tr>
-            </tbody>
-            <tbody id="tblPlaylistLeadOut" class='playlistEntriesBody'>
-            </tbody>
+            <div class="tblPlaylistLeadOutContainer tblPlaylistContainer">
+                <div id='tblPlaylistLeadOutHeader' style='display: none;' class='tblPlaylistDetailsHeader'>
+                    <div><h2>Lead Out</h2> 
+                        <div class="tblPlaylistHeaderDetails">
+                            <div>
+                                <div class="labelHeading">Items</div>
+                                <div class="labelValue">
+                                    <span class='playlistItemCountWithLabelLeadOut'>0</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="labelHeading">Duration</div>
+                                <div class="labelValue">
+                                 <span class='playlistDurationLeadOut'>00m:00s</span>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </div>
+                <table id="tblPlaylistLeadOut" class='playlistEntriesBody'>
+                </table>
+            </div>
 <? } ?>
-        </table>
+        </div>
     </div>
 </div>

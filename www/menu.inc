@@ -46,7 +46,6 @@ function list_plugin_entries($menu)
 							$first = 0;
 							echo "<li><b><font color='white' size=-1>- - - - - - - Plugins - - - - - - -</font></b></li>\n";
 						}
-
 						-include($pluginDirectory."/".$plugin."/menu.inc");
 					}
 				}
@@ -58,9 +57,10 @@ function list_plugin_entries($menu)
 
   <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
   <div class="header">
-    <div class="headerLeft"><a href="https://falconchristmas.com/forum/"><img src="images/falconlogo.png" class="logo" /></a></div>
-    <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>
-      Version: <a href='about.php' class='nonULLink headerLink'><?php echo $fpp_head_version; ?></a>&nbsp;&nbsp;<br class='headerBreak'>Host:&nbsp;
+    <div class="headerLeft"><a href="/"><img src="images/redesign/falconlogo.svg" class="logo" /></a></div>
+    <div class="headerCenter"><div class="headerCenterRow siteName"><? echo $settings['Title']; ?></div>
+      <div class="headerCenterRow headerVersion"><strong>Version:</strong> <a href='about.php' class='nonULLink headerLink'><?php echo $fpp_head_version; ?></a></div>
+      <div class="headerCenterRow headerHost"><strong>Host:</strong>&nbsp;
 <?
     if (!file_exists("/etc/fpp/desktop")) {
         echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " ;
@@ -103,7 +103,7 @@ function list_plugin_entries($menu)
 <?
 		}
 	}
-?>
+?></div>
     </div>
     <div class="headerRight">
 		  <?
@@ -126,11 +126,13 @@ function list_plugin_entries($menu)
           ?>
 
 		</div>
-    <div class="clear"></div>
+    
   </div>
 
+  <div class="fppMenuContainer container">
+
     <ul id="fppMenu" class="sm sm-clean">
-      <li><a>Status/Control</a>
+      <li class="active"><a>Status/Control</a>
         <ul>
           <li><a href="index.php">Status Page</a></li>
 <?
@@ -240,6 +242,8 @@ function RebuildFPPD() {
   </div>
 
       <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
+
+</div>
 
 <script language="Javascript">
 function handleKeypress(e) {

@@ -1278,106 +1278,111 @@ function multiActionChanged() {
 <body>
 <div id="bodyWrapper">
 	<?php include 'menu.inc'; ?>
-	<br/>
-	<div id="uifppsystems" class="settings">
-		<fieldset>
-			<legend>FPP MultiSync</legend>
-            <table style='width: 100%' class='statusTable'>
-                <tr>
-                    <td align='left'>&nbsp;</td>
-                    <td align='right'>
-<? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> Auto Refresh Status
-                    </td>
-                </tr>
-            </table>
-
-            <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
-                <div class='fppTableContents'>
-			<table id='fppSystemsTable' cellpadding='3'>
-				<thead>
-					<tr>
-						<th class="hostnameColumn">Hostname</th>
-						<th>IP Address</th>
-						<th>Platform</th>
-						<th>Mode</th>
-						<th>Status</th>
-						<th data-sorter='false' data-filter='false'>Elapsed</th>
-						<th>Version</th>
-						<?php
-                        //Only show expert view is requested
-						if ($advancedView == true) {
-							?>
-                            <th data-sorter='false' data-filter='false'>Git Versions</th>
-                            <th data-sorter='false' data-filter='false'>Utilization</th>
-                            <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox' onChange='selectAllChanged();' /></th>
-                        <?php
-                    }
-                    ?>
-                </tr>
-            </thead>
-            <tbody id='fppSystems'>
-                <tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
-            </tbody>
-        </table>
+    <br/>
+    <div class="container">
+    <h1 class="title">FPP MultiSync</h1>
+        <div class="pageContent">
+            
+        	<div id="uifppsystems" class="settings">
+        
+                    <table style='width: 100%' class='statusTable'>
+                        <tr>
+                            <td align='left'>&nbsp;</td>
+                            <td align='right'>
+        <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> Auto Refresh Status
+                            </td>
+                        </tr>
+                    </table>
+        
+                    <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
+                        <div class='fppTableContents'>
+        			<table id='fppSystemsTable' cellpadding='3'>
+        				<thead>
+        					<tr>
+        						<th class="hostnameColumn">Hostname</th>
+        						<th>IP Address</th>
+        						<th>Platform</th>
+        						<th>Mode</th>
+        						<th>Status</th>
+        						<th data-sorter='false' data-filter='false'>Elapsed</th>
+        						<th>Version</th>
+        						<?php
+                                //Only show expert view is requested
+        						if ($advancedView == true) {
+        							?>
+                                    <th data-sorter='false' data-filter='false'>Git Versions</th>
+                                    <th data-sorter='false' data-filter='false'>Utilization</th>
+                                    <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox' onChange='selectAllChanged();' /></th>
+                                <?php
+                            }
+                            ?>
+                        </tr>
+                    </thead>
+                    <tbody id='fppSystems'>
+                        <tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?
+        if ($advancedView) {
+        ?>
+        <div style='text-align: right;'>
+            <div style='float: left;'>
+                <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
+            </div>
+            <div>
+                <b>Action for selected systems:</b>
+                <select id='multiAction' onChange='multiActionChanged();'>
+                    <option value='noop'>---- Select an Action ----</option>
+                    <option value='upgradeFPP'>Upgrade FPP</option>
+                    <option value='restartFPPD'>Restart FPPD</option>
+                    <option value='reboot'>Reboot</option>
+                    <option value='shutdown'>Shutdown</option>
+                    <option value='copyFiles'>Copy Files</option>
+                    <option value='standaloneMode'>Set to Standalone</option>
+                    <option value='masterMode'>Set to Master</option>
+                    <option value='remoteMode'>Set to Remote</option>
+                    <option value='bridgeMode'>Set to Bridge</option>
+                </select>
+                <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
+                <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
+            </div>
+        </div>
+        <div style='text-align: left;'>
+            <span class='actionOptions' id='copyOptions'>
+                <br>
+        <?php
+        PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
+        ?>
+            </span>
+        </div>
+        <div style='width: 100%; text-align: center;'>
+            <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
+        </div>
+        <hr>
+        <? } ?>
+                    <table class='settingsTable'>
+        <?
+        PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
+        PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+        PrintSetting('MultiSyncExtraRemotes');
+        PrintSetting('MultiSyncHTTPSubnets');
+        PrintSetting('MultiSyncHide10', 'getFPPSystems');
+        PrintSetting('MultiSyncHide172', 'getFPPSystems');
+        PrintSetting('MultiSyncHide192', 'getFPPSystems');
+        PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
+        ?>
+                    </table>
+        	
+        <?
+        if ($uiLevel > 0) {
+            echo "<b>* - Advanced Level Setting</b>\n";
+        }
+        ?>
+        	</div>
+        </div>
     </div>
-</div>
-<?
-if ($advancedView) {
-?>
-<div style='text-align: right;'>
-    <div style='float: left;'>
-        <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
-    </div>
-    <div>
-        <b>Action for selected systems:</b>
-        <select id='multiAction' onChange='multiActionChanged();'>
-            <option value='noop'>---- Select an Action ----</option>
-            <option value='upgradeFPP'>Upgrade FPP</option>
-            <option value='restartFPPD'>Restart FPPD</option>
-            <option value='reboot'>Reboot</option>
-            <option value='shutdown'>Shutdown</option>
-            <option value='copyFiles'>Copy Files</option>
-            <option value='standaloneMode'>Set to Standalone</option>
-            <option value='masterMode'>Set to Master</option>
-            <option value='remoteMode'>Set to Remote</option>
-            <option value='bridgeMode'>Set to Bridge</option>
-        </select>
-        <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
-        <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
-    </div>
-</div>
-<div style='text-align: left;'>
-    <span class='actionOptions' id='copyOptions'>
-        <br>
-<?php
-PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
-?>
-    </span>
-</div>
-<div style='width: 100%; text-align: center;'>
-    <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
-</div>
-<hr>
-<? } ?>
-            <table class='settingsTable'>
-<?
-PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
-PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
-PrintSetting('MultiSyncExtraRemotes');
-PrintSetting('MultiSyncHTTPSubnets');
-PrintSetting('MultiSyncHide10', 'getFPPSystems');
-PrintSetting('MultiSyncHide172', 'getFPPSystems');
-PrintSetting('MultiSyncHide192', 'getFPPSystems');
-PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
-?>
-            </table>
-		</fieldset>
-<?
-if ($uiLevel > 0) {
-    echo "<b>* - Advanced Level Setting</b>\n";
-}
-?>
-	</div>
 	<?php include 'common/footer.inc'; ?>
 </div>
 
