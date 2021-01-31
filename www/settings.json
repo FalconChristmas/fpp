@@ -860,6 +860,7 @@
             "name": "MQTTFrequency",
             "description": "Publish Frequency",
             "tip": "Optional frequency to publish FPP status to MQTT Broker.  Zero indicates that the status will only be published on demand.",
+            "restart": 2,
             "default": 0,
             "type": "number",
             "min": 0,
