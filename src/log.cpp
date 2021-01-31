@@ -52,7 +52,6 @@ void FPPLogger::Init() {
       all.push_back(&(FPPLogger::Command));
       all.push_back(&(FPPLogger::E131Bridge));
       all.push_back(&(FPPLogger::Effect));
-      all.push_back(&(FPPLogger::Event));
       all.push_back(&(FPPLogger::MediaOut));
       all.push_back(&(FPPLogger::Playlist));
       all.push_back(&(FPPLogger::Schedule));

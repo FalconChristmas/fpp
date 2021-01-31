@@ -2,40 +2,60 @@
 #include "fpp-pch.h"
 
 #include "EventCommands.h"
-#include "events.h"
 #include "effects.h"
 #include "scripts.h"
 
-std::unique_ptr<Command::Result> TriggerEventCommand::run(const std::vector<std::string> &args) {
-    if (args.size() != 2) {
+std::unique_ptr<Command::Result> TriggerPresetCommand::run(const std::vector<std::string> &args) {
+    if (args.size() != 1) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
-    int maj = std::atoi(args[0].c_str());
-    int min = std::atoi(args[1].c_str());
-    TriggerEvent(maj, min);
-    return std::make_unique<Command::Result>("Event Triggered");
+    if (CommandManager::INSTANCE.TriggerPreset(args[0]))
+        return std::make_unique<Command::Result>("Preset Triggered");
+    else
+        return std::make_unique<Command::ErrorResult>("Not found");
 }
-std::unique_ptr<Command::Result> TriggerRemoteEventCommand::run(const std::vector<std::string> &args) {
-    if (args.size() != 3) {
+std::unique_ptr<Command::Result> TriggerRemotePresetCommand::run(const std::vector<std::string> &args) {
+    if (args.size() != 2) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
     std::vector<std::string> newargs;
     for (int x = 1; x < args.size(); x++) {
         newargs.push_back(args[x]);
     }
-    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Event", newargs);
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Command Preset", newargs);
 }
 
-std::unique_ptr<Command::Result> TriggerMultipleEventsCommand::run(const std::vector<std::string> &args) {
+std::unique_ptr<Command::Result> TriggerPresetSlotCommand::run(const std::vector<std::string> &args) {
+    if (args.size() != 1) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    int val = std::atoi(args[0].c_str());
+    if (CommandManager::INSTANCE.TriggerPreset(val))
+        return std::make_unique<Command::Result>("Preset Triggered");
+    else
+        return std::make_unique<Command::ErrorResult>("Not found");
+}
+std::unique_ptr<Command::Result> TriggerRemotePresetSlotCommand::run(const std::vector<std::string> &args) {
+    if (args.size() != 2) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Trigger Command Preset", newargs);
+}
+
+std::unique_ptr<Command::Result> TriggerMultiplePresetSlotsCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
     }
     for (auto &a : args) {
         if (a.length() > 0) {
-            TriggerEventByID(a.c_str());
+            CommandManager::INSTANCE.TriggerPreset(std::atoi(a.c_str()));
         }
     }
-    return std::make_unique<Command::Result>("Events Triggered");
+    return std::make_unique<Command::Result>("Presets Triggered");
 }
 
 std::unique_ptr<Command::Result> RunScriptEvent::run(const std::vector<std::string> &args) {

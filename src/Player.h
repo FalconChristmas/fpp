@@ -29,6 +29,8 @@ class Player : public httpserver::http_resource {
     Player();
    ~Player();
 
+    void Init();
+
     int StartPlaylist(const std::string &name, const int repeat = -1,
         const int startPosition = -1, const int endPosition = -1,
         const int manualPriority = 1);

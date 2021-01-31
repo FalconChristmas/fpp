@@ -34,7 +34,6 @@
 #include "effects.h"
 #include "Player.h"
 #include "Plugins.h"
-#include "events.h"
 #include "channeloutput/FPD.h"
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/E131.h"
@@ -344,14 +343,17 @@ char *ProcessCommand(char *command, char *response)
         } else
             sprintf(response,"%d,%d,Invalid Effect,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
     } else if (!strcmp(CommandStr, "t")) {
-        // Trigger an event
+        // Trigger a FPP Command Preset
         s = strtok(NULL,",");
-        PluginManager::INSTANCE.eventCallback(s, "command");
-        i = TriggerEventByID(s);
-        if (i >= 0)
-            sprintf(response,"%d,%d,Event Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
+        if (atoi(s) > 0)
+            i = CommandManager::INSTANCE.TriggerPreset(atoi(s));
         else
-            sprintf(response,"%d,%d,Event Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
+            i = CommandManager::INSTANCE.TriggerPreset(s);
+
+        if (i >= 0)
+            sprintf(response,"%d,%d,Command Preset Triggered,%d,,,,,,,,,\n",getFPPmode(),COMMAND_SUCCESS,i);
+        else
+            sprintf(response,"%d,%d,Command Preset Failed,,,,,,,,,,\n",getFPPmode(),COMMAND_FAILED);
     } else if (!strcmp(CommandStr, "GetTestMode")) {
         strcpy(response, ChannelTester::INSTANCE.GetConfig().c_str());
         strcat(response, "\n");

@@ -33,7 +33,6 @@ OBJECTS_fpp_so += \
 	common.o \
 	e131bridge.o \
 	effects.o \
-	events.o \
 	falcon.o \
 	fppversion.o \
 	FrameBuffer.o \
@@ -71,7 +70,6 @@ OBJECTS_fpp_so += \
 	playlist/PlaylistEntryCommand.o \
 	playlist/PlaylistEntryDynamic.o \
 	playlist/PlaylistEntryEffect.o \
-	playlist/PlaylistEntryEvent.o \
 	playlist/PlaylistEntryImage.o \
 	playlist/PlaylistEntryMedia.o \
 	playlist/PlaylistEntryMQTT.o \

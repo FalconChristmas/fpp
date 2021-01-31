@@ -15,7 +15,6 @@
 #include <sys/stat.h>
 #include <iostream>
 
-#include "events.h"
 #include "mediadetails.h"
 #include "Plugins.h"
 #include "mediaoutput/mediaoutput.h"
@@ -130,21 +129,6 @@ class PlaylistCallback
 };
 
 
-class EventCallback
-{
-public:
-    EventCallback(const std::string &name, const std::string &filename) : mName(name), mFilename(filename)  {
-    }
-    virtual ~EventCallback() {}
-    
-    void run(const char *, const char *);
-private:
-    std::string mName;
-    std::string mFilename;
-    
-};
-
-
 extern MediaDetails	 mediaDetails;
 
 const char *type_to_string[] = {
@@ -153,7 +137,6 @@ const char *type_to_string[] = {
 	"sequence",
 	"pause",
 	"video",
-	"event",
 };
 
 
@@ -165,9 +148,6 @@ public:
             if (types[i] == "media") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports media callback.\n", name.c_str());
                 m_mediaCallback = new MediaCallback(name, filename);
-            } else if (types[i] == "event") {
-                LogDebug(VB_PLUGIN, "Plugin %s supports event callback.\n", name.c_str());
-                m_eventCallback = new EventCallback(name, filename);
             } else if (types[i] == "playlist") {
                 LogDebug(VB_PLUGIN, "Plugin %s supports playlist callback.\n", name.c_str());
                 m_playlistCallback = new PlaylistCallback(name, filename);
@@ -178,23 +158,17 @@ public:
     }
     virtual ~ScriptFPPPlugin() {
         if (m_mediaCallback) delete m_mediaCallback;
-        if (m_eventCallback) delete m_eventCallback;
         if (m_playlistCallback) delete m_playlistCallback;
     }
     
     bool hasCallback() const {
-        return m_mediaCallback != nullptr || m_eventCallback != nullptr || m_playlistCallback != nullptr;
+        return m_mediaCallback != nullptr || m_playlistCallback != nullptr;
     }
     
     const std::list<std::string> &getOtherTypes() const {
         return otherTypes;
     }
     
-    virtual void eventCallback(const char *id, const char *impetus) override {
-        if (m_eventCallback) {
-            m_eventCallback->run(id, impetus);
-        }
-    }
     virtual void mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails) override {
         if (m_mediaCallback) {
             m_mediaCallback->run(playlist, mediaDetails);
@@ -211,7 +185,6 @@ private:
     
     std::list<std::string> otherTypes;
     MediaCallback *m_mediaCallback = nullptr;
-    EventCallback *m_eventCallback = nullptr;
     PlaylistCallback *m_playlistCallback = nullptr;
 };
 
@@ -452,15 +425,6 @@ bool PluginManager::hasPlugins() {
     return mPluginsLoaded && !mPlugins.empty();
 }
 
-
-void PluginManager::eventCallback(const char *id, const char *impetus)
-{
-    if (mPluginsLoaded) {
-        for (auto a : mPlugins) {
-            a->eventCallback(id, impetus);
-        }
-    }
-}
 void PluginManager::mediaCallback(const Json::Value &playlist, const MediaDetails &mediaDetails)
 {
     if (mPluginsLoaded) {
@@ -583,43 +547,6 @@ void MediaCallback::run(const Json::Value &playlist, const MediaDetails &mediaDe
 		if (mediaDetails.channels) {
 			root["channels"] = std::to_string(mediaDetails.channels);
 		}
-
-		std::string pluginData = SaveJsonToString(root);
-		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", pluginData.c_str());
-		execl(eventScript.c_str(), "eventScript", mFilename.c_str(), "--type", "media", "--data", pluginData.c_str(), NULL);
-
-		LogErr(VB_PLUGIN, "We failed to exec our media callback!\n");
-		exit(EXIT_FAILURE);
-	}
-	else
-	{
-		LogExcess(VB_PLUGIN, "Media parent process, resuming work.\n");
-		wait(NULL);
-	}
-}
-
-
-//blocking
-void EventCallback::run(const char *id, const char *impetus)
-{
-	int pid;
-
-	if ((pid = fork()) == -1 )
-	{
-		LogErr(VB_PLUGIN, "Failed to fork\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if ( pid == 0 )
-	{
-		LogDebug(VB_PLUGIN, "Child process, calling %s callback for event: %s\n", mName.c_str(), mFilename.c_str());
-
-		char *data = NULL;
-		std::string eventScript = std::string(getFPPDirectory()) + "/scripts/eventScript";
-		FPPEvent *event = LoadEvent(id);
-		Json::Value root = event->toJsonValue();
-
-		root["caller"] = std::string(impetus);
 
 		std::string pluginData = SaveJsonToString(root);
 		LogDebug(VB_PLUGIN, "Media plugin data: %s\n", pluginData.c_str());

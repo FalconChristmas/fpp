@@ -24,7 +24,7 @@ $command_array = Array(
 	"setUniverses"        => 'SetUniverses',
 	"getDNSInfo"          => 'GetDNSInfo',
 	"setDNSInfo"          => 'SetDNSInfo',
-	"getFPPDUptime"       => 'GetFPPDUptime',
+	//"getFPPDUptime"       => 'GetFPPDUptime', // replaced by  /api/fppd/status
 	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
 	"getInterfaceInfo"    => 'GetInterfaceInfoJson',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
@@ -54,8 +54,8 @@ $command_array = Array(
 	"extGPIO"             => 'ExtGPIOJson',
     "getSysInfo"          => 'GetSystemInfoJson',
     "getHostNameInfo"     => 'GetSystemHostInfo',
-    "clearPersistentNetNames" => 'ClearPersistentNetNames',
-    "createPersistentNetNames" => 'CreatePersistentNetNames'
+    // "clearPersistentNetNames" => 'ClearPersistentNetNames', // use DELETE /api/network/presisentName
+    // "createPersistentNetNames" => 'CreatePersistentNetNames' // use POST /api/network/presisentName
 );
 
 $command = "";
@@ -114,12 +114,6 @@ function GetSetting()
 
 	returnJSON($result);
 }
-
-function startsWith( $haystack, $needle ) {
-       $length = strlen( $needle );
-       return substr( $haystack, 0, $length ) === $needle;
-}
-
 
 function SetSetting()
 {

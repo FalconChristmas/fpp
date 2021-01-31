@@ -24,7 +24,6 @@
  */
 #include "fpp-pch.h"
 
-#include "events.h"
 #include "effects.h"
 #include "Player.h"
 
@@ -37,13 +36,22 @@ public:
     MQTTCommand() : Command("MQTT") {
         args.push_back(CommandArg("topic", "string", "Topic"));
         args.push_back(CommandArg("message", "string", "Message"));
+        args.push_back(CommandArg("retain", "bool", "Retain").setDefaultValue("false"));
+
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override {
         if (args.size() < 2) {
             return  std::make_unique<Command::ErrorResult>("MQTT Requires two arguments");
         }
-        mqtt->PublishRaw(args[0], args[1]);
+        bool retain = false;
+        if ((args.size() >= 3) &&
+            ((args[2] == "true") ||
+             (args[2] == "1"))) {
+            retain = true;
+        }
+
+        mqtt->PublishRaw(args[0], args[1], 1, retain);
         return std::make_unique<Command::Result>("OK");
     }
 };
@@ -172,7 +180,6 @@ void MosquittoClient::PrepareForShutdown() {
     if (m_canProcessMessages && m_isConnected) {
         std::vector<std::string> subscribe_topics;
         subscribe_topics.push_back(m_baseTopic + "/set/#");
-        subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
         subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
     
@@ -196,10 +203,8 @@ void MosquittoClient::handleWarnings(std::list<std::string>&warnings) {
     {
         rc.append(*it);
     }
-    std::stringstream buffer;
-    buffer << rc << std::endl;
-    
-    std::string msg = buffer.str();
+
+    std::string msg = SaveJsonToString(rc);
     LogDebug(VB_CONTROL, "Sending warning message: %s\n", msg.c_str());
     Publish("warnings", msg);
 }
@@ -340,6 +345,7 @@ bool MosquittoClient::IsConnected() {
 }
 
 void MosquittoClient::AddCallback(const std::string &topic, std::function<void(const std::string &topic, const std::string &payload)> &callback) {
+    LogDebug(VB_CONTROL, "MQTT: In AddCallback with %s\n", topic.c_str());
     callbacks[topic] = callback;
     if (m_canProcessMessages && m_isConnected) {
         if (topic.rfind("/set/", 0) != 0) {
@@ -404,7 +410,6 @@ void MosquittoClient::HandleConnect() {
     LogInfo(VB_CONTROL, "Mosquitto Connected.... Will Subscribe to Topics\n");
     std::vector<std::string> subscribe_topics;
     subscribe_topics.push_back(m_baseTopic + "/set/#");
-    subscribe_topics.push_back(m_baseTopic + "/event/#"); // Legacy
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
     std::string baseSubTopic = getSetting("MQTTSubscribe");
@@ -469,6 +474,7 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
 	// If not our base, then return.
 	// Would only happen if subscribe is wrong
     if (topic.find(m_baseTopic) != 0) {
+	    LogWarn(VB_CONTROL, "Topic '%s' doesn't match base. How is that possible?\n", message->topic);
 		return;
 	}
     
@@ -482,24 +488,6 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
             return;
         }
     }
-
-	std::string eventTopic = m_baseTopic + "/set/event/#";
-	mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
-	if (match) {
-		TriggerEventByID(payload.c_str());
-		return;
-	}
-
-	// Check Legacy
-	eventTopic = m_baseTopic + "/event/#";
-	mosquitto_topic_matches_sub(eventTopic.c_str(), message->topic, &match);
-	if (match) {
-		LogDebug(VB_CONTROL, "Received deprecated MQTT Topic: '%s' \n",
-			message->topic);
-		TriggerEventByID(payload.c_str());
-		return;
-	}
-
 
 	std::string effectTopic = m_baseTopic + "/set/effect/#";
 	std::string effectTopicOld = m_baseTopic + "/effect/#";

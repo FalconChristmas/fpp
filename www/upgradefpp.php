@@ -28,17 +28,17 @@ Upgrading FPP
 <link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
 <script>
 function Reboot() {
-    var xmlhttp = new XMLHttpRequest();
-    var url = "fppxml.php?command=rebootPi";
-    xmlhttp.open("GET", url, true);
-    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-    xmlhttp.send();
-    
-    //Show FPP is rebooting notification for 60 seconds then reload the page
-    $.jGrowl('FPP is rebooting..', {life: 60000});
-    setTimeout(function () {
-               location.href="index.php";
-          }, 60000);
+    $.get({
+        url: "api/system/reboot",
+        data: "",
+        success: function(data) {
+            //Show FPP is rebooting notification for 60 seconds then reload the page
+            $.jGrowl('FPP is rebooting..', {life: 60000});
+            setTimeout(function () {
+                    location.href="index.php";
+            }, 60000);
+        }
+    });    
 }
 </script>
 </head>

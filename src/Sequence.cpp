@@ -33,7 +33,6 @@
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "events.h"
 #include "effects.h"
 #include "fppd.h"
 #include "MultiSync.h"
@@ -64,9 +63,7 @@ Sequence::Sequence()
     m_seqSingleStep(0),
     m_seqSingleStepBack(0),
     m_seqRefreshRate(20),
-    m_seqControlRawIDs(0),
-    m_seqLastControlMajor(0),
-    m_seqLastControlMinor(0),
+    m_seqLastControlValue(0),
     m_remoteBlankCount(0),
     m_readThread(nullptr),
     m_lastFrameRead(-1),
@@ -83,7 +80,6 @@ Sequence::Sequence()
         m_seqData[FPPD_WHITE_CHANNEL] = 0xFF;
     }
 
-    m_seqControlRawIDs = getSettingInt("RawEventIDs");
     m_blankBetweenSequences = getSettingInt("blankBetweenSequences");
 }
 
@@ -343,6 +339,10 @@ void Sequence::StartSequence() {
         m_seqStarting = 0;
         StartChannelOutputThread();
     }
+
+    std::map<std::string, std::string> keywords;
+    keywords["SEQUENCE_NAME"] = m_seqFilename;
+    CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STARTED", keywords);
 }
 
 void Sequence::StartSequence(const std::string &filename, int frameNumber) {
@@ -581,25 +581,16 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         PixelOverlayManager::INSTANCE.doOverlays((uint8_t*)m_seqData);
     }
 
-    if (checkControlChannels && !m_dataProcessed && getControlMajor() && getControlMinor())
+    if (checkControlChannels && !m_dataProcessed && getControlChannel())
     {
-        char thisMajor = m_seqData[getControlMajor()-1];
-        char thisMinor = m_seqData[getControlMinor()-1];
+        unsigned char thisValue = (unsigned char)m_seqData[getControlChannel()-1];
 
-        if (m_seqControlRawIDs == 1)
-        {
-            thisMajor = NormalizeControlValue(thisMajor);
-            thisMinor = NormalizeControlValue(thisMinor);
-        }
+        if (m_seqLastControlValue != thisValue) {
+            m_seqLastControlValue = thisValue;
 
-        if ((m_seqLastControlMajor != thisMajor) ||
-            (m_seqLastControlMinor != thisMinor))
-        {
-            m_seqLastControlMajor = thisMajor;
-            m_seqLastControlMinor = thisMinor;
-
-            if (m_seqLastControlMajor && m_seqLastControlMinor)
-                TriggerEvent(m_seqLastControlMajor, m_seqLastControlMinor);
+            if (m_seqLastControlValue) {
+                CommandManager::INSTANCE.TriggerPreset(m_seqLastControlValue);
+            }
         }
     }
 
@@ -646,6 +637,10 @@ void Sequence::CloseSequenceFile(void) {
     if (m_seqFile) {
         delete m_seqFile;
         m_seqFile = nullptr;
+
+        std::map<std::string, std::string> keywords;
+        keywords["SEQUENCE_NAME"] = m_seqFilename;
+        CommandManager::INSTANCE.TriggerPreset("SEQUENCE_STOPPED", keywords);
     }
     readLock.unlock();
     
@@ -666,18 +661,6 @@ void Sequence::CloseSequenceFile(void) {
         SendBlankingData();
     }
     
-}
-
-/*
- * Normalize control channel values into buckets
- */
-char Sequence::NormalizeControlValue(char in) {
-    char result = (char)(((unsigned char)in + 5) / 10);
-
-    if (result == 26)
-        return 25;
-
-    return result;
 }
 
 void Sequence::SetBridgeData(uint8_t *data, int startChannel, int len) {

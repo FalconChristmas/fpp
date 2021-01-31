@@ -112,10 +112,21 @@ public:
     virtual const std::shared_ptr<httpserver::http_response> render_GET(const httpserver::http_request &req) override;
     virtual const std::shared_ptr<httpserver::http_response> render_POST(const httpserver::http_request &req) override;
 
+    int TriggerPreset(int slot, std::map<std::string, std::string> &keywords);
+    int TriggerPreset(int slot);
+    int TriggerPreset(std::string name, std::map<std::string, std::string> &keywords);
+    int TriggerPreset(std::string name);
+
     static CommandManager INSTANCE;
 private:
     CommandManager();
     ~CommandManager();
+
+    void LoadPresets();
+
+    Json::Value ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string> &keywords);
+
+    Json::Value presets;
     
     std::map<std::string, Command*> commands;
 };

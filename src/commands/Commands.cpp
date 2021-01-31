@@ -59,6 +59,8 @@ CommandManager::CommandManager() {
 
 
 void CommandManager::Init() {
+    LoadPresets();
+
     addCommand(new StopPlaylistCommand());
     addCommand(new StopGracefullyPlaylistCommand());
     addCommand(new RestartPlaylistCommand());
@@ -73,8 +75,9 @@ void CommandManager::Init() {
     addCommand(new PlayMediaCommand());
     addCommand(new PlaylistPauseCommand());
     addCommand(new PlaylistResumeCommand());
-    addCommand(new TriggerEventCommand());
-    addCommand(new TriggerMultipleEventsCommand());
+    addCommand(new TriggerPresetCommand());
+    addCommand(new TriggerPresetSlotCommand());
+    addCommand(new TriggerMultiplePresetSlotsCommand());
     addCommand(new RunScriptEvent());
     addCommand(new StartEffectCommand());
     addCommand(new StartFSEQAsEffectCommand());
@@ -88,7 +91,8 @@ void CommandManager::Init() {
     addCommand(new URLCommand());
     addCommand(new AllLightsOffCommand());
     
-    addCommand(new TriggerRemoteEventCommand());
+    addCommand(new TriggerRemotePresetCommand());
+    addCommand(new TriggerRemotePresetSlotCommand());
     addCommand(new StartRemoteEffectCommand());
     addCommand(new StopRemoteEffectCommand());
     addCommand(new RunRemoteScriptEvent());
@@ -296,3 +300,117 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_POST(con
     return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("Not Found", 404, "text/plain"));
     
 }
+
+Json::Value CommandManager::ReplaceCommandKeywords(Json::Value cmd, std::map<std::string, std::string> &keywords)
+{
+    if (!cmd.isMember("args"))
+        return cmd;
+
+    for (int i = 0; i < cmd["args"].size(); i++) {
+        std::string arg = cmd["args"][i].asString();
+
+        cmd["args"][i] = ReplaceKeywords(cmd["args"][i].asString(), keywords);
+    }
+
+    return cmd;
+}
+
+int CommandManager::TriggerPreset(int slot, std::map<std::string, std::string> &keywords)
+{
+    for (auto const& name: presets.getMemberNames()) {
+        for (int i = 0; i < presets[name].size(); i++) {
+            if (presets[name][i]["presetSlot"].asInt() == slot) {
+                Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
+                run(cmd);
+            }
+        }
+    }
+
+    return 1;
+}
+
+int CommandManager::TriggerPreset(int slot)
+{
+    std::map<std::string, std::string> keywords;
+
+    return TriggerPreset(slot, keywords);
+}
+
+int CommandManager::TriggerPreset(std::string name, std::map<std::string, std::string> &keywords)
+{
+    if (!presets.isMember(name))
+        return 0;
+
+    for (int i = 0; i < presets[name].size(); i++) {
+        Json::Value cmd = ReplaceCommandKeywords(presets[name][i], keywords);
+        run(cmd);
+    }
+
+    return 1;
+}
+
+int CommandManager::TriggerPreset(std::string name)
+{
+    std::map<std::string, std::string> keywords;
+
+    return TriggerPreset(name, keywords);
+}
+
+void CommandManager::LoadPresets()
+{
+    LogDebug(VB_COMMAND, "Loading Command Presets\n");
+
+    char id[6];
+    memset(id, 0, sizeof(id));
+
+    std::string commandsFile = getMediaDirectory();
+    commandsFile += "/config/commandPresets.json";
+
+    Json::Value allCommands;
+
+    if (FileExists(commandsFile)) {
+        // Load new config file
+        allCommands = LoadJsonFromFile(commandsFile);
+    } else {
+        // Convert any old events to new format
+        Json::Value commands(Json::arrayValue);
+
+        for (int major = 1; major <= 25; major++) {
+            for (int minor = 1; minor <= 25; minor++) {
+                sprintf(id, "%02d_%02d", major, minor);
+                std::string filename = "/home/fpp/media/events/";
+                filename += id;
+                filename += ".fevt";
+
+                if (FileExists(filename)) {
+                    LogDebug(VB_COMMAND, "Converting old %s event to a Command Preset\n", id);
+
+                    Json::Value event;
+                    if (LoadJsonFromFile(filename, event)) {
+                        event.removeMember("majorId");
+                        event.removeMember("minorId");
+                        event["presetSlot"] = 0;
+
+                        commands.append(event);
+                    }
+                }
+            }
+        }
+
+        allCommands["commands"] = commands;
+        SaveJsonToFile(allCommands, commandsFile, "\t");
+    }
+
+    if (allCommands.isMember("commands")) {
+        for (int i = 0; i < allCommands["commands"].size(); i++) {
+            if (presets.isMember(allCommands["commands"][i]["name"].asString())) {
+                presets[allCommands["commands"][i]["name"].asString()].append(allCommands["commands"][i]);
+            } else {
+                Json::Value pArr(Json::arrayValue);
+                pArr.append(allCommands["commands"][i]);
+                presets[allCommands["commands"][i]["name"].asString()] = pArr;
+            }
+        }
+    }
+}
+

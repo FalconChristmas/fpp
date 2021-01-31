@@ -28,10 +28,10 @@
                 "LogLevel_General",
                 "LogLevel_ChannelOut",
                 "LogLevel_ChannelData",
+                "LogLevel_Command",
                 "LogLevel_Control",
                 "LogLevel_E131Bridge",
                 "LogLevel_Effect",
-                "LogLevel_Event",
                 "LogLevel_GPIO",
                 "LogLevel_HTTP",
                 "LogLevel_MediaOut",
@@ -74,7 +74,8 @@
         "input": {
             "description": "Input Control",
             "settings": [
-                "DisableFakeNetworkBridges"
+                "DisableFakeNetworkBridges",
+                "PresetControlChannel"
             ]
         },
         "mqtt": {
@@ -654,20 +655,6 @@
                 "Excessive": "excess"
             }
         },
-        "LogLevel_Event": {
-            "name": "LogLevel_Event",
-            "description": "Event",
-            "tip": "The Log Level controls the detail amount included in the FPP logs for Events. ",
-            "default": "info",
-            "type": "select",
-            "options": {
-                "Errors Only": "error",
-                "Warn": "warn",
-                "Info": "info",
-                "Debug": "debug",
-                "Excessive": "excess"
-            }
-        },
         "LogLevel_MediaOut": {
             "name": "LogLevel_MediaOut",
             "description": "MediaOut",
@@ -1138,8 +1125,8 @@
             "description": "Password",
             "tip": "Password to protect the User Interface.",
             "type": "password",
-            "size": 16,
-            "maxlength": 16,
+            "size": 32,
+            "maxlength": 32,
             "onChange": "CheckPassword"
         },
         "passwordEnable": {
@@ -1168,8 +1155,8 @@
             "description": "Verify Password",
             "tip": "Verify the UI Password.",
             "type": "password",
-            "size": 16,
-            "maxlength": 16,
+            "size": 32,
+            "maxlength": 32,
             "onChange": "CheckPasswordVerify"
         },
         "piRTC": {
@@ -1179,6 +1166,18 @@
             "reboot": 1,
             "type": "select",
             "optionsURL": "api/settings/RTC/options"
+        },
+        "PresetControlChannel": {
+            "name": "PresetControlChannel",
+            "description": "Command Preset Control Channel",
+            "tip": "The Command Preset Control Channel allows FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable.",
+            "level": 0,
+            "restart": 2,
+            "default": 0,
+            "type": "number",
+            "min": 0,
+            "max": 8388608,
+            "step": 1
         },
         "remoteIgnoreSync": {
             "name": "remoteIgnoreSync",

@@ -12,11 +12,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	$advancedView = true;
 }
 ?>
-<script type="text/javascript" src="/jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
-<script type="text/javascript" src="/jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
-<script type="text/javascript" src="/jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
+<script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
 
-<link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
+<link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
 <title><? echo $pageTitle; ?></title>
 <style>
 input.largeCheckbox {
@@ -1430,6 +1430,9 @@ $(document).ready(function() {
             1: { extractor: 'FPPIPParser', sorter: 'ipAddress' }
         },
         widgetOptions: {
+            filter_childRows     : true,
+            filter_childByColumn : true,
+            filter_childWithSibs : false,
             filter_functions: {
                 2: {
                     "FPP (All)": function(e,n,f,i,$r,c,data) {

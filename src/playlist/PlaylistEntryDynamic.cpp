@@ -28,7 +28,6 @@
 #include "PlaylistEntryBoth.h"
 #include "PlaylistEntryCommand.h"
 #include "PlaylistEntryEffect.h"
-#include "PlaylistEntryEvent.h"
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
 #include "PlaylistEntryPause.h"
@@ -401,8 +400,6 @@ int PlaylistEntryDynamic::ReadFromString(std::string jsonStr)
 			playlistEntry = new PlaylistEntryCommand(m_parentPlaylist);
 		else if (pe["type"].asString() == "effect")
 			playlistEntry = new PlaylistEntryEffect(m_parentPlaylist);
-		else if (pe["type"].asString() == "event")
-			playlistEntry = new PlaylistEntryEvent(m_parentPlaylist);
 		else if (pe["type"].asString() == "media")
 			playlistEntry = new PlaylistEntryMedia(m_parentPlaylist);
 		else if (pe["type"].asString() == "mqtt")

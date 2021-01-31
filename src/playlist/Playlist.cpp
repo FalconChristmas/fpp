@@ -40,7 +40,6 @@
 #include "PlaylistEntryCommand.h"
 #include "PlaylistEntryDynamic.h"
 #include "PlaylistEntryEffect.h"
-#include "PlaylistEntryEvent.h"
 #include "PlaylistEntryImage.h"
 #include "PlaylistEntryMedia.h"
 #include "PlaylistEntryMQTT.h"
@@ -104,6 +103,8 @@ Playlist::Playlist(Playlist *parent)
             this->MQTTHandler(topic, payload);
         };
         mqtt->AddCallback("/set/playlist/#", f2);
+    } else {
+            LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
     }
 }
 
@@ -355,8 +356,6 @@ PlaylistEntryBase* Playlist::LoadPlaylistEntry(Json::Value entry)
 		result = new PlaylistEntryDynamic(this);
 	else if (entry["type"].asString() == "effect")
 		result = new PlaylistEntryEffect(this);
-	else if (entry["type"].asString() == "event")
-		result = new PlaylistEntryEvent(this);
 	else if (entry["type"].asString() == "image")
 		result = new PlaylistEntryImage(this);
 	else if (entry["type"].asString() == "media")
@@ -549,6 +548,9 @@ int Playlist::StopNow(int forceStop)
         return 1;
     }
 
+    std::map<std::string, std::string> keywords;
+    keywords["PLAYLIST_NAME"] = m_name;
+    CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_NOW", keywords);
 
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
     m_status = FPP_STATUS_STOPPING_NOW;
@@ -575,10 +577,15 @@ int Playlist::StopGracefully(int forceStop, int afterCurrentLoop)
         Resume();
     }
     
+    std::map<std::string, std::string> keywords;
+    keywords["PLAYLIST_NAME"] = m_name;
+
 	if (afterCurrentLoop) {
+        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_AFTER_LOOP", keywords);
 		m_status = FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP;
 		m_currentState = "stoppingAfterLoop";
 	} else {
+        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPING_GRACEFULLY", keywords);
 		m_status = FPP_STATUS_STOPPING_GRACEFULLY;
 		m_currentState = "stoppingGracefully";
 	}
@@ -916,6 +923,12 @@ void Playlist::ProcessMedia(void)
  */
 void Playlist::SetIdle(bool exit)
 {
+    if (m_name != "") {
+        std::map<std::string, std::string> keywords;
+        keywords["PLAYLIST_NAME"] = m_name;
+        CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STOPPED", keywords);
+    }
+
 	m_status = FPP_STATUS_IDLE;
     
 	m_currentState = "idle";
@@ -1082,6 +1095,10 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
     if (hadToStop) {
 		Start();
     }
+
+    std::map<std::string, std::string> keywords;
+    keywords["PLAYLIST_NAME"] = m_name;
+    CommandManager::INSTANCE.TriggerPreset("PLAYLIST_STARTED", keywords);
 
 	return 1;
 }

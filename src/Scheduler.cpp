@@ -393,6 +393,15 @@ void Scheduler::CheckScheduledItems()
                     diff == 1 ? "" : "s");
 
                 for (auto& item: *itemTime.second) {
+                    if ((item->command == "Start Playlist") &&
+                        (diff < 1000)) {
+                        char tmpStr[27];
+                        std::map<std::string, std::string> keywords;
+                        snprintf(tmpStr, 26, "PLAYLIST_START_TMINUS_%03d", diff);
+                        keywords["PLAYLIST_NAME"] = item->entry->playlist;
+                        CommandManager::INSTANCE.TriggerPreset(tmpStr, keywords);
+                    }
+
                     DumpScheduledItem(itemTime.first, item);
                 }
             }

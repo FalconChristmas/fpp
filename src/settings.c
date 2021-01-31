@@ -130,8 +130,7 @@ void initSettings(int argc, char **argv)
 	settings.daemonize = 1;
 	settings.restarted = 0;
 	settings.E131interface = strdup("eth0");
-	settings.controlMajor = 0;
-	settings.controlMinor = 0;
+	settings.controlChannel = 0;
 
 	// Default all to info
 	SetLogLevel("info");
@@ -369,26 +368,15 @@ int parseSetting(char *key, char *value)
 		else
 			fprintf(stderr, "Failed to apply E131interface\n");
 	}
-	else if ( strcmp(key, "controlMajor") == 0 )
+	else if ( strcmp(key, "PresetControlChannel") == 0 )
 	{
 		if ( strlen(value) )
 		{
 			int ivalue = atoi(value);
 			if (ivalue >= 0)
-				settings.controlMajor = (unsigned int)ivalue;
+				settings.controlChannel = (unsigned int)ivalue;
 			else
-				fprintf(stderr, "Error, controlMajor value negative\n");
-		}
-	}
-	else if ( strcmp(key, "controlMinor") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			int ivalue = atoi(value);
-			if (ivalue >= 0)
-				settings.controlMinor = (unsigned int)ivalue;
-			else
-				fprintf(stderr, "Error, controlMinor value negative\n");
+				fprintf(stderr, "Error, PresetControlChannel value negative\n");
 		}
 	}
 
@@ -612,14 +600,9 @@ char *getE131interface(void)
 	return settings.E131interface;
 }
 
-unsigned int getControlMajor(void)
+unsigned int getControlChannel(void)
 {
-	return settings.controlMajor;
-}
-
-unsigned int getControlMinor(void)
-{
-	return settings.controlMinor;
+	return settings.controlChannel;
 }
 
 static inline bool createFile(const char *file) {

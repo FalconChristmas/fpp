@@ -65,8 +65,7 @@ public:
     char    *settingsFile = nullptr;
     char    *E131interface = nullptr;
     
-    unsigned int controlMajor;
-    unsigned int controlMinor;
+    unsigned int controlChannel;
     
     std::map<std::string, char *> keyVal;
 };
@@ -110,6 +109,5 @@ char *getLogFile(void);
 char *getSilenceMusic(void);
 char *getSettingsFile(void);
 char *getE131interface(void);
-unsigned int getControlMajor(void);
-unsigned int getControlMinor(void);
+unsigned int getControlChannel(void);
 

@@ -48,9 +48,9 @@ class MosquittoClient : public WarningListener {
     
     void PrepareForShutdown();
 
-	int  PublishRaw(const std::string &topic, const std::string &msg, const int qos = 1, const bool retain = true);
-	int  Publish(const std::string &subTopic, const std::string &msg, const int qos = 1, const bool retain = true);
-	int  Publish(const std::string &subTopic, const int value, const int qos = 1, const bool retain = true);
+	int  PublishRaw(const std::string &topic, const std::string &msg, const int qos = 1, const bool retain = false);
+	int  Publish(const std::string &subTopic, const std::string &msg, const int qos = 1, const bool retain = false);
+	int  Publish(const std::string &subTopic, const int value, const int qos = 1, const bool retain = false);
 
 	void LogCallback(void *userdata, int level, const char *str);
 	void MessageCallback(void *obj, const struct mosquitto_message *message);

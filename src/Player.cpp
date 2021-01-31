@@ -32,13 +32,17 @@ Player::Player()
     stopMethod(0),
     forceStopped(false)
 {
-    playlist = new Playlist();
 }
 
 Player::~Player()
 {
     if (playlist)
         delete playlist;
+}
+
+void Player::Init()
+{
+    playlist = new Playlist();
 }
 
 int Player::StartPlaylist(const std::string &name, const int repeat,

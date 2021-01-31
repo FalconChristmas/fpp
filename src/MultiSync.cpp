@@ -38,7 +38,6 @@
 #include "MultiSync.h"
 
 #include "command.h"
-#include "events.h"
 #include "falcon.h"
 #include "fppversion.h"
 #include "Plugins.h"
@@ -1421,40 +1420,6 @@ void MultiSync::SendMediaSyncPacket(const std::string &filename, float seconds)
 	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(SyncPkt) + filename.length());
 }
 
-/*
- *
- */
-void MultiSync::SendEventPacket(const std::string &eventID)
-{
-    if (eventID.empty()) {
-        return;
-    }
-    for (auto a : m_plugins) {
-        a->SendEventPacket(eventID);
-    }
-
-	LogDebug(VB_SYNC, "SendEventPacket('%s')\n", eventID.c_str());
-
-	if (m_controlSock < 0) {
-		LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
-		return;
-	}
-
-	char           outBuf[2048];
-	bzero(outBuf, sizeof(outBuf));
-
-	ControlPkt    *cpkt = (ControlPkt*)outBuf;
-	EventPkt *epkt = (EventPkt*)(outBuf + sizeof(ControlPkt));
-
-	InitControlPacket(cpkt);
-
-	cpkt->pktType        = CTRL_PKT_EVENT;
-	cpkt->extraDataLen   = sizeof(EventPkt);
-
-	strcpy(epkt->eventID, eventID.c_str());
-
-	SendControlPacket(outBuf, sizeof(ControlPkt) + sizeof(EventPkt));
-}
 void MultiSync::SendPluginData(const std::string &name, const uint8_t *data, int len) {
     if (name.empty()) {
         return;
@@ -1465,7 +1430,7 @@ void MultiSync::SendPluginData(const std::string &name, const uint8_t *data, int
     
     LogDebug(VB_SYNC, "SendPluginData('%s')\n", name.c_str());
     if (m_controlSock < 0) {
-        LogErr(VB_SYNC, "ERROR: Tried to send event packet but control socket is not open.\n");
+        LogErr(VB_SYNC, "ERROR: Tried to send plugin data packet but control socket is not open.\n");
         return;
     }
     
@@ -2074,10 +2039,6 @@ void MultiSync::ProcessControlPacket(bool pingOnly)
                         if (getFPPmode() == REMOTE_MODE)
                             ProcessSyncPacket(pkt, len, stats);
                         break;
-                    case CTRL_PKT_EVENT:
-                        if (getFPPmode() == REMOTE_MODE)
-                            ProcessEventPacket(pkt, len, stats);
-                        break;
                     case CTRL_PKT_BLANK:
                         if (getFPPmode() == REMOTE_MODE) {
                             stats->pktBlank++;
@@ -2337,28 +2298,6 @@ void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *s
 /*
  *
  */
-void MultiSync::ProcessEventPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
-{
-	LogDebug(VB_SYNC, "ProcessEventPacket()\n");
-
-	if (pkt->extraDataLen < sizeof(EventPkt)) {
-		LogErr(VB_SYNC, "Error: Invalid length of received Event packet\n");
-		HexDump("Received data:", (void*)&pkt, len, VB_SYNC);
-        stats->pktError++;
-		return;
-	}
-
-    stats->pktEvent++;
-
-	EventPkt *epkt = (EventPkt*)(((char*)pkt) + sizeof(ControlPkt));
-
-    PluginManager::INSTANCE.eventCallback(epkt->eventID, "remote");
-	TriggerEventByID(epkt->eventID);
-}
-
-/*
- *
- */
 void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
 {
 	LogDebug(VB_SYNC, "ProcessPingPacket()\n");
@@ -2563,7 +2502,6 @@ MultiSyncStats::MultiSyncStats(std::string ip, std::string host)
     pktSyncMedStart(0),
     pktSyncMedStop(0),
     pktSyncMedSync(0),
-    pktEvent(0),
     pktBlank(0),
     pktPing(0),
     pktPlugin(0),
@@ -2598,7 +2536,6 @@ Json::Value MultiSyncStats::toJSON()
     result["pktSyncMedStart"] = pktSyncMedStart;
     result["pktSyncMedStop"] = pktSyncMedStop;
     result["pktSyncMedSync"] = pktSyncMedSync;
-    result["pktEvent"] = pktEvent;
     result["pktBlank"] = pktBlank;
     result["pktPing"] = pktPing;
     result["pktPlugin"] = pktPlugin;

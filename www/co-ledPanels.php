@@ -1108,9 +1108,12 @@ function InitializeCanvas(reinit) {
 
     SetCanvasSize();
 
-    for (var i = 0; i < channelOutputsLookup["LEDPanelMatrix"].panels.length; i++) {
-        SetupCanvasPanel(i);
+    if (channelOutputsLookup.hasOwnProperty("LEDPanelMatrix")) {
+        for (var i = 0; i < channelOutputsLookup["LEDPanelMatrix"].panels.length; i++) {
+            SetupCanvasPanel(i);
+        }
     }
+
     UpdateMatrixSize();
 
     ledPanelCanvas.on('object:moving', panelMovingHandler);

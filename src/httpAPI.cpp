@@ -36,6 +36,7 @@
 #include "Scheduler.h"
 
 #include <iomanip>
+#include <sstream>
 
 #include "mediaoutput/mediaoutput.h"
 #include "sensors/Sensors.h"
@@ -144,10 +145,6 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
     if (url == "effects")
 	{
 		GetRunningEffects(result);
-	}
-	else if (url == "events")
-	{
-		GetRunningEvents(result);
 	}
 	else if (url == "log")
 	{
@@ -279,10 +276,6 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_POST(con
     if (replaceStart(url, "effects/"))
 	{
 		PostEffects(url, data, result);
-	}
-	else if (replaceStart(url, "events/"))
-	{
-		PostEvents(url, data, result);
 	}
 	else if (replaceStart(url, "falcon/hardware"))
 	{
@@ -472,10 +465,9 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(c
 	LogDebug(VB_HTTP, "DELETE URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-	if (replaceStart(url, "event/"))
+	if (replaceStart(url, "somethingaturlbeginninghere/"))
 	{
-		int id = atoi(url.c_str());
-		LogDebug(VB_HTTP, "API - Deleting event with running ID %d\n", id);
+		LogDebug(VB_HTTP, "API - Deleting somethingaturlbeginninghere/\n");
 	}
 	else
 	{
@@ -582,14 +574,6 @@ void PlayerResource::GetRunningEffects(Json::Value &result)
 /*
  *
  */
-void PlayerResource::GetRunningEvents(Json::Value &result)
-{
-	LogDebug(VB_HTTP, "API - Getting list of running events\n");
-}
-
-/*
- *
- */
 void PlayerResource::GetLogSettings(Json::Value &result)
 {
 	SetOKResult(result, "");
@@ -688,8 +672,25 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["time"] = str;
 
     std::time_t timeDiff = std::time(nullptr) - startupTime;
+	int totalseconds = (int)timeDiff;
+	double days =  ((double) timeDiff) / 86400;
+	double hours = ((double)(totalseconds % 86400)) / 3600;
+	int seconds = totalseconds % 86400 % 3600;
+	double minutes = ((double)seconds) / 60;
+	seconds = seconds % 60;
+
+
     result["uptime"] = secondsToTime((int)timeDiff);
-    result["uptimeSeconds"] = (int)timeDiff;
+    result["uptimeTotalSeconds"] = (int)timeDiff;
+    result["uptimeSeconds"] = seconds;
+    result["uptimeDays"] = days;
+    result["uptimeMinutes"] = minutes;
+    result["uptimeHours"] = hours; 
+    result["uptimeDays"] = days;
+
+	std::stringstream totalTime;
+	totalTime << (int) days << " days, " << (int) hours << " hours, " << (int) minutes << " minutes, " << seconds << " seconds";
+	result["uptimeStr"] = totalTime.str();
 
     Sensors::INSTANCE.reportSensors(result);
     std::list<std::string> warnings = WarningHolder::GetWarnings();
@@ -927,24 +928,6 @@ void PlayerResource::PostEffects(const std::string &effectName, const Json::Valu
 	LogDebug(VB_HTTP, "API - PostEffect(%s) cmd: %s\n", effectName.c_str(), command.c_str());
 
 	SetOKResult(result, "PostEffect result would go here");
-}
-
-/*
- *
- */
-void PlayerResource::PostEvents(const std::string &eventID, const Json::Value &data, Json::Value &result)
-{
-	if (!data.isMember("command"))
-	{
-		SetErrorResult(result, 400, "'command' field not specified");
-		return;
-	}
-
-	std::string command = data["command"].asString();
-
-	LogDebug(VB_HTTP, "API - PostEvent(%s) cmd: %s\n", eventID.c_str(), command.c_str());
-
-	SetOKResult(result, "PostEvent result would go here");
 }
 
 /*

@@ -1,5 +1,5 @@
 {
-    "endpoints" : [
+    "endpoints": [
         {
             "endpoint": "help",
             "methods": {
@@ -23,7 +23,7 @@
                             "args": [
                                 {
                                     "description": "Playlist Name",
-                                    "type" : "string"
+                                    "type": "string"
                                 }
                             ]
                         }
@@ -91,7 +91,10 @@
             "methods": {
                 "POST": {
                     "desc": "Configure outbound email using existing settings",
-                    "output": { "Status": "OK", "Message": "" }
+                    "output": {
+                        "Status": "OK",
+                        "Message": ""
+                    }
                 }
             }
         },
@@ -139,27 +142,27 @@
                 "GET": {
                     "desc": "Gets the current log for each log instance",
                     "output": {
-			    "log":{
-				 "ChannelData":"warn",
-			         "ChannelOut":"warn",
-				 "Command":"info",
-				 "Control":"warn",
-				 "E131Bridge":"warn",
-				 "Effect":"warn",
-				 "Event":"warn",
-				 "GPIO":"warn",
-				 "General":"warn",
-				 "HTTP":"warn",
-				 "MediaOut":"warn",
-				 "Playlist":"debug",
-				 "Plugin":"warn",
-				 "Schedule":"warn",
-				 "Sequence":"warn",
-				 "Settings":"warn",
-				 "Sync":"warn"
-			    },
-                        "Status":"OK",
-                        "Message":""
+                        "log": {
+                            "ChannelData": "warn",
+                            "ChannelOut": "warn",
+                            "Command": "info",
+                            "Control": "warn",
+                            "E131Bridge": "warn",
+                            "Effect": "warn",
+                            "Event": "warn",
+                            "GPIO": "warn",
+                            "General": "warn",
+                            "HTTP": "warn",
+                            "MediaOut": "warn",
+                            "Playlist": "debug",
+                            "Plugin": "warn",
+                            "Schedule": "warn",
+                            "Sequence": "warn",
+                            "Settings": "warn",
+                            "Sync": "warn"
+                        },
+                        "Status": "OK",
+                        "Message": ""
                     }
                 }
             }
@@ -242,6 +245,10 @@
                 "GET": {
                     "desc": "Gets the current status of the FPPD daemon",
                     "output": {
+                        "MQTT": {
+                            "configured": false,
+                            "connected": false
+                        },
                         "current_playlist": {
                             "count": "0",
                             "index": "0",
@@ -260,12 +267,70 @@
                         "repeat_mode": "0",
                         "seconds_played": "0",
                         "seconds_remaining": "0",
+                        "scheduler": {
+                            "enabled": 1,
+                            "nextPlaylist": {
+                                "playlistName": "No playlist scheduled.",
+                                "scheduledStartTime": 0,
+                                "scheduledStartTimeStr": ""
+                            },
+                            "status": "idle"
+                        },
+                        "sensors": [
+                            {
+                                "formatted": "53.7",
+                                "label": "CPU: ",
+                                "postfix": "",
+                                "prefix": "",
+                                "value": 53.692,
+                                "valueType": "Temperature"
+                            }
+                        ],
                         "status": 0,
                         "status_name": "idle",
                         "time": "Tue Apr 02 08:06:34 EDT 2019",
                         "time_elapsed": "00:00",
                         "time_remaining": "00:00",
-                        "volume": 0
+                        "volume": 0,
+                        "uptime": "00:22",
+                        "uptimeDays": 0.00025462962962962961,
+                        "uptimeHours": 0.0061111111111111114,
+                        "uptimeMinutes": 0.36666666666666664,
+                        "uptimeSeconds": 22,
+                        "uptimeStr": "0 days, 0 hours, 0 minutes, 22 seconds"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "git/originLog",
+            "methods": {
+                "GET": {
+                    "desc": "Returns a a list of the commits that are in the Origin (usually Github) but not the local repository.",
+                    "output": {
+                        "status": "OK",
+                        "rows": [
+                            {
+                                "hash": "95ccb370e45272d8aed76aabfa55e60d489a8280",
+                                "msg": "Use our SaveJsonToString() when generating MQTT warnings JSON message."
+                            },
+                            {
+                                "hash": "2fad5ad941baea49edaab834429343b42981bcc5",
+                                "msg": "Move Playlist initialization into main() via Player::Init()"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "git/status",
+            "methods": {
+                "GET": {
+                    "desc": "Returns the status of the local git branch including any dirty files. (Same as 'git status') ",
+                    "output": {
+                        "status": "OK",
+                        "log": "On branch master\nYour branch is up to date with 'origin/master'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git checkout -- <file>...\" to discard changes in working directory)\n\n\tmodified:   www/api/controllers/git.php\n\tmodified:   www/api/index.php\n\tmodified:   www/fppxml.php\n\tmodified:   www/settings-developer.php\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")"
                     }
                 }
             }
@@ -373,7 +438,7 @@
                             "StartChannel": 6145,
                             "StartCorner": "BL",
                             "StrandsPerString": 1,
-                            "StringCount": 16 
+                            "StringCount": 16
                         }
                     ]
                 },
@@ -493,8 +558,15 @@
             "methods": {
                 "GET": {
                     "desc": "Gets the current channel data for the model",
-                    "output": { 
-                        "data": [0,0,0,0,0,0],
+                    "output": {
+                        "data": [
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0
+                        ],
                         "rle": false,
                         "isLocked": false
                     }
@@ -507,8 +579,21 @@
             "methods": {
                 "GET": {
                     "desc": "Gets the current channel data for the model encoded in RLE format.  RLE data is in quads in the format count,a,b,c[,count,a,b,c]... where a,b,c are the 3 data channels for a pixel.",
-                    "output": { 
-                        "data": [10,255,0,0,3,0,255,0,4,255,255,255],
+                    "output": {
+                        "data": [
+                            10,
+                            255,
+                            0,
+                            0,
+                            3,
+                            0,
+                            255,
+                            0,
+                            4,
+                            255,
+                            255,
+                            255
+                        ],
                         "rle": true,
                         "isLocked": false
                     }
@@ -535,7 +620,11 @@
                 "PUT": {
                     "desc": "Fills the entire overlay with the given color",
                     "input": {
-                        "RGB": [ 255, 0, 0 ]
+                        "RGB": [
+                            255,
+                            0,
+                            0
+                        ]
                     },
                     "output": "OK"
                 }
@@ -550,7 +639,11 @@
                     "input": {
                         "X": 10,
                         "Y": 12,
-                        "RGB": [ 255, 0, 0 ]
+                        "RGB": [
+                            255,
+                            0,
+                            0
+                        ]
                     },
                     "output": "OK"
                 }
@@ -655,14 +748,45 @@
             }
         },
         {
+            "endpoint": "network/presisentNames",
+            "methods": {
+                "DELETE": {
+                    "desc": "Removes the Interface Persistent names",
+                    "output": {
+                        "status": "OK"
+                    }
+                },
+                "POST": {
+                    "desc": "Creates the Interface Persistent names.",
+                    "output": {
+                        "status": "OK",
+                        "interfaceCnt": 2
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/wifi_strength",
             "methods": {
                 "GET": {
                     "desc": "Returns detailed information about wireless network interfaces and their signal strength",
-                    "output": [{"interface":"wlan0","link":45,"level":-65,"noise":-256}, {"interface":"wlan1","link":40,"level":-60,"noise":-256}]
-		}
-	    }
-	},
+                    "output": [
+                        {
+                            "interface": "wlan0",
+                            "link": 45,
+                            "level": -65,
+                            "noise": -256
+                        },
+                        {
+                            "interface": "wlan1",
+                            "link": 40,
+                            "level": -60,
+                            "noise": -256
+                        }
+                    ]
+                }
+            }
+        },
         {
             "endpoint": "playlists",
             "methods": {
@@ -816,7 +940,7 @@
             "methods": {
                 "POST": {
                     "desc": "Insert an item into the :SectionName section of the playlist :PlaylistName",
-                    "input" : {
+                    "input": {
                         "type": "pause",
                         "enabled": 1,
                         "playOnce": 0,
@@ -983,7 +1107,7 @@
                         "StepTime": 25,
                         "NumFrames": 10750,
                         "MaxChannel": 84992,
-                        "ChannelCount":84992
+                        "ChannelCount": 84992
                     }
                 }
             }
@@ -1071,6 +1195,17 @@
                         "HDMI": "HDMI",
                         "Disabled": "Disabled",
                         "Matrix": "Matrix"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/reboot",
+            "methods": {
+                "GET": {
+                    "desc": "Results in reboot of the operating system",
+                    "output": {
+                        "status": "OK"
                     }
                 }
             }

@@ -2913,7 +2913,6 @@ function ShowMultiSyncStats(data) {
             + '<td class="right">' + s.pktPing + '</td>'
             + '<td class="right">' + s.pktPlugin + '</td>'
             + '<td class="right">' + s.pktFPPCommand + '</td>'
-            + '<td class="right">' + s.pktEvent + '</td>'
             + '<td class="right">' + s.pktError + '</td>'
             + '</tr>';
 
@@ -3228,11 +3227,6 @@ function ReloadSettingOptions(settingName) {
 		}
 	}
 
-function GetFPPDUptime()
-	{
-		$.get("fppxml.php?command=getFPPDUptime");
-	}
-
 function RestartFPPD() {
 		var args = "";
 
@@ -3439,14 +3433,17 @@ function GetRunningEffects()
 
 			//Delay reboot for 1 second to allow flags to be cleared
             setTimeout(function () {
-                var xmlhttp = new XMLHttpRequest();
-                var url = "fppxml.php?command=rebootPi";
-                xmlhttp.open("GET", url, true);
-                xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-                xmlhttp.send();
-
-                //Show FPP is rebooting notification for 10 seconds
-                $.jGrowl('FPP is rebooting..', {life: 10000});
+                $.get({
+                    url: "api/system/reboot",
+                    data: "",
+                    success: function(data) {
+                        //Show FPP is rebooting notification for 60 seconds then reload the page
+                        $.jGrowl('FPP is rebooting..', {life: 60000});
+                        setTimeout(function () {
+                                location.href="index.php";
+                        }, 60000);
+                    }
+                });    
             }, 1000);
 		} 
 	}
@@ -3857,10 +3854,30 @@ function DisplayHelp()
 
 function GetGitOriginLog()
 {
-	$('#logText').html("Loading list of changes from github.");
-	$('#logText').load("fppxml.php?command=getGitOriginLog");
+    $('#logText').html('Loading list of changes from github. <div class="ajax-loading-60px"></div>');
 	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
 	$('#logViewer').dialog( "moveToTop" );
+    $.get({
+        url: "api/git/originLog",
+        data: "",
+        success: function(data) {
+            if ("rows" in data) {
+                html = [];
+                html.push("<table>")
+                data.rows.forEach(function(r) {
+                    html.push('<tr><td><a href="https://github.com/FalconChristmas/fpp/commit/');
+                    html.push(r.hash);
+                    html.push('">');
+                    html.push(r.hash.substring(0,8));
+                    html.push('</a></td><td>');
+                    html.push(r.msg);
+                    html.push('</td></tr>');
+                });
+                html.push('</table>');
+                $('#logText').html(html.join(''));
+            }
+        }
+    });
 }
 
 function GetVideoInfo(file)
@@ -4152,6 +4169,11 @@ function CommandToJSON(commandSelect, tblCommand, json, addArgTypes = false) {
                         }
                     }
                 }
+                if (addArgTypes) {
+                    argTypes.push(inp.data("arg-type"));
+                }
+            } else if (Array.isArray(val)) {
+                args.push(val.toString());
                 if (addArgTypes) {
                     argTypes.push(inp.data("arg-type"));
                 }
@@ -4520,7 +4542,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             dv = val['default'];
          }
          var contentListPostfix = "";
-         if ((val['type'] == "string") || (val['type'] == 'file')) {
+         if ((val['type'] == "string") || (val['type'] == 'file') || (val['type'] == "multistring")) {
             if (typeof val['init'] === 'string') {
                 initFuncs.push(val['init']);
             }
@@ -4529,6 +4551,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' name='parent_" + val['name'] + "' id='" + ID + "'";
                 if (typeof val['contentListUrl'] != "undefined") {
                     line += " data-contentlisturl='" + val['contentListUrl'] + "'";
+                }
+                if (val['type'] == "multistring") {
+                    line += " multiple";
                 }
 
                 if (typeof val['children'] === 'object') {
@@ -4586,6 +4611,9 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             } else {
                 // Has a contentListUrl OR a init script
                 line += "<select class='playlistDetailsSelect arg_" + val['name'] + "' id='" + ID + "'";
+                if (val['type'] == "multistring") {
+                    line += " multiple";
+                }
                 if (typeof val['contentListUrl'] != "undefined") {
                     line += " data-contentlisturl='" + val['contentListUrl'] + "'";
                 }
@@ -4814,13 +4842,21 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    if (inp.data('contentlisturl') != null && baseUrl != "") {
                        ReloadContentList(baseUrl, inp);
                    }
-                                
+                          
+                   var multattr = inp.attr('multiple');
                    if (inp.attr('type') == 'checkbox') {
                        var checked = false;
                        if (v == "true" || v == "1") {
                            checked = true;
                        }
                        inp.prop( "checked", checked);
+                   } else if (typeof multattr !== typeof undefined && multattr !== false) {
+                       var split = v.split(",");
+                       console.log(inp.attr('type') + "  " + inp.attr('multiple') + "  " + v + "  " + split + " " + split.length + "\n");
+                       
+                       $("#" + tblCommand + "_arg_" + count + " option").prop("selected", function () {
+                           return ~$.inArray(this.text, split);
+                       });
                    } else {
                        inp.val(v);
                    }
@@ -4855,6 +4891,159 @@ function FileChooser(dir, target)
     $('#fileChooserPopup').dialog( "moveToTop" );
     $('#fileChooserDiv').load('fileChooser.php', function() {
         SetupFileChooser(dir, target);
+    });
+}
+
+function EditCommandTemplateCanceled(row)
+{
+    var json = $(row).find('.cmdTmplJSON').text();
+    var data = JSON.parse(json);
+    $(row).find('.cmdTmplCommand').val(data.command);
+}
+
+function EditCommandTemplateSaved(row, data)
+{
+    FillInCommandTemplate(row, data);
+}
+
+function EditCommandTemplate(row)
+{
+    var command = $(row).find('.cmdTmplCommand').val();
+    var json = $(row).find('.cmdTmplJSON').text();
+
+    var cmd = {};
+    if (json == '') {
+        cmd.command = command;
+        cmd.args = [];
+        cmd.multisyncCommand = false;
+        cmd.multisyncHosts = '';
+    } else {
+        cmd = JSON.parse(json);
+        if (cmd.command != command) {
+            cmd.command = command;
+            cmd.args = [];
+            cmd.multisyncCommand = false;
+            cmd.multisyncHosts = '';
+        }
+    }
+
+    ShowCommandEditor(row, cmd, 'EditCommandTemplateSaved', 'EditCommandTemplateCanceled');
+}
+
+function GetCommandTemplateData(row)
+{
+    var json = $(row).find('.cmdTmplJSON').text();
+
+    if (json != '')
+        return JSON.parse(json);
+
+    var data = {};
+    data.command = '';
+    data.args = [];
+    data.multisyncCommand = false;
+    data.multisyncHosts = '';
+
+    return data;
+}
+
+function FillInCommandTemplate(row, data)
+{
+    if ((row.find('.cmdTmplName').val() == '') &&
+        (data.hasOwnProperty('name'))) {
+        row.find('.cmdTmplName').val(data.name);
+    }
+
+    row.find('.cmdTmplCommand').val(data.command);
+
+    if (data.hasOwnProperty('presetSlot'))
+        row.find('.cmdTmplPresetSlot').val(data.presetSlot);
+
+    if (data.args.length) {
+        var args = '';
+        if (data.command == 'Run Script') {
+            if (data.args.length > 1)
+                args = data.args[0] + ' | ' + data.args[1];
+            else
+                args = data.args[0];
+        } else {
+            args = data.args.join(' | ');
+        }
+
+        row.find('.cmdTmplArgs').html(args);
+        row.find('.cmdTmplArgsTable').show();
+    } else {
+        row.find('.cmdTmplArgs').html('');
+        row.find('.cmdTmplArgsTable').hide();
+    }
+
+    var command = {};
+    command.command = data.command;
+    command.args = data.args;
+    var mInfo = "";
+    if (data.hasOwnProperty('multisyncCommand')) {
+        if (data.multisyncCommand) {
+            mInfo = "<b>MCast:</b>&nbsp;Y";
+        } else {
+            mInfo = "<b>MCast:</b>&nbsp;N";
+        }
+
+        command.multisyncCommand = data.multisyncCommand;
+        if ((data.multisyncCommand) &&
+            (data.hasOwnProperty('multisyncHosts'))) {
+            mInfo += " <b>Hosts:</b>&nbsp;" + data.multisyncHosts;
+            command.multisyncHosts = data.multisyncHosts;
+        }
+    } else {
+        mInfo = "<b>MCast:</b> N";
+    }
+
+    row.find('.cmdTmplMulticastInfo').html(mInfo);
+    row.find('.cmdTmplJSON').html(JSON.stringify(command));
+
+    row.find('.cmdTmplTooltipIcon').tooltip({
+        content: function() {
+            var json = $(this).parent().find('.cmdTmplJSON').text();
+            if (json == '')
+                return 'No command selected.';
+
+            var data = JSON.parse(json);
+
+            if (data.command == '')
+                return 'No command selected.';
+
+            var args = commandListByName[data.command]['args'];
+            var tip = '<table>';
+
+            tip += "<tr><th class='left'>Command:</th><td>" + data.command + "</td></tr>";
+
+            if (data.hasOwnProperty('multisyncCommand')) {
+                tip += "<tr><th class='left'>Multicast:</th><td>";
+                if (data.multisyncCommand)
+                    tip += "Yes";
+                else
+                    tip += "No";
+
+                tip += "</td></tr>";
+
+                if (data.hasOwnProperty('multisyncHosts')) {
+                    tip += "<tr><th class='left'>Multicast Hosts:</th><td>" +
+                        data.multisyncHosts + "</td></tr>";
+                }
+            }
+
+            if (data.args.length) {
+                for (var j = 0; j < args.length; j++) {
+                    tip += "<tr><th class='left'>" + args[j]['description'] + ":</th><td>" + data.args[j] + "</td></tr>";
+                }
+            }
+
+            tip += '</table>';
+
+            return tip;
+        },
+        open: function (event, ui) {
+            ui.tooltip.css("max-width", "600px");
+        }
     });
 }
 

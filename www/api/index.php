@@ -28,12 +28,20 @@ dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
 
 dispatch_get   ('/files/:DirName', 'GetFiles');
 
+dispatch_get   ('/git/originLog', 'GetGitOriginLog');
+dispatch_get   ('/git/status', 'GitStatus');
+
+
 dispatch_get   ('/media', 'GetMedia');
 dispatch_get   ('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
 
 dispatch_get   ('/network/interface', 'network_list_interfaces');
+dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
+dispatch_post  ('/network/presisentNames', 'network_presisentNames_create');
 dispatch_get   ('/network/wifi_strength', 'network_wifi_strength');
+
+
 dispatch_get   ('/options/:SettingName', 'GetOptions');
 
 dispatch_get   ('/playlists', 'playlist_list');
@@ -85,6 +93,8 @@ dispatch_put   ('/settings/:SettingName', 'PutSetting');
 dispatch_get   ('/scripts', 'scripts_list');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
+
+dispatch_get   ('/system/reboot', 'RebootDevice');
 
 dispatch_get   ('/time', 'GetTime');
 

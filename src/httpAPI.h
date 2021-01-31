@@ -46,7 +46,6 @@ class PlayerResource : public http_resource {
 
   private:
 	void GetRunningEffects(Json::Value &result);
-	void GetRunningEvents(Json::Value &result);
 	void GetLogSettings(Json::Value &result);
 	void GetCurrentStatus(Json::Value &result);
 	void GetCurrentPlaylists(Json::Value &result);
@@ -57,8 +56,6 @@ class PlayerResource : public http_resource {
 	void GetPlaylistConfig(Json::Value &result);
 
 	void PostEffects(const std::string &effectName, const Json::Value &data,
-					Json::Value &result);
-	void PostEvents(const std::string &eventID, const Json::Value &data,
 					Json::Value &result);
 	void PostFalconHardware(Json::Value &result);
 	void PostGPIOExt(const Json::Value &data, Json::Value &result);

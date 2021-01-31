@@ -15,6 +15,11 @@ function check($var, $var_name = "", $function_name = "")
 		error_log("WARNING: Variable '$var_name' in function '$function_name' was empty");
 }
 
+function startsWith( $haystack, $needle ) {
+	$length = strlen( $needle );
+	return substr( $haystack, 0, $length ) === $needle;
+}
+
 function getFileList($dir, $ext)
 {
   $i = array();
@@ -158,6 +163,8 @@ function IfSettingEqualPrint($setting, $value, $print, $pluginName = "", $defaul
 
 $settingGroups = Array();
 $settingInfos = Array();
+$pluginSettingInfosLoaded = 0;
+
 function LoadSettingInfos() {
     global $settings;
     global $settingInfos;
@@ -170,11 +177,40 @@ function LoadSettingInfos() {
     }
 }
 
-function PrintSetting($setting, $callback = '', $options = Array()) {
+function LoadPluginSettingInfos($plugin) {
+    global $settings;
+    global $settingInfos;
+    global $settingGroups;
+    global $pluginSettingInfosLoaded;
+
+    if (empty($settingInfos) || empty($settingGroups)) {
+        LoadSettingInfos();
+    }
+
+    if (!$pluginSettingInfosLoaded) {
+        $file = '/home/fpp/media/plugins/' . $plugin . '/settings.json';
+
+        if (file_exists($file)) {
+            $data = json_decode(file_get_contents($file), true);
+            $settingInfos = array_merge($settingInfos, $data['settings']);
+            $settingGroups = array_merge($settingGroups, $data['settingGroups']);
+        }
+        $pluginSettingInfosLoaded = 1;
+    }
+}
+
+function PrintPluginSetting($plugin, $setting, $callback = '', $options = Array()) {
+    PrintSetting($setting, $callback, $options, $plugin);
+}
+
+function PrintSetting($setting, $callback = '', $options = Array(), $plugin = '') {
     global $settings;
     global $settingInfos;
 
     LoadSettingInfos();
+
+    if ($plugin != '')
+        LoadPluginSettingInfos($plugin);
 
     if (!isset($settingInfos[$setting])) {
         echo "<tr><td colspan='2'><b>Invalid Setting: $setting</b></td></tr>\n";
@@ -232,7 +268,11 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                             $tmp = $options;
                             $options = Array();
                             foreach ($tmp as $item) {
-                                $options[$item] = $item;
+                                if (isset($s['optionsKey'])) {
+                                    $options[$item[$s['optionsKey']]] = $item[$s['optionsKey']];
+                                } else {
+                                    $options[$item] = $item;
+                                }
                             }
                         }
                     } else if (isset($s['options'])) {
@@ -242,7 +282,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
 
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, '', $callback, '', $s);
+                PrintSettingSelect($s['description'], $setting, $restart, $reboot, $default, $options, $plugin, $callback, '', $s);
 
                 break;
             case 'checkbox':
@@ -250,40 +290,40 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 $uncheckedValue = isset($s['uncheckedValue']) ? $s['uncheckedValue'] : "0";
                 $default = isset($s['default']) ? $s['default'] : "0";
 
-                PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, '', $callback, $default, '', $s);
+                PrintSettingCheckbox($s['description'], $setting, $restart, $reboot, $checkedValue, $uncheckedValue, $plugin, $callback, $default, '', $s);
                 break;
             case 'time':
                 $size = 8;
                 $maxlength = 8;
                 $default = isset($s['default']) ? $s['default'] : '';
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'text', $s);
                 break;
             case 'date':
                 $size = 10;
                 $maxlength = 10;
                 $default = isset($s['default']) ? $s['default'] : '';
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'text', $s);
                 break;
             case 'text':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'text', $s);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'text', $s);
                 break;
             case 'color':
                 $size = 7;
                 $maxlength = 7;
                 $default = isset($s['default']) ? $s['default'] : "800000";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', 'color', $s);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', 'color', $s);
                 break;
             case 'password':
                 $size = isset($s['size']) ? $s['size'] : 32;
                 $maxlength = isset($s['maxlength']) ? $s['maxlength'] : 32;
                 $default = isset($s['default']) ? $s['default'] : "";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, '', $default, $callback, '', "password", $s);
+                PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', "password", $s);
                 break;
             case 'number':
                 $min = isset($s['min']) ? $s['min'] : 0;
@@ -291,7 +331,7 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
                 $step = isset($s['step']) ? $s['step'] : 1;
                 $default = isset($s['default']) ? $s['default'] : "0";
 
-                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, '', $default, $callback, '', 'number', $s);
+                PrintSettingTextSaved($setting, $restart, $reboot, $max, $min, $plugin, $default, $callback, '', 'number', $s);
                 break;
             default:
                 printf( "FIXME, handle %s setting type for %s\n", $s['type'], $setting);
@@ -320,11 +360,18 @@ function PrintSetting($setting, $callback = '', $options = Array()) {
     }
 }
 
-function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1) {
+function PrintPluginSettingGroup($plugin, $group, $appendData = "", $prependData = "", $indent = 1) {
+    PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
+}
+
+function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
     global $settings;
     global $settingGroups;
 
     LoadSettingInfos();
+
+    if ($plugin != '')
+        LoadPluginSettingInfos($plugin);
 
     if (!isset($settingGroups[$group])) {
         echo "<b>ERROR: Invalid Setting Group: $group</b><br>\n";
@@ -357,7 +404,10 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
         }
 
         foreach ($g['settings'] as $setting) {
-            PrintSetting($setting);
+            if ($plugin != "")
+                PrintPluginSetting($plugin, $setting);
+            else
+                PrintSetting($setting);
         }
 
         if ($appendData != "") {
@@ -371,9 +421,13 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
     }
 }
 
-function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $indent = 1) {
+function PrintPluginSettingGroupTable($plugin, $group, $appendData = "", $prependData = "", $indent = 1) {
+    PrintSettingGroupTable($group, $appendData, $prependData, $indent, $plugin);
+}
+
+function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
     echo "<table class='settingsTable'>\n";
-    PrintSettingGroup($group, $appendData, $prependData, $indent);
+    PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
     echo "</table>\n";
 }
 

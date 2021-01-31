@@ -379,6 +379,7 @@ cleanCompiledBinaries() {
 }
 populateCCACHE() {
     FPPBASEVERSION=$(</etc/fpp/rfs_version)
+    FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
     MAJVER=${FPPBASEVERSION:1:1}
     MINVER=${FPPBASEVERSION:3:2}
     if [[ $MINVER == *"-" ]]; then
@@ -389,6 +390,7 @@ populateCCACHE() {
     elif [ "${FPPPLATFORM}" = "BeagleBone Black" ]; then
         PLAT=BBB
     else
+        echo "populateCache stopping, Unknown platform - ${FPPPLATFORM}"
         return 0
     fi
     if [[ ${MAJVER} -gt 3 || ${MAJVER} -eq 3 && ${MINVER} -ge 3 ]]; then
@@ -396,13 +398,46 @@ populateCCACHE() {
         BRANCH=$(git branch --list | grep \* | colrm 1 2)
         
         FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
-        echo $FILETOGET
+        FULLURL="https://falconchristmas.github.io/ccache/${FILETOGET}"
+        ETAG_GIT="/tmp/etag.$$"
+        ETAG_LOCAL="/root/.ccache/etag"
+        NEEDS_UPDATED=0
+        
+        echo "Checking CCACHE -  $FILETOGET - $FULLURL"
 
-        curl  -f --fail-early "https://falconchristmas.github.io/ccache/${FILETOGET}" --output "/tmp/$FILETOGET"
+        curl -I $FULLURL | grep -i etag > $ETAG_GIT
+        
+        ETAG_SIZE=$(wc -c $ETAG_GIT | awk '{print $1}')
+
+        if (($ETAG_SIZE < 5)); then
+            echo "Updating CCache -- Invalid etag"
+            NEEDS_UPDATED=1
+        elif [ ! -f "$ETAG_LOCAL" ] ; then
+            echo "Updating CCache -- not cached"
+            NEEDS_UPDATED=1
+        else 
+            diff -q $ETAG_LOCAL $ETAG_GIT
+            rc=$?
+            if [ $rc -ne "0" ]; then
+                echo "Updating CCache - eTag has changed"
+                NEEDS_UPDATED=1
+            fi 
+        fi
+
+        if [ $NEEDS_UPDATED -eq "0" ]; then
+            echo "CCache is up to date"
+            rm "$ETAG_GIT" # cleanup
+            return 0
+        fi
+
+
+        curl  -f --fail-early $FULLURL --output "/tmp/$FILETOGET"
         
         if [ -f "/tmp/$FILETOGET" ]; then
             sudo tar -x -z -C /root -f "/tmp/$FILETOGET"
             rm -f "/tmp/$FILETOGET"
+            sudo mv $ETAG_GIT $ETAG_LOCAL
+            sudo chmod 644 $ETAG_LOCAL
         fi
     fi
     
