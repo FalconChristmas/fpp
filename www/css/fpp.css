@@ -1,16 +1,7 @@
 body{
 	background-color: #171720;
-	font-family: Helvetica,Arial,sans-serif;
-	margin: 0;
-	padding: 0;
 }
-a:focus,  button:focus, input:focus{
 
-	outline-width: 3px;
-	outline-color:rgba(0,128,255,0.4);
-	outline-offset: 2px;
-	box-shadow:0px 0px 15px rgba(0,128,255,0.1) 
-}
 body .ui-widget{
 	font-family: Helvetica,Arial,sans-serif;
 }
