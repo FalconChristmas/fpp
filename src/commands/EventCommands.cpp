@@ -2,7 +2,6 @@
 #include "fpp-pch.h"
 
 #include "EventCommands.h"
-#include "events.h"
 #include "effects.h"
 #include "scripts.h"
 
