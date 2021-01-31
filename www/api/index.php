@@ -29,6 +29,7 @@ dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
 dispatch_get   ('/files/:DirName', 'GetFiles');
 
 dispatch_get   ('/git/originLog', 'GetGitOriginLog');
+dispatch_get   ('/git/status', 'GitStatus');
 
 
 dispatch_get   ('/media', 'GetMedia');

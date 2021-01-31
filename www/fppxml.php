@@ -14,7 +14,6 @@ error_reporting(E_ALL);
 $nonXML = Array(
 	"getFile" => 1,
 	"tailFile" => 1,
-	"gitStatus" => 1,
 	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
@@ -52,9 +51,9 @@ $command_array = Array(
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi', // Used my MultiSync
 	"shutdownPi" => 'ShutdownPi',
-	"changeGitBranch" => 'ChangeGitBranch',
+	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
 	"upgradeFPPVersion" => 'UpgradeFPPVersion',
-	"gitStatus" => 'GitStatus',
+	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
 	"resetGit" => 'ResetGit',
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
@@ -133,28 +132,6 @@ function UpgradeFPPVersion()
 	exec("$fppDir/scripts/upgrade_FPP $version");
 
 	EchoStatusXML("OK");
-}
-
-function ChangeGitBranch()
-{
-	$branch = $_GET['branch'];
-	check($branch, "branch", __FUNCTION__);
-
-	global $fppDir;
-	exec("$fppDir/scripts/git_branch $branch");
-
-	EchoStatusXML("OK");
-}
-
-function GitStatus()
-{
-	global $fppDir;
-
-	$fullLog = "";
-	exec("$fppDir/scripts/git_status", $log);
-	$fullLog .= implode("\n", $log);
-
-	echo $fullLog;
 }
 
 function ResetGit()

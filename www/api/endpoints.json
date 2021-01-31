@@ -324,6 +324,18 @@
             }
         },
         {
+            "endpoint": "git/status",
+            "methods": {
+                "GET": {
+                    "desc": "Returns the status of the local git branch including any dirty files. (Same as 'git status') ",
+                    "output": {
+                        "status": "OK",
+                        "log": "On branch master\nYour branch is up to date with 'origin/master'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git checkout -- <file>...\" to discard changes in working directory)\n\n\tmodified:   www/api/controllers/git.php\n\tmodified:   www/api/index.php\n\tmodified:   www/fppxml.php\n\tmodified:   www/settings-developer.php\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "media",
             "methods": {
                 "GET": {

@@ -2,13 +2,6 @@
 $skipJSsettings = 1;
 require_once('common.php');
 
-$cmd = "cd " . dirname(dirname(__FILE__)) . " && /usr/bin/git status";
-$git_status = "Unknown";
-exec($cmd, $output, $return_val);
-if ( $return_val == 0 )
-	$git_status = implode("\n", $output) . "\n";
-unset($output);
-
 $git_branch = exec("git --git-dir=".dirname(dirname(__FILE__))."/.git/ branch --list | grep '\\*' | awk '{print \$2}'", $output, $return_val);
 if ( $return_val != 0 )
   $git_branch = "Unknown";
@@ -53,12 +46,32 @@ function PrintGitBranchOptions()
 ?>
 
 <script language="Javascript">
+
+function reloadGitStatus() {
+    $.ajax({
+        url: 'api/git/status',
+        type: 'GET',
+        success: function(data){ 
+            if ("log" in data) {
+                $('#gitStatusPre').html(data.log);
+            }
+        },
+        error: function(data) {
+            alert('Call to api/git/status failed'); 
+        }
+    });
+}
+
 function GitReset() {
 	$.get("fppxml.php?command=resetGit"
 		).done(function() {
-			$('#gitStatusPre').load('fppxml.php?command=gitStatus');
+			reloadGitStatus();
 		});
 }
+
+$( document ).ready(function() {
+    reloadGitStatus();
+});
 
 </script>
 
@@ -71,7 +84,7 @@ function GitReset() {
     <tr><th valign='top'>Git Status:</th>
         <td><input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes<br></td>
     </tr>
-    <tr><th colspan='2'><pre id='gitStatusPre'><? echo $git_status; ?></pre></th>
+    <tr><th colspan='2'><pre id='gitStatusPre'>Loading</pre></th>
     <tr><th valign='top'>FPP Rebuild:</th>
         <td><input type='button' value='Rebuild FPP' onClick='RebuildFPPSource();'> <b>WARNING:</b> This recompiles the local source code<br></td>
     </tr>

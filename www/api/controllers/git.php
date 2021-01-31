@@ -26,4 +26,19 @@ function GetGitOriginLog() {
     return json($rc);
 }
 
+// GET /api/git/status
+function GitStatus()
+{
+	global $fppDir;
+
+	$fullLog = "";
+	exec("$fppDir/scripts/git_status", $log);
+	$fullLog .= implode("\n", $log);
+
+    $rc = Array("status" => "OK", "log" => $fullLog);
+
+    return json($rc);
+}
+
+
 ?>
