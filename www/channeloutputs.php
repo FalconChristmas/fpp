@@ -12,6 +12,9 @@ include 'common/menuHead.inc';
 //$settings['Platform'] = "BeagleBone Black"; // Uncomment for testing
 //$settings['SubPlatform'] = "BeagleBone Black"; // Uncomment for testing
 ?>
+<script>
+var currentCapeName = '';
+</script>
 
 <?
 $currentCape = "";
@@ -20,6 +23,8 @@ if (isSet($settings['cape-info'])) {
     $currentCapeInfo = $settings['cape-info'];
     $currentCape = $currentCapeInfo["id"];
     echo "<!-- current cape is " . $currentCape . "-->\n";
+    printf("<script>\ncurrentCapeName = '%s';\n</script>\n",
+        $currentCapeInfo["name"]);
 }
 if (!isset($currentCapeInfo['provides'])) {
     $currentCapeInfo['provides'][] = "all";
@@ -36,7 +41,7 @@ if (!isset($currentCapeInfo['provides'])) {
 
 var channelOutputs = [];
 var channelOutputsLookup = [];
-var currentTabTitle = "E1.31 / ArtNet / DDP";
+var currentTabType = 'UDP';
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -150,11 +155,7 @@ if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $cha
 function handleCOKeypress(e)
 {
 	if (e.keyCode == 113) {
-		if (currentTabTitle == "Pi Pixel Strings")
-			setPixelStringsStartChannelOnNextRow();
-		else if (currentTabTitle == "BBB Strings")
-			setPixelStringsStartChannelOnNextRow();
-		else if (currentTabTitle == "X11 Pixel Strings")
+		if (currentTabType == 'strings')
 			setPixelStringsStartChannelOnNextRow();
 	}
 }
@@ -175,7 +176,7 @@ $(document).ready(function(){
 	// Init tabs
   $tabs = $("#tabs").tabs({
   		activate: function(e, ui) {
-			currentTabTitle = $(ui.newTab).text();
+			currentTabType = $(ui.newTab).find('a').attr('tabType');
 		},
   		cache: true,
 		spinner: "",
@@ -210,33 +211,42 @@ $(document).ready(function(){
 		<div class='title'>Channel Outputs</div>
 		<div id="tabs">
 			<ul>
-				<li><a href="#tab-e131">E1.31 / ArtNet / DDP</a></li>
+				<li><a href="#tab-e131" tabType='UDP'>E1.31 / ArtNet / DDP</a></li>
 <?
 	if ($settings['Platform'] == "Raspberry Pi")
 	{
         if (in_array('fpd', $currentCapeInfo["provides"])) {
-            echo "<li><a href='#tab-fpd'>Falcon Pixelnet/DMX</a></li>\n";
+            echo "<li><a href='#tab-fpd' tabType='FPD'>Falcon Pixelnet/DMX</a></li>\n";
         }
         if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-            echo "<li><a href='#tab-PixelStrings'>Pi Pixel Strings</a></li>\n";
+            echo "<li><a href='#tab-PixelStrings' id='stringTab' tabType='strings'>Pi Pixel Strings</a></li>\n";
         }
 	}
 	if ($settings['Platform'] == "BeagleBone Black") {
         if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-            echo "<li><a href='#tab-BBB48String'>BBB Strings</a></li>\n";
+		echo "<li><a href='#tab-BBB48String' id='stringTab' tabType='strings'>";
+		if ($currentCape != "") {
+		        if (isset($currentCapeInfo["name"]))
+				echo $currentCapeInfo["name"];
+			else
+				echo $currentCape;
+		} else {
+			echo "BBB Strings";
+		}
+		echo "</a></li>\n";
         }
 	}
     if ((file_exists('/usr/include/X11/Xlib.h')) &&
         ($settings['Platform'] == "Linux")) {
-        echo "<li><a href='#tab-PixelStrings'>X11 Pixel Strings</a></li>\n";
+        echo "<li><a href='#tab-PixelStrings' id='stringTab' tabType='strings'>X11 Pixel Strings</a></li>\n";
     }
     if (in_array('all', $currentCapeInfo["provides"])
 	|| in_array('panels', $currentCapeInfo["provides"])
 	|| !in_array('strings', $currentCapeInfo["provides"])) {
-        echo "<li><a href='#tab-LEDPanels'>LED Panels</a></li>\n";
+        echo "<li><a href='#tab-LEDPanels' tabType='panels'>LED Panels</a></li>\n";
     }
 ?>
-				<li><a href="#tab-other">Other</a></li>
+				<li><a href="#tab-other" tabType='other'>Other</a></li>
 			</ul>
 
 <!-- --------------------------------------------------------------------- -->
