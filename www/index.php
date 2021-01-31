@@ -242,68 +242,7 @@ include 'common/menuHead.inc';
              
             </div>
 
-            <!-- Bridge Mode stats -->
-            <div id="bridgeModeInfo">
-                <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
-                <table style='width: 100%' class='statusTable'>
-                    <tr>
-                        <td align='left'>
-                            <input type='button' onClick='GetUniverseBytesReceived();' value='Update'>
-                        </td>
-                        <td align='right'>
-    <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
-                        </td>
-                    </tr>
-                </table>
-                <hr>
-                <div id="bridgeStatistics1"></div>
-                <div id="bridgeStatistics2"></div>
-                <div class="clear"></div>
-            </div>
-
-            <!-- Remote Mode info -->
-            <div id="remoteModeInfo" class='statusDiv'>
-                <table class='statusTable'>
-                    <tr><th>Master System:</th>
-                        <td id='syncMaster'></td></tr>
-                    <tr><th>Remote Status:</th>
-                        <td id='txtRemoteStatus'></td></tr>
-                    <tr><th>Sequence Filename:</th>
-                        <td id='txtRemoteSeqFilename'></td></tr>
-                    <tr><th>Media Filename:</th>
-                        <td id='txtRemoteMediaFilename'></td></tr>
-                    <tr>
-                        <th>Volume [<span id='remoteVolume' class='volume'></span>]:</th>
-                        <td>
-                            <input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                            <span id="remoteVolumeSlider"></span> <!-- the Slider -->
-                            <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
-                            <span id='remoteSpeaker'></span> <!-- Volume -->
-                        </td>
-                    </tr>
-                </table>
-                <hr>
-
-                <span class='title'>MultiSync Packet Counts</span><br>
-                <table style='width: 100%' class='statusTable'>
-                    <tr>
-                        <td align='left'>
-                            <input type='button' onClick='GetMultiSyncStats();' value='Update' class='buttons'>
-                            <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
-                        </td>
-                        <td align='right'>
-    <? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
-                        </td>
-                    </tr>
-                </table>
-            </div>
-            <div class='statusBoxRight'>
-                <div id="sensorData">
-                </div>
-            </div>
-            <div class='clear'></div>
-            <hr>
-        </div>
+   
 
         <!-- Bridge Mode stats -->
         <div id="bridgeModeInfo">

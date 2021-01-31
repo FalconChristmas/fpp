@@ -206,36 +206,6 @@ $(document).tooltip();
 	<h1 class="title">Pixel Overlay Models</h1>
 	<div class="pageContent">
 		
-				<div id="time" class="settings">
-
-						<table>
-							<tr>
-								<td width='70px'><input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons'></td>
-								<td width='70px'><input type=button value='Add' onClick='AddNewMemMap();' class='buttons'></td>
-								<td width='40px'>&nbsp;</td>
-								<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'></td>
-							</tr>
-						</table>
-						<div class='fppTableWrapper fppTableWrapperAsTable'>
-		                    <div class='fppTableContents'>
-		                        <table id="channelMemMaps">
-		                            <thead>
-		                                <tr>
-		                                    <th title='Name of Model'>Model Name</td>
-		                                    <th title='Start Channel'>Start Ch.</td>
-		                                    <th title='Channel Count'>Ch. Count</td>
-		                                    <th title='Chan Per Node'>Ch./Node</td>
-		                                    <th title='String Orientation'>Orientation</td>
-		                                    <th title='Starting Corner'>Start Corner</td>
-		                                    <th title='Number of Strings'>Strings</td>
-		                                    <th title='Number of Strands Per String'>Strands</td>
-		                                </tr>
-		                            </thead>
-		                            <tbody>
-		                            </tbody>
-		                        </table>
-		                    </div>
-						</div>
 
 		<div id="time" class="settings">
 			<fieldset>
