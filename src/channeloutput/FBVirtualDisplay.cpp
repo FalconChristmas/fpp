@@ -146,7 +146,6 @@ int FBVirtualDisplayOutput::Init(Json::Value config)
 	m_vInfo.yres = m_vInfo.yres_virtual = m_height;
 
 	// Config to set the screen back to when we are done
-	// Once we determine how this interacts with omxplayer, this may change
 	m_vInfoOrig.bits_per_pixel = 16;
 	m_vInfoOrig.xres = m_vInfoOrig.xres_virtual = 640;
 	m_vInfoOrig.yres = m_vInfoOrig.yres_virtual = 480;
