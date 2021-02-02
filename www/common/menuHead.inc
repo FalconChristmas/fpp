@@ -19,6 +19,7 @@
 
 	<!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="css/bootstrap.min.css?ref=<?php echo filemtime('css/bootstrap.min.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp-bootstrap.min.css?ref=<?php echo filemtime('css/fpp-bootstrap.min.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>" />
 <? if (file_exists("/home/fpp/media/config/custom.css")) { ?>
@@ -30,9 +31,11 @@
 <? } ?>
 
 	<!-- menu -->
-	<link href="jquery/smartmenus/src/css/sm-core-css.css" rel="stylesheet" type="text/css" />
+	<!--<link href="jquery/smartmenus/src/css/sm-core-css.css" rel="stylesheet" type="text/css" />
 	<link href="jquery/smartmenus/src/css/sm-clean/sm-clean.css" rel="stylesheet" type="text/css" />
-	<script type="text/javascript" src="jquery/smartmenus/src/jquery.smartmenus.js"></script>
+	<script type="text/javascript" src="jquery/smartmenus/src/jquery.smartmenus.js"></script>-->
+
+	<script type="text/javascript" src="js/bootstrap.bundle.min.js?ref=<?php echo filemtime('js/bootstrap.bundle.min.js'); ?>"></script>
 
 	<script type="text/javascript">
 	$(function() {

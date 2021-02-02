@@ -139,14 +139,14 @@ body legend{
 	background-color:#F63939;
 	color:#fff
 }
-#fppMenu>li{
+#fppMenuList>li{
 	border-bottom:3px solid transparent;
 	margin-left: 1em;
 }
-#fppMenu>li.active {
+#fppMenuList>li.active {
 	border-bottom-color: #F63939;
 }
-#fppMenu>li.active>a{
+#fppMenuList>li.active>a{
 	color:#fff;
 }
 
