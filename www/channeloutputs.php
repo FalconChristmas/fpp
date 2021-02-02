@@ -210,7 +210,7 @@ $(document).ready(function(){
 <div class="container mainContainer">
 	
 <div id='channelOutputManager'>
-		<h2 class='pageTitle'>Channel Outputs</h2>
+		<h1 class='title'>Channel Outputs</h1>
 		<div class="pageContent">
 				<div id="tabs">
 					<ul>
