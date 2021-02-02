@@ -773,7 +773,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     echo "
         $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + encodeURIComponent(value))
         .done(function() {
-              $.jGrowl('$setting Saved,{themeState:'success'}');
+              $.jGrowl('$setting Saved',{themeState:'success'});
               $settingsName" . "['$setting'] = value;
               ";
               
