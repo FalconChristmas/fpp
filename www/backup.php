@@ -1522,7 +1522,7 @@ function PerformCopy() {
     if (direction.substring(0,4) == 'FROM')
     {
         if (!confirm(warningMsg)) {
-            $.jGrowl("Restore canceled.");
+            $.jGrowl("Restore canceled.",{themeState:'success'});
             return;
         }
     }

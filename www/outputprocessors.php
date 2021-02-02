@@ -253,7 +253,7 @@ function SetOutputProcessors() {
 	postData = "command=setOutputProcessors&data={ " + JSON.stringify(data) + " }";
 
 	$.post("fppjson.php", postData).done(function(data) {
-		$.jGrowl("Output Processors Table saved");
+		$.jGrowl("Output Processors Table saved",{themeState:'success'});
 		PopulateOutputProcessorTable(data);
 		SetRestartFlag(2);
 	}).fail(function() {

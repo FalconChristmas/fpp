@@ -210,7 +210,7 @@ $(function() {
 			if (data.saveStatus == "OK")
 			{
 				$('#fileViewer').dialog('close');
-				$.jGrowl("Script saved.");
+				$.jGrowl("Script saved.",{themeState:'success'});
 			}
 			else
 			{

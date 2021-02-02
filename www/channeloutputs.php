@@ -103,7 +103,7 @@ function SaveChannelOutputsJSON()
 
 	$.post("fppjson.php", postData
 	).done(function(data) {
-		$.jGrowl(" Channel Output configuration saved");
+		$.jGrowl(" Channel Output configuration saved",{themeState:'success'});
 		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Channel Output Config", "Save Failed");

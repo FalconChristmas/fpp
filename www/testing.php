@@ -509,7 +509,7 @@ function PlaySequence()
 
 	$.get("fppjson.php?command=startSequence&sequence=" + sequence + "&startSecond=" + startSecond
 	).done(function() {
-		$.jGrowl("Started sequence " + sequence);
+		$.jGrowl("Started sequence " + sequence,{themeState:'success'});
 		//$('#playSequence').hide();
 		//$('#stopSequence').show();
 	}).fail(function() {
@@ -521,7 +521,7 @@ function StopSequence()
 {
 	$.get("fppjson.php?command=stopSequence"
 	).done(function() {
-		$.jGrowl("Stopped sequence");
+		$.jGrowl("Stopped sequence",{themeState:'danger'});
 		//$('#stopSequence').hide();
 		//$('#playSequence').show();
 	}).fail(function() {

@@ -249,7 +249,7 @@ function Post(url, async, data, silent = false) {
         },
         error: function() {
             if (!silent) {
-                $.jGrowl('Error posting to ' + url);
+                $.jGrowl('Error posting to ' + url,{themeState:'danger'});
             }
         }
     });
@@ -270,7 +270,7 @@ function Get(url, async, silent = false) {
         },
         error: function() {
             if (!silent)
-                $.jGrowl('Error: Unable to get ' + url);
+                $.jGrowl('Error: Unable to get ' + url,{themeState:'danger'});
         }
     });
 
@@ -1363,7 +1363,7 @@ function SavePlaylistAs(name, filter, callback) {
             if ($('#tblPlaylistDetails').find('.playlistSelectedEntry').length)
                 EditPlaylistEntry();
 
-            $.jGrowl("Playlist Saved");
+            $.jGrowl("Playlist Saved",{themeState:'success'});
         },
         error: function() {
             DialogError('Unable to save playlist', "Error: Unable to save playlist.");
@@ -1509,7 +1509,7 @@ function DeleteNamedPlaylist(name) {
         async: false,
         success: function(data) {
             PopulateLists();
-            $.jGrowl("Playlist Deleted");
+            $.jGrowl("Playlist Deleted",{themeState:'success'});
         },
         error: function() {
             DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist");
@@ -2170,10 +2170,10 @@ function updateUniverseEndChannel(row) {
 						document.getElementById("FPDchkActive[" + i + "]").value = active;
 						startAddress+=size;
 					}
-					$.jGrowl("" + cloneNumber + " Outputs Cloned");
+					$.jGrowl("" + cloneNumber + " Outputs Cloned",{themeState:'success'});
 				}
 			} else {
-				DialogError("Clone Output", "Error, invalid number");
+				DialogError("Clone Output", "Error, invalid number",{themeState:'success'});
 			}
 		}
 
@@ -2230,7 +2230,7 @@ function updateUniverseEndChannel(row) {
                 $('#outputOffWarning').hide();
             
             $.post("fppjson.php", postDataString).done(function(data) {
-                                                       $.jGrowl("E1.31 Universes Saved");
+                                                       $.jGrowl("E1.31 Universes Saved",{themeState:'success'});
                                                        SetRestartFlag(2);
                                                        CheckRestartRebootFlags();
                                                  }).fail(function() {
@@ -2349,12 +2349,12 @@ function updateUniverseEndChannel(row) {
 			var seconds = minutes * 60;
 			var url = "api/command/Extend Schedule/" + seconds;
 			$.get(url).done(function(data) {
-					$.jGrowl(data);
+					$.jGrowl(data,{themeState:'success'});
 					if (statusTimeout != null)
 						clearTimeout(statusTimeout);
 					GetFPPStatus();
 				}).fail(function() {
-					$.jGrowl("Failed to extend schedule.");
+					$.jGrowl("Failed to extend schedule.",{themeState:'danger'});
 				});
 		}
 
@@ -2362,7 +2362,7 @@ function updateUniverseEndChannel(row) {
 		{
 			var minutes = prompt ("Extend running scheduled playlist by how many minutes?","1");
 			if (minutes === null) {
-				$.jGrowl("Extend cancelled");
+				$.jGrowl("Extend cancelled",{themeState:'danger'});
 				return;
 			}
 
@@ -3098,7 +3098,7 @@ function SetSetting(key, value, restart, reboot) {
         async: false,
         success: function() {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.");
+                $.jGrowl(key + " setting saved.",{themeState:'danger'});
 
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
@@ -3121,7 +3121,7 @@ function SetPluginSetting(plugin, key, value, restart, reboot) {
         async: false,
         success: function() {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.");
+                $.jGrowl(key + " setting saved.",{themeState:'danger'});
 
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
@@ -3237,7 +3237,7 @@ function RestartFPPD() {
 		$.get("fppxml.php?command=restartFPPD" + args
 		).done(function() {
 			$('html,body').css('cursor','auto');
-			$.jGrowl('FPPD Restarted');
+			$.jGrowl('FPPD Restarted',{themeState:'danger'});
 			ClearRestartFlag();
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
@@ -3262,7 +3262,7 @@ function RestartFPPD() {
                                 //FPP is up then
                                 clearInterval(retry_poll_interval_arr['restartFPPD']);
                                 //run original code for success
-                                $.jGrowl('FPPD Restarted');
+                                $.jGrowl('FPPD Restarted',{themeState:'danger'});
                                 ClearRestartFlag();
                             }
                     }).fail(
@@ -3272,7 +3272,7 @@ function RestartFPPD() {
                             //If on first try throw up a FPP is rebooting notification
                             if(retries === 1){
                                 //Show FPP is rebooting notification for 10 seconds
-                                $.jGrowl('FPP is rebooting..',{ life: 10000 });
+                                $.jGrowl('FPP is rebooting..',{ life: 10000 },{themeState:'detract'});
                             }
                         }
                     );
@@ -3347,7 +3347,7 @@ function PlayPlaylist(Playlist, goToStatus = 0)
         if (goToStatus)
 	        location.href="index.php";
         else
-            $.jGrowl("Playlist Started");
+            $.jGrowl("Playlist Started",{themeState:'success'});
     });
 }
 
@@ -3438,7 +3438,7 @@ function GetRunningEffects()
                     data: "",
                     success: function(data) {
                         //Show FPP is rebooting notification for 60 seconds then reload the page
-                        $.jGrowl('FPP is rebooting..', {life: 60000});
+                        $.jGrowl('FPP is rebooting..', {life: 60000, themeState:'detract'});
                         setTimeout(function () {
                                 location.href="index.php";
                         }, 60000);
@@ -3733,7 +3733,7 @@ function SetFPPDmode()
 {
 	$.get("fppxml.php?command=setFPPDmode&mode=" + $('#selFPPDmode').val()
 	).done(function() {
-		$.jGrowl("fppMode Saved");
+		$.jGrowl("fppMode Saved",{themeState:'success'});
 		RestartFPPD();
 	}).fail(function() {
 		DialogError("FPP Mode Change", "Save Failed");
@@ -5056,7 +5056,7 @@ function RunCommandJSON(cmdJSON)
         data: cmdJSON,
         async: true,
         success: function(data) {
-            $.jGrowl('Command ran');
+            $.jGrowl('Command ran',{themeState:'success'});
         },
         error: function() {
             DialogError('Command failed', 'Command failed');

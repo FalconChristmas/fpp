@@ -1075,7 +1075,7 @@ function SaveOtherChannelOutputs() {
 
 	$.post("fppjson.php", postDataStr).done(function(data) {
 		PopulateChannelOutputTable(data);
-		$.jGrowl("Channel Output Configuration Saved");
+		$.jGrowl("Channel Output Configuration Saved",{themeState:'success'});
 		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Channel Outputs", "Save Failed");

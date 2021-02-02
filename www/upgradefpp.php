@@ -33,7 +33,7 @@ function Reboot() {
         data: "",
         success: function(data) {
             //Show FPP is rebooting notification for 60 seconds then reload the page
-            $.jGrowl('FPP is rebooting..', {life: 60000});
+            $.jGrowl('FPP is rebooting..', {life: 60000},{themeState:'detract'});
             setTimeout(function () {
                     location.href="index.php";
             }, 60000);

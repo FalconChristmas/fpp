@@ -92,7 +92,7 @@ function SaveCommands()
     if (!result.hasOwnProperty('Status') || (result['Status'] != 'OK')) {
         alert('Error saving commands!');
     } else {
-        $.jGrowl('Commands saved.');
+        $.jGrowl('Commands saved.',{themeState:'success'});
         SetRestartFlag(2);
     }
 }

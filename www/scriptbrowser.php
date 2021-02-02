@@ -46,7 +46,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
   function InstallRemoteScript(category, filename) {
 		$.get("fppxml.php?command=installRemoteScript&category=" + category + "&filename=" + filename
 		).done(function() {
-			$.jGrowl("Script installed.");
+			$.jGrowl("Script installed.",{themeState:'success'});
 		}).fail(function() {
 			DialogError("Install Script", "Install Failed");
 		});

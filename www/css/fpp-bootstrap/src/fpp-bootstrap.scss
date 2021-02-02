@@ -94,18 +94,19 @@ input[type=text], input[type=number], select{
     vertical-align: middle;
 }
 input[type=checkbox]{
-
+    @extend .form-control;
 	appearance: none;
 	cursor: pointer;
 	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
 	border-radius:1.5em;
 	border:1px solid #D2D2D2;
-
+    display: inline-block;
 	border-radius:3px;
 	width: 35px;
 	height: 35px;
     font-size: $font-size-base;
     vertical-align: middle;
+    
 }
 input[type=checkbox]:checked{
 
@@ -134,8 +135,28 @@ input[type=checkbox]:checked{
     a{
         color:$black;
         font-weight: bold;
+        &:hover{
+            color:$white;
+        }
     }
 }
 .d-flex{
     display:flex;
+}
+.jGrowl{
+    font-size: inherit;
+}
+.jGrowl-notification{
+    &.ui-state-success{
+        background-color: $success;
+        color:#fff;
+    }
+    &.ui-state-danger{
+        background-color: $danger;
+        color:#fff;
+    }
+    &.ui-state-detract{
+        background-color: $detract;
+        color:#fff;
+    }
 }

@@ -1691,7 +1691,7 @@ template {
   .table-responsive > .table-bordered {
     border: 0; }
 
-.form-control {
+.form-control, input[type=checkbox] {
   display: block;
   width: 100%;
   height: calc(1.5em + 1.35rem + 2px);
@@ -1706,37 +1706,40 @@ template {
   border-radius: 0.25rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .form-control {
+    .form-control, input[type=checkbox] {
       transition: none; } }
-  .form-control::-ms-expand {
+  .form-control::-ms-expand, input[type=checkbox]::-ms-expand {
     background-color: transparent;
     border: 0; }
-  .form-control:-moz-focusring {
+  .form-control:-moz-focusring, input:-moz-focusring[type=checkbox] {
     color: transparent;
     text-shadow: 0 0 0 #495057; }
-  .form-control:focus {
+  .form-control:focus, input:focus[type=checkbox] {
     color: #495057;
     background-color: #fff;
     border-color: #4c4c6a;
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
-  .form-control::-moz-placeholder {
+  .form-control::-moz-placeholder, input[type=checkbox]::-moz-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:-ms-input-placeholder {
+  .form-control:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control::placeholder {
+  .form-control::placeholder, input[type=checkbox]::placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:disabled, .form-control[readonly] {
+  .form-control:disabled, input:disabled[type=checkbox], .form-control[readonly], input[readonly][type=checkbox] {
     background-color: #e3ebec;
     opacity: 1; }
 
-input[type="date"].form-control,
+input[type="date"].form-control, input[type="date"][type=checkbox],
 input[type="time"].form-control,
+input[type="time"][type=checkbox],
 input[type="datetime-local"].form-control,
-input[type="month"].form-control {
+input[type="datetime-local"][type=checkbox],
+input[type="month"].form-control,
+input[type="month"][type=checkbox] {
   -webkit-appearance: none;
      -moz-appearance: none;
           appearance: none; }
@@ -1879,14 +1882,14 @@ textarea.form-control {
 .is-valid ~ .valid-tooltip {
   display: block; }
 
-.was-validated .form-control:valid, .form-control.is-valid {
+.was-validated .form-control:valid, .was-validated input:valid[type=checkbox], .form-control.is-valid, input.is-valid[type=checkbox] {
   border-color: #56B760;
   padding-right: calc(1.5em + 1.35rem);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.3375rem) center;
   background-size: calc(0.75em + 0.675rem) calc(0.75em + 0.675rem); }
-  .was-validated .form-control:valid:focus, .form-control.is-valid:focus {
+  .was-validated .form-control:valid:focus, .was-validated input:valid:focus[type=checkbox], .form-control.is-valid:focus, input.is-valid:focus[type=checkbox] {
     border-color: #56B760;
     box-shadow: 0 0 0 0.25rem rgba(86, 183, 96, 0.25); }
 
@@ -1963,14 +1966,14 @@ textarea.form-control {
 .is-invalid ~ .invalid-tooltip {
   display: block; }
 
-.was-validated .form-control:invalid, .form-control.is-invalid {
+.was-validated .form-control:invalid, .was-validated input:invalid[type=checkbox], .form-control.is-invalid, input.is-invalid[type=checkbox] {
   border-color: #F63939;
   padding-right: calc(1.5em + 1.35rem);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23F63939' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23F63939' stroke='none'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.3375rem) center;
   background-size: calc(0.75em + 0.675rem) calc(0.75em + 0.675rem); }
-  .was-validated .form-control:invalid:focus, .form-control.is-invalid:focus {
+  .was-validated .form-control:invalid:focus, .was-validated input:invalid:focus[type=checkbox], .form-control.is-invalid:focus, input.is-invalid:focus[type=checkbox] {
     border-color: #F63939;
     box-shadow: 0 0 0 0.25rem rgba(246, 57, 57, 0.25); }
 
@@ -2034,7 +2037,7 @@ textarea.form-control {
       flex-flow: row wrap;
       align-items: center;
       margin-bottom: 0; }
-    .form-inline .form-control {
+    .form-inline .form-control, .form-inline input[type=checkbox] {
       display: inline-block;
       width: auto;
       vertical-align: middle; }
@@ -3275,10 +3278,10 @@ input[type="button"].btn-block {
 
 .alert {
   position: relative;
-  padding: 1.5rem 1.5rem;
+  padding: 1.35rem 1.8rem;
   margin-bottom: 1rem;
   border: 1px solid transparent;
-  border-radius: 0.25rem; }
+  border-radius: 8px; }
 
 .alert-heading {
   color: inherit; }
@@ -3287,13 +3290,13 @@ input[type="button"].btn-block {
   font-weight: 700; }
 
 .alert-dismissible {
-  padding-right: 4.425rem; }
+  padding-right: 5.025rem; }
   .alert-dismissible .close {
     position: absolute;
     top: 0;
     right: 0;
     z-index: 2;
-    padding: 1.5rem 1.5rem;
+    padding: 1.35rem 1.8rem;
     color: inherit; }
 
 .alert-primary {
@@ -4617,6 +4620,7 @@ input[type=checkbox] {
   box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
   border-radius: 1.5em;
   border: 1px solid #D2D2D2;
+  display: inline-block;
   border-radius: 3px;
   width: 35px;
   height: 35px;
@@ -4645,6 +4649,23 @@ input[type=checkbox]:checked {
   .alert a {
     color: #171720;
     font-weight: bold; }
+    .alert a:hover {
+      color: #fff; }
 
 .d-flex {
   display: flex; }
+
+.jGrowl {
+  font-size: inherit; }
+
+.jGrowl-notification.ui-state-success {
+  background-color: #56B760;
+  color: #fff; }
+
+.jGrowl-notification.ui-state-danger {
+  background-color: #F63939;
+  color: #fff; }
+
+.jGrowl-notification.ui-state-detract {
+  background-color: #C88F55;
+  color: #fff; }

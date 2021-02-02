@@ -76,9 +76,9 @@ input.largeCheckbox {
 			settings['MultiSyncRemotes'] = remotes;
             if (verbose) {
                 if (remotes == "") {
-                    $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
+                    $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.",{themeState:'success'});
                 } else {
-                    $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
+                    $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.",{themeState:'success'});
                 }
             }
 

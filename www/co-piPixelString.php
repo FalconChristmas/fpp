@@ -227,7 +227,7 @@ function savePixelStringOutputs() {
 	postData = "command=setChannelOutputs&file=co-pixelStrings&data=" + encodeURIComponent(JSON.stringify(JSON.stringify(postData)));
 
 	$.post("fppjson.php", postData).done(function(data) {
-		$.jGrowl("Pixel String Output Configuration Saved");
+		$.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'});
 		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Pixel String Outputs", "Save Failed");

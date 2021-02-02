@@ -72,7 +72,7 @@ function SaveGPIOInputs() {
             success: function(data) {
                     $('html,body').css('cursor','auto');
                     if (data.Status == 'OK') {
-                        $.jGrowl("GPIO Inputs Saved.");
+                        $.jGrowl("GPIO Inputs Saved.",{themeState:'success'});
                         SetRestartFlag(2);
                     } else {
                         alert('ERROR: ' + data.Message);

@@ -12,7 +12,7 @@ function updateSettings() {
         async: false,
         dataType: 'json',
         success: function(data) {
-            $.jGrowl("Log Mask Saved.");
+            $.jGrowl("Log Mask Saved.",{themeState:'success'});
         },
         failure: function(data) {
             DialogError("Save Log Mask", "Error Saving new Log Mask.");

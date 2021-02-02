@@ -298,7 +298,7 @@ function LEDPanelsLayoutChanged() {
 
     $.get('fppjson.php?command=setSetting&plugin=&key=LEDPanelsLayout&value=' + value)
         .done(function() {
-            $.jGrowl('Panel Layout saved');
+            $.jGrowl('Panel Layout saved',{themeState:'success'});
             settings['LEDPanelsLayout'] = value;
             LEDPanelLayoutChanged();
             SetRestartFlag(2);

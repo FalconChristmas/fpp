@@ -21,7 +21,7 @@ $(document).ready(function(){
 			data: dataString
 		}).done(function() {
 			getPixelnetDMXoutputs('TRUE');
-			$.jGrowl("FPD Config Saved");
+			$.jGrowl("FPD Config Saved",{themeState:'success'});
 			SetRestartFlag(2);
 		}).fail(function() {
 			DialogError("Save FPD Config", "Save Failed");

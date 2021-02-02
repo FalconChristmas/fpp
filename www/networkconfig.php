@@ -195,19 +195,19 @@ function validateNetworkFields()
 	{
 		if((validateIPaddress('eth_ip')== false) || ($('#eth_ip').val() == ""))
 		{
-			$.jGrowl("Invalid IP Address. Expect format like 192.168.0.101");
+			$.jGrowl("Invalid IP Address. Expect format like 192.168.0.101",{themeState:'danger'});
 			$("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
 			return false;
 		}
 		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
 		{
-			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0");
+			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0",{themeState:'danger'});
 			$("#ipWarning").html('Invalid Netmask. Expect format like 255.255.255.0');
 			return false;
 		}
 		if(validateIPaddress('eth_gateway')== false)
 		{
-			$.jGrowl("Invalid Gateway. Expect format like 192.168.0.1");
+			$.jGrowl("Invalid Gateway. Expect format like 192.168.0.1",{themeState:'danger'});
 			return false;
 		}
 	}
@@ -219,12 +219,12 @@ function validateDNSFields()
 {
 	if(validateIPaddress('dns1') == false)
 	{
-		$.jGrowl("Invalid DNS Server #1");
+		$.jGrowl("Invalid DNS Server #1",{themeState:'danger'});
 		return false;
 	}
 	if(validateIPaddress('dns2') == false)
 	{
-		$.jGrowl("Invalid DNS Server #2");
+		$.jGrowl("Invalid DNS Server #2",{themeState:'danger'});
 		return false;
 	}
 
@@ -258,7 +258,7 @@ function SaveDNSConfig()
 	).done(function(data) {
 		LoadDNSConfig();
         SetRebootFlag();
-		$.jGrowl(" DNS configuration saved");
+		$.jGrowl(" DNS configuration saved",{themeState:'success'});
 	}).fail(function() {
 		DialogError("Save DNS Config", "Save Failed");
 	});
@@ -346,7 +346,7 @@ function SaveNetworkConfig()
 	$.post("fppjson.php", postData
 	).done(function(rc) {
 		LoadNetworkConfig();
-		$.jGrowl(iface + " network interface configuration saved");
+		$.jGrowl(iface + " network interface configuration saved",{themeState:'success'});
 		$('#btnConfigNetwork').show();
 
 		if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
@@ -540,7 +540,7 @@ function setHostName() {
 	$.get("fppjson.php?command=setSetting&key=HostName&value="
 		+ $('#hostName').val()
 	).done(function() {
-		$.jGrowl("HostName Saved");
+		$.jGrowl("HostName Saved",{themeState:'success'});
         SetRebootFlag();
 	}).fail(function() {
 		DialogError("Save HostName", "Save Failed");
@@ -551,7 +551,7 @@ function setHostDescription() {
     $.get("fppjson.php?command=setSetting&key=HostDescription&value="
         + $('#hostDescription').val()
     ).done(function() {
-        $.jGrowl("HostDescription Saved");
+        $.jGrowl("HostDescription Saved",{themeState:'success'});
         SetRestartFlag(2);
     }).fail(function() {
         DialogError("Save HostDescription", "Save Failed");
