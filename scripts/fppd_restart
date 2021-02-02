@@ -17,8 +17,8 @@ then
     /opt/fpp/scripts/fppd_stop
     /opt/fpp/scripts/fppd_start
 else
-    PID=$(pgrep fppd)
-    if ["x${PID}" = "x" ]
+    PID=$(pgrep -x fppd)
+    if [ "x${PID}" == "x" ]
     then
         # fppd not running so we need to start
         systemctl start fppd

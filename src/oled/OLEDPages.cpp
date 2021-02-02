@@ -45,6 +45,7 @@ bool OLEDPage::InitializeDisplay(int ledType) {
             return false;
         }
         SetOLEDType(OLEDPage::OLEDType::TEXT_ONLY);
+        return true;
     }
     return false;
 }

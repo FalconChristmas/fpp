@@ -35,7 +35,6 @@
 #include "common.h"
 #include "mediaoutput.h"
 #include "MultiSync.h"
-#include "omxplayer.h"
 
 #ifdef HASVLC
     #include "VLCOut.h"
@@ -224,10 +223,6 @@ MediaOutputBase *CreateMediaOutput(const std::string &mediaFilename, const std::
     } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
         return new VLCOutput(mediaFilename, &mediaOutputStatus, vOut);
 #endif
-#ifdef PLATFORM_PI
-    } else if (IsExtensionVideo(ext) && (vOut == "--HDMI--" || vOut == "HDMI")) {
-       return new omxplayerOutput(tmpFile, &mediaOutputStatus);
-#endif
     } else if (IsExtensionVideo(ext)) {
         return new SDLOutput(mediaFilename, &mediaOutputStatus, vOut);
     }
@@ -325,21 +320,6 @@ int OpenMediaOutput(const char *filename) {
 	if (getFPPmode() == MASTER_MODE)
 		multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
     
-#ifdef PLATFORM_PI
-    // at this point, OMX takes a long time to actually start, we'll just start it
-    // there is a patch to add a --start-paused which we could eventually use
-    if (dynamic_cast<omxplayerOutput*>(mediaOutput) != nullptr) {
-        if (getFPPmode() == MASTER_MODE)
-            multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
-        if (!mediaOutput->Start()) {
-            LogErr(VB_MEDIAOUT, "Could not start media %s\n", tmpFile);
-            delete mediaOutput;
-            mediaOutput = 0;
-            pthread_mutex_unlock(&mediaOutputLock);
-            return 0;
-        }
-    }
-#endif
 	pthread_mutex_unlock(&mediaOutputLock);
 
 	return 1;
@@ -366,13 +346,6 @@ int StartMediaOutput(const char *filename) {
     if (!MatchesRunningMediaFilename(filename)) {
         CloseMediaOutput();
     }
-#ifdef PLATFORM_PI
-    omxplayerOutput *omx = dynamic_cast<omxplayerOutput*>(mediaOutput);
-    if (omx) {
-        //its already started
-        return 1;
-    }
-#endif
     
     if (mediaOutput && mediaOutput->IsPlaying()) {
         CloseMediaOutput();

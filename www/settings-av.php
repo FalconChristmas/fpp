@@ -47,9 +47,6 @@ if (!isset($settings['AudioMixerDevice'])) {
     <tr><td>
 <?
 PrintSettingGroup('generalAudioVideo');
-if (!file_exists("/usr/local/include/vlc/vlc.h")) {
-    PrintSettingGroup('omxplayer');
-}
 ?>
 
         </td>

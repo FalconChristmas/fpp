@@ -400,7 +400,7 @@ populateCCACHE() {
         FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
         FULLURL="https://falconchristmas.github.io/ccache/${FILETOGET}"
         ETAG_GIT="/tmp/etag.$$"
-        ETAG_LOCAL="/root/.ccache/etag"
+        ETAG_LOCAL="${FPPHOME}/media/ccache_etag.txt"
         NEEDS_UPDATED=0
         
         echo "Checking CCACHE -  $FILETOGET - $FULLURL"
