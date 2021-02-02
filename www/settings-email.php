@@ -10,7 +10,7 @@ function ConfigureEmail() {
         type: 'POST',
         async: true,
         success: function(data) {
-            $.jGrowl("Email configured.");
+            $.jGrowl("Email configured.",{themeState:'success'});
         },
         error: function() {
             DialogError('Error configuring email', 'Error configuring email');
@@ -24,7 +24,7 @@ function SendTestEmail() {
         type: 'POST',
         async: true,
         success: function(data) {
-            $.jGrowl("Test Email sent.");
+            $.jGrowl("Test Email sent.",{themeState:'success'});
         },
         error: function() {
             DialogError('Error sending email', 'Error sending email');

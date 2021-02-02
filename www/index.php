@@ -195,7 +195,11 @@ include 'common/menuHead.inc';
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
-<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the file system or create a new storage partition.</div>
+<div id='upgradeFlag' class="alert alert-danger" role="alert">
+     SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
+     file system or create a new storage partition.
+
+</div>
 <?php
     }
 ?>
@@ -215,7 +219,7 @@ include 'common/menuHead.inc';
                                     <option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
                                     <option id="optFPPDmode_Bridge" value="1">Bridge</option>
                                 </select>
-                                <input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD();">
+                                <input type="button" id="btnDaemonControl" class ="buttons buttons-outline-light" value="" onClick="ControlFPPD();">
                                 </div>
                         </div>
                         <div>
@@ -245,7 +249,7 @@ include 'common/menuHead.inc';
    
 
             <!-- Bridge Mode stats -->
-            <div id="bridgeModeInfo">
+            <div id="bridgeModeInfo" class="pageContent">
                 <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
                 <table style='width: 100%' class='statusTable'>
                     <tr>
@@ -264,7 +268,7 @@ include 'common/menuHead.inc';
             </div>
 
             <!-- Remote Mode info -->
-            <div id="remoteModeInfo" class='statusDiv'>
+            <div id="remoteModeInfo" class='statusDiv pageContent'>
                 <table class='statusTable'>
                     <tr><th>Master System:</th>
                         <td id='syncMaster'></td></tr>
@@ -329,7 +333,7 @@ include 'common/menuHead.inc';
                 </div>
             </div>
             <!-- Player/Master Mode Info -->
-            <div id="playerModeInfo" class='statusDiv  card pageContent'>
+            <div id="playerModeInfo" class='statusDiv pageContent'>
 
                 <div id="playerStatusTop">
                     <div class='statusBoxLeft'>
@@ -340,67 +344,80 @@ include 'common/menuHead.inc';
                             </div>
                             <div class="row playlistSelectRow">
          
-                                <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" size="1" onClick="SelectPlaylistDetailsEntryRow();PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
+                                <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" class="form-control form-control-lg form-control-rounded has-shadow" size="1" onClick="SelectPlaylistDetailsEntryRow();PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
                                 <div class="playlistRepeatCol"><span class="settingLabelHeading">Repeat:</span> <input type="checkbox" id="chkRepeat"></input></div>
                                 
                             </div>
-                            <div class="row">
-                                <div id="playerControls" style="margin-top:5px">
-                                    <input id= "btnPlay" type="button"  class ="buttons"value="Play" onClick="StartPlaylistNow();">
-                                    <input id= "btnPrev" type="button"  class ="buttons"value="Previous" onClick="PreviousPlaylistEntry();">
-                                    <input id= "btnNext" type="button"  class ="buttons"value="Next" onClick="NextPlaylistEntry();">
-                                    <input id= "btnStopGracefully" type="button"  class ="buttons" value="Stop Gracefully" onClick="StopGracefully();">
-                                    <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
-                                    <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
-                                </div>
-                                <div class="row">
+
+                        </div>
+                        <div class="d-flex">
+                                
+                            <div id="playerControls" >
+                                <input id= "btnPlay" type="button"  class ="buttons buttons-rounded buttons-success"value="Play" onClick="StartPlaylistNow();">
+                                <input id= "btnPrev" type="button"  class ="buttons buttons-rounded buttons-pleasant"value="Previous" onClick="PreviousPlaylistEntry();">
+                                <input id= "btnNext" type="button"  class ="buttons buttons-rounded buttons-pleasant"value="Next" onClick="NextPlaylistEntry();">
+                                <input id= "btnStopGracefully" type="button"  class ="buttons buttons-rounded buttons-graceful" value="Stop Gracefully" onClick="StopGracefully();">
+                                <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons buttons-rounded buttons-detract" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
+                                <input id= "btnStopNow" type="button" class ="buttons buttons-rounded buttons-danger" value="Stop Now" onClick="StopNow();">
+                            </div>
+                            <div class="volumeControlsContainer">
+                                
                                     <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
                                     <div class="volumeControls">
-                                        <input type="button" class='volumeButton buttons' value="-" onClick="DecrementVolume();">
-                                        <input type="range" min="0" max="100" class="slider" id="slider">
-                                        <input type="button" class='volumeButton buttons' value="+" onClick="IncrementVolume();">
+                                        <div>
+                                            <input type="button" class='volumeButton buttons' value="-" onClick="DecrementVolume();">
+                                        </div>
+                                        <div>
+                                            <input type="range" min="0" max="100" class="slider" id="slider">
+                                        </div>
+                                        <div>
+                                            <input type="button" class='volumeButton buttons' value="+" onClick="IncrementVolume();">
+                                        </div>
                                         <span id='speaker'></span> <!-- Volume -->
                                     </div>
-                                </div>
+                                
                             </div>
 
-
-                        </table>
-
-                    </div>
-                    <hr>
-                    <div class='statusBoxRight'>
-                        <div id='playerTime' class='statusTable row'>
-                            <div>
-                                <div class="labelHeading">Elapsed:</div>
-                                <div id="txtTimePlayed" class="labelValue"></div>
-                            </div>
-                            <div>
-                                <div class="labelHeading">Remaining:</div>
-                                <div id="txtTimeRemaining" class="labelValue"></div>
-                            </div>
-                            <div>
-                                <div class="labelHeading">Randomize:</div>
-                                <div id="txtRandomize" class="labelValue"></div>
-                            </div>
                         </div>
                     </div>
-                    <div class="clear"></div>
-                </div>
 
+                    <hr>
+                </div>
+                <div class='statusBoxRight'>
+                    <div id='playerTime' class='statusTable d-flex'>
+                        <div>
+                            <div class="labelHeading">Elapsed:</div>
+                            <div id="txtTimePlayed" class="labelValue"></div>
+                        </div>
+                        <div>
+                            <div class="labelHeading">Remaining:</div>
+                            <div id="txtTimeRemaining" class="labelValue"></div>
+                        </div>
+                        <div>
+                            <div class="labelHeading">Randomize:</div>
+                            <div id="txtRandomize" class="labelValue"></div>
+                        </div>
+                    </div>
+                </div>
                 <div id="playerStatusBottom">
-                <?
-                include "playlistDetails.php";
-                ?>
+                    <?
+                    include "playlistDetails.php";
+                    ?>
 
 
-                <div id='deprecationWarning' style='display:none'><font color='red'><b>* - Playlist items marked with an asterisk have been deprecated and will be auto-upgraded the next time you edit the playlist.</b></font></div>
+                    <div id='deprecationWarning' style='display:none'>
+                    <font color='red'><b>* - Playlist items marked with an asterisk have been deprecated
+                        and will be auto-upgraded the next time you edit the playlist.</b></font>
+                    </div>
                 </div>
-                <table class="verbosePlaylistItemSetting">
-                    <tr>
-                        <td><? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?></td>
-                    </tr>
-                </table>
+
+                <div class="verbosePlaylistItemSetting">
+                    <table>
+                    <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+                    </table>
+                    
+                    
+                </div>
                 <hr>
                 <div id='schedulerInfo'>
                     <div class='statusBoxLeft'>

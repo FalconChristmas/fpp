@@ -158,7 +158,7 @@ body legend{
 }
 #daemonControl .statusTable{
 	display: flex;
-	margin-top: 2.2em;
+	margin-top: 0.5em;
 	margin-bottom: 3em;
 }
 #daemonControl .statusTable > div{
@@ -198,7 +198,7 @@ body legend{
 	font-weight: normal;
 }
 
-.card, .pageContent {
+.pageContent {
 	background: #fff;
 	border-radius: 8px;
 	color:#000;
@@ -229,41 +229,7 @@ body legend{
 	font-size: 1.3em;
 	font-weight: bold;
 }
-input[type=text], input[type=number], select{
-	border: 1px solid #D2D2D2;
-	color:#000;
-	appearance: none;
-	border-radius:3px;
-	padding: 0.6em 1em;
-	font-weight: normal;
-	font-size: 1.02em;
-}
-.pageContent select{
-	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
-	background-position: right 20px center;
-	background-size: 15px;
-}
-input[type=checkbox]{
 
-	appearance: none;
-	
-	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
-	border-radius:1.5em;
-	border:1px solid #D2D2D2;
-
-	border-radius:3px;
-	width: 35px;
-	height: 35px;
-	font-size: 1.02em;
-}
-input[type=checkbox]:checked{
-
-
-	border:1px solid #56B760;
-
-	background: #56B760 url(/images/redesign/check-white.svg) no-repeat;
-	background-position: center center;
-}
 input[type=range] {
 	-webkit-appearance: none; /* Hides the slider so that custom slider can be made */
 	width: 100%; /* Specific width is required for Firefox. */
@@ -287,26 +253,9 @@ input[type=range]::-webkit-slider-thumb {
 	height: 35px;
 	margin-top: -12.5px;
   }
-  
-.buttons,.disableButtons{
-	appearance: none;
-	border:1px solid #fff;
-	border-radius:3px;
-	background-color: transparent;
-	color:#fff;
-	padding: 0.6em 1em;
-	font-weight: bold;
-	font-size: 1.02em;
-	cursor: pointer;
-}
+
 #playlistSelect{
-	border-color: #D2D2D2;
-	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
-	border-radius:1.5em;
-	font-size: 1.2em;
-	padding: 0.85em 1.0em;
-	background: url(/images/redesign/chevron-down-grey.svg) no-repeat;
-	background-position: right 20px center;
+
 	font-weight: bold;
 
 }
@@ -325,24 +274,31 @@ input[type=range]::-webkit-slider-thumb {
 .statusBoxRight{
 	float:right;
 }
-
+.volumeControlsContainer{
+	display: flex;
+}
 .volumeControls{
 	display: flex;
+	align-items: center;
 }
 .volumeControls input {
 	margin-left: 0.5em;
 	margin-right: 0.5em;
 	
 }
+.volumeControlsContainer {
+	margin-bottom: 1.1em;
+}
+.volumeControlsContainer .labelHeading{
+
+}
 .pageContent .volumeControls .buttons{
 	border-color:#D2D2D2;
 	border-radius:29px;
-	width: 58px;
+	width: 50px;
+	height:50px;
 }
-.pageContent .buttons{
-	border-color:#000;
-	color:#000
-}
+
 .pageContent .disableButtons{
 	background-color: rgba(0,0,0,0.1);
 	border-color: rgba(0,0,0,0.1);
@@ -356,9 +312,6 @@ hr {
 .playlistSelectCol{
 	flex: 1;
 }
-#playlistSelect{
-	width: 100%;
-}
 .settings .playlistSelectRow{
 	align-items: center;
 	margin-bottom: 1.5em;
@@ -367,42 +320,6 @@ hr {
 	padding-left: 2em;
 }
 
-#playerControls .buttons{
-	color:#fff;
-}
-#playerControls #btnPlay{
-	border-color:#56B760;
-	color:#56B760;	
-}
-#playerControls .buttons, #playerControls .disableButtons{
-	border-radius:1.5em;
-	padding: 0.75em 1.1em;
-	margin-right: 0.2em;
-}
-#playerControls #btnPrev, #playerControls #btnNext {
-	color:#7D93C1;
-	border-color:#7D93C1
-}
-#playerControls #btnStopGracefullyAfterLoop{
-	color:#C88F55;
-	border-color:#C88F55
-}
-#playerControls #btnStopNow{
-	color:#F63939;
-	border-color:#F63939;	
-}
-#playerControls #btnStopGracefully{
-	color: #9E74AC;
-	border-color: #9E74AC
-}
-#playerControls .buttons, #playerControls .disableButtons{
-	border-radius:1.5em;
-}
-#playerControls #btnPrev.disableButtons,#playerControls #btnStopNow.disableButtons, #playerControls #btnNext.disableButtons,#playerControls #btnStopGracefullyAfterLoop.disableButtons,#playerControls #btnStopGracefully.disableButtons{
-	background-color: rgba(0,0,0,0.1);
-	border-color: rgba(0,0,0,0.1);
-	color:  rgba(0,0,0,0.3);
-}
 .playlistEntriesBody{
 	background-color: #ECECEC;
 	border-radius:8px;
@@ -492,6 +409,13 @@ hr {
 .verbosePlaylistItemSetting th{
 	font-weight: normal;
 }
+.verbosePlaylistItemSetting{
+	margin-top: 1.5em;
+	margin-bottom: 1.5em;
+}
+#verbosePlaylistItemDetailsRow th{
+	padding-right: 1em;
+}
 #schedulerInfo{
 	margin-top: 2em;
 	margin-bottom: 0.5em;
@@ -513,6 +437,7 @@ hr {
     padding-bottom: 6px;
 }
 #footer{
+	position: relative;
 	text-align: center;
 	padding: 2em;
 	background-color: #20222E;

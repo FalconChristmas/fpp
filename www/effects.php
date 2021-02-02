@@ -56,7 +56,7 @@ function StartSelectedEffect() {
 
     $.get(url
         ).done(function() {
-            $.jGrowl('Effect Started');
+            $.jGrowl('Effect Started',{themeState:'success'});
             GetRunningEffects();
         }).fail(function() {
             DialogError('Error Starting Effect', 'Error Starting ' + name + ' Effect');

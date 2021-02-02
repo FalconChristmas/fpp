@@ -62,7 +62,7 @@ $(document).ready(function() {
 	      method: "GET",
 	      dataType: "text",
 	      success: function (data) {
-		      $.jGrowl("Input Delay Saved");
+		      $.jGrowl("Input Delay Saved",{themeState:'success'});
 		      SetRestartFlag(2);
 		      CheckRestartRebootFlags();
 	      }

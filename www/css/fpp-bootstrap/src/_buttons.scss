@@ -1,0 +1,72 @@
+
+@mixin fpp-buttons-variant(
+    $background,
+    $border,
+    $color: #fff,
+    $hover-background: lighten($background,10%),
+    $hover-border: lighten($border,10%),
+    $hover-color:  $color,
+    $active-background: lighten($background,10%),
+    $active-border:lighten($border,10%),
+    $active-color: $color,
+    $disabled-background: rgba(0,0,0,0.1),
+    $disabled-border: rgba(0,0,0,0.1),
+    $disabled-color: rgba(0,0,0,0.3)
+  ) {
+
+    color: #fff;
+    @include gradient-bg($background);
+    border-color: $border;
+    @include box-shadow($btn-box-shadow);
+  
+    &:hover {
+      color: $hover-color;
+      @include gradient-bg($hover-background);
+      border-color: $hover-border;
+    }
+  
+    .btn-check:focus + &,
+    &:focus {
+      color: $hover-color;
+      @include gradient-bg($hover-background);
+      border-color: $hover-border;
+      @if $enable-shadows {
+        @include box-shadow($btn-box-shadow, 0 0 0 $btn-focus-width rgba(mix($color, $border, 15%), .5));
+      } @else {
+        // Avoid using mixin so we can pass custom focus shadow properly
+        box-shadow: 0 0 0 $btn-focus-width rgba(mix($color, $border, 15%), .5);
+      }
+    }
+  
+    .btn-check:checked + &,
+    .btn-check:active + &,
+    &:active,
+    &.active,
+    .show > &.dropdown-toggle {
+      color: $active-color;
+      background-color: $active-background;
+      // Remove CSS gradients if they're enabled
+      background-image: if($enable-gradients, none, null);
+      border-color: $active-border;
+  
+      &:focus {
+        @if $enable-shadows {
+          @include box-shadow($btn-active-box-shadow, 0 0 0 $btn-focus-width rgba(mix($color, $border, 15%), .5));
+        } @else {
+          // Avoid using mixin so we can pass custom focus shadow properly
+          box-shadow: 0 0 0 $btn-focus-width rgba(mix($color, $border, 15%), .5);
+        }
+      }
+    }
+  
+    &:disabled,
+    &.disabled {
+      color: $disabled-color;
+      background-color: $disabled-background;
+      // Remove CSS gradients if they're enabled
+      background-image: if($enable-gradients, none, null);
+      border-color: $disabled-border;
+    }
+  }
+
+  

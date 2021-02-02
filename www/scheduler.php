@@ -430,13 +430,13 @@ function SaveSchedule() {
         contentType: 'application/json',
         data: dataStr,
         success: function (response) {
-            $.jGrowl('Schedule saved');
+            $.jGrowl('Schedule saved',{themeState:'success'});
             $.ajax({
                 url: 'api/schedule/reload',
                 type: 'post',
                 contentType: 'application/json',
                 success: function(response) {
-                    $.jGrowl('Schedule reloaded');
+                    $.jGrowl('Schedule reloaded',{themeState:'success'});
                 }
             });
         },

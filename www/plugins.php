@@ -79,7 +79,7 @@ function CheckPluginForUpdates(plugin) {
 				if (data.updatesAvailable)
 					$('#row-' + plugin).find('.updatesAvailable').show();
 				else
-					$.jGrowl('No updates available for ' + plugin);
+					$.jGrowl('No updates available for ' + plugin,{themeState:'detract'});
 			}
 			else
 				alert('ERROR: ' + data.Message);

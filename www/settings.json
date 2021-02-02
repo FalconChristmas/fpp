@@ -104,15 +104,6 @@
                 "CompressMultiSyncTransfers"
             ]
         },
-        "omxplayer": {
-            "description": "OMXPlayer (mp4 playback)",
-            "platforms": [
-                "Raspberry Pi"
-            ],
-            "settings": [
-                "OMXPlayerAudioOutput"
-            ]
-        },
         "output": {
             "description": "Output Control",
             "settings": [
@@ -860,6 +851,7 @@
             "name": "MQTTFrequency",
             "description": "Publish Frequency",
             "tip": "Optional frequency to publish FPP status to MQTT Broker.  Zero indicates that the status will only be published on demand.",
+            "restart": 2,
             "default": 0,
             "type": "number",
             "min": 0,
@@ -1080,22 +1072,6 @@
             "type": "text",
             "size": 30,
             "maxlength": 64
-        },
-        "OMXPlayerAudioOutput": {
-            "name": "OMXPlayerAudioOutput",
-            "description": "OMXPlayer Audio Output",
-            "tip": "OMXplayer is used for hardware accelerated video playback on the Rasbperry Pi.  This setting allows controlling whether the omxplayer audio output goes out the HDMI port, the local analog audio port, or uses ALSA to allow add-on USB sound cards to be used.  The recommended default is ALSA.",
-            "platforms": [
-                "Raspberry Pi"
-            ],
-            "type": "select",
-            "options": {
-                "ALSA": "alsa",
-                "HDMI": "hdmi",
-                "Local": "local",
-                "Both": "both",
-                "Disabled": "disabled"
-            }
         },
         "openStartDelay": {
             "name": "openStartDelay",

@@ -500,9 +500,9 @@ function " . $changedFunction . "() {
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
 			if (checked)
-				$.jGrowl('$title Enabled');
+				$.jGrowl('$title Enabled',{themeState:'success'});
 			else
-				$.jGrowl('$title Disabled');
+				$.jGrowl('$title Disabled',{themeState:'detract'});
 			$settingsName" . "['$setting'] = value;
 ";
 
@@ -619,7 +619,7 @@ function " . $changedFunction . "() {
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
-			$.jGrowl('$title saved');
+			$.jGrowl('$title saved',{themeState:'success'});
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
@@ -773,7 +773,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     echo "
         $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + encodeURIComponent(value))
         .done(function() {
-              $.jGrowl('$setting Saved');
+              $.jGrowl('$setting Saved',{themeState:'success'});
               $settingsName" . "['$setting'] = value;
               ";
               
@@ -890,7 +890,7 @@ function " . $saveFunction . "() {
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
-			$.jGrowl('$title saved');
+			$.jGrowl('$title saved',{themeState:'success'});
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
