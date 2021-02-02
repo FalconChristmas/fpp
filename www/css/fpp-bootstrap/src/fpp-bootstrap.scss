@@ -1,0 +1,141 @@
+@import '../../../node_modules/bootstrap/scss/functions';
+@import './variables';
+@import "../../../node_modules/bootstrap/scss/functions";
+@import "../../../node_modules/bootstrap/scss/variables";
+@import "../../../node_modules/bootstrap/scss/mixins";
+@import "../../../node_modules/bootstrap/scss/root";
+@import "../../../node_modules/bootstrap/scss/reboot";
+@import "../../../node_modules/bootstrap/scss/images";
+@import "../../../node_modules/bootstrap/scss/grid";
+@import "../../../node_modules/bootstrap/scss/tables";
+@import "../../../node_modules/bootstrap/scss/forms";
+@import "../../../node_modules/bootstrap/scss/buttons";
+@import "../../../node_modules/bootstrap/scss/transitions";
+@import "../../../node_modules/bootstrap/scss/dropdown";
+@import "../../../node_modules/bootstrap/scss/button-group";
+@import "../../../node_modules/bootstrap/scss/card";
+@import "../../../node_modules/bootstrap/scss/badge";
+@import "../../../node_modules/bootstrap/scss/alert";
+@import "../../../node_modules/bootstrap/scss/progress";
+@import "../../../node_modules/bootstrap/scss/list-group";
+@import "../../../node_modules/bootstrap/scss/close";
+@import "../../../node_modules/bootstrap/scss/toasts";
+@import "../../../node_modules/bootstrap/scss/modal";
+@import "../../../node_modules/bootstrap/scss/tooltip";
+@import "../../../node_modules/bootstrap/scss/popover";
+@import "../../../node_modules/bootstrap/scss/carousel";
+@import "../../../node_modules/bootstrap/scss/spinners";
+@import './buttons';
+// @import "./hamburger";
+
+.buttons {
+    @extend .btn;
+}
+.pageContent .buttons {
+    @include button-outline-variant($black); 
+}
+.pageContent .buttons-success, .buttons-success{
+    @include fpp-buttons-variant($success,$success);
+}
+.pageContent .buttons-pleasant, .buttons-pleasant{
+    @include fpp-buttons-variant($pleasant,$pleasant);
+}
+.pageContent .buttons-detract, .buttons-detract{
+    @include fpp-buttons-variant($detract,$detract,$white); 
+}
+.pageContent .buttons-graceful, .buttons-graceful{
+    @include fpp-buttons-variant($graceful,$graceful); 
+}
+.pageContent .buttons-danger, .buttons-danger{
+    @include fpp-buttons-variant($danger,$danger); 
+}
+.pageContent .buttons-outline-light, .buttons-outline-light{
+    @include button-outline-variant($white,$black); 
+}
+.buttons-rounded, .disableButtons.buttons-rounded{
+    border-radius: 1.5em;
+    border-radius:1.5em;
+	margin-right: 0.2em;
+}
+.pageContent {
+    input, select{
+        padding-top:$input-btn-padding-y;
+        padding-bottom:$input-btn-padding-y;
+        padding-left:$input-btn-padding-x;
+        padding-right:$input-btn-padding-x;
+    }
+    hr{
+        border-width:0px;
+        border-style: solid;
+        border-bottom-color:#ced4da;
+        border-bottom-width:1px;
+    }
+    .disableButtons{
+        @extend .btn;
+        @extend .disabled;
+    }
+}
+
+input[type=text], input[type=number], select{
+	border: 1px solid #D2D2D2;
+	color:$black;
+	appearance: none;
+	border-radius:$border-radius;
+	font-weight: normal;
+    font-size: $font-size-base;
+    vertical-align: middle;
+}
+.pageContent select{
+	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
+	background-position: right 20px center;
+    background-size: 15px;
+    padding-right:3.5em;
+    cursor: pointer;
+    vertical-align: middle;
+}
+input[type=checkbox]{
+
+	appearance: none;
+	cursor: pointer;
+	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
+	border-radius:1.5em;
+	border:1px solid #D2D2D2;
+
+	border-radius:3px;
+	width: 35px;
+	height: 35px;
+    font-size: $font-size-base;
+    vertical-align: middle;
+}
+input[type=checkbox]:checked{
+
+
+	border:1px solid #56B760;
+
+	background: #56B760 url(/images/redesign/check-white.svg) no-repeat;
+	background-position: center center;
+}
+.form-control-rounded{
+    border-radius:1.5em;
+}
+.form-control-lg.form-control-rounded{
+    border-radius:1.6em;
+    padding-left:1.4em;
+}
+.has-shadow{
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.1);
+    &:hover{
+        box-shadow: 5px 5px 30px rgba(0,0,0,0.09);
+    }
+}
+.alert{
+    
+    color:$white;
+    a{
+        color:$black;
+        font-weight: bold;
+    }
+}
+.d-flex{
+    display:flex;
+}

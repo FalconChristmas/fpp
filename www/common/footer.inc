@@ -7,10 +7,10 @@
 <div id="footer">
 <br />
   <div id="rebootShutdown">
-    <input type='button' class='buttons wideButton' value='Run FPP Command' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span>
-    <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot">
-    <input name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons" value="Shutdown">
-    <input name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();" class = "buttons" value="Restart FPPD">
+    <input type='button' class='buttons wideButton buttons-outline-light' value='Run FPP Command' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span>
+    <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons buttons-outline-light" value="Reboot">
+    <input name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons buttons-outline-light" value="Shutdown">
+    <input name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();" class = "buttons buttons-outline-light" value="Restart FPPD">
   </div>
 <br />
 <div class="footerLink">

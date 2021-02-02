@@ -7,6 +7,8 @@
 build/
 SD/*.xz
 lib/librgbmatrix.so
+node_modules
+.vscode
 src/fpp
 src/fppmm
 src/fppd
@@ -38,4 +40,6 @@ external/RF24/librf24-bcm.*
 plugins/
 .idea/
 ._*
-.vscode
+
+.vscode/sftp.json
+.vscode/sftp.json
