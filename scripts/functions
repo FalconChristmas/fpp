@@ -400,23 +400,26 @@ populateCCACHE() {
         FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
         FULLURL="https://falconchristmas.github.io/ccache/${FILETOGET}"
         ETAG_GIT="/tmp/etag.$$"
-        ETAG_LOCAL="${FPPHOME}/media/ccache_etag.txt"
+        ETAG_LOCAL="/root/.ccache/etag"
         NEEDS_UPDATED=0
         
         echo "Checking CCACHE -  $FILETOGET - $FULLURL"
 
+        sudo test -f "$ETAG_LOCAL"
+        ETAG_LOCAL_NOTFOUND=$?
+
         curl -I $FULLURL | grep -i etag > $ETAG_GIT
-        
+
         ETAG_SIZE=$(wc -c $ETAG_GIT | awk '{print $1}')
 
         if (($ETAG_SIZE < 5)); then
             echo "Updating CCache -- Invalid etag"
             NEEDS_UPDATED=1
-        elif [ ! -f "$ETAG_LOCAL" ] ; then
+        elif [ "$ETAG_LOCAL_NOTFOUND" == "1" ] ; then
             echo "Updating CCache -- not cached"
             NEEDS_UPDATED=1
         else 
-            diff -q $ETAG_LOCAL $ETAG_GIT
+            sudo diff -q $ETAG_LOCAL $ETAG_GIT
             rc=$?
             if [ $rc -ne "0" ]; then
                 echo "Updating CCache - eTag has changed"
