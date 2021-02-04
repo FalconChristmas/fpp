@@ -54,7 +54,7 @@ $command_array = Array(
 	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
 	"upgradeFPPVersion" => 'UpgradeFPPVersion',
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
-	"resetGit" => 'ResetGit',
+	// "resetGit" => 'ResetGit', // use GET /git/reset
 	"setVolume" => 'SetVolume',
 	"setFPPDmode" => 'SetFPPDmode',
 	"getVolume" => 'GetVolume',
@@ -130,14 +130,6 @@ function UpgradeFPPVersion()
 
 	global $fppDir;
 	exec("$fppDir/scripts/upgrade_FPP $version");
-
-	EchoStatusXML("OK");
-}
-
-function ResetGit()
-{
-	global $fppDir;
-	exec("$fppDir/scripts/git_reset");
 
 	EchoStatusXML("OK");
 }
