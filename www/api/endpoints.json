@@ -324,6 +324,28 @@
             }
         },
         {
+            "endpoint": "git/reset",
+            "methods": {
+                "GET": {
+                    "desc": "Performs a hard rest on the current branch, removing any local changes",
+                    "output": {
+                        "status": "OK",
+                        "log": [
+                            "HEAD is now at a1b65d43 Git Reset moved - #944",
+                            "Entering 'external/RF24'",
+                            "HEAD is now at ebc3abe Fix typo, missing space.",
+                            "Entering 'external/rpi-rgb-led-matrix'",
+                            "HEAD is now at 487facb With outline: move one over.",
+                            "Entering 'external/rpi_ws281x'",
+                            "HEAD is now at 3a20f1b Merge pull request #401 from Gadgetoid/patch-readme-spi-pi4",
+                            "Entering 'external/spixels'",
+                            "HEAD is now at 307d46f Support Raspberry Pi 4"
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "git/status",
             "methods": {
                 "GET": {

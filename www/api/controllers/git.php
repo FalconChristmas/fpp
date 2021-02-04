@@ -26,6 +26,16 @@ function GetGitOriginLog() {
     return json($rc);
 }
 
+function GitReset()
+{
+	global $fppDir;
+	exec("$fppDir/scripts/git_reset", $log);
+
+    $rc = Array("status" => "OK", "log" => $log);
+    return json($rc);
+}
+
+
 // GET /api/git/status
 function GitStatus()
 {
