@@ -1684,3 +1684,11 @@ a[href*="https://falconchristmas.github.io/FPP_Manual"]:before{
 	0% { transform: rotate(0deg); }
 	100% { transform: rotate(360deg); }
   }
+
+  .deprecatedEndpoint > .endpointName {
+	text-decoration: line-through;
+  }
+
+  .deprecatedEndpoint > .endpointDescription {
+	text-decoration: line-through;
+  }
