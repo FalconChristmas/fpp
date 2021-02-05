@@ -357,6 +357,12 @@
                 "30s": 30
             }
         },
+        "BridgeInputDelayBeforeBlack": {
+            "name": "BridgeInputDelayBeforeBlack",
+            "description": "Number of seconds after e1.31 or DDP stops arriving before setting output to black.",
+            "restart": 2,
+            "type": "number"
+        },
         "ClockDate": {
             "name": "ClockDate",
             "description": "Set Date",

@@ -30,14 +30,15 @@ $(document).ready(function() {
 	});
 
 	$.ajax({
-	   url: "fppxml.php?command=getBridgeInputDelayBeforeBlack", 
+	   url: "api/settings/BridgeInputDelayBeforeBlack", 
 	   method: "GET",
-	   dataType: "text",
+	   dataType: "json",
 	   success: function (data) {
-		   xmlDoc = $.parseXML(data);
-		   $xml = $( xmlDoc );
-		   $value = $xml.find("BridgeInputDelayBeforeBlack");
-		   $('#txtBridgeInputDelayBeforeBlack').val($value.text());
+		   let val = 0;
+		   if ("value" in data) {
+			   val = data.value;
+		   }
+		   $('#txtBridgeInputDelayBeforeBlack').val(val);
 	   }
 	});
 	$(document).tooltip({
@@ -58,8 +59,9 @@ $(document).ready(function() {
 	$('#txtBridgeInputDelayBeforeBlack').change(function() {
 	   var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
 	   $.ajax({
-	      url: "fppxml.php?command=setBridgeInputDelayBeforeBlack&delay=" + newValue, 
-	      method: "GET",
+	      url: "api/settings/BridgeInputDelayBeforeBlack",
+		  data: newValue, 
+	      method: "PUT",
 	      dataType: "text",
 	      success: function (data) {
 		      $.jGrowl("Input Delay Saved");

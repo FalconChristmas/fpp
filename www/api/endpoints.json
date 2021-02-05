@@ -828,7 +828,7 @@
             "methods": {
                 "GET": {
                     "desc": "DEPRECATED:Use network/wifi/strength",
-                    "deprecated" : true, 
+                    "deprecated": true,
                     "output": [
                         {
                             "interface": "wlan0",
@@ -1241,7 +1241,7 @@
             "endpoint": "settings/:SettingName",
             "methods": {
                 "GET": {
-                    "desc": "Get info about a for a particular setting.",
+                    "desc": "Get info about a for a particular setting include the value.",
                     "output": {
                         "name": "AudioFormat",
                         "description": "Audio Output Format",
@@ -1263,6 +1263,13 @@
                             "96000/FLT": 9
                         },
                         "value": "0"
+                    }
+                },
+                "PUT": {
+                    "desc": "Sets the value for a specifc setting",
+                    "input": "0",
+                    "output": {
+                        "status": "OK"
                     }
                 }
             }

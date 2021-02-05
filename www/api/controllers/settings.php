@@ -37,8 +37,13 @@ function GetSetting() {
 }
 
 function PutSetting() {
-    $status = Array();
+    
+    $putdata = file_get_contents('php://input');
+    $settingName = params('SettingName');
 
+	WriteSettingToFile($settingName, $putdata);
+
+    $status = array("status"=> "OK");
     return json($status);
 }
 
