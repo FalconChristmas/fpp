@@ -4728,6 +4728,24 @@ input[type=checkbox]:checked {
   margin-left: 5px;
   margin-right: 5px; }
 
+.form-group.flow label {
+  display: block; }
+
+.form-group.flow .form-control, .form-group.flow input[type=checkbox] {
+  display: inline-block;
+  width: auto; }
+
+.form-actions {
+  display: flex;
+  margin-top: 1em;
+  margin-bottom: 1em; }
+  .form-actions > * {
+    margin-right: 0.5rem; }
+
+.form-group label {
+  font-size: 0.75rem;
+  text-transform: uppercase; }
+
 .or-v {
   display: flex;
   flex-direction: column;
@@ -4747,10 +4765,31 @@ input[type=checkbox]:checked {
 .clear {
   clear: both; }
 
-.backdrop, .backdrop-secondary {
+.backdrop, .backdrop-dark {
   background-color: #F5F5F5;
   padding: 2em 2.5em;
   border-radius: 12px; }
+  .backdrop .backdrop, .backdrop-dark .backdrop, .backdrop .backdrop-dark, .backdrop-dark .backdrop-dark {
+    border-radius: 8px; }
 
-.backdrop-secondary {
+.backdrop-dark {
   background-color: #ECECEC; }
+
+.ui-sortable .playlistRow {
+  cursor: -webkit-grab;
+  cursor: grab; }
+  .ui-sortable .playlistRow.ui-sortable-helper {
+    cursor: -webkit-grabbing;
+    cursor: grabbing; }
+
+.playlistEditForm {
+  flex: 5;
+  padding-right: 5%; }
+
+#playlistEntryProperties {
+  flex: 7; }
+
+.playlistEditContainer {
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 2em;
+  margin-bottom: 2em; }

@@ -2,7 +2,9 @@
 	<!-- jquery -->
 	<script type="text/javascript" src="js/jquery-latest.min.js"></script>
 	<script type="text/javascript" src="js/jquery-ui.min.js"></script>
+	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
 	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
+	<script type="text/javascript" src="js/bootstrap.bundle.min.js"></script>
 	<link rel="stylesheet" href="css/jquery-ui.css" />
 	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
 	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
@@ -33,6 +35,8 @@
 	<script type="text/javascript" src="jquery/smartmenus/src/jquery.smartmenus.js"></script>
 
 	<script type="text/javascript">
+	var bootstrapTooltip = $.fn.tooltip.noConflict() // return $.fn.button to previously assigned value
+	$.fn.bootstrapTooltip = bootstrapTooltip // give $().bootstrapBtn the Bootstrap functionality
 	$(function() {
 		$('#fppMenu').smartmenus({subMenusMinWidth: "50%", showOnClick: true,
 			showFunction: function($ul, complete) { $ul.slideDown(250, complete); },

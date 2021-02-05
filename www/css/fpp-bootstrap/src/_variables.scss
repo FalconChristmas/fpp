@@ -17,6 +17,7 @@ $gray-900: #212529 !default;
 $black:    #171720 !default;
 $gray-lighter: #F5F5F5;
 $gray-light:#ECECEC;
+
 // fusv-disable
 $grays: (
   "100": $gray-100,
@@ -225,7 +226,8 @@ $caret-spacing:               $caret-width * .85 !default;
 $transition-base:             all .2s ease-in-out !default;
 $transition-fade:             opacity .15s linear !default;
 $transition-collapse:         height .35s ease !default;
-
+$rule-color: $border-color;
+$hr-color: $border-color;
 $embed-responsive-aspect-ratios: (
   "21by9": (
     x: 21,

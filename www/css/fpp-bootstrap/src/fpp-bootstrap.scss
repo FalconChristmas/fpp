@@ -193,7 +193,29 @@ input[type=checkbox]:checked{
         margin-right: 5px;
     }
 }
-
+.form-group.flow{
+    label{
+        display: block;
+    }
+    .form-control{
+        display: inline-block;
+        width: auto;
+    }
+}
+.form-actions{
+    display: flex;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    >*{
+        margin-right: 0.5rem;
+    }
+}
+.form-group {
+    label{
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+}
 .or-v{
     display: flex;
     flex-direction: column;
@@ -218,8 +240,32 @@ input[type=checkbox]:checked{
     background-color: $gray-lighter;
     padding:2em 2.5em;
     border-radius: 12px;
+    .backdrop{
+        border-radius: 8px;
+    }
 }
-.backdrop-secondary{
+.backdrop-dark{
     @extend .backdrop;
     background-color: $gray-light;
+}
+.ui-sortable .playlistRow{
+    cursor:grab;
+    &.ui-sortable-helper{
+        cursor: grabbing;
+    }
+}
+.playlistEditForm{
+    flex:5;
+    padding-right: 5%;
+}
+#playlistEntryProperties{
+    flex:7;
+}
+.playlistEdit{
+
+}
+.playlistEditContainer{
+    border-bottom: 1px solid $border-color;
+    padding-bottom:2em;
+    margin-bottom: 2em;
 }

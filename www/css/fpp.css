@@ -582,3 +582,13 @@ body .sm-clean a .sub-arrow {
 .playlistEditorPanel {
 	margin-top: 2em;
 }
+.playlistEditContainer{
+	display: flex;
+}
+.playlistEditContainer #playlistEntryProperties td{
+	padding-top: 0.2em;
+	padding-bottom: 0.2em;
+}
+.playlistEditContainer #playlistEntryProperties td:first-child{
+	padding-right: 1em;
+}
