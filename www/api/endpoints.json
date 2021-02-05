@@ -324,6 +324,28 @@
             }
         },
         {
+            "endpoint": "git/reset",
+            "methods": {
+                "GET": {
+                    "desc": "Performs a hard rest on the current branch, removing any local changes",
+                    "output": {
+                        "status": "OK",
+                        "log": [
+                            "HEAD is now at a1b65d43 Git Reset moved - #944",
+                            "Entering 'external/RF24'",
+                            "HEAD is now at ebc3abe Fix typo, missing space.",
+                            "Entering 'external/rpi-rgb-led-matrix'",
+                            "HEAD is now at 487facb With outline: move one over.",
+                            "Entering 'external/rpi_ws281x'",
+                            "HEAD is now at 3a20f1b Merge pull request #401 from Gadgetoid/patch-readme-spi-pi4",
+                            "Entering 'external/spixels'",
+                            "HEAD is now at 307d46f Support Raspberry Pi 4"
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "git/status",
             "methods": {
                 "GET": {
@@ -766,7 +788,66 @@
             }
         },
         {
+            "endpoint": "network/wifi/scan/:interface",
+            "methods": {
+                "GET": {
+                    "desc": "Returns informationa about wifi networks that can be discovered via the specified interface. (NOTE: It is possible a network without a SSID will be in the list.) ",
+                    "output": {
+                        "status": "OK",
+                        "networks": [
+                            {
+                                "lastSeen": "0 ms ago",
+                                "freq": 2437,
+                                "signal": "-61.00 dBm",
+                                "SSID": "Christmas"
+                            },
+                            {
+                                "lastSeen": "16930 ms ago",
+                                "freq": 2437,
+                                "signal": "-68.00 dBm",
+                                "SSID": "Christmas-Guest"
+                            },
+                            {
+                                "lastSeen": "16930 ms ago",
+                                "freq": 2412,
+                                "signal": "-93.00 dBm",
+                                "SSID": "MySpectrumWiFi48-2G"
+                            },
+                            {
+                                "lastSeen": "0 ms ago",
+                                "freq": 2437,
+                                "signal": "-55.00 dBm"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/wifi_strength",
+            "methods": {
+                "GET": {
+                    "desc": "DEPRECATED:Use network/wifi/strength",
+                    "deprecated" : true, 
+                    "output": [
+                        {
+                            "interface": "wlan0",
+                            "link": 45,
+                            "level": -65,
+                            "noise": -256
+                        },
+                        {
+                            "interface": "wlan1",
+                            "link": 40,
+                            "level": -60,
+                            "noise": -256
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "network/wifi/strength",
             "methods": {
                 "GET": {
                     "desc": "Returns detailed information about wireless network interfaces and their signal strength",

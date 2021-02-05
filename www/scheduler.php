@@ -310,7 +310,7 @@ function ScheduleEntryTypeChanged(item)
 
 function TimeChanged(item)
 {
-    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/);
+    var re = new RegExp(/^\d{1,2}:\d{2}:\d{2}$/);
     if ($(item).val().match(re)) {
         $(item).parent().find('.offset').hide();
     } else {

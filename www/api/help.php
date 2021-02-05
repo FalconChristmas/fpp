@@ -159,10 +159,18 @@ function loadEndpoints() {
                 if (d[i].endpoint == 'help')
                     rs = methods.length;
 
+                var extraMethodClass = "";
                 for (var m = 0; m < methods.length; m++) {
                     row += "<tr";
+
+                    if (d[i].methods[methods[m]].hasOwnProperty('deprecated')) {
+                        if (d[i].methods[methods[m]].deprecated) {
+                            extraMethodClass = " deprecatedEndpoint"
+                        }
+                    }
+
                     if (m == 0) {
-                        row += " class='firstMethod";
+                        row += " class='firstMethod" + extraMethodClass;
                         if (m == (methods.length - 1)) {
                             row += ' lastMethod';
                         }
@@ -181,12 +189,12 @@ function loadEndpoints() {
 
                         row += '</td>';
                     } else if (m == (methods.length - 1)) {
-                        row += " class='lastMethod'>";
+                        row += " class='lastMethod" + extraMethodClass + "'>";
                     } else {
-                        row += " class='middleMethod'>";
+                        row += " class='middleMethod" + extraMethodClass +"'>";
                     }
                     row += "<td style='text-align: center;'>" + methods[m] + "</td>";
-                    row += '<td>' + d[i].methods[methods[m]].desc + '</td>';
+                    row += '<td class="endpointDescription">' + d[i].methods[methods[m]].desc + '</td>';
 
                     var hasInput = 0;
                     row += "<td class='exampleDataTD'>";
