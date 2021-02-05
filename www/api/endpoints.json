@@ -788,6 +788,42 @@
             }
         },
         {
+            "endpoint": "network/wifi/scan/:interface",
+            "methods": {
+                "GET": {
+                    "desc": "Returns informationa about wifi networks that can be discovered via the specified interface. (NOTE: It is possible a network without a SSID will be in the list.) ",
+                    "output": {
+                        "status": "OK",
+                        "networks": [
+                            {
+                                "lastSeen": "0 ms ago",
+                                "freq": 2437,
+                                "signal": "-61.00 dBm",
+                                "SSID": "Christmas"
+                            },
+                            {
+                                "lastSeen": "16930 ms ago",
+                                "freq": 2437,
+                                "signal": "-68.00 dBm",
+                                "SSID": "Christmas-Guest"
+                            },
+                            {
+                                "lastSeen": "16930 ms ago",
+                                "freq": 2412,
+                                "signal": "-93.00 dBm",
+                                "SSID": "MySpectrumWiFi48-2G"
+                            },
+                            {
+                                "lastSeen": "0 ms ago",
+                                "freq": 2437,
+                                "signal": "-55.00 dBm"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/wifi_strength",
             "methods": {
                 "GET": {
