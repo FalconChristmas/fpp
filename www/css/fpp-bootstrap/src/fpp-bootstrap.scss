@@ -30,33 +30,40 @@
 
 .buttons {
     @extend .btn;
+    @include fpp-btn-outline-variant($black); 
 }
-.pageContent .buttons {
-    @include button-outline-variant($black); 
+.btn-lg {
+    font-size: $font-size-lg * 0.9;
 }
-.pageContent .buttons-success, .buttons-success{
-    @include fpp-buttons-variant($success,$success);
+.pageContent .btn-success, .btn-success{
+    @include fpp-btn-variant($success,$success);
 }
-.pageContent .buttons-pleasant, .buttons-pleasant{
-    @include fpp-buttons-variant($pleasant,$pleasant);
+.pageContent .btn-pleasant, .btn-pleasant{
+    @include fpp-btn-variant($pleasant,$pleasant);
 }
-.pageContent .buttons-detract, .buttons-detract{
-    @include fpp-buttons-variant($detract,$detract,$white); 
+.pageContent .btn-detract, .btn-detract{
+    @include fpp-btn-variant($detract,$detract,$white); 
 }
-.pageContent .buttons-graceful, .buttons-graceful{
-    @include fpp-buttons-variant($graceful,$graceful); 
+.pageContent .btn-graceful, .btn-graceful{
+    @include fpp-btn-variant($graceful,$graceful); 
 }
-.pageContent .buttons-danger, .buttons-danger{
-    @include fpp-buttons-variant($danger,$danger); 
+.pageContent .btn-danger, .btn-danger{
+    @include fpp-btn-variant($danger,$danger); 
 }
-.pageContent .buttons-outline-light, .buttons-outline-light{
-    @include button-outline-variant($white,$black); 
+.pageContent .btn-outline-light, .btn-outline-light{
+    @include fpp-btn-outline-variant($white,$black); 
 }
-.buttons-rounded, .disableButtons.buttons-rounded{
+.btn-rounded, .disableButtons.btn-rounded,.btn-rounded, .disableButtons.btn-rounded{
     border-radius: 1.5em;
     border-radius:1.5em;
 	margin-right: 0.2em;
 }
+.btn-rounded.btn-lg{
+    padding-left: 1.5em;
+    padding-right: 1.5em;
+    font-weight: bold;
+}
+
 .pageContent {
     input, select{
         padding-top:$input-btn-padding-y;
@@ -73,6 +80,11 @@
     .disableButtons{
         @extend .btn;
         @extend .disabled;
+        &:hover{
+            background-color: rgba(0,0,0,0.1);
+            border-color: rgba(0,0,0,0.1);
+            color: rgba(0,0,0,0.3);
+        }
     }
 }
 
@@ -139,9 +151,15 @@ input[type=checkbox]:checked{
             color:$white;
         }
     }
+    &.detract{
+        background-color: $detract;
+    }
 }
 .d-flex{
     display:flex;
+}
+.fx-1{
+    flex:1;
 }
 .jGrowl{
     font-size: inherit;
@@ -159,4 +177,49 @@ input[type=checkbox]:checked{
         background-color: $detract;
         color:#fff;
     }
+}
+
+
+@each $strength in (excellent, good, fair, weak) {
+    .wifi-#{$strength} {
+        background:url(/images/redesign/wifi-#{$strength}.svg);
+        background-repeat: no-repeat;
+        background-size: contain;
+        width: 28px * 0.85;
+        height: 20px * 0.85;
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 5px;
+        margin-right: 5px;
+    }
+}
+
+.or-v{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left:1px solid $gray-200;
+    margin-left: 1.5em;
+    margin-right: 0.5em;
+    span{
+        transform: translateX(-50%);
+        background-color: $white;
+        display: inline-block;
+        padding:0.2em;
+    }
+}
+.hidden{
+    display: none;
+}
+.clear{
+    clear:both;
+}
+.backdrop{
+    background-color: $gray-lighter;
+    padding:2em 2.5em;
+    border-radius: 12px;
+}
+.backdrop-secondary{
+    @extend .backdrop;
+    background-color: $gray-light;
 }

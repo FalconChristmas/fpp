@@ -3237,7 +3237,7 @@ function RestartFPPD() {
 		$.get("fppxml.php?command=restartFPPD" + args
 		).done(function() {
 			$('html,body').css('cursor','auto');
-			$.jGrowl('FPPD Restarted',{themeState:'danger'});
+			$.jGrowl('FPPD Restarted',{themeState:'success'});
 			ClearRestartFlag();
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
@@ -3262,7 +3262,7 @@ function RestartFPPD() {
                                 //FPP is up then
                                 clearInterval(retry_poll_interval_arr['restartFPPD']);
                                 //run original code for success
-                                $.jGrowl('FPPD Restarted',{themeState:'danger'});
+                                $.jGrowl('FPPD Restarted',{themeState:'success'});
                                 ClearRestartFlag();
                             }
                     }).fail(
@@ -3272,7 +3272,7 @@ function RestartFPPD() {
                             //If on first try throw up a FPP is rebooting notification
                             if(retries === 1){
                                 //Show FPP is rebooting notification for 10 seconds
-                                $.jGrowl('FPP is rebooting..',{ life: 10000 },{themeState:'detract'});
+                                $.jGrowl('FPP is rebooting..',{ life: 10000 ,themeState:'detract'});
                             }
                         }
                     );

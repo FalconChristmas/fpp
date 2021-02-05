@@ -194,9 +194,8 @@ $(document).ready(function() {
 
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
-    <fieldset class="fieldSection">
-        <legend>Playlist Details</legend>
-        <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
+
+        <div >
             <div style="float:left; margin-right: 50px;">
                 <b>Playlist Name:</b><br>
                 <input type="text" id="txtPlaylistName" class="pl_title" disabled />
@@ -216,7 +215,8 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                 <input type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons playlistEditButton" />
                 <input type="button" value="Reset" onclick="EditPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
             </div>
-            <div style="float:left;" class="playlistInfoText">
+
+            <!-- <div style="float:left;" class="playlistInfoText">
                 <table>
                     <tr><th></th>
                         <th>Items</th>
@@ -237,11 +237,11 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                 </table>
                 <span style='display: none;' id='playlistDuration'>0</span>
             </div>
-            <div class="clear"></div>
+            <div class="clear"></div> -->
         </div>
-        <br />
 
-    <div id="playlistEntryProperties" style='float: left'>
+
+    <div id="playlistEntryProperties">
         <table border='0'>
             <colgroup>
                 <col class='colPlaylistEditorLabel'></col>
@@ -287,7 +287,7 @@ foreach ($playlistEntryTypes as $pet) {
 include "playlistDetails.php";
 ?>
     <span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
-  </fieldset>
+
 
 <div id="copyPlaylist_dialog" title="Copy Playlist" style="display: none">
     <span>Enter name for new playlist:</span>

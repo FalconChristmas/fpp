@@ -487,3 +487,98 @@ body .sm-clean a .sub-arrow {
 	0% { transform: rotate(0deg); }
 	100% { transform: rotate(360deg); }
   }
+
+  .psi {
+    width: 100%;
+    overflow: hidden;
+    padding: 0px;
+    display: flex;
+}
+
+.psiHeader {
+    text-align: left;
+    font-weight: bold;
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 10%;
+}
+
+.psiDuration {
+    padding: 0px;
+    vertical-align: top;
+    width: 10%;
+}
+
+.psiDurationSeconds {
+    display: none;
+}
+
+.psiDataSimple {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 80%;
+}
+
+.psiData {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 80%;
+    display: none;
+}
+
+.psiDetailsWrapper {
+    width: 100%;
+    float: left;
+}
+
+.psiDetails {
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.psiDetailsArg {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.psiDetailsHeader {
+    text-align: left;
+    font-weight: bold;
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 15%;
+}
+
+.psiDetailsData {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 74%;
+}
+
+.psiDetailsLF {
+    flex-basis: 100%;
+    height: 0px;
+}
+#restartFlag{
+	clear:both;
+}
+.inlineBlock{
+	display: inline-block;
+}
+.alert>span.inlineBlock{
+	margin-right: 0.8em;
+}
+
+.playlistEditorPanel {
+	margin-top: 2em;
+}

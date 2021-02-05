@@ -130,8 +130,50 @@ function list_plugin_entries($menu)
   </div>
 
   <div class="fppMenuContainer container">
+<!--
+  <div id='upgradeFlag' class="alert success">FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons buttons-outline-light" value="Upgrade"></div>
+-->
+  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons buttons-outline-light" value="Restart FPPD">
+<?
+  if (basename($_SERVER['PHP_SELF']) == "developer.php")
+  {
+?>
+  <input type='button' class = "buttons buttons-outline-light" value='Clear' onClick='ClearRestartFlag();'>
+<?
+  }
+?>
+    </span>
+  </div>
+<?  if (!file_exists("/opt/fpp/src/fppd")) { ?>
+<div id='rebuildPopup' title='FPP Upgrade' style="display: none">
+    <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
+    </textarea>
+</div>
+<script>
+function RebuildFPPD() {
+    $('#rebuildPopup').dialog({ height: 600, width: 900, title: "Rebuild FPP" });
+    $('#rebuildPopup').dialog( "moveToTop" );
+    $('#rebuildText').html('');
+    StreamURL('manualUpdate.php?wrapped=1', 'rebuildText');
+}
+</script>
+  <div id="compileFPPDBanner" class="alert danger"><span class='inlineBlock'>FPPD not found. Rebuild required</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons buttons-outline-light" value="Rebuild"></span></div>
+<? } ?>
+  <div id='unsupportedBrowser'>FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
+  <div id='rebootFlag'><span class='inlineBlock'>Base configuration has changed.Reboot Required</span><span class='inlineBlock'><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons buttons-outline-light" value="Reboot">
+<?
+  if (basename($_SERVER['PHP_SELF']) == "developer.php")
+  {
+?>
+  <input type='button' class = "buttons" value='Clear' onClick='ClearRebootFlag();'>
+<?
+  }
+?>
+    </span>
+  </div>
 
-    <ul id="fppMenu" class="sm sm-clean">
+
+ <ul id="fppMenu" class="sm sm-clean">
       <li class="active"><a>Status/Control</a>
         <ul>
           <li><a href="index.php">Status Page</a></li>
@@ -200,47 +242,10 @@ if (!file_exists("/etc/fpp/desktop")) {
         </ul>
       </li>
     </ul>
-<!--
-  <div id='upgradeFlag'>FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons" value="Upgrade"></div>
--->
-  <div id='restartFlag'><span class='inlineBlock'>Settings have changed. <br class='headerBreak'>FPPD Restart Required</span><span class='inlineBlock'>&nbsp;-&nbsp;</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons" value="Restart FPPD">
-<?
-  if (basename($_SERVER['PHP_SELF']) == "developer.php")
-  {
-?>
-  <input type='button' class = "buttons" value='Clear' onClick='ClearRestartFlag();'>
-<?
-  }
-?>
-    </span>
-  </div>
-<?  if (!file_exists("/opt/fpp/src/fppd")) { ?>
-<div id='rebuildPopup' title='FPP Upgrade' style="display: none">
-    <textarea style='width: 99%; height: 97%;' disabled id='rebuildText'>
-    </textarea>
-</div>
-<script>
-function RebuildFPPD() {
-    $('#rebuildPopup').dialog({ height: 600, width: 900, title: "Rebuild FPP" });
-    $('#rebuildPopup').dialog( "moveToTop" );
-    $('#rebuildText').html('');
-    StreamURL('manualUpdate.php?wrapped=1', 'rebuildText');
-}
-</script>
-  <div id="compileFPPDBanner"><span class='inlineBlock'>FPPD not found. <br class='headerBreak'>Rebuild required</span><span class='inlineBlock'>&nbsp;-&nbsp;</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons" value="Rebuild"></span></div>
-<? } ?>
-  <div id='unsupportedBrowser'>FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
-  <div id='rebootFlag'><span class='inlineBlock'>Base configuration has changed. <br class='headerBreak'>Reboot Required</span><span>&nbsp;-&nbsp;</span><span class='inlineBlock'><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons" value="Reboot">
-<?
-  if (basename($_SERVER['PHP_SELF']) == "developer.php")
-  {
-?>
-  <input type='button' class = "buttons" value='Clear' onClick='ClearRebootFlag();'>
-<?
-  }
-?>
-    </span>
-  </div>
+
+
+
+
 
       <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
