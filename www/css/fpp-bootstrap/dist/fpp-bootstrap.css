@@ -2818,19 +2818,19 @@ input[type="button"].btn-block {
 .dropdown-item {
   display: block;
   width: 100%;
-  padding: 0.25rem 1.5rem;
+  padding: 0.75rem 1.4rem;
   clear: both;
   font-weight: 400;
-  color: #212529;
+  color: #171720;
   text-align: inherit;
   text-decoration: none;
   white-space: nowrap;
   background-color: transparent;
   border: 0; }
   .dropdown-item:hover, .dropdown-item:focus {
-    color: #16181b;
+    color: #fff;
     text-decoration: none;
-    background-color: #e3ebec; }
+    background-color: #171720; }
   .dropdown-item.active, .dropdown-item:active {
     color: #fff;
     text-decoration: none;
@@ -2845,7 +2845,7 @@ input[type="button"].btn-block {
 
 .dropdown-header {
   display: block;
-  padding: 0.5rem 1.5rem;
+  padding: 0.5rem 1.4rem;
   margin-bottom: 0;
   font-size: 0.83125rem;
   color: #6c757d;
@@ -2853,8 +2853,8 @@ input[type="button"].btn-block {
 
 .dropdown-item-text {
   display: block;
-  padding: 0.25rem 1.5rem;
-  color: #212529; }
+  padding: 0.75rem 1.4rem;
+  color: #171720; }
 
 .btn-group,
 .btn-group-vertical {
@@ -4772,24 +4772,9 @@ input[type=checkbox]:checked {
   .backdrop .backdrop, .backdrop-dark .backdrop, .backdrop .backdrop-dark, .backdrop-dark .backdrop-dark {
     border-radius: 8px; }
 
+.dropdown-menu.show {
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.09);
+  border: none; }
+
 .backdrop-dark {
   background-color: #ECECEC; }
-
-.ui-sortable .playlistRow {
-  cursor: -webkit-grab;
-  cursor: grab; }
-  .ui-sortable .playlistRow.ui-sortable-helper {
-    cursor: -webkit-grabbing;
-    cursor: grabbing; }
-
-.playlistEditForm {
-  flex: 5;
-  padding-right: 5%; }
-
-#playlistEntryProperties {
-  flex: 7; }
-
-.playlistEditContainer {
-  border-bottom: 1px solid #dee2e6;
-  padding-bottom: 2em;
-  margin-bottom: 2em; }

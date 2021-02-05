@@ -244,28 +244,12 @@ input[type=checkbox]:checked{
         border-radius: 8px;
     }
 }
+.dropdown-menu.show{
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.09);
+    border:none;
+}
 .backdrop-dark{
     @extend .backdrop;
     background-color: $gray-light;
 }
-.ui-sortable .playlistRow{
-    cursor:grab;
-    &.ui-sortable-helper{
-        cursor: grabbing;
-    }
-}
-.playlistEditForm{
-    flex:5;
-    padding-right: 5%;
-}
-#playlistEntryProperties{
-    flex:7;
-}
-.playlistEdit{
 
-}
-.playlistEditContainer{
-    border-bottom: 1px solid $border-color;
-    padding-bottom:2em;
-    margin-bottom: 2em;
-}

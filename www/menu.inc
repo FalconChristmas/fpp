@@ -57,10 +57,22 @@ function list_plugin_entries($menu)
 
   <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
   <div class="header">
-    <div class="headerLeft"><a href="/"><img src="images/redesign/falconlogo.svg" class="logo" /></a></div>
-    <div class="headerCenter"><div class="headerCenterRow siteName"><? echo $settings['Title']; ?></div>
-      <div class="headerCenterRow headerVersion"><strong>Version:</strong> <a href='about.php' class='nonULLink headerLink'><?php echo $fpp_head_version; ?></a></div>
-      <div class="headerCenterRow headerHost"><strong>Host:</strong>&nbsp;
+    <div class="headerLeft">
+          <div class="headerLeftCol fppBrand">
+            <a href="/"><img src="images/redesign/fpp-logo.svg" class="fpp-logo" /></a>
+            <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
+          </div>
+          <div class="headerLeftCol falconChristmasBrand">
+            <a href="http://www.falconchristmas.com" target="forum">
+               <span><img src="images/redesign/falconlogo.svg" class="logo" /></span>
+               <span>Falcon Christmas</span>
+              
+            </a>
+          </div>
+
+    </div>
+    <div class="headerCenter">
+      <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
         echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " ;
@@ -68,7 +80,7 @@ function list_plugin_entries($menu)
         echo "" . gethostname() . "&nbsp;";
     }
 
-    echo("(<span id=\"header_IPs\"></span>)");
+    echo("<span id=\"header_IPs\"></span>");
 
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{

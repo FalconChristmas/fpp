@@ -53,13 +53,66 @@ body .ui-tabs .ui-tabs-nav li {
 	padding:1em;
 }
 .headerLeft{
-	flex:1
+	flex:1;
+	display:flex;
+}
+.headerLeft a{
+	text-decoration: none;
+} 
+.headerLeftCol{
+	display:flex;
+	align-items: center;
 }
 .headerLeft .logo{
-	max-height:24px;
+	max-height:20px;
+}
+.fppBrand{
+	padding-left: 0.5em;
+	padding-right: 1.2em;
+}
+.fppBrand a{
+	color:#989898;
+
+}
+.fpp-logo{
+	width: 56px;
+}
+.fppBrand a:hover{
+	color:#fff;
+}
+.fppBrand .versionHead{
+	font-size: 0.8em;
+	display: inline-block;
+	padding-left: 1em;
+
+}
+.falconChristmasBrand{
+	position: relative;
+	padding-left: 1.2em;
+}
+.falconChristmasBrand:before{
+	content:'';
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom:0;
+	transform: skewX(-17deg);
+	border-left:1px solid #666A71;
+	padding-left: 1em;
+}
+.falconChristmasBrand a{
+	font-weight: bold;
+	color:#D1D1D1;
+}
+.falconChristmasBrand a:hover{
+	color:#fff;
+}
+.falconChristmasBrand .logo{
+	margin-right:0.2em;
 }
 .headerRight .logo{
-	max-height:24px;
+	max-height:20px;
 }
 .headerCenter{
 	display: flex;
@@ -591,4 +644,25 @@ body .sm-clean a .sub-arrow {
 }
 .playlistEditContainer #playlistEntryProperties td:first-child{
 	padding-right: 1em;
+}
+.ui-sortable .playlistRow{
+    cursor:grab;
+}
+.ui-sortable .playlistRow .ui-sortable-helper{
+	cursor: grabbing;
+}
+.playlistEditForm{
+    flex:5;
+    padding-right: 5%;
+}
+#playlistEntryProperties{
+    flex:7;
+}
+.playlistEdit{
+
+}
+.playlistEditContainer{
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom:2em;
+    margin-bottom: 2em;
 }

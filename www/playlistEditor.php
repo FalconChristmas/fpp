@@ -314,7 +314,7 @@ foreach ($playlistEntryTypes as $pet) {
 <?
 include "playlistDetails.php";
 ?>
-    <span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
+
 
 
 <div id="copyPlaylist_dialog" title="Copy Playlist" style="display: none">
