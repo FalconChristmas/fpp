@@ -2414,39 +2414,28 @@ function GetSequenceArray()
 
   function GetFiles(dir)
   {
-    var xmlhttp=new XMLHttpRequest();
-    var url = "fppxml.php?command=getFiles&dir=" + dir;
-    $('#tbl' + dir).empty();
-    xmlhttp.open("GET",url,false);
-    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-    xmlhttp.send();
+    $.ajax({
+        dataType: "json",
+        url: "api/files/" + dir,
+        success: function(data) {
+            let i = 0;
+            data.files.forEach(function(f) {
+                var detail = f.sizeHuman;
+                if ("playtimeSeconds" in f) {
+                    detail = f.playtimeSeconds;
+                }
 
-    var xmlDoc=xmlhttp.responseXML; 
-    var files = xmlDoc.getElementsByTagName('Files')[0];
-    if(files.childNodes.length> 0)
-    {
-      var innerhtml = '';
-      for(i=0; i<files.childNodes.length; i++)
-      {
-        // Thanks: http://stackoverflow.com/questions/5396560/how-do-i-convert-special-utf-8-chars-to-their-iso-8859-1-equivalent-using-javasc
-        var encodedstring = decodeURIComponent(escape(files.childNodes[i].childNodes[0].textContent));
-        var name = "";
-        try{
-            // If the string is UTF-8, this will work and not throw an error.
-            name=decodeURIComponent(escape(encodedstring));
-        }catch(e){
-            // If it isn't, an error will be thrown, and we can asume that we have an ISO string.
-            name=encodedstring;
+                var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                $('#tbl' + dir).append(tableRow);
+                ++i;
+            });
+        },
+        error: function() {
+            DialogError('Load Sequences', 'Error loading list of sequences');
         }
 
-        var time = files.childNodes[i].childNodes[1].textContent.replace(/ /g, '&nbsp;');
-        var fileInfo = files.childNodes[i].childNodes[2].textContent;
-
-          var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + name + "</td><td class='fileExtraInfo'>" + fileInfo + "</td><td class ='fileTime'>" + time + "</td></tr>";
-        $('#tbl' + dir).append(tableRow);
-      }
-    }
-  }
+    });
+}
 
 	function moveFile(file)
 	{

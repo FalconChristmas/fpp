@@ -27,7 +27,7 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"getFiles" => 'GetFiles',
+	//"getFiles" => 'GetFiles', // /api/files/:dirName
 	"getZip" => 'GetZip',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
 	"deleteFile" => 'DeleteFile',
@@ -1387,108 +1387,6 @@ function SetUniverseCount()
 	EchoStatusXML('Success');
 }
 
-function GetFileInfo(&$root, &$doc, $dirName, $fileName)
-{
-	$fileFullName = $dirName . '/' . $fileName;
-
-	$file = $doc->createElement('File');
-	$file = $root->appendChild($file);
-
-	$name = $doc->createElement('Name');
-	$name = $file->appendChild($name);
-	$value = $doc->createTextNode(utf8_encode($fileName));
-	$value = $name->appendChild($value);
-
-	$time = $doc->createElement('Time');
-	$time = $file->appendChild($time);
-	$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
-	$value = $time->appendChild($value);
-
-	$fileInfo = $doc->createElement('FileInfo');
-	$fileInfo = $file->appendChild($fileInfo);
-	//quick and dirty check for music and video dir
-	if(strpos(strtolower($dirName),"music") !== FALSE || strpos(strtolower($dirName),"video") !== FALSE ){
-
-		//Check the cache first
-		$filesize = filesize($fileFullName);
-		$cache_duration = media_duration_cache($fileName, null, $filesize);
-		//cache duration will be null if not in cache, then retrieve it
-		if ($cache_duration == NULL) {
-			//Include our getid3 library for media
-			require_once('./lib/getid3/getid3.php');
-			//Instantiate getID3 object
-			$getID3 = new getID3;
-			//Get the media duration from file
-			$ThisFileInfo = $getID3->analyze($fileFullName);
-			//cache it
-			if (isset($ThisFileInfo['playtime_seconds']))
-				media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
-		} else {
-			$ThisFileInfo['playtime_seconds'] = $cache_duration;
-		}
-
-		if (isset($ThisFileInfo['playtime_seconds']))
-			$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
-		else
-			$value = $doc->createTextNode("Unknown");
-	}else{
-		//just return the filesize
-		$value = $doc->createTextNode(human_filesize($fileFullName));
-	}
-	$value = $fileInfo->appendChild($value);
-}
-
-function GetFiles()
-{
-	global $mediaDirectory;
-	global $sequenceDirectory;
-	global $musicDirectory;
-	global $videoDirectory;
-	global $effectDirectory;
-	global $scriptDirectory;
-	global $logDirectory;
-	global $uploadDirectory;
-	global $imageDirectory;
-	global $docsDirectory;
-
-	$dirName = $_GET['dir'];
-	check($dirName, "dirName", __FUNCTION__);
-	if ($dirName == "Sequences")        { $dirName = $sequenceDirectory; }
-	else if ($dirName == "Music")       { $dirName = $musicDirectory; }
-	else if ($dirName == "Videos")      { $dirName = $videoDirectory; }
-	else if ($dirName == "Effects")     { $dirName = $effectDirectory; }
-	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
-	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
-	else if ($dirName == "Uploads")     { $dirName = $uploadDirectory; }
-	else if ($dirName == "Images")      { $dirName = $imageDirectory; }
-	else if ($dirName == "Docs")        { $dirName = $docsDirectory; }
-	else
-		return;
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Files');
-	$root = $doc->appendChild($root);
-
-	foreach(scandir($dirName) as $fileName)
-	{
-		if($fileName != '.' && $fileName != '..')
-		{
-			GetFileInfo($root, $doc, $dirName, $fileName);
-		}
-	}
-
-	if ($_GET['dir'] == "Logs")
-	{
-		if (file_exists("/var/log/messages"))
-			GetFileInfo($root, $doc, "", "/var/log/messages");
-
-		if (file_exists("/var/log/syslog"))
-			GetFileInfo($root, $doc, "", "/var/log/syslog");
-	}
-	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
-	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
-	echo strtr($doc->saveHTML(), $trans);
-}
 
 function cmp_index($a, $b)
 {
