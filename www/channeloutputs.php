@@ -212,86 +212,157 @@ $(document).ready(function(){
 <div id='channelOutputManager'>
 		<h1 class='title'>Channel Outputs</h1>
 		<div class="pageContent">
-				<div id="tabs">
-					<ul>
-						<li><a href="#tab-e131" tabType='UDP'>E1.31 / ArtNet / DDP</a></li>
+
+			<ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
+					E1.31 / ArtNet / DDP
+				</a>
+              </li>
+
 		<?
 			if ($settings['Platform'] == "Raspberry Pi")
 			{
 				if (in_array('fpd', $currentCapeInfo["provides"])) {
-					echo "<li><a href='#tab-fpd' tabType='FPD'>Falcon Pixelnet/DMX</a></li>\n";
+					?>
+						<li class="nav-item">
+							<a class="nav-link" id="tab-fpd-tab" tabType='FPD' data-toggle="pill" href='#tab-fpd' role="tab" aria-controls="tab-fpd">
+								Falcon Pixelnet/DMX
+							</a>
+						</li>
+					<?
 				}
 				if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-					echo "<li><a href='#tab-PixelStrings' id='stringTab' tabType='strings'>Pi Pixel Strings</a></li>\n";
+					?>
+						<li class="nav-item">
+							<a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+								Pi Pixel Strings
+							</a>
+						</li>
+
+					<?
 				}
 			}
 			if ($settings['Platform'] == "BeagleBone Black") {
 				if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-				echo "<li><a href='#tab-BBB48String' id='stringTab' tabType='strings'>";
+				$bbbTabText="BBB Strings";
 				if ($currentCape != "") {
-						if (isset($currentCapeInfo["name"]))
-						echo $currentCapeInfo["name"];
+					if (isset($currentCapeInfo["name"]))
+						$bbbTabText=$currentCapeInfo["name"];
 					else
-						echo $currentCape;
-				} else {
-					echo "BBB Strings";
+						$bbbTabText=$currentCape;
 				}
-				echo "</a></li>\n";
+				?>
+						<li class="nav-item">
+							<a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+								<? echo $bbbTabText; ?>
+							</a>
+						</li>
+
+				<?
 				}
 			}
 			if ((file_exists('/usr/include/X11/Xlib.h')) &&
 				($settings['Platform'] == "Linux")) {
-				echo "<li><a href='#tab-PixelStrings' id='stringTab' tabType='strings'>X11 Pixel Strings</a></li>\n";
+				?>
+						<li class="nav-item">
+							<a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+								X11 Pixel Strings
+							</a>
+						</li>
+
+				<?
 			}
 			if (in_array('all', $currentCapeInfo["provides"])
 			|| in_array('panels', $currentCapeInfo["provides"])
 			|| !in_array('strings', $currentCapeInfo["provides"])) {
-				echo "<li><a href='#tab-LEDPanels' tabType='panels'>LED Panels</a></li>\n";
-			}
-		?>
-						<li><a href="#tab-other" tabType='other'>Other</a></li>
+				?>
+						<li class="nav-item">
+							<a class="nav-link" id="tab-LEDPanels-tab" tabType='panels' data-toggle="pill" href='#tab-LEDPanels' role="tab" aria-controls="tab-LEDPanels">
+								LED Panels
+							</a>
+						</li>
+				<?
+				}
+				?>
+						<li class="nav-item">
+							<a class="nav-link" id="tab-other-tab" tabType='other' data-toggle="pill" href='#tab-other' role="tab" aria-controls="tab-other">
+								Other
+							</a>
+						</li>
 					</ul>
 
 		<!-- --------------------------------------------------------------------- -->
 
-		<?
+		<div class="tab-content" id="channelOutputTabsContent">
+			<div class="tab-pane fade show active" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
+				<? include_once('co-universes.php'); ?>
+			</div>
 
-		include_once('co-universes.php');
+			<div class="tab-pane fade" id="pills-contact" role="tabpanel" aria-labelledby="pills-contact-tab">Tab 3</div>
+		
+
+		<?
 		
 		if ($settings['Platform'] == "Raspberry Pi")
 		{
 		    if (in_array('fpd', $currentCapeInfo["provides"])) {
-		        include_once('co-fpd.php');
+				?>
+					<div class="tab-pane fade" id="tab-fpd" role="tabpanel" aria-labelledby="tab-fpd-tab">
+						<? include_once('co-fpd.php'); ?>			
+					</div>
+				<?
 		    }
 		    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-		        include_once('co-piPixelString.php');
+				?>
+					<div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+						<? include_once('co-piPixelString.php'); ?>			
+					</div>
+				<? 
 		    }
 		}
 		
 		if (in_array('all', $currentCapeInfo["provides"]) 
 		    || in_array('panels', $currentCapeInfo["provides"])
 		    || !in_array('strings', $currentCapeInfo["provides"])) {
-		    include_once('co-ledPanels.php');
+			?>
+				<div class="tab-pane fade" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
+					<? include_once('co-ledPanels.php'); ?>			
+				</div>
+			<? 
+		    
 		}
 		
 		if ($settings['Platform'] == "BeagleBone Black")
 		{
 		    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-		        include_once('co-bbbStrings.php');
+				?>
+					<div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+						<? include_once('co-bbbStrings.php'); ?>			
+					</div>
+				<? 
+		        
 		    }
 		}
 		
 		if ((file_exists('/usr/include/X11/Xlib.h')) &&
 		    ($settings['Platform'] == "Linux")) {
-		    include_once('co-piPixelString.php');
+				?>
+					<div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+						<? include_once('co-piPixelString.php'); ?>			
+					</div>
+				<? 
+		    
 		}
-		
-		include_once("co-other.php");
 		?>
-		
+			<div class="tab-pane fade" id="tab-other" role="tabpanel" aria-labelledby="tab-other-tab">
+				<? include_once("co-other.php"); ?>			
+			</div>
+
+				</div>	
 		<!-- --------------------------------------------------------------------- -->
 		
-		</div>
+		
 			</div>
 
 

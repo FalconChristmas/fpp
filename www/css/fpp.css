@@ -274,6 +274,11 @@ body legend{
 .pageContent {
 	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E;
 }
+.pageContent-tabs{
+	padding-bottom: 1.5em;
+	border-bottom:1px solid #DADADA;
+	margin-bottom: 2em;
+}
 #selFPPDmode{
 	background-color: #000;
 	color:#fff;
@@ -425,6 +430,7 @@ hr {
 }
 .playlistRow td {
 	padding:0.2em 1em;
+	transition: background-color 0.2s ease-out;
 }
 .playlistRow td:first-child {
 	padding:1em 1em;
@@ -433,6 +439,10 @@ hr {
 .playlistRow td:last-child {
 	padding:1em 1em;
 	border-radius:0 5px 5px 0;
+}
+.playlistRow.ui-sortable-helper{
+	background-color: #DFDFDF;
+	border-radius:5px;
 }
 .fileDetails.selectedEntry td:first-child {
 	border-radius:5px 0 0 5px;
@@ -728,6 +738,10 @@ body .sm-clean a .sub-arrow {
 	margin-bottom: 0.8em;
 	font-weight: normal;
 	padding-bottom:1em;
+}
+#tblSchedule tr.rowScheduleDetails.selectedEntry td{
+	background-color: #ECECEC;
+
 }
 .schDay{
 	width: 138px;

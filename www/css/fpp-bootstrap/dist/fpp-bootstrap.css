@@ -2972,6 +2972,72 @@ input[type="button"].btn-block {
     clip: rect(0, 0, 0, 0);
     pointer-events: none; }
 
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  padding-left: 0;
+  margin-bottom: 0;
+  list-style: none; }
+
+.nav-link {
+  display: block;
+  padding: 0.8rem 1.5rem;
+  text-decoration: none; }
+  .nav-link:hover, .nav-link:focus {
+    text-decoration: none; }
+  .nav-link.disabled, .pageContent .nav-link.disableButtons {
+    color: #6c757d;
+    pointer-events: none;
+    cursor: default; }
+
+.nav-tabs {
+  border-bottom: 1px solid #dee2e6; }
+  .nav-tabs .nav-link {
+    margin-bottom: -1px;
+    border: 1px solid transparent;
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem; }
+    .nav-tabs .nav-link:hover, .nav-tabs .nav-link:focus {
+      border-color: #e3ebec #e3ebec #dee2e6; }
+    .nav-tabs .nav-link.disabled, .nav-tabs .pageContent .nav-link.disableButtons, .pageContent .nav-tabs .nav-link.disableButtons {
+      color: #6c757d;
+      background-color: transparent;
+      border-color: transparent; }
+  .nav-tabs .nav-link.active,
+  .nav-tabs .nav-item.show .nav-link {
+    color: #495057;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff; }
+  .nav-tabs .dropdown-menu {
+    margin-top: -1px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0; }
+
+.nav-pills .nav-link {
+  border-radius: 12px; }
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  color: #fff;
+  background-color: #F63939; }
+
+.nav-fill > .nav-link,
+.nav-fill .nav-item {
+  flex: 1 1 auto;
+  text-align: center; }
+
+.nav-justified > .nav-link,
+.nav-justified .nav-item {
+  flex-basis: 0;
+  flex-grow: 1;
+  text-align: center; }
+
+.tab-content > .tab-pane {
+  display: none; }
+
+.tab-content > .active {
+  display: block; }
+
 .card {
   position: relative;
   display: flex;
@@ -4640,6 +4706,24 @@ input[type=checkbox]:checked {
   border: 1px solid #56B760;
   background: #56B760 url(/images/redesign/check-white.svg) no-repeat;
   background-position: center center; }
+
+.nav-pills {
+  margin-left: -4px;
+  margin-right: -4px; }
+  .nav-pills li {
+    margin-left: 4px;
+    margin-right: 4px; }
+
+.nav-link {
+  border: 1px solid #DADADA;
+  color: #171720;
+  font-weight: bold;
+  transition: 0.2s all ease-in-out; }
+  .nav-link:hover {
+    border-color: #F63939;
+    color: #F63939; }
+  .nav-link.active {
+    border-color: #F63939; }
 
 .form-control-rounded {
   border-radius: 1.5em; }

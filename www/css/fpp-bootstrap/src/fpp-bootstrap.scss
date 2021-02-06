@@ -13,6 +13,7 @@
 @import "../../../node_modules/bootstrap/scss/transitions";
 @import "../../../node_modules/bootstrap/scss/dropdown";
 @import "../../../node_modules/bootstrap/scss/button-group";
+@import "../../../node_modules/bootstrap/scss/nav";
 @import "../../../node_modules/bootstrap/scss/card";
 @import "../../../node_modules/bootstrap/scss/badge";
 @import "../../../node_modules/bootstrap/scss/alert";
@@ -128,6 +129,27 @@ input[type=checkbox]:checked{
 
 	background: #56B760 url(/images/redesign/check-white.svg) no-repeat;
 	background-position: center center;
+}
+.nav-pills{
+    margin-left: -4px;
+    margin-right: -4px;
+    li{
+        margin-left: 4px;
+        margin-right: 4px;
+    }
+}
+.nav-link{
+    border:1px solid #DADADA;
+    color:$black;
+    font-weight: bold;
+    transition: 0.2s all ease-in-out;
+    &:hover{
+        border-color:$red;
+        color:$red;
+    }
+    &.active{
+        border-color: $nav-pills-link-active-bg;
+    }
 }
 .form-control-rounded{
     border-radius:1.5em;
