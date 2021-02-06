@@ -4662,6 +4662,9 @@ input[type=checkbox]:checked {
       color: #fff; }
   .alert.detract {
     background-color: #F2BC5F; }
+  .alert .buttons {
+    margin-top: -0.5em;
+    margin-bottom: -0.5em; }
 
 .d-flex {
   display: flex; }

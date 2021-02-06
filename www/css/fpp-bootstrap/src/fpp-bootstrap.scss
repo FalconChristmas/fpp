@@ -35,6 +35,7 @@
 .btn-lg {
     font-size: $font-size-lg * 0.9;
 }
+
 .pageContent .btn-success, .btn-success{
     @include fpp-btn-variant($success,$success);
 }
@@ -153,6 +154,10 @@ input[type=checkbox]:checked{
     }
     &.detract{
         background-color: $detract;
+    }
+    .buttons{
+        margin-top: -0.5em;
+        margin-bottom: -0.5em;
     }
 }
 .d-flex{

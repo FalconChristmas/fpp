@@ -75,7 +75,7 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo "<a href='networkconfig.php' class='nonULLink headerLink'>" . $settings['HostName'] . "</a> " ;
+        echo "<a href='networkconfig.php' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
     } else {
         echo "" . gethostname() . "&nbsp;";
     }
@@ -143,9 +143,9 @@ function list_plugin_entries($menu)
 
   <div class="fppMenuContainer container">
 <!--
-  <div id='upgradeFlag' class="alert success">FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons buttons-outline-light" value="Upgrade"></div>
+  <div id='upgradeFlag' class="alert success">FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons btn-outline-light" value="Upgrade"></div>
 -->
-  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons buttons-outline-light" value="Restart FPPD">
+  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons btn-outline-light" value="Restart FPPD">
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
   {

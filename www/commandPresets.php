@@ -158,7 +158,7 @@ $(document).ready(function() {
                             <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
-                                <img class='cmdTmplTooltipIcon' title='' src='images/questionmark.png'>
+                                <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg'>
                                 <span class='cmdTmplMulticastInfo'></span>
                                 <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
                                 <span class='cmdTmplJSON' style='display: none;'></span>
@@ -172,7 +172,7 @@ $(document).ready(function() {
                             <tr>
                                 <th>Preset Name</th>
                                 <th>FPP Command</th>
-                                <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the Command Preset Control Channel to allow FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable." src='images/questionmark.png'></th>
+                                <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the Command Preset Control Channel to allow FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable." src='images/redesign/help-icon.svg'></th>
                             </tr>
                         </thead>
                         <tbody id="tblCommandsBody" width="100%">

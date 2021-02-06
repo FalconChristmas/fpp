@@ -210,7 +210,7 @@ $(document).ready(function(){
 			   Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
 		        </td><td>
 			   Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
-		           <img id="timeout_img" title="Blank Timeout" src="images/questionmark.png">
+		           <img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
 		        </td>
 		        </tr>
 		        </table>
