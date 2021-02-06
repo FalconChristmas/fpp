@@ -138,6 +138,19 @@
             }
         },
         {
+            "endpoint": "file/:DirName/:Filename",
+            "methods": {
+                "DELETE": {
+                    "desc": "Deletes the specified file where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "output": {
+                        "status": "OK",
+                        "file": "block_driveways.xbkp",
+                        "dir": "uploads"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "fppd/e131stats",
             "fppd": true,
             "methods": {

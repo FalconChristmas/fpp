@@ -30,7 +30,7 @@ $command_array = Array(
 	//"getFiles" => 'GetFiles', // /api/files/:dirName
 	"getZip" => 'GetZip',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
-	"deleteFile" => 'DeleteFile',
+	// "deleteFile" => 'DeleteFile', // use DELETE /api/file/:DirName/:filename
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
@@ -64,7 +64,7 @@ $command_array = Array(
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
 	"stopEffectByName" => 'StopEffectByName',
-	"deleteEffect" => 'DeleteEffect',
+	//"deleteEffect" => 'DeleteEffect', // never implemented
 	"getRunningEffects" => 'GetRunningEffects',
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
@@ -1394,28 +1394,6 @@ function cmp_index($a, $b)
 		return 0;
 	}
 	return ($a->index < $b->index) ? -1 : 1;
-}
-
-function DeleteFile()
-{
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$dir = $_GET['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
-	if (substr($filename, 0, 1) != "/")
-	{
-		unlink($dir . '/' . $filename);
-		EchoStatusXML('Success');
-	}
-	else
-		EchoStatusXML('Failure');
 }
     
 function universe_cmp($a, $b)

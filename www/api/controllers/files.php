@@ -1,42 +1,22 @@
 <?
 
-function ConvertFullPath($dirName)
+function MapExtention($filename)
 {
-    global $settings;
-    global $mediaDirectory;
-    global $sequenceDirectory;
-    global $musicDirectory;
-    global $videoDirectory;
-    global $effectDirectory;
-    global $scriptDirectory;
-    global $logDirectory;
-    global $uploadDirectory;
-    global $imageDirectory;
-    global $docsDirectory;
-
-    if ($dirName == "Sequences" || $dirName == "sequences") {
-        $dirName = $sequenceDirectory;
-    } else if ($dirName == "Music" || $dirName == "music") {
-        $dirName = $musicDirectory;
-    } else if ($dirName == "Videos" || $dirName == "videos") {
-        $dirName = $videoDirectory;
-    } else if ($dirName == "Effects" || $dirName == "effects") {
-        $dirName = $effectDirectory;
-    } else if ($dirName == "Scripts" || $dirName == "scripts") {
-        $dirName = $scriptDirectory;
-    } else if ($dirName == "Logs" || $dirName == "logs") {
-        $dirName = $logDirectory;
-    } else if ($dirName == "Uploads" || $dirName == "uploads") {
-        $dirName = $uploadDirectory;
-    } else if ($dirName == "Images" || $dirName == "images") {
-        $dirName = $imageDirectory;
-    } else if ($dirName == "Docs" || $dirName == "docs") {
-        $dirName = $docsDirectory;
+    if (preg_match("/\.(fseq|fseq.gz)$/i", $filename)) {
+        return GetDirSetting("sequence");
+    } else if (preg_match("/\.(p3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $filename)) {
+        return GetDirSetting("music");
+    } else if (preg_match("/\.(mp4|mkv|avi|mov|mpg|mpeg)$/i", $filename)) {
+        return GetDirSetting("video");
+    } else if (preg_match("/\.(gif|jpg|jpeg|png)$/i", $filename)) {
+        return GetDirSetting("images");
+    } else if (preg_match("/\.(eseq)$/i", $filename)) {
+        return GetDirSetting("effects");
+    } else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $filename)) {
+        return GetDirSetting("scripts");
     } else {
-        $dirName = "";
+        return "";
     }
-
-    return $dirName;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -47,7 +27,7 @@ function GetFiles()
 
     $dirName = params("DirName");
     check($dirName, "dirName", __FUNCTION__);
-    $dirName = ConvertFullPath($dirName);
+    $dirName = GetDirSetting($dirName);
     if ($dirName == "") {
         return json(array("status" => "Invalid Directory"));
     }
@@ -81,6 +61,30 @@ function GetFiles()
         }
     }
     return json(array("status" => "ok", "files" => $files));
+}
+
+function DeleteFile()
+{
+    $status = "File not found";
+    $dirName = params("DirName");
+    $fileName = params("Name");
+
+    $dir = GetDirSetting($dirName);
+    $fullPath = "$dir/$fileName";
+
+    if ($dir == "") {
+        $status = "Invalid Directory";
+    } else if (!file_exists($fullPath)) {
+        $status = "File Not Found";
+    } else {
+        if (unlink($fullPath)) {
+            $status = "OK";
+        } else {
+            $status = "Unable to delete file";
+        }
+    }
+
+    return json(array("status" => $status, "file" => $fileName, "dir" => $dirName));
 }
 
 function GetFileInfo(&$list, $dirName, $fileName)

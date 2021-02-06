@@ -2419,6 +2419,7 @@ function GetSequenceArray()
         url: "api/files/" + dir,
         success: function(data) {
             let i = 0;
+            $('#tbl' + dir).html('');
             data.files.forEach(function(f) {
                 var detail = f.sizeHuman;
                 if ("playtimeSeconds" in f) {
@@ -3973,9 +3974,15 @@ function DeleteFile(dir, row, file)
 		return;
 	}
 
-    $.get("fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + encodeURIComponent(file)
-    ).done(function() {
-        $(row).remove();
+    $.ajax({
+        url: "api/file/" + dir + "/" + encodeURIComponent(file),
+        type: 'DELETE'
+    }).done(function(data) {
+        if (data.status == "OK") {
+            $(row).remove();
+        } else {
+            DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.status);
+        }
     }).fail(function() {
         DialogError("ERROR", "Error deleting file: " + file);
     });
