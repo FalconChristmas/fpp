@@ -2535,6 +2535,11 @@ function GetSequenceArray()
 				if(response && typeof response === 'object') {
 
 					if(response.status_name == 'stopped') {
+
+                        if ( ! ("warnings" in response)) {
+                            response.warnings = [];
+                        }
+                        response.warnings.push('FPPD Daemon is not running');
 						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
@@ -2547,7 +2552,9 @@ function GetSequenceArray()
 						$('#schedulerStatus').html("");
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
-                                                $('#mqttRow').hide()
+                        $('#mqttRow').hide()
+                        updateWarnings(response);
+
 					
 					} else if(response.status_name == 'updating') {
 
@@ -2562,7 +2569,7 @@ function GetSequenceArray()
 						$('#schedulerStatus').html("");
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
-                                                $('#mqttRow').hide()
+                        $('#mqttRow').hide()
 
 					} else {
 
@@ -2584,6 +2591,20 @@ function GetSequenceArray()
 			}
 		})
 	}
+
+function updateWarnings(jsonStatus) {
+    if (jsonStatus.hasOwnProperty('warnings')) {
+        var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
+        for (var i = 0; i < jsonStatus.warnings.length; i++) {
+            txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+        }
+        document.getElementById('warningsDiv').innerHTML = txt;
+        $('#warningsRow').show();
+    } else {
+        $('#warningsRow').hide();
+    }
+}
+
 
     function modeToString(mode) {
         switch (mode) {
@@ -2635,19 +2656,9 @@ function GetSequenceArray()
            $('#mqttRow').hide()
 	}
 
-        
-        if (jsonStatus.hasOwnProperty('warnings')) {
-            var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
-            for (var i = 0; i < jsonStatus.warnings.length; i++) {
-                txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
-            }
-            document.getElementById('warningsDiv').innerHTML = txt;
-            $('#warningsRow').show();
-        } else {
-            $('#warningsRow').hide();
-        }
+    updateWarnings(jsonStatus);
 
-		if (fppMode == 1) {
+        if (fppMode == 1) {
 			// Bridge Mode
 			$('#fppTime').html(jsonStatus.time);
 
