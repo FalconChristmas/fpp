@@ -3721,13 +3721,28 @@ function SetVolume(value)
 
 function SetFPPDmode()
 {
-	$.get("fppxml.php?command=setFPPDmode&mode=" + $('#selFPPDmode').val()
-	).done(function() {
+    var mode = $('#selFPPDmode').val();
+    var modeText = "unknown"; // 0
+    if (mode == 1) {
+        modeText = "bridge";
+    } else if (mode == 2) {
+        modeText = "player";
+    } else if (mode ==6) {
+        modeText = "master";
+    } else if (mode == 8) {
+        modeText = "remote";
+    }
+
+    $.ajax({
+        url: "api/settings/fppMode",
+        type: 'PUT',
+        data: modeText
+    }).done(function(data) {
 		$.jGrowl("fppMode Saved");
 		RestartFPPD();
-	}).fail(function() {
-		DialogError("FPP Mode Change", "Save Failed");
-	});
+    }).fail(function() {
+        DialogError("ERROR", "Error Settng fppMode to " + modeText);
+    });
 }
 
 function GetVolume()
