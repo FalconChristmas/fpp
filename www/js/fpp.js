@@ -1630,11 +1630,11 @@ function RemovePlaylistEntry()	{
 				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
 				$('#dialog-help').dialog( "moveToTop" );
 
-				$.get("fppxml.php?command=viewReleaseNotes&version=" + version
+				$.get("api/system/releaseNotes/" + version
 				).done(function(data) {
 						$('#helpText').html(
 						"<center><input onClick='UpgradeFPPVersion(\"" + version + "\");' type='button' class='buttons' value='Upgrade'></center>" +
-						"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" + data + "</pre>"
+						"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" + data.body + "</pre>"
 						);
 				}).fail(function() {
 						$('#helpText').html("Error loading release notes.");

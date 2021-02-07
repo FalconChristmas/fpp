@@ -66,6 +66,7 @@ function StopFPPD()
     return json($output);
 }
 
+// GET /api/system/fppd/restart
 function RestartFPPD()
 {
 
@@ -73,7 +74,7 @@ function RestartFPPD()
         $status = exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
         if ($status == 'true') {
             SendCommand('restart');
-            
+
             $output = array("status" => "OK");
             return json($output);
         }
@@ -81,4 +82,25 @@ function RestartFPPD()
 
     StopFPPDNoStatus();
     return StartFPPD();
+}
+
+// GET /api/system/releaseNotes/:version
+function ViewReleaseNotes()
+{
+    $version = params('version');
+
+    ini_set('user_agent', 'Mozilla/4.0 (compatible; MSIE 6.0)');
+    $json = file_get_contents("https://api.github.com/repos/FalconChristmas/fpp/releases/tags/" . $version);
+
+    $data = json_decode($json, true);
+    if (isset($data['body'])) {
+        $keys = array("draft", "prerelease", "body", "published_at");
+        $rc = array("status" => "OK");
+        foreach ($keys as $key) {
+            $rc[$key] = $data[$key];
+        }
+        return json($rc);
+    } else {
+        return json(array("status" => "Release not found"));
+    }
 }

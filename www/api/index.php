@@ -103,6 +103,7 @@ dispatch_get   ('/system/fppd/restart', 'RestartFPPD');
 dispatch_get   ('/system/fppd/start', 'StartFPPD');
 dispatch_get   ('/system/fppd/stop', 'StopFPPD');
 dispatch_get   ('/system/reboot', 'RebootDevice');
+dispatch_get   ('/system/releaseNotes/:version', 'ViewReleaseNotes');
 dispatch_get   ('/system/shutdown', 'SystemShutdownOS');
 
 dispatch_get   ('/time', 'GetTime');

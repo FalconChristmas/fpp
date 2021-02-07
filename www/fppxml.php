@@ -12,7 +12,6 @@ error_reporting(E_ALL);
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
-	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
 
@@ -34,7 +33,7 @@ $command_array = Array(
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
 	"deleteUniverse" => 'DeleteUniverse',
 	"cloneUniverse" => 'CloneUniverse',
-	"viewReleaseNotes" => 'ViewReleaseNotes',
+	// "viewReleaseNotes" => 'ViewReleaseNotes',  // use GET /api/system/releaseNotes/:version
 	"viewRemoteScript" => 'ViewRemoteScript',
 	"installRemoteScript" => 'InstallRemoteScript',
 	"moveFile" => 'MoveFile',
@@ -228,19 +227,6 @@ function ShutdownPi()
 
 	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
-}
-
-function ViewReleaseNotes()
-{
-	$version = $_GET['version'];
-	check($version, "version", __FUNCTION__);
-
-	ini_set('user_agent','Mozilla/4.0 (compatible; MSIE 6.0)');
-	$json = file_get_contents("https://api.github.com/repos/FalconChristmas/fpp/releases/tags/" . $version);
-
-	$data = json_decode($json, true);
-
-	echo $data["body"];
 }
 
 function ViewRemoteScript()
