@@ -2596,7 +2596,8 @@ function GetSequenceArray()
         return "Unknown Mode";
     }
 
-	var firstStatusLoad = 1;
+    var firstStatusLoad = 1;
+    
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -3753,33 +3754,6 @@ function SetFPPDmode()
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
     });
-}
-
-function GetVolume()
-{
-    var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=getVolume";
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-			{
-					var xmlDoc=xmlhttp.responseXML; 
-					var Volume = parseInt(xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent);
-					if ((Volume < 0) || (Volume == "NaN"))
-					{
-						Volume = 75;
-						SetVolume(Volume);
-					}
-					$('#volume').html(Volume);
-                    $('#remoteVolume').html(Volume);
-					$('#slider').slider('value', Volume);
-                    $('#remoteVolumeSlider').slider('value', Volume);
-					SetSpeakerIndicator(Volume);
-			}
-		};
-		xmlhttp.send();
-
 }
 
 function AdjustFPPDModeFromStatus(mode) {
