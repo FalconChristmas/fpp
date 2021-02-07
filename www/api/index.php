@@ -27,6 +27,8 @@ dispatch_get   ('/events/:eventId', 'event_get');
 dispatch_get   ('/events/:eventId/trigger', 'event_trigger');
 
 dispatch_get   ('/files/:DirName', 'GetFiles');
+dispatch_get   ('/file/:DirName/:Name', 'GetFile');
+dispatch_delete('/file/:DirName/:Name', 'DeleteFile');
 
 dispatch_get   ('/git/originLog', 'GetGitOriginLog');
 dispatch_get   ('/git/reset', 'GitReset');

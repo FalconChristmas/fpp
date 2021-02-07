@@ -649,7 +649,7 @@
             "sequenceName": {
                 "name": "sequenceName",
                 "description": "Sequence",
-                "contentListUrl": "api/files/sequences",
+                "contentListUrl": "api/files/sequences?nameOnly=1",
                 "type": "string",
                 "onChange": "SequenceChanged",
                 "optional": false,
@@ -688,7 +688,7 @@
             "sequenceName": {
                 "name": "sequenceName",
                 "description": "Sequence",
-                "contentListUrl": "api/files/sequences",
+                "contentListUrl": "api/files/sequences?nameOnly=1",
                 "type": "string",
                 "onChange": "SequenceChanged",
                 "optional": false,

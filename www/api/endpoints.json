@@ -114,15 +114,43 @@
             "endpoint": "files/:DirName",
             "methods": {
                 "GET": {
-                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
-                    "output": [
-                        "PlayIntro.sh",
-                        "TestScript-02.sh",
-                        "TestScript.sh",
-                        "UserCallbackHook.sh",
-                        "fppdWatcher.sh",
-                        "fppdWatcherStart.sh"
-                    ]
+                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "output": {
+                        "status": "ok",
+                        "files": [
+                            {
+                                "name": "Christmas Every Day.mp3",
+                                "mtime": "09/23/20  07:47 PM",
+                                "sizeBytes": 7929000,
+                                "sizeHuman": "7.56MB",
+                                "playtimeSeconds": "03m:46s"
+                            },
+                            {
+                                "name": "Test.mp3",
+                                "mtime": "09/23/20  07:47 PM",
+                                "sizeBytes": 3618722,
+                                "sizeHuman": "3.45MB",
+                                "playtimeSeconds": "03m:46s"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "file/:DirName/:Filename",
+            "methods": {
+                "GET": {
+                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
+                    "output": "The File Contents"
+                },
+                "DELETE": {
+                    "desc": "Deletes the specified file where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "output": {
+                        "status": "OK",
+                        "file": "block_driveways.xbkp",
+                        "dir": "uploads"
+                    }
                 }
             }
         },

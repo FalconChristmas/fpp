@@ -12,8 +12,6 @@ error_reporting(E_ALL);
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
-	"getFile" => 1,
-	"tailFile" => 1,
 	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
@@ -27,10 +25,10 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"getFiles" => 'GetFiles',
+	//"getFiles" => 'GetFiles', // /api/files/:dirName
 	"getZip" => 'GetZip',
 	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
-	"deleteFile" => 'DeleteFile',
+	// "deleteFile" => 'DeleteFile', // use DELETE /api/file/:DirName/:filename
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
@@ -41,7 +39,7 @@ $command_array = Array(
 	"installRemoteScript" => 'InstallRemoteScript',
 	"moveFile" => 'MoveFile',
 	"isFPPDrunning" => 'IsFPPDrunning',
-	"getFPPstatus" => 'GetFPPstatus',
+	// "getFPPstatus" => 'GetFPPstatus', use GET /api/fppd/status instead
 	"stopGracefully" => 'StopGracefully',
 	"stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop',
 	"stopNow" => 'StopNow',
@@ -56,21 +54,21 @@ $command_array = Array(
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
 	// "resetGit" => 'ResetGit', // use GET /git/reset
 	"setVolume" => 'SetVolume',
-	"setFPPDmode" => 'SetFPPDmode',
+	"setFPPDmode" => 'SetFPPDmode', // Legacy. Should use PUT /api/settings/fppMode
 	"getVolume" => 'GetVolume',
 	//"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
-	"getFPPDmode" => 'GetFPPDmode',
+	//"getFPPDmode" => 'GetFPPDmode', // Replaced by /api/settings/fppMode
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
 	"stopEffectByName" => 'StopEffectByName',
-	"deleteEffect" => 'DeleteEffect',
+	//"deleteEffect" => 'DeleteEffect', // never implemented
 	"getRunningEffects" => 'GetRunningEffects',
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
-	"getFile" => 'GetFile',
-	"tailFile" => 'TailFile',
+	//"getFile" => 'GetFile', // Replaced by /api/file/
+	//"tailFile" => 'TailFile', // Replaced by api/file
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setupExtGPIO" => 'SetupExtGPIO',
@@ -220,30 +218,6 @@ function GetVolume()
 	$root = $doc->createElement('Volume');
 	$root = $doc->appendChild($root);
 	$value = $doc->createTextNode($volume);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
-}
-
-function GetFPPDmode()
-{
-	global $settings;
-	$mode = $settings['fppMode'];
-	$fppMode = 0;
-	switch ($mode) {
-		case "bridge": $fppMode = 1;
-									 break;
-		case "player": $fppMode = 2;
-									 break;
-		case "master": $fppMode = 6;
-									 break;
-		case "remote": $fppMode = 8;
-									 break;
-	}
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('mode');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($fppMode);
 	$value = $root->appendChild($value);
 	echo $doc->saveHTML();
 }
@@ -661,287 +635,6 @@ function RestartFPPD()
     StartFPPD();
 }
 
-function GetFPPstatus()
-{
-	$status = SendCommand('s');
-	if($status == false || $status == 'false')
-	{
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);
-
-		$temp = $doc->createElement('fppStatus');
-		$temp = $root->appendChild($temp);
-
-		$value = $doc->createTextNode('-1');
-		$value = $temp->appendChild($value);
-		echo $doc->saveHTML();
-		return;
-	}
-
-	$entry = explode(",",$status,14);
-	$fppMode = $entry[0];
-	if($fppMode == 8)
-	{
-		$fppStatus = $entry[1];
-		$volume = $entry[2];
-		$seqFilename = $entry[3];
-		$mediaFilename = $entry[4];
-		$secsElapsed = $entry[5];
-		$secsRemaining = $entry[6];
-		$fppCurrentDate = GetLocalTime();
-
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);
-
-		//FPPD Mode
-		$temp = $doc->createElement('fppMode');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($fppMode);
-		$value = $temp->appendChild($value);
-
-		//FPPD Status
-		$temp = $doc->createElement('fppStatus');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($fppStatus);
-		$value = $temp->appendChild($value);
-
-		//FPPD Volume
-		$temp = $doc->createElement('volume');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($volume);
-		$value = $temp->appendChild($value);
-
-		// seqFilename
-		$temp = $doc->createElement('seqFilename');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($seqFilename);
-		$value = $temp->appendChild($value);
-
-		// mediaFilename
-		$temp = $doc->createElement('mediaFilename');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($mediaFilename);
-		$value = $temp->appendChild($value);
-
-		// secsElapsed
-		$temp = $doc->createElement('secsElapsed');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($secsElapsed);
-		$value = $temp->appendChild($value);
-
-		// secsRemaining
-		$temp = $doc->createElement('secsRemaining');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($secsRemaining);
-		$value = $temp->appendChild($value);
-
-		//fppCurrentDate
-		$temp = $doc->createElement('fppCurrentDate');
-		$temp = $root->appendChild($temp);
-		$value = $doc->createTextNode($fppCurrentDate);
-		$value = $temp->appendChild($value);
-
-		echo $doc->saveHTML();
-		return;
-	}
-	else if($fppMode != 1)
-	{
-		$fppStatus = $entry[1];
-		if($fppStatus == '0')
-		{
-			$volume = $entry[2];
-			$nextPlaylist = $entry[3];
-			$nextPlaylistStartTime = $entry[4];
-			$fppCurrentDate = GetLocalTime();
-			$repeatMode = 0;
-
-			$doc = new DomDocument('1.0');
-			$root = $doc->createElement('Status');
-			$root = $doc->appendChild($root);
-
-			//FPPD Mode
-			$temp = $doc->createElement('fppMode');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppMode);
-			$value = $temp->appendChild($value);
-			//FPPD Status
-			$temp = $doc->createElement('fppStatus');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppStatus);
-			$value = $temp->appendChild($value);
-
-			//FPPD Volume
-			$temp = $doc->createElement('volume');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($volume);
-			$value = $temp->appendChild($value);
-
-			// nextPlaylist
-			$temp = $doc->createElement('NextPlaylist');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($nextPlaylist);
-			$value = $temp->appendChild($value);
-
-			// nextPlaylistStartTime
-			$temp = $doc->createElement('NextPlaylistStartTime');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($nextPlaylistStartTime);
-			$value = $temp->appendChild($value);
-
-			//fppCurrentDate
-			$temp = $doc->createElement('fppCurrentDate');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppCurrentDate);
-			$value = $temp->appendChild($value);
-
-			//repeatMode
-			$temp = $doc->createElement('repeatMode');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($repeatMode);
-			$value = $temp->appendChild($value);
-
-			echo $doc->saveHTML();
-			return;
-		}
-		else
-		{
-			$fppdMode = $entry[1];
-			$volume = $entry[2];
-			$currentPlaylist = $entry[3];
-			$currentPlaylistType = $entry[4];
-			$currentSeqName = $entry[5];
-			$currentSongName = $entry[6];
-			$currentPlaylistIndex = $entry[7];
-			$currentPlaylistCount = $entry[8];
-			$secondsPlayed = $entry[9];
-			$secondsRemaining = $entry[10];
-			$nextPlaylist = $entry[11];
-			$nextPlaylistStartTime = $entry[12];
-			$fppCurrentDate = GetLocalTime();
-			$repeatMode = $entry[13];
-
-
-			$doc = new DomDocument('1.0');
-			$root = $doc->createElement('Status');
-			$root = $doc->appendChild($root);
-
-			// fppdMode
-			$temp = $doc->createElement('fppMode');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppMode);
-			$value = $temp->appendChild($value);
-
-			// fppdStatus
-			$temp = $doc->createElement('fppStatus');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppStatus);
-			$value = $temp->appendChild($value);
-
-
-			// volume
-			$temp = $doc->createElement('volume');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($volume);
-			$value = $temp->appendChild($value);
-
-			// currentPlaylist
-			$path_parts = pathinfo($currentPlaylist);
-			$temp = $doc->createElement('CurrentPlaylist');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($path_parts['filename']);
-			$value = $temp->appendChild($value);
-			// currentPlaylistType
-			$temp = $doc->createElement('CurrentPlaylistType');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($currentPlaylistType);
-			$value = $temp->appendChild($value);
-			// currentSeqName
-			$temp = $doc->createElement('CurrentSeqName');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($currentSeqName);
-			$value = $temp->appendChild($value);
-			// currentSongName
-			$temp = $doc->createElement('CurrentSongName');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($currentSongName);
-			$value = $temp->appendChild($value);
-			// currentPlaylistIndex
-			$temp = $doc->createElement('CurrentPlaylistIndex');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($currentPlaylistIndex);
-			$value = $temp->appendChild($value);
-			// currentPlaylistCount
-			$temp = $doc->createElement('CurrentPlaylistCount');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($currentPlaylistCount);
-			$value = $temp->appendChild($value);
-			// secondsPlayed
-			$temp = $doc->createElement('SecondsPlayed');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($secondsPlayed);
-			$value = $temp->appendChild($value);
-
-			// secondsRemaining
-			$temp = $doc->createElement('SecondsRemaining');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($secondsRemaining);
-			$value = $temp->appendChild($value);
-
-			// nextPlaylist
-			$temp = $doc->createElement('NextPlaylist');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($nextPlaylist);
-			$value = $temp->appendChild($value);
-
-			// nextPlaylistStartTime
-			$temp = $doc->createElement('NextPlaylistStartTime');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($nextPlaylistStartTime);
-			$value = $temp->appendChild($value);
-
-			//fppCurrentDate
-			$temp = $doc->createElement('fppCurrentDate');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppCurrentDate);
-			$value = $temp->appendChild($value);
-
-			//repeatMode
-			$temp = $doc->createElement('repeatMode');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($repeatMode);
-			$value = $temp->appendChild($value);
-
-
-			echo $doc->saveHTML();
-			return;
-		}
-
-	}
-  else
-  {
- 			$doc = new DomDocument('1.0');
-			$root = $doc->createElement('Status');
-			$root = $doc->appendChild($root);
-
-      $fppStatus = $entry[1];
-
-  			//FPPD Mode
-			$temp = $doc->createElement('fppMode');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppMode);
-			$value = $temp->appendChild($value);
-			//FPPD Status
-			$temp = $doc->createElement('fppStatus');
-			$temp = $root->appendChild($temp);
-			$value = $doc->createTextNode($fppStatus);
-			$value = $temp->appendChild($value);
-			echo $doc->saveHTML();
-  }
-  
-
-}
 
 function GetLocalTime()
 {
@@ -1387,108 +1080,6 @@ function SetUniverseCount()
 	EchoStatusXML('Success');
 }
 
-function GetFileInfo(&$root, &$doc, $dirName, $fileName)
-{
-	$fileFullName = $dirName . '/' . $fileName;
-
-	$file = $doc->createElement('File');
-	$file = $root->appendChild($file);
-
-	$name = $doc->createElement('Name');
-	$name = $file->appendChild($name);
-	$value = $doc->createTextNode(utf8_encode($fileName));
-	$value = $name->appendChild($value);
-
-	$time = $doc->createElement('Time');
-	$time = $file->appendChild($time);
-	$value = $doc->createTextNode(date('m/d/y  h:i A', filemtime($fileFullName)));
-	$value = $time->appendChild($value);
-
-	$fileInfo = $doc->createElement('FileInfo');
-	$fileInfo = $file->appendChild($fileInfo);
-	//quick and dirty check for music and video dir
-	if(strpos(strtolower($dirName),"music") !== FALSE || strpos(strtolower($dirName),"video") !== FALSE ){
-
-		//Check the cache first
-		$filesize = filesize($fileFullName);
-		$cache_duration = media_duration_cache($fileName, null, $filesize);
-		//cache duration will be null if not in cache, then retrieve it
-		if ($cache_duration == NULL) {
-			//Include our getid3 library for media
-			require_once('./lib/getid3/getid3.php');
-			//Instantiate getID3 object
-			$getID3 = new getID3;
-			//Get the media duration from file
-			$ThisFileInfo = $getID3->analyze($fileFullName);
-			//cache it
-			if (isset($ThisFileInfo['playtime_seconds']))
-				media_duration_cache($fileName, $ThisFileInfo['playtime_seconds'], $filesize);
-		} else {
-			$ThisFileInfo['playtime_seconds'] = $cache_duration;
-		}
-
-		if (isset($ThisFileInfo['playtime_seconds']))
-			$value = $doc->createTextNode(human_playtime($ThisFileInfo['playtime_seconds']));
-		else
-			$value = $doc->createTextNode("Unknown");
-	}else{
-		//just return the filesize
-		$value = $doc->createTextNode(human_filesize($fileFullName));
-	}
-	$value = $fileInfo->appendChild($value);
-}
-
-function GetFiles()
-{
-	global $mediaDirectory;
-	global $sequenceDirectory;
-	global $musicDirectory;
-	global $videoDirectory;
-	global $effectDirectory;
-	global $scriptDirectory;
-	global $logDirectory;
-	global $uploadDirectory;
-	global $imageDirectory;
-	global $docsDirectory;
-
-	$dirName = $_GET['dir'];
-	check($dirName, "dirName", __FUNCTION__);
-	if ($dirName == "Sequences")        { $dirName = $sequenceDirectory; }
-	else if ($dirName == "Music")       { $dirName = $musicDirectory; }
-	else if ($dirName == "Videos")      { $dirName = $videoDirectory; }
-	else if ($dirName == "Effects")     { $dirName = $effectDirectory; }
-	else if ($dirName == "Scripts")     { $dirName = $scriptDirectory; }
-	else if ($dirName == "Logs")        { $dirName = $logDirectory; }
-	else if ($dirName == "Uploads")     { $dirName = $uploadDirectory; }
-	else if ($dirName == "Images")      { $dirName = $imageDirectory; }
-	else if ($dirName == "Docs")        { $dirName = $docsDirectory; }
-	else
-		return;
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Files');
-	$root = $doc->appendChild($root);
-
-	foreach(scandir($dirName) as $fileName)
-	{
-		if($fileName != '.' && $fileName != '..')
-		{
-			GetFileInfo($root, $doc, $dirName, $fileName);
-		}
-	}
-
-	if ($_GET['dir'] == "Logs")
-	{
-		if (file_exists("/var/log/messages"))
-			GetFileInfo($root, $doc, "", "/var/log/messages");
-
-		if (file_exists("/var/log/syslog"))
-			GetFileInfo($root, $doc, "", "/var/log/syslog");
-	}
-	// Thanks: http://stackoverflow.com/questions/7272938/php-xmlreader-problem-with-htmlentities
-	$trans = array_map('utf8_encode', array_flip(array_diff(get_html_translation_table(HTML_ENTITIES), get_html_translation_table(HTML_SPECIALCHARS))));
-	echo strtr($doc->saveHTML(), $trans);
-}
 
 function cmp_index($a, $b)
 {
@@ -1496,28 +1087,6 @@ function cmp_index($a, $b)
 		return 0;
 	}
 	return ($a->index < $b->index) ? -1 : 1;
-}
-
-function DeleteFile()
-{
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$dir = $_GET['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
-	if (substr($filename, 0, 1) != "/")
-	{
-		unlink($dir . '/' . $filename);
-		EchoStatusXML('Success');
-	}
-	else
-		EchoStatusXML('Failure');
 }
     
 function universe_cmp($a, $b)
@@ -1528,90 +1097,6 @@ function universe_cmp($a, $b)
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
 }
 
-function GetFile(){
-	GetFileImpl(-1);
-}
-
-function TailFile() {
-	$lines = 100;
-	if (isset($_GET['lines'])) {
-		$lines = $_GET['lines'];
-	}
-	GetFileImpl($lines);
-}
-
-/*
- * Tail the last $lines of of the file (or read it all if -1)
- */
-function GetFileImpl($lines)
-{
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$dir = $_GET['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$isImage = 0;
-	if ($dir == 'Images')
-		$isImage = 1;
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
-	if (isset($_GET['play']))
-	{
-		if (preg_match('/mp3$/i', $filename))
-			header('Content-type: audio/mp3');
-		else if (preg_match('/ogg$/i', $filename))
-			header('Content-type: audio/ogg');
-		else if (preg_match('/flac$/i', $filename))
-			header('Content-type: audio/flac');
-        else if (preg_match('/m4a$/i', $filename))
-            header('Content-type: audio/mp4');
-        else if (preg_match('/mov$/i', $filename))
-            header('Content-type: video/mov');
-		else if (preg_match('/mp4$/i', $filename))
-			header('Content-type: video/mp4');
-		else if (preg_match('/wav$/i', $filename))
-			header('Content-type: audio/wav');
-		else if (preg_match('/mpg$/i', $filename))
-			header('Content-type: video/mpg');
-        else if (preg_match('/mpg$/i', $filename))
-            header('Content-type: video/mpeg');
-        else if (preg_match('/mkv$/i', $filename))
-            header('Content-type: video/mkv');
-        else if (preg_match('/avi$/i', $filename))
-            header('Content-type: video/avi');
-	}
-	else if ($isImage)
-	{
-		header('Content-type: ' . mime_content_type($dir . '/' . $filename));
-
-		if (!isset($_GET['attach']) || ($_GET['attach'] == '1'))
-			header('Content-disposition: attachment;filename="' . $filename . '"');
-	}
-	else
-	{
-		header('Content-type: application/binary');
-		header('Content-disposition: attachment;filename="' . $filename . '"');
-	}
-
-	if (($_GET['dir'] == "Logs") &&
-		(substr($filename, 0, 9) == "/var/log/")) {
-		$dir = "/var/log";
-		$filename = basename($filename);
-	}
-
-	ob_clean();
-	flush();
-	if ($lines == -1) {
-		readfile($dir . '/' . $filename);
-	} else {
-		passthru('tail -' . $lines. ' ' . $dir . '/' . $filename);
-	}
-}
 
 function GetZip()
 {

@@ -862,9 +862,9 @@ function PlaylistNameOK(name) {
 }
 
 function LoadNetworkDetails(){
-    $.get('/api/network/interface'
+    $.get('api/network/interface'
     ).done(function(data) {
-       $.get('/api/network/wifi_strength'
+       $.get('api/network/wifi_strength'
        ).done(function(wifiData) {
           var rc = [];
           data.forEach(function(e) {
@@ -2414,39 +2414,29 @@ function GetSequenceArray()
 
   function GetFiles(dir)
   {
-    var xmlhttp=new XMLHttpRequest();
-    var url = "fppxml.php?command=getFiles&dir=" + dir;
-    $('#tbl' + dir).empty();
-    xmlhttp.open("GET",url,false);
-    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-    xmlhttp.send();
+    $.ajax({
+        dataType: "json",
+        url: "api/files/" + dir,
+        success: function(data) {
+            let i = 0;
+            $('#tbl' + dir).html('');
+            data.files.forEach(function(f) {
+                var detail = f.sizeHuman;
+                if ("playtimeSeconds" in f) {
+                    detail = f.playtimeSeconds;
+                }
 
-    var xmlDoc=xmlhttp.responseXML; 
-    var files = xmlDoc.getElementsByTagName('Files')[0];
-    if(files.childNodes.length> 0)
-    {
-      var innerhtml = '';
-      for(i=0; i<files.childNodes.length; i++)
-      {
-        // Thanks: http://stackoverflow.com/questions/5396560/how-do-i-convert-special-utf-8-chars-to-their-iso-8859-1-equivalent-using-javasc
-        var encodedstring = decodeURIComponent(escape(files.childNodes[i].childNodes[0].textContent));
-        var name = "";
-        try{
-            // If the string is UTF-8, this will work and not throw an error.
-            name=decodeURIComponent(escape(encodedstring));
-        }catch(e){
-            // If it isn't, an error will be thrown, and we can asume that we have an ISO string.
-            name=encodedstring;
+                var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + f.name + "</td><td class='fileExtraInfo'>" + detail + "</td><td class ='fileTime'>" + f.mtime + "</td></tr>";
+                $('#tbl' + dir).append(tableRow);
+                ++i;
+            });
+        },
+        error: function() {
+            DialogError('Load Sequences', 'Error loading list of sequences');
         }
 
-        var time = files.childNodes[i].childNodes[1].textContent.replace(/ /g, '&nbsp;');
-        var fileInfo = files.childNodes[i].childNodes[2].textContent;
-
-          var tableRow = "<tr class='fileDetails' id='fileDetail_" + i + "'><td class ='fileName'>" + name + "</td><td class='fileExtraInfo'>" + fileInfo + "</td><td class ='fileTime'>" + time + "</td></tr>";
-        $('#tbl' + dir).append(tableRow);
-      }
-    }
-  }
+    });
+}
 
 	function moveFile(file)
 	{
@@ -3731,13 +3721,28 @@ function SetVolume(value)
 
 function SetFPPDmode()
 {
-	$.get("fppxml.php?command=setFPPDmode&mode=" + $('#selFPPDmode').val()
-	).done(function() {
+    var mode = $('#selFPPDmode').val();
+    var modeText = "unknown"; // 0
+    if (mode == 1) {
+        modeText = "bridge";
+    } else if (mode == 2) {
+        modeText = "player";
+    } else if (mode ==6) {
+        modeText = "master";
+    } else if (mode == 8) {
+        modeText = "remote";
+    }
+
+    $.ajax({
+        url: "api/settings/fppMode",
+        type: 'PUT',
+        data: modeText
+    }).done(function(data) {
 		$.jGrowl("fppMode Saved",{themeState:'success'});
 		RestartFPPD();
-	}).fail(function() {
-		DialogError("FPP Mode Change", "Save Failed");
-	});
+    }).fail(function() {
+        DialogError("ERROR", "Error Settng fppMode to " + modeText);
+    });
 }
 
 function GetVolume()
@@ -3792,35 +3797,42 @@ function AdjustFPPDModeFromStatus(mode) {
 
 function GetFPPDmode()
 {
-    var xmlhttp=new XMLHttpRequest();
-    var url = "fppxml.php?command=getFPPDmode";
-    xmlhttp.open("GET",url,true);
-    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-        {
-            var xmlDoc=xmlhttp.responseXML;
-            var mode = parseInt(xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent);
-            SetupUIForMode(mode);
-            if(mode == 1) // Bridge Mode
-            {
-                $("#selFPPDmode").prop("selectedIndex",3);
-                $("#textFPPDmode").text("Bridge");
-            } else if (mode == 8) { // Remote Mode
-                $("#selFPPDmode").prop("selectedIndex",2);
-                $("#textFPPDmode").text("Player (Remote)");
-            } else { // Player or Master modes
-                if (mode == 2) { // Player
-                    $("#selFPPDmode").prop("selectedIndex",0);
-                    $("#textFPPDmode").text("Player (Standalone)");
-                } else {
-                    $("#selFPPDmode").prop("selectedIndex",1);
-                    $("#textFPPDmode").text("Player (Master)");
+    $.get("api/settings/fppMode"
+         ).done(function(data) {
+            if ("value" in data) {
+                var mode = 0;
+                if (data.value == "bridge") {
+                    mode = 1;
+                } else if (data.value == "player") {
+                    mode = 2;
+                } else if (data.value == "master") {
+                    mode = 4;
+                } else if (data.value == "remote") {
+                    mode = 8;
                 }
+                SetupUIForMode(mode);
+                if(mode == 1) // Bridge Mode
+                {
+                    $("#selFPPDmode").prop("selectedIndex",3);
+                    $("#textFPPDmode").text("Bridge");
+                } else if (mode == 8) { // Remote Mode
+                    $("#selFPPDmode").prop("selectedIndex",2);
+                    $("#textFPPDmode").text("Player (Remote)");
+                } else { // Player or Master modes
+                    if (mode == 2) { // Player
+                        $("#selFPPDmode").prop("selectedIndex",0);
+                        $("#textFPPDmode").text("Player (Standalone)");
+                    } else {
+                        $("#selFPPDmode").prop("selectedIndex",1);
+                        $("#textFPPDmode").text("Player (Master)");
+                    }
+                }
+            } else {
+                DialogError("Invalid Mode", "Mode API returned unexpected value");
             }
-        }
-    };
-    xmlhttp.send();
+    }).fail(function(data){
+		DialogError("Failed to query Settings", "Could not load mode");
+    });
 }
 
 var helpOpen = 0;
@@ -3893,7 +3905,7 @@ function GetVideoInfo(file)
 
 function PlayFileInBrowser(dir, file)
 {
-	window.open("fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file);
+	window.open("api/file/" + dir + "/" + encodeURIComponent(file) + "?play=1");
 }
 
 function CopyFile(dir, file)
@@ -3930,7 +3942,7 @@ function RenameFile(dir, file)
 
 function DownloadFile(dir, file)
 {
-	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
+	location.href="api/file/" + dir + "/" + encodeURIComponent(file);
 }
 
 function DownloadFiles(dir, files)
@@ -3939,7 +3951,7 @@ function DownloadFiles(dir, files)
         DownloadFile(dir, files[0]);
     } else {
         for (var i = 0; i < files.length; i++) {
-            window.open("fppxml.php?command=getFile&dir=" + dir + "&filename=" + files[i]);
+            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]));
         }
     }
 }
@@ -3951,16 +3963,17 @@ function DownloadZip(dir)
 
 function ViewImage(file)
 {
-	var url = "fppxml.php?command=getFile&dir=Images&filename=" + file + '&attach=0';
+	var url = "api/file/Images/" + encodeURIComponent(file);
 	window.open(url, '_blank');
 }
 
 function ViewFile(dir, file){
-	var url = "fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
+	var url = "api/file/" + dir + "/" + encodeURIComponent(file);
 	ViewFileImpl(url, file);
 }
 function TailFile(dir, file, lines) {
-	var url = "fppxml.php?command=tailFile&dir=" + dir + "&filename=" + file + "&lines=" + lines;
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file) + "?tail=" + lines;
+    console.log(url);
 	ViewFileImpl(url, file);
 }
 function ViewFileImpl(url, file)
@@ -3984,9 +3997,15 @@ function DeleteFile(dir, row, file)
 		return;
 	}
 
-    $.get("fppxml.php?command=deleteFile&dir=" + dir + "&filename=" + encodeURIComponent(file)
-    ).done(function() {
-        $(row).remove();
+    $.ajax({
+        url: "api/file/" + dir + "/" + encodeURIComponent(file),
+        type: 'DELETE'
+    }).done(function(data) {
+        if (data.status == "OK") {
+            $(row).remove();
+        } else {
+            DialogError("ERROR", "Error deleting file \"" + file + "\": " + data.status);
+        }
     }).fail(function() {
         DialogError("ERROR", "Error deleting file: " + file);
     });
