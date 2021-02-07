@@ -3782,35 +3782,42 @@ function AdjustFPPDModeFromStatus(mode) {
 
 function GetFPPDmode()
 {
-    var xmlhttp=new XMLHttpRequest();
-    var url = "fppxml.php?command=getFPPDmode";
-    xmlhttp.open("GET",url,true);
-    xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-        {
-            var xmlDoc=xmlhttp.responseXML;
-            var mode = parseInt(xmlDoc.getElementsByTagName('mode')[0].childNodes[0].textContent);
-            SetupUIForMode(mode);
-            if(mode == 1) // Bridge Mode
-            {
-                $("#selFPPDmode").prop("selectedIndex",3);
-                $("#textFPPDmode").text("Bridge");
-            } else if (mode == 8) { // Remote Mode
-                $("#selFPPDmode").prop("selectedIndex",2);
-                $("#textFPPDmode").text("Player (Remote)");
-            } else { // Player or Master modes
-                if (mode == 2) { // Player
-                    $("#selFPPDmode").prop("selectedIndex",0);
-                    $("#textFPPDmode").text("Player (Standalone)");
-                } else {
-                    $("#selFPPDmode").prop("selectedIndex",1);
-                    $("#textFPPDmode").text("Player (Master)");
+    $.get("api/settings/fppMode"
+         ).done(function(data) {
+            if ("value" in data) {
+                var mode = 0;
+                if (data.value == "bridge") {
+                    mode = 1;
+                } else if (data.value == "player") {
+                    mode = 2;
+                } else if (data.value == "master") {
+                    mode = 4;
+                } else if (data.value == "remote") {
+                    mode = 8;
                 }
+                SetupUIForMode(mode);
+                if(mode == 1) // Bridge Mode
+                {
+                    $("#selFPPDmode").prop("selectedIndex",3);
+                    $("#textFPPDmode").text("Bridge");
+                } else if (mode == 8) { // Remote Mode
+                    $("#selFPPDmode").prop("selectedIndex",2);
+                    $("#textFPPDmode").text("Player (Remote)");
+                } else { // Player or Master modes
+                    if (mode == 2) { // Player
+                        $("#selFPPDmode").prop("selectedIndex",0);
+                        $("#textFPPDmode").text("Player (Standalone)");
+                    } else {
+                        $("#selFPPDmode").prop("selectedIndex",1);
+                        $("#textFPPDmode").text("Player (Master)");
+                    }
+                }
+            } else {
+                DialogError("Invalid Mode", "Mode API returned unexpected value");
             }
-        }
-    };
-    xmlhttp.send();
+    }).fail(function(data){
+		DialogError("Failed to query Settings", "Could not load mode");
+    });
 }
 
 var helpOpen = 0;

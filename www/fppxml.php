@@ -58,7 +58,7 @@ $command_array = Array(
 	"getVolume" => 'GetVolume',
 	//"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
-	"getFPPDmode" => 'GetFPPDmode',
+	//"getFPPDmode" => 'GetFPPDmode', // Replaced by /api/settings/fppMode
 	"playEffect" => 'PlayEffect',
 	"stopEffect" => 'StopEffect',
 	"stopEffectByName" => 'StopEffectByName',
@@ -218,30 +218,6 @@ function GetVolume()
 	$root = $doc->createElement('Volume');
 	$root = $doc->appendChild($root);
 	$value = $doc->createTextNode($volume);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
-}
-
-function GetFPPDmode()
-{
-	global $settings;
-	$mode = $settings['fppMode'];
-	$fppMode = 0;
-	switch ($mode) {
-		case "bridge": $fppMode = 1;
-									 break;
-		case "player": $fppMode = 2;
-									 break;
-		case "master": $fppMode = 6;
-									 break;
-		case "remote": $fppMode = 8;
-									 break;
-	}
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('mode');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($fppMode);
 	$value = $root->appendChild($value);
 	echo $doc->saveHTML();
 }
