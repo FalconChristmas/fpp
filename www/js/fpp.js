@@ -3883,7 +3883,7 @@ function GetVideoInfo(file)
 
 function PlayFileInBrowser(dir, file)
 {
-	window.open("fppxml.php?command=getFile&play=1&dir=" + dir + "&filename=" + file);
+	window.open("api/file/" + dir + "/" + encodeURIComponent(file) + "?play=1");
 }
 
 function CopyFile(dir, file)
@@ -3920,7 +3920,7 @@ function RenameFile(dir, file)
 
 function DownloadFile(dir, file)
 {
-	location.href="fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
+	location.href="api/file/" + dir + "/" + encodeURIComponent(file);
 }
 
 function DownloadFiles(dir, files)
@@ -3929,7 +3929,7 @@ function DownloadFiles(dir, files)
         DownloadFile(dir, files[0]);
     } else {
         for (var i = 0; i < files.length; i++) {
-            window.open("fppxml.php?command=getFile&dir=" + dir + "&filename=" + files[i]);
+            window.open("api/file/" + dir + "/" + encodeURIComponent(files[i]));
         }
     }
 }
@@ -3941,16 +3941,17 @@ function DownloadZip(dir)
 
 function ViewImage(file)
 {
-	var url = "fppxml.php?command=getFile&dir=Images&filename=" + file + '&attach=0';
+	var url = "api/file/Images/" + encodeURIComponent(file);
 	window.open(url, '_blank');
 }
 
 function ViewFile(dir, file){
-	var url = "fppxml.php?command=getFile&dir=" + dir + "&filename=" + file;
+	var url = "api/file/" + dir + "/" + encodeURIComponent(file);
 	ViewFileImpl(url, file);
 }
 function TailFile(dir, file, lines) {
-	var url = "fppxml.php?command=tailFile&dir=" + dir + "&filename=" + file + "&lines=" + lines;
+    var url = "api/file/" + dir + "/" + encodeURIComponent(file) + "?tail=" + lines;
+    console.log(url);
 	ViewFileImpl(url, file);
 }
 function ViewFileImpl(url, file)

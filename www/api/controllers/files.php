@@ -63,6 +63,97 @@ function GetFiles()
     return json(array("status" => "ok", "files" => $files));
 }
 
+function GetFile()
+{
+    $dirName = params("DirName");
+    $fileName = params("Name");
+    $lines = -1;
+    $play = 0;
+    $attach = 0;
+
+    if (isset($_GET['tail'])) {
+        $lines = intval($_GET['tail']);
+	}
+	
+    if (isset($_GET['play'])) {
+        $play = intval($_GET['play']);
+    }
+
+    if (isset($_GET['attach'])) {
+        $attach = intval($_GET['attach']);
+    }
+
+    GetFileImpl($dirName, $fileName, $lines, $play, $attach);
+}
+
+function GetFileImpl($dir, $filename, $lines, $play, $attach)
+{
+    $isImage = 0;
+    $isLog = 0;
+    if ($dir == 'Images') {
+        $isImage = 1;
+    } else if ($dir == "Logs") {
+        $isLog = 1;
+    }
+
+    $dir = GetDirSetting($dir);
+
+    if ($dir == "") {
+        return;
+    }
+
+    if ($play) {
+        if (preg_match('/mp3$/i', $filename)) {
+            header('Content-type: audio/mp3');
+        } else if (preg_match('/ogg$/i', $filename)) {
+            header('Content-type: audio/ogg');
+        } else if (preg_match('/flac$/i', $filename)) {
+            header('Content-type: audio/flac');
+        } else if (preg_match('/m4a$/i', $filename)) {
+            header('Content-type: audio/mp4');
+        } else if (preg_match('/mov$/i', $filename)) {
+            header('Content-type: video/mov');
+        } else if (preg_match('/mp4$/i', $filename)) {
+            header('Content-type: video/mp4');
+        } else if (preg_match('/wav$/i', $filename)) {
+            header('Content-type: audio/wav');
+        } else if (preg_match('/mpg$/i', $filename)) {
+            header('Content-type: video/mpg');
+        } else if (preg_match('/mpg$/i', $filename)) {
+            header('Content-type: video/mpeg');
+        } else if (preg_match('/mkv$/i', $filename)) {
+            header('Content-type: video/mkv');
+        } else if (preg_match('/avi$/i', $filename)) {
+            header('Content-type: video/avi');
+        }
+
+    } else if ($isImage) {
+        header('Content-type: ' . mime_content_type($dir . '/' . $filename));
+
+        if ($attach == 1) {
+            header('Content-disposition: attachment;filename="' . $filename . '"');
+        }
+
+    } else {
+        header('Content-type: application/binary');
+        header('Content-disposition: attachment;filename="' . $filename . '"');
+    }
+
+    if ($isLog && (substr($filename, 0, 9) == "/var/log/")) {
+        $dir = "/var/log";
+        $filename = basename($filename);
+    }
+
+    ob_clean();
+    flush();
+    if ($lines == -1) {
+        readfile($dir . '/' . $filename);
+    } else {
+		echo("Lines = $lines");
+        passthru('tail -' . $lines . ' ' . $dir . '/' . $filename);
+    }
+}
+
 function DeleteFile()
 {
     $status = "File not found";

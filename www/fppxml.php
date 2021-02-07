@@ -12,8 +12,6 @@ error_reporting(E_ALL);
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
-	"getFile" => 1,
-	"tailFile" => 1,
 	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
@@ -69,8 +67,8 @@ $command_array = Array(
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
-	"getFile" => 'GetFile',
-	"tailFile" => 'TailFile',
+	//"getFile" => 'GetFile', // Replaced by /api/file/
+	//"tailFile" => 'TailFile', // Replaced by api/file
 	"saveUSBDongle" => 'SaveUSBDongle',
 	"getInterfaceInfo" => 'GetInterfaceInfo',
 	"setupExtGPIO" => 'SetupExtGPIO',
@@ -1404,90 +1402,6 @@ function universe_cmp($a, $b)
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
 }
 
-function GetFile(){
-	GetFileImpl(-1);
-}
-
-function TailFile() {
-	$lines = 100;
-	if (isset($_GET['lines'])) {
-		$lines = $_GET['lines'];
-	}
-	GetFileImpl($lines);
-}
-
-/*
- * Tail the last $lines of of the file (or read it all if -1)
- */
-function GetFileImpl($lines)
-{
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$dir = $_GET['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$isImage = 0;
-	if ($dir == 'Images')
-		$isImage = 1;
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
-	if (isset($_GET['play']))
-	{
-		if (preg_match('/mp3$/i', $filename))
-			header('Content-type: audio/mp3');
-		else if (preg_match('/ogg$/i', $filename))
-			header('Content-type: audio/ogg');
-		else if (preg_match('/flac$/i', $filename))
-			header('Content-type: audio/flac');
-        else if (preg_match('/m4a$/i', $filename))
-            header('Content-type: audio/mp4');
-        else if (preg_match('/mov$/i', $filename))
-            header('Content-type: video/mov');
-		else if (preg_match('/mp4$/i', $filename))
-			header('Content-type: video/mp4');
-		else if (preg_match('/wav$/i', $filename))
-			header('Content-type: audio/wav');
-		else if (preg_match('/mpg$/i', $filename))
-			header('Content-type: video/mpg');
-        else if (preg_match('/mpg$/i', $filename))
-            header('Content-type: video/mpeg');
-        else if (preg_match('/mkv$/i', $filename))
-            header('Content-type: video/mkv');
-        else if (preg_match('/avi$/i', $filename))
-            header('Content-type: video/avi');
-	}
-	else if ($isImage)
-	{
-		header('Content-type: ' . mime_content_type($dir . '/' . $filename));
-
-		if (!isset($_GET['attach']) || ($_GET['attach'] == '1'))
-			header('Content-disposition: attachment;filename="' . $filename . '"');
-	}
-	else
-	{
-		header('Content-type: application/binary');
-		header('Content-disposition: attachment;filename="' . $filename . '"');
-	}
-
-	if (($_GET['dir'] == "Logs") &&
-		(substr($filename, 0, 9) == "/var/log/")) {
-		$dir = "/var/log";
-		$filename = basename($filename);
-	}
-
-	ob_clean();
-	flush();
-	if ($lines == -1) {
-		readfile($dir . '/' . $filename);
-	} else {
-		passthru('tail -' . $lines. ' ' . $dir . '/' . $filename);
-	}
-}
 
 function GetZip()
 {

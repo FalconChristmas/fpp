@@ -140,6 +140,10 @@
         {
             "endpoint": "file/:DirName/:Filename",
             "methods": {
+                "GET": {
+                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
+                    "output": "The File Contents"
+                },
                 "DELETE": {
                     "desc": "Deletes the specified file where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
                     "output": {

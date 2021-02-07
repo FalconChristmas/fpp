@@ -182,7 +182,7 @@ $(function() {
 	{
 		$('#fileText').html("Loading...");
 
-		$.get("fppxml.php?command=getFile&dir=Scripts&filename=" + scriptName, function(text) {
+		$.get("api/Scripts/" + scriptName, function(text) {
 			var ext = scriptName.split('.').pop();
 			if (ext != "html")
 			{
