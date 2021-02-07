@@ -44,7 +44,7 @@ dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
 dispatch_post  ('/network/presisentNames', 'network_presisentNames_create');
 dispatch_get   ('/network/wifi/scan/:interface', 'network_wifi_scan');
 dispatch_get   ('/network/wifi/strength', 'network_wifi_strength');
-dispatch_get   ('/network/wifi_strength', 'network_wifi_strength');
+dispatch_get   ('/network/wifi_strength', 'network_wifi_strength'); // Legacy mapping
 
 
 dispatch_get   ('/options/:SettingName', 'GetOptions');

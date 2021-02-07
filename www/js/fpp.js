@@ -864,7 +864,7 @@ function PlaylistNameOK(name) {
 function LoadNetworkDetails(){
     $.get('api/network/interface'
     ).done(function(data) {
-       $.get('api/network/wifi_strength'
+       $.get('api/network/wifi/strength'
        ).done(function(wifiData) {
           var rc = [];
           data.forEach(function(e) {
