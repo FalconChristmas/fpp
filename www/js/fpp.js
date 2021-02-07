@@ -3224,7 +3224,7 @@ function RestartFPPD() {
 			args = "&quick=1";
 
 		$('html,body').css('cursor','wait');
-		$.get("fppxml.php?command=restartFPPD" + args
+		$.get("api/system/fppd/restart" + args
 		).done(function() {
 			$('html,body').css('cursor','auto');
 			$.jGrowl('FPPD Restarted');
@@ -3282,29 +3282,28 @@ function zeroPad(num, places) {
 	return Array(+(zero > 0 && zero)).join("0") + num;
 }
 	
-function ControlFPPD()
-	{
-    var xmlhttp=new XMLHttpRequest();
-		var btnVal = $("#btnDaemonControl").attr('value');
-		if(btnVal == "Stop FPPD")
-		{
-			var url = "fppxml.php?command=stopFPPD";
-		}
-		else
-		{
-			var url = "fppxml.php?command=startFPPD";
-		}
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-			{
-				var i = 19;
-			}
-		};
-		xmlhttp.send();
-	}
-	
+function ControlFPPD() {
+    var url = "api/system/fppd/";
+    var btnVal = $("#btnDaemonControl").attr('value');
+
+    if (btnVal == "Stop FPPD") {
+        url = url + "stop";
+    }
+    else {
+        url = url + "start";
+    }
+
+    $.get({
+        url: url,
+        data: "",
+    }).done(function(data) {
+        $.jGrowl("Completed " + btnVal);
+    }).fail(function() {
+        DialogError("ERROR", "Error Settng fppMode to " + modeText);
+    });
+
+}
+
 function PopulatePlaylists(sequencesAlso)
 {
     var playlistOptionsText="";
