@@ -89,8 +89,15 @@
         }
     }
 }
-
-input[type=text], input[type=number], select{
+.labelHeading{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	margin-bottom: 0.8em;
+}
+.labelValue{
+	font-weight: bold;
+}
+input[type=text], input[type=number], select, .tablesorter input{
 	border: 1px solid #D2D2D2;
 	color:$black;
 	appearance: none;
@@ -106,6 +113,9 @@ input[type=text], input[type=number], select{
     padding-right:3.5em;
     cursor: pointer;
     vertical-align: middle;
+}
+.tablesorter input{
+    @extend .form-control;
 }
 input[type=checkbox]{
     @extend .form-control;
@@ -211,14 +221,14 @@ input[type=checkbox]:checked{
     .wifi-#{$strength} {
         background:url(/images/redesign/wifi-#{$strength}.svg);
         background-repeat: no-repeat;
-        background-size: contain;
-        width: 28px * 0.85;
+        background-size: 22px;
         height: 20px * 0.85;
-        display: inline-block;
-        vertical-align: middle;
-        margin-left: 5px;
-        margin-right: 5px;
     }
+}
+.ip-net{
+    background:url(/images/redesign/ethernet-connected.svg);
+    background-repeat: no-repeat;
+    background-size: 17px;
 }
 .form-group.flow{
     label{
@@ -279,4 +289,28 @@ input[type=checkbox]:checked{
     @extend .backdrop;
     background-color: $gray-light;
 }
+div.settingsTable{
+    display: flex;
+}
+div.settingsTable div.td, div.settingsTable div.th{
+    margin-left: 1em;
+    margin-right: 1em;
+}
+div.settingsTable div.th{
+    @extend .labelHeading;
+    >span{
+        max-width: 200px;
+        display: block;
+    }
+}
+table.settingsTable div.tr{
+    display: table-row;
+}
+table.settingsTable div.td, table.settingsTable div.th{
+    display: table-cell;
+}
+table.settingsTable div.th{
+    font-weight: bold;
+}
+
 

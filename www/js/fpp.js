@@ -868,24 +868,24 @@ function LoadNetworkDetails(){
        ).done(function(wifiData) {
           var rc = [];
           data.forEach(function(e) {
-	     if (e.ifname === "lo") { return 0; }
-	     if (e.ifname.startsWith("eth0:0")) { return 0; }
-	     if (e.ifname.startsWith("usb")) { return 0; }
-	     if (e.ifname.startsWith("SoftAp")) { return 0; }
-	     if (e.ifname.startsWith("can.")) { return 0; }
-	     e.addr_info.forEach(function(n) {
+            if (e.ifname === "lo") { return 0; }
+            if (e.ifname.startsWith("eth0:0")) { return 0; }
+            if (e.ifname.startsWith("usb")) { return 0; }
+            if (e.ifname.startsWith("SoftAp")) { return 0; }
+            if (e.ifname.startsWith("can.")) { return 0; }
+            e.addr_info.forEach(function(n) {
                 if (n.family === "inet") {
-                   var row =e.ifname + ":" + n.local;
-		   wifiData.forEach(function(w) {
-		      if (w.interface === e.ifname) {
-		         row = row + '<span title="' + w.level + 'dBm" class="wifi-' + w.desc + '"></span>';
-		      }
-		   });
-		   rc.push(row);
-	        }
-	     });
+                    var row = '<span title="IP: ' + n.local + '" class="ip-net net-' + e.ifname + '"><small>' + e.ifname + '</small></span>';
+                    wifiData.forEach(function(w) {
+                        if (w.interface === e.ifname) {
+                            row = '<span title="IP: ' + n.local + ', Strength:' + w.level + 'dBm" class="ip-wifi wifi-' + w.desc + '"><small>' + e.ifname + '</small></span>';
+                        }
+                    });
+                    rc.push(row);
+                }
+            });
           });
-          $("#header_IPs").html(rc.join(", "));
+          $("#header_IPs").html(rc.join(""));
        }).fail(function(){
         DialogError('Error loading wifi info', 'Error loading wifi interface details.');
        });

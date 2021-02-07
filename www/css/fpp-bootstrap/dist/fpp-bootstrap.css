@@ -1691,7 +1691,7 @@ template {
   .table-responsive > .table-bordered {
     border: 0; }
 
-.form-control, input[type=checkbox] {
+.form-control, .tablesorter input, input[type=checkbox] {
   display: block;
   width: 100%;
   height: calc(1.5em + 1.35rem + 2px);
@@ -1706,39 +1706,42 @@ template {
   border-radius: 0.25rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .form-control, input[type=checkbox] {
+    .form-control, .tablesorter input, input[type=checkbox] {
       transition: none; } }
-  .form-control::-ms-expand, input[type=checkbox]::-ms-expand {
+  .form-control::-ms-expand, .tablesorter input::-ms-expand, input[type=checkbox]::-ms-expand {
     background-color: transparent;
     border: 0; }
-  .form-control:-moz-focusring, input:-moz-focusring[type=checkbox] {
+  .form-control:-moz-focusring, .tablesorter input:-moz-focusring, input:-moz-focusring[type=checkbox] {
     color: transparent;
     text-shadow: 0 0 0 #495057; }
-  .form-control:focus, input:focus[type=checkbox] {
+  .form-control:focus, .tablesorter input:focus, input:focus[type=checkbox] {
     color: #495057;
     background-color: #fff;
     border-color: #4c4c6a;
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
-  .form-control::-moz-placeholder, input[type=checkbox]::-moz-placeholder {
+  .form-control::-moz-placeholder, .tablesorter input::-moz-placeholder, input[type=checkbox]::-moz-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder {
+  .form-control:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control::placeholder, input[type=checkbox]::placeholder {
+  .form-control::placeholder, .tablesorter input::placeholder, input[type=checkbox]::placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:disabled, input:disabled[type=checkbox], .form-control[readonly], input[readonly][type=checkbox] {
+  .form-control:disabled, .tablesorter input:disabled, input:disabled[type=checkbox], .form-control[readonly], .tablesorter input[readonly], input[readonly][type=checkbox] {
     background-color: #e3ebec;
     opacity: 1; }
 
-input[type="date"].form-control, input[type="date"][type=checkbox],
+input[type="date"].form-control, .tablesorter input[type="date"], input[type="date"][type=checkbox],
 input[type="time"].form-control,
+.tablesorter input[type="time"],
 input[type="time"][type=checkbox],
 input[type="datetime-local"].form-control,
+.tablesorter input[type="datetime-local"],
 input[type="datetime-local"][type=checkbox],
 input[type="month"].form-control,
+.tablesorter input[type="month"],
 input[type="month"][type=checkbox] {
   -webkit-appearance: none;
      -moz-appearance: none;
@@ -1882,14 +1885,14 @@ textarea.form-control {
 .is-valid ~ .valid-tooltip {
   display: block; }
 
-.was-validated .form-control:valid, .was-validated input:valid[type=checkbox], .form-control.is-valid, input.is-valid[type=checkbox] {
+.was-validated .form-control:valid, .was-validated .tablesorter input:valid, .tablesorter .was-validated input:valid, .was-validated input:valid[type=checkbox], .form-control.is-valid, .tablesorter input.is-valid, input.is-valid[type=checkbox] {
   border-color: #56B760;
   padding-right: calc(1.5em + 1.35rem);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.3375rem) center;
   background-size: calc(0.75em + 0.675rem) calc(0.75em + 0.675rem); }
-  .was-validated .form-control:valid:focus, .was-validated input:valid:focus[type=checkbox], .form-control.is-valid:focus, input.is-valid:focus[type=checkbox] {
+  .was-validated .form-control:valid:focus, .was-validated .tablesorter input:valid:focus, .tablesorter .was-validated input:valid:focus, .was-validated input:valid:focus[type=checkbox], .form-control.is-valid:focus, .tablesorter input.is-valid:focus, input.is-valid:focus[type=checkbox] {
     border-color: #56B760;
     box-shadow: 0 0 0 0.25rem rgba(86, 183, 96, 0.25); }
 
@@ -1966,14 +1969,14 @@ textarea.form-control {
 .is-invalid ~ .invalid-tooltip {
   display: block; }
 
-.was-validated .form-control:invalid, .was-validated input:invalid[type=checkbox], .form-control.is-invalid, input.is-invalid[type=checkbox] {
+.was-validated .form-control:invalid, .was-validated .tablesorter input:invalid, .tablesorter .was-validated input:invalid, .was-validated input:invalid[type=checkbox], .form-control.is-invalid, .tablesorter input.is-invalid, input.is-invalid[type=checkbox] {
   border-color: #F63939;
   padding-right: calc(1.5em + 1.35rem);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23F63939' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23F63939' stroke='none'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.3375rem) center;
   background-size: calc(0.75em + 0.675rem) calc(0.75em + 0.675rem); }
-  .was-validated .form-control:invalid:focus, .was-validated input:invalid:focus[type=checkbox], .form-control.is-invalid:focus, input.is-invalid:focus[type=checkbox] {
+  .was-validated .form-control:invalid:focus, .was-validated .tablesorter input:invalid:focus, .tablesorter .was-validated input:invalid:focus, .was-validated input:invalid:focus[type=checkbox], .form-control.is-invalid:focus, .tablesorter input.is-invalid:focus, input.is-invalid:focus[type=checkbox] {
     border-color: #F63939;
     box-shadow: 0 0 0 0.25rem rgba(246, 57, 57, 0.25); }
 
@@ -2037,7 +2040,7 @@ textarea.form-control {
       flex-flow: row wrap;
       align-items: center;
       margin-bottom: 0; }
-    .form-inline .form-control, .form-inline input[type=checkbox] {
+    .form-inline .form-control, .form-inline .tablesorter input, .tablesorter .form-inline input, .form-inline input[type=checkbox] {
       display: inline-block;
       width: auto;
       vertical-align: middle; }
@@ -4668,7 +4671,15 @@ a.close.disabled, .pageContent a.close.disableButtons {
   border-color: rgba(0, 0, 0, 0.1);
   color: rgba(0, 0, 0, 0.3); }
 
-input[type=text], input[type=number], select {
+.labelHeading, div.settingsTable div.th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin-bottom: 0.8em; }
+
+.labelValue {
+  font-weight: bold; }
+
+input[type=text], input[type=number], select, .tablesorter input {
   border: 1px solid #D2D2D2;
   color: #171720;
   -webkit-appearance: none;
@@ -4774,51 +4785,36 @@ input[type=checkbox]:checked {
 .wifi-excellent {
   background: url(/images/redesign/wifi-excellent.svg);
   background-repeat: no-repeat;
-  background-size: contain;
-  width: 23.8px;
-  height: 17px;
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 5px;
-  margin-right: 5px; }
+  background-size: 22px;
+  height: 17px; }
 
 .wifi-good {
   background: url(/images/redesign/wifi-good.svg);
   background-repeat: no-repeat;
-  background-size: contain;
-  width: 23.8px;
-  height: 17px;
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 5px;
-  margin-right: 5px; }
+  background-size: 22px;
+  height: 17px; }
 
 .wifi-fair {
   background: url(/images/redesign/wifi-fair.svg);
   background-repeat: no-repeat;
-  background-size: contain;
-  width: 23.8px;
-  height: 17px;
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 5px;
-  margin-right: 5px; }
+  background-size: 22px;
+  height: 17px; }
 
 .wifi-weak {
   background: url(/images/redesign/wifi-weak.svg);
   background-repeat: no-repeat;
-  background-size: contain;
-  width: 23.8px;
-  height: 17px;
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 5px;
-  margin-right: 5px; }
+  background-size: 22px;
+  height: 17px; }
+
+.ip-net {
+  background: url(/images/redesign/ethernet-connected.svg);
+  background-repeat: no-repeat;
+  background-size: 17px; }
 
 .form-group.flow label {
   display: block; }
 
-.form-group.flow .form-control, .form-group.flow input[type=checkbox] {
+.form-group.flow .form-control, .form-group.flow .tablesorter input, .tablesorter .form-group.flow input, .form-group.flow input[type=checkbox] {
   display: inline-block;
   width: auto; }
 
@@ -4865,3 +4861,23 @@ input[type=checkbox]:checked {
 
 .backdrop-dark {
   background-color: #ECECEC; }
+
+div.settingsTable {
+  display: flex; }
+
+div.settingsTable div.td, div.settingsTable div.th {
+  margin-left: 1em;
+  margin-right: 1em; }
+
+div.settingsTable div.th > span {
+  max-width: 200px;
+  display: block; }
+
+table.settingsTable div.tr {
+  display: table-row; }
+
+table.settingsTable div.td, table.settingsTable div.th {
+  display: table-cell; }
+
+table.settingsTable div.th {
+  font-weight: bold; }

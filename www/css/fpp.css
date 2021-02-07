@@ -74,7 +74,7 @@ body .ui-tabs .ui-tabs-nav li {
 	align-items: center;
 }
 .headerLeft .logo{
-	max-height:20px;
+	max-height:26px;
 }
 .fppBrand{
 	padding-left: 0.5em;
@@ -86,9 +86,11 @@ body .ui-tabs .ui-tabs-nav li {
 }
 .fpp-logo{
 	width: 56px;
+	margin-left: 0.7em;
 }
 .fppBrand a:hover{
 	color:#fff;
+	
 }
 .fppBrand .versionHead{
 	font-size: 0.8em;
@@ -96,31 +98,7 @@ body .ui-tabs .ui-tabs-nav li {
 	padding-left: 1em;
 
 }
-.falconChristmasBrand{
-	position: relative;
-	padding-left: 1.2em;
-}
-.falconChristmasBrand:before{
-	content:'';
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	bottom:0;
-	transform: skewX(-17deg);
-	border-left:1px solid #666A71;
-	padding-left: 1em;
-}
-.falconChristmasBrand a{
-	font-weight: bold;
-	color:#D1D1D1;
-}
-.falconChristmasBrand a:hover{
-	color:#fff;
-}
-.falconChristmasBrand .logo{
-	margin-right:0.2em;
-}
+
 .headerRight .logo{
 	max-height:20px;
 }
@@ -131,7 +109,22 @@ body .ui-tabs .ui-tabs-nav li {
 }
 .headerHostLink{
 	font-weight: bold;
-	padding-right: 0.5em;
+	padding-right: 1em;
+}
+#header_IPs span{
+	display: inline-block;
+	height: 28px;
+
+	background-position: center top;
+	vertical-align: middle;
+	margin-left: 0.6em;
+	margin-right: 0.6em;
+	padding-top: 16px;
+}
+#header_IPs small{
+	font-size: 1.05em;
+	display: block;
+	text-align: center;
 }
 .headerCenter>div{
 	margin-left: 0.5em;
@@ -250,17 +243,11 @@ body legend{
 #daemonControl .statusTable>:first-child:before{
 	content:none;
 }
-.labelHeading{
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	margin-bottom: 0.8em;
-}
+
 #txtPlayerStatus{
 	padding-left: 0.5em;
 }
-.labelValue{
-	font-weight: bold;
-}
+
 .settingLabelHeading{
 	font-weight: normal;
 }
@@ -535,14 +522,6 @@ body .sm-clean a .sub-arrow {
 	right: 5px;
 }
 
-.wifi-weak {
-    background: url(images/wifi.png) -82px 0px;
-    padding-left: 4px;
-    width: 30px;
-    height: 25px;
-    display: inline-block;
-}
-
 /* Use as <div class="ajax-loading-60px"></div> */
 .ajax-loading-60px {
 	border: 16px solid #f3f3f3;
@@ -742,6 +721,109 @@ body .sm-clean a .sub-arrow {
 #tblSchedule tr.rowScheduleDetails.selectedEntry td{
 	background-color: #ECECEC;
 
+}
+#fppSystemsTable thead td,#fppSystemsTable thead th{
+	background-color: #ECECEC;
+}
+#fppSystemsTable thead th:first-child{
+	border-top-left-radius: 8px;
+}
+#fppSystemsTable thead th:last-child {
+	border-top-right-radius: 8px;
+}
+#fppSystemsTable thead td:first-child{
+	border-bottom-left-radius: 8px;
+}
+#fppSystemsTable thead td:last-child {
+	border-bottom-right-radius: 8px;
+}
+#fppSystemsTable thead th{
+	padding-top: 1.1em;
+}
+#fppSystemsTable thead td{
+
+	padding-bottom: 1.1em;
+}
+#fppSystemsTable thead>tr>:first-child{
+	padding-left: 1em;
+}
+#fppSystemsTable thead>tr>:last-child{
+	padding-right: 1em;
+}
+.fppTableWrapper.backdrop {
+	padding:1.5em;
+}
+#fppSystems>tr>td{
+	padding-top: 1.1em;
+	padding-bottom: 1.1em;
+	border-top: 1px solid #dee2e6;
+}
+#fppSystems>tr:first-child>td{
+
+	border-top: none;
+}
+#fppSystems>tr>td:first-child{
+	padding-left: 1em;
+}
+#fppSystems>tr>td:last-child{
+	padding-right: 1em;
+	
+}
+.fppSystemsUiSettings {
+	margin-top: 2em;
+	border-top: 1px solid #dee2e6;
+	padding-top: 2em;
+}
+.tablesorter .filtered{
+	display: none;
+}
+
+.tablesorter-fpp .header,
+.tablesorter-fpp .tablesorter-header {
+	background-image: url(data:image/gif;base64,R0lGODlhFQAJAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAkAAAIXjI+AywnaYnhUMoqt3gZXPmVg94yJVQAAOw==);
+	background-repeat: no-repeat;
+	background-position: bottom 10px right 18px;
+	white-space: normal;
+	cursor: pointer;
+}
+.tablesorter-fpp .headerSortUp,
+.tablesorter-fpp .tablesorter-headerSortUp,
+.tablesorter-fpp .tablesorter-headerAsc {
+	background-image: url(data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjI8Bya2wnINUMopZAQA7);
+}
+.tablesorter-fpp .headerSortDown,
+.tablesorter-fpp .tablesorter-headerSortDown,
+.tablesorter-fpp .tablesorter-headerDesc {
+	background-image: url(data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjB+gC+jP2ptn0WskLQA7);
+}
+.tablesorter-fpp thead .sorter-false {
+	background-image: none;
+	cursor: default;
+	padding: 4px;
+}
+
+/* tfoot */
+.tablesorter-fpp tfoot .tablesorter-headerSortUp,
+.tablesorter-fpp tfoot .tablesorter-headerSortDown,
+.tablesorter-fpp tfoot .tablesorter-headerAsc,
+.tablesorter-fpp tfoot .tablesorter-headerDesc {
+	/* remove sort arrows from footer */
+	background-image: none;
+}
+input[type=search].tablesorter-filter{
+	background-image: url(/images/redesign/search-24px.svg);
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+input[type=search].tablesorter-filter:placeholder-shown{
+
+}
+input[type=search].tablesorter-filter:not(:placeholder-shown){
+	background-image: none;
+
+}
+input[type=search].tablesorter-filter:disabled{
+	background-image: none;
 }
 .schDay{
 	width: 138px;

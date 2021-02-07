@@ -59,15 +59,11 @@ function list_plugin_entries($menu)
   <div class="header">
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
-            <a href="/"><img src="images/redesign/fpp-logo.svg" class="fpp-logo" /></a>
-            <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
-          </div>
-          <div class="headerLeftCol falconChristmasBrand">
-            <a href="http://www.falconchristmas.com" target="forum">
-               <span><img src="images/redesign/falconlogo.svg" class="logo" /></span>
-               <span>Falcon Christmas</span>
-              
+            <a href="/">
+              <img src="images/redesign/falconlogo.svg" class="logo" />
+              <img src="images/redesign/fpp-logo.svg" class="fpp-logo" />
             </a>
+            <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
           </div>
 
     </div>
@@ -75,13 +71,41 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo "<a href='networkconfig.php' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
+        echo "<span>Host: </span><a href='networkconfig.php' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
     } else {
         echo "" . gethostname() . "&nbsp;";
     }
 
     echo("<span id=\"header_IPs\"></span>");
+?>
+</div>
+    </div>
+    <div class="headerRight">
+		  <?
+            if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>";
+		    if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>";
+		    if ($settings['LogoLink'] != "") echo "</a>";
+            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
+                $landing = $settings['cape-info']['vendor']['url'];
+                if (isSet($settings['cape-info']['vendor']['landingPage'])) {
+                    $landing = $settings['cape-info']['vendor']['landingPage'];
+                }
+                $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "") {
+                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
+                    $landing = $landing . "&cs=" . $settings['cape-info']['cs'];
+                }
+                echo "<a href=\"" . $landing . "\"><img style='max-width:125px; max-height:60px;' src=\"" . $iurl . "\"></a>";
+            }
+          ?>
 
+		</div>
+    
+  </div>
+
+  <div class="fppMenuContainer container">
+  <?
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
 		$mounted = 0;
@@ -111,37 +135,13 @@ function list_plugin_entries($menu)
 		if ($needToMount && !$mounted)
 		{
 ?>
-	<br><b><font color='#ff0000'>WARNING: <?= $fppHome; ?>/media is not mounted, is a USB flash drive inserted?</font></b>
+  <div class="alert danger">
+    WARNING: <?= $fppHome; ?>/media is not mounted, is a USB flash drive inserted?
+  </div>
 <?
 		}
 	}
-?></div>
-    </div>
-    <div class="headerRight">
-		  <?
-            if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>";
-		    if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>";
-		    if ($settings['LogoLink'] != "") echo "</a>";
-            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
-                $landing = $settings['cape-info']['vendor']['url'];
-                if (isSet($settings['cape-info']['vendor']['landingPage'])) {
-                    $landing = $settings['cape-info']['vendor']['landingPage'];
-                }
-                $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "") {
-                    $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
-                    $landing = $landing . "&cs=" . $settings['cape-info']['cs'];
-                }
-                echo "<a href=\"" . $landing . "\"><img style='max-width:125px; max-height:60px;' src=\"" . $iurl . "\"></a>";
-            }
-          ?>
-
-		</div>
-    
-  </div>
-
-  <div class="fppMenuContainer container">
+?>
 <!--
   <div id='upgradeFlag' class="alert success">FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons btn-outline-light" value="Upgrade"></div>
 -->
@@ -150,7 +150,7 @@ function list_plugin_entries($menu)
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
   {
 ?>
-  <input type='button' class = "buttons buttons-outline-light" value='Clear' onClick='ClearRestartFlag();'>
+  <input type='button' class = "buttons btn-outline-light" value='Clear' onClick='ClearRestartFlag();'>
 <?
   }
 ?>
@@ -169,15 +169,15 @@ function RebuildFPPD() {
     StreamURL('manualUpdate.php?wrapped=1', 'rebuildText');
 }
 </script>
-  <div id="compileFPPDBanner" class="alert danger"><span class='inlineBlock'>FPPD not found. Rebuild required</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons buttons-outline-light" value="Rebuild"></span></div>
+  <div id="compileFPPDBanner" class="alert danger"><span class='inlineBlock'>FPPD not found. Rebuild required</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons btn-outline-light" value="Rebuild"></span></div>
 <? } ?>
-  <div id='unsupportedBrowser'>FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
-  <div id='rebootFlag'><span class='inlineBlock'>Base configuration has changed.Reboot Required</span><span class='inlineBlock'><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons buttons-outline-light" value="Reboot">
+  <div id='unsupportedBrowser' class="alert danger">FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
+  <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed.Reboot Required</span><span class='inlineBlock'><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons btn-outline-light" value="Reboot">
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
   {
 ?>
-  <input type='button' class = "buttons" value='Clear' onClick='ClearRebootFlag();'>
+  <input type='button' class = "buttons btn-outline-light" value='Clear' onClick='ClearRebootFlag();'>
 <?
   }
 ?>
