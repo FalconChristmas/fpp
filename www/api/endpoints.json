@@ -1325,6 +1325,17 @@
                     }
                 }
             }
+        },
+        {
+            "endpoint": "system/shutdown",
+            "methods": {
+                "GET": {
+                    "desc": "Execute a clean shutdown of the Linux operating system.",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
         }
     ]
 }

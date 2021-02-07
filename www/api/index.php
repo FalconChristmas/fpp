@@ -100,6 +100,7 @@ dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 
 dispatch_get   ('/system/reboot', 'RebootDevice');
+dispatch_get   ('/system/shutdown', 'SystemShutdownOS');
 
 dispatch_get   ('/time', 'GetTime');
 

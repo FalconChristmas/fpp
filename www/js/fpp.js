@@ -3432,7 +3432,11 @@ function GetRunningEffects()
                         setTimeout(function () {
                                 location.href="index.php";
                         }, 60000);
+                    },
+                    error: function() {
+                        DialogError('Command failed', 'Command failed');
                     }
+            
                 });    
             }, 1000);
 		} 
@@ -3442,11 +3446,18 @@ function GetRunningEffects()
 	{
 		if (confirm('SHUTDOWN the Falcon Player?'))
 		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=shutdownPi";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+            $.get({
+                url: "api/system/shutdown",
+                data: "",
+                success: function(data) {
+                    //Show FPP is rebooting notification for 60 seconds then reload the page
+                    $.jGrowl('FPP is shutting down..', {life: 60000});
+                },
+                error: function() {
+                    DialogError('Command failed', 'Command failed');
+                }
+        
+            });
 		} 
 	}
 
