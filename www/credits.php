@@ -12,27 +12,7 @@ $fpp_version = "v" . getFPPVersion();
 <?php include 'common/menuHead.inc'; ?>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>Credits</title>
-<style>
-.pl_title {
-  font-size: larger;
-}
-h4, h3 {
-  padding: 0;
-  margin: 0;
-}
-a:active {
-  color: none;
-}
-a:visited {
-  color: blue;
-}
-.time {
-  width: 100%;
-}
-.center {
-  text-align: center;
-}
-</style>
+
 </head>
 
 <body>

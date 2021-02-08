@@ -502,16 +502,18 @@ LoadLocale();
 /////////////////////////////////////////////////////////////////////////////
 function GetDirSetting($dir)
 {
-	if ($dir == "Sequences")        { return GetSettingValue('sequenceDirectory'); }
-	else if ($dir == "Music")       { return GetSettingValue('musicDirectory'); }
-	else if ($dir == "Videos")      { return GetSettingValue('videoDirectory'); }
-	else if ($dir == "Images")      { return GetSettingValue('imageDirectory'); }
-	else if ($dir == "Effects")     { return GetSettingValue('effectDirectory'); }
-	else if ($dir == "Scripts")     { return GetSettingValue('scriptDirectory'); }
-	else if ($dir == "Logs")        { return GetSettingValue('logDirectory'); }
-	else if ($dir == "Uploads")     { return GetSettingValue('uploadDirectory'); }
-	else if ($dir == "Docs")        { return GetSettingValue('docsDirectory'); }
-	else if ($dir == "Config")      { return GetSettingValue('configDirectory'); }
+	$dir = strtolower($dir); // Support both cases
+
+	if ($dir == "sequences")        { return GetSettingValue('sequenceDirectory'); }
+	else if ($dir == "music")       { return GetSettingValue('musicDirectory'); }
+	else if ($dir == "videos")      { return GetSettingValue('videoDirectory'); }
+	else if ($dir == "images")      { return GetSettingValue('imageDirectory'); }
+	else if ($dir == "effects")     { return GetSettingValue('effectDirectory'); }
+	else if ($dir == "scripts")     { return GetSettingValue('scriptDirectory'); }
+	else if ($dir == "logs")        { return GetSettingValue('logDirectory'); }
+	else if ($dir == "uploads")     { return GetSettingValue('uploadDirectory'); }
+	else if ($dir == "docs")        { return GetSettingValue('docsDirectory'); }
+	else if ($dir == "config")      { return GetSettingValue('configDirectory'); }
 
 	return "";
 }

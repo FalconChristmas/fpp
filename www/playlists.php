@@ -16,51 +16,77 @@ error_reporting(E_ALL);
 if (isset($_GET['playlist'])) {
 ?>
 <script>
-function LoadInitialPlaylist() {
-    $('#playlistSelect').val("<? echo $_GET['playlist']; ?>").trigger('change');
-}
+    var initialPlaylist = "<? echo $_GET['playlist']; ?>";
 </script>
 <?
 }
 ?>
 <script>
-$(document).ready(function() {
-    $( "#playlistSelect" ).resizable({ minWidth: 400, minHeight: 100});
-});
+    function LoadInitialPlaylist() {
+        $('#playlistSelect').val(initialPlaylist).trigger('change');
+    }
+    $(function(){
+        $('.playlistCreateContainer').hide();
+        $('.playlistAddNewBtn').click(function(){
+            $('.playlistCreateContainer').dialog({
+                modal: true
+            });
+
+        })
+        $('#btnNew').click(function(){
+            $('.playlistCreateContainer').dialog("close");
+        });
+        PopulateLists();
+        if (typeof initialPlaylist !== 'undefined') {
+            LoadInitialPlaylist();
+        }else{
+            $('#playlistSelect').prepend('<option value="" disabled selected>Select a Playlist</option>');
+        } 
+
+    })
 </script>
 <style>
 .ui-resizable-se { bottom: 20px; right: 25px; }
 </style>
 </head>
-<body onload="PopulateLists(); <?
-if (isset($_GET['playlist'])) {
-    echo "LoadInitialPlaylist();";
-}
-?>">
+<body>
 <div id="bodyWrapper">
 <?php
 include 'menu.inc';
 ?>
     <div class="container">
         <h1 class="title">Playlists</h1>
-        <div class='pageContent'> <br/>
-            <fieldset class="fieldSection">
-                <legend>Playlists</legend>
-                <div class='playlistBoxLeft'>
-                    <b>Select Playlist to Edit:</b><br>
-                    <select id='playlistSelect' size='5' style='width: 400px;' onChange='EditPlaylist();'>
-                    </select><br>
+        <div class='pageContent'>
+                <div class="d-flex playlistSelectContainer">
+                    <div class="fx-1">
+                         <select id='playlistSelect' class="form-control form-control-lg form-control-rounded has-shadow" onChange='EditPlaylist();'>
+                        </select>
+                    </div>
+                    <div class="or-v">
+                        <span>or</span>
+                    </div>
+                    <div>
+                        <button class="playlistAddNewBtn buttons btn-success btn-rounded btn-lg btn-icon-add">
+                            Add New
+                        </button>
+                    </div>
                 </div>
-                <div class='playlistBoxRight'>
-                    <b>Create New Playlist:</b><br/>
-                    <input id="txtNewPlaylistName" class="default-value" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
+
+                <div class="playlistCreateContainer">
+                    <b>Enter new playlist name</b><br/>
+                    <input id="txtNewPlaylistName" class="default-value form-control" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
                     <input id="btnNew" onclick="CreateNewPlaylist();" type="button" class="buttons" value="Create" />
                 </div>
                 <div class='clear'></div>
-            </fieldset>
-            <br/>
-            <a name='editor'></a>
-    <? include_once('playlistEditor.php'); ?>
+
+                <a name='editor'></a>
+
+                <div class="playlistEditorPanel backdrop">
+                    <? include_once('playlistEditor.php'); ?>
+                </div>
+
+
+
         </div>
     </div>
 <?php include 'common/footer.inc'; ?>

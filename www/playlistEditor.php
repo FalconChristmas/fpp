@@ -194,29 +194,48 @@ $(document).ready(function() {
 
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
-    <fieldset class="fieldSection">
-        <legend>Playlist Details</legend>
-        <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
-            <div style="float:left; margin-right: 50px;">
-                <b>Playlist Name:</b><br>
-                <input type="text" id="txtPlaylistName" class="pl_title" disabled />
-                <br><b>Playlist Description:</b><br>
-                <input type="text" id="txtPlaylistDesc" class="pl_description" />
-                <br><b>Randomize:</b><br>
-                <select id='randomizePlaylist'>
-                    <option value='0'>Off</option>
-                    <option value='1'>Once per load</option>
-                    <option value='2'>Every iteration</option>
-                </select>
-                <br />
-                <input type="button" value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons playlistEditButton" />
-                <input type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-                <input type="button" value="Copy" onclick="CopyPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-                <input type="button" value="Rename" onclick="RenamePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-                <input type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons playlistEditButton" />
-                <input type="button" value="Reset" onclick="EditPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
+    <div class="playlistEditContainer">
+        <div class="playlistEditForm">
+            <div class="playlistEdit">
+                <div class="form-group">
+                    <label for="txtPlaylistName">Playlist Name:</label>
+                    <input type="text" id="txtPlaylistName" class="pl_title form-control" disabled />
+                </div>
+                <div class="form-group">
+                    <label for="txtPlaylistDesc">Playlist Description:</label>
+                    <input type="text" id="txtPlaylistDesc" class="pl_description form-control" />
+                </div>
+                <div class="form-group flow">
+                    <label for="randomizePlaylist">Randomize:</label>
+                    <select id='randomizePlaylist' class="form-control">
+                        <option value='0'>Off</option>
+                        <option value='1'>Once per load</option>
+                        <option value='2'>Every iteration</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons btn-success playlistEditButton">Save</button>
+                    <div class="dropdown">
+                        <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            More
+                        </button>
+                        <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
+                            
+                            <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy</a>
+                            <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename</a>
+                            <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize</a>
+                            <a href="#" value="Reset" onclick="EditPlaylist();"  class="dropdown-item ">Reset</a>
+                            <a href="#" value="Delete" onclick="DeletePlaylist();"  class="dropdown-item ">Delete</a>
+                        </div>
+                    </div>
+                </div>
+
+
+            
+            
             </div>
-            <div style="float:left;" class="playlistInfoText">
+
+            <!-- <div style="float:left;" class="playlistInfoText">
                 <table>
                     <tr><th></th>
                         <th>Items</th>
@@ -237,11 +256,11 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                 </table>
                 <span style='display: none;' id='playlistDuration'>0</span>
             </div>
-            <div class="clear"></div>
+            <div class="clear"></div> -->
         </div>
-        <br />
 
-    <div id="playlistEntryProperties" style='float: left'>
+
+    <div id="playlistEntryProperties" class="backdrop-dark">
         <table border='0'>
             <colgroup>
                 <col class='colPlaylistEditorLabel'></col>
@@ -271,23 +290,32 @@ foreach ($playlistEntryTypes as $pet) {
             <tbody id='playlistEntryCommandOptions'>
             </tbody>
         </table>
+        <div class="form-actions">
+            <button onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" value="Add">Add</button>
+            <button onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" value="Replace">Replace</button>
+            <button onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" value="Remove">Remove</button>
+            <button class="buttons dropdown-toggle playlistDetailsEditButton" type="button" id="playlistDetailsEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                More
+            </button>
+            <div class="dropdown-menu playlistDetailsEditMoreButtonMenu" aria-labelledby="playlistDetailsEditMoreButton">
+                <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
+                <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>
+                <a href="#" onclick="EditPlaylistEntry();" class="dropdown-item" value="Edit">Edit</a>
+
+            </div>
+            
+        </div>
+        <div>
+             <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+            </div>
     </div>
-    <div class="clear"></div>
-    <div>
-        <input width="200px"  onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" type="button" value="Add" />
-        <input width="200px"  onclick="AddPlaylistEntry(2);" class="buttons playlistDetailsEditButton" type="button" value="Insert Before" />
-        <input width="200px"  onclick="AddPlaylistEntry(3);" class="buttons playlistDetailsEditButton" type="button" value="Insert After" />
-        <input width="200px"  onclick="EditPlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Edit" />
-        <input width="200px"  onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" type="button" value="Replace" />
-        <input width="200px"  onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Remove" />
-        <br>
-<? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
-    </div>
+</div>
+
 <?
 include "playlistDetails.php";
 ?>
-    <span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
-  </fieldset>
+
+
 
 <div id="copyPlaylist_dialog" title="Copy Playlist" style="display: none">
     <span>Enter name for new playlist:</span>

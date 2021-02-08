@@ -230,12 +230,6 @@ tr.rowScheduleDetails td {
   border-color: #333;
   border-collapse: collapse;
 }
-a:active {
-  color: none;
-}
-a:visited {
-  color: blue;
-}
 .time {
   width: 100%;
 }

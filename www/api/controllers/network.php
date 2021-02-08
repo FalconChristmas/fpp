@@ -8,13 +8,57 @@ function network_list_interfaces()
 	$cmd = "ip --json -4 address show";
 	exec($cmd, $output);
 	return json(json_decode(join(" ", $output)));
-	#return json(join(" ", $output));
 }
 
 function network_wifi_strength()
 {
 	return json(network_wifi_strength_obj());
 }
+
+function network_wifi_scan()
+{
+	$networks = array();
+	$current = array();
+	$interface = params('interface');
+
+	# Validate interface.   -- Important because of SUDO
+	$interfaces = json_decode(network_list_interfaces(), true);
+	$found = false;
+
+	foreach ($interfaces as $row) {
+		if ($row["ifname"] == $interface) {
+			$found = true;
+		}
+	}
+
+	if (! $found) {
+		return json(array("status" => "Invalid Interface", "networks" => array()));
+	}
+
+	$cmd = "sudo /sbin/iw dev $interface scan";
+	exec($cmd, $output);
+	foreach ($output as $row) {
+		if (startsWith($row, "BSS")) {
+			array_push($networks, $current);
+			$current = array();
+		} else if (preg_match('/freq: (.*)/', $row, $matches)) {
+			$current['freq'] = intval($matches[1]);
+		} else if (preg_match('/last seen: (.*)/', $row, $matches)) {
+			$current['lastSeen'] = $matches[1];
+		} else if (preg_match('/SSID: (.*)/', $row, $matches)) {
+			$current['SSID'] = $matches[1];
+		} else if (preg_match('/signal: (.*)/', $row, $matches)) {
+			$current['signal'] = $matches[1];
+		}
+	}
+	if (count($current) > 0) {
+		array_push($networks, $current);
+	}
+
+	return json(array("status" => "OK", "networks" => $networks));
+
+}
+
 
 function network_presisentNames_delete()
 {

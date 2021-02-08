@@ -297,7 +297,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                     nv += "2";
                 }
                 doCurlGet(nv);
-                doCurlGet("http://127.0.0.1/fppxml.php?command=restartFPPD", 10000);
+                doCurlGet("http://127.0.0.1/api/system/fppd/restart", 10000);
                 SetCurrentPage(sp);
             } else {
                 SetCurrentPage(this);

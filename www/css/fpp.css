@@ -1,11 +1,21 @@
 body{
 	background-color: #171720;
 }
-
+#restartFlag,#rebootFlag,#unsupportedBrowser{
+    display: none;
+	clear:both;
+}
 body .ui-widget{
 	font-family: Helvetica,Arial,sans-serif;
 }
-
+body .ui-tooltip{
+	color:#171720;
+	font-size: 0.88rem;
+	line-height: 1.3;
+	padding:1.3em 1.5em;
+	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
+	border-radius: 7px;
+}
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
 	padding: 0.75em 1.5em;
 }
@@ -53,18 +63,68 @@ body .ui-tabs .ui-tabs-nav li {
 	padding:1em;
 }
 .headerLeft{
-	flex:1
+	flex:1;
+	display:flex;
+}
+.headerLeft a{
+	text-decoration: none;
+} 
+.headerLeftCol{
+	display:flex;
+	align-items: center;
 }
 .headerLeft .logo{
-	max-height:24px;
+	max-height:26px;
 }
+.fppBrand{
+	padding-left: 0.5em;
+	padding-right: 1.2em;
+}
+.fppBrand a{
+	color:#989898;
+
+}
+.fpp-logo{
+	width: 56px;
+	margin-left: 0.7em;
+}
+.fppBrand a:hover{
+	color:#fff;
+	
+}
+.fppBrand .versionHead{
+	font-size: 0.8em;
+	display: inline-block;
+	padding-left: 1em;
+
+}
+
 .headerRight .logo{
-	max-height:24px;
+	max-height:20px;
 }
 .headerCenter{
 	display: flex;
 	align-items: center;
 	font-size: 0.8em;
+}
+.headerHostLink{
+	font-weight: bold;
+	padding-right: 1em;
+}
+#header_IPs span{
+	display: inline-block;
+	height: 28px;
+
+	background-position: center top;
+	vertical-align: middle;
+	margin-left: 0.6em;
+	margin-right: 0.6em;
+	padding-top: 16px;
+}
+#header_IPs small{
+	font-size: 1.05em;
+	display: block;
+	text-align: center;
 }
 .headerCenter>div{
 	margin-left: 0.5em;
@@ -195,17 +255,11 @@ body legend{
 #daemonControl .statusTable>:first-child:before{
 	content:none;
 }
-.labelHeading{
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	margin-bottom: 0.8em;
-}
+
 #txtPlayerStatus{
 	padding-left: 0.5em;
 }
-.labelValue{
-	font-weight: bold;
-}
+
 .settingLabelHeading{
 	font-weight: normal;
 }
@@ -218,6 +272,11 @@ body legend{
 }
 .pageContent {
 	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E;
+}
+.pageContent-tabs{
+	padding-bottom: 1.5em;
+	border-bottom:1px solid #DADADA;
+	margin-bottom: 2em;
 }
 #selFPPDmode{
 	background-color: #000;
@@ -370,6 +429,7 @@ hr {
 }
 .playlistRow td {
 	padding:0.2em 1em;
+	transition: background-color 0.2s ease-out;
 }
 .playlistRow td:first-child {
 	padding:1em 1em;
@@ -378,6 +438,10 @@ hr {
 .playlistRow td:last-child {
 	padding:1em 1em;
 	border-radius:0 5px 5px 0;
+}
+.playlistRow.ui-sortable-helper{
+	background-color: #DFDFDF;
+	border-radius:5px;
 }
 .fileDetails.selectedEntry td:first-child {
 	border-radius:5px 0 0 5px;
@@ -388,6 +452,10 @@ hr {
 .fileDetails td{
 	padding:0.4em 0.4em;
 	cursor: pointer;
+	border-top: 1px solid #DADADA;
+}
+.fileDetails:first-child td, .fileDetails.selectedEntry td{
+	border-top: 1px solid transparent;
 }
 .tblPlaylistHeaderDetails{
 	display: flex;
@@ -470,14 +538,6 @@ body .sm-clean a .sub-arrow {
 	right: 5px;
 }
 
-.wifi-weak {
-    background: url(images/wifi.png) -82px 0px;
-    padding-left: 4px;
-    width: 30px;
-    height: 25px;
-    display: inline-block;
-}
-
 /* Use as <div class="ajax-loading-60px"></div> */
 .ajax-loading-60px {
 	border: 16px solid #f3f3f3;
@@ -500,6 +560,7 @@ body .sm-clean a .sub-arrow {
 	100% { transform: rotate(360deg); }
   }
 
+<<<<<<< HEAD
 
 
 
@@ -927,3 +988,338 @@ body .sm-clean a .sub-arrow {
 	font-size: 30px;
 	z-index: 1040;
  } */
+=======
+  .psi {
+    width: 100%;
+    overflow: hidden;
+    padding: 0px;
+    display: flex;
+}
+
+.psiHeader {
+    text-align: left;
+    font-weight: bold;
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 10%;
+}
+
+.psiDuration {
+    padding: 0px;
+    vertical-align: top;
+    width: 10%;
+}
+
+.psiDurationSeconds {
+    display: none;
+}
+
+.psiDataSimple {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 80%;
+}
+
+.psiData {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 80%;
+    display: none;
+}
+
+.psiDetailsWrapper {
+    width: 100%;
+    float: left;
+}
+
+.psiDetails {
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.psiDetailsArg {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.psiDetailsHeader {
+    text-align: left;
+    font-weight: bold;
+    padding: 0px;
+    padding-right: 5px;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 15%;
+}
+
+.psiDetailsData {
+    flex: 1;
+    padding: 0px;
+    vertical-align: top;
+    width: 74%;
+}
+
+.psiDetailsLF {
+    flex-basis: 100%;
+    height: 0px;
+}
+.fppTableRowTemplate{
+	display: none;
+}
+
+.inlineBlock{
+	display: inline-block;
+}
+.alert>span.inlineBlock{
+	margin-right: 0.8em;
+}
+
+.playlistEditorPanel {
+	margin-top: 2em;
+}
+.playlistEditContainer{
+	display: flex;
+}
+.playlistEditContainer #playlistEntryProperties td{
+	padding-top: 0.2em;
+	padding-bottom: 0.2em;
+}
+.playlistEditContainer #playlistEntryProperties td:first-child{
+	padding-right: 1em;
+}
+.ui-sortable .playlistRow{
+    cursor:grab;
+}
+.ui-sortable .playlistRow .ui-sortable-helper{
+	cursor: grabbing;
+}
+.playlistEditForm{
+    flex:5;
+    padding-right: 5%;
+}
+#playlistEntryProperties{
+    flex:7;
+}
+.playlistEdit{
+
+}
+.playlistEditContainer{
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom:2em;
+    margin-bottom: 2em;
+}
+#tblSchedule{
+
+	width: 100%;
+	margin-bottom: 2em;
+	margin-top: 2em;
+}
+
+#tblSchedule tr td{
+	padding-top: 1.1em;
+	padding-bottom: 1.1em;
+	background-color: #F5F5F5;
+	border-bottom: 1px solid #dee2e6;
+}
+#tblSchedule tr:first-child td{
+	padding-top: 1.5em;
+}
+#tblSchedule tr:last-child td{
+	padding-bottom: 1.5em;
+}
+#tblSchedule tbody tr>td:first-child{
+	padding-left: 1.5em;
+	padding-right:0.4em;
+}
+#tblSchedule tbody tr>td:last-child,#tblSchedule tbody tr>td:nth-last-child(2){
+	padding-right: 1.1em;
+}
+#tblSchedule tbody tr:first-child>td:first-child{
+	border-top-left-radius: 8px;
+}
+#tblSchedule tbody tr:first-child>td:last-child, #tblSchedule tbody tr:first-child>td:nth-last-child(2) {
+	border-top-right-radius: 8px;
+}
+#tblSchedule tbody tr:last-child>td{
+	border-bottom: none;
+}
+#tblSchedule tbody tr:last-child>td:first-child{
+	border-bottom-left-radius: 8px;
+}
+#tblSchedule tbody tr:last-child>td:last-child, #tblSchedule tbody tr:last-child>td:nth-last-child(2) {
+	border-bottom-right-radius: 8px;
+}
+#tblSchedule tr th{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	margin-bottom: 0.8em;
+	font-weight: normal;
+	padding-bottom:1em;
+}
+#tblSchedule tr.rowScheduleDetails.selectedEntry td{
+	background-color: #ECECEC;
+
+}
+#fppSystemsTable thead td,#fppSystemsTable thead th{
+	background-color: #ECECEC;
+}
+#fppSystemsTable thead th:first-child{
+	border-top-left-radius: 8px;
+}
+#fppSystemsTable thead th:last-child {
+	border-top-right-radius: 8px;
+}
+#fppSystemsTable thead td:first-child{
+	border-bottom-left-radius: 8px;
+}
+#fppSystemsTable thead td:last-child {
+	border-bottom-right-radius: 8px;
+}
+#fppSystemsTable thead th{
+	padding-top: 1.1em;
+}
+#fppSystemsTable thead td{
+
+	padding-bottom: 1.1em;
+}
+#fppSystemsTable thead>tr>:first-child{
+	padding-left: 1em;
+}
+#fppSystemsTable thead>tr>:last-child{
+	padding-right: 1em;
+}
+.fppTableWrapper.backdrop {
+	padding:1.5em;
+}
+#fppSystems>tr>td{
+	padding-top: 1.1em;
+	padding-bottom: 1.1em;
+	border-top: 1px solid #dee2e6;
+}
+#fppSystems>tr:first-child>td{
+
+	border-top: none;
+}
+#fppSystems>tr>td:first-child{
+	padding-left: 1em;
+}
+#fppSystems>tr>td:last-child{
+	padding-right: 1em;
+	
+}
+.fppSystemsUiSettings {
+	margin-top: 2em;
+	border-top: 1px solid #dee2e6;
+	padding-top: 2em;
+}
+.tablesorter .filtered{
+	display: none;
+}
+
+.tablesorter-fpp .header,
+.tablesorter-fpp .tablesorter-header {
+	background-image: url(data:image/gif;base64,R0lGODlhFQAJAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAkAAAIXjI+AywnaYnhUMoqt3gZXPmVg94yJVQAAOw==);
+	background-repeat: no-repeat;
+	background-position: bottom 10px right 18px;
+	white-space: normal;
+	cursor: pointer;
+}
+.tablesorter-fpp .headerSortUp,
+.tablesorter-fpp .tablesorter-headerSortUp,
+.tablesorter-fpp .tablesorter-headerAsc {
+	background-image: url(data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjI8Bya2wnINUMopZAQA7);
+}
+.tablesorter-fpp .headerSortDown,
+.tablesorter-fpp .tablesorter-headerSortDown,
+.tablesorter-fpp .tablesorter-headerDesc {
+	background-image: url(data:image/gif;base64,R0lGODlhFQAEAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAQAAAINjB+gC+jP2ptn0WskLQA7);
+}
+.tablesorter-fpp thead .sorter-false {
+	background-image: none;
+	cursor: default;
+	padding: 4px;
+}
+
+/* tfoot */
+.tablesorter-fpp tfoot .tablesorter-headerSortUp,
+.tablesorter-fpp tfoot .tablesorter-headerSortDown,
+.tablesorter-fpp tfoot .tablesorter-headerAsc,
+.tablesorter-fpp tfoot .tablesorter-headerDesc {
+	/* remove sort arrows from footer */
+	background-image: none;
+}
+input[type=search].tablesorter-filter{
+	background-image: url(/images/redesign/search-24px.svg);
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+}
+input[type=search].tablesorter-filter:placeholder-shown{
+
+}
+input[type=search].tablesorter-filter:not(:placeholder-shown){
+	background-image: none;
+
+}
+input[type=search].tablesorter-filter:disabled{
+	background-image: none;
+}
+.schDay{
+	width: 138px;
+}
+.schPlaylist{
+	width: 150px;
+}
+.schStopType{
+	width: 138px;
+}
+
+
+#tblSequences {
+	width: 100%;
+}
+#tblMusic {
+	width: 100%;
+}
+#fileUploadTabsContent {
+	margin-top: -0.5em;
+}
+#fileUploadTabsContent .tab-pane{
+	margin-bottom: 1em;
+}
+.fileManagerDivData{
+	background-color: #ECECEC;
+	border-radius: 8px;
+	padding: 1em;
+	margin-top: 1.5em;
+	margin-bottom: 1.5em;
+}
+.fileManagerDivData>table{
+	width: 100%;
+}
+.fileManagerDivData>tr:first-child td:first-child {
+	border-top-left-radius: 8px;
+}
+.fileManagerDivData>tr:first-child td:last-child {
+	border-top-right-radius: 8px;
+}
+.fileManagerDivData>tr:last-child td:first-child {
+	border-bottom-left-radius: 8px;
+}
+.fileManagerDivData>tr:last-child td:last-child {
+	border-bottom-right-radius: 8px;
+}
+.fileManagerDivData .fileDetails td {
+	padding-top: 0.8em;
+	padding-bottom: 0.8em;
+}
+.fileManagerDivData .fileDetails td:first-child {
+	padding-left: 1em;
+}
+>>>>>>> 39cc7e39b231ef0911ad40899aad61241c76f48c

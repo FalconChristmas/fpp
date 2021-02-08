@@ -30,14 +30,15 @@ $(document).ready(function() {
 	});
 
 	$.ajax({
-	   url: "fppxml.php?command=getBridgeInputDelayBeforeBlack", 
+	   url: "api/settings/BridgeInputDelayBeforeBlack", 
 	   method: "GET",
-	   dataType: "text",
+	   dataType: "json",
 	   success: function (data) {
-		   xmlDoc = $.parseXML(data);
-		   $xml = $( xmlDoc );
-		   $value = $xml.find("BridgeInputDelayBeforeBlack");
-		   $('#txtBridgeInputDelayBeforeBlack').val($value.text());
+		   let val = 0;
+		   if ("value" in data) {
+			   val = data.value;
+		   }
+		   $('#txtBridgeInputDelayBeforeBlack').val(val);
 	   }
 	});
 	$(document).tooltip({
@@ -58,8 +59,9 @@ $(document).ready(function() {
 	$('#txtBridgeInputDelayBeforeBlack').change(function() {
 	   var newValue = $('#txtBridgeInputDelayBeforeBlack').val();
 	   $.ajax({
-	      url: "fppxml.php?command=setBridgeInputDelayBeforeBlack&delay=" + newValue, 
-	      method: "GET",
+	      url: "api/settings/BridgeInputDelayBeforeBlack",
+		  data: newValue, 
+	      method: "PUT",
 	      dataType: "text",
 	      success: function (data) {
 		      $.jGrowl("Input Delay Saved",{themeState:'success'});
@@ -210,7 +212,7 @@ $(document).ready(function(){
 			   Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
 		        </td><td>
 			   Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
-		           <img id="timeout_img" title="Blank Timeout" src="images/questionmark.png">
+		           <img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
 		        </td>
 		        </tr>
 		        </table>

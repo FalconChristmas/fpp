@@ -63,7 +63,7 @@ function reloadGitStatus() {
 }
 
 function GitReset() {
-	$.get("fppxml.php?command=resetGit"
+	$.get("api/git/reset"
 		).done(function() {
 			reloadGitStatus();
 		});

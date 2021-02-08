@@ -373,7 +373,7 @@ void PluginManager::init()
                         }
                         void *handle = dlopen(shlibName.c_str(), RTLD_NOW);
                         if (handle == nullptr) {
-                            LogErr(VB_PLUGIN, "Failed to load plugin shlib %s: %s\n", shlibName.c_str(), dlerror());
+                            LogErr(VB_PLUGIN, "Failed to load plugin shlib: %s\n", dlerror());
                             continue;
                         }
                         FPPPlugin* (*fptr)();

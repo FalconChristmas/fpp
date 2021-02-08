@@ -16,7 +16,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
 
-<link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
+
 <title><? echo $pageTitle; ?></title>
 <style>
 input.largeCheckbox {
@@ -1278,34 +1278,25 @@ function multiActionChanged() {
 <body>
 <div id="bodyWrapper">
 	<?php include 'menu.inc'; ?>
-    <br/>
     <div class="container">
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">
             
         	<div id="uifppsystems" class="settings">
+    
         
-                    <table style='width: 100%' class='statusTable'>
-                        <tr>
-                            <td align='left'>&nbsp;</td>
-                            <td align='right'>
-        <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> Auto Refresh Status
-                            </td>
-                        </tr>
-                    </table>
-        
-                    <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
+                    <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?> backdrop'>
                         <div class='fppTableContents'>
         			<table id='fppSystemsTable' cellpadding='3'>
         				<thead>
         					<tr>
-        						<th class="hostnameColumn">Hostname</th>
-        						<th>IP Address</th>
-        						<th>Platform</th>
-        						<th>Mode</th>
-        						<th>Status</th>
+        						<th class="hostnameColumn" data-placeholder="Hostname">Hostname</th>
+        						<th data-placeholder=">IP Address">IP Address</th>
+        						<th >Platform</th>
+        						<th >Mode</th>
+        						<th data-placeholder="Status">Status</th>
         						<th data-sorter='false' data-filter='false'>Elapsed</th>
-        						<th>Version</th>
+        						<th data-placeholder="Version">Version</th>
         						<?php
                                 //Only show expert view is requested
         						if ($advancedView == true) {
@@ -1362,24 +1353,43 @@ function multiActionChanged() {
         </div>
         <hr>
         <? } ?>
-                    <table class='settingsTable'>
-        <?
-        PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
-        PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
-        PrintSetting('MultiSyncExtraRemotes');
-        PrintSetting('MultiSyncHTTPSubnets');
-        PrintSetting('MultiSyncHide10', 'getFPPSystems');
-        PrintSetting('MultiSyncHide172', 'getFPPSystems');
-        PrintSetting('MultiSyncHide192', 'getFPPSystems');
-        PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
-        ?>
-                    </table>
-        	
-        <?
-        if ($uiLevel > 0) {
-            echo "<b>* - Advanced Level Setting</b>\n";
-        }
-        ?>
+        
+        <div class="fppSystemsUiSettings">
+            <div class="row">
+                <div class="col-2">
+                <div class="labelHeading">
+                Auto Refresh Status
+                </div>
+                
+                    <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
+
+                </div>
+                <div class="col">
+                <div class='settingsTable'>
+                    <?
+                    PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
+                    PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+                    PrintSetting('MultiSyncExtraRemotes');
+                    PrintSetting('MultiSyncHTTPSubnets');
+                    PrintSetting('MultiSyncHide10', 'getFPPSystems');
+                    PrintSetting('MultiSyncHide172', 'getFPPSystems');
+                    PrintSetting('MultiSyncHide192', 'getFPPSystems');
+                    PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
+                    ?>
+                                </div>
+                        
+                    <?
+                    if ($uiLevel > 0) {
+                        echo "<b>* - Advanced Level Setting</b>\n";
+                    }
+                    ?>
+                </div>
+            </div>
+
+        </div>
+
+        
+
         	</div>
         </div>
     </div>
@@ -1422,7 +1432,7 @@ $(document).ready(function() {
 <? } ?>
     .tablesorter({
         widthFixed: false,
-        theme: 'blue',
+        theme: 'fpp',
         cssInfoBlock: 'tablesorter-no-sort',
         widgets: ['zebra', 'filter', 'staticRow', 'saveSort'],
         headers: {

@@ -15,6 +15,8 @@ $gray-700: #495057 !default;
 $gray-800: #343a40 !default;
 $gray-900: #212529 !default;
 $black:    #171720 !default;
+$gray-lighter: #F5F5F5;
+$gray-light:#ECECEC;
 
 // fusv-disable
 $grays: (
@@ -37,7 +39,7 @@ $pink:    #d63384 !default;
 $red:     #F63939  !default;
 $orange:  #ff7200 !default;
 $darkorange: #ff4600;
-$yellow:  #C88F55 !default;
+$yellow:  #F2BC5F !default;
 $green:   #56B760 !default;
 $brightgreen: #10c032;
 $teal:    #20c997 !default;
@@ -224,7 +226,8 @@ $caret-spacing:               $caret-width * .85 !default;
 $transition-base:             all .2s ease-in-out !default;
 $transition-fade:             opacity .15s linear !default;
 $transition-collapse:         height .35s ease !default;
-
+$rule-color: $border-color;
+$hr-color: $border-color;
 $embed-responsive-aspect-ratios: (
   "21by9": (
     x: 21,
@@ -381,3 +384,20 @@ $alert-border-width:                $border-width !default;
 $alert-bg-level:                   1 ;
 $alert-border-level:                1 ;
 $alert-color-level:                 -10 ;
+
+
+//Dropdowns
+$dropdown-link-color:$black;
+$dropdown-link-hover-bg:$black;
+$dropdown-link-hover-color:$white;
+$dropdown-item-padding-y:0.75rem;
+$dropdown-item-padding-x:1.4rem;
+
+
+//nav-pills
+
+$nav-pills-border-radius:12px;
+$nav-pills-link-active-color:$white;
+$nav-pills-link-active-bg:$red;
+$nav-link-padding-y:.8rem;
+$nav-link-padding-x:1.5rem;

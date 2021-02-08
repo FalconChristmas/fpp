@@ -114,15 +114,43 @@
             "endpoint": "files/:DirName",
             "methods": {
                 "GET": {
-                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
-                    "output": [
-                        "PlayIntro.sh",
-                        "TestScript-02.sh",
-                        "TestScript.sh",
-                        "UserCallbackHook.sh",
-                        "fppdWatcher.sh",
-                        "fppdWatcherStart.sh"
-                    ]
+                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "output": {
+                        "status": "ok",
+                        "files": [
+                            {
+                                "name": "Christmas Every Day.mp3",
+                                "mtime": "09/23/20  07:47 PM",
+                                "sizeBytes": 7929000,
+                                "sizeHuman": "7.56MB",
+                                "playtimeSeconds": "03m:46s"
+                            },
+                            {
+                                "name": "Test.mp3",
+                                "mtime": "09/23/20  07:47 PM",
+                                "sizeBytes": 3618722,
+                                "sizeHuman": "3.45MB",
+                                "playtimeSeconds": "03m:46s"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "file/:DirName/:Filename",
+            "methods": {
+                "GET": {
+                    "desc": "Downloads the specified File where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?tail=# is supplied then only the specified number of lines from the end of the file are returned. ?play=1 then will set the content type to be played rather than downloaded.",
+                    "output": "The File Contents"
+                },
+                "DELETE": {
+                    "desc": "Deletes the specified file where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "output": {
+                        "status": "OK",
+                        "file": "block_driveways.xbkp",
+                        "dir": "uploads"
+                    }
                 }
             }
         },
@@ -318,6 +346,28 @@
                                 "hash": "2fad5ad941baea49edaab834429343b42981bcc5",
                                 "msg": "Move Playlist initialization into main() via Player::Init()"
                             }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "git/reset",
+            "methods": {
+                "GET": {
+                    "desc": "Performs a hard rest on the current branch, removing any local changes",
+                    "output": {
+                        "status": "OK",
+                        "log": [
+                            "HEAD is now at a1b65d43 Git Reset moved - #944",
+                            "Entering 'external/RF24'",
+                            "HEAD is now at ebc3abe Fix typo, missing space.",
+                            "Entering 'external/rpi-rgb-led-matrix'",
+                            "HEAD is now at 487facb With outline: move one over.",
+                            "Entering 'external/rpi_ws281x'",
+                            "HEAD is now at 3a20f1b Merge pull request #401 from Gadgetoid/patch-readme-spi-pi4",
+                            "Entering 'external/spixels'",
+                            "HEAD is now at 307d46f Support Raspberry Pi 4"
                         ]
                     }
                 }
@@ -766,7 +816,66 @@
             }
         },
         {
+            "endpoint": "network/wifi/scan/:interface",
+            "methods": {
+                "GET": {
+                    "desc": "Returns informationa about wifi networks that can be discovered via the specified interface. (NOTE: It is possible a network without a SSID will be in the list.) ",
+                    "output": {
+                        "status": "OK",
+                        "networks": [
+                            {
+                                "lastSeen": "0 ms ago",
+                                "freq": 2437,
+                                "signal": "-61.00 dBm",
+                                "SSID": "Christmas"
+                            },
+                            {
+                                "lastSeen": "16930 ms ago",
+                                "freq": 2437,
+                                "signal": "-68.00 dBm",
+                                "SSID": "Christmas-Guest"
+                            },
+                            {
+                                "lastSeen": "16930 ms ago",
+                                "freq": 2412,
+                                "signal": "-93.00 dBm",
+                                "SSID": "MySpectrumWiFi48-2G"
+                            },
+                            {
+                                "lastSeen": "0 ms ago",
+                                "freq": 2437,
+                                "signal": "-55.00 dBm"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/wifi_strength",
+            "methods": {
+                "GET": {
+                    "desc": "DEPRECATED:Use network/wifi/strength",
+                    "deprecated": true,
+                    "output": [
+                        {
+                            "interface": "wlan0",
+                            "link": 45,
+                            "level": -65,
+                            "noise": -256
+                        },
+                        {
+                            "interface": "wlan1",
+                            "link": 40,
+                            "level": -60,
+                            "noise": -256
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "network/wifi/strength",
             "methods": {
                 "GET": {
                     "desc": "Returns detailed information about wireless network interfaces and their signal strength",
@@ -1160,7 +1269,7 @@
             "endpoint": "settings/:SettingName",
             "methods": {
                 "GET": {
-                    "desc": "Get info about a for a particular setting.",
+                    "desc": "Get info about a for a particular setting include the value.",
                     "output": {
                         "name": "AudioFormat",
                         "description": "Audio Output Format",
@@ -1183,6 +1292,13 @@
                         },
                         "value": "0"
                     }
+                },
+                "PUT": {
+                    "desc": "Sets the value for a specifc setting",
+                    "input": "0",
+                    "output": {
+                        "status": "OK"
+                    }
                 }
             }
         },
@@ -1200,10 +1316,54 @@
             }
         },
         {
+            "endpoint": "system/fppd/restart",
+            "methods": {
+                "GET": {
+                    "desc": "Restarts the fppd process. Can also pass ?quick=1 to reload some configuration without full restart",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/fppd/start",
+            "methods": {
+                "GET": {
+                    "desc": "Starts the fppd process (if it isn't already running)",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/fppd/stop",
+            "methods": {
+                "GET": {
+                    "desc": "Stops the fppd process if it is running",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "system/reboot",
             "methods": {
                 "GET": {
                     "desc": "Results in reboot of the operating system",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/shutdown",
+            "methods": {
+                "GET": {
+                    "desc": "Execute a clean shutdown of the Linux operating system.",
                     "output": {
                         "status": "OK"
                     }

@@ -20,6 +20,14 @@ function startsWith( $haystack, $needle ) {
 	return substr( $haystack, 0, $length ) === $needle;
 }
 
+function endsWith( $haystack, $needle ) {
+    $length = strlen( $needle );
+    if( !$length ) {
+        return true;
+    }
+    return substr( $haystack, -$length ) === $needle;
+}
+
 function getFileList($dir, $ext)
 {
   $i = array();
@@ -213,7 +221,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         LoadPluginSettingInfos($plugin);
 
     if (!isset($settingInfos[$setting])) {
-        echo "<tr><td colspan='2'><b>Invalid Setting: $setting</b></td></tr>\n";
+        echo "<div class='tr'><div class='td td-colspan-2' colspan='2'><b>Invalid Setting: $setting</b></div></div>\n";
         return;
     }
 
@@ -249,9 +257,9 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
         if ($textOnRight)
-            echo "<tr id='" . $setting . "Row'><td>";
+            echo "<div class='tr' id='" . $setting . "Row'><div class='td'>";
         else
-            echo "<tr id='" . $setting . "Row'><th>" . $s['description'] . ":</th><td>";
+            echo "<div class='tr' id='" . $setting . "Row'><div class='th'><span>" . $s['description'] . ":</span></div><div class='td'>";
 
         switch ($s['type']) {
             case 'select':
@@ -342,7 +350,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
             echo $suffix . ' ';
 
         if ($textOnRight)
-            echo "</td><th>" . $s['description'] . " ";
+            echo "</div><div class='th'><span>" . $s['description'] . "</span> ";
 
         PrintToolTip($setting);
 
@@ -354,9 +362,9 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
             echo " <b>***</b>";
 
         if ($textOnRight)
-            echo "</th></tr>\n";
+            echo "</div></div>\n";
         else
-            echo "</td></tr>\n";
+            echo "</div></div>\n";
     }
 }
 
@@ -1634,7 +1642,7 @@ function PrintToolTip($setting) {
 
     if ((isset($settingInfos[$setting])) &&
         (isset($settingInfos[$setting]['tip']))) {
-        echo "<img id='$setting" . "_img' title='$setting' src='images/redesign/icon-help.svg' class='icon-help'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $settingInfos[$setting]['tip'] . "</span>\n";
+        echo "<img id='$setting" . "_img' title='$setting' src='images/redesign/help-icon.svg' class='icon-help'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $settingInfos[$setting]['tip'] . "</span>\n";
     }
 }
 

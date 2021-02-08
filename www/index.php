@@ -183,7 +183,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();">
+<body onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
@@ -219,7 +219,7 @@ include 'common/menuHead.inc';
                                     <option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
                                     <option id="optFPPDmode_Bridge" value="1">Bridge</option>
                                 </select>
-                                <input type="button" id="btnDaemonControl" class ="buttons buttons-outline-light" value="" onClick="ControlFPPD();">
+                                <input type="button" id="btnDaemonControl" class ="buttons btn-outline-light" value="" onClick="ControlFPPD();">
                                 </div>
                         </div>
                         <div>
@@ -353,12 +353,12 @@ include 'common/menuHead.inc';
                         <div class="d-flex">
                                 
                             <div id="playerControls" >
-                                <input id= "btnPlay" type="button"  class ="buttons buttons-rounded buttons-success"value="Play" onClick="StartPlaylistNow();">
-                                <input id= "btnPrev" type="button"  class ="buttons buttons-rounded buttons-pleasant"value="Previous" onClick="PreviousPlaylistEntry();">
-                                <input id= "btnNext" type="button"  class ="buttons buttons-rounded buttons-pleasant"value="Next" onClick="NextPlaylistEntry();">
-                                <input id= "btnStopGracefully" type="button"  class ="buttons buttons-rounded buttons-graceful" value="Stop Gracefully" onClick="StopGracefully();">
-                                <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons buttons-rounded buttons-detract" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
-                                <input id= "btnStopNow" type="button" class ="buttons buttons-rounded buttons-danger" value="Stop Now" onClick="StopNow();">
+                                <input id= "btnPlay" type="button"  class ="buttons btn-rounded btn-success"value="Play" onClick="StartPlaylistNow();">
+                                <input id= "btnPrev" type="button"  class ="buttons btn-rounded btn-pleasant"value="Previous" onClick="PreviousPlaylistEntry();">
+                                <input id= "btnNext" type="button"  class ="buttons btn-rounded btn-pleasant"value="Next" onClick="NextPlaylistEntry();">
+                                <input id= "btnStopGracefully" type="button"  class ="buttons btn-rounded btn-graceful" value="Stop Gracefully" onClick="StopGracefully();">
+                                <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons btn-rounded btn-detract" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
+                                <input id= "btnStopNow" type="button" class ="buttons btn-rounded btn-danger" value="Stop Now" onClick="StopNow();">
                             </div>
                             <div class="volumeControlsContainer">
                                 

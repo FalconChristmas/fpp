@@ -14,12 +14,12 @@ function SetupFileChooser(dir, target)
     $.get('api/files/' + dir, function(data) {
         var options = "";
         for (var i = 0; i < data.length; i++) {
-            options += "<option value='" + data[i] + "'";
+            options += "<option value='" + data[i].name + "'";
 
-            if (file == data[i])
+            if (file == data[i].name)
                 options += " selected";
 
-            options += ">" + data[i] + "</option><br>";
+            options += ">" + data[i].name + "</option><br>";
         }
         $('#fileChooserSelect').html(options);
     });
