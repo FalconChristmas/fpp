@@ -1,7 +1,7 @@
 body{
 	background-color: #171720;
 }
-#restartFlag{
+#restartFlag,#rebootFlag,#unsupportedBrowser{
     display: none;
 	clear:both;
 }
