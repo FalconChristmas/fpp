@@ -132,9 +132,11 @@ function list_plugin_entries($menu)
   <div class="fppMenuContainer container">
     
   <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
+  <div class="navbar-translate">
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
     <span class="navbar-toggler-icon"></span>
   </button>
+          </div>
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
     <li class="nav-item dropdown active">

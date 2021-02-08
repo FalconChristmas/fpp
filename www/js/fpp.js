@@ -13,6 +13,7 @@ gblCurrentPlaylistEntrySeq = '';
 gblCurrentPlaylistEntrySong = '';
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
+gblNavbarMenuVisible = 0;
 
 var max_retries = 60;
 var retry_poll_interval_arr = [];
@@ -21,6 +22,11 @@ var minimalUI = 0;
 
 var statusTimeout = null;
 var lastStatus = '';
+
+/* On Page Ready Functions */
+$(function() {
+    $(document).on('click', '.navbar-toggler', ToggleMenu);
+});
 
 function PadLeft(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
@@ -5151,4 +5157,19 @@ function PreviewSchedule()
     $('#schedulePreviewDiv').load('schedulePreview.php');
 }
 
-
+function ToggleMenu() {
+    if (gblNavbarMenuVisible == 1) {
+        $('html').removeClass('nav-open');
+        gblNavbarMenuVisible = 0;
+        $('#bodyClick').fadeOut("slow", function (){ $('#bodyClick').remove();});
+    } else {
+        div = '<div id="bodyClick"></div>';
+        $(div).appendTo("body").click(function() {
+            $('.navbar-toggler').trigger("click");
+            $('html').removeClass('nav-open');
+            gblNavbarMenuVisible = 0;
+        });
+        $('html').addClass('nav-open');
+        gblNavbarMenuVisible = 1;
+    }
+}
