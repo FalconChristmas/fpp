@@ -44,7 +44,7 @@ dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
 dispatch_post  ('/network/presisentNames', 'network_presisentNames_create');
 dispatch_get   ('/network/wifi/scan/:interface', 'network_wifi_scan');
 dispatch_get   ('/network/wifi/strength', 'network_wifi_strength');
-dispatch_get   ('/network/wifi_strength', 'network_wifi_strength');
+dispatch_get   ('/network/wifi_strength', 'network_wifi_strength'); // Legacy mapping
 
 
 dispatch_get   ('/options/:SettingName', 'GetOptions');
@@ -99,7 +99,12 @@ dispatch_get   ('/scripts', 'scripts_list');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 
+dispatch_get   ('/system/fppd/restart', 'RestartFPPD');
+dispatch_get   ('/system/fppd/start', 'StartFPPD');
+dispatch_get   ('/system/fppd/stop', 'StopFPPD');
 dispatch_get   ('/system/reboot', 'RebootDevice');
+dispatch_get   ('/system/releaseNotes/:version', 'ViewReleaseNotes');
+dispatch_get   ('/system/shutdown', 'SystemShutdownOS');
 
 dispatch_get   ('/time', 'GetTime');
 

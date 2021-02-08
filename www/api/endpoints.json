@@ -1316,10 +1316,54 @@
             }
         },
         {
+            "endpoint": "system/fppd/restart",
+            "methods": {
+                "GET": {
+                    "desc": "Restarts the fppd process. Can also pass ?quick=1 to reload some configuration without full restart",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/fppd/start",
+            "methods": {
+                "GET": {
+                    "desc": "Starts the fppd process (if it isn't already running)",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/fppd/stop",
+            "methods": {
+                "GET": {
+                    "desc": "Stops the fppd process if it is running",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "system/reboot",
             "methods": {
                 "GET": {
                     "desc": "Results in reboot of the operating system",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "system/shutdown",
+            "methods": {
+                "GET": {
+                    "desc": "Execute a clean shutdown of the Linux operating system.",
                     "output": {
                         "status": "OK"
                     }

@@ -4,6 +4,7 @@
 <?php
 require_once('config.php');
 require_once('common.php');
+include 'playlistEntryTypes.php';
 
 $kernel_version = exec("uname -r");
 
@@ -119,7 +120,7 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 
 
 </head>
-<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();GetVolume();LoadNetworkDetails();">
+<body onLoad="GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();LoadNetworkDetails();">
 <div id="bodyWrapper">
   <div class="header">
     <div class="headerCenter"><div class="siteName"><? echo $settings['Title']; ?></div>

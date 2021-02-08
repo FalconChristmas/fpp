@@ -12,7 +12,6 @@ error_reporting(E_ALL);
 // Commands defined here which return something other
 // than XML need to return their own Content-type header.
 $nonXML = Array(
-	"viewReleaseNotes" => 1,
 	"viewRemoteScript" => 1
 	);
 
@@ -34,23 +33,23 @@ $command_array = Array(
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
 	"deleteUniverse" => 'DeleteUniverse',
 	"cloneUniverse" => 'CloneUniverse',
-	"viewReleaseNotes" => 'ViewReleaseNotes',
+	// "viewReleaseNotes" => 'ViewReleaseNotes',  // use GET /api/system/releaseNotes/:version
 	"viewRemoteScript" => 'ViewRemoteScript',
 	"installRemoteScript" => 'InstallRemoteScript',
 	"moveFile" => 'MoveFile',
 	"isFPPDrunning" => 'IsFPPDrunning',
 	// "getFPPstatus" => 'GetFPPstatus', use GET /api/fppd/status instead
-	"stopGracefully" => 'StopGracefully',
-	"stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop',
-	"stopNow" => 'StopNow',
-	"stopFPPD" => 'StopFPPD',
-	"startFPPD" => 'StartFPPD',
-	"restartFPPD" => 'RestartFPPD',
+	// "stopGracefully" => 'StopGracefully', use api/playlists/stopgracefully or command API
+	// "stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop', use api/playlists/stopgracefullyafterloop or Command API
+	// "stopNow" => 'StopNow', // api/playlists/stop or Command API
+	// "stopFPPD" => 'StopFPPD', // use GET /api/system/fppd/stop
+	// "startFPPD" => 'StartFPPD', // use GET /api/system/fppd/start
+	"restartFPPD" => 'RestartFPPD', // retained for xLights and Multisync
 	"startPlaylist" => 'StartPlaylist',
 	"rebootPi" => 'RebootPi', // Used my MultiSync
 	"shutdownPi" => 'ShutdownPi',
 	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
-	"upgradeFPPVersion" => 'UpgradeFPPVersion',
+	// "upgradeFPPVersion" => 'UpgradeFPPVersion', Replaced by upgradefpp.php?
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
 	// "resetGit" => 'ResetGit', // use GET /git/reset
 	"setVolume" => 'SetVolume',
@@ -70,7 +69,7 @@ $command_array = Array(
 	//"getFile" => 'GetFile', // Replaced by /api/file/
 	//"tailFile" => 'TailFile', // Replaced by api/file
 	"saveUSBDongle" => 'SaveUSBDongle',
-	"getInterfaceInfo" => 'GetInterfaceInfo',
+	// "getInterfaceInfo" => 'GetInterfaceInfo',  // Never used
 	"setupExtGPIO" => 'SetupExtGPIO',
 	"extGPIO" => 'ExtGPIO'
 );
@@ -119,17 +118,6 @@ function RebootPi()
 
     header( "Access-Control-Allow-Origin: *");
 	EchoStatusXML($status);
-}
-
-function UpgradeFPPVersion()
-{
-	$version = $_GET['version'];
-	check($version, "version", __FUNCTION__);
-
-	global $fppDir;
-	exec("$fppDir/scripts/upgrade_FPP $version");
-
-	EchoStatusXML("OK");
 }
 
 function SetVolume()
@@ -228,19 +216,6 @@ function ShutdownPi()
 
 	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
-}
-
-function ViewReleaseNotes()
-{
-	$version = $_GET['version'];
-	check($version, "version", __FUNCTION__);
-
-	ini_set('user_agent','Mozilla/4.0 (compatible; MSIE 6.0)');
-	$json = file_get_contents("https://api.github.com/repos/FalconChristmas/fpp/releases/tags/" . $version);
-
-	$data = json_decode($json, true);
-
-	echo $data["body"];
 }
 
 function ViewRemoteScript()
@@ -563,76 +538,24 @@ function GetUniverseReceivedBytes()
 	echo $doc->saveHTML();	
 }
 
-function StopGracefully()
-{
-	$status=SendCommand('S');
-	EchoStatusXML('true');
-}
-function StopGracefullyAfterLoop()
-{
-	$status=SendCommand('StopGracefullyAfterLoop');
-	EchoStatusXML('true');
-}
-
-function StopNow()
-{
-	$status=SendCommand('d');
-	EchoStatusXML('true');
-}
-
-function StopFPPDNoStatus()
-{
-    global $SUDO;
-    
-    // Stop Playing
-    SendCommand('d');
-    
-    // Shutdown
-    SendCommand('q'); // Ignore return and just kill if 'q' doesn't work...
-    // wait half a second for shutdown and outputs to close
-
-    if (file_exists("/.dockerenv")) {
-        usleep(500000);
-        // kill it if it's still running
-        exec($SUDO . " " . dirname(dirname(__FILE__)) . "/scripts/fppd_stop");
-    } else {
-        // systemctl uses fppd_stop to stop fppd, but we need systemctl to know
-        exec($SUDO . " systemctl stop fppd");
-    }
-}
-function StopFPPD()
-{
-    StopFPPDNoStatus();
-    EchoStatusXML('true');
-}
-
-function StartFPPD()
-{
-	global $settingsFile, $SUDO;
-
-	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
-	if($status == 'false')
-        exec($SUDO . " /opt/fpp/scripts/fppd_start");
-
-    EchoStatusXML('true');
-}
-
+// This old method is for xLights and multisync
 function RestartFPPD()
 {
-    header( "Access-Control-Allow-Origin: *");
+	header( "Access-Control-Allow-Origin: *");
+	$url = "http://localhost/api/system/fppd/restart";
 
     if ((isset($_GET['quick'])) && ($_GET['quick'] == 1))
     {
-        $status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
-        if ($status == 'true')
-        {
-            SendCommand('restart');
-            return;
-        }
-    }
+		$url = $url + "?quick=1";
+	}
 
-    StopFPPDNoStatus();
-    StartFPPD();
+	$curl = curl_init($url);
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+    $request_content = curl_exec($curl);
+	EchoStatusXML('true');
 }
 
 
@@ -1229,92 +1152,6 @@ function SaveUSBDongle()
 	WriteSettingToFile("USBDonglePort", $usbDonglePort);
 	WriteSettingToFile("USBDongleType", $usbDongleType);
 	WriteSettingToFile("USBDongleBaud", $usbDongleBaud);
-}
-
-function GetInterfaceInfo()
-{
-	$interface = $_GET['interface'];
-	check($interface, "interface", __FUNCTION__);
-
-  $readinterface = shell_exec("./readInterface.awk /etc/network/interfaces device=" . $interface);
-  $parseethernet = explode(",", $readinterface);
-  if (trim($parseethernet[0], "\"\n\r") == "dhcp" )
-  {
-    $ethMode = "dhcp";
-    // Gateway
-    $iproute = shell_exec('/sbin/ip route');
-    preg_match('/via ([\d\.]+)/', $iproute, $result);
-    $eth_gateway = $result[1];
-
-    // IP Address
-    $ifconfig = shell_exec("/sbin/ifconfig " . $interface);
-    $success = preg_match('/addr:([\d\.]+)/', $ifconfig, $result);
-    $eth_IP = $result[1];
-    if ($success == 1) 
-    {
-      // Netmask
-      preg_match('/Mask:([\d\.]+)/', $ifconfig, $result);
-      $eth_netmask = $result[1];
-      // Broadcast
-//      preg_match('/Bcast:([\d\.]+)/', $ifconfig, $result);
-//      $eth_broadcast = $result[1];
-    }
-  }
-  
-  // Static get info from /etc/network/interfaces
-  else
-  {
-    $ethMode = "static";
-    $eth_IP = $parseethernet[1];
-    $eth_netmask = $parseethernet[2];
-    $eth_gateway = $parseethernet[3];
-//    $eth_network = $parseethernet[4];
-//    $eth_broadcast = $parseethernet[5];
-  }
-
-  // DNS Server
-  $ipdns = shell_exec('/bin/cat /etc/resolv.conf | grep nameserver');
-  preg_match('/nameserver ([\d\.]+)/', $ipdns, $result);
-  $eth_dns = $result[1];
-
-  // Create XML
-	$doc = new DomDocument('1.0');
-	// Interface
-	$root = $doc->createElement('Interface');
-	$root = $doc->appendChild($root);
-  
-	$emode = $doc->createElement('mode');
-	$emode = $root->appendChild($emode);
-  $value = $doc->createTextNode($ethMode);
-	$value = $emode->appendChild($value);
-  
-	$eAddress = $doc->createElement('address');
-	$eAddress = $root->appendChild($eAddress);
-  $value = $doc->createTextNode($eth_IP);
-	$value = $eAddress->appendChild($value);
-
-	$eNetmask = $doc->createElement('netmask');
-	$eNetmask = $root->appendChild($eNetmask);
-  $value = $doc->createTextNode($eth_netmask);
-	$value = $eNetmask->appendChild($value);
-
- 	$eGateway = $doc->createElement('gateway');
-	$eGateway = $root->appendChild($eGateway);
-   $value = $doc->createTextNode($eth_gateway);
-	$value = $eGateway->appendChild($value);
-   
- 	//$eNetwork = $doc->createElement('network');
-	//$eNetwork = $root->appendChild($eNetwork);
-  //$value = $doc->createTextNode($eth_network);
-	//$value = $eNetwork->appendChild($value);
-
- 	//$eBroadcast = $doc->createElement('broadcast');
-	//$eBroadcast = $root->appendChild($eBroadcast);
-  //$value = $doc->createTextNode($eth_broadcast);
-	//$value = $eBroadcast->appendChild($value);
-
-   
-	echo $doc->saveHTML();
 }
 
 function SetupExtGPIO()

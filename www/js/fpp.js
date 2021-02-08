@@ -864,7 +864,7 @@ function PlaylistNameOK(name) {
 function LoadNetworkDetails(){
     $.get('api/network/interface'
     ).done(function(data) {
-       $.get('api/network/wifi_strength'
+       $.get('api/network/wifi/strength'
        ).done(function(wifiData) {
           var rc = [];
           data.forEach(function(e) {
@@ -1630,11 +1630,11 @@ function RemovePlaylistEntry()	{
 				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
 				$('#dialog-help').dialog( "moveToTop" );
 
-				$.get("fppxml.php?command=viewReleaseNotes&version=" + version
+				$.get("api/system/releaseNotes/" + version
 				).done(function(data) {
 						$('#helpText').html(
 						"<center><input onClick='UpgradeFPPVersion(\"" + version + "\");' type='button' class='buttons' value='Upgrade'></center>" +
-						"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" + data + "</pre>"
+						"<pre style='white-space: pre-wrap; word-wrap: break-word;'>" + data.body + "</pre>"
 						);
 				}).fail(function() {
 						$('#helpText').html("Error loading release notes.");
@@ -2535,6 +2535,11 @@ function GetSequenceArray()
 				if(response && typeof response === 'object') {
 
 					if(response.status_name == 'stopped') {
+
+                        if ( ! ("warnings" in response)) {
+                            response.warnings = [];
+                        }
+                        response.warnings.push('FPPD Daemon is not running');
 						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
@@ -2547,7 +2552,9 @@ function GetSequenceArray()
 						$('#schedulerStatus').html("");
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
-                                                $('#mqttRow').hide()
+                        $('#mqttRow').hide()
+                        updateWarnings(response);
+
 					
 					} else if(response.status_name == 'updating') {
 
@@ -2562,7 +2569,7 @@ function GetSequenceArray()
 						$('#schedulerStatus').html("");
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
-                                                $('#mqttRow').hide()
+                        $('#mqttRow').hide()
 
 					} else {
 
@@ -2585,6 +2592,20 @@ function GetSequenceArray()
 		})
 	}
 
+function updateWarnings(jsonStatus) {
+    if (jsonStatus.hasOwnProperty('warnings')) {
+        var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
+        for (var i = 0; i < jsonStatus.warnings.length; i++) {
+            txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+        }
+        document.getElementById('warningsDiv').innerHTML = txt;
+        $('#warningsRow').show();
+    } else {
+        $('#warningsRow').hide();
+    }
+}
+
+
     function modeToString(mode) {
         switch (mode) {
             case 1: return "Bridge";
@@ -2596,7 +2617,8 @@ function GetSequenceArray()
         return "Unknown Mode";
     }
 
-	var firstStatusLoad = 1;
+    var firstStatusLoad = 1;
+    
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -2634,19 +2656,9 @@ function GetSequenceArray()
            $('#mqttRow').hide()
 	}
 
-        
-        if (jsonStatus.hasOwnProperty('warnings')) {
-            var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
-            for (var i = 0; i < jsonStatus.warnings.length; i++) {
-                txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
-            }
-            document.getElementById('warningsDiv').innerHTML = txt;
-            $('#warningsRow').show();
-        } else {
-            $('#warningsRow').hide();
-        }
+    updateWarnings(jsonStatus);
 
-		if (fppMode == 1) {
+        if (fppMode == 1) {
 			// Bridge Mode
 			$('#fppTime').html(jsonStatus.time);
 
@@ -3224,7 +3236,7 @@ function RestartFPPD() {
 			args = "&quick=1";
 
 		$('html,body').css('cursor','wait');
-		$.get("fppxml.php?command=restartFPPD" + args
+		$.get("api/system/fppd/restart" + args
 		).done(function() {
 			$('html,body').css('cursor','auto');
 			$.jGrowl('FPPD Restarted',{themeState:'success'});
@@ -3282,29 +3294,28 @@ function zeroPad(num, places) {
 	return Array(+(zero > 0 && zero)).join("0") + num;
 }
 	
-function ControlFPPD()
-	{
-    var xmlhttp=new XMLHttpRequest();
-		var btnVal = $("#btnDaemonControl").attr('value');
-		if(btnVal == "Stop FPPD")
-		{
-			var url = "fppxml.php?command=stopFPPD";
-		}
-		else
-		{
-			var url = "fppxml.php?command=startFPPD";
-		}
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-			{
-				var i = 19;
-			}
-		};
-		xmlhttp.send();
-	}
-	
+function ControlFPPD() {
+    var url = "api/system/fppd/";
+    var btnVal = $("#btnDaemonControl").attr('value');
+
+    if (btnVal == "Stop FPPD") {
+        url = url + "stop";
+    }
+    else {
+        url = url + "start";
+    }
+
+    $.get({
+        url: url,
+        data: "",
+    }).done(function(data) {
+        $.jGrowl("Completed " + btnVal);
+    }).fail(function() {
+        DialogError("ERROR", "Error Settng fppMode to " + modeText);
+    });
+
+}
+
 function PopulatePlaylists(sequencesAlso)
 {
     var playlistOptionsText="";
@@ -3432,7 +3443,11 @@ function GetRunningEffects()
                         setTimeout(function () {
                                 location.href="index.php";
                         }, 60000);
+                    },
+                    error: function() {
+                        DialogError('Command failed', 'Command failed');
                     }
+            
                 });    
             }, 1000);
 		} 
@@ -3442,11 +3457,18 @@ function GetRunningEffects()
 	{
 		if (confirm('SHUTDOWN the Falcon Player?'))
 		{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=shutdownPi";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+            $.get({
+                url: "api/system/shutdown",
+                data: "",
+                success: function(data) {
+                    //Show FPP is rebooting notification for 60 seconds then reload the page
+                    $.jGrowl('FPP is shutting down..', {life: 60000});
+                },
+                error: function() {
+                    DialogError('Command failed', 'Command failed');
+                }
+        
+            });
 		} 
 	}
 
@@ -3743,33 +3765,6 @@ function SetFPPDmode()
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
     });
-}
-
-function GetVolume()
-{
-    var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=getVolume";
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-			{
-					var xmlDoc=xmlhttp.responseXML; 
-					var Volume = parseInt(xmlDoc.getElementsByTagName('Volume')[0].childNodes[0].textContent);
-					if ((Volume < 0) || (Volume == "NaN"))
-					{
-						Volume = 75;
-						SetVolume(Volume);
-					}
-					$('#volume').html(Volume);
-                    $('#remoteVolume').html(Volume);
-					$('#slider').val( Volume);
-                    $('#remoteVolumeSlider').slider('value', Volume);
-					SetSpeakerIndicator(Volume);
-			}
-		};
-		xmlhttp.send();
-
 }
 
 function AdjustFPPDModeFromStatus(mode) {
