@@ -39,9 +39,9 @@ $command_array = Array(
 	"moveFile" => 'MoveFile',
 	"isFPPDrunning" => 'IsFPPDrunning',
 	// "getFPPstatus" => 'GetFPPstatus', use GET /api/fppd/status instead
-	"stopGracefully" => 'StopGracefully',
-	"stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop',
-	"stopNow" => 'StopNow',
+	// "stopGracefully" => 'StopGracefully', use api/playlists/stopgracefully or command API
+	// "stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop', use api/playlists/stopgracefullyafterloop or Command API
+	// "stopNow" => 'StopNow', // api/playlists/stop or Command API
 	// "stopFPPD" => 'StopFPPD', // use GET /api/system/fppd/stop
 	// "startFPPD" => 'StartFPPD', // use GET /api/system/fppd/start
 	"restartFPPD" => 'RestartFPPD', // retained for xLights and Multisync
@@ -547,23 +547,6 @@ function GetUniverseReceivedBytes()
 		$value = $root->appendChild($value);
 	}
 	echo $doc->saveHTML();	
-}
-
-function StopGracefully()
-{
-	$status=SendCommand('S');
-	EchoStatusXML('true');
-}
-function StopGracefullyAfterLoop()
-{
-	$status=SendCommand('StopGracefullyAfterLoop');
-	EchoStatusXML('true');
-}
-
-function StopNow()
-{
-	$status=SendCommand('d');
-	EchoStatusXML('true');
 }
 
 // This old method is for xLights and multisync
