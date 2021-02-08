@@ -17,9 +17,7 @@
     <script type="text/javascript" src="js/fontawesome-solid.min.js"></script>
     <link rel="stylesheet" href="css/fontawesome-solid.min.css" />
 
-    <script type="text/javascript" src="js/bootstrap.bundle.min.js?ref=<?php echo filemtime('js/bootstrap.bundle.min.js'); ?>"></script>  
-
-	<!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
+    <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" href="css/bootstrap.min.css?ref=<?php echo filemtime('css/bootstrap.min.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.min.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.min.css'); ?>" />
