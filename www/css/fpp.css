@@ -560,7 +560,6 @@ body .sm-clean a .sub-arrow {
 	100% { transform: rotate(360deg); }
   }
 
-<<<<<<< HEAD
 
 
 
@@ -988,7 +987,6 @@ body .sm-clean a .sub-arrow {
 	font-size: 30px;
 	z-index: 1040;
  } */
-=======
   .psi {
     width: 100%;
     overflow: hidden;
@@ -1322,4 +1320,3 @@ input[type=search].tablesorter-filter:disabled{
 .fileManagerDivData .fileDetails td:first-child {
 	padding-left: 1em;
 }
->>>>>>> 39cc7e39b231ef0911ad40899aad61241c76f48c

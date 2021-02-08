@@ -33,25 +33,11 @@
     <script type="text/javascript" src="api/configfile/custom.js?ref=<?php echo filemtime('/home/fpp/media/config/custom.js'); ?>"></script>
 <? } ?>
 
-<<<<<<< HEAD
-=======
-	<!-- menu -->
-	<link href="jquery/smartmenus/src/css/sm-core-css.css" rel="stylesheet" type="text/css" />
-	<link href="jquery/smartmenus/src/css/sm-clean/sm-clean.css" rel="stylesheet" type="text/css" />
-	<script type="text/javascript" src="jquery/smartmenus/src/jquery.smartmenus.js"></script>
-
 	<script type="text/javascript">
 	var bootstrapTooltip = $.fn.tooltip.noConflict() // return $.fn.button to previously assigned value
 	$.fn.bootstrapTooltip = bootstrapTooltip // give $().bootstrapBtn the Bootstrap functionality
-	$(function() {
-		$('#fppMenu').smartmenus({subMenusMinWidth: "50%", showOnClick: true,
-			showFunction: function($ul, complete) { $ul.slideDown(250, complete); },
-			hideFunction: function($ul, complete) { $ul.slideUp(250, complete); },
-		});
-	});
 	</script>
 
->>>>>>> 39cc7e39b231ef0911ad40899aad61241c76f48c
 <?
 	if (isset($settings['backgroundColor']) && $settings['backgroundColor'] != "")
 	{
