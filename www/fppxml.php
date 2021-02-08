@@ -49,7 +49,7 @@ $command_array = Array(
 	"rebootPi" => 'RebootPi', // Used my MultiSync
 	"shutdownPi" => 'ShutdownPi',
 	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
-	"upgradeFPPVersion" => 'UpgradeFPPVersion',
+	// "upgradeFPPVersion" => 'UpgradeFPPVersion', Replaced by upgradefpp.php?
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
 	// "resetGit" => 'ResetGit', // use GET /git/reset
 	"setVolume" => 'SetVolume',
@@ -118,17 +118,6 @@ function RebootPi()
 
     header( "Access-Control-Allow-Origin: *");
 	EchoStatusXML($status);
-}
-
-function UpgradeFPPVersion()
-{
-	$version = $_GET['version'];
-	check($version, "version", __FUNCTION__);
-
-	global $fppDir;
-	exec("$fppDir/scripts/upgrade_FPP $version");
-
-	EchoStatusXML("OK");
 }
 
 function SetVolume()
