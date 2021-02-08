@@ -666,6 +666,13 @@ body .sm-clean a .sub-arrow {
   .dropdown-menu.dropdown-with-icons .dropdown-item {
 	padding: 0.75rem 1.25rem 0.75rem 0.75rem;
   }
+
+  .dropdown-item svg, .dropdown-item .fas {
+	width: 20px;
+	display: inline-block;
+	text-align: center;
+	padding-right: 4px;
+}
   
   .dropdown-menu.dropdown-with-icons .dropdown-item .material-icons {
 	vertical-align: middle;

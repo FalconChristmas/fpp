@@ -10,12 +10,10 @@
 	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
  
     <!--
-       Font Awesome Free 5.13.0 by @fontawesome - https://fontawesome.com
-       License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
+		Font Awesome Free 5.15.2 by @fontawesome - https://fontawesome.com
+		License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
     -->
-    <script type="text/javascript" src="js/fontawesome.min.js"></script>
-    <script type="text/javascript" src="js/fontawesome-solid.min.js"></script>
-    <link rel="stylesheet" href="css/fontawesome-solid.min.css" />
+	<link rel="stylesheet" href="css/fontawesome.all.min.css" />
 
     <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
