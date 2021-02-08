@@ -1,0 +1,19 @@
+<html>
+<head>
+<link href="https://rawgithub.com/hayageek/jquery-upload-file/master/css/uploadfile.css" rel="stylesheet">
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="https://rawgithub.com/hayageek/jquery-upload-file/master/js/jquery.uploadfile.min.js"></script>
+</head>
+<body>
+<div id="fileuploader">Upload</div>
+<script>
+$(document).ready(function() {
+	$("#fileuploader").uploadFile({
+		url:"http://hayageek.com/examples/jquery/ajax-multiple-file-upload/upload.php",
+		fileName:"myfile"
+	});
+});
+</script>
+</body>
+</html>
+

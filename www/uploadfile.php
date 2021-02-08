@@ -15,10 +15,9 @@ require_once('config.php');
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 
-<link  href="jquery/jQuery-Upload-File/css/uploadfile.min.css" rel="stylesheet">
 
 <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
-<script src="jquery/jQuery-Upload-File/js/jquery.uploadfile.min.js"></script>
+<script src="jquery/jQuery-Upload-File/js/jquery.uploadfile.js"></script>
 
 <script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
 <script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
@@ -228,32 +227,7 @@ $(function() {
 	}
 
 </script>
-<style>
-#tblSequences {
-	width: 100%;
-}
-#tblMusic {
-	width: 100%;
-}
 
-#uploader_div {
-	display: block;
-	min-height: 200px;
-	width: 100%;
-	clear: both;
-	padding-top: 00px;
-}
-fieldset {
-	min-height: 200px;
-	border: 2px solid #000000;
-}
-h2 {
-	text-align: center;
-}
-.right {
-	text-align: right;
-}
-</style>
 </head>
 
 <body onload="GetAllFiles();">
@@ -261,141 +235,181 @@ h2 {
 <?php	include 'menu.inc'; ?>
 <div class="container">
 <div class='title'>File Manager</div>
+<? if ($freespace > 95) { ?>
+  <div class="alert alert-danger" role="alert">WARNING: storage device is almost full!</div>
+    <? } ?>
   <div class="pageContent">
     
     <div id="fileManager">
-      <br />
-    
-    <? if ($freespace > 95) { ?>
-    &nbsp;&nbsp;-&nbsp;&nbsp;<b><font color='red'>WARNING: storage device is almost full!</font></b>
-    <? } ?>
-    
-      <div id="tabs">
-        <ul>
-          <li><a href="#tab-sequence">Sequences</a></li>
-          <li><a href="#tab-audio">Audio</a></li>
-          <li><a href="#tab-video">Video</a></li>
-          <li><a href="#tab-images">Images</a></li>
-          <li><a href="#tab-effects">Effects</a></li>
-          <li><a href="#tab-scripts">Scripts</a></li>
-          <li><a href="#tab-logs">Logs</a></li>
-          <li><a href="#tab-uploads">Uploads</a></li>
-        </ul>
-        <div id="tab-sequence">
+
+    <ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="tab-sequence-tab" data-toggle="pill" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
+          Sequences
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-audio-tab" data-toggle="pill" href="#tab-audio" role="tab" aria-controls="tab-audio">
+          Audio
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-video-tab" data-toggle="pill" href="#tab-video" role="tab" aria-controls="tab-video">
+        Video
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-images-tab" data-toggle="pill" href="#tab-images" role="tab" aria-controls="tab-images">
+        Images
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-effects-tab" data-toggle="pill" href="#tab-effects" role="tab" aria-controls="tab-effects">
+        Effects
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-scripts-tab" data-toggle="pill" href="#tab-scripts" role="tab" aria-controls="tab-scripts">
+        Scripts
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-logs-tab" data-toggle="pill" href="#tab-logs" role="tab" aria-controls="tab-logs">
+        Logs
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link " id="tab-uploads-tab" data-toggle="pill" href="#tab-uploads" role="tab" aria-controls="tab-uploads">
+        Uploads
+        </a>
+      </li>
+    </ul>
+
+      <div class="tab-content" id="fileUploadTabsContent">
+
+        <div class="tab-pane fade show active" id="tab-sequence" role="tabpanel" aria-labelledby="tab-sequence-tab">
           <div id= "divSeq">
-            <fieldset class="fs">
-              <legend> Sequence Files (.fseq) </legend>
-              <div id="divSeqData">
-                <table id="tblSequences">
-                </table>
-              </div>
-              <hr />
-              <div class='right'>
-                <input onclick="ClearSelections('Sequences');" class="buttons" type="button" value="Clear" style="float: left;" />
-                <input onclick="ButtonHandler('Sequences', 'play');" class="disableButtons singleSequencesButton" type="button"  value="Play" />
-                <input onclick="ButtonHandler('Sequences', 'playHere');" class="disableButtons singleSequencesButton" type="button"  value="Play Here" />
-                <input onclick="ButtonHandler('Sequences', 'download');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Download" />
-                <input onclick="ButtonHandler('Sequences', 'rename');" class="disableButtons singleSequencesButton" type="button"  value="Rename" />
-                <input onclick="ButtonHandler('Sequences', 'delete');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Delete" />
-              </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+            <div class="backdrop">
+                <h2> Sequence Files (.fseq) </h2>
+                <div id="divSeqData" class="fileManagerDivData">
+                  <table id="tblSequences">
+                  </table>
+                </div>
+         
+                <div class='form-actions'>
+                  <input onclick="ClearSelections('Sequences');" class="buttons" type="button" value="Clear" style="float: left;" />
+                  <input onclick="ButtonHandler('Sequences', 'play');" class="disableButtons singleSequencesButton" type="button"  value="Play" />
+                  <input onclick="ButtonHandler('Sequences', 'playHere');" class="disableButtons singleSequencesButton" type="button"  value="Play Here" />
+                  <input onclick="ButtonHandler('Sequences', 'download');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Download" />
+                  <input onclick="ButtonHandler('Sequences', 'rename');" class="disableButtons singleSequencesButton" type="button"  value="Rename" />
+                  <input onclick="ButtonHandler('Sequences', 'delete');" class="disableButtons singleSequencesButton multiSequencesButton" type="button"  value="Delete" />
+                </div>
+                <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+            </div>
           </div>
         </div>
     
-        <div id="tab-audio">
+        <div class="tab-pane fade" id="tab-audio" role="tabpanel" aria-labelledby="tab-audio-tab">
           <div id= "divMusic">
-            <fieldset  class="fs">
-              <legend> Music Files (.mp3/.ogg/.m4a/.flac) </legend>
-              <div id="divMusicData">
-                <table id="tblMusic">
-                </table>
+
+              <div class="backdrop">
+                <h2> Music Files (.mp3/.ogg/.m4a/.flac) </h2>
+                <div id="divMusicData" class="fileManagerDivData">
+                  <table id="tblMusic">
+                  </table>
+                </div>
+    
+                <div class='form-actions'>
+                  <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" style="float: left;" />
+                  <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
+                  <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Download" />
+                  <input onclick="ButtonHandler('Music', 'rename');" id="btnRenameMusic" class="disableButtons singleMusicButton" type="button"  value="Rename" />
+                  <input onclick="ButtonHandler('Music', 'delete');" id="btnDeleteMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Delete" />
+                </div>
+                <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
-              <hr />
-              <div class='right'>
-                <input onclick="ClearSelections('Music');" class="buttons" type="button" value="Clear" style="float: left;" />
-                <input onclick="ButtonHandler('Music', 'playInBrowser');" id="btnPlayMusicInBrowser" class="disableButtons singleMusicButton" type="button"  value="Listen" />
-                <input onclick="ButtonHandler('Music', 'download');" id="btnDownloadMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Download" />
-                <input onclick="ButtonHandler('Music', 'rename');" id="btnRenameMusic" class="disableButtons singleMusicButton" type="button"  value="Rename" />
-                <input onclick="ButtonHandler('Music', 'delete');" id="btnDeleteMusic" class="disableButtons singleMusicButton multiMusicButton" type="button"  value="Delete" />
-              </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+  
           </div>
         </div>
     
-        <div id="tab-video">
+        <div class="tab-pane fade" id="tab-video" role="tabpanel" aria-labelledby="tab-video-tab">
           <div id= "divVideo">
-            <fieldset  class="fs">
-              <legend> Video Files (.mp4/.mkv) </legend>
-              <div id="divVideoData">
-                <table id="tblVideos">
-                </table>
+         
+              <div class="backdrop">
+                <h2> Video Files (.mp4/.mkv) </h2>
+                <div id="divVideoData" class="fileManagerDivData">
+                  <table id="tblVideos">
+                  </table>
+                </div>
+           
+                <div class='form-actions'>
+                  <input onclick="ClearSelections('Videos');" class="buttons" type="button" value="Clear" style="float: left;" />
+                  <input onclick="ButtonHandler('Videos', 'playInBrowser');" class="disableButtons singleVideosButton" type="button"  value="View" />
+                  <input onclick="ButtonHandler('Videos', 'videoInfo');" class="disableButtons singleVideosButton" type="button"  value="Video Info" />
+                  <input onclick="ButtonHandler('Videos', 'download');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Download" />
+                  <input onclick="ButtonHandler('Videos', 'rename');" class="disableButtons singleVideosButton" type="button"  value="Rename" />
+                  <input onclick="ButtonHandler('Videos', 'delete');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Delete" />
+                </div>
+                <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
-              <hr />
-              <div class='right'>
-                <input onclick="ClearSelections('Videos');" class="buttons" type="button" value="Clear" style="float: left;" />
-                <input onclick="ButtonHandler('Videos', 'playInBrowser');" class="disableButtons singleVideosButton" type="button"  value="View" />
-                <input onclick="ButtonHandler('Videos', 'videoInfo');" class="disableButtons singleVideosButton" type="button"  value="Video Info" />
-                <input onclick="ButtonHandler('Videos', 'download');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Download" />
-                <input onclick="ButtonHandler('Videos', 'rename');" class="disableButtons singleVideosButton" type="button"  value="Rename" />
-                <input onclick="ButtonHandler('Videos', 'delete');" class="disableButtons singleVideosButton multiVideosButton" type="button"  value="Delete" />
-              </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+
           </div>
         </div>
     
-        <div id="tab-images">
+        <div class="tab-pane fade" id="tab-images" role="tabpanel" aria-labelledby="tab-images-tab">
           <div id= "divImage">
-            <fieldset  class="fs">
-              <legend> Images </legend>
-              <div id="divImageData">
-                <table id="tblImages">
-                </table>
+
+              <div class="backdrop">
+                <h2> Images </h2>
+                <div id="divImageData" class="fileManagerDivData">
+                  <table id="tblImages">
+                  </table>
+                </div>
+     
+                <div class='form-actions'>
+                  <input onclick="ClearSelections('Images');" class="buttons" type="button" value="Clear" style="float: left;" />
+                  <input onclick="ButtonHandler('Images', 'viewImage');" class="disableButtons singleImagesButton" type="button"  value="View" />
+                  <input onclick="ButtonHandler('Images', 'download');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Download" />
+                  <input onclick="ButtonHandler('Images', 'delete');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Delete" />
+                </div>
+                <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
-              <hr />
-              <div class='right'>
-                <input onclick="ClearSelections('Images');" class="buttons" type="button" value="Clear" style="float: left;" />
-                <input onclick="ButtonHandler('Images', 'viewImage');" class="disableButtons singleImagesButton" type="button"  value="View" />
-                <input onclick="ButtonHandler('Images', 'download');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Download" />
-                <input onclick="ButtonHandler('Images', 'delete');" class="disableButtons singleImagesButton multiImagesButton" type="button"  value="Delete" />
-              </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+
           </div>
         </div>
     
-        <div id="tab-effects">
+        <div class="tab-pane fade" id="tab-effects" role="tabpanel" aria-labelledby="tab-effects-tab">
           <div id= "divEffects">
-            <fieldset  class="fs">
-              <legend> Effect Sequences (.eseq) </legend>
-              <div id="divEffectsData">
-                <table id="tblEffects">
-                </table>
+           
+              <div class="backdrop">
+                <h2> Effect Sequences (.eseq) </h2>
+                <div id="divEffectsData" class="fileManagerDivData">
+                  <table id="tblEffects">
+                  </table>
+                </div>
+         
+                <div class='form-actions'>
+                  <input onclick="ClearSelections('Effects');" class="buttons" type="button" value="Clear" style="float: left;" />
+                  <input onclick="ButtonHandler('Effects', 'download');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Download" />
+                  <input onclick="ButtonHandler('Effects', 'rename');" class="disableButtons singleEffectsButton" type="button"  value="Rename" />
+                  <input onclick="ButtonHandler('Effects', 'delete');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Delete" />
+                </div>
+                <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
               </div>
-              <hr />
-              <div class='right'>
-                <input onclick="ClearSelections('Effects');" class="buttons" type="button" value="Clear" style="float: left;" />
-                <input onclick="ButtonHandler('Effects', 'download');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Download" />
-                <input onclick="ButtonHandler('Effects', 'rename');" class="disableButtons singleEffectsButton" type="button"  value="Rename" />
-                <input onclick="ButtonHandler('Effects', 'delete');" class="disableButtons singleEffectsButton multiEffectsButton" type="button"  value="Delete" />
-              </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+          
           </div>
         </div>
     
-        <div id="tab-scripts">
+        <div class="tab-pane fade" id="tab-scripts" role="tabpanel" aria-labelledby="tab-scripts-tab">
           <div id= "divScripts">
-            <fieldset  class="fs">
+            <div class="backdrop">
               <legend> Scripts (.sh/.pl/.pm/.php/.py)</legend>
-              <div id="divScriptsData">
+              <div id="divScriptsData" class="fileManagerDivData">
                 <table id="tblScripts">
                 </table>
               </div>
-              <hr />
-              <div class='right'>
+            
+              <div class='form-actions'>
                 <input onclick="ClearSelections('Scripts');" class="buttons" type="button" value="Clear" style="float: left;" />
                 <input onclick="ButtonHandler('Scripts', 'viewFile');" class="disableButtons singleScriptsButton" type="button"  value="View" />
                 <input onclick="ButtonHandler('Scripts', 'runScript');" class="disableButtons singleScriptsButton" type="button"  value="Run" />
@@ -405,21 +419,21 @@ h2 {
                 <input onclick="ButtonHandler('Scripts', 'rename');" class="disableButtons singleScriptsButton" type="button"  value="Rename" />
                 <input onclick="ButtonHandler('Scripts', 'delete');" class="disableButtons singleScriptsButton multiScriptsButton" type="button"  value="Delete" />
               </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+              <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+            </div>
           </div>
         </div>
     
-        <div id="tab-logs">
+        <div class="tab-pane fade" id="tab-logs" role="tabpanel" aria-labelledby="tab-logs-tab">
           <div id= "divLogs">
-            <fieldset  class="fs">
+            <div class="backdrop">
               <legend> Log Files </legend>
-              <div id="divLogsData">
+              <div id="divLogsData" class="fileManagerDivData">
                 <table id="tblLogs">
                 </table>
               </div>
-              <hr />
-              <div class='right'>
+            
+              <div class='form-actions'>
                 <input onclick="ClearSelections('Logs');" class="buttons" type="button" value="Clear" style="float: left;" />
                 <input onclick="DownloadZip('Logs');" class="buttons" type="button" value="Zip" />
                 <input onclick="ButtonHandler('Logs', 'viewFile');" class="disableButtons singleLogsButton" type="button"  value="View" />
@@ -427,34 +441,32 @@ h2 {
                 <input onclick="ButtonHandler('Logs', 'download');" class="disableButtons singleLogsButton multiLogsButton" type="button"  value="Download" />
                 <input onclick="ButtonHandler('Logs', 'delete');" class="disableButtons singleLogsButton multiLogsButton" type="button"  value="Delete" />
               </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+              <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+            </div>
           </div>
         </div>
     
-        <div id="tab-uploads">
+        <div class="tab-pane fade" id="tab-uploads" role="tabpanel" aria-labelledby="tab-uploads-tab">
           <div id= "divUploads">
-            <fieldset  class="fs">
+            <div class="backdrop">
               <legend> Uploaded Files </legend>
-              <div id="divUploadsData">
+              <div id="divUploadsData" class="fileManagerDivData">
                 <table id="tblUploads">
                 </table>
               </div>
-              <hr />
-              <div class='right'>
+            
+              <div class='form-actions'>
                 <input onclick="ClearSelections('Uploads');" class="buttons" type="button" value="Clear" style="float: left;" />
                 <input onclick="ButtonHandler('Uploads', 'download');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Download" />
                 <input onclick="ButtonHandler('Uploads', 'delete');" class="disableButtons singleUploadsButton multiUploadsButton" type="button"  value="Delete" />
               </div>
-              <font size=-1><b>CTRL+Click to select multiple items</b></font>
-            </fieldset>
+              <div class="note"><strong>CTRL+Click to select multiple items</strong></div>
+            </div>
           </div>
         </div>
+        
         <div id='fileUploader' class='ui-tabs-panel'>
-          <fieldset class='fs'>
-            <legend> Upload Files </legend>
             <div id='fileuploader'>Select Files</div>
-          </fieldset>
         </div>
       </div>
     </div>
@@ -493,8 +505,10 @@ $(document).ready(function()
 		autoSubmit: true,
 		returnType: "json",
 		doneStr: "Close",
-		dragdropWidth: '95%',
-		dragDropStr: "<span><b>Drag &amp; Drop or Select Files to upload</b></span>",
+		dragdropWidth: '100%',
+    statusBarWidth: '100%',
+    uploadStr:"Select Files",
+		dragDropStr: "<span class='fileUploaderPlaceholder'><b>Drag &amp; Drop or Select Files to upload</b></span>",
 		onSuccess: function(files, data, xhr) {
 			for (var i = 0; i < files.length; i++) {
 				moveFile(files[i]);

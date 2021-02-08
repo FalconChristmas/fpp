@@ -19,10 +19,15 @@ include 'common/menuHead.inc';
   ?>
 <br/>
 
+<div class="container">
+    <h1 class="title">API Help</h1>
+        <div class="pageContent">
 <?
 $apiDir = "api/";
 include 'api/help.php';
 ?>
+</div>
+</div>
 
 <?php	include 'common/footer.inc'; ?>
 </div>

@@ -1,5 +1,6 @@
 @import '../../../node_modules/bootstrap/scss/functions';
 @import './variables';
+@import './mixins';
 @import "../../../node_modules/bootstrap/scss/functions";
 @import "../../../node_modules/bootstrap/scss/variables";
 @import "../../../node_modules/bootstrap/scss/mixins";
@@ -27,6 +28,7 @@
 @import "../../../node_modules/bootstrap/scss/carousel";
 @import "../../../node_modules/bootstrap/scss/spinners";
 @import './buttons';
+@import './uploadfile';
 // @import "./hamburger";
 
 .buttons {
@@ -274,12 +276,8 @@ input[type=checkbox]:checked{
     clear:both;
 }
 .backdrop{
-    background-color: $gray-lighter;
+    @include backdrop;
     padding:2em 2.5em;
-    border-radius: 12px;
-    .backdrop{
-        border-radius: 8px;
-    }
 }
 .dropdown-menu.show{
     box-shadow: 5px 5px 15px rgba(0,0,0,0.09);

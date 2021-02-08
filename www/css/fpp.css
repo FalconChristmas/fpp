@@ -440,6 +440,10 @@ hr {
 .fileDetails td{
 	padding:0.4em 0.4em;
 	cursor: pointer;
+	border-top: 1px solid #DADADA;
+}
+.fileDetails:first-child td, .fileDetails.selectedEntry td{
+	border-top: 1px solid transparent;
 }
 .tblPlaylistHeaderDetails{
 	display: flex;
@@ -833,4 +837,47 @@ input[type=search].tablesorter-filter:disabled{
 }
 .schStopType{
 	width: 138px;
+}
+
+
+#tblSequences {
+	width: 100%;
+}
+#tblMusic {
+	width: 100%;
+}
+#fileUploadTabsContent {
+	margin-top: -0.5em;
+}
+#fileUploadTabsContent .tab-pane{
+	margin-bottom: 1em;
+}
+.fileManagerDivData{
+	background-color: #ECECEC;
+	border-radius: 8px;
+	padding: 1em;
+	margin-top: 1.5em;
+	margin-bottom: 1.5em;
+}
+.fileManagerDivData>table{
+	width: 100%;
+}
+.fileManagerDivData>tr:first-child td:first-child {
+	border-top-left-radius: 8px;
+}
+.fileManagerDivData>tr:first-child td:last-child {
+	border-top-right-radius: 8px;
+}
+.fileManagerDivData>tr:last-child td:first-child {
+	border-bottom-left-radius: 8px;
+}
+.fileManagerDivData>tr:last-child td:last-child {
+	border-bottom-right-radius: 8px;
+}
+.fileManagerDivData .fileDetails td {
+	padding-top: 0.8em;
+	padding-bottom: 0.8em;
+}
+.fileManagerDivData .fileDetails td:first-child {
+	padding-left: 1em;
 }
