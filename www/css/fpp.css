@@ -344,9 +344,13 @@ input[type=range]::-webkit-slider-thumb {
 #playerControls{
 	flex:1;
 }
-.statusBoxRight{
+#playerModeInfo .statusBoxRight{
 	float:right;
 }
+#schedulerInfo{
+	display: flex;
+}
+
 .volumeControlsContainer{
 	display: flex;
 }

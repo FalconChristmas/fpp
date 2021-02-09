@@ -431,26 +431,24 @@ include 'common/menuHead.inc';
                                 <div class="labelHeading">Next Playlist: </div>
                                 <div id='nextPlaylist' class="labelValue"></div>
                             </div>
+                            <div>
+                                <div class='labelHeading schedulerStartTime'>Started at:</div>
+                                <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
+                            </div>
+                            <div>
+                                <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
+                                <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
+                            </div>
+                            <div>
+                                <div class="labelHeading">Extend Current Playlist:</div>
+                                <div class='labelValue schedulerEndTime schedulerExtend' colspan='2'>
+                                    <input type='button' value='Extend' class="buttons" onClick='ExtendSchedulePopup();'>
+                                    <input type='button' value='+5m' class="buttons" onClick='ExtendSchedule(5);'>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class='statusBoxRight'>
-                        <table class='statusTable'>
-                            <tr>
-                                <th class='schedulerStartTime'>Started at:</th>
-                                <td class='schedulerStartTime' id='schedulerStartTime'></td>
-                            </tr>
-                            <tr>
-                                <th class='schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</th>
-                                <td class='schedulerEndTime' id='schedulerEndTime'></td>
-                            </tr>
-                            <tr>
-                                <td class='schedulerEndTime schedulerExtend' colspan='2'>
-                                    <input type='button' value='Extend' onClick='ExtendSchedulePopup();'>
-                                    <input type='button' value='+5m' onClick='ExtendSchedule(5);'>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
+
      
                 </div>
             </div>
