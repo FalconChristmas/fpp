@@ -93,3 +93,13 @@ display: inline-block
         transform: scale(1.03);
     }
 }
+.btn-ajax-file-upload-done {
+    border:1px solid $black;
+    background-color: transparent;
+    color:$black;
+    font-weight: bold;
+    &:hover{
+        background-color: $black;
+        color:$white;
+    }
+}

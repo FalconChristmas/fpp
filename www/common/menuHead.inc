@@ -5,6 +5,8 @@
 	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
 	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
 	<script type="text/javascript" src="js/bootstrap.bundle.min.js"></script>
+	<link rel="stylesheet" href="jquery/dropzone/dist/dropzone.css" />
+<link rel="stylesheet" href="jquery/dropzone/dist/basic.css" />
 	<link rel="stylesheet" href="css/jquery-ui.css" />
 	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
 	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
@@ -17,7 +19,6 @@
 
     <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" href="css/bootstrap.min.css?ref=<?php echo filemtime('css/bootstrap.min.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.min.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.min.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>" />
 

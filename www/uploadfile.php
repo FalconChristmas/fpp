@@ -508,6 +508,8 @@ $(document).ready(function()
 		dragdropWidth: '100%',
     statusBarWidth: '100%',
     uploadStr:"Select Files",
+    fileCounterStyle: ") ",
+    showDone: true,
 		dragDropStr: "<span class='fileUploaderPlaceholder'><b>Drag &amp; Drop or Select Files to upload</b></span>",
 		onSuccess: function(files, data, xhr) {
 			for (var i = 0; i < files.length; i++) {

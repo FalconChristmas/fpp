@@ -678,11 +678,11 @@
             this.download = $("<div>" + s.downloadStr + "</div>").appendTo(this.statusbar).hide();
             this.del = $("<div>" + s.deleteStr + "</div>").appendTo(this.statusbar).hide();
 
-            this.abort.addClass("ajax-file-upload-red");
-            this.done.addClass("ajax-file-upload-green");
-			this.download.addClass("ajax-file-upload-green");
-            this.cancel.addClass("ajax-file-upload-red");
-            this.del.addClass("ajax-file-upload-red");
+            this.abort.addClass("ajax-file-upload-red btn-ajax-file-upload-abort");
+            this.done.addClass("ajax-file-upload-green btn-ajax-file-upload-done");
+			this.download.addClass("ajax-file-upload-green btn-ajax-file-upload-download");
+            this.cancel.addClass("ajax-file-upload-red btn-ajax-file-upload-cancel");
+            this.del.addClass("ajax-file-upload-red btn-ajax-file-upload-delete");
 
 			return this;
 		}

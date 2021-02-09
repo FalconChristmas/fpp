@@ -15,6 +15,7 @@
 @import "../../../node_modules/bootstrap/scss/dropdown";
 @import "../../../node_modules/bootstrap/scss/button-group";
 @import "../../../node_modules/bootstrap/scss/nav";
+@import "../../../node_modules/bootstrap/scss/navbar";
 @import "../../../node_modules/bootstrap/scss/card";
 @import "../../../node_modules/bootstrap/scss/badge";
 @import "../../../node_modules/bootstrap/scss/alert";
@@ -38,7 +39,9 @@
 .btn-lg {
     font-size: $font-size-lg * 0.9;
 }
-
+.navbar{
+    padding:0;
+}
 .pageContent .btn-success, .btn-success{
     @include fpp-btn-variant($success,$success);
 }
@@ -150,7 +153,7 @@ input[type=checkbox]:checked{
         margin-right: 4px;
     }
 }
-.nav-link{
+.pageContent .nav-link{
     border:1px solid #DADADA;
     color:$black;
     font-weight: bold;
@@ -280,7 +283,8 @@ input[type=checkbox]:checked{
     padding:2em 2.5em;
 }
 .dropdown-menu.show{
-    box-shadow: 5px 5px 15px rgba(0,0,0,0.09);
+    box-shadow: 5px 5px 55px rgba(0,0,0,0.15);
+    border-radius: 7px;
     border:none;
 }
 .backdrop-dark{

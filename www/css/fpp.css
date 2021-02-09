@@ -211,6 +211,9 @@ body legend{
 	border-bottom:3px solid transparent;
 	margin-left: 1em;
 }
+#fppMenuList>li>a{
+	font-size: 1.1em;
+}
 #fppMenuList>li.active {
 	border-bottom-color: #F63939;
 }
@@ -269,9 +272,8 @@ body legend{
 	border-radius: 8px;
 	color:#000;
 	padding:2.5em 3em;
-}
-.pageContent {
-	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E;
+	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E,
+				1000px 500px 0px 0px #20222E,-1000px 500px 0px 0px #20222E ,0px 500px 0px 0px #20222E;
 }
 .pageContent-tabs{
 	padding-bottom: 1.5em;
@@ -694,8 +696,8 @@ body .sm-clean a .sub-arrow {
 	color: #333;
 	font-weight: normal;
 	text-decoration: none;
-	font-size: .8125rem;
-	border-radius: 0.125rem;
+	font-size: .9rem;
+	border-radius: 5px;
 	margin: 0 0.3125rem;
 	-webkit-transition: all 150ms linear;
 	-moz-transition: all 150ms linear;
@@ -1324,3 +1326,6 @@ input[type=search].tablesorter-filter:disabled{
 .fileManagerDivData .fileDetails td:first-child {
 	padding-left: 1em;
 }
+
+
+
