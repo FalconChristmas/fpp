@@ -7,7 +7,18 @@ function network_list_interfaces()
 	$output = array();
 	$cmd = "ip --json -4 address show";
 	exec($cmd, $output);
-	return json(json_decode(join(" ", $output)));
+	$rc = json_decode(join(" ", $output), true);
+	$wifiObj = network_wifi_strength_obj();
+
+	// Merge two objects
+	foreach ($wifiObj as $wifi) {
+		foreach ($rc as &$rec) {
+			if ($rec["ifname"] == $wifi->interface) {
+				$rec["wifi"] = $wifi;
+			}
+		}
+	}
+	return json($rc);
 }
 
 function network_wifi_strength()

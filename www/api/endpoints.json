@@ -723,60 +723,36 @@
             "endpoint": "network/interface",
             "methods": {
                 "GET": {
-                    "desc": "Returns detailed information about the network interfaces and their IP addresses",
+                    "desc": "Returns detailed information about the network interfaces and their IP addresses as well as wifi strength",
                     "output": [
                         {
-                            "addr_info": [
-                                {
-                                    "family": "inet",
-                                    "label": "lo",
-                                    "local": "127.0.0.1",
-                                    "preferred_life_time": 4294967295,
-                                    "prefixlen": 8,
-                                    "scope": "host",
-                                    "valid_life_time": 4294967295
-                                }
-                            ],
-                            "address": "00:00:00:00:00:00",
-                            "broadcast": "00:00:00:00:00:00",
+                            "ifindex": 1,
+                            "ifname": "lo",
                             "flags": [
                                 "LOOPBACK",
                                 "UP",
                                 "LOWER_UP"
                             ],
-                            "group": "default",
-                            "ifindex": 1,
-                            "ifname": "lo",
-                            "link_type": "loopback",
                             "mtu": 65536,
-                            "operstate": "UNKNOWN",
                             "qdisc": "noqueue",
-                            "txqlen": 1000
-                        },
-                        {
+                            "operstate": "UNKNOWN",
+                            "group": "default",
+                            "txqlen": 1000,
                             "addr_info": [
                                 {
-                                    "broadcast": "192.168.1.255",
-                                    "dynamic": true,
                                     "family": "inet",
-                                    "label": "eth0",
-                                    "local": "192.168.1.149",
-                                    "preferred_life_time": 4679,
-                                    "prefixlen": 24,
-                                    "scope": "global",
-                                    "valid_life_time": 4679
-                                },
-                                {
-                                    "family": "inet6",
-                                    "local": "fe80::c10:82ff:fe9e:91e9",
-                                    "preferred_life_time": 4294967295,
-                                    "prefixlen": 64,
-                                    "scope": "link",
-                                    "valid_life_time": 4294967295
+                                    "local": "127.0.0.1",
+                                    "prefixlen": 8,
+                                    "scope": "host",
+                                    "label": "lo",
+                                    "valid_life_time": 4294967295,
+                                    "preferred_life_time": 4294967295
                                 }
-                            ],
-                            "address": "0e:10:82:9e:91:e9",
-                            "broadcast": "ff:ff:ff:ff:ff:ff",
+                            ]
+                        },
+                        {
+                            "ifindex": 2,
+                            "ifname": "wlan0",
                             "flags": [
                                 "BROADCAST",
                                 "MULTICAST",
@@ -784,14 +760,85 @@
                                 "UP",
                                 "LOWER_UP"
                             ],
-                            "group": "default",
-                            "ifindex": 2,
-                            "ifname": "eth0",
-                            "link_type": "ether",
                             "mtu": 1500,
+                            "qdisc": "pfifo_fast",
                             "operstate": "UP",
-                            "qdisc": "mq",
-                            "txqlen": 1000
+                            "group": "default",
+                            "txqlen": 1000,
+                            "addr_info": [
+                                {
+                                    "family": "inet",
+                                    "local": "192.168.50.146",
+                                    "prefixlen": 24,
+                                    "broadcast": "192.168.50.255",
+                                    "scope": "global",
+                                    "label": "wlan0",
+                                    "valid_life_time": 4294967295,
+                                    "preferred_life_time": 4294967295
+                                }
+                            ],
+                            "wifi": {
+                                "interface": "wlan0",
+                                "link": 52,
+                                "level": -58,
+                                "noise": -256,
+                                "desc": "good"
+                            }
+                        },
+                        {
+                            "ifindex": 3,
+                            "ifname": "eth0",
+                            "flags": [
+                                "BROADCAST",
+                                "MULTICAST",
+                                "DYNAMIC",
+                                "UP",
+                                "LOWER_UP"
+                            ],
+                            "mtu": 1500,
+                            "qdisc": "pfifo_fast",
+                            "operstate": "UP",
+                            "group": "default",
+                            "txqlen": 1000,
+                            "addr_info": [
+                                {
+                                    "family": "inet",
+                                    "local": "192.168.1.146",
+                                    "prefixlen": 24,
+                                    "broadcast": "192.168.1.255",
+                                    "scope": "global",
+                                    "label": "eth0",
+                                    "valid_life_time": 4294967295,
+                                    "preferred_life_time": 4294967295
+                                }
+                            ]
+                        },
+                        {
+                            "ifindex": 5,
+                            "ifname": "usb0",
+                            "flags": [
+                                "NO-CARRIER",
+                                "BROADCAST",
+                                "MULTICAST",
+                                "UP"
+                            ],
+                            "mtu": 1500,
+                            "qdisc": "pfifo_fast",
+                            "operstate": "DOWN",
+                            "group": "default",
+                            "txqlen": 1000,
+                            "addr_info": [
+                                {
+                                    "family": "inet",
+                                    "local": "192.168.7.2",
+                                    "prefixlen": 24,
+                                    "broadcast": "192.168.7.255",
+                                    "scope": "global",
+                                    "label": "usb0",
+                                    "valid_life_time": 4294967295,
+                                    "preferred_life_time": 4294967295
+                                }
+                            ]
                         }
                     ]
                 }
