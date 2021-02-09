@@ -907,7 +907,7 @@ function LoadPlaylistDetails(name) {
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
         VerbosePlaylistItemDetailsToggled();
-        $("#tblPlaylistLeadInHeader tr").get(0).scrollIntoView();
+        $("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
     }).fail(function() {
         DialogError('Error loading playlist', 'Error loading playlist details!');
     });
