@@ -183,30 +183,41 @@ function RebuildFPPD() {
 ?>
     </span>
   </div>
-
-
- <ul id="fppMenu" class="sm sm-clean">
-      <li class="active"><a>Status/Control</a>
-        <ul>
-          <li><a href="index.php">Status Page</a></li>
+  
+  <div class="fppMenuContainer container">
+    
+  <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
+  <div class="navbar-translate">
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+          </div>
+  <div class="collapse navbar-collapse" id="navbarNavDropdown">
+    <ul id="fppMenuList" class="navbar-nav">
+    <li class="nav-item dropdown active">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        Status/Control
+        </a>
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
 if (!file_exists("/etc/fpp/desktop")) {
-          echo "<li><a href='networkconfig.php'>Network</a></li>";
+          echo "<a class='dropdown-item' href='networkconfig.php'>Network</a>";
 }
 ?>
-          <li><a href="multisync.php">MultiSync</a></li>
-          <li><a href="settings.php">FPP Settings</a></li>
-          <li><a href="backup.php">FPP Backup</a></li>
-          <li><a href="proxies.php">Proxy Settings</a></li>
-          <li><a href="commandPresets.php">Command Presets</a></li>
-          <li><a href="effects.php">Effects</a></li>
-          <li><a href="testing.php">Display Testing</a></li>
+          <a class="dropdown-item" href="multisync.php"><i class="fas fa-network-wired"></i> MultiSync</a>
+          <a class="dropdown-item" href="settings.php"><i class="fas fa-cog"></i> FPP Settings</a>
+          <a class="dropdown-item" href="backup.php"><i class="fas fa-sim-card"></i> FPP Backup</a>
+          <a class="dropdown-item" href="proxies.php"><i class="fas fa-globe"></i> Proxy Settings</a>
+          <a class="dropdown-item" href="commandPresets.php"><i class="fas fa-calendar-alt"></i> Command Presets</a>
+          <a class="dropdown-item" href="effects.php"><i class="fas fa-magic"></i> Effects</a>
+          <a class="dropdown-item" href="testing.php"><i class="fas fa-clipboard-check"></i> Display Testing</a>
           <?
           if (file_exists($settings['co-other'])) {
             $js = json_decode(file_get_contents($settings['co-other']), true);
             foreach($js["channelOutputs"] as $key => $val) {
                 if (($val["enabled"] == 1) && ($val["type"] == "HTTPVirtualDisplay")) {
-                echo "<li><a href='virtualdisplaywrapper.php'>Virtual Display</a></li>";
+                echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'>Virtual Display</a>";
                 }
             }
           
@@ -214,47 +225,60 @@ if (!file_exists("/etc/fpp/desktop")) {
           ?>
           
           <?php list_plugin_entries("status"); ?>
-        </ul>
+        </div>
       </li>
-      <li><a>Content Setup</a>
-        <ul>
-          <li><a href="uploadfile.php">File Manager</a></li>
-          <li><a href="playlists.php">Playlists</a></li>
-          <li><a href="scheduler.php">Scheduler</a></li>
-          <li><a href="scriptbrowser.php">Script Repository Browser</a></li>
-          <li><a href="plugins.php">Plugin Manager</a></li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        Content Setup
+        </a>
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <a class="dropdown-item" href="uploadfile.php"><i class="fas fa-upload"></i> File Manager</a>
+          <a class="dropdown-item" href="playlists.php"><i class="fas fa-list-ol"></i> Playlists</a>
+          <a class="dropdown-item" href="scheduler.php"><i class="fas fa-clock"></i> Scheduler</a>
+          <a class="dropdown-item" href="scriptbrowser.php"><i class="fas fa-scroll"></i> Script Repository Browser</a>
+          <a class="dropdown-item" href="plugins.php"><i class="fas fa-puzzle-piece"></i> Plugin Manager</a>
           <?php list_plugin_entries("content"); ?>
-        </ul>
+        </div>
       </li>
-      <li><a>Input/Output Setup</a>
-        <ul>
-          <li><a href="channelinputs.php">Channel Inputs</a></li>
-          <li><a href="channeloutputs.php">Channel Outputs</a></li>
-          <li><a href="outputprocessors.php">Output Processors</a></li>
-          <li><a href="pixeloverlaymodels.php">Pixel Overlay Models</a></li>
-          <li><a href="gpio.php">GPIO Inputs</a></li>
+
+      <li class="nav-item dropdown ">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        Input/Output Setup
+        </a>
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+          <a class="dropdown-item" href="channelinputs.php"><i class="fas fa-project-diagram" style="color:red;"></i> Channel Inputs</a>
+          <a class="dropdown-item" href="channeloutputs.php"><i class="fas fa-project-diagram" style="color:green;"></i> Channel Outputs</a>
+          <a class="dropdown-item" href="outputprocessors.php"><i class="fas fa-microchip"></i> Output Processors</a>
+          <a class="dropdown-item" href="pixeloverlaymodels.php"><i class="fas fa-cubes"></i> Pixel Overlay Models</a>
+          <a class="dropdown-item" href="gpio.php"><i class="fas fa-exchange-alt"></i> GPIO Inputs</a>
           <?php list_plugin_entries("output"); ?>
-        </ul>
+        </div>
       </li>
-      <li><a>Help</a>
-        <ul>
-          <li><a href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank">FPP Manual</a></li>
-          <li><a href="https://falconchristmas.com/forum" target="_blank">Forums</a></li>
-          <li><a href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank">Wiki/Help</a></li>
-          <li><a href="help.php">Help Index</a></li>
+
+      <li class="nav-item dropdown ">
+        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        Help
+        </a>
+        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+          <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual</a>
+          <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank">Forums</a>
+          <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help</a>
+          <a class="dropdown-item" href="help.php">Help Index</a>
 <? if ($settings['uiLevel'] > 0) { ?>
-          <li><a href="apihelp.php">REST API Help</a></li>
+          <a class="dropdown-item" href="apihelp.php">REST API Help</a>
 <? } ?>
-          <li><a href="cliHelp.php">fpp &amp; fppmm Usage</a></li>
-          <li><a href="troubleshooting.php">Troubleshooting Commands</a></li>
-          <li><a href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new">SSH Shell</a></li>
-          <li><a href="about.php">About</a></li>
-          <li><a href="credits.php">Credits</a></li>
+          <a class="dropdown-item" href="cliHelp.php"><i class="fas fa-life-ring"></i> fpp &amp; fppmm Usage</a>
+          <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
+          <a class="dropdown-item" href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
+          <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
+          <a class="dropdown-item" href="credits.php"><i class="fas fa-stream"></i> Credits</a>
           <?php list_plugin_entries("help"); ?>
-        </ul>
+        </div>
       </li>
     </ul>
-
+    </div>
+</nav>
 
 
 

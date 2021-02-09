@@ -83,7 +83,7 @@ include 'common/menuHead.inc';
                 $('#volume').html(value);
                 $('#remoteVolume').html(value);
                 SetVolume(value);
-            })
+            });
             rslider.slider({
               stop: function( event, ui ) {
                   var value = rslider.slider('value');
@@ -94,19 +94,19 @@ include 'common/menuHead.inc';
                   SetVolume(value);
               }
             });
-            $(document).tooltip({
-                content: function() {
-                    $('.ui-tooltip').hide();
-                    var id = $(this).attr('id');
-                    if (typeof id != 'undefined') {
-                        id = id.replace('_img', '_tip');
-                        return $('#' + id).html();
-                    } else {
-                        return '';
-                    }
-                },
-                hide: { delay: 1000 }
-            });
+            // $(document).tooltip({
+            //     content: function() {
+            //         $('.ui-tooltip').hide();
+            //         var id = $(this).attr('id');
+            //         if (typeof id != 'undefined') {
+            //             id = id.replace('_img', '_tip');
+            //             return $('#' + id).html();
+            //         } else {
+            //             return '';
+            //         }
+            //     },
+            //     hide: { delay: 1000 }
+            // });
 
 		};
 
