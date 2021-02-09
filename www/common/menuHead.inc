@@ -5,8 +5,7 @@
 	<script type="text/javascript" src="js/jquery.ui.touch-punch.js"></script>
 	<script type="text/javascript" src="js/jquery.jgrowl.min.js"></script>
 	<script type="text/javascript" src="js/bootstrap.bundle.min.js"></script>
-	<link rel="stylesheet" href="jquery/dropzone/dist/dropzone.css" />
-<link rel="stylesheet" href="jquery/dropzone/dist/basic.css" />
+
 	<link rel="stylesheet" href="css/jquery-ui.css" />
 	<link rel="stylesheet" href="css/jquery.jgrowl.min.css" />
 	<link rel="stylesheet" href="css/classicTheme/style.css" media="all" />
