@@ -104,7 +104,7 @@ function list_plugin_entries($menu)
     
   </div>
 
-  <div class="fppMenuContainer container">
+  <div class="fppOuterContainer container">
   <?
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
@@ -146,6 +146,10 @@ function list_plugin_entries($menu)
   <div id='upgradeFlag' class="alert success">FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons btn-outline-light" value="Upgrade"></div>
 -->
   <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons btn-outline-light" value="Restart FPPD">
+
+
+
+
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
   {

@@ -198,8 +198,8 @@ include 'common/menuHead.inc';
 <div id='upgradeFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
      file system or create a new storage partition.
-
 </div>
+<div id="warningsRow" class="alert danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
 <?php
     }
 ?>
@@ -234,8 +234,7 @@ include 'common/menuHead.inc';
                             <div class="labelHeading">MQTT:</div>
                             <div id="mqttStatus" class="labelValue"></div>
                         </div>
-                        <div id="warningsRow"><div colspan="4" id="warningsTd"><div id="warningsDiv"></div></div>
-                        </div>
+                    
                     </div>
                 </div>
                 <div class='statusBoxRight'>

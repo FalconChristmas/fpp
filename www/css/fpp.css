@@ -1,7 +1,7 @@
 body{
 	background-color: #171720;
 }
-#restartFlag,#rebootFlag,#unsupportedBrowser{
+#restartFlag,#rebootFlag,#unsupportedBrowser,#warningsRow{
     display: none;
 	clear:both;
 }
@@ -147,9 +147,14 @@ body .headerCenter a:hover{
 .row{
 	display: flex;
 }
+.fppOuterContainer{
+	padding-left: 0;
+	padding-right: 0;
+}
 .fppMenuContainer{
 	padding-top: 2em;
 	padding-bottom: 2em;
+
 }
 .title{
 	font-size: 2.75em;

@@ -576,13 +576,33 @@ function showHidePassword(id) {
 <div class="container">
   <h1 class="title">Network Configuration</h1>
   <div class="pageContent">
-    
-    <div id="network" class="settings">
-      <fieldset>
-        <legend>Network Configuration</legend>
-          <div id="InterfaceSettings">
-          <fieldset class="fs">
-              <legend> Interface Settings</legend>
+  <ul class="nav nav-pills pageContent-tabs" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" id="interface-settings-tab" data-toggle="tab" href="#interface-settings" role="tab" aria-controls="interface-settings" aria-selected="true">
+        Interface Settings
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="tab-host-dns-tab" data-toggle="tab" href="#tab-host-dns" role="tab" aria-controls="tab-host-dns" aria-selected="false">
+      Host & DNS Settings
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="tab-tethering-tab" data-toggle="tab" href="#tab-tethering" role="tab" aria-controls="tab-tethering" aria-selected="false">
+        Tethering
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="tab-interface-routing-tab" data-toggle="tab" href="#tab-interface-routing" role="tab" aria-controls="tab-interface-routing" aria-selected="false">
+        Interface Routing
+      </a>
+    </li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="interface-settings" role="tabpanel" aria-labelledby="interface-settings-tab">
+    <div id="InterfaceSettings">
+     
+              <h2> Interface Settings</h2>
     <?php
     if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
     ?>
@@ -624,7 +644,7 @@ function showHidePassword(id) {
                 <tr>
                   <td>IP Address:</td>
                   <td><input type="text" name="eth_ip" id="eth_ip" size=15 maxlength=15 onChange="checkStaticIP();">
-    								<input type="button" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></td>
+    								<input type="button" class="buttons" onClick='PingIP($("#eth_ip").val(), 3);' value='Ping'></td>
                 </tr>
                 <tr>
                   <td>Netmask:</td>
@@ -633,7 +653,7 @@ function showHidePassword(id) {
                 <tr>
                   <td>Gateway:</td>
                   <td><input type="text" name="eth_gateway" id="eth_gateway" size="15" maxlength="15">
-    								<input type="button" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
+    								<input type="button" class="buttons" onClick='PingIP($("#eth_gateway").val(), 3);' value='Ping'></td>
                 </tr>
                 <tr>
     	      <td colspan='2'>
@@ -656,25 +676,35 @@ function showHidePassword(id) {
               </table>
               </div>
               <br>
-              <input name="btnSetInterface" type="" style="" class = "buttons" value="Update Interface" onClick="SaveNetworkConfig();">        
+              <input name="btnSetInterface" type="" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">        
               <input id="btnConfigNetwork" type="" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
     
             &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type=""  class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
             &nbsp;<input id="btnConfigNetworkPersistClear" type="" class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
-            </fieldset>
+  
             </div>
-            <div id="DNS_Servers">
-            <br>
-            <fieldset class="fs2">
-              <legend>Host & DNS Settings</legend>
+    </div>
+    <div class="tab-pane fade" id="tab-host-dns" role="tabpanel" aria-labelledby="tab-host-dns-tab">
+      
+       
+              <h2>Host & DNS Settings</h2>
               <table width="100%" border="0" cellpadding="1" cellspacing="1">
                 <tr>
                   <td width = "25%">HostName:</td>
-                  <td colspan='2'><input id='hostName' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons' value='Save' onClick='setHostName();'></td>
+                  <td colspan='2'>
+                    <div class="form-inline">
+                     <input id='hostName' class="form-control" type='text' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons btn-success' value='Save' onClick='setHostName();'>
+
+                    </div>
+                  </td>
                 </tr>
                   <tr>
                       <td width = "25%">Description:</td>
-                      <td colspan='2'><input id='hostDescription' value='<? if (isset($settings['HostDescription'])) echo $settings['HostDescription']; else echo ('Falcon Player - ' .  $settings['Variant']); ?>' size='30' maxlength='48'> <input type='button' class='buttons' value='Save' onClick='setHostDescription();'></td>
+                      <td colspan='2'>
+                        <div class="form-inline">
+                        <input id='hostDescription' class="form-control" type='text' value='<? if (isset($settings['HostDescription'])) echo $settings['HostDescription']; else echo ('Falcon Player - ' .  $settings['Variant']); ?>' size='30' maxlength='48'> <input type='button' class='buttons btn-success' value='Save' onClick='setHostDescription();'></td>
+
+                        </div>
                   </tr>
                 <tr>
                   <td>&nbsp;</td>
@@ -692,68 +722,72 @@ function showHidePassword(id) {
                   <td width = "25%">DNS Server 1:</td>
                   <td width = "25%"><input type="text" name="dns1" id="dns1"></td>
                   <td width = "50%">
-    								<input type="button" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></td>
+    								<input type="button" class="buttons" onClick='PingIP($("#dns1").val(), 3);' value='Ping'></td>
                 </tr>
                 <tr>
                   <td>DNS Server 2:</td>
                   <td><input type="text" name="dns2" id="dns2"></td>
     							<td>
-    								<input type="button" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></td>
+    								<input type="button" class="buttons" onClick='PingIP($("#dns2").val(), 3);' value='Ping'></td>
                 </tr>
               </table>
               <br>
-              <input name="btnSetDNS" type="" style="margin-left:190px; width:135px;" class = "buttons" value="Update DNS" onClick="SaveDNSConfig();">
+              <input name="btnSetDNS" type=""  class = "buttons " value="Update DNS" onClick="SaveDNSConfig();">
     
-            </fieldset>
-            <br>
-            <fieldset class="fs2">
-            <legend>Tethering</legend>
-                <table width = "100%" border="0" cellpadding="1" cellspacing="1">
-                <tr>
-                    <td width = "25%">Tethering Mode:</td>
-                    <td width = "75%"><? printTetheringSelect(); ?></td>
-                </tr>
-                <tr>
-                    <td width = "25%">Tethering Interface:</td>
-                    <td width = "75%"><? printTetheringInterfaces(); ?></td>
-                </tr>
-                <tr>
-                    <td width = "25%">Tethering Technology:</td>
-                    <td width = "75%"><? printTetheringTechnology(); ?></td>
-                </tr>
-                <tr>
-                    <td width = "25%">Tethering SSID:</td>
-                    <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
-                </tr>
-                <tr>
-                    <td>Tethering Pre Shared key (PSK):</td>
-                    <td><? PrintSettingPasswordSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
-                </tr>
-                </tr>
-                </table>
-                    <br>
-                    <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
-            tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
-    192.168.8.1 for Hostapd tethering, but unpredictable for ConnMan (although likely 192.168.0.1).
-    <p>
-    <? if ($settings['Platform'] == "BeagleBone Black") { ?>
-        On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
-            (OSX/Linux) or 192.168.7.2 (Windows).
-    <? } ?>
-    <? if ($settings['Platform'] == "Raspberry Pi") { ?>
-        On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate USB cable plugged into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
-    <? } ?>
-    
-                </fieldset>
-                <br>
-    
-                <fieldset class="fs2">
-                    <legend>Interface Routing</legend>
-    				<? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between
-                    network interfaces
-                    <br>
-            </div>
-      </fieldset>
+       
+
+    </div>
+    <div class="tab-pane fade" id="tab-tethering" role="tabpanel" aria-labelledby="tab-tethering-tab">
+   
+              <h2>Tethering</h2>
+                  <table width = "100%" border="0" cellpadding="1" cellspacing="1">
+                  <tr>
+                      <td width = "25%">Tethering Mode:</td>
+                      <td width = "75%"><? printTetheringSelect(); ?></td>
+                  </tr>
+                  <tr>
+                      <td width = "25%">Tethering Interface:</td>
+                      <td width = "75%"><? printTetheringInterfaces(); ?></td>
+                  </tr>
+                  <tr>
+                      <td width = "25%">Tethering Technology:</td>
+                      <td width = "75%"><? printTetheringTechnology(); ?></td>
+                  </tr>
+                  <tr>
+                      <td width = "25%">Tethering SSID:</td>
+                      <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
+                  </tr>
+                  <tr>
+                      <td>Tethering Pre Shared key (PSK):</td>
+                      <td><? PrintSettingPasswordSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
+                  </tr>
+                  </tr>
+                  </table>
+                      <br>
+                      <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
+              tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
+      192.168.8.1 for Hostapd tethering, but unpredictable for ConnMan (although likely 192.168.0.1).
+      <p>
+      <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+          On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
+              (OSX/Linux) or 192.168.7.2 (Windows).
+      <? } ?>
+      <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+          On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate USB cable plugged into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
+      <? } ?>
+      
+
+
+    </div>
+    <div class="tab-pane fade" id="tab-interface-routing" role="tabpanel" aria-labelledby="tab-interface-routing-tab">
+      
+      <h2>Interface Routing</h2>
+          <? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between
+                  network interfaces
+    </div>
+  </div>
+
+
     
     <div id="dialog-confirm" style="display: none">
     	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
@@ -764,7 +798,7 @@ function showHidePassword(id) {
     <div id="dialog-create-persistent" style="display: none">
         <p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Creating persisten device names can make it harder to add new network devices or replace existing devices in the future.  Do you wish to proceed?</p>
     </div>
-  </div>
+
 </div>
 <?php include 'common/footer.inc'; ?>
 </div>
