@@ -3953,7 +3953,7 @@ function DownloadFiles(dir, files)
 
 function DownloadZip(dir)
 {
-	location.href="fppxml.php?command=getZip&dir=" + dir;
+	location.href="api/files/zip/" + dir;
 }
 
 function ViewImage(file)
