@@ -138,6 +138,15 @@
             }
         },
         {
+            "endpoint": "/files/zip/:DirName",
+            "methods": {
+                "GET": {
+                    "desc": "Dowloads all files in the specified directory in zip format. (Currently only supported where DirName == Logs)",
+                    "output": "A Zip file"
+                }
+            }
+        },
+        {
             "endpoint": "file/:DirName/:Filename",
             "methods": {
                 "GET": {

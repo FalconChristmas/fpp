@@ -154,6 +154,131 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     }
 }
 
+/// GET /api/files/zip/:DirName
+function GetZipDir()
+{
+	global $SUDO;
+	global $settings;
+	global $logDirectory;
+	global $mediaDirectory;
+
+    $dirName = params("DirName");
+    if ($dirName != "Logs") {
+        return json(array("status" => "Unsupported Directory"));
+    }
+
+    // Rest of this is only applicable for "Logs"
+
+	// Re-format the file name
+	$filename = tempnam("/tmp", "FPP_Logs");
+
+	// Gather troubleshooting commands output
+	$cmd = "php " . $settings['fppDir'] . "/www/troubleshootingText.php > " . $settings['mediaDirectory'] . "/logs/troubleshootingCommands.log";
+	exec($cmd, $output, $return_val);
+	unset($output);
+
+	// Create the object
+	$zip = new ZipArchive();
+	if ($zip->open($filename, ZIPARCHIVE::CREATE) !== TRUE) {
+		exit("Cannot open '$filename'\n");
+	}
+	foreach(scandir($logDirectory) as $file) {
+		if ( $file == "." || $file == ".." ) {
+			continue;
+		}
+		$zip->addFile($logDirectory.'/'.$file, "Logs/".$file);
+	}
+
+	if ( is_readable("/var/log/messages") )
+		$zip->addFile("/var/log/messages", "Logs/messages.log");
+	if ( is_readable("/var/log/syslog") )
+		$zip->addFile("/var/log/syslog", "Logs/syslog.log");
+
+    $files = array(
+        "channelmemorymaps",
+        "channeloutputs",
+        "channelremap",
+        "config/channeloutputs.json",
+        //new v2 config files
+        "config/schedule.json",
+        "config/outputprocessors.json",
+        "config/co-other.json",
+        "config/co-pixelStrings.json",
+        "config/co-bbbStrings.json",
+        "config/co-universes.json",
+        "config/ci-universes.json",
+        "config/model-overlays.json",
+        //
+        "pixelnetDMX",
+        "settings",
+        "universes"
+    );
+    
+    foreach($files as $file) {
+        if (file_exists("$mediaDirectory/$file")){
+            $fileData='';
+            //Handle these files differently, as they are CSV or other, and not a ini or JSON file
+            //ScrubFile assumes a INI file for files with the .json extension
+            if(in_array($file,array('schedule', 'channelmemorymaps', 'channeloutputs', 'channelremap', 'universes'))){
+                $fileData = file_get_contents("$mediaDirectory/$file");
+            }else{
+                $fileData = ScrubFile("$mediaDirectory/$file");
+            }
+            $zip->addFromString("Config/$file", $fileData);
+        }
+    }
+
+	// /root/.asoundrc is only readable by root, should use /etc/ version
+	exec($SUDO . " cat /root/.asoundrc", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to read /root/.asoundrc");
+	}
+	else {
+		$zip->addFromString("Config/asoundrc", implode("\n", $output)."\n");
+	}
+	unset($output);
+
+	exec("cat /proc/asound/cards", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to read alsa cards");
+	}
+	else {
+		$zip->addFromString("Logs/asound/cards", implode("\n", $output)."\n");
+	}
+	unset($output);
+
+	exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ status", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to get a git status for logs");
+	}
+	else {
+		$zip->addFromString("Logs/git_status.txt", implode("\n", $output)."\n");
+	}
+	unset($output);
+
+	exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ diff", $output, $return_val);
+	if ( $return_val != 0 ) {
+		error_log("Unable to get a git diff for logs");
+	}
+	else {
+		$zip->addFromString("Logs/fpp_git.diff", implode("\n", $output)."\n");
+	}
+	unset($output);
+
+	$zip->close();
+
+	$timestamp = gmdate('Ymd.Hi');
+
+	header('Content-type: application/zip');
+	header('Content-disposition: attachment;filename=FPP_Logs_' . $timestamp . '.zip');
+	ob_clean();
+	flush();
+	readfile($filename);
+	unlink($filename);
+	exit();
+
+}
+
 function DeleteFile()
 {
     $status = "File not found";
