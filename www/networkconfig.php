@@ -572,7 +572,6 @@ function showHidePassword(id) {
 </script>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
-<br/>
 <div class="container">
   <h1 class="title">Network Configuration</h1>
   <div class="pageContent">
@@ -676,11 +675,11 @@ function showHidePassword(id) {
               </table>
               </div>
               <br>
-              <input name="btnSetInterface" type="" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">        
-              <input id="btnConfigNetwork" type="" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
+              <input name="btnSetInterface" type="button" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">        
+              <input id="btnConfigNetwork" type="button" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
     
-            &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type=""  class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
-            &nbsp;<input id="btnConfigNetworkPersistClear" type="" class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
+            &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type="button"  class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
+            &nbsp;<input id="btnConfigNetworkPersistClear" type="button" class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
   
             </div>
     </div>
@@ -764,9 +763,12 @@ function showHidePassword(id) {
                   </tr>
                   </table>
                       <br>
+                      <div class="backdrop">
                       <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
               tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
       192.168.8.1 for Hostapd tethering, but unpredictable for ConnMan (although likely 192.168.0.1).
+                      </p>
+          
       <p>
       <? if ($settings['Platform'] == "BeagleBone Black") { ?>
           On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
@@ -776,6 +778,11 @@ function showHidePassword(id) {
           On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate USB cable plugged into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
       <? } ?>
       
+
+
+                      </div>
+                      <p>
+
 
 
     </div>

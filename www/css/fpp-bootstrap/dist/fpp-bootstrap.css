@@ -4823,6 +4823,50 @@ a.close.disabled, .pageContent a.close.disableButtons {
   width: 22px;
   height: 22px; }
 
+.btn-icon-edit:before {
+  content: '';
+  display: inline-block;
+  background: url("/images/redesign/create-24px-white.svg") no-repeat;
+  vertical-align: middle; }
+
+.btn-icon-edit.btn-lg:before, .btn-group-lg > .btn-icon-edit.btn:before, .btn-group-lg > .btn-icon-edit.ajax-file-upload:before, .btn-group-lg > .btn-icon-edit.buttons:before, .pageContent .btn-group-lg > .btn-icon-edit.disableButtons:before {
+  width: 50px;
+  height: 50px; }
+
+.playlistRowEditButton {
+  background-color: #F2BC5F;
+  border-radius: 21px;
+  color: #F2BC5F;
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  border: none;
+  width: 35px;
+  height: 35px;
+  position: relative;
+  overflow: hidden;
+  margin-top: -6px;
+  margin-bottom: -6px;
+  box-shadow: 3px 3px 5px rgba(23, 23, 32, 0.2);
+  transition: 0.3s all cubic-bezier(0.08, 0.78, 0.36, 0.95);
+  transform: scale(0.5);
+  opacity: 0; }
+  .playlistRowEditButton:before {
+    content: '';
+    display: block;
+    background: url("/images/redesign/create-24px-white.svg") no-repeat center;
+    vertical-align: middle;
+    width: 35px;
+    height: 35px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-size: 24px; }
+
+.playlistRow:hover .playlistRowEditButton {
+  transform: scale(1);
+  opacity: 1; }
+
 .ajax-file-upload-statusbar {
   background-color: #F5F5F5;
   border-radius: 12px;

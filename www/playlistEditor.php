@@ -69,14 +69,20 @@ function playlistEditorDocReady() {
             scroll: true
         }).disableSelection();
     }
-
-	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
+    function selectPlaylistEntryRow($row){
 		$('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
-		$(this).addClass('playlistSelectedEntry');
+		$row.addClass('playlistSelectedEntry');
         EnableButtonClass('playlistDetailsEditButton');
+    }
+	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
+        selectPlaylistEntryRow($(this));
 	});
 
 	$('.playlistEntriesBody').on('dblclick','tr',function() {
+        EditPlaylistEntry();
+    });
+    $('.playlistEntriesBody').on('click','.playlistRowEditButton',function() {
+        selectPlaylistEntryRow($(this).closest('tr'));
         EditPlaylistEntry();
     });
 
@@ -313,10 +319,12 @@ foreach ($playlistEntryTypes as $pet) {
             </div>
     </div>
 </div>
-
+<div class="playlistEditEntriesContainer">
 <?
 include "playlistDetails.php";
 ?>
+</div>
+
 
 
 

@@ -776,7 +776,10 @@ function GetPlaylistRowHTML(ID, entry, editMode)
     }
     HTML += "</div>";
 
-    HTML += GetPlaylistDurationDiv(entry) + "</div></td></tr>";
+    HTML += GetPlaylistDurationDiv(entry)
+    if (editMode)
+        HTML += '<button class="psiEditModeEditButton playlistRowEditButton">Edit</button>';
+    HTML += "</div></td></tr>";
 
     return HTML;
 }
@@ -1545,7 +1548,7 @@ function EditPlaylistEntry() {
         return;
     }
 
-    $("#playlistDetails").get(0).scrollIntoView();
+    $("#playlistEntryProperties").get(0).scrollIntoView();
 
     var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
     var type = $(row).find('.entryType').html();

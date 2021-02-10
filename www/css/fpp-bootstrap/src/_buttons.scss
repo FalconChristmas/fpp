@@ -14,3 +14,58 @@
       }
     }
   }
+
+
+  .btn-icon-edit{
+    &:before{
+      content:'';
+      display: inline-block;
+      background: img('create-24px-white.svg') no-repeat;
+      vertical-align: middle;
+    }
+    &.btn-lg{
+      &:before{
+        width: 50px;
+        height: 50px;
+      }
+    }
+  }
+
+  .playlistRowEditButton{
+    background-color: $yellow;
+    border-radius:21px;
+    color:$yellow;
+    appearance: none;
+    border:none;
+    width: 35px;
+    height: 35px;
+    position: relative;
+    overflow: hidden;
+    margin-top: -6px;
+    margin-bottom: -6px;
+    box-shadow: 3px 3px 5px rgba($black,0.2);
+    transition: 0.3s all cubic-bezier(.08,.78,.36,.95);
+    transform: scale(0.5);
+    opacity: 0;
+    &:before{
+      content:'';
+      display: block;
+      background: img('create-24px-white.svg') no-repeat center;
+      vertical-align: middle;
+      width: 35px;
+      height: 35px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-size: 24px;
+
+
+    }    
+   
+  }
+  .playlistRow:hover {
+    .playlistRowEditButton{
+      transform: scale(1);
+      opacity: 1;
+    }
+  }

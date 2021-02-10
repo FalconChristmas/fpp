@@ -35,7 +35,12 @@ var cfg = {
 			"baseDir": "./",
 			"index": "components.html"
         },
-		"notify": false
+		"notify": false,
+		ui: {
+			port: 3181
+		},
+		port: 3180
+
 	},
 	"browserSyncWatchFiles": [
 		"./css/fpp-bootstrap/dist/*.min.css",

@@ -1007,7 +1007,6 @@ body .sm-clean a .sub-arrow {
  
   .psi {
     width: 100%;
-    overflow: hidden;
     padding: 0px;
     display: flex;
 }
