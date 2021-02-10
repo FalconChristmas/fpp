@@ -1210,7 +1210,7 @@ function AddPlaylistEntry(mode) {
     } else {
         $('#tblPlaylistMainPlaylist').append(html);
 
-        $('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
+        $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
 
         newRow = $('#tblPlaylistMainPlaylist > tr').last();
         $(newRow).addClass('playlistSelectedEntry');
@@ -3003,8 +3003,8 @@ function GetMultiSyncStats()
 	
 	function UpdateCurrentEntryPlaying(index,lastIndex)
 	{
-		$('#tblPlaylistDetails tbody tr').removeClass('PlaylistRowPlaying');
-		$('#tblPlaylistDetails tbody td').removeClass('PlaylistPlayingIcon');
+		$('#tblPlaylistDetails tr').removeClass('PlaylistRowPlaying');
+		$('#tblPlaylistDetails td').removeClass('PlaylistPlayingIcon');
 
 		if((index >= 0) && ($('#playlistRow' + index).length))
 		{

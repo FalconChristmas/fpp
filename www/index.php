@@ -19,7 +19,7 @@ include 'common/menuHead.inc';
 
     $(function() {
         $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
-            $('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
+            $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
             $(this).addClass('playlistSelectedEntry');
             PlayEntrySelected = parseInt($(this).attr('id').substr(11)) - 1;
             PlaySectionSelected = $(this).parent().attr('id').substr(11);

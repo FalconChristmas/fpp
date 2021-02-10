@@ -429,6 +429,9 @@ hr {
 	color: #fff;
 	background-color: #56B760;
 }
+.playlistSelectedEntry{
+	background-color: #D6D6D6;
+}
 #playlistDetails table{
 	border:0;
 	border-spacing:0;

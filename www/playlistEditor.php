@@ -71,7 +71,7 @@ function playlistEditorDocReady() {
     }
 
 	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
-		$('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
+		$('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
 		$(this).addClass('playlistSelectedEntry');
         EnableButtonClass('playlistDetailsEditButton');
 	});
@@ -294,15 +294,18 @@ foreach ($playlistEntryTypes as $pet) {
             <button onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" value="Add">Add</button>
             <button onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" value="Replace">Replace</button>
             <button onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" value="Remove">Remove</button>
-            <button class="buttons dropdown-toggle playlistDetailsEditButton" type="button" id="playlistDetailsEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                More
-            </button>
-            <div class="dropdown-menu playlistDetailsEditMoreButtonMenu" aria-labelledby="playlistDetailsEditMoreButton">
-                <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
-                <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>
-                <a href="#" onclick="EditPlaylistEntry();" class="dropdown-item" value="Edit">Edit</a>
+            <div class="dropdown">
+                <button class="buttons dropdown-toggle playlistDetailsEditButton" type="button" id="playlistDetailsEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu playlistDetailsEditMoreButtonMenu" aria-labelledby="playlistDetailsEditMoreButton">
+                    <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
+                    <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>
+                    <a href="#" onclick="EditPlaylistEntry();" class="dropdown-item" value="Edit">Edit</a>
 
+                </div>
             </div>
+
             
         </div>
         <div>
