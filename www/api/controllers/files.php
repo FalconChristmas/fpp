@@ -73,8 +73,8 @@ function GetFile()
 
     if (isset($_GET['tail'])) {
         $lines = intval($_GET['tail']);
-	}
-	
+    }
+
     if (isset($_GET['play'])) {
         $play = intval($_GET['play']);
     }
@@ -149,18 +149,89 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     if ($lines == -1) {
         readfile($dir . '/' . $filename);
     } else {
-		echo("Lines = $lines");
+        echo ("Lines = $lines");
         passthru('tail -' . $lines . ' ' . $dir . '/' . $filename);
     }
+}
+
+function MoveFile()
+{
+    global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
+
+    $file = params("fileName");
+    
+    // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
+    if (strstr($file, '"')) {
+        if (!rename($uploadDirectory . "/" . preg_replace('/"/', '%22', $file), $uploadDirectory . "/" . $file)) {
+            //Firefox and xLights will upload with " intact so if the rename doesn't work, it's OK
+        }
+    }
+
+    $status = "OK";
+
+    if (file_exists($uploadDirectory . "/" . $file)) {
+        if (preg_match("/\.(fseq)$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $sequenceDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move sequence file";
+                return json(array("status" => $status));
+            }
+        } else if (preg_match("/\.(fseq.gz)$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $sequenceDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move sequence file";
+                return json(array("status" => $status));
+            }
+            $nfile = $file;
+            $nfile = str_replace('"', '\\"', $nfile);
+            exec("$SUDO gunzip -f \"$sequenceDirectory/$nfile\"");
+        } else if (preg_match("/\.(eseq)$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $effectDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move effect file";
+                return json(array("status" => $status));
+            }
+        } else if (preg_match("/\.(mp4|mkv|avi|mov|mpg|mpeg)$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $videoDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move video file";
+                return json(array("status" => $status));
+            }
+        } else if (preg_match("/\.(gif|jpg|jpeg|png)$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $imageDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move image file";
+                return json(array("status" => $status));
+            }
+        } else if (preg_match("/\.(sh|pl|pm|php|py)$/i", $file)) {
+            // Get rid of any DOS newlines
+            $contents = file_get_contents($uploadDirectory . "/" . $file);
+            $contents = str_replace("\r", "", $contents);
+            file_put_contents($uploadDirectory . "/" . $file, $contents);
+
+            if (!rename($uploadDirectory . "/" . $file, $scriptDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move script file";
+                return json(array("status" => $status));
+            }
+        } else if (preg_match("/\.(mp3|ogg|m4a|wav|au|m4p|wma|flac)$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $musicDirectory . '/' . $file)) {
+                $status = "ERROR: Couldn't move music file";
+                return json(array("status" => $status));
+            }
+        } else if (preg_match("/eeprom\.bin$/i", $file)) {
+            if (!rename($uploadDirectory . "/" . $file, $configDirectory . '/cape-eeprom.bin')) {
+                $status = "ERROR: Couldn't move eeprom file";
+                return json(array("status" => $status));
+            }
+        }
+    } else {
+        $status = "ERROR: Couldn't find file '" . $file . "' in upload directory";
+    }
+    return json(array("status" => $status));
 }
 
 /// GET /api/files/zip/:DirName
 function GetZipDir()
 {
-	global $SUDO;
-	global $settings;
-	global $logDirectory;
-	global $mediaDirectory;
+    global $SUDO;
+    global $settings;
+    global $logDirectory;
+    global $mediaDirectory;
 
     $dirName = params("DirName");
     if ($dirName != "Logs") {
@@ -169,30 +240,33 @@ function GetZipDir()
 
     // Rest of this is only applicable for "Logs"
 
-	// Re-format the file name
-	$filename = tempnam("/tmp", "FPP_Logs");
+    // Re-format the file name
+    $filename = tempnam("/tmp", "FPP_Logs");
 
-	// Gather troubleshooting commands output
-	$cmd = "php " . $settings['fppDir'] . "/www/troubleshootingText.php > " . $settings['mediaDirectory'] . "/logs/troubleshootingCommands.log";
-	exec($cmd, $output, $return_val);
-	unset($output);
+    // Gather troubleshooting commands output
+    $cmd = "php " . $settings['fppDir'] . "/www/troubleshootingText.php > " . $settings['mediaDirectory'] . "/logs/troubleshootingCommands.log";
+    exec($cmd, $output, $return_val);
+    unset($output);
 
-	// Create the object
-	$zip = new ZipArchive();
-	if ($zip->open($filename, ZIPARCHIVE::CREATE) !== TRUE) {
-		exit("Cannot open '$filename'\n");
-	}
-	foreach(scandir($logDirectory) as $file) {
-		if ( $file == "." || $file == ".." ) {
-			continue;
-		}
-		$zip->addFile($logDirectory.'/'.$file, "Logs/".$file);
-	}
+    // Create the object
+    $zip = new ZipArchive();
+    if ($zip->open($filename, ZIPARCHIVE::CREATE) !== true) {
+        exit("Cannot open '$filename'\n");
+    }
+    foreach (scandir($logDirectory) as $file) {
+        if ($file == "." || $file == "..") {
+            continue;
+        }
+        $zip->addFile($logDirectory . '/' . $file, "Logs/" . $file);
+    }
 
-	if ( is_readable("/var/log/messages") )
-		$zip->addFile("/var/log/messages", "Logs/messages.log");
-	if ( is_readable("/var/log/syslog") )
-		$zip->addFile("/var/log/syslog", "Logs/syslog.log");
+    if (is_readable("/var/log/messages")) {
+        $zip->addFile("/var/log/messages", "Logs/messages.log");
+    }
+
+    if (is_readable("/var/log/syslog")) {
+        $zip->addFile("/var/log/syslog", "Logs/syslog.log");
+    }
 
     $files = array(
         "channelmemorymaps",
@@ -211,71 +285,67 @@ function GetZipDir()
         //
         "pixelnetDMX",
         "settings",
-        "universes"
+        "universes",
     );
-    
-    foreach($files as $file) {
-        if (file_exists("$mediaDirectory/$file")){
-            $fileData='';
+
+    foreach ($files as $file) {
+        if (file_exists("$mediaDirectory/$file")) {
+            $fileData = '';
             //Handle these files differently, as they are CSV or other, and not a ini or JSON file
             //ScrubFile assumes a INI file for files with the .json extension
-            if(in_array($file,array('schedule', 'channelmemorymaps', 'channeloutputs', 'channelremap', 'universes'))){
+            if (in_array($file, array('schedule', 'channelmemorymaps', 'channeloutputs', 'channelremap', 'universes'))) {
                 $fileData = file_get_contents("$mediaDirectory/$file");
-            }else{
+            } else {
                 $fileData = ScrubFile("$mediaDirectory/$file");
             }
             $zip->addFromString("Config/$file", $fileData);
         }
     }
 
-	// /root/.asoundrc is only readable by root, should use /etc/ version
-	exec($SUDO . " cat /root/.asoundrc", $output, $return_val);
-	if ( $return_val != 0 ) {
-		error_log("Unable to read /root/.asoundrc");
-	}
-	else {
-		$zip->addFromString("Config/asoundrc", implode("\n", $output)."\n");
-	}
-	unset($output);
+    // /root/.asoundrc is only readable by root, should use /etc/ version
+    exec($SUDO . " cat /root/.asoundrc", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to read /root/.asoundrc");
+    } else {
+        $zip->addFromString("Config/asoundrc", implode("\n", $output) . "\n");
+    }
+    unset($output);
 
-	exec("cat /proc/asound/cards", $output, $return_val);
-	if ( $return_val != 0 ) {
-		error_log("Unable to read alsa cards");
-	}
-	else {
-		$zip->addFromString("Logs/asound/cards", implode("\n", $output)."\n");
-	}
-	unset($output);
+    exec("cat /proc/asound/cards", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to read alsa cards");
+    } else {
+        $zip->addFromString("Logs/asound/cards", implode("\n", $output) . "\n");
+    }
+    unset($output);
 
-	exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ status", $output, $return_val);
-	if ( $return_val != 0 ) {
-		error_log("Unable to get a git status for logs");
-	}
-	else {
-		$zip->addFromString("Logs/git_status.txt", implode("\n", $output)."\n");
-	}
-	unset($output);
+    exec("/usr/bin/git --work-tree=" . dirname(dirname(__FILE__)) . "/ status", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to get a git status for logs");
+    } else {
+        $zip->addFromString("Logs/git_status.txt", implode("\n", $output) . "\n");
+    }
+    unset($output);
 
-	exec("/usr/bin/git --work-tree=".dirname(dirname(__FILE__))."/ diff", $output, $return_val);
-	if ( $return_val != 0 ) {
-		error_log("Unable to get a git diff for logs");
-	}
-	else {
-		$zip->addFromString("Logs/fpp_git.diff", implode("\n", $output)."\n");
-	}
-	unset($output);
+    exec("/usr/bin/git --work-tree=" . dirname(dirname(__FILE__)) . "/ diff", $output, $return_val);
+    if ($return_val != 0) {
+        error_log("Unable to get a git diff for logs");
+    } else {
+        $zip->addFromString("Logs/fpp_git.diff", implode("\n", $output) . "\n");
+    }
+    unset($output);
 
-	$zip->close();
+    $zip->close();
 
-	$timestamp = gmdate('Ymd.Hi');
+    $timestamp = gmdate('Ymd.Hi');
 
-	header('Content-type: application/zip');
-	header('Content-disposition: attachment;filename=FPP_Logs_' . $timestamp . '.zip');
-	ob_clean();
-	flush();
-	readfile($filename);
-	unlink($filename);
-	exit();
+    header('Content-type: application/zip');
+    header('Content-disposition: attachment;filename=FPP_Logs_' . $timestamp . '.zip');
+    ob_clean();
+    flush();
+    readfile($filename);
+    unlink($filename);
+    exit();
 
 }
 

@@ -2438,14 +2438,16 @@ function GetSequenceArray()
     });
 }
 
-	function moveFile(file)
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=moveFile&file=" + encodeURIComponent(file);
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-	}
+function moveFile(file) {
+    $.get("api/file/move/" + encodeURIComponent(file)
+    ).done(function (data) {
+        if ("OK" != data.status) {
+            DialogError('File Move Error', data.status);
+        }
+    }).fail(function (data) {
+        DialogError('File Move Error', "Unexpected error while to move file");
+    });
+}
 
 	function updateFPPStatus()
 	{
