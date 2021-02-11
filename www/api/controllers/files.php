@@ -149,7 +149,6 @@ function GetFileImpl($dir, $filename, $lines, $play, $attach)
     if ($lines == -1) {
         readfile($dir . '/' . $filename);
     } else {
-        echo ("Lines = $lines");
         passthru('tail -' . $lines . ' ' . $dir . '/' . $filename);
     }
 }
@@ -159,7 +158,7 @@ function MoveFile()
     global $mediaDirectory, $uploadDirectory, $musicDirectory, $sequenceDirectory, $videoDirectory, $effectDirectory, $scriptDirectory, $imageDirectory, $configDirectory, $SUDO;
 
     $file = params("fileName");
-    
+
     // Fix double quote uploading by simply moving the file first, if we find it with URL encoding
     if (strstr($file, '"')) {
         if (!rename($uploadDirectory . "/" . preg_replace('/"/', '%22', $file), $uploadDirectory . "/" . $file)) {
