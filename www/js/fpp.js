@@ -2966,62 +2966,60 @@ function GetMultiSyncStats()
     });
 }
 
-	function GetUniverseBytesReceived()
-	{	
-		var html='';
-		var html1='';
-    var xmlhttp=new XMLHttpRequest();
-		var url = "fppxml.php?command=getUniverseReceivedBytes";
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.onreadystatechange = function () {
-			if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-			{
-					var xmlDoc=xmlhttp.responseXML; 
-					var receivedBytes = xmlDoc.getElementsByTagName('receivedBytes')[0];
-					if(receivedBytes && receivedBytes.childNodes.length> 0)
-					{
-						html =  "<table>";
-						html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
+function GetUniverseBytesReceived() {
+    var html = [];
+    var html1 = '';
+    $.get("api/channel/input/stats"
+    ).done(function (data) {
+        if (data.status == "OK") {
+            var maxRows = data.universes.length / 2;
+            if (maxRows < 32) {
+                maxRows = 32;
+            }
+            if (data.universes.length > 0) {
+                html.push('<table>');
+                html.push("<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>");
+            }
+            for (i = 0; i < data.universes.length; i++) {
+                if (i == maxRows) {
+                    html.push("</table>");
+                    html1 = html.join('');
+                    html = [];
+                    html.push('<table>');
+                    html.push("<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>");
+                }
+                html.push('<tr><td>');
+                html.push(data.universes[i].id);
+                html.push('</td><td>');
+                html.push(data.universes[i].startChannel);
+                html.push('</td><td>');
+                html.push(data.universes[i].packetsReceived);
+                html.push('</td><td>');
+                html.push(data.universes[i].bytesReceived);
+                html.push('</td><td>');
+                html.push(data.universes[i].errors);
+                html.push('</td></tr>');
+            }
+            html.push('</table>');
+            if (data.universes.length > 32) {
+                $("#bridgeStatistics1").html(html1);
+                $("#bridgeStatistics2").html(html.join(''));
+            } else {
+                $("#bridgeStatistics1").html(html.join(''));
+                $("#bridgeStatistics2").html('');
 
-                        var i;
-                        var maxRows = receivedBytes.childNodes.length / 2;
-                        if (maxRows < 32) {
-                            maxRows = 32;
-                        }
-						for(i=0;i<receivedBytes.childNodes.length;i++)
-						{
-								if(i==maxRows)
-								{
-									html += "</table>";
-									html1 = html;
-									html =  "<table>";
-									html += "<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>";
-								}
-								var universe = receivedBytes.childNodes[i].childNodes[0].textContent;
-								var startChannel = receivedBytes.childNodes[i].childNodes[1].textContent;
-								var bytes = receivedBytes.childNodes[i].childNodes[2].textContent;
-								var packets = receivedBytes.childNodes[i].childNodes[3].textContent;
-                                var errors = receivedBytes.childNodes[i].childNodes[4].textContent;
-								html += "<tr><td>" + universe + "</td>";
-								html += "<td>" + startChannel + "</td><td>" + packets + "</td><td>" + bytes + "</td><td>" + errors + "</td></tr>";
-						}
-						html += "</table>";
-					}
-					if(receivedBytes && receivedBytes.childNodes.length>32)
-					{
-						$("#bridgeStatistics1").html(html1);
-						$("#bridgeStatistics2").html(html);
-					}
-					else
-					{
-						$("#bridgeStatistics1").html(html);
-						$("#bridgeStatistics2").html('');
-					}					
-			}
-		};
-		xmlhttp.send();
-	}
+            }
+
+        } else {
+            // data.status != OK
+            $("#bridgeStatistics1").html('Bridge Data not avaiable -- ' + data.status);
+            $("#bridgeStatistics2").html('');
+        }
+    }).fail(function () {
+        $("#bridgeStatistics1").html('Failed to refresh Bridge Stats - Unknown Error');
+        $("#bridgeStatistics2").html('');
+    });
+}
 	
 	function UpdateCurrentEntryPlaying(index,lastIndex)
 	{

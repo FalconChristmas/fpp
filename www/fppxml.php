@@ -26,7 +26,7 @@ $_SESSION['session_id'] = session_id();
 $command_array = Array(
 	//"getFiles" => 'GetFiles', // /api/files/:dirName
 	//"getZip" => 'GetZip',
-	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
+	//"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',  // GET /api/channel/input/stats
 	// "deleteFile" => 'DeleteFile', // use DELETE /api/file/:DirName/:filename
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -484,59 +484,6 @@ function DeleteEvent()
 	EchoStatusXML('Success');
 }
 
-function GetUniverseReceivedBytes()
-{
-	$data = file_get_contents('http://127.0.0.1:32322/fppd/e131stats');
-	$stats = json_decode($data);
-
-	$doc = new DomDocument('1.0');
-	if(count($stats->universes))
-	{
-		$root = $doc->createElement('receivedBytes');
-        $root->setAttribute('size', count($stats->universes));
-		$root = $doc->appendChild($root);
-
-		for ($i = 0; $i < count($stats->universes); $i++)
-		{
-			$receivedInfo = $doc->createElement('receivedInfo');
-			$receivedInfo = $root->appendChild($receivedInfo); 
-			// universe
-			$universe = $doc->createElement('universe');
-			$universe = $receivedInfo->appendChild($universe);
-			$value = $doc->createTextNode($stats->universes[$i]->id);
-			$value = $universe->appendChild($value);
-			// startChannel
-			$startChannel = $doc->createElement('startChannel');
-			$startChannel = $receivedInfo->appendChild($startChannel);
-			$value = $doc->createTextNode($stats->universes[$i]->startChannel);
-			$value = $startChannel->appendChild($value);
-			// bytes received
-			$bytesReceived = $doc->createElement('bytesReceived');
-			$bytesReceived = $receivedInfo->appendChild($bytesReceived);
-			$value = $doc->createTextNode($stats->universes[$i]->bytesReceived);
-			$value = $bytesReceived->appendChild($value);
-			// packets received
-			$packetsReceived = $doc->createElement('packetsReceived');
-			$packetsReceived = $receivedInfo->appendChild($packetsReceived);
-			$value = $doc->createTextNode($stats->universes[$i]->packetsReceived);
-			$value = $packetsReceived->appendChild($value);
-            
-            // errors received
-            $errorCount = $doc->createElement('errors');
-            $errorCount = $receivedInfo->appendChild($errorCount);
-            $value = $doc->createTextNode($stats->universes[$i]->errors);
-            $value = $errorCount->appendChild($value);
-		}
-	}
-	else
-	{
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);  
-		$value = $doc->createTextNode('false');
-		$value = $root->appendChild($value);
-	}
-	echo $doc->saveHTML();	
-}
 
 // This old method is for xLights and multisync
 function RestartFPPD()
