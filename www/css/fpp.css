@@ -927,7 +927,7 @@ body .sm-clean a .sub-arrow {
 	  -o-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  -ms-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
-	  top:-130px;
+	  top:-90px;
 	}
   
 	.navbar .dropdown.show .dropdown-menu {

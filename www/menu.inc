@@ -31,22 +31,34 @@ function list_plugin_entries($menu)
 						if ($first)
 						{
 							$first = 0;
-							echo "<li><b><font color='white' size=-1>- - - - - - - Plugins - - - - - - -</font></b></li>\n";
+              echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
 						}
 
-						-include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
+            ob_start();
+            -include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
+            $buffer = ob_get_clean();
+            $buffer = str_replace(array("<li>","</li>","</li\n>"),"",$buffer);
+            $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
+            echo $buffer;
 					}
 
 					// New single menu.inc file which has some logic in it to display relevant menus.
 					// See the example in the fpp-plugin-Template plugin
 					if ( file_exists($pluginDirectory."/".$plugin."/menu.inc") )
 					{
-						if ($first)
+            ob_start();
+            -include($pluginDirectory."/".$plugin."/menu.inc");
+            $buffer = ob_get_clean();
+            $buffer = str_replace(array("<li>","</li>"),"",$buffer);
+            $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
+
+            if ($first && !empty($buffer))
 						{
 							$first = 0;
-							echo "<li><b><font color='white' size=-1>- - - - - - - Plugins - - - - - - -</font></b></li>\n";
+              echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
 						}
-						-include($pluginDirectory."/".$plugin."/menu.inc");
+
+            echo $buffer;
 					}
 				}
 			}
