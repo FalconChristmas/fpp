@@ -15,8 +15,6 @@ include('common/menuHead.inc');
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
 
-<script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
-<script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
 
 <script>
 
@@ -220,6 +218,17 @@ $.when.apply( undefined, tabRequests ).then(function() {
         $('#settingsManagerTabsContent').append($tabContent);
     });
     $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        if ($(this).attr("href") == 'settings-time.php') {
+            UpdateCurrentTime();
+        } else if (statusTimeout != null) {
+            clearTimeout(statusTimeout);
+            statusTimeout = null;
+        }
+    });
+    UpdateChildSettingsVisibility();
+    InitializeTimeInputs();
+    InitializeDateInputs();
 });
 /*
 var currentLoadingTab = 0;

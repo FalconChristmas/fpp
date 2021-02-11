@@ -105,6 +105,7 @@ function list_plugin_entries($menu)
   </div>
 
   <div class="fppOuterContainer container">
+    <div class="fppMenuContainer container">
   <?
 	if (file_exists("/etc/fpp/rfs_version") && exec('grep "^[^#].*/home/pi/media" /etc/fstab') )
 	{
@@ -188,7 +189,7 @@ function RebuildFPPD() {
     </span>
   </div>
   
-  <div class="fppMenuContainer container">
+
     
   <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
   <div class="navbar-translate">

@@ -57,7 +57,7 @@ function CloseKioskDialog() {
 PrintSettingGroup('system');
 PrintSettingGroup('BBBLeds');
 
-$extraData = "<input type='button' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' value='Show On Map' onClick='ViewLatLon();'>";
+$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
 PrintSettingGroup('geolocation', $extraData);
 
 if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
