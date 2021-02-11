@@ -68,7 +68,7 @@ $command_array = Array(
 	"deleteEvent" => 'DeleteEvent',
 	//"getFile" => 'GetFile', // Replaced by /api/file/
 	//"tailFile" => 'TailFile', // Replaced by api/file
-	"saveUSBDongle" => 'SaveUSBDongle',
+	//"saveUSBDongle" => 'SaveUSBDongle', replaced by PUT /api/settings/
 	// "getInterfaceInfo" => 'GetInterfaceInfo',  // Never used
 	"setupExtGPIO" => 'SetupExtGPIO',
 	"extGPIO" => 'ExtGPIO'
@@ -1018,23 +1018,6 @@ function universe_cmp($a, $b)
         return 0;
     }
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
-}
-
-
-function SaveUSBDongle()
-{
-	$usbDonglePort = $_GET['port'];
-	check($usbDonglePort, "usbDonglePort", __FUNCTION__);
-
-	$usbDongleType = $_GET['type'];
-	check($usbDongleType, "usbDongleType", __FUNCTION__);
-
-	$usbDongleBaud = $_GET['baud'];
-	check($usbDongleBaud, "usbDongleBaud", __FUNCTION__);
-
-	WriteSettingToFile("USBDonglePort", $usbDonglePort);
-	WriteSettingToFile("USBDongleType", $usbDongleType);
-	WriteSettingToFile("USBDongleBaud", $usbDongleBaud);
 }
 
 function SetupExtGPIO()
