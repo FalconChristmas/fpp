@@ -870,35 +870,28 @@ function PlaylistNameOK(name) {
     return 1;
 }
 
-function LoadNetworkDetails(){
+function LoadNetworkDetails() {
     $.get('api/network/interface'
-    ).done(function(data) {
-       $.get('api/network/wifi/strength'
-       ).done(function(wifiData) {
-          var rc = [];
-          data.forEach(function(e) {
+    ).done(function (data) {
+        var rc = [];
+        data.forEach(function (e) {
             if (e.ifname === "lo") { return 0; }
             if (e.ifname.startsWith("eth0:0")) { return 0; }
             if (e.ifname.startsWith("usb")) { return 0; }
             if (e.ifname.startsWith("SoftAp")) { return 0; }
             if (e.ifname.startsWith("can.")) { return 0; }
-            e.addr_info.forEach(function(n) {
+            e.addr_info.forEach(function (n) {
                 if (n.family === "inet") {
                     var row = '<span title="IP: ' + n.local + '" class="ip-net net-' + e.ifname + '"><small>' + e.ifname + '</small></span>';
-                    wifiData.forEach(function(w) {
-                        if (w.interface === e.ifname) {
-                            row = '<span title="IP: ' + n.local + ', Strength:' + w.level + 'dBm" class="ip-wifi wifi-' + w.desc + '"><small>' + e.ifname + '</small></span>';
-                        }
-                    });
+                    if ("wifi" in e) {
+                        row = '<span title="IP: ' + n.local + ', Strength:' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                    }
                     rc.push(row);
                 }
             });
-          });
-          $("#header_IPs").html(rc.join(""));
-       }).fail(function(){
-        DialogError('Error loading wifi info', 'Error loading wifi interface details.');
-       });
-    }).fail(function() {
+        });
+        $("#header_IPs").html(rc.join(""));
+    }).fail(function () {
         DialogError('Error loading network info', 'Error loading network interface details.');
     });
 }
