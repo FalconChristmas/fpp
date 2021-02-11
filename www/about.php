@@ -90,6 +90,8 @@ function getFileCount($dir)
 <script language="Javascript">
 $(document).ready(function() {
 UpdateVersionInfo();
+GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
+GetItemCount('api/configfile/schedule.json', 'scheduleCount');
 $('.default-value').each(function() {
 var default_value = this.value;
 $(this).focus(function() {
@@ -332,11 +334,12 @@ if (($settings['Variant'] != '') && ($settings['Variant'] != $settings['Platform
         <div class='aboutRight'>
           <table class='tblAbout'>
             <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
+            <tr><td>Schedules:</td><td><a href='scheduler.php' class='nonULLink' id='scheduleCount'></a></td></tr>
             <tr><td>Playlists:</td><td><a href='playlists.php' class='nonULLink'><? echo getFileCount($playlistDirectory); ?></a></td></tr>
             <tr><td>Sequences:</td><td><a href='uploadfile.php?tab=0' class='nonULLink'><? echo getFileCount($sequenceDirectory); ?></a></td></tr>
             <tr><td>Audio Files:</td><td><a href='uploadfile.php?tab=1' class='nonULLink'><? echo getFileCount($musicDirectory); ?></a></td></tr>
             <tr><td>Videos:</td><td><a href='uploadfile.php?tab=2' class='nonULLink'><? echo getFileCount($videoDirectory); ?></a></td></tr>
-            <tr><td>Events:</td><td><a href='events.php' class='nonULLink'><? echo getFileCount($eventDirectory); ?></a></td></tr>
+            <tr><td>Command Presets:</td><td><a href='commandPresets.php' class='nonULLink' id='commandPresetCount'></a></td></tr>
             <tr><td>Effects:</td><td><a href='uploadfile.php?tab=4' class='nonULLink'><? echo getFileCount($effectDirectory); ?></a></td></tr>
             <tr><td>Scripts:</td><td><a href='uploadfile.php?tab=5' class='nonULLink'><? echo getFileCount($scriptDirectory); ?></a></td></tr>
 

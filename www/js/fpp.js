@@ -285,6 +285,32 @@ function GetAsync(url) {
     return Get(url, true);
 }
 
+function SetElementValue(elem, val) {
+    if (($(elem)[0].tagName == 'INPUT') ||
+        ($(elem)[0].tagName == 'SELECT')) {
+        $(elem).val(val);
+    } else {
+        $(elem).html(val);
+    }
+}
+
+function GetItemCount(url, id, key = '') {
+    $.ajax({
+        url: url,
+        type: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            if (key != '')
+                SetElementValue($('#' + id), data[key].length);
+            else
+                SetElementValue($('#' + id), data.length);
+        },
+        error: function() {
+            SetElementValue($('#' + id), 'Unknown');
+        }
+    });
+}
+
 function SetupToolTips(delay = 100) {
     $(document).tooltip({
         content: function() {
