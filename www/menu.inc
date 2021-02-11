@@ -211,7 +211,7 @@ function RebuildFPPD() {
           </div>
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
-    <li class="nav-item dropdown active">
+    <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Status/Control
         </a>
@@ -277,7 +277,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
-        <div class="dropdown-menu dropdown-with-icons" aria-labelledby="navbarDropdownMenuLink">
+        <div class="dropdown-menu dropdown-with-icons dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
           <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual</a>
           <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank">Forums</a>
           <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help</a>

@@ -7738,7 +7738,7 @@ input[type=checkbox]:checked {
     border-radius: 8px; }
 
 .dropdown-menu.show {
-  box-shadow: 5px 5px 55px rgba(0, 0, 0, 0.15);
+  box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.4);
   border-radius: 7px;
   border: none; }
 

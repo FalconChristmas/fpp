@@ -788,7 +788,7 @@ body .sm-clean a .sub-arrow {
   .dropdown-menu a:hover,
   .dropdown-menu a:focus,
   .dropdown-menu a:active {
-	box-shadow: 0 4px 20px 0px rgba(0, 0, 0, 0.14), 0 7px 10px -5px rgba(156, 39, 176, 0.4);
+	box-shadow: 0 4px 5px 0px rgba(0, 0, 0, 0.14), 0 7px 10px -5px rgba(156, 39, 176, 0.4);
 	background-color: #F63939;
 	color: #fff !important;
   }
