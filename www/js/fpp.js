@@ -291,6 +291,32 @@ function GetAsync(url) {
     return Get(url, true);
 }
 
+function SetElementValue(elem, val) {
+    if (($(elem)[0].tagName == 'INPUT') ||
+        ($(elem)[0].tagName == 'SELECT')) {
+        $(elem).val(val);
+    } else {
+        $(elem).html(val);
+    }
+}
+
+function GetItemCount(url, id, key = '') {
+    $.ajax({
+        url: url,
+        type: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            if (key != '')
+                SetElementValue($('#' + id), data[key].length);
+            else
+                SetElementValue($('#' + id), data.length);
+        },
+        error: function() {
+            SetElementValue($('#' + id), 'Unknown');
+        }
+    });
+}
+
 function SetupToolTips(delay = 100) {
     $(document).tooltip({
         content: function() {
@@ -2440,14 +2466,16 @@ function GetSequenceArray()
     });
 }
 
-	function moveFile(file)
-	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=moveFile&file=" + encodeURIComponent(file);
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
-	}
+function moveFile(file) {
+    $.get("api/file/move/" + encodeURIComponent(file)
+    ).done(function (data) {
+        if ("OK" != data.status) {
+            DialogError('File Move Error', data.status);
+        }
+    }).fail(function (data) {
+        DialogError('File Move Error', "Unexpected error while to move file");
+    });
+}
 
 	function updateFPPStatus()
 	{

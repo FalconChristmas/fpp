@@ -90,6 +90,8 @@ function getFileCount($dir)
 <script language="Javascript">
 $(document).ready(function() {
 UpdateVersionInfo();
+GetItemCount('api/configfile/commandPresets.json', 'commandPresetCount', 'commands');
+GetItemCount('api/configfile/schedule.json', 'scheduleCount');
 $('.default-value').each(function() {
 var default_value = this.value;
 $(this).focus(function() {

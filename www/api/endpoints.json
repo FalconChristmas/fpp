@@ -147,6 +147,17 @@
             }
         },
         {
+            "endpoint": "file/move/:Filename",
+            "methods": {
+                "GET": {
+                    "desc": "Moves the specified file from the uploads directory to the correct subfolder returning a status of \"OK\" or an Error message if not sucessful",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "file/:DirName/:Filename",
             "methods": {
                 "GET": {
