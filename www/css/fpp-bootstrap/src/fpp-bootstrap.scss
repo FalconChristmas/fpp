@@ -79,7 +79,7 @@
 .spinner-danger{
     color:$danger;
 }
-.pageContent {
+.pageContent, .ui-dialog {
     input, select{
         padding-top:$input-btn-padding-y;
         padding-bottom:$input-btn-padding-y;
@@ -353,4 +353,8 @@ table.settingsTable div.th{
         width: auto;
         display: inline-block;
     }
+}
+
+.ui-dialog-buttonset button {
+    @extend .buttons;
 }
