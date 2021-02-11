@@ -219,7 +219,7 @@ $.when.apply( undefined, tabRequests ).then(function() {
     });
     $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-        if ($(this).attr("href") == 'settings-time.php') {
+        if ($(this).attr("href") == '#settings-time') {
             UpdateCurrentTime();
         } else if (statusTimeout != null) {
             clearTimeout(statusTimeout);
