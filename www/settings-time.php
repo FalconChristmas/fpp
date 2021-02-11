@@ -15,12 +15,22 @@ function GetTimeZone() {
 
 </script>
 
-<b>FPP Time:</b> <span id='currentTime'></span><br>
-<br>
-<?
-$extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
-PrintSettingGroup('time', $extraData);
-?>
+<div class="settingsManagerTimeContent">
+    <div id="playerTime" class="statusTable d-flex">
+        <div>
+            <div class="labelHeading">FPP Time:</div>
+            <div id="currentTime" class="labelValue"></div>
+        </div>
+    </div>
+    <div>
+        <?
+        $extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
+        PrintSettingGroup('time', $extraData);
+        ?>
+    </div>
+
+
+</div>
 
 <script>
 UpdateCurrentTime(true);

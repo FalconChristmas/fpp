@@ -353,7 +353,7 @@ input[type=range]::-webkit-slider-thumb {
 #playerControls{
 	flex:1;
 }
-#playerModeInfo .statusBoxRight{
+#playerModeInfo .statusBoxRight, #settingsManager .statusBoxRight {
 	float:right;
 }
 #schedulerInfo{
@@ -498,11 +498,16 @@ hr {
 #playerTime > div:first-child > div, .tblPlaylistHeaderDetails > div:first-child > div {
 	padding-left: 30px;
 }
+#playerTime > div:last-child > div, .tblPlaylistHeaderDetails > div:last-child > div {
+	padding-right: 30px;
+}
 #playerTime > div:first-child .labelValue, .tblPlaylistHeaderDetails > div:first-child .labelValue{
-	border-radius: 28px 0 0 28px;
+	border-bottom-left-radius: 28px ;
+	border-top-left-radius: 28px ;
 }
 #playerTime > div:last-child .labelValue, .tblPlaylistHeaderDetails > div:last-child .labelValue{
-	border-radius: 0 28px 28px 0;
+	border-top-right-radius: 28px ;
+	border-bottom-right-radius: 28px ;
 }
 .verbosePlaylistItemSetting th{
 	font-weight: normal;
@@ -1347,4 +1352,9 @@ input[type=search].tablesorter-filter:disabled{
 }
 #CopyFlagsTable input {
 	margin: 0.4em;
+}
+.settingsManagerTimeContent{
+    display: flex;
+    flex-direction: row-reverse;
+	justify-content: flex-end;
 }
