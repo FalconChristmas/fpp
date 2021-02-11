@@ -955,10 +955,10 @@ body .sm-clean a .sub-arrow {
 	  width: auto;
 	  margin-bottom: 15px;
 	  padding-top: 0;
-	  height: 300px;
+	  height: 65vh;
 	  animation: none;
 	  opacity: 1;
-	  overflow-y: visible;
+	  overflow-y: auto;
 	}
   
 	
