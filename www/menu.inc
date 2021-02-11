@@ -71,7 +71,7 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo "<span>Host: </span><a href='networkconfig.php' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
+        echo "<span>Host: </span><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
     } else {
         echo "" . gethostname() . "&nbsp;";
     }
