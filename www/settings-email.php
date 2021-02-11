@@ -35,6 +35,6 @@ function SendTestEmail() {
 </script>
 
 <?
-$extraData = "<input type='button' value='Configure Email' onClick='ConfigureEmail();'> <input type='button' value='Send Test Email' onClick='SendTestEmail();'>";
+$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Configure Email' onClick='ConfigureEmail();'> <input type='button' class='buttons' value='Send Test Email' onClick='SendTestEmail();'></div>";
 PrintSettingGroup('email', $extraData);
 ?>

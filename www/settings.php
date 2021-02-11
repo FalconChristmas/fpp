@@ -38,7 +38,7 @@ function handleSettingsVisibilityChange() {
 }
 
 function reloadSettingsPage() {
-    location.href = 'settings.php?tab=' + $('#tabs').tabs('option', 'active');
+    location.href = 'settings.php?tab=' + $('#settingsManagerTabs .nav-link.active').data('option');
 }
 
 var hiddenChildren = {};
@@ -89,23 +89,74 @@ if (isset($_GET['tab'])) {
         
             <div class='fppTabs'>
                 <div id="settingsManager">
-
-                    <div id="tabs" style='display:none'>
-                        <ul>
-                            <li><a href='settings-playback.php'>Playback</a></li>
-                            <li><a href='settings-av.php'>Audio/Video</a></li>
-                            <li><a href='settings-time.php'>Time</a></li>
-                            <li><a href='settings-ui.php'>UI</a></li>
-                            <li><a href='settings-email.php'>Email</a></li>
-                            <li><a href='settings-mqtt.php'>MQTT</a></li>
-        <? if ($uiLevel >= 1 || $tabId == "Output") echo "<li><a href='settings-output.php'>Input/Output</a></li>\n"; ?>
-                            <li><a href='settings-logs.php'>Logging</a></li>
-        <? if ($uiLevel >= 1 || $tabId == "Storage") echo "<li><a href='settings-storage.php'>Storage</a></li>"; ?>
-                            <li><a href='settings-system.php'>System</a></li>
-        <? if ($uiLevel >= 3 || $tabId == "Developer") echo "<li><a href='settings-developer.php'>Developer</a></li>\n"; ?>
-                        </ul>
+                    <ul id="settingsManagerTabs" class="nav nav-pills pageContent-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-playback-tab" data-toggle="tab" href="#settings-playback" data-option="Playback" role="tab" aria-controls="settings-playback" aria-selected="true">
+                                Playback
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-av-tab" data-toggle="tab" href="#settings-av" data-option="AV" role="tab" aria-controls="settings-av" aria-selected="true">
+                            Audio/Video
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-time-tab" data-toggle="tab" href="#settings-time" data-option="Time" role="tab" aria-controls="settings-time" aria-selected="true">
+                            Time
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-ui-tab" data-toggle="tab" href="#settings-ui" data-option="UI" role="tab" aria-controls="settings-ui" aria-selected="true">
+                                UI
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-email-tab" data-toggle="tab" href="#settings-email" data-option="Email" role="tab" aria-controls="settings-email" aria-selected="true">
+                                Email
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-mqtt-tab" data-toggle="tab" href="#settings-mqtt" data-option="MQTT" role="tab" aria-controls="settings-mqtt" aria-selected="true">
+                                MQTT
+                            </a>
+                        </li>
+                        <? if ($uiLevel >= 1 || $tabId == "Output"){?>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-output-tab" data-toggle="tab" href="#settings-output" data-option="Output" role="tab" aria-controls="settings-output" aria-selected="true">
+                            Input/Output
+                            </a>
+                        </li>
+                        <? } ?>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-logs-tab" data-toggle="tab" href="#settings-logs" data-option="Logging" role="tab" aria-controls="settings-logs" aria-selected="true">
+                                Logging
+                            </a>
+                        </li>
+                        <? if ($uiLevel >= 1 || $tabId == "Storage"){?>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-storage-tab" data-toggle="tab" href="#settings-storage" data-option="Storage" role="tab" aria-controls="settings-storage" aria-selected="true">
+                            Storage
+                            </a>
+                        </li>
+                        <? } ?>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-system-tab" data-toggle="tab" href="#settings-system" data-option="System" role="tab" aria-controls="settings-system" aria-selected="true">
+                            System
+                            </a>
+                        </li>
+                        <? if ($uiLevel >= 1 || $tabId == "Storage"){?>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-developer-tab" data-toggle="tab" href="#settings-developer" data-option="Developer" role="tab" aria-controls="settings-developer" aria-selected="true">
+                            Developer
+                            </a>
+                        </li>
+                        <? } ?>
+                    </ul>
+                    <div id="settingsManagerTabsContent" class="tab-content">
+                        <div class="spinner-border spinner-danger spinner-lg" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
                     </div>
-                </div>
         
                 <table>
         <? if ($uiLevel >= 1) { ?>
@@ -147,7 +198,30 @@ var activeTabNumber =
         print $tabIDs[$tabId];
     }
 ?>;
+var tabRequests=[];
+var tabElements={}
+$('#settingsManagerTabs .nav-link').each(function(i){
+    var tabName = $(this).attr('href').slice(1);
+    tabRequests.push($.ajax({
+        url:tabName+".php"
+    }).done(function(data) {
+        
+        var $tabContent = $('<div class="tab-pane fade" id="'+tabName+'" role="tabpanel" aria-labelledby="'+tabName+'-tab"/>');
+        tabElements[i] = $tabContent.html(data);
+    }));
+});
 
+$.when.apply( undefined, tabRequests ).then(function() {
+   $('#settingsManagerTabsContent>.spinner-border').hide();
+    $.each(tabElements,function(i,$tabContent){
+        if(i==activeTabNumber){
+            $tabContent.addClass('show active');
+        }
+        $('#settingsManagerTabsContent').append($tabContent);
+    });
+    $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
+});
+/*
 var currentLoadingTab = 0;
 $("#tabs").tabs( {
     cache: true,
@@ -183,12 +257,13 @@ $("#tabs").tabs( {
     }
 });
 
+*/
 $( function() {
     SetupToolTips();
 });
-
+/*
 $('#tabs').show();
-
+*/
 </script>
 
 </div>

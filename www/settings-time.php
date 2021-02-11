@@ -18,7 +18,7 @@ function GetTimeZone() {
 <b>FPP Time:</b> <span id='currentTime'></span><br>
 <br>
 <?
-$extraData = "<input type='button' value='Lookup Time Zone' onClick='GetTimeZone();'>";
+$extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
 PrintSettingGroup('time', $extraData);
 ?>
 

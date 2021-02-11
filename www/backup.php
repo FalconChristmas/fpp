@@ -1677,18 +1677,27 @@ GetBackupDevices();
 </style>
 <div id="bodyWrapper">
     <?php include 'menu.inc'; ?>
-    <br/><div class="container">
+    <div class="container">
         <h1 class='title'>FPP Backups</h1>
         <div class="pageContent">
             
                 <div id="global" class="settings">
-                    
-                    <div id='tabs'>
-                        <ul>
-                            <li><a href='#tab-jsonBackup'>JSON Configuration Backup</a></li>
-                            <li><a href='#tab-fileCopy'>File Copy Backup</a></li>
-                        </ul>
-                    <div id='tab-jsonBackup'>
+                <div id='tabs'>
+                    <ul class="nav nav-pills pageContent-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="tab-jsonBackup-tab" data-toggle="tab" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
+                            JSON Configuration Backup
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link " id="tab-fileCopy-tab" data-toggle="tab" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="true">
+                            File Copy Backup
+                            </a>
+                        </li>
+                    </ul>
+            
+                    <div class="tab-content">
+                    <div id='tab-jsonBackup' class="tab-pane fade show active" role="tabpanel" aria-labelledby="tab-jsonBackup-tab">
                         <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
                             <?php
                             //Spit out the backup errors if the backup_errors array isn't empty
@@ -1791,8 +1800,8 @@ GetBackupDevices();
                             <?php
                         }
                         ?>
-                        <fieldset>
-                            <legend>Backup Configuration</legend>
+                        <div class="backdrop">
+                            <h2>Backup Configuration</h2>
                             Select settings to backup, then download the selected system configuration in JSON format.
                             <br/>
                             <table width="100%">
@@ -1816,13 +1825,15 @@ GetBackupDevices();
                                     </td>
                                 </tr>
                             </table>
-                        </fieldset>
+                    </div>
                         <br/>
-                        <fieldset>
-                            <legend>Restore Configuration</legend>
-                            <center>
-                                <span style="color: #AA0000"><b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b><br><br></span>
-                            </center>
+                        <div class="backdrop">
+                            <h2>Restore Configuration</h2>
+                            <div class="alert danger-outline">
+                            <b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b>
+
+                            </div>
+                    
                             Select settings to restore and then choose backup file containing backup data.
                             <br/>
                             <table width="100%">
@@ -1862,11 +1873,11 @@ GetBackupDevices();
                                     </td>
                                 </tr>
                             </table>
-                        </fieldset>
+                    </div>
                         </form>
-                        </div>
-                        <div id='tab-fileCopy'>
-                        <fieldset><legend>File Copy Backup/Restore</legend>
+                    </div>
+                        <div id='tab-fileCopy' class="tab-pane fade" role="tabpanel" aria-labelledby="tab-fileCopy-tab">
+                        <div class="backdrop"><h2>File Copy Backup/Restore</h2>
                                 Copy configuration, sequences, etc... to/from a backup device.
                                 <table>
         <tr><td>Copy Type:</td><td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
@@ -1907,9 +1918,13 @@ GetBackupDevices();
                                         <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
                                 </table>
                                 <br>
-                                <span style="color: #AA0000"><b>* Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</b></span><br>
-                                <span style="color: #AA0000" class='copyBackups'><b>* Backing up Backups will copy all local backups to the USB device.</b></span><br>
-                        </fieldset>
+                                <div class="alert danger-outline">
+                                    
+                                
+                                <p ><b>* Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</b></p>
+                                <span class='copyBackups'><b>* Backing up Backups will copy all local backups to the USB device.</b></span></div>
+                    </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -1943,7 +1958,7 @@ GetBackupDevices();
         print "0";
 ?>;
 
-        $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+       // $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 
     </script>
     <?php include 'common/footer.inc'; ?>

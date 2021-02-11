@@ -396,8 +396,8 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
         ((!isset($g['platforms'])) ||
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
-        echo "<b>" . $g['description'] . "</b>\n";
-        echo "<table class='settingsTable ";
+        echo "<h2>" . $g['description'] . "</h2>\n";
+        echo "<div class='settingsTable ";
 
         if ($indent)
             echo "settingsGroupTable'>\n";
@@ -405,10 +405,10 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             echo "'>\n";
 
         if ($prependData != "") {
-            if (preg_match("/<tr>/", $prependData))
+            if (preg_match("/<div class=tr>/", $prependData))
                 echo $prependData;
             else
-                echo "<tr><th colspan=2>$prependData</td></tr>\n";
+                echo "<div class=tr><div class='th' colspan=2>$prependData</div></div>\n";
         }
 
         foreach ($g['settings'] as $setting) {
@@ -419,13 +419,13 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
         }
 
         if ($appendData != "") {
-            if (preg_match("/<tr>/", $appendData))
+            if (preg_match("/<div class=tr>/", $appendData))
                 echo $appendData;
             else
-                echo "<tr><th colspan=2>$appendData</td></tr>\n";
+                echo "<div class=tr><div class='th' colspan=2>$appendData</div></div>\n";
         }
 
-        echo "</table><br>\n";
+        echo "</div><br>\n";
     }
 }
 
@@ -434,9 +434,9 @@ function PrintPluginSettingGroupTable($plugin, $group, $appendData = "", $prepen
 }
 
 function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
-    echo "<table class='settingsTable'>\n";
+    echo "<div class='settingsTable'>\n";
     PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
-    echo "</table>\n";
+    echo "</div>\n";
 }
 
 function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = Array())

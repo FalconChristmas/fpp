@@ -43,12 +43,8 @@ if (!isset($settings['AudioMixerDevice'])) {
 <script>
 </script>
 
-<table class='settingsTableWrapper'>
-    <tr><td>
+
 <?
 PrintSettingGroup('generalAudioVideo');
 ?>
 
-        </td>
-    </tr>
-</table>

@@ -16,6 +16,10 @@ body .ui-tooltip{
 	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
 	border-radius: 7px;
 }
+.tab-content>.spinner-border{
+	display: block;
+	margin: auto;
+}
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
 	padding: 0.75em 1.5em;
 }
@@ -1337,6 +1341,10 @@ input[type=search].tablesorter-filter:disabled{
 .fileManagerDivData .fileDetails td:first-child {
 	padding-left: 1em;
 }
-
-
-
+#tab-jsonBackup td, #tab-fileCopy td{
+	padding-top: 0.8em;
+	padding-bottom: 0.8em;
+}
+#CopyFlagsTable input {
+	margin: 0.4em;
+}

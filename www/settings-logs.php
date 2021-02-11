@@ -40,10 +40,10 @@ PrintSettingGroup('log-levels');
 <div>
    <b>Bulk Change Log Level</b>
    <div>
-      <button onclick="changeAll('error')">Errors Only</button>
-      <button onclick="changeAll('warn')">Warn</button>
-      <button onclick="changeAll('info')">Info</button>
-      <button onclick="changeAll('debug')">Debug</button>
-      <button onclick="changeAll('excess')">Excessive</button>
+      <button class="buttons" onclick="changeAll('error')">Errors Only</button>
+      <button class="buttons" onclick="changeAll('warn')">Warn</button>
+      <button class="buttons" onclick="changeAll('info')">Info</button>
+      <button class="buttons" onclick="changeAll('debug')">Debug</button>
+      <button class="buttons" onclick="changeAll('excess')">Excessive</button>
    </div>
 </div>

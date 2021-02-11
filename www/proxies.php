@@ -108,7 +108,6 @@ foreach ($hta as $line) {
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <br/>
 <div class="container">
     <div class="title">Proxied Hosts</div>
     <div class="pageContent">

@@ -1291,7 +1291,7 @@ function multiActionChanged() {
         				<thead>
         					<tr>
         						<th class="hostnameColumn" data-placeholder="Hostname">Hostname</th>
-        						<th data-placeholder=">IP Address">IP Address</th>
+        						<th data-placeholder="IP Address">IP Address</th>
         						<th >Platform</th>
         						<th >Mode</th>
         						<th data-placeholder="Status">Status</th>

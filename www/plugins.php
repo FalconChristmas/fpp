@@ -415,41 +415,47 @@ $(document).ready(function() {
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <br/>
+
 <div class="container">
 	<h1 class="title">Plugins</h1>
 	<div class="pageContent">
 		
-		<div id=plugins" class="settings">
-		<fieldset>
-		<legend>Plugins</legend>
+		<div id="plugins" class="settings">
+
+		<div class="backdrop" id='pluginTableHead'>
+
+			If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
 		
+		
+		<div class="form-row align-items-center">
+			<div class="col-auto"><label for="pluginInfoURL">pluginInfo.json URL:</label></div>
+			<div class="col-auto"><input id='pluginInfoURL' type="text" size=90 maxlength=255></div>
+			<div class="col-auto"><input type='button' class="buttons" onClick='ManualLoadInfo();' value='Retrieve Plugin Info'></div>
+		</div>
+
+
+		</div>
 		<table class='pluginTable' border=0 cellpadding=0>
-		<tbody id='pluginTableHead'>
-			<tr><td colspan=7>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
-		pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
-				<input type='button' onClick='ManualLoadInfo();' value='Retrieve Plugin Info'>
-				</td></tr>
-		</tbody>
+
 		<tbody id='installedPlugins' style='display: none;'>
 			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgBlue'>Installed Plugins</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgBlue'><h2>Installed Plugins</h2></td></tr>
 		</tbody>
 		<tbody id='pluginTable'>
 			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgGreen'><h2>Available Plugins</h2></td></tr>
 		</tbody>
 		<tbody id='untestedPlugins' style='display: none;'>
 			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgGreen'>Plugins not tested with this FPP version</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgGreen'><h2>Plugins not tested with this FPP version</h2></td></tr>
 		</tbody>
 		<tbody id='templatePlugin' style='display: none;'>
 			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgDarkOrange'><h2>Template Plugin</h2></td></tr>
 		</tbody>
 		<tbody id='incompatiblePlugins' style='display: none;'>
 			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgRed'>Incompatible Plugins</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgRed'><h2>Incompatible Plugins</h2></td></tr>
 		</tbody>
 		</table>
 		
