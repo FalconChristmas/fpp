@@ -182,28 +182,38 @@ $(document).ready(function(){
 <body>
 	<div id="bodyWrapper">
 		<?php include 'menu.inc'; ?>
-		<br/>
 <div class="container">
 	<h1 class="title">Channel Inputs</h1>
 	<div class="pageContent">
 		
 		<div id='channelInputManager'>
-				<div id="tabs">
-					<ul>
-						<li><a href="#tab-e131">E1.31/ArtNet Bridge</a></li>
-					</ul>
-		
+
+
+
+		<ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
+				E1.31/ArtNet Bridge
+				</a>
+              </li>
+		</ul>
+
 		<!-- --------------------------------------------------------------------- -->
 		
-					<div id='tab-e131'>
+
+		
+		<div class="tab-content" id="channelOutputTabsContent">
+			<div class="tab-pane fade show active" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
+
+
 						<div id='divE131'>
 			
 								<div id='divE131Data'>
 		
-		  <div style="overflow: hidden; padding: 10px;">
-			<br>
+	
 		
-		    <div>
+		
+		    
 		      <form>
 		        <span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
 		        <table width="100%">
@@ -223,7 +233,7 @@ $(document).ready(function(){
 		    <input name="input" type="hidden" value="1" />
 		    <table>
 		    	<tr>
-		      	<td width = "70 px"><input id="btnSaveUniverses" class="buttons" type="submit" value = "Save" /></td>
+		      	<td width = "70 px"><input id="btnSaveUniverses" class="buttons btn-success" type="submit" value = "Save" /></td>
 		      	<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
 		      	<td width = "40 px">&nbsp;</td>
 		      	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(1);" /></td>
@@ -232,21 +242,17 @@ $(document).ready(function(){
 		
 		    <div class='fppTableWrapper'>
 		        <div class='fppTableContents'>
-		            <table id="tblUniverses" class='universeTable fullWidth'>
+		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
 		                <thead id='tblUniversesHead'>
-		                    <th rowspan=2 title='Input Number'>Input</th>
-		                        <th rowspan=2 title='Input Enabled/Disabled status'>Active</th>
-		                        <th rowspan=2 title='User Description'>Description</th>
-		                        <th rowspan=2 title='Input Type'>Input<br>Type</th>
-		                        <th colspan=2>FPP Channel</th>
-		                        <th colspan=3>Universe</th>
-		                    </tr>
-		                    <tr>
-		                        <th title='FPP Start Channel'>Start</th>
-		                        <th title='FPP End Channel'>End</th>
-		                        <th title='Universe Number'>#</th>
-		                        <th title='Universe Count for this controller'>Count</th>
-		                        <th title='Universe size'>Size</th>
+		                    <th title='Input Number'>Input</th>
+		                        <th title='Input Enabled/Disabled status'>Active</th>
+		                        <th title='User Description'>Description</th>
+		                        <th title='Input Type'>Input Type</th>
+		                        <th title='FPP Start Channel'>FPP Channel Start</th>
+		                        <th title='FPP End Channel'>FPP Channel End</th>
+		                        <th title='Universe Number'>Universe #</th>
+		                        <th title='Universe Count for this controller'>Universe Count</th>
+		                        <th title='Universe size'>Universe Size</th>
 		                    </tr>
 		                </thead>
 		                <tbody id='tblUniversesBody'>
@@ -261,7 +267,7 @@ $(document).ready(function(){
 								</div>
 								
 						</div>
-					</div>
+			
 		
 		<!-- --------------------------------------------------------------------- -->
 		

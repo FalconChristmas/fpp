@@ -253,7 +253,7 @@ include 'common/menuHead.inc';
                 <table style='width: 100%' class='statusTable'>
                     <tr>
                         <td align='left'>
-                            <input type='button' onClick='GetUniverseBytesReceived();' value='Update'>
+                            <input type='button' class="buttons" onClick='GetUniverseBytesReceived();' value='Update'>
                         </td>
                         <td align='right'>
     <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats

@@ -658,7 +658,7 @@ tr.rowScheduleDetails select.selPlaylist option {
                             <!-- end 'FPP Command' options -->
                         </tr>
                     </table>
-                    <table id='tblSchedule'>
+                    <table id='tblSchedule' class="fppSelectableRowTable">
 
                         <thead id='tblScheduleHead'>
                             <tr>

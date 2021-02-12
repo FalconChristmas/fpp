@@ -13,20 +13,24 @@ require_once('troubleshootingCommands.php');
 <body>
 <div id="bodyWrapper">
   <?php include 'menu.inc'; ?>
-  <div style="margin:0 auto;"> <br />
-    <fieldset class="fieldSection">
-      <legend>Troubleshooting Commands</legend>
-      <div style="overflow: hidden; padding: 10px;">
-    <div class="clear"></div>
-<?
-foreach ($commands as $title => $command)
-{
-?>
-				<h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3><pre><? echo $results[$command]; ?></pre><hr>
-<?
-}
-?>
-    </fieldset>
+  <div class="container">
+
+    <h1 class="title">Troubleshooting</h1>
+    <div class="pageContent">
+      <h2>Troubleshooting Commands</h2>
+        <div style="overflow: hidden; padding: 10px;">
+      <div class="clear"></div>
+  <?
+  foreach ($commands as $title => $command)
+  {
+  ?>
+          <h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3><pre><? echo $results[$command]; ?></pre><hr>
+  <?
+  }
+  ?>
+
+    </div>
+    
   </div>
   <?php include 'common/footer.inc'; ?>
 </div>

@@ -106,12 +106,18 @@ function PopulateInterfaces()
 
 <div id='tab-e131'>
 	<div id='divE131'>
-		<fieldset class="fs">
-			<legend> E1.31 / ArtNet / DDP / KiNet</legend>
+
+			<h2> E1.31 / ArtNet / DDP / KiNet</h2>
 			<div id='divE131Data'>
 
-				<div style="overflow: hidden; padding: 10px;">
-					<b>Enable E1.31 / ArtNet / DDP / KiNet Output:</b> <input type="checkbox" id="E131Enabled"/><span id='outputOffWarning' style='display: none;' class='warning'> - WARNING, universe outputs are active, but the primary channel output is disabled.  No data will be sent.</span><br><br>
+				<div>
+		
+						<b>Enable E1.31 / ArtNet / DDP / KiNet Output:</b> <input type="checkbox" id="E131Enabled"/>
+						<span id='outputOffWarning' style='display: none;' class='warning'>
+						- WARNING, universe outputs are active, but the primary channel output is disabled.  No data will be sent.
+						</span>
+
+<br>
 					Source Interface: <select id="selE131interfaces"><? PopulateInterfaces(); ?></select>
     <span
     <? if ($uiLevel < 1) { ?>
@@ -130,7 +136,7 @@ function PopulateInterfaces()
 						<input name="input" type="hidden" value="0" />
 						<table>
 							<tr>
-								<td width = "70 px"><input id="btnSaveUniverses" class="buttons" type="submit" value = "Save" /></td>
+								<td width = "70 px"><input id="btnSaveUniverses" class="buttons btn-success" type="submit" value = "Save" /></td>
 								<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
 								<td width = "40 px">&nbsp;</td>
 								<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(0);" /></td>
@@ -139,27 +145,23 @@ function PopulateInterfaces()
 
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents'>
-						<table id="tblUniverses" class='universeTable fullWidth'>
+						<table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
 							<thead id='tblUniversesHead'>
                                 <tr>
-                                    <th rowspan=2 title='Output Number'>Out<br>put</th>
-                                    <th rowspan=2 title='Output Enabled/Disabled status'>Act<br>ive</th>
-                                    <th rowspan=2 title='User Description'>Description</th>
-                                    <th rowspan=2 title='Output Type'>Output<br>Type</th>
-                                    <th rowspan=2 title='Unicast IP Address'>Unicast<br>Address</th>
-                                    <th colspan=2>FPP Channel</th>
-                                    <th colspan=4>Universe</th>
-                                    <th rowspan=2 title='Monitor controller'>Mon<br>itor</th>
-                                    <th rowspan=2 title='Suppress Duplicate network packets'>De<br>Dup</th>
-                                    <th rowspan=2 title='Test ping controller'>Ping</th>
-                                </tr>
-                                <tr>
-                                    <th title='FPP Start Channel'>Start</th>
-                                    <th title='FPP End Channel'>End</th>
-                                    <th title='Universe Number'>#</th>
-                                    <th title='Universe Count for this controller'>Count</th>
-                                    <th title='Universe size'>Size</th>
-                                    <th title='Universe Priority'>Priority</th>
+                                    <th title='Output Number'>Output</th>
+                                    <th title='Output Enabled/Disabled status'>Active</th>
+                                    <th title='User Description'>Description</th>
+                                    <th title='Output Type'>Output Type</th>
+                                    <th title='Unicast IP Address'>Unicast Address</th>
+                                    <th title='Monitor controller'>Monitor</th>
+                                    <th title='Suppress Duplicate network packets'>DeDup</th>
+                                    <th title='Test ping controller'>Ping</th>
+                                    <th title='FPP Start Channel'>FPP Start Channel</th>
+                                    <th title='FPP End Channel'>FPP End Channel</th>
+                                    <th title='Universe Number'>Universe #</th>
+                                    <th title='Universe Count for this controller'>Universe Count</th>
+                                    <th title='Universe size'>Universe Size</th>
+                                    <th title='Universe Priority'>Universe Priority</th>
                                 </tr>
 							</thead>
 							<tbody id='tblUniversesBody'>
@@ -167,10 +169,10 @@ function PopulateInterfaces()
 						</table>
                             </div>
                         </div>
-						<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
+						<span>(Drag entry to reposition) </span>
 					</form>
 				</div>
 			</div>
-		</fieldset>
+
 	</div>
 </div>

@@ -19,14 +19,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
 <title><? echo $pageTitle; ?></title>
 <style>
-input.largeCheckbox {
-    -ms-transform: scale(2); /* IE */
-    -moz-transform: scale(2); /* FF */
-    -webkit-transform: scale(2); /* Safari and Chrome */
-    -o-transform: scale(2); /* Opera */
-    transform: scale(2);
-    padding: 10px;
-}
+
 
 .actionOptions {
     display: none;
@@ -594,7 +587,7 @@ input.largeCheckbox {
                     newRow += "<td class='centerCenter'>";
                     if ((isFPP(data[i].typeId)) &&
                         (majorVersion >= 4))
-                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox' name='" + data[i].address + "'>";
+                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
 
                     newRow += "</td>";
                 }
@@ -1303,7 +1296,7 @@ function multiActionChanged() {
         							?>
                                     <th data-sorter='false' data-filter='false'>Git Versions</th>
                                     <th data-sorter='false' data-filter='false'>Utilization</th>
-                                    <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox' onChange='selectAllChanged();' /></th>
+                                    <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox multisyncRowCheckbox' onChange='selectAllChanged();' /></th>
                                 <?php
                             }
                             ?>
@@ -1318,8 +1311,8 @@ function multiActionChanged() {
         <?
         if ($advancedView) {
         ?>
-        <div style='text-align: right;'>
-            <div style='float: left;'>
+        <div class="form-actions">
+            <div >
                 <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
             </div>
             <div>
@@ -1351,7 +1344,7 @@ function multiActionChanged() {
         <div style='width: 100%; text-align: center;'>
             <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
         </div>
-        <hr>
+  
         <? } ?>
         
         <div class="fppSystemsUiSettings">

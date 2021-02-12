@@ -216,7 +216,7 @@ $(document).ready(function(){
 			<ul class="nav nav-pills pageContent-tabs" id="channelOutputTabs" role="tablist">
               <li class="nav-item">
                 <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
-					E1.31 / ArtNet / DDP
+					E1.31 / ArtNet / DDP / KiNet
 				</a>
               </li>
 

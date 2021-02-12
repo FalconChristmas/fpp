@@ -1768,7 +1768,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[13].innerHTML = "<input type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[13].innerHTML = "<input type='button' class='buttons' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     updateUniverseEndChannel( document.getElementById("tblUniversesBody").rows[UniverseCount]);
                     UniverseCount++;
@@ -1952,11 +1952,11 @@ function updateUniverseEndChannel(row) {
 
                 bodyHTML += "</select></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32' " + ipDisabled + "></td>";
-                bodyHTML += "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
+                bodyHTML += "<td><input class='txtStartAddress singleDigitInput' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
 
-                bodyHTML += "<td><input class='txtUniverse' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
+                bodyHTML += "<td><input class='txtUniverse singleDigitInput' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
-                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='999' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
+                bodyHTML += "<td><input class='numUniverseCount singleDigitInput' type='number' min='1' max='999' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
 
                 bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'";
@@ -1967,7 +1967,7 @@ function updateUniverseEndChannel(row) {
                 bodyHTML += "/></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "" ) + "/></td>" +
-                            "<td " + inputStyle + "><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
+                            "<td " + inputStyle + "><input type=button class='buttons' onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
             }
 

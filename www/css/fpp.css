@@ -1177,58 +1177,7 @@ body .sm-clean a .sub-arrow {
     padding-bottom:2em;
     margin-bottom: 2em;
 }
-#tblSchedule{
 
-	width: 100%;
-	margin-bottom: 2em;
-	margin-top: 2em;
-}
-
-#tblSchedule tr td{
-	padding-top: 1.1em;
-	padding-bottom: 1.1em;
-	background-color: #F5F5F5;
-	border-bottom: 1px solid #dee2e6;
-}
-#tblSchedule tr:first-child td{
-	padding-top: 1.5em;
-}
-#tblSchedule tr:last-child td{
-	padding-bottom: 1.5em;
-}
-#tblSchedule tbody tr>td:first-child{
-	padding-left: 1.5em;
-	padding-right:0.4em;
-}
-#tblSchedule tbody tr>td:last-child,#tblSchedule tbody tr>td:nth-last-child(2){
-	padding-right: 1.1em;
-}
-#tblSchedule tbody tr:first-child>td:first-child{
-	border-top-left-radius: 8px;
-}
-#tblSchedule tbody tr:first-child>td:last-child, #tblSchedule tbody tr:first-child>td:nth-last-child(2) {
-	border-top-right-radius: 8px;
-}
-#tblSchedule tbody tr:last-child>td{
-	border-bottom: none;
-}
-#tblSchedule tbody tr:last-child>td:first-child{
-	border-bottom-left-radius: 8px;
-}
-#tblSchedule tbody tr:last-child>td:last-child, #tblSchedule tbody tr:last-child>td:nth-last-child(2) {
-	border-bottom-right-radius: 8px;
-}
-#tblSchedule tr th{
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	margin-bottom: 0.8em;
-	font-weight: normal;
-	padding-bottom:1em;
-}
-#tblSchedule tr.rowScheduleDetails.selectedEntry td{
-	background-color: #ECECEC;
-
-}
 #fppSystemsTable thead td,#fppSystemsTable thead th{
 	background-color: #ECECEC;
 }
@@ -1281,10 +1230,22 @@ body .sm-clean a .sub-arrow {
 	border-top: 1px solid #dee2e6;
 	padding-top: 2em;
 }
+#fppSystemsTable .multisyncRowCheckbox{
+	margin: auto;
+	display: block;
+}
 .tablesorter .filtered{
 	display: none;
 }
-
+.txtIP{
+	width: 150px;
+}
+.txtDesc{
+	width: 150px;
+}
+.singleDigitInput{
+	width: 85px;
+}
 .tablesorter-fpp .header,
 .tablesorter-fpp .tablesorter-header {
 	background-image: url(data:image/gif;base64,R0lGODlhFQAJAIAAACMtMP///yH5BAEAAAEALAAAAAAVAAkAAAIXjI+AywnaYnhUMoqt3gZXPmVg94yJVQAAOw==);

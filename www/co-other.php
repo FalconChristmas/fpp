@@ -1260,14 +1260,14 @@ $(document).ready(function(){
 
 <div id='tab-other'>
 	<div id='divOther'>
-		<fieldset class="fs">
-			<legend> Other Outputs </legend>
+	
+			<h2> Other Outputs </h2>
 			<div id='divOtherData'>
 				<div style="overflow: hidden; padding: 5px;">
 					<form id="frmOtherOutputs">
 						<input name="command" type="hidden" value="saveOtherOutputs" />
 						<table>
-							<tr><td width = "70 px"><input id="btnSaveOther" class="buttons" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' /></td>
+							<tr><td width = "70 px"><input id="btnSaveOther" class="buttons btn-success" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' /></td>
 								<td width = "70 px"><input id="btnAddOther" class="buttons" type="button" value = "Add" onClick="AddOtherOutput();"/></td>
 								<td width = "40 px">&nbsp;</td>
 								<td width = "70 px"><input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();"></td>
@@ -1275,7 +1275,7 @@ $(document).ready(function(){
 						</table>
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents'>
-                                <table id="tblOtherOutputs">
+                                <table id="tblOtherOutputs" class="fppSelectableRowTable">
                                     <thead>
                                         <tr class='tblheader'>
                                             <th>#</th>
@@ -1294,6 +1294,6 @@ $(document).ready(function(){
 					</form>
 				</div>
 			</div>
-		</fieldset>
+	
 	</div>
 </div>

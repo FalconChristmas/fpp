@@ -248,9 +248,7 @@ tr.rowScheduleDetails td {
     <div class="title">About FPP</div>
     <div class="pageContent">
       
-      <div style="margin:0 auto;"> <br />
-        <fieldset class="fieldSection">
-          <legend>About FPP</legend>
+      <div>
           <div style="overflow: hidden; padding: 10px;">
           <div>
             <div class='aboutLeft'>
@@ -431,7 +429,7 @@ tr.rowScheduleDetails td {
                 <? } ?>
             </div>
             </div>
-            </fieldset>
+       
             
             
         <?
@@ -457,6 +455,7 @@ tr.rowScheduleDetails td {
             <div id='logText'>
             </div>
           </pre>
+        </div>
         </div>
       </div>
     </div>

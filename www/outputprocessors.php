@@ -397,7 +397,7 @@ $(document).tooltip();
 <body>
 	<div id="bodyWrapper">
 		<?php include 'menu.inc'; ?>
-		<br/>
+
 <div class="container">
     <h1 class="title">Output Processors</h1>
     <div class="pageContent">
@@ -406,15 +406,15 @@ $(document).tooltip();
         		
         				<table>
         					<tr>
-        						<td width='70px'><input type=button value='Save' onClick='SetOutputProcessors();' class='buttons'></td>
+        						<td width='70px'><input type=button value='Save' onClick='SetOutputProcessors();' class='buttons btn-success'></td>
         						<td width='70px'><input type=button value='Add' onClick='AddNewProcessorRow();' class='buttons'></td>
         						<td width='40px'>&nbsp;</td>
         						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'></td>
         					</tr>
         				</table>
-        				<div class='fppTableWrapper fppTableWrapperAsTable'>
+        				<div class='fppTableWrapper fppTableWrapperAsTablefpp'>
                             <div class='fppTableContents'>
-                                <table id="outputProcessors">
+                                <table id="outputProcessors" class="fppSelectableRowTable">
                                     <thead>
                                         <tr>
                                             <th>#</td>

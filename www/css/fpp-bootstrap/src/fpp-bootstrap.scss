@@ -355,6 +355,113 @@ table.settingsTable div.th{
     }
 }
 
+
+
+.fppSelectableRowTable{
+
+	width: 100%;
+	margin-bottom: 2em;
+	margin-top: 2em;
+}
+
+.fppSelectableRowTable tr td{
+	padding-top: 1.1em;
+	padding-bottom: 1.1em;
+	background-color: #F5F5F5;
+	border-bottom: 1px solid #dee2e6;
+}
+.fppSelectableRowTable tr:first-child td{
+	padding-top: 1.5em;
+}
+.fppSelectableRowTable tr:last-child td{
+	padding-bottom: 1.5em;
+}
+.fppSelectableRowTable tbody tr>td:first-child{
+	padding-left: 1.5em;
+	padding-right:0.4em;
+}
+.fppSelectableRowTable tbody tr>td:last-child,#tblSchedule tbody tr>td:nth-last-child(2){
+	padding-right: 1.1em;
+}
+.fppSelectableRowTable tbody tr:first-child>td:first-child{
+	border-top-left-radius: 8px;
+}
+.fppSelectableRowTable tbody tr:first-child>td:last-child, #tblSchedule tbody tr:first-child>td:nth-last-child(2) {
+	border-top-right-radius: 8px;
+}
+.fppSelectableRowTable tbody tr:last-child>td{
+	border-bottom: none;
+}
+.fppSelectableRowTable tbody tr:last-child>td:first-child{
+	border-bottom-left-radius: 8px;
+}
+.fppSelectableRowTable tbody tr:last-child>td:last-child, #tblSchedule tbody tr:last-child>td:nth-last-child(2) {
+	border-bottom-right-radius: 8px;
+}
+.fppSelectableRowTable tr th{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	margin-bottom: 0.8em;
+	font-weight: normal;
+	padding-bottom:1em;
+}
+.fppSelectableRowTable tr.selectedEntry td,
+.fppSelectableRowTable tr.fppTableSelectedEntry td
+{
+	background-color: #ECECEC;
+}
+
+
+
+$fppTableDefaultPadding:1.1em;
+$fppTableExtraPadding:1.1em;
+.fppBasicTable{
+	width: 100%;
+	margin-bottom: 2em;
+	margin-top: 2em;
+}
+
+.fppBasicTable>tbody>tr>td{
+	padding-top: $fppTableDefaultPadding;
+	padding-bottom: $fppTableDefaultPadding;
+	background-color: #F5F5F5;
+	border-bottom: 1px solid #dee2e6;
+}
+
+.fppBasicTable>tbody>tr:last-child td{
+	padding-bottom: $fppTableExtraPadding;
+}
+.fppBasicTable>tbody>tr>td:first-child{
+	padding-left: $fppTableExtraPadding;
+	padding-right:0.4em;
+}
+.fppBasicTable>tbody>tr>td:last-child{
+	padding-right: $fppTableDefaultPadding;
+}
+.fppBasicTable>tbody>tr:first-child>td:first-child{
+	border-top-left-radius: 8px;
+}
+.fppBasicTable>tbody>tr:first-child>td:last-child {
+	border-top-right-radius: 8px;
+}
+.fppBasicTable>tbody>tr:last-child>td{
+	border-bottom: none;
+}
+.fppBasicTable>tbody>tr:last-child>td:first-child{
+	border-bottom-left-radius: 8px;
+}
+.fppBasicTable>tbody>tr:last-child>td:last-child {
+	border-bottom-right-radius: 8px;
+}
+.fppBasicTable>thead>tr>th{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	margin-bottom: 0.8em;
+	font-weight: normal;
+	padding-bottom:1em;
+}
+
+
 .ui-dialog-buttonset button {
     @extend .buttons;
 }

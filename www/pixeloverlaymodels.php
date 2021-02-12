@@ -201,26 +201,25 @@ $(document).tooltip();
 <body>
 	<div id="bodyWrapper">
 		<?php include 'menu.inc'; ?>
-		<br/>
+
 <div class="container">
 	<h1 class="title">Pixel Overlay Models</h1>
 	<div class="pageContent">
 		
 
 		<div id="time" class="settings">
-			<fieldset>
-				<legend>Pixel Overlay Models</legend>
+
 				<table>
 					<tr>
-						<td width='70px'><input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons'></td>
-						<td width='70px'><input type=button value='Add' onClick='AddNewMemMap();' class='buttons'></td>
+						<td width='70px'><input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success'></td>
+						<td width='70px'><input type=button value='Add' onClick='AddNewMemMap();' class='buttons btn-icon-add'></td>
 						<td width='40px'>&nbsp;</td>
 						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'></td>
 					</tr>
 				</table>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents'>
-                        <table id="channelMemMaps">
+                        <table id="channelMemMaps" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
                                     <th title='Name of Model'>Model Name</th>

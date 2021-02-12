@@ -490,7 +490,7 @@ function populatePixelStringOutputs(data) {
                 var str = "";
                 str += "<div class='fppTableWrapper'>" +
                     "<div class='fppTableContents'>";
-                str += "<table id='BBB48String' type='" + output.subType + "' ports='" + outputCount + "'>";
+                str += "<table id='BBB48String' class='fppSelectableRowTable' type='" + output.subType + "' ports='" + outputCount + "'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
 
@@ -822,11 +822,11 @@ $(document).ready(function(){
 
 <div id='tab-BBB48String'>
 	<div id='divBBB48String'>
-		<fieldset class="fs">
-			<legend> BeagleBone <span class='capeName'>String Capes</span> </legend>
+	
+			<h2> BeagleBone <span class='capeName'>String Capes</span> </h2>
 			<div id='divBBB48StringData'>
-				<div style="overflow: hidden; padding: 10px;">
-					<table border=0 cellspacing=3>
+				<div>
+					<table border=0 cellspacing=0>
 						<tr>
 							<td><b>Enable <span class='capeName'>BBB String Cape</span>:</b></td>
 							<td><input id='BBB48String_enable' type='checkbox'></td>
@@ -861,9 +861,9 @@ $(document).ready(function(){
                     <table style='width: 100%;'>
                         <tr>
                             <td align='left'>
-                                <input type='button' onClick='cloneSelectedString();' value='Clone String'>
-                                <input type='button' onClick='saveBBBOutputs();' value='Save'>
-                                <input type='button' onClick='loadBBBOutputs();' value='Revert'>
+                                <input type='button' class="buttons btn-success" onClick='saveBBBOutputs();' value='Save'>
+                                <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
+                                <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
                             </td>
                             <td align='right'>
                                 Press F2 to auto set the start channel on the next row.
@@ -896,7 +896,7 @@ $(document).ready(function(){
                     </table>
                         <div class='fppTableWrapper fppTableWrapperAsTable hidden'>
                             <div class='fppTableContents serialOutputContents'>
-						<table ports='8' id='BBBSerial_Output'>
+						<table ports='8' id='BBBSerial_Output' class="fppBasicTable">
 							<thead>
 								<tr>
 									<th width='30px'>#</th>
@@ -943,6 +943,6 @@ $(document).ready(function(){
 					</span>
 				</div>
 			</div>
-		</fieldset>
+
 	</div>
 </div>

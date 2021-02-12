@@ -130,22 +130,19 @@ extraCommands = [
         
           <div style="overflow: hidden; padding: 10px;">
             <div>
-                <input type="button" value="Save" class="buttons" onClick="SaveGPIOInputs();"></input>
+                <input type="button" value="Save" class="buttons btn-success" onClick="SaveGPIOInputs();"></input>
             </div>
             <div class='fppTableWrapper'>
             <div class='fppTableContents fullWidth'>
-            <table id='GPIOInputs' width="100%">
+            <table id='GPIOInputs' class="fppBasicTable">
                 <thead>
                     <tr>
-                        <th rowspan='2'>En.</th>
-                        <th rowspan='2'>Hdr -<br>Pin</th>
-                        <th rowspan='2'>GPIO # -<br>GPIOD</th>
-                        <th rowspan='2' id='pullHeader' >Pull<br>Up/Down</th>
-                        <th colspan='2'>Commands</th>
-                    </tr>
-                    <tr>
-                        <th >Rising Edge</th>
-                        <th >Falling Edge</th>
+                        <th >En.</th>
+                        <th >Hdr-Pin</th>
+                        <th >GPIO# - GPIOD</th>
+                        <th  id='pullHeader' >Pull Up/Down</th>
+                        <th >Commands: Rising Edge</th>
+                        <th >Commands: Falling Edge</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -194,15 +191,20 @@ extraCommands = [
                 <td>
                         <table border=0 class='fppTable' id='tableFallingGPIO<?= $pinNameClean ?>'>
                         <tr>
-        <td>Command:</td><td><select id='gpio_<?= $pinNameClean ?>_FallingCommand' onChange='CommandSelectChanged("gpio_<?= $pinNameClean ?>_FallingCommand", "tableFallingGPIO<?= $pinNameClean ?>", false);'><option value=""></option></select></td>
+                            <td>Command:</td>
+                            <td>
+                                <select id='gpio_<?= $pinNameClean ?>_FallingCommand' onChange='CommandSelectChanged("gpio_<?= $pinNameClean ?>_FallingCommand", "tableFallingGPIO<?= $pinNameClean ?>", false);'><option value=""></option></select>
+                                <script>
+                                    LoadCommandList($('#gpio_<?= $pinNameClean ?>_RisingCommand'));
+                                    LoadCommandList($('#gpio_<?= $pinNameClean ?>_FallingCommand'));
+                                </script>
+                            </td>
                         </tr>
                         </table>
                 </td>
-                <script>
-                LoadCommandList($('#gpio_<?= $pinNameClean ?>_RisingCommand'));
-                LoadCommandList($('#gpio_<?= $pinNameClean ?>_FallingCommand'));
-                </script>
+   
             </tr>
+
         <?
         }
         ?>
