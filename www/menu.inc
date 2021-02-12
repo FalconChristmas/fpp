@@ -112,7 +112,6 @@ function list_plugin_entries($menu)
                 ?>
                       <div class="capeVendor">
                         <div class="capeVendorLogo">
-                          <? echo '<img src="' . $iurl . '"/>'; ?>
                           <a href="<? echo $landing; ?>" target="capeVendor">
                            <img src="<? echo $iurl; ?>" class="logo" / >
                           </a>
