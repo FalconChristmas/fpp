@@ -29,9 +29,10 @@ function changeAll(newVal) {
 </script>
 
 
-<div style="margin-bottom:1em;">
-   <i>Note: It is recommend that the Log Level be set to <b>Info</b> 
-      on production systems</i>
+<div class="callout callout-warning">
+    <h4>Note:</h4>
+   It is recommend that the Log Level be set to <b>Info</b> 
+      on production systems
 </div>
 <?
 PrintSettingGroup('log-levels');

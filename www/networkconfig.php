@@ -770,8 +770,8 @@ function showHidePassword(id) {
                   </tr>
                   </table>
                       <br>
-                      <div class="backdrop">
-                      <b>Warning:</b> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
+                      <div class="callout callout-warning">
+                      <h4>Warning:</h4> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for
               tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
       192.168.8.1 for Hostapd tethering, but unpredictable for ConnMan (although likely 192.168.0.1).
                       </p>

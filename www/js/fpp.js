@@ -27,6 +27,102 @@ var lastStatus = '';
 $(function() {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
 });
+(function ( $ ) {
+ 
+    $.fn.fppDialog = function( options ) {
+ 
+        if(options=='close'){
+          this.each(function() {
+              $(this).modal('hide');
+          });
+          return this;
+        }
+        if(options=='open'){
+          this.each(function() {
+              $(this).modal('show');
+          });
+          return this;
+        }
+        if(options=='moveToTop'){
+          return this;
+        }
+        if(options=='option'){
+          return this
+        }
+        var settings = $.extend({
+            title:'',
+            closeText:'<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+        }, options );
+
+      
+        this.each(function() {
+            var $buttons='';
+            var $title='';
+            var self = this;
+
+            if(!$(this).hasClass('has-title')){
+                $(this).addClass('has-title');
+                $title=$('<div class="modal-header">'+settings.title+'</div>');
+            }
+
+            if(settings.buttons){
+              if(!$(this).hasClass('has-buttons')){
+                $(this).addClass('has-buttons');
+                $buttons=$('<div class="modal-footer"/>');
+                $.each(settings.buttons,function(buttonKey,buttonProps){
+                  var buttonText=buttonKey;
+                  var handleClick = buttonProps;
+                  if(typeof buttonProps ==='object'){
+                    if(buttonProps.click){
+                      handleClick=buttonProps.click;
+                    }
+                    if(buttonProps.text){
+                      handleClick=buttonProps.text;
+                    }
+                  }
+                  $newButton=$('<button class="buttons">'+buttonText+'</button>');
+                  $newButton.on('click',function(){
+                    handleClick.call(self);
+                  })
+                  $buttons.append($newButton);
+                });
+              }
+            }
+            if(!$(this).hasClass('modal')){
+                var $dialogBody = $('<div class="modal-body"/>');
+                $(this).wrapInner( $dialogBody );
+                $(this).addClass('modal fade');
+                $(this).prepend($title);
+                $(this).append($buttons);
+                if(settings.closeText){
+                if(!$(this).hasClass('has-closeText')){
+                    $(this).addClass('has-closeText');
+                    $title.append(settings.closeText);            
+                }
+                }
+                var $dialogInner = $('<div class="modal-dialog"/>');
+                var $dialogContent = $('<div class="modal-content"/>');
+                
+                $(this).wrapInner($dialogInner.wrapInner($dialogContent))
+            }
+
+            if(options.open && typeof options.open==='function'){
+                $(this).on('show.bs.modal', function(){
+                    options.open.call(self);
+                })
+            }
+            if(options.close && typeof options.close==='function'){
+                $(this).on('hide.bs.modal', function(){
+                    options.close.call(self);
+                })
+            }
+            $(this).modal({show:true});
+        });
+        return this;
+ 
+    };
+ 
+}( jQuery ));
 
 function PadLeft(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
@@ -1453,7 +1549,7 @@ function RemoveIllegalChars(name) {
 function CopyPlaylist()	{
     var name = $('#txtPlaylistName').val();
 
-    $("#copyPlaylist_dialog").dialog({
+    $("#copyPlaylist_dialog").fppDialog({
         width: 400,
         buttons: {
             "Copy": function() {
@@ -1469,14 +1565,16 @@ function CopyPlaylist()	{
 
                 PopulateLists();
                 SetPlaylistName(new_playlist_name);
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             },
             Cancel: function() {
-                $(this).dialog("close");
+                
+                $(this).fppDialog("close");
             }
         },
         open: function (event, ui) {
             //Generate a name for the new playlist
+            console.log('open')
             $(this).find(".newPlaylistName").val(name + " - Copy");
         },
         close: function () {

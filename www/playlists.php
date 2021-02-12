@@ -28,7 +28,7 @@ if (isset($_GET['playlist'])) {
     $(function(){
         $('.playlistCreateContainer').hide();
         $('.playlistAddNewBtn').click(function(){
-            $('.playlistCreateContainer').dialog({
+            $('.playlistCreateContainer').fppDialog({
                 modal: true
             });
 

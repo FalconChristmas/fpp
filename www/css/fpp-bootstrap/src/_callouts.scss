@@ -1,0 +1,28 @@
+.callout {
+    padding: 1em 1.3em;
+    margin: 1.5em 0;
+    border: 1px solid #eee;
+    border-left-width: 5px;
+    border-radius: $border-radius;
+    h4 {
+      margin-top: 0;
+      margin-bottom: 5px;
+    }
+    p:last-child {
+      margin-bottom: 0;
+    }
+    code {
+      border-radius: 3px;
+    }
+    & + .bs-callout {
+      margin-top: -5px;
+    }
+  }
+  @each $name,$color in (default,#777),(primary,#428bca),(success,#5cb85c),(danger,#d9534f),(warning,#f0ad4e),(info,#5bc0de), (bdc,#29527a) {
+    .callout-#{$name} {
+      border-color:$color;
+      h4 {
+        color: $color;
+      }
+    }
+  }
