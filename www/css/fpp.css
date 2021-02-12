@@ -181,14 +181,11 @@ body .ui-tabs .ui-tabs-nav li {
 .capeVendorLogo {
 	border-radius: 7px;
 	overflow: hidden;
-
-
 }
 .capeVendor:after{
 	content:'';
 	display: block;
 	position: absolute;
-	bottom
 }
 .headerRight .capeVendor .logo{
 	max-height: 32px;
