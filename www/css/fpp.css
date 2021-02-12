@@ -104,7 +104,7 @@ body .ui-tabs .ui-tabs-nav li {
 	color:#fff;
 }
 .helpLinkDiv{
-	margin-bottom: 1.5em;
+	text-align: right;
 }
 .helpLinkDiv a{
 	color:#8A8A8A;
@@ -112,6 +112,13 @@ body .ui-tabs .ui-tabs-nav li {
 	font-size: 0.8em;
 	
 }
+
+@media (max-width: 991px) {
+	.helpLinkDiv{
+		display: none;
+	}
+}
+
 .header>div{
 	padding:1em;
 }
@@ -205,9 +212,7 @@ body .headerCenter a:hover{
 	padding-right: 0;
 }
 .fppMenuContainer{
-	padding-top: 2em;
 	padding-bottom: 2em;
-
 }
 .title{
 	font-size: 2.75em;
@@ -242,7 +247,6 @@ body legend{
 #fppMenu{
 	background: none;
 	float: right;
-	padding-top: 2.2em;
 }
 #fppMenu a, #fppMenu a:hover, #fppMenu a:focus, #fppMenu a:active{
 	font-family: Helvetica,Arial,sans-serif;
@@ -677,6 +681,7 @@ body .sm-clean a .sub-arrow {
 	will-change: transform, opacity;
 	transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 	box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.26);
+	top:40px;
   }
   
 .dropdown-menu.show {
@@ -814,7 +819,7 @@ body .sm-clean a .sub-arrow {
   @media all and (max-width: 991px) {
 
  	.header{
-		margin-right:56px;
+		padding-right:56px;
 	} 
 
 	[class*="navbar-expand-"]>.container,
@@ -928,9 +933,8 @@ body .sm-clean a .sub-arrow {
 	  transform: translate3d(-330px, 0, 0);
 	}
   
-	.navbar .navbar-translate {
-	  width: 100%;
-	  position: absolute; /*was relative*/
+ 	.navbar .navbar-translate {
+	  position: fixed;
 	   display: flex;
 	  -ms-flex-pack: justify !important;
 	  justify-content: space-between !important;
@@ -941,9 +945,10 @@ body .sm-clean a .sub-arrow {
 	  -o-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  -ms-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
-	  top:-90px;
-	}
-  
+	  top:10px;
+	  right:0px;
+	} 
+ 
 	.navbar .dropdown.show .dropdown-menu {
 	  display: block;
 	}
