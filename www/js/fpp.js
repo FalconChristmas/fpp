@@ -2723,9 +2723,11 @@ function moveFile(file) {
 
 function updateWarnings(jsonStatus) {
     if (jsonStatus.hasOwnProperty('warnings')) {
-        var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
+        //var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
+        var txt = "<b>Abnormal Conditions - May Cause Poor Performance</b>";
         for (var i = 0; i < jsonStatus.warnings.length; i++) {
-            txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+            //txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+            txt += "<br/>" + jsonStatus.warnings[i];
         }
         document.getElementById('warningsDiv').innerHTML = txt;
         $('#warningsRow').show();

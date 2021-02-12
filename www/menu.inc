@@ -166,13 +166,7 @@ function list_plugin_entries($menu)
 		}
 	}
 ?>
-<!--
-  <div id='upgradeFlag' class="alert success">FPP v1.6 is available for install - <input name="btnUpgrade" onClick="ViewReleaseNotes('1.6');" type="button" class = "buttons btn-outline-light" value="Upgrade"></div>
--->
   <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons btn-outline-light" value="Restart FPPD">
-
-
-
 
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
@@ -213,7 +207,7 @@ function RebuildFPPD() {
   </div>
   
 
-    
+  <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
   <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
   <div class="navbar-translate">
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
@@ -290,11 +284,11 @@ if (!file_exists("/etc/fpp/desktop")) {
         </a>
         <div class="dropdown-menu dropdown-with-icons dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
           <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual</a>
-          <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank">Forums</a>
+          <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank"><i class="fas fa-comments"></i> Forums</a>
           <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help</a>
-          <a class="dropdown-item" href="help.php">Help Index</a>
+          <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help Index</a>
 <? if ($settings['uiLevel'] > 0) { ?>
-          <a class="dropdown-item" href="apihelp.php">REST API Help</a>
+          <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API Help</a>
 <? } ?>
           <a class="dropdown-item" href="cliHelp.php"><i class="fas fa-life-ring"></i> fpp &amp; fppmm Usage</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
@@ -308,10 +302,6 @@ if (!file_exists("/etc/fpp/desktop")) {
     </div>
 </nav>
 
-
-
-
-      <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
 </div>
 
