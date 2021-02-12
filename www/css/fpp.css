@@ -129,6 +129,7 @@ body .ui-tabs .ui-tabs-nav li {
 .headerLeft .logo{
 	max-height:26px;
 }
+
 .fppBrand{
 	padding-left: 0.5em;
 	padding-right: 1.2em;
@@ -151,14 +152,52 @@ body .ui-tabs .ui-tabs-nav li {
 	padding-left: 1em;
 
 }
-
-.headerRight .logo{
-	max-height:20px;
+.headerRight{
+	display: flex;
 }
-.headerCenter{
+.capeVendor{
+	position: relative;
+	margin-left: 1em;
+}
+.capeVendor:after{
+	content:'';
+	display: block;
+	height: 12px;
+	width: 12px;
+	background-color:#56B760;
+	border-radius: 6px;
+	bottom: -6px;
+	border:2px solid #000;
+	right: 4px;
+	position: absolute;
+}
+.capeVendorLogo {
+	border-radius: 7px;
+	overflow: hidden;
+
+
+}
+.capeVendor:after{
+	content:'';
+	display: block;
+	position: absolute;
+	bottom
+}
+.headerRight .capeVendor .logo{
+	max-height: 32px;
+	
+}
+.headerRight .logo{
+	max-height:32px;
+}
+.header .headerRight {
+	padding-left: 0;
+}
+.header .headerCenter{
 	display: flex;
 	align-items: center;
 	font-size: 0.8em;
+	padding-right: 0;
 }
 .headerHostLink{
 	font-weight: bold;

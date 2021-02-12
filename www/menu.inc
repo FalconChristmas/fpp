@@ -95,7 +95,8 @@ function list_plugin_entries($menu)
     <div class="headerRight">
 		  <?
             if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>";
-		    if ($settings['Logo'] != "") echo "<img src='images/" . $settings['Logo'] . "' class='logo'>";
+		    if ($settings['Logo'] != "") {
+           echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
             if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
                 $landing = $settings['cape-info']['vendor']['url'];
@@ -108,7 +109,17 @@ function list_plugin_entries($menu)
                     $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
                     $landing = $landing . "&cs=" . $settings['cape-info']['cs'];
                 }
-                echo "<a href=\"" . $landing . "\"><img style='max-width:125px; max-height:60px;' src=\"" . $iurl . "\"></a>";
+                ?>
+                      <div class="capeVendor">
+                        <div class="capeVendorLogo">
+                          <? echo '<img src="' . $iurl . '"/>'; ?>
+                          <a href="<? echo $landing; ?>" target="capeVendor">
+                           <img src="<? echo $iurl; ?>" class="logo" / >
+                          </a>
+                        </div>
+                      </div>
+                <?
+                
             }
           ?>
 
