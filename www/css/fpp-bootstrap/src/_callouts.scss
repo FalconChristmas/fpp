@@ -1,8 +1,9 @@
 .callout {
     padding: 1em 1.3em;
     margin: 1.5em 0;
-    border: 1px solid #eee;
+    border: 1px solid $border-color;
     border-left-width: 5px;
+    border-left-color: $black;
     border-radius: $border-radius;
     h4 {
       margin-top: 0;
@@ -18,7 +19,7 @@
       margin-top: -5px;
     }
   }
-  @each $name,$color in (default,#777),(primary,#428bca),(success,#5cb85c),(danger,#d9534f),(warning,#f0ad4e),(info,#5bc0de), (bdc,#29527a) {
+  @each $name,$color in (default,#777),(primary,$black),(success,$green),(danger,$danger),(warning,$warning) {
     .callout-#{$name} {
       border-color:$color;
       h4 {

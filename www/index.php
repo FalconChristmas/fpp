@@ -183,7 +183,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();">
+<body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';
@@ -204,7 +204,7 @@ include 'common/menuHead.inc';
     }
 ?>
     <div id="programControl" class="settings">
-        <fieldset>
+  
             
             <!-- Main FPP Mode/status/time header w/ sensor info -->
             <div id='daemonControl' class='statusDiv'>
@@ -246,7 +246,22 @@ include 'common/menuHead.inc';
             </div>
 
    
-
+            <div class="statusPageLoading pageContent">
+                <div class="skeleton-loader">
+                    <div ></div>
+                    <div class="sk-block sk-lg sk-rounded"></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <br><br>
+                    <div></div>
+                    <br><br>
+                    <div class="sk-btn" ></div>
+                    <div></div>
+                </div>
+            </div>
             <!-- Bridge Mode stats -->
             <div id="bridgeModeInfo" class="pageContent">
                 <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
@@ -438,9 +453,9 @@ include 'common/menuHead.inc';
                                 <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
                                 <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
                             </div>
-                            <div>
+                            <div class="schedulerExtend schedulerEndTime">
                                 <div class="labelHeading">Extend Current Playlist:</div>
-                                <div class='labelValue schedulerEndTime schedulerExtend' colspan='2'>
+                                <div class='labelValue' colspan='2'>
                                     <input type='button' value='Extend' class="buttons" onClick='ExtendSchedulePopup();'>
                                     <input type='button' value='+5m' class="buttons" onClick='ExtendSchedule(5);'>
                                 </div>
@@ -451,8 +466,7 @@ include 'common/menuHead.inc';
      
                 </div>
             </div>
-            
-        </fieldset>
+   
     </div>
 </div>
 <?php	include 'common/footer.inc'; ?>

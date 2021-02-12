@@ -2626,7 +2626,7 @@ function moveFile(file) {
 	{
 		if (fppMode == 1) // Bridge Mode
 		{
-			$("#playerModeInfo").hide();
+            $("#playerModeInfo").hide();
 			$("#remoteModeInfo").hide();
 			$("#bridgeModeInfo").show();
 		}
@@ -2642,6 +2642,7 @@ function moveFile(file) {
 			$("#remoteModeInfo").hide();
 			$("#bridgeModeInfo").hide();
 		}
+        $("body").removeClass('is-loading');
 	}
 
     var temperatureUnit = settings['temperatureInF'] == 1;

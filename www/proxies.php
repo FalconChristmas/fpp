@@ -113,10 +113,8 @@ foreach ($hta as $line) {
     <div class="pageContent">
         
           <div id="proxies" class="settings">
-
-        This is a list of ip/hostnames for which we can reach their HTTP configuration pages via proxy through this FPP instance. <p>
-        For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapater, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
-                <table>
+            
+                 <table>
                     <tr>
                         <td width='70px'><input type=button value='Save' onClick='SetProxies();' class='buttons'></td>
                         <td width='70px'><input type=button value='Add' onClick='AddNewProxy();' class='buttons'></td>
@@ -126,7 +124,7 @@ foreach ($hta as $line) {
                 </table>
                 <div class="fppTableWrapper fppTableWrapperAsTable">
                     <div class='fppTableContents'>
-                        <table id="proxyTable">
+                        <table id="proxyTable" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
                                     <th>#</td>
@@ -139,6 +137,12 @@ foreach ($hta as $line) {
                         </table>
                     </div>
                 </div>
+                <div class="backdrop">
+                        <b>Notes:</b>    
+                        <p>This is a list of ip/hostnames for which we can reach their HTTP configuration pages via proxy through this FPP instance. <p>
+                         <p>For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapater, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
+                        </p>
+                </div> 
           </div>
           
     </div>

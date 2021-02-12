@@ -705,50 +705,54 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 	<div class="tab-content">
 		<div id='tab-channels' class="tab-pane fade show active" role="tabpanel" aria-labelledby="interface-settings-tab">
 		<div>
-			<fieldset class='fs'>
-      <legend>Channel Output Testing</legend>
+		
+      <h2>Channel Output Testing</h2>
       <div>
 				Enable Test Mode: <input type='checkbox' id='testModeEnabled' onClick='SetTestMode();'><br>
-				<hr>
-				<b>Channel Range to Test</b><br>
-				<table border=0 cellspacing='2' cellpadding='2'>
-				<tr><td>Start Channel:</td>
-						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
-						<td width=40>&nbsp;</td>
-						<td>Model Name:</td>
-						<td>
-							<select onChange='UpdateStartEndFromModel();' id='modelName'>
-								<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
-<?
 
-if (file_exists($settings['model-overlays'])) {
-    $json = json_decode(file_get_contents($settings['model-overlays']));
-    foreach ($json->models as $entry) {
-        printf( "<option value='%d,%d'>%s</option>\n",
-               intval($entry->StartChannel),
-               intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
-    }
-}
-
-?>
-							</select>
-							</td>
-						</tr>
-				<tr><td>End Channel:</td>
-						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
-                        <td colspan='3'>
-                            &nbsp;&nbsp;
-                            <input type='button' class='buttons reallySmallButton' value='+3' onClick='incrementEndChannel(3);'>
-                            &nbsp;&nbsp;
-                            <input type='button' class='buttons reallySmallButton' value='-3' onClick='incrementEndChannel(-3);'>
-                            </td>
-						</tr>
-				</table>
-				<br>
-				<span style='float: left'>Update Interval: </span><span id="testModeCycleMS"></span> <span style='float: left' id='testModeCycleMSText'>1000</span><span style='float: left'> ms</span></br>
-				<hr>
+				<div class="backdrop">
+					
+					<b>Channel Range to Test</b><br>
+					<table border=0 cellspacing='2' cellpadding='2'>
+					<tr><td>Start Channel:</td>
+							<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+							<td width=40>&nbsp;</td>
+							<td>Model Name:</td>
+							<td>
+								<select onChange='UpdateStartEndFromModel();' id='modelName'>
+									<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
+					<?
+					
+					if (file_exists($settings['model-overlays'])) {
+						$json = json_decode(file_get_contents($settings['model-overlays']));
+						foreach ($json->models as $entry) {
+							printf( "<option value='%d,%d'>%s</option>\n",
+								   intval($entry->StartChannel),
+								   intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
+						}
+					}
+					
+					?>
+								</select>
+								</td>
+							</tr>
+					<tr><td>End Channel:</td>
+							<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
+											<td colspan='3'>
+												&nbsp;&nbsp;
+												<input type='button' class='buttons reallySmallButton' value='+3' onClick='incrementEndChannel(3);'>
+												&nbsp;&nbsp;
+												<input type='button' class='buttons reallySmallButton' value='-3' onClick='incrementEndChannel(-3);'>
+												</td>
+							</tr>
+					</table>
+					<br>
+					<span style='float: left'>Update Interval: </span><span id="testModeCycleMS"></span> <span style='float: left' id='testModeCycleMSText'>1000</span><span style='float: left'> ms</span></br>
+					
+				</div>
 				<div id='testModeModeDiv'>
-<b>Test Patterns:</b><br><small>Note: RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</small><br>
+					<h3>Test Patterns:</h3>
+				<p>Note: RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</p>
 				<table border=0 cellpadding=0 cellspacing=0>
 				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
 				<tr><td colspan=3>&nbsp;<b>Color Order:</b>
@@ -778,7 +782,7 @@ if (file_exists($settings['model-overlays'])) {
 						<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
 						<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
 					</table>
-					<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
+					<input type=button class="buttons" onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
 					</td></tr>
 				<tr><td>&nbsp;</td></tr>
 				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
@@ -795,7 +799,7 @@ if (file_exists($settings['model-overlays'])) {
 				</table>
 				</div>
 			</div>
-			</fieldset>
+			
 		</div>
 		</div>
 					<div id='tab-sequence' class="tab-pane fade" role="tabpanel" aria-labelledby="interface-settings-tab">
@@ -807,21 +811,25 @@ if (file_exists($settings['model-overlays'])) {
 										<tr><td>Start Time:</td>
 												<td><input type='text' size='4' maxlength='4' value='0' id='startSecond'> (Seconds from beginning of sequence)</td></tr>
 
-										<tr><td><input type='button' value='Play' onClick='PlaySequence();' id='playSequence'><input type='button' value='Stop' onClick='StopSequence();' id='stopSequence'></td>
+										<tr><td><input type='button' class="buttons" value='Play' onClick='PlaySequence();' id='playSequence'><input type='button' class="buttons" value='Stop' onClick='StopSequence();' id='stopSequence'></td>
 												<td>Play/stop the selected sequence</td></tr>
-										<tr><td><input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
+										<tr><td><input type='button' class="buttons" value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
 												<td>Pause a running sequence or UnPause a paused sequence</td></tr>
-										<tr><td><input type='button' value='Step' onClick='SingleStepSequence();'></td>
+										<tr><td><input type='button' class="buttons" value='Step' onClick='SingleStepSequence();'></td>
 												<td>Single-step a paused sequence one frame</td></tr>
-										<tr><td><input type='button' value='Step Back' onClick='SingleStepSequenceBack();'></td>
+										<tr><td><input type='button' class="buttons" value='Step Back' onClick='SingleStepSequenceBack();'></td>
 												<td>Single-step a paused sequence backwards one frame</td></tr>
 									</table>
 									<br>
-									<b>Sequence Testing Limitations:</b>
+									<div class="callout">
+									<h4>Sequence Testing Limitations:</h4>
 									<ol>
 										<li>This page is for testing sequences, it does not test audio or video or synchronization of a sequence with any media file.  It does test Master/Remote sequence synchronization.</li>
 										<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
 									</ol>
+									</div>
+									
+
 								</div>
 						</div>
 					</div>

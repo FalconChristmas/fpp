@@ -1829,8 +1829,9 @@ GetBackupDevices();
                         <br/>
                         <div class="backdrop">
                             <h2>Restore Configuration</h2>
-                            <div class="alert danger-outline">
-                            <b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b>
+                            <div class="callout callout-danger">
+                                <h4>Note:</h4>
+                            <b class="text-danger">JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b>
 
                             </div>
                     
@@ -1917,13 +1918,16 @@ GetBackupDevices();
                                 <tr><td></td><td>
                                         <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
                                 </table>
-                                <br>
-                                <div class="alert danger-outline">
-                                    
-                                
-                                <p ><b>* Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</b></p>
-                                <span class='copyBackups'><b>* Backing up Backups will copy all local backups to the USB device.</b></span></div>
-                    </div>
+                      
+                                <div class="callout callout-danger">
+                                    <h4>Notes:</h4>
+                                    <ul>
+                                        <li>Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</li>
+                                        <li class='copyBackups'>*Backing up Backups will copy all local backups to the USB device.</li>
+                                    </ul>
+
+                                </div>
+                          </div>
                         </div>
                         </div>
                     </div>

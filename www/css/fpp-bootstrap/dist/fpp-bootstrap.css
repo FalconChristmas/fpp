@@ -6498,8 +6498,9 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
 .callout {
   padding: 1em 1.3em;
   margin: 1.5em 0;
-  border: 1px solid #eee;
+  border: 1px solid #dee2e6;
   border-left-width: 5px;
+  border-left-color: #171720;
   border-radius: 0.25rem; }
   .callout h4 {
     margin-top: 0;
@@ -6517,34 +6518,24 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
     color: #777; }
 
 .callout-primary {
-  border-color: #428bca; }
+  border-color: #171720; }
   .callout-primary h4 {
-    color: #428bca; }
+    color: #171720; }
 
 .callout-success {
-  border-color: #5cb85c; }
+  border-color: #56B760; }
   .callout-success h4 {
-    color: #5cb85c; }
+    color: #56B760; }
 
 .callout-danger {
-  border-color: #d9534f; }
+  border-color: #F63939; }
   .callout-danger h4 {
-    color: #d9534f; }
+    color: #F63939; }
 
 .callout-warning {
-  border-color: #f0ad4e; }
+  border-color: #F2BC5F; }
   .callout-warning h4 {
-    color: #f0ad4e; }
-
-.callout-info {
-  border-color: #5bc0de; }
-  .callout-info h4 {
-    color: #5bc0de; }
-
-.callout-bdc {
-  border-color: #29527a; }
-  .callout-bdc h4 {
-    color: #29527a; }
+    color: #F2BC5F; }
 
 .btn-icon-add:before {
   content: '';
@@ -6907,6 +6898,10 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   width: 50px;
   height: 50px; }
 
+.spinner-xl {
+  width: 100px;
+  height: 100px; }
+
 .spinner-danger {
   color: #F63939; }
 
@@ -7042,6 +7037,72 @@ input[type=checkbox]:checked {
 .jGrowl-notification.ui-state-detract {
   background-color: #F2BC5F;
   color: #fff; }
+
+.skeleton-loader div {
+  -webkit-animation-duration: 0.5s;
+          animation-duration: 0.5s;
+  -webkit-animation-fill-mode: forwards;
+          animation-fill-mode: forwards;
+  -webkit-animation-iteration-count: infinite;
+          animation-iteration-count: infinite;
+  -webkit-animation-name: placeholderSkeleton;
+          animation-name: placeholderSkeleton;
+  -webkit-animation-timing-function: linear;
+          animation-timing-function: linear;
+  background: #f2f6f6;
+  background: linear-gradient(90deg, #f2f6f6 0%, #dee2e6 39%, #dee2e6 57%, #f2f6f6 100%);
+  height: 104px;
+  background-size: 800px;
+  position: relative;
+  border-radius: 5px;
+  height: 15px;
+  width: 100px;
+  margin: 0.75em 0.4em;
+  display: inline-block;
+  vertical-align: middle; }
+
+.skeleton-loader .sk-block {
+  display: block;
+  width: auto; }
+
+.skeleton-loader .sk-lg {
+  -webkit-animation-name: placeholderSkeletonLg;
+          animation-name: placeholderSkeletonLg;
+  height: 60px;
+  background-size: 1500px; }
+
+.skeleton-loader .sk-rounded {
+  border-radius: 30px; }
+
+.skeleton-loader .sk-btn, .skeleton-loader .sk-box {
+  height: 45px; }
+
+.skeleton-loader .sk-box {
+  width: 45px; }
+
+@-webkit-keyframes placeholderSkeleton {
+  0% {
+    background-position: -400px 0; }
+  100% {
+    background-position: 400px 0; } }
+
+@keyframes placeholderSkeleton {
+  0% {
+    background-position: -400px 0; }
+  100% {
+    background-position: 400px 0; } }
+
+@-webkit-keyframes placeholderSkeletonLg {
+  0% {
+    background-position: -750px 0; }
+  100% {
+    background-position: 750px 0; } }
+
+@keyframes placeholderSkeletonLg {
+  0% {
+    background-position: -750px 0; }
+  100% {
+    background-position: 750px 0; } }
 
 .wifi-excellent {
   background: url(/images/redesign/wifi-excellent.svg);

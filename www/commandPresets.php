@@ -135,14 +135,15 @@ $(document).ready(function() {
 <body onLoad="LoadCommandList($('#newEventCommand')); LoadCommands();">
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
-<br/>
-<div id="programControl" class="settings">
-	<fieldset>
-		<legend>Command Presets</legend>
+<div class="container">
+	  <h2 class="title">Command Presets</h2>
+	  <div class="pageContent">
+<div id="commandPresets" class="settings">
+
 		<div>
             <table>
                 <tr>
-                    <td width='70px'><input class="buttons" type='button' value="Save" onClick='SaveCommands();' /></td>
+                    <td width='70px'><input class="buttons btn-success" type='button' value="Save" onClick='SaveCommands();' /></td>
                     <td width="70px"><input class="buttons" type="button" value = "Add" onClick="AddCommand();"/></td>
                     <td width="40px">&nbsp;</td>
                     <td width="70px"><input class="buttons disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();"/></td>
@@ -167,7 +168,7 @@ $(document).ready(function() {
                         </tr>
                     </table>
 
-                    <table>
+                    <table class="fppSelectableRowTable">
                         <thead>
                             <tr>
                                 <th>Preset Name</th>
@@ -181,10 +182,19 @@ $(document).ready(function() {
                 </div>
             </div>
 		</div>
-        <br>
-        <b>*</b> The Command Preset Control Channel is defined on the 'Input/Output' tab of the settings page.<br>
-        <b>*</b> Predefined Preset Names are automatically triggered within FPP when the action described occurs.
-	</fieldset>
+  
+        <div class="backdrop">
+            <b>Notes:</b>
+            <ul>
+                <li>The Command Preset Control Channel is defined on the 'Input/Output' tab of the settings page.</li>
+                <li>Predefined Preset Names are automatically triggered within FPP when the action described occurs.</li>
+            </ul>
+
+        </div>
+
+
+  </div>
+  </div>
   </div>
   <?php	include 'common/footer.inc'; ?>
 </div>
