@@ -105,6 +105,7 @@ body .ui-tabs .ui-tabs-nav li {
 }
 .helpLinkDiv{
 	text-align: right;
+	padding: 0.5em;
 }
 .helpLinkDiv a{
 	color:#8A8A8A;

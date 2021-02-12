@@ -122,10 +122,10 @@ function list_plugin_entries($menu)
                 
             }
           ?>
-
 		</div>
     
   </div>
+  <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
   <div class="fppOuterContainer container">
     <div class="fppMenuContainer container">
@@ -207,7 +207,6 @@ function RebuildFPPD() {
   </div>
   
 
-  <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
   <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
   <div class="navbar-translate">
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
