@@ -32,6 +32,34 @@
             }
         },
         {
+            "endpoint": "channel/input/stats",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Returns the E1.31 or DDP statistics for inbound packets. Attempts to return a meaniful error if connection to FPPD fails.",
+                    "output": {
+                        "status": "OK",
+                        "universes": [
+                            {
+                                "bytesReceived": "325632",
+                                "errors": "1",
+                                "id": 1,
+                                "packetsReceived": "636",
+                                "startChannel": 1
+                            },
+                            {
+                                "bytesReceived": "325632",
+                                "errors": "4",
+                                "id": 2,
+                                "packetsReceived": "636",
+                                "startChannel": 513
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "command/:CommandName(/:Args)",
             "fppd": true,
             "methods": {

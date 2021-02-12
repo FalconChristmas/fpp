@@ -11,6 +11,8 @@ dispatch_get   ('/backups/devices', 'GetAvailableBackupsDevices');
 
 dispatch_get   ('/cape', 'GetCapeInfo');
 
+dispatch_get   ('channel/input/stats', 'channel_input_get_stats');
+
 dispatch_get   ('/configfile', 'GetConfigFileList');
 dispatch_get   ('/configfile/**', 'DownloadConfigFile');
 dispatch_post  ('/configfile/**', 'UploadConfigFile');

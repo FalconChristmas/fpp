@@ -26,7 +26,7 @@ $_SESSION['session_id'] = session_id();
 $command_array = Array(
 	//"getFiles" => 'GetFiles', // /api/files/:dirName
 	//"getZip" => 'GetZip',
-	"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',
+	//"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',  // GET /api/channel/input/stats
 	// "deleteFile" => 'DeleteFile', // use DELETE /api/file/:DirName/:filename
 	"setUniverseCount" => 'SetUniverseCount',
 	"getUniverses" => 'GetUniverses',
@@ -70,8 +70,8 @@ $command_array = Array(
 	//"tailFile" => 'TailFile', // Replaced by api/file
 	//"saveUSBDongle" => 'SaveUSBDongle', replaced by PUT /api/settings/
 	// "getInterfaceInfo" => 'GetInterfaceInfo',  // Never used
-	"setupExtGPIO" => 'SetupExtGPIO',
-	"extGPIO" => 'ExtGPIO'
+	//"setupExtGPIO" => 'SetupExtGPIO',
+	//"extGPIO" => 'ExtGPIO'
 );
 
 if (isset($_GET['command']) && !isset($nonXML[$_GET['command']]))
@@ -484,59 +484,6 @@ function DeleteEvent()
 	EchoStatusXML('Success');
 }
 
-function GetUniverseReceivedBytes()
-{
-	$data = file_get_contents('http://127.0.0.1:32322/fppd/e131stats');
-	$stats = json_decode($data);
-
-	$doc = new DomDocument('1.0');
-	if(count($stats->universes))
-	{
-		$root = $doc->createElement('receivedBytes');
-        $root->setAttribute('size', count($stats->universes));
-		$root = $doc->appendChild($root);
-
-		for ($i = 0; $i < count($stats->universes); $i++)
-		{
-			$receivedInfo = $doc->createElement('receivedInfo');
-			$receivedInfo = $root->appendChild($receivedInfo); 
-			// universe
-			$universe = $doc->createElement('universe');
-			$universe = $receivedInfo->appendChild($universe);
-			$value = $doc->createTextNode($stats->universes[$i]->id);
-			$value = $universe->appendChild($value);
-			// startChannel
-			$startChannel = $doc->createElement('startChannel');
-			$startChannel = $receivedInfo->appendChild($startChannel);
-			$value = $doc->createTextNode($stats->universes[$i]->startChannel);
-			$value = $startChannel->appendChild($value);
-			// bytes received
-			$bytesReceived = $doc->createElement('bytesReceived');
-			$bytesReceived = $receivedInfo->appendChild($bytesReceived);
-			$value = $doc->createTextNode($stats->universes[$i]->bytesReceived);
-			$value = $bytesReceived->appendChild($value);
-			// packets received
-			$packetsReceived = $doc->createElement('packetsReceived');
-			$packetsReceived = $receivedInfo->appendChild($packetsReceived);
-			$value = $doc->createTextNode($stats->universes[$i]->packetsReceived);
-			$value = $packetsReceived->appendChild($value);
-            
-            // errors received
-            $errorCount = $doc->createElement('errors');
-            $errorCount = $receivedInfo->appendChild($errorCount);
-            $value = $doc->createTextNode($stats->universes[$i]->errors);
-            $value = $errorCount->appendChild($value);
-		}
-	}
-	else
-	{
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);  
-		$value = $doc->createTextNode('false');
-		$value = $root->appendChild($value);
-	}
-	echo $doc->saveHTML();	
-}
 
 // This old method is for xLights and multisync
 function RestartFPPD()
@@ -1018,53 +965,6 @@ function universe_cmp($a, $b)
         return 0;
     }
     return ($a->startAddress < $b->startAddress) ? -1 : 1;
-}
-
-function SetupExtGPIO()
-{
-	$gpio = $_GET['gpio'];
-	$mode = $_GET['mode'];
-	check($gpio, "gpio", __FUNCTION__);
-	check($mode, "mode", __FUNCTION__);
-
-	$status = SendCommand(sprintf("SetupExtGPIO,%s,%s", $gpio, $mode));
-	$status = explode(',', $status, 14);
-
-	if ((int) $status[1] == 1) {
-		EchoStatusXML('Success');
-	} else {
-		EchoStatusXML('Failed');
-	}
-}
-
-function ExtGPIO()
-{
-	$gpio = $_GET['gpio'];
-	$mode = $_GET['mode'];
-	$val = $_GET['val'];
-	check($gpio, "gpio", __FUNCTION__);
-	check($mode, "mode", __FUNCTION__);
-	check($val, "val", __FUNCTION__);
-
-	$status = SendCommand(sprintf("ExtGPIO,%s,%s,%s", $gpio, $mode, $val));
-	$status = explode(',', $status, 14);
-
-	if ((int) $status[1] >= 0) {
-		$doc = new DomDocument('1.0');
-		$root = $doc->createElement('Status');
-		$root = $doc->appendChild($root);
-
-		$temp = $doc->createElement('Success');
-		$temp = $root->appendChild($temp);
-
-		$result = $doc->createTextNode((int) $status[6]);
-		$result = $temp->appendChild($result);
-		
-		echo $doc->saveHTML();
-	}
-	else {
-		EchoStatusXML('Failed');
-	}
 }
 
 ?>
