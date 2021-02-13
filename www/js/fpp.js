@@ -3390,7 +3390,6 @@ function StartPlaylistNow() {
             false
         ]
     }
-    console.log(obj);
     $.post("api/command", JSON.stringify(obj)
     ).done(function () {
         $.jGrowl("Playlist Started");
