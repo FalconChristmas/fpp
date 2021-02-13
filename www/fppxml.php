@@ -62,7 +62,7 @@ $command_array = Array(
 	//"stopEffect" => 'StopEffect', // Use Command API
 	//"stopEffectByName" => 'StopEffectByName', // Use Command API
 	//"deleteEffect" => 'DeleteEffect', // never implemented
-	"getRunningEffects" => 'GetRunningEffects',
+	//"getRunningEffects" => 'GetRunningEffects',
 	"triggerEvent" => 'TriggerEvent',
 	"saveEvent" => 'SaveEvent',
 	"deleteEvent" => 'DeleteEvent',
@@ -218,47 +218,6 @@ function IsFPPDrunning()
 	if ($status == "false")
 		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
-}
-
-function GetRunningEffects()
-{
-	$status = SendCommand("GetRunningEffects");
-
-	$result = "";
-	$first = 1;
-	$status = preg_replace('/\n/', '', $status);
-
-	$doc = new DomDocument('1.0');
-	// Running Effects
-	$root = $doc->createElement('RunningEffects');
-	$root = $doc->appendChild($root);
-	foreach(preg_split('/;/', $status) as $line)
-	{
-		if ($first)
-		{
-			$first = 0;
-			continue;
-		}
-
-		$info = preg_split('/,/', $line);
-
-		$runningEffect = $doc->createElement('RunningEffect');
-		$runningEffect = $root->appendChild($runningEffect);
-
-		// Running Effect ID
-		$id = $doc->createElement('ID');
-		$id = $runningEffect->appendChild($id);
-		$value = $doc->createTextNode($info[0]);
-		$value = $id->appendChild($value);
-
-		// Effect Name
-		$name = $doc->createElement('Name');
-		$name = $runningEffect->appendChild($name);
-		$value = $doc->createTextNode($info[1]);
-		$value = $name->appendChild($value);
-	}
-
-	echo $doc->saveHTML();
 }
 
 function GetExpandedEventID($id)

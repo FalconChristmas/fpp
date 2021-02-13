@@ -394,6 +394,23 @@ int OverlayEffects(char *channelData)
 	return 1;
 }
 
+Json::Value GetRunningEffectsJson() {
+    Json::Value arr(Json::arrayValue);
+    int i;
+    std::unique_lock<std::mutex> lock(effectsLock);
+
+	for (i = 0; i < MAX_EFFECTS; i++) {
+		if (effects[i]) {
+            Json::Value obj;
+            obj["id"] = i;
+            obj["name"] = effects[i]->name;
+            arr.append(obj);
+		}
+	}
+
+    return arr;
+}
+
 /*
  * Get list of running effects and their IDs
  *

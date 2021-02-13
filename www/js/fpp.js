@@ -3428,53 +3428,30 @@ function StopEffect() {
         SetButtonState('#btnStopEffect', 'disable');
         GetRunningEffects();
     }).fail(function () {
-        DialogError('Command failed', 'Call to Sop Effect Failed');
+        DialogError('Command failed', 'Call to Stop Effect Failed');
         GetRunningEffects();
     });
 }
 
 var gblLastRunningEffectsXML = "";
 
-function GetRunningEffects()
-{
-	var url = "fppxml.php?command=getRunningEffects";
-	var xmlhttp=new XMLHttpRequest();
-	xmlhttp.open("GET",url,true);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-		{
-			var xmlDoc=xmlhttp.responseXML;
-			var xmlText = new XMLSerializer().serializeToString(xmlDoc);
-
-			$('#tblRunningEffectsBody').html('');
-			if (xmlText != gblLastRunningEffectsXML)
-			{
-				xmlText = gblLastRunningEffectsXML;
-
-				var entries = xmlDoc.getElementsByTagName('RunningEffects')[0];
-
-				if(entries.childNodes.length> 0)
-				{
-					for(i=0;i<entries.childNodes.length;i++)
-					{
-						id = entries.childNodes[i].childNodes[0].textContent;
-						name = entries.childNodes[i].childNodes[1].textContent;
-
-						if (name == RunningEffectSelectedName)
-						    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
-                        else
-							$('#tblRunningEffectsBody').append('<tr><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
-					}
-
-					setTimeout(GetRunningEffects, 1000);
-				}
-			}
-		}
-	}
-
-	xmlhttp.send();
+function GetRunningEffects() {
+    $.get("api/fppd/effects"
+    ).done(function (data) {
+        $('#tblRunningEffectsBody').html('');
+        if ("runningEffects" in data) {
+            data.runningEffects.forEach(function (e) {
+                if (e.name == RunningEffectSelectedName)
+                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
+                else
+                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
+            });
+        }
+        setTimeout(GetRunningEffects, 1000);
+    }).fail(function () {
+        DialogError('Query Failed', 'Failed to refresh running effects.');
+        GetRunningEffects();
+    });
 }
 
 	function RebootPi()

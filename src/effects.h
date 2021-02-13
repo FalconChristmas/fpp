@@ -28,6 +28,7 @@
 #include <string>
 
 int  GetRunningEffects(char *msg, char **result);
+Json::Value GetRunningEffectsJson();
 int  IsEffectRunning(void);
 int  InitEffects(void);
 void CloseEffects(void);
