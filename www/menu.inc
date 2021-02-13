@@ -222,10 +222,10 @@ function RebuildFPPD() {
         <a class="dropdown-item" href="index.php"><i class="fas fa-info"></i> Status Page</a>
 <?
 if (!file_exists("/etc/fpp/desktop")) {
-          echo "<a class='dropdown-item' href='networkconfig.php'>Network</a>";
+          echo "<a class='dropdown-item' href='networkconfig.php'><i class='fas fa-network-wired'></i> Network</a>";
 }
 ?>
-          <a class="dropdown-item" href="multisync.php"><i class="fas fa-network-wired"></i> MultiSync</a>
+          <a class="dropdown-item" href="multisync.php"><i class="fas fa-cogs"></i> MultiSync</a>
           <a class="dropdown-item" href="settings.php"><i class="fas fa-cog"></i> FPP Settings</a>
           <a class="dropdown-item" href="backup.php"><i class="fas fa-sim-card"></i> FPP Backup</a>
           <a class="dropdown-item" href="proxies.php"><i class="fas fa-globe"></i> Proxy Settings</a>
