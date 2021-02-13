@@ -28,6 +28,7 @@
 #include "channeloutput/channeloutput.h"
 #include "channeloutput/channeloutputthread.h"
 #include "e131bridge.h"
+#include "effects.h"
 #include "fpp.h"
 #include "fppd.h"
 #include "httpAPI.h"
@@ -195,9 +196,11 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_GET(cons
 	}
 	else if (url == "version")
 	{
-		result["version"] = getFPPVersion();
-		result["branch"] = getFPPBranch();
-		result["fppdAPI"] = FPPD_API_VERSION;
+		result["version"]       = getFPPVersion();
+		result["majorVersion"]  =  getFPPMajorVersion();
+		result["minorVersion"]  =  getFPPMinorVersion();
+		result["branch"]        = getFPPBranch();
+		result["fppdAPI"]       = FPPD_API_VERSION;
 
 		SetOKResult(result, "");
 	}
@@ -569,6 +572,8 @@ void PlayerResource::SetErrorResult(Json::Value &result, const int respCode, con
 void PlayerResource::GetRunningEffects(Json::Value &result)
 {
 	LogDebug(VB_HTTP, "API - Getting list of running effects\n");
+	SetOKResult(result, "");
+	result["runningEffects"] = GetRunningEffectsJson();
 }
 
 /*

@@ -2691,6 +2691,13 @@ function moveFile(file) {
                             response.warnings = [];
                         }
                         response.warnings.push('FPPD Daemon is not running');
+
+                        $.get("api/system/volume"
+                        ).done(function(data){
+                            updateVolumeUI(parseInt(data.volume));
+                        }).fail(function(){
+                            DialogError('Volume Query Failed', "Failed to query Volume when FPPD stopped");
+                        });
 						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
@@ -2770,6 +2777,14 @@ function updateWarnings(jsonStatus) {
         return "Unknown Mode";
     }
 
+function updateVolumeUI(Volume) {
+    $('#volume').html(Volume);
+    $('#remoteVolume').html(Volume);
+    $('#slider').val( Volume);
+    $('#remoteVolumeSlider').slider('value', Volume);
+    SetSpeakerIndicator(Volume);
+}
+
     var firstStatusLoad = 1;
     
 	function parseStatus(jsonStatus) {
@@ -2789,12 +2804,7 @@ function updateWarnings(jsonStatus) {
 			$('#daemonStatus').html("FPPD is running.");
 		}
 
-		var Volume = parseInt(jsonStatus.volume);
-		$('#volume').html(Volume);
-        $('#remoteVolume').html(Volume);
-		$('#slider').val( Volume);
-        $('#remoteVolumeSlider').slider('value', Volume);
-		SetSpeakerIndicator(Volume);
+        updateVolumeUI(parseInt(jsonStatus.volume));
 
         AdjustFPPDModeFromStatus(fppMode);
 	if (jsonStatus.hasOwnProperty('MQTT')) {
@@ -3503,77 +3513,70 @@ function PlayPlaylist(Playlist, goToStatus = 0)
     });
 }
 
-function StartPlaylistNow()
-	{
-		var Playlist =  $("#playlistSelect").val();
-        var xmlhttp=new XMLHttpRequest();
-		var repeat = $("#chkRepeat").is(':checked')?'checked':'unchecked';
-		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected + "&section=" + PlaySectionSelected ;
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.send();
-	}
+function StartPlaylistNow() {
+    var Playlist = $("#playlistSelect").val();
+    var repeat = $("#chkRepeat").is(':checked') ? true : false;
+    var obj = {
+        command: "Start Playlist At Item",
+        args: [
+            Playlist,
+            PlayEntrySelected,
+            repeat,
+            false
+        ]
+    }
+    $.post("api/command", JSON.stringify(obj)
+    ).done(function () {
+        $.jGrowl("Playlist Started");
+    }).fail(function () {
+        DialogError('Command failed', 'Unable to start Playlist');
+    });
+}
 
-function StopEffect()
-{
-	if (RunningEffectSelectedId < 0)
-		return;
+function StopEffect() {
+    if (RunningEffectSelectedId < 0)
+        return;
 
-	var url = "fppxml.php?command=stopEffect&id=" + RunningEffectSelectedId;
-	var xmlhttp=new XMLHttpRequest();
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	xmlhttp.send();
+    var msg = {
+        "command": "Effect Stop",
+        "args": [
+            "block_driveways"
+        ]
+    };
 
-	RunningEffectSelectedId = -1;
-	RunningEffectSelectedName = "";
-	SetButtonState('#btnStopEffect','disable');
-
-	GetRunningEffects();
+    $.post({
+        url: "api/command",
+        data: JSON.stringify(msg)
+    }).done(function (data) {
+        RunningEffectSelectedId = -1;
+        RunningEffectSelectedName = "";
+        SetButtonState('#btnStopEffect', 'disable');
+        GetRunningEffects();
+    }).fail(function () {
+        DialogError('Command failed', 'Call to Stop Effect Failed');
+        GetRunningEffects();
+    });
 }
 
 var gblLastRunningEffectsXML = "";
 
-function GetRunningEffects()
-{
-	var url = "fppxml.php?command=getRunningEffects";
-	var xmlhttp=new XMLHttpRequest();
-	xmlhttp.open("GET",url,true);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-
-	xmlhttp.onreadystatechange = function () {
-		if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-		{
-			var xmlDoc=xmlhttp.responseXML;
-			var xmlText = new XMLSerializer().serializeToString(xmlDoc);
-
-			$('#tblRunningEffectsBody').html('');
-			if (xmlText != gblLastRunningEffectsXML)
-			{
-				xmlText = gblLastRunningEffectsXML;
-
-				var entries = xmlDoc.getElementsByTagName('RunningEffects')[0];
-
-				if(entries.childNodes.length> 0)
-				{
-					for(i=0;i<entries.childNodes.length;i++)
-					{
-						id = entries.childNodes[i].childNodes[0].textContent;
-						name = entries.childNodes[i].childNodes[1].textContent;
-
-						if (name == RunningEffectSelectedName)
-						    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
-                        else
-							$('#tblRunningEffectsBody').append('<tr><td width="5%">' + id + '</td><td width="95%">' + name + '</td></tr>');
-					}
-
-					setTimeout(GetRunningEffects, 1000);
-				}
-			}
-		}
-	}
-
-	xmlhttp.send();
+function GetRunningEffects() {
+    $.get("api/fppd/effects"
+    ).done(function (data) {
+        $('#tblRunningEffectsBody').html('');
+        if ("runningEffects" in data) {
+            data.runningEffects.forEach(function (e) {
+                if (e.name == RunningEffectSelectedName)
+                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
+                else
+                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
+            });
+        }
+        setTimeout(GetRunningEffects, 1000);
+    }).fail(function () {
+        DialogError('Query Failed', 'Failed to refresh running effects.');
+        GetRunningEffects();
+    });
 }
 
 	function RebootPi()
@@ -3883,13 +3886,19 @@ function SelectPlaylistDetailsEntryRow(index)
 		PlayEntrySelected  = index;
 }
 
-function SetVolume(value)
-{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setVolume&volume=" + value;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+function SetVolume(value) {
+    var obj = {
+        volume: value
+    };
+    $.post({
+        url: "api/system/volume",
+        data: JSON.stringify(obj)
+    }
+    ).done(function (data) {
+        // Nothing
+    }).fail(function () {
+        DialogError("ERROR", "Failed to set volume to " + value);
+    })
 }
 
 function SetFPPDmode()

@@ -221,32 +221,6 @@ function SetSetting()
 	GetSetting();
 }
 
-function GetFPPDUptime()
-{
-	$result = Array();
-
-	$uptimeStr = SendCommand("GetFPPDUptime");
-	$uptime = explode(',', $uptimeStr)[3];
-
-	$days = $uptime / 86400;
-	$hours = $uptime % 86400 / 3600;
-	$seconds = $uptime % 86400 % 3600;
-	$minutes = $seconds / 60;
-	$seconds = $seconds % 60;
-
-	$result['uptime'] = $uptime;
-	$result['days'] = $days;
-	$result['hours'] = $hours;
-	$result['minutes'] = $minutes;
-	$result['seconds'] = $seconds;
-
-	$result['uptimeStr'] = 
-		sprintf($f, "%d days, %d hours, %d minutes, %d seconds\n",
-		$days, $hours, $minutes, $seconds );
-
-	returnJSON($result);
-}
-
 function GetFPPStatusJson()
 {
 	global $args;

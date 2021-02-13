@@ -142,11 +142,8 @@ include 'common/menuHead.inc';
 		volume += 1;
 		if (volume > 100)
 			volume = 100;
-		$('#volume').html(volume);
-        $('#remoteVolume').html(volume);
-		$('#slider').slider('value', volume);
-        $('#remoteVolumeSlider').slider('value', volume);
-		SetSpeakerIndicator(volume);
+            
+        updateVolumeUI(volume);
 		SetVolume(volume);
 	}
 
@@ -156,11 +153,8 @@ include 'common/menuHead.inc';
 		volume -= 1;
 		if (volume < 0)
 			volume = 0;
-		$('#volume').html(volume);
-        $('#remoteVolume').html(volume);
-		$('#slider').slider('value', volume);
-        $('#remoteVolumeSlider').slider('value', volume);
-		SetSpeakerIndicator(volume);
+
+        updateVolumeUI(volume);
 		SetVolume(volume);
 	}
 

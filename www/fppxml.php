@@ -34,8 +34,8 @@ $command_array = Array(
 	"deleteUniverse" => 'DeleteUniverse',
 	"cloneUniverse" => 'CloneUniverse',
 	// "viewReleaseNotes" => 'ViewReleaseNotes',  // use GET /api/system/releaseNotes/:version
-	"viewRemoteScript" => 'ViewRemoteScript',
-	"installRemoteScript" => 'InstallRemoteScript',
+	// "viewRemoteScript" => 'ViewRemoteScript', // GET /api/scripts/viewRemote/:category/:filename
+	//"installRemoteScript" => 'InstallRemoteScript', //GET /api/script/install/:category/:filename
 	"moveFile" => 'MoveFile', // DEPRECATED. Saved for xLights uploads
 	"isFPPDrunning" => 'IsFPPDrunning',
 	// "getFPPstatus" => 'GetFPPstatus', use GET /api/fppd/status instead
@@ -45,27 +45,27 @@ $command_array = Array(
 	// "stopFPPD" => 'StopFPPD', // use GET /api/system/fppd/stop
 	// "startFPPD" => 'StartFPPD', // use GET /api/system/fppd/start
 	"restartFPPD" => 'RestartFPPD', // retained for xLights and Multisync
-	"startPlaylist" => 'StartPlaylist',
+	// "startPlaylist" => 'StartPlaylist',  // use Command API Instead
 	"rebootPi" => 'RebootPi', // Used my MultiSync
-	"shutdownPi" => 'ShutdownPi',
+	"shutdownPi" => 'ShutdownPi', // Kept for Multisync
 	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
 	// "upgradeFPPVersion" => 'UpgradeFPPVersion', Replaced by upgradefpp.php?
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
-	// "resetGit" => 'ResetGit', // use GET /git/reset
-	"setVolume" => 'SetVolume',
+	// "resetGit" => 'ResetGit', // use GET /api/git/reset
+	// "setVolume" => 'SetVolume', // use POST /api/system/volume
 	"setFPPDmode" => 'SetFPPDmode', // Legacy. Should use PUT /api/settings/fppMode
-	"getVolume" => 'GetVolume',
+	// "getVolume" => 'GetVolume', // use GET /api/system/volume
 	//"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"getFPPDmode" => 'GetFPPDmode', // Replaced by /api/settings/fppMode
-	"playEffect" => 'PlayEffect',
-	"stopEffect" => 'StopEffect',
-	"stopEffectByName" => 'StopEffectByName',
+	//"playEffect" => 'PlayEffect', // Use Command API
+	//"stopEffect" => 'StopEffect', // Use Command API
+	//"stopEffectByName" => 'StopEffectByName', // Use Command API
 	//"deleteEffect" => 'DeleteEffect', // never implemented
-	"getRunningEffects" => 'GetRunningEffects',
-	"triggerEvent" => 'TriggerEvent',
-	"saveEvent" => 'SaveEvent',
-	"deleteEvent" => 'DeleteEvent',
+	//"getRunningEffects" => 'GetRunningEffects',
+	//"triggerEvent" => 'TriggerEvent', // DEPRECATED
+	//"saveEvent" => 'SaveEvent', // DEPRECATED
+	//"deleteEvent" => 'DeleteEvent', // DEPRECATED
 	//"getFile" => 'GetFile', // Replaced by /api/file/
 	//"tailFile" => 'TailFile', // Replaced by api/file
 	//"saveUSBDongle" => 'SaveUSBDongle', replaced by PUT /api/settings/
@@ -120,70 +120,6 @@ function RebootPi()
 	EchoStatusXML($status);
 }
 
-function SetVolume()
-{
-	global $SUDO;
-	global $settings;
-
-	$volume = $_GET['volume'];
-	check($volume, "volume", __FUNCTION__);
-
-	if ($volume == "NaN")
-		$volume = 75;
-
-	WriteSettingToFile("volume",$volume);
-
-	$vol = intval ($volume);
-	if ($vol>100)
-		$vol = "100";
-
-	$status=SendCommand('v,' . $vol . ',');
-
-	$card = 0;
-	if (isset($settings['AudioOutput']))
-	{
-		$card = $settings['AudioOutput'];
-	}
-	else
-	{
-		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-		if ( $return_val )
-		{
-			// Should we error here, or just move on?
-			// Technically this should only fail on non-pi
-			// and pre-0.3.0 images
-			error_log("Error retrieving current sound card, using default of '0'!");
-		}
-		else
-			$card = $output[0];
-
-		WriteSettingToFile("AudioOutput", $card);
-	}
-
-
-	$mixerDevice = "PCM";
-	if (isset($settings['AudioMixerDevice']))
-	{
-		$mixerDevice = $settings['AudioMixerDevice'];
-	}
-	else
-	{
-		unset($output);
-		exec($SUDO . " amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
-		$mixerDevice = $output[0];
-		WriteSettingToFile("AudioMixerDevice", $mixerDevice);
-	}
-
-    if ( $card == 0 && $settings['Platform'] == "Raspberry Pi" && $settings['AudioCard0Type'] == "bcm2") {
-        $vol = 50 + ($vol/2.0);
-    }
-
-	// Why do we do this here and in fppd's settings.c
-	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
-
-	EchoStatusXML($status);
-}
-
 function SetFPPDmode()
 {
 	$mode_string['0'] = "unknown";
@@ -197,54 +133,12 @@ function SetFPPDmode()
 	EchoStatusXML("true");
 }
 
-function GetVolume()
-{
-	$volume = ReadSettingFromFile("volume");
-	if ($volume == "")
-		$volume = 75;
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Volume');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($volume);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
-}
-
 function ShutdownPi()
 {
 	global $SUDO;
 
 	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
-}
-
-function ViewRemoteScript()
-{
-	$category = $_GET['category'];
-	check($category, "category", __FUNCTION__);
-
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
-
-	echo $script;
-}
-
-function InstallRemoteScript()
-{
-	global $fppDir, $SUDO;
-	global $scriptDirectory;
-
-	$category = $_GET['category'];
-	check($category, "category", __FUNCTION__);
-
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	exec("$SUDO $fppDir/scripts/installScript $category $filename");
-
-	EchoStatusXML('Success');
 }
 
 function MoveFile()
@@ -324,164 +218,6 @@ function IsFPPDrunning()
 	if ($status == "false")
 		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
-}
-
-function StartPlaylist()
-{
-	$playlist = $_GET['playList'];
-	$repeat = $_GET['repeat'];
-	$playEntry = $_GET['playEntry'];
-
-	check($playlist, "playlist", __FUNCTION__);
-	check($repeat, "repeat", __FUNCTION__);
-	check($playEntry, "playEntry", __FUNCTION__);
-
-	if ($playEntry == "undefined")
-		$playEntry = "0";
-
-	if($repeat == "checked")
-	{
-		$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
-	}
-	else
-	{
-		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
-	}
-	EchoStatusXML('true');
-}
-
-function PlayEffect()
-{
-	$effect = $_GET['effect'];
-	check($effect, "effect", __FUNCTION__);
-	$startChannel = $_GET['startChannel'];
-
-	$loop = 0;
-	if (isset($_GET['loop']))
-		$loop = $_GET['loop'];
-
-	check($startChannel, "startChannel", __FUNCTION__);
-	$status = SendCommand("e," . $effect . "," . $startChannel . "," . $loop. ",");
-	EchoStatusXML('Success');
-}
-
-function StopEffect()
-{
-	$id = $_GET['id'];
-	check($id, "id", __FUNCTION__);
-	$status = SendCommand("StopEffect," . $id . ",");
-	EchoStatusXML('Success');
-}
-
-function StopEffectByName()
-{
-	$effect = $_GET['effect'];
-	check($effect, "effect", __FUNCTION__);
-	$status = SendCommand("StopEffectByName," . $effect . ",");
-	EchoStatusXML('Success');
-}
-
-function GetRunningEffects()
-{
-	$status = SendCommand("GetRunningEffects");
-
-	$result = "";
-	$first = 1;
-	$status = preg_replace('/\n/', '', $status);
-
-	$doc = new DomDocument('1.0');
-	// Running Effects
-	$root = $doc->createElement('RunningEffects');
-	$root = $doc->appendChild($root);
-	foreach(preg_split('/;/', $status) as $line)
-	{
-		if ($first)
-		{
-			$first = 0;
-			continue;
-		}
-
-		$info = preg_split('/,/', $line);
-
-		$runningEffect = $doc->createElement('RunningEffect');
-		$runningEffect = $root->appendChild($runningEffect);
-
-		// Running Effect ID
-		$id = $doc->createElement('ID');
-		$id = $runningEffect->appendChild($id);
-		$value = $doc->createTextNode($info[0]);
-		$value = $id->appendChild($value);
-
-		// Effect Name
-		$name = $doc->createElement('Name');
-		$name = $runningEffect->appendChild($name);
-		$value = $doc->createTextNode($info[1]);
-		$value = $name->appendChild($value);
-	}
-
-	echo $doc->saveHTML();
-}
-
-function GetExpandedEventID($id)
-{
-	check($id, "id", __FUNCTION__);
-
-	$majorID = preg_replace('/_.*/', '', $id);
-	$minorID = preg_replace('/.*_/', '', $id);
-
-	$filename = sprintf("%02d_%02d", $majorID, $minorID);
-
-	return $filename;
-}
-
-function TriggerEvent()
-{
-	$id = GetExpandedEventID($_GET['id']);
-
-	$status = SendCommand("t," . $id . ",");
-
-	EchoStatusXML($status);
-}
-
-function SaveEvent()
-{
-	global $eventDirectory;
-    $event = json_decode(file_get_contents("php://input"), true);
-    print_r($event);
-
-	$id = $event['id'];
-	check($id, "id", __FUNCTION__);
-
-	$ids = preg_split('/_/', $id);
-
-	if (count($ids) < 2)
-		return;
-
-    
-    $majorID = preg_replace('/_.*/', '', $id);
-    $minorID = preg_replace('/.*_/', '', $id);
-    $event['majorId'] = (int)$majorID;
-    $event['minorId'] = (int)$minorID;
-    unset($event['id']);
-    
-        
-	$id = GetExpandedEventID($id);
-	$filename = $id . ".fevt";
-
-    file_put_contents($eventDirectory . '/' . $filename, json_encode($event, JSON_PRETTY_PRINT));
-
-	EchoStatusXML('Success');
-}
-
-function DeleteEvent()
-{
-	global $eventDirectory;
-
-	$filename = GetExpandedEventID($_GET['id']) . ".fevt";
-
-	unlink($eventDirectory . '/' . $filename);
-
-	EchoStatusXML('Success');
 }
 
 
