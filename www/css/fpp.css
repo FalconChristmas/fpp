@@ -538,6 +538,19 @@ hr {
 	color: #fff;
 	background-color: #56B760;
 }
+.PlaylistRowPlaying td:first-child {
+
+}
+.PlaylistRowPlaying td:first-child:before{
+	content:"\f04b";
+	font-family: "Font Awesome 5 Free";
+	font-weight: 900;
+	font-size: 0.8em;
+	display: inline-block;
+	vertical-align: middle;
+	padding-right: 1em;
+}
+
 .tblPlaylistWrap{
 	padding: 1.5em;
 	background-color: #f5f5f5;
@@ -548,17 +561,28 @@ hr {
 	color:#000;
 	background-color: #C5D6F9;
 }
+.PlaylistRowPlaying td, .playlistSelectedEntry td, .playlistSelectedEntry.PlaylistRowPlaying td, .fileDetails.selectedEntry td{
+border-top-color: transparent;
+}
 #playlistDetails table{
 	border:0;
 	border-spacing:0;
 }
+.playlistRow {
+	transition: background-color 0.15s ease-out;
+}
 .playlistRow td {
-	padding:0.2em 1em;
-	transition: background-color 0.2s ease-out;
+	padding:0.1em 1em;
+	transition: background-color 0.15s ease-out;
+	border-top: 1px solid #DADADA;
+}
+.playlistRow:first-child td{
+	border-top:none;
 }
 .playlistRow td:first-child {
 	padding:1em 1em;
 	border-radius:5px 0 0 5px;
+
 }
 .playlistRow td:last-child {
 	padding:1em 1em;
@@ -1295,9 +1319,28 @@ body .sm-clean a .sub-arrow {
 	padding-right: 1em;
 	
 }
+#multisyncViewOptions .settingsTable {
+	flex-wrap: wrap;
+}
+#multisyncViewOptions .settingsTable .tr{
+	width: 25%;
+	margin-bottom: 1.5em;
+
+}
+.multisyncBulkActions{
+	display: flex;
+	flex:1;
+	justify-content: flex-end;
+
+	margin-top: 0;
+	padding: 0;
+}
+.multisyncBulkActions b{
+	display: block;
+	padding-top: 0.5em;
+}
 .fppSystemsUiSettings {
-	margin-top: 2em;
-	border-top: 1px solid #dee2e6;
+
 	padding-top: 2em;
 }
 #fppSystemsTable .multisyncRowCheckbox{

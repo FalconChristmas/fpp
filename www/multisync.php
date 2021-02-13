@@ -1311,11 +1311,11 @@ function multiActionChanged() {
         <?
         if ($advancedView) {
         ?>
-        <div class="form-actions">
+        <div class="form-actions multisyncAdvancedFormActions">
             <div >
                 <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
             </div>
-            <div>
+            <div  class="form-actions multisyncBulkActions">
                 <b>Action for selected systems:</b>
                 <select id='multiAction' onChange='multiActionChanged();'>
                     <option value='noop'>---- Select an Action ----</option>
@@ -1341,44 +1341,56 @@ function multiActionChanged() {
         ?>
             </span>
         </div>
-        <div style='width: 100%; text-align: center;'>
-            <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
+
+            <div id='exitWarning' class='alert alert danger' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b></div>
+  
+  <hr>
+        <? } ?>
+        <br>
+        <div>
+            <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
+            <i class="fas fa-cog"></i> View Options</button>
         </div>
   
-        <? } ?>
-        
-        <div class="fppSystemsUiSettings">
-            <div class="row">
-                <div class="col-2">
-                <div class="labelHeading">
-                Auto Refresh Status
-                </div>
-                
-                    <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
+        <br>
 
+        <div id="fppSystemsUiSettingsDrawer" class="collapse">
+            <div id="multisyncViewOptions" class="fppSystemsUiSettings card ">
+                <div class="container">
+                    <div class="row">
+                            <div class="col-2">
+                            <div class="labelHeading">
+                            Auto Refresh Status
+                            </div>
+                            
+                                <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
+
+                            </div>
+                            <div class="col">
+                            <div class='settingsTable'>
+                                <?
+                                PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
+                                PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+                                PrintSetting('MultiSyncExtraRemotes');
+                                PrintSetting('MultiSyncHTTPSubnets');
+                                PrintSetting('MultiSyncHide10', 'getFPPSystems');
+                                PrintSetting('MultiSyncHide172', 'getFPPSystems');
+                                PrintSetting('MultiSyncHide192', 'getFPPSystems');
+                                PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
+                                ?>
+                                            </div>
+                                    
+                                <?
+                                if ($uiLevel > 0) {
+                                    echo "<b>* - Advanced Level Setting</b>\n";
+                                }
+                                ?>
+                            </div>
+                        </div>
                 </div>
-                <div class="col">
-                <div class='settingsTable'>
-                    <?
-                    PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
-                    PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
-                    PrintSetting('MultiSyncExtraRemotes');
-                    PrintSetting('MultiSyncHTTPSubnets');
-                    PrintSetting('MultiSyncHide10', 'getFPPSystems');
-                    PrintSetting('MultiSyncHide172', 'getFPPSystems');
-                    PrintSetting('MultiSyncHide192', 'getFPPSystems');
-                    PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
-                    ?>
-                                </div>
-                        
-                    <?
-                    if ($uiLevel > 0) {
-                        echo "<b>* - Advanced Level Setting</b>\n";
-                    }
-                    ?>
-                </div>
+                   
+     
             </div>
-
         </div>
 
         
