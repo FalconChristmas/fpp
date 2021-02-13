@@ -3378,16 +3378,26 @@ function PlayPlaylist(Playlist, goToStatus = 0)
     });
 }
 
-function StartPlaylistNow()
-	{
-		var Playlist =  $("#playlistSelect").val();
-        var xmlhttp=new XMLHttpRequest();
-		var repeat = $("#chkRepeat").is(':checked')?'checked':'unchecked';
-		var url = "fppxml.php?command=startPlaylist&playList=" + Playlist + "&repeat=" + repeat + "&playEntry=" + PlayEntrySelected + "&section=" + PlaySectionSelected ;
-		xmlhttp.open("GET",url,true);
-		xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-		xmlhttp.send();
-	}
+function StartPlaylistNow() {
+    var Playlist = $("#playlistSelect").val();
+    var repeat = $("#chkRepeat").is(':checked') ? true : false;
+    var obj = {
+        command: "Start Playlist At Item",
+        args: [
+            Playlist,
+            PlayEntrySelected,
+            repeat,
+            false
+        ]
+    }
+    console.log(obj);
+    $.post("api/command", JSON.stringify(obj)
+    ).done(function () {
+        $.jGrowl("Playlist Started");
+    }).fail(function () {
+        DialogError('Command failed', 'Unable to start Playlist');
+    });
+}
 
 function StopEffect()
 {

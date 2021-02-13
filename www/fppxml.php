@@ -45,7 +45,7 @@ $command_array = Array(
 	// "stopFPPD" => 'StopFPPD', // use GET /api/system/fppd/stop
 	// "startFPPD" => 'StartFPPD', // use GET /api/system/fppd/start
 	"restartFPPD" => 'RestartFPPD', // retained for xLights and Multisync
-	"startPlaylist" => 'StartPlaylist',
+	// "startPlaylist" => 'StartPlaylist',  // use Command API Instead
 	"rebootPi" => 'RebootPi', // Used my MultiSync
 	"shutdownPi" => 'ShutdownPi',
 	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
@@ -295,30 +295,6 @@ function IsFPPDrunning()
 	if ($status == "false")
 		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
-}
-
-function StartPlaylist()
-{
-	$playlist = $_GET['playList'];
-	$repeat = $_GET['repeat'];
-	$playEntry = $_GET['playEntry'];
-
-	check($playlist, "playlist", __FUNCTION__);
-	check($repeat, "repeat", __FUNCTION__);
-	check($playEntry, "playEntry", __FUNCTION__);
-
-	if ($playEntry == "undefined")
-		$playEntry = "0";
-
-	if($repeat == "checked")
-	{
-		$status=SendCommand("p," . $playlist . "," . $playEntry . ",");
-	}
-	else
-	{
-		$status=SendCommand("P," . $playlist . "," . $playEntry . ",");
-	}
-	EchoStatusXML('true');
 }
 
 function PlayEffect()
