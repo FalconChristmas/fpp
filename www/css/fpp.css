@@ -160,8 +160,16 @@ body .ui-tabs .ui-tabs-nav li {
 	padding-left: 1em;
 
 }
+
+@media(max-width:991px){
+	.fppBrand .versionHead{
+		display: none;
+	}
+}
+
 .headerRight{
 	display: flex;
+	align-items: center;
 }
 .capeVendor{
 	position: relative;
@@ -216,7 +224,6 @@ body .ui-tabs .ui-tabs-nav li {
 	vertical-align: middle;
 	margin-left: 0.6em;
 	margin-right: 0.6em;
-	/*  */
 	text-align: center;
 }
 #header_IPs small{
