@@ -3093,8 +3093,8 @@ function GetUniverseBytesReceived() {
                 maxRows = 32;
             }
             if (data.universes.length > 0) {
-                html.push('<table>');
-                html.push("<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>");
+                html.push('<table class="fppBasicTable">');
+                html.push("<thead><tr id=\"rowReceivedBytesHeader\"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>");
             }
             for (i = 0; i < data.universes.length; i++) {
                 if (i == maxRows) {
@@ -3102,7 +3102,7 @@ function GetUniverseBytesReceived() {
                     html1 = html.join('');
                     html = [];
                     html.push('<table>');
-                    html.push("<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>");
+                    html.push("<thead><tr id=\"rowReceivedBytesHeader\"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>");
                 }
                 html.push('<tr><td>');
                 html.push(data.universes[i].id);
@@ -3116,7 +3116,7 @@ function GetUniverseBytesReceived() {
                 html.push(data.universes[i].errors);
                 html.push('</td></tr>');
             }
-            html.push('</table>');
+            html.push('</tbody></table>');
             if (data.universes.length > 32) {
                 $("#bridgeStatistics1").html(html1);
                 $("#bridgeStatistics2").html(html.join(''));
@@ -3451,7 +3451,7 @@ function ControlFPPD() {
         url: url,
         data: "",
     }).done(function(data) {
-        $.jGrowl("Completed " + btnVal);
+        $.jGrowl("Completed " + btnVal,{themeState:'success'});
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
     });
