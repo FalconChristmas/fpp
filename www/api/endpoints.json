@@ -207,7 +207,48 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Gets the current bridge mode input statistics"
+                    "desc": "Gets the current bridge mode input statistics",
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "respCode": 200,
+                        "universes": [
+                            {
+                                "bytesReceived": "0",
+                                "errors": "0",
+                                "id": 1,
+                                "packetsReceived": "0",
+                                "startChannel": 1
+                            },
+                            {
+                                "bytesReceived": "0",
+                                "errors": "0",
+                                "id": 2,
+                                "packetsReceived": "0",
+                                "startChannel": 513
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/effects",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current output volume",
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "respCode": 200,
+                        "runningEffects": [
+                            {
+                                "id": 0,
+                                "name": "block_driveways"
+                            }
+                        ]
+                    }
                 }
             }
         },
@@ -238,7 +279,64 @@
                             "Sync": "warn"
                         },
                         "Status": "OK",
-                        "Message": ""
+                        "Message": "",
+                        "respCode": 200
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/multiSyncStats",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "REturns status about Multisync instances",
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "masterHostname": "",
+                        "masterIP": "",
+                        "respCode": 200,
+                        "systems": [
+                            {
+                                "hostname": "",
+                                "lastReceiveTime": "2021-02-13 09:54:02",
+                                "pktBlank": 0,
+                                "pktCommand": 0,
+                                "pktError": 0,
+                                "pktFPPCommand": 0,
+                                "pktPing": 1,
+                                "pktPlugin": 0,
+                                "pktSyncMedOpen": 0,
+                                "pktSyncMedStart": 0,
+                                "pktSyncMedStop": 0,
+                                "pktSyncMedSync": 0,
+                                "pktSyncSeqOpen": 0,
+                                "pktSyncSeqStart": 0,
+                                "pktSyncSeqStop": 0,
+                                "pktSyncSeqSync": 0,
+                                "sourceIP": "192.168.1.145"
+                            },
+                            {
+                                "hostname": "",
+                                "lastReceiveTime": "2021-02-13 09:54:02",
+                                "pktBlank": 0,
+                                "pktCommand": 0,
+                                "pktError": 0,
+                                "pktFPPCommand": 0,
+                                "pktPing": 1,
+                                "pktPlugin": 0,
+                                "pktSyncMedOpen": 0,
+                                "pktSyncMedStart": 0,
+                                "pktSyncMedStop": 0,
+                                "pktSyncMedSync": 0,
+                                "pktSyncSeqOpen": 0,
+                                "pktSyncSeqStart": 0,
+                                "pktSyncSeqStop": 0,
+                                "pktSyncSeqSync": 0,
+                                "sourceIP": "192.168.1.150"
+                            }
+                        ]
                     }
                 }
             }
@@ -249,67 +347,137 @@
             "methods": {
                 "GET": {
                     "desc": "Gets the list of known FPP instances",
-                    "output": [
-                        {
-                            "address": "192.168.1.10",
-                            "channelRanges": "0-7712",
-                            "fppMode": 2,
-                            "fppModeString": "player",
-                            "hostname": "roof",
-                            "lastSeen": 1584566432,
-                            "lastSeenStr": "2020-03-18 14:20:32",
-                            "majorVersion": 4,
-                            "minorVersion": 1000,
-                            "model": "TI AM335x BeagleBone Green",
-                            "type": "BeagleBone Black",
-                            "version": "4.x-master-186-g58f6a91-dirty"
-                        }
-                    ]
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "respCode": 200,
+                        "systems": [
+                            {
+                                "address": "192.168.1.10",
+                                "channelRanges": "0-7712",
+                                "fppMode": 2,
+                                "fppModeString": "player",
+                                "hostname": "roof",
+                                "lastSeen": 1584566432,
+                                "lastSeenStr": "2020-03-18 14:20:32",
+                                "majorVersion": 4,
+                                "minorVersion": 1000,
+                                "model": "TI AM335x BeagleBone Green",
+                                "type": "BeagleBone Black",
+                                "version": "4.x-master-186-g58f6a91-dirty"
+                            },
+                            {
+                                "address": "192.168.1.150",
+                                "channelRanges": "0-79383",
+                                "fppMode": 2,
+                                "fppModeString": "player",
+                                "hostname": "FPPDev",
+                                "lastSeen": 1613227416,
+                                "lastSeenStr": "2021-02-13 09:43:36",
+                                "local": 0,
+                                "majorVersion": 4,
+                                "minorVersion": 1,
+                                "model": "Pi 3 Model B",
+                                "multiSyncCapable": 0,
+                                "type": "FPP (unknown hardware)",
+                                "typeId": 1,
+                                "version": "4.1"
+                            }
+                        ]
+                    }
                 }
             }
         },
         {
-            "endpoint": "fppd/testing",
+            "endpoint": "fppd/schedule",
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Gets the current test mode configuration",
+                    "desc": "Returns a projection of Playlists and other events that are scheculed to start in the near future.",
                     "output": {
-                        "config": {
+                        "Message": "",
+                        "Status": "OK",
+                        "respCode": 200,
+                        "schedule": {
                             "enabled": 1,
-                            "channelSet": "1-1048576",
-                            "channelSetType": "channelRange",
-                            "colorPattern": "FF000000FF000000FF",
-                            "cycleMS": 1000,
-                            "mode": "RGBChase",
-                            "subMode": "RGBChase-RGB"
+                            "entries": [
+                                {
+                                    "day": 7,
+                                    "dayStr": "Everyday",
+                                    "enabled": 1,
+                                    "endDate": "2026-12-31",
+                                    "endTime": "18:00:00",
+                                    "id": 0,
+                                    "playlist": "Test3",
+                                    "repeat": 1,
+                                    "repeatInterval": 0,
+                                    "startDate": "2019-01-01",
+                                    "startTime": "17:00:00",
+                                    "stopType": 0,
+                                    "stopTypeStr": "Graceful",
+                                    "type": "playlist"
+                                },
+                                {
+                                    "args": [],
+                                    "command": "Effects Stop",
+                                    "day": 7,
+                                    "dayStr": "Everyday",
+                                    "enabled": 1,
+                                    "endDate": "2026-12-31",
+                                    "endTime": "24:00:00",
+                                    "id": 3,
+                                    "multisyncCommand": true,
+                                    "multisyncHosts": "192.168.1.149",
+                                    "playlist": "",
+                                    "repeat": 1,
+                                    "repeatInterval": 0,
+                                    "startDate": "2019-01-01",
+                                    "startTime": "00:00:00",
+                                    "stopType": 0,
+                                    "stopTypeStr": "Graceful",
+                                    "type": "command"
+                                },
+                                {
+                                    "args": [
+                                        "/test",
+                                        "\"hi\""
+                                    ],
+                                    "command": "MQTT",
+                                    "day": 7,
+                                    "dayStr": "Everyday",
+                                    "enabled": 1,
+                                    "endDate": "2026-12-31",
+                                    "endTime": "24:00:00",
+                                    "id": 4,
+                                    "multisyncCommand": false,
+                                    "multisyncHosts": "",
+                                    "playlist": "",
+                                    "repeat": 1,
+                                    "repeatInterval": 0,
+                                    "startDate": "2019-01-01",
+                                    "startTime": "00:00:00",
+                                    "stopType": 0,
+                                    "stopTypeStr": "Graceful",
+                                    "type": "command"
+                                },
+                                {
+                                    "args": [
+                                        "Test2",
+                                        "true",
+                                        "false"
+                                    ],
+                                    "command": "Start Playlist",
+                                    "endTime": 1613365200,
+                                    "endTimeStr": "Mon @ 00:00:00",
+                                    "id": 1,
+                                    "multisyncCommand": false,
+                                    "multisyncHosts": "",
+                                    "priority": 1,
+                                    "startTime": 1613353500,
+                                    "startTimeStr": "Sun @ 20:45:00"
+                                }
+                            ]
                         }
-                    }
-                }
-            }
-        },
-        {
-            "endpoint": "fppd/version",
-            "fppd": true,
-            "methods": {
-                "GET": {
-                    "desc": "Gets the current FPP version",
-                    "output": {
-                        "branch": "master",
-                        "fppdAPI": "v1",
-                        "version": "2.x-292-g83816a39-dirty"
-                    }
-                }
-            }
-        },
-        {
-            "endpoint": "fppd/volume",
-            "fppd": true,
-            "methods": {
-                "GET": {
-                    "desc": "Gets the current output volume",
-                    "output": {
-                        "volume": 72
                     }
                 }
             }
@@ -374,6 +542,63 @@
                         "uptimeMinutes": 0.36666666666666664,
                         "uptimeSeconds": 22,
                         "uptimeStr": "0 days, 0 hours, 0 minutes, 22 seconds"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/testing",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current test mode configuration",
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "respCode": 200,
+                        "config": {
+                            "enabled": 1,
+                            "channelSet": "1-1048576",
+                            "channelSetType": "channelRange",
+                            "colorPattern": "FF000000FF000000FF",
+                            "cycleMS": 1000,
+                            "mode": "RGBChase",
+                            "subMode": "RGBChase-RGB"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/version",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current FPP version",
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "branch": "master",
+                        "fppdAPI": "v1",
+                        "majorVersion": "4",
+                        "minorVersion": "1000",
+                        "respCode": 200,
+                        "version": "4.x-master-904-ga13db6aa"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "fppd/volume",
+            "fppd": true,
+            "methods": {
+                "GET": {
+                    "desc": "Gets the current output volume",
+                    "output": {
+                        "Message": "",
+                        "Status": "OK",
+                        "respCode": 200,
+                        "volume": 70
                     }
                 }
             }
