@@ -11,47 +11,47 @@ function StorageDialogDone() {
     $('#closeDialogButton').show();
 }
 function CloseExpandStorageDialog() {
-    $('#storageSettingsProgressPopup').dialog('close');
+    $('#storageSettingsProgressPopup').fppDialog('close');
     SetSetting("LastBlock", "0", 0, 1);
 }
 function growSDCardFS() {
     $('#dialog-confirm')
-        .dialog({
+        .fppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-                $(this).dialog("close");
-                $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
-                $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                $(this).fppDialog("close");
+                $('#storageSettingsProgressPopup').fppDialog({ height: 600, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('growsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
             },
             "No" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
              }
         }
     });
 }
 function newSDCardPartition() {
     $('#dialog-confirm-newpartition')
-    .dialog({
+    .fppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-                $(this).dialog("close");
-                $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "New Partition", dialogClass: 'no-close' });
-                $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                $(this).fppDialog("close");
+                $('#storageSettingsProgressPopup').fppDialog({ height: 600, width: 900, title: "New Partition", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('newpartitionsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
             },
             "No" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             }
             }
         });
@@ -65,8 +65,8 @@ function checkForStorageCopy() {
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
                  if (result == "Yes") {
-                    $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "Copy Settings", dialogClass: 'no-close' });
-                    $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                    $('#storageSettingsProgressPopup').fppDialog({ height: 600, width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
+                    $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                     document.getElementById('storageText').value = '';
                     StreamURL("copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
                  }
@@ -116,36 +116,36 @@ if ($settings['Platform'] == "BeagleBone Black") {
 ?>
 function flashEMMC() {
     $('#dialog-confirm-emmc')
-        .dialog({
+        .fppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
                 "Yes" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
                 window.location.href="flashbbbemmc.php";
             },
             "No" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             }
         }
     });
 }
 function flashEMMCBtrfs() {
     $('#dialog-confirm-emmc')
-    .dialog({
+    .dppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-            $(this).dialog("close");
+            $(this).dppDialog("close");
             window.location.href="flashbbbemmc-btrfs.php";
             },
             "No" : function() {
-            $(this).dialog("close");
+            $(this).dppDialog("close");
             }
             }
             });

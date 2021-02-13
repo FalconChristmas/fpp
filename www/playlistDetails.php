@@ -27,8 +27,10 @@ $simplifiedPlaylist = 0;
                         </div>
                     </div>
                 </div>
+                <div class="tblPlaylistWrap">
                 <table id="tblPlaylistLeadIn" class='playlistEntriesBody'>
                 </table>
+                </div>
             </div>
 <? } ?>
             <div class="tblPlaylisttMainPlaylistContainer tblPlaylistContainer">
@@ -52,8 +54,10 @@ $simplifiedPlaylist = 0;
                         </div>
                     </div>
                 </div>
-                <table id="tblPlaylistMainPlaylist" class='playlistEntriesBody'>
-                </table>
+                <div class="tblPlaylistWrap">
+                    <table id="tblPlaylistMainPlaylist" class='playlistEntriesBody'>
+                    </table>
+                </div>
             </div>
 <?  if (!$simplifiedPlaylist) { ?>
             <div class="tblPlaylistLeadOutContainer tblPlaylistContainer">
@@ -76,8 +80,10 @@ $simplifiedPlaylist = 0;
                         </div>
                     </div>
                 </div>
+                <div class="tblPlaylistWrap">
                 <table id="tblPlaylistLeadOut" class='playlistEntriesBody'>
                 </table>
+                </div>
             </div>
 <? } ?>
         </div>

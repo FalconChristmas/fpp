@@ -68,7 +68,7 @@ unset($output);
 <title>FPP - ChangeLog</title>
 <script>
 function CloseUpgradeDialog() {
-    $('#upgradePopup').dialog('close');
+    $('#upgradePopup').fppDialog('close');
     location.reload();
 }
 
@@ -77,8 +77,8 @@ function UpgradeDone() {
 }
 
 function GitCheckoutVersion(version) {
-    $('#upgradePopup').dialog({ height: 600, width: 900, title: "Switching to version: " + version, dialogClass: 'no-close' });
-    $('#upgradePopup').dialog( "moveToTop" );
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Switching to version: " + version, dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
 
     StreamURL('gitCheckoutVersion.php?wrapped=1&version=' + version, 'upgradeText', 'UpgradeDone');

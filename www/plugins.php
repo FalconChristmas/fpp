@@ -29,7 +29,7 @@ function PluginProgressDialogDone() {
     $('#closeDialogButton').show();
 }
 function ClosePluginProgressDialog() {
-    $('#pluginsProgressPopup').dialog('close');
+    $('#pluginsProgressPopup').fppDialog('close');
     location.reload(true);
 }
 
@@ -95,8 +95,8 @@ function CheckPluginForUpdates(plugin) {
 function UpgradePlugin(plugin) {
 	var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
     
-    $('#pluginsProgressPopup').dialog({ height: 600, width: 900, title: "Upgrade Plugin", dialogClass: 'no-close' });
-    $('#pluginsProgressPopup').dialog( "moveToTop" );
+    $('#pluginsProgressPopup').fppDialog({ height: 600, width: 900, title: "Upgrade Plugin", dialogClass: 'no-close' });
+    $('#pluginsProgressPopup').fppDialog( "moveToTop" );
     document.getElementById('pluginsText').value = '';
     StreamURL(url, 'pluginsText', 'PluginProgressDialogDone', 'PluginProgressDialogDone');
 }
@@ -117,8 +117,8 @@ function InstallPlugin(plugin, branch, sha) {
 
 	var postData = JSON.stringify(pluginInfo);
     
-    $('#pluginsProgressPopup').dialog({ height: 600, width: 900, title: "Install Plugin", dialogClass: 'no-close' });
-    $('#pluginsProgressPopup').dialog( "moveToTop" );
+    $('#pluginsProgressPopup').fppDialog({ height: 600, width: 900, title: "Install Plugin", dialogClass: 'no-close' });
+    $('#pluginsProgressPopup').fppDialog( "moveToTop" );
     document.getElementById('pluginsText').value = '';
     StreamURL(url, 'pluginsText', 'PluginProgressDialogDone', 'PluginProgressDialogDone', 'POST', postData, 'application/json');
 }

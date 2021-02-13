@@ -184,8 +184,8 @@ function list_plugin_entries($menu)
 </div>
 <script>
 function RebuildFPPD() {
-    $('#rebuildPopup').dialog({ height: 600, width: 900, title: "Rebuild FPP" });
-    $('#rebuildPopup').dialog( "moveToTop" );
+    $('#rebuildPopup').fppDialog({ height: 600, width: 900, title: "Rebuild FPP" });
+    $('#rebuildPopup').fppDialog( "moveToTop" );
     $('#rebuildText').html('');
     StreamURL('manualUpdate.php?wrapped=1', 'rebuildText');
 }

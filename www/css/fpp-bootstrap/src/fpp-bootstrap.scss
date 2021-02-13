@@ -84,7 +84,7 @@
 .spinner-danger{
     color:$danger;
 }
-.pageContent, .ui-dialog {
+.pageContent, .ui-dialog, .modal {
     input, select{
         padding-top:$input-btn-padding-y;
         padding-bottom:$input-btn-padding-y;
@@ -124,7 +124,7 @@ input[type=text], input[type=number], select, .tablesorter input{
     font-size: $font-size-base;
     vertical-align: middle;
 }
-.pageContent select{
+.pageContent select, .ui-dialog select, .modal select{
 	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
 	background-position: right 20px center;
     background-size: 15px;
@@ -429,23 +429,23 @@ table.settingsTable div.th{
 }
 
 .fppSelectableRowTable tr td{
-	padding-top: 1.1em;
-	padding-bottom: 1.1em;
+	padding-top: 0.65em;
+	padding-bottom: 0.5em;
 	background-color: #F5F5F5;
 	border-bottom: 1px solid #dee2e6;
 }
 .fppSelectableRowTable tr:first-child td{
-	padding-top: 1.5em;
+	padding-top: 0.85em;
 }
 .fppSelectableRowTable tr:last-child td{
-	padding-bottom: 1.5em;
+	padding-bottom: 0.85em;
 }
 .fppSelectableRowTable tbody tr>td:first-child{
 	padding-left: 1.5em;
 	padding-right:0.4em;
 }
 .fppSelectableRowTable tbody tr>td:last-child,#tblSchedule tbody tr>td:nth-last-child(2){
-	padding-right: 1.1em;
+	padding-right: 0.5em;
 }
 .fppSelectableRowTable tbody tr:first-child>td:first-child{
 	border-top-left-radius: 8px;
@@ -472,7 +472,7 @@ table.settingsTable div.th{
 .fppSelectableRowTable tr.selectedEntry td,
 .fppSelectableRowTable tr.fppTableSelectedEntry td
 {
-	background-color: #ECECEC;
+	background-color: $highlight;
 }
 
 

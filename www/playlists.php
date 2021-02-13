@@ -26,15 +26,19 @@ if (isset($_GET['playlist'])) {
         $('#playlistSelect').val(initialPlaylist).trigger('change');
     }
     $(function(){
-        $('.playlistCreateContainer').hide();
         $('.playlistAddNewBtn').click(function(){
             $('.playlistCreateContainer').fppDialog({
-                modal: true
+                title:'Add a New Playlist',
+                buttons:{
+                    Create:function(){
+                        CreateNewPlaylist();
+                    }
+                }
             });
 
         })
         $('#btnNew').click(function(){
-            $('.playlistCreateContainer').dialog("close");
+            $('.playlistCreateContainer').fppDialog("close");
         });
         PopulateLists();
         if (typeof initialPlaylist !== 'undefined') {
@@ -72,10 +76,10 @@ include 'menu.inc';
                     </div>
                 </div>
 
-                <div class="playlistCreateContainer">
+                <div class="playlistCreateContainer hidden">
                     <b>Enter new playlist name</b><br/>
                     <input id="txtNewPlaylistName" class="default-value form-control" type="text" value="Enter Playlist Name" size="40" maxlength="64" onChange='CreateNewPlaylist();'/>
-                    <input id="btnNew" onclick="CreateNewPlaylist();" type="button" class="buttons" value="Create" />
+               
                 </div>
                 <div class='clear'></div>
 

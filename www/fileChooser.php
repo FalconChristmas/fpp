@@ -29,7 +29,7 @@ function FileChooserSelectChanged()
 {
     var file = $('#fileChooserSelect').val();
     $(fileChooserTarget).val(file);
-    $('#fileChooserPopup').dialog("close");
+    $('#fileChooserPopup').fppDialog("close");
 }
 </script>
 

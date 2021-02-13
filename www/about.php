@@ -110,7 +110,7 @@ this.value = default_value;
 });
 
 function CloseUpgradeDialog() {
-    $('#upgradePopup').dialog('close');
+    $('#upgradePopup').fppDialog('close');
     location.reload();
 }
 
@@ -144,8 +144,8 @@ function UpgradeOS() {
     var os = $('#OSSelect').val();
     if (confirm('Upgrade the OS using ' + os + '?\nThis can take a long time.')) {
         $('#closeDialogButton').hide();
-        $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP OS Upgrade", dialogClass: 'no-close' });
-        $('#upgradePopup').dialog( "moveToTop" );
+        $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP OS Upgrade", dialogClass: 'no-close' });
+        $('#upgradePopup').fppDialog( "moveToTop" );
         $('#upgradeText').html('');
 
         StreamURL('upgradeOS.php?wrapped=1&os=' + os, 'upgradeText', 'UpgradeDone');
@@ -154,8 +154,8 @@ function UpgradeOS() {
 
 function UpgradeFPP() {
     $('#closeDialogButton').hide();
-    $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade", dialogClass: 'no-close' });
-    $('#upgradePopup').dialog( "moveToTop" );
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade", dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
 
     StreamURL('manualUpdate.php?wrapped=1', 'upgradeText', 'UpgradeDone');
@@ -185,8 +185,8 @@ function UpgradeFirmware() {
     formData.append("firmware", firmware);
 
     $('#closeDialogButton').hide();
-    $('#upgradePopup').dialog({ height: 600, width: 900, title: "Upgrade Cape Firmware", dialogClass: 'no-close' });
-    $('#upgradePopup').dialog( "moveToTop" );
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Upgrade Cape Firmware", dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
     StreamURL('upgradeCapeFirmware.php', 'upgradeText', 'UpgradeFirmwareDone', 'UpgradeFirmwareDone', 'POST', formData, false, false);
 }

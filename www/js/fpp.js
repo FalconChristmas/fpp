@@ -28,9 +28,7 @@ $(function() {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
 });
 (function ( $ ) {
- 
     $.fn.fppDialog = function( options ) {
- 
         if(options=='close'){
           this.each(function() {
               $(this).modal('hide');
@@ -43,6 +41,12 @@ $(function() {
           });
           return this;
         }
+        if(options=='enableClose'){
+            this.each(function() {
+                $(this).removeClass('no-close');
+            });
+            return this;
+        }
         if(options=='moveToTop'){
           return this;
         }
@@ -51,18 +55,27 @@ $(function() {
         }
         var settings = $.extend({
             title:'',
+            dialogClass:'',
+            content:null,
             closeText:'<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
         }, options );
 
-      
         this.each(function() {
             var $buttons='';
             var $title='';
             var self = this;
-
+            var modalOptions ={}
+            if(settings.dialogClass.split(' ').includes('no-close')){
+                $.extend(modalOptions,{backdrop:'static'})
+            }
+            $(this).addClass(settings.dialogClass);
             if(!$(this).hasClass('has-title')){
                 $(this).addClass('has-title');
-                $title=$('<div class="modal-header">'+settings.title+'</div>');
+                var title = settings.title;
+                if(title!==''){
+                    title='<h3 class="modal-title">'+settings.title+'</h3>'
+                }
+                $title=$('<div class="modal-header">'+title+'</div>');
             }
 
             if(settings.buttons){
@@ -88,6 +101,7 @@ $(function() {
                 });
               }
             }
+
             if(!$(this).hasClass('modal')){
                 var $dialogBody = $('<div class="modal-body"/>');
                 $(this).wrapInner( $dialogBody );
@@ -95,14 +109,14 @@ $(function() {
                 $(this).prepend($title);
                 $(this).append($buttons);
                 if(settings.closeText){
-                if(!$(this).hasClass('has-closeText')){
-                    $(this).addClass('has-closeText');
-                    $title.append(settings.closeText);            
+                    if(!$(this).hasClass('has-closeText')){
+                        $(this).addClass('has-closeText');
+                        $title.append(settings.closeText);            
+                    }
                 }
-                }
+
                 var $dialogInner = $('<div class="modal-dialog"/>');
                 var $dialogContent = $('<div class="modal-content"/>');
-                
                 $(this).wrapInner($dialogInner.wrapInner($dialogContent))
             }
 
@@ -111,17 +125,16 @@ $(function() {
                     options.open.call(self);
                 })
             }
+            
             if(options.close && typeof options.close==='function'){
                 $(this).on('hide.bs.modal', function(){
                     options.close.call(self);
                 })
             }
-            $(this).modal({show:true});
+            $(this).modal(modalOptions);
         });
         return this;
- 
     };
- 
 }( jQuery ));
 
 function PadLeft(string,pad,length) {
@@ -1586,7 +1599,7 @@ function CopyPlaylist()	{
 function RenamePlaylist()	{
     var name = $('#txtPlaylistName').val();
 
-    $("#renamePlaylist_dialog").dialog({
+    $("#renamePlaylist_dialog").fppDialog({
         width: 400,
         buttons: {
             "Rename": function() {
@@ -1604,10 +1617,10 @@ function RenamePlaylist()	{
                 PopulateLists();
 
                 SetPlaylistName(new_playlist_name);
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             },
             Cancel: function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             }
         },
         open: function (event, ui) {
@@ -1731,10 +1744,10 @@ function RemovePlaylistEntry()	{
 				return;
 
 				$('#helpText').html("Pinging " + ip + "<br><br>This will take a few seconds to load");
-				$('#dialog-help').dialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
+				$('#dialog-help').fppDialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
 			        // Workaround for bug: https://bugs.jqueryui.com/ticket/8741
-				$('#dialog-help').dialog("option", "position", { my: 'center', of: window});
-//				$('#dialog-help').dialog( "moveToTop" );
+				$('#dialog-help').fppDialog("option", "position", { my: 'center', of: window});
+//				$('#dialog-help').fppDialog( "moveToTop" );
 
 				$.get("ping.php?ip=" + ip + "&count=" + count
 				).done(function(data) {
@@ -1753,8 +1766,8 @@ function RemovePlaylistEntry()	{
 
 		function ViewReleaseNotes(version) {
 				$('#helpText').html("Retrieving Release Notes");
-				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
-				$('#dialog-help').dialog( "moveToTop" );
+				$('#dialog-help').fppDialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
+				$('#dialog-help').fppDialog( "moveToTop" );
 
 				$.get("api/system/releaseNotes/" + version
 				).done(function(data) {
@@ -1776,8 +1789,8 @@ function RemovePlaylistEntry()	{
 		{
 			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'))
 			{
-                $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade" });
-                $('#upgradePopup').dialog( "moveToTop" );
+                $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade" });
+                $('#upgradePopup').fppDialog( "moveToTop" );
                 $('#upgradeText').html('');
 
                 StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeText', 'VersionUpgradeDone');
@@ -3968,7 +3981,7 @@ function DisplayHelp()
 {
     if (helpOpen) {
         helpOpen = 0;
-        $('#dialog-help').dialog('close');
+        $('#dialog-help').fppDialog('close');
         return;
     }
 
@@ -3983,16 +3996,16 @@ function DisplayHelp()
 
 	$('#helpText').html("No help file exists for this page yet.  Check the <a href='https://falconchristmas.github.io/FPP_Manual(4.0).pdf' target='_blank'>FPP Manual</a> for more info.");
 	$('#helpText').load(tmpHelpPage);
-	$('#dialog-help').dialog({ height: 600, width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
-	$('#dialog-help').dialog( "moveToTop" );
+	$('#dialog-help').fppDialog({ height: 600, width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
+	$('#dialog-help').fppDialog( "moveToTop" );
     helpOpen = 1;
 }
 
 function GetGitOriginLog()
 {
     $('#logText').html('Loading list of changes from github. <div class="ajax-loading-60px"></div>');
-	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
-	$('#logViewer').dialog( "moveToTop" );
+	$('#logViewer').fppDialog({ height: 600, width: 800, title: "Git Changes" });
+	$('#logViewer').fppDialog( "moveToTop" );
     $.get({
         url: "api/git/originLog",
         data: "",
@@ -4022,8 +4035,8 @@ function GetVideoInfo(file)
 
     $.get("api/media/" + file + "/meta", function(data) {
         $('#fileText').html('<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>');
-        $('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
-        $('#fileViewer').dialog( "moveToTop" );
+        $('#fileViewer').fppDialog({ height: 600, width: 800, title: "Video Info" });
+        $('#fileViewer').fppDialog( "moveToTop" );
     });
 }
 
@@ -4109,8 +4122,8 @@ function ViewFileImpl(url, file)
 			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 	});
 
-	$('#fileViewer').dialog({ height: 600, width: 800, title: "File Viewer: " + file });
-	$('#fileViewer').dialog( "moveToTop" );
+	$('#fileViewer').fppDialog({ height: 600, width: 800, title: "File Viewer: " + file });
+	$('#fileViewer').fppDialog( "moveToTop" );
 }
 
 function DeleteFile(dir, row, file)
@@ -4166,7 +4179,7 @@ function SetupSelectableTableRow(info)
 
 function DialogOK(title, message)
 {
-	$('#dialog-popup').dialog({
+	$('#dialog-popup').fppDialog({
 		mocal: true,
 		height: 'auto',
 		width: 400,
@@ -4174,11 +4187,11 @@ function DialogOK(title, message)
 		closeOnEscape: false,
 		buttons: {
 			Ok: function() {
-				$(this).dialog("close");
+				$(this).fppDialog("close");
 			}
 		}
 	});
-	$('#dialog-popup').dialog('option', 'title', title);
+	$('#dialog-popup').fppDialog('option', 'title', title);
 	$('#dialog-popup').html("<center>" + message + "</center>");
 	$('#dialog-popup').show();
 	$('#dialog-popup').draggable();
@@ -5003,13 +5016,13 @@ function FileChooser(dir, target)
         $(dialogHTML).appendTo('body');
     }
 
-    $('#fileChooserPopup').dialog({
+    $('#fileChooserPopup').fppDialog({
         height: 440,
         width: 600,
         title: "File Chooser",
         modal: true
     });
-    $('#fileChooserPopup').dialog( "moveToTop" );
+    $('#fileChooserPopup').fppDialog( "moveToTop" );
     $('#fileChooserDiv').load('fileChooser.php', function() {
         SetupFileChooser(dir, target);
     });
@@ -5240,7 +5253,7 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         $(dialogHTML).appendTo('body');
     }
 
-    $('#commandEditorPopup').dialog({
+    $('#commandEditorPopup').fppDialog({
         height: 'auto',
         width: 600,
         title: args.title,
@@ -5248,7 +5261,7 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         open: function(event, ui) { $('#commandEditorPopup').parent().find(".ui-dialog-titlebar-close").hide(); },
         closeOnEscape: false
     });
-    $('#commandEditorPopup').dialog( "moveToTop" );
+    $('#commandEditorPopup').fppDialog( "moveToTop" );
     $('#commandEditorDiv').load('commandEditor.php', function() {
         CommandEditorSetup(target, data, callback, cancelCallback, args);
     });
@@ -5262,13 +5275,13 @@ function PreviewSchedule()
     }
 
     $('#schedulePreviewDiv').html('');
-    $('#schedulePreviewPopup').dialog({
+    $('#schedulePreviewPopup').fppDialog({
         height: 600,
         width: 900,
         title: "Schedule Preview",
         modal: true
     });
-    $('#schedulePreviewPopup').dialog( "moveToTop" );
+    $('#schedulePreviewPopup').fppDialog( "moveToTop" );
     $('#schedulePreviewDiv').load('schedulePreview.php');
 }
 

@@ -191,8 +191,8 @@ $(function() {
 			}
 		});
 
-		$('#fileViewer').dialog({ height: 600, width: 800, title: "Script Editor" });
-		$('#fileViewer').dialog( "moveToTop" );
+		$('#fileViewer').fppDialog({ height: 600, width: 800, title: "Script Editor" });
+		$('#fileViewer').fppDialog( "moveToTop" );
 	}
 
 	function SaveScript(scriptName)
@@ -208,7 +208,7 @@ $(function() {
 		$.post("fppjson.php", postData).done(function(data) {
 			if (data.saveStatus == "OK")
 			{
-				$('#fileViewer').dialog('close');
+				$('#fileViewer').fppDialog('close');
 				$.jGrowl("Script saved.",{themeState:'success'});
 			}
 			else
@@ -223,7 +223,7 @@ $(function() {
 
 	function AbortScriptChange()
 	{
-		$('#fileViewer').dialog('close');
+		$('#fileViewer').fppDialog('close');
 	}
 
 </script>

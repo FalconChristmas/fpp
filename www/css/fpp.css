@@ -449,6 +449,13 @@ input[type=range]::-webkit-slider-thumb {
 #playerModeInfo .statusBoxRight, #settingsManager .statusBoxRight {
 	float:right;
 }
+#settingsManager .tr{
+	align-items: center;
+	display: flex;
+}
+#settingsManager .th{
+	font-weight: bold;
+}
 #schedulerInfo{
 	display: flex;
 }
@@ -503,7 +510,7 @@ hr {
 	background-color: #ECECEC;
 	border-radius:8px;
 	padding:1.1em;
-	margin-top: 1.5em;
+	
 	width: 100%;
 }
 .playlistEntriesBody{
@@ -527,12 +534,19 @@ hr {
 .tblPlaylistContainer.tblPlaylistActive{
 	display: block;
 }
-.PlaylistRowPlaying,.fileDetails.selectedEntry{
+.PlaylistRowPlaying{
 	color: #fff;
 	background-color: #56B760;
 }
-.playlistSelectedEntry{
-	background-color: #D6D6D6;
+.tblPlaylistWrap{
+	padding: 1.5em;
+	background-color: #f5f5f5;
+	border-radius: 10px;
+	margin-top: 1.5em;
+}
+.playlistSelectedEntry, .playlistSelectedEntry.PlaylistRowPlaying, .fileDetails.selectedEntry{
+	color:#000;
+	background-color: #C5D6F9;
 }
 #playlistDetails table{
 	border:0;
@@ -1358,7 +1372,9 @@ input[type=search].tablesorter-filter:disabled{
 .schStopType{
 	width: 138px;
 }
-
+.modal.no-close button.close{
+	display: none;
+}
 
 #tblSequences {
 	width: 100%;

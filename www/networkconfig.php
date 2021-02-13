@@ -296,18 +296,18 @@ function LoadDNSConfig()
 
 function ApplyNetworkConfig()
 {
-	$('#dialog-confirm').dialog({
+	$('#dialog-confirm').fppDialog({
 		resizeable: false,
 		height: 300,
 		width: 500,
 		modal: true,
 		buttons: {
 			"Yes" : function() {
-				$(this).dialog("close");
+				$(this).fppDialog("close");
 				$.get("fppjson.php?command=applyInterfaceInfo&interface=" + $('#selInterfaces').val());
 				},
 			"Cancel and apply at next reboot" : function() {
-				$(this).dialog("close");
+				$(this).fppDialog("close");
 				}
 			}
 		});
@@ -358,32 +358,32 @@ function SaveNetworkConfig()
 }
 
 function CreatePersistentNames() {
-    $('#dialog-create-persistent').dialog({
+    $('#dialog-create-persistent').fppDialog({
         resizeable: false,
         height: 300,
         width: 500,
         modal: true,
         buttons: {
             "Yes" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
                 SetRebootFlag();
                 $.post("api/network/presisentNames", "", function() {location.reload(true);});
             },
             "No" : function() {
-            $(this).dialog("close");
+            $(this).fppDialog("close");
             }
         }
     });
 }
 function ClearPersistentNames() {
-    $('#dialog-clear-persistent').dialog({
+    $('#dialog-clear-persistent').fppDialog({
         resizeable: false,
         height: 300,
         width: 500,
         modal: true,
         buttons: {
             "Yes" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
                 SetRebootFlag();
                 $.ajax( {
                   type: "DELETE",
@@ -393,7 +393,7 @@ function ClearPersistentNames() {
                 });
             },
             "No" : function() {
-            $(this).dialog("close");
+            $(this).fppDialog("close");
             }
         }
     });

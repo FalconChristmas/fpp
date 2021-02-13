@@ -1947,7 +1947,7 @@ GetBackupDevices();
         $('#dataProtect').click(function () {
             var checked = $(this).is(':checked');
             if (!checked) {
-                $("#dialog").dialog({
+                $("#dialog").fppDialog({
                     width: 580,
                     height: 280
                 });
