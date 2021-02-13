@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <?php
-require_once("common.php");
+require_once "common.php";
 ?>
 <head>
-<?php include 'common/menuHead.inc'; ?>
+<?php include 'common/menuHead.inc';?>
 <script language="Javascript">
 
 function outputOption(val, def) {
@@ -13,14 +13,14 @@ function outputOption(val, def) {
         html += " selected"
     }
     html += ">" + val + "</option>";
-    
+
     return html;
 }
 
 function HTMLForOutputProcessorConfig(output) {
     var html = "";
     var type = output.type;
-    
+
     if (type == "Remap") {
         html += "Source Channel: <input class='source' type=text  size='7' maxlength='7' value='" + output.source + "'/>&nbsp;"
                   + "Destination: <input class='destination' type=text size='7' maxlength='7' value='" + output.destination + "'/>&nbsp;"
@@ -86,7 +86,7 @@ function PopulateOutputProcessorTable(data) {
 	for (var i = 0; i < data.outputProcessors.length; i++) {
         var output = data.outputProcessors[i];
         var type = output.type;
-        
+
 		var html =
 			"<tr id='row" + i + "' class='fppTableRow'>" +
             "<td>" + (i+1) + "</td>" +
@@ -98,7 +98,7 @@ function PopulateOutputProcessorTable(data) {
 		html += "></td>"
             + "<td>" + type + "</td>"
             + "<td><input class='description' type='text' size='32' maxlength='64' value='" + output.description + "'></td><td>";
-        
+
         html += HTMLForOutputProcessorConfig(output);
 		html += "</td></tr>";
 
@@ -107,13 +107,14 @@ function PopulateOutputProcessorTable(data) {
 }
 
 function GetOutputProcessors() {
-	$.getJSON("fppjson.php?command=getOutputProcessors", function(data) {
+	$.getJSON("api/channel/output/processors", function(data) {
 		PopulateOutputProcessorTable(data);
-	});
+	}).fail(function(){
+        DialogError("Error", "Failed to load Output Processors");
+    });
 }
 
 function SetOutputProcessors() {
-	var postData = "";
 	var dataError = 0;
 	var data = {};
 	var processors = [];
@@ -240,7 +241,6 @@ function SetOutputProcessors() {
             }
         }
 
-
         rowNumber++;
 
 	});
@@ -249,21 +249,22 @@ function SetOutputProcessors() {
 		return;
 
 	data.outputProcessors = processors;
-    
-	postData = "command=setOutputProcessors&data={ " + JSON.stringify(data) + " }";
 
-	$.post("fppjson.php", postData).done(function(data) {
-		$.jGrowl("Output Processors Table saved");
-		PopulateOutputProcessorTable(data);
-		SetRestartFlag(2);
-	}).fail(function() {
-		DialogError("Save Output Processors Table", "Save Failed");
-	});
+	$.post({
+        url:"api/channel/output/processors",
+        data: JSON.stringify(data)}
+        ).done(function(data) {
+		    $.jGrowl("Output Processors Table saved");
+		    PopulateOutputProcessorTable(data);
+		    SetRestartFlag(2);
+	    }).fail(function() {
+		    DialogError("Save Output Processors Table", "Save Failed");
+	    });
 }
 
 function AddOtherTypeOptions(row, type) {
     var config = "";
-    
+
     if (type == "Remap") {
         var b = {
             type: "Remap",
@@ -317,7 +318,7 @@ function AddOtherTypeOptions(row, type) {
         config += HTMLForOutputProcessorConfig(b);
     }
 
-    
+
     row.find("td:nth-child(5)").html(config);
 }
 function ProcessorTypeSelected(selectbox) {
@@ -392,11 +393,11 @@ $(document).tooltip();
 
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php include 'menu.inc'; ?>
+		<?php include 'menu.inc';?>
 		<br/>
 
 		<div id="time" class="settings">
@@ -430,7 +431,7 @@ $(document).tooltip();
 			</fieldset>
 		</div>
 
-	<?php	include 'common/footer.inc'; ?>
+	<?php	include 'common/footer.inc';?>
 	</div>
 </body>
 </html>

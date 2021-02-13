@@ -17,8 +17,8 @@ $_SESSION['session_id'] = session_id();
 
 
 $command_array = Array(
-	"getOutputProcessors" => 'GetOutputProcessors',
-	"setOutputProcessors" => 'SetOutputProcessors',
+	//"getOutputProcessors" => 'GetOutputProcessors', // replaced by GET /api/channel/output/processors
+	//"setOutputProcessors" => 'SetOutputProcessors', // replaced by POST /api/channel/output/processors
 	"getChannelOutputs"   => 'GetChannelOutputs',
 	"setChannelOutputs"   => 'SetChannelOutputs',
 	"setUniverses"        => 'SetUniverses',
@@ -861,34 +861,6 @@ function SetAudioOutput($card)
         }
     }
 	return $card;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-function GetOutputProcessors()
-{
-	global $settings;
-
-	$jsonStr = "";
-
-	if (file_exists($settings['outputProcessorsFile'])) {
-		$jsonStr = file_get_contents($settings['outputProcessorsFile']);
-	}
-
-	returnJSONStr($jsonStr);
-}
-
-function SetOutputProcessors()
-{
-	global $settings;
-	global $args;
-
-	$data = stripslashes($args['data']);
-	$data = prettyPrintJSON(substr($data, 1, strlen($data) - 2));
-
-	file_put_contents($settings['outputProcessorsFile'], $data);
-
-	GetOutputProcessors();
 }
 
 /////////////////////////////////////////////////////////////////////////////
