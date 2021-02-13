@@ -216,7 +216,8 @@ body .ui-tabs .ui-tabs-nav li {
 	vertical-align: middle;
 	margin-left: 0.6em;
 	margin-right: 0.6em;
-	padding-top: 16px;
+	/*  */
+	text-align: center;
 }
 #header_IPs small{
 	font-size: 1.05em;

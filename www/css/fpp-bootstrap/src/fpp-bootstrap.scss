@@ -309,13 +309,28 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
         background-repeat: no-repeat;
         background-size: 22px;
         height: 20px * 0.85;
+        padding-top: 16px;
     }
 }
-.ip-net{
+.ip-net-connected{
     background:url(/images/redesign/ethernet-connected.svg);
     background-repeat: no-repeat;
     background-size: 17px;
+    padding-top: 16px;
 }
+.ip-net-downdhcp{
+    background:url(/images/redesign/ethernet-down-dhcp.svg);
+    background-repeat: no-repeat;
+    background-size: 17px;
+    padding-top: 16px;
+}
+.ip-net-downstatic{
+    background:url(/images/redesign/ethernet-down-static.svg);
+    background-repeat: no-repeat;
+    background-size: 17px;
+    padding-top: 16px;
+}
+
 .form-group.flow{
     label{
         display: block;

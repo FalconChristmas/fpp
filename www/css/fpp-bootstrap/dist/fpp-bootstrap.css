@@ -7124,30 +7124,47 @@ input[type=checkbox]:checked {
   background: url(/images/redesign/wifi-excellent.svg);
   background-repeat: no-repeat;
   background-size: 22px;
-  height: 17px; }
+  height: 17px;
+  padding-top: 16px; }
 
 .wifi-good {
   background: url(/images/redesign/wifi-good.svg);
   background-repeat: no-repeat;
   background-size: 22px;
-  height: 17px; }
+  height: 17px;
+  padding-top: 16px; }
 
 .wifi-fair {
   background: url(/images/redesign/wifi-fair.svg);
   background-repeat: no-repeat;
   background-size: 22px;
-  height: 17px; }
+  height: 17px;
+  padding-top: 16px; }
 
 .wifi-weak {
   background: url(/images/redesign/wifi-weak.svg);
   background-repeat: no-repeat;
   background-size: 22px;
-  height: 17px; }
+  height: 17px;
+  padding-top: 16px; }
 
-.ip-net {
+.ip-net-connected {
   background: url(/images/redesign/ethernet-connected.svg);
   background-repeat: no-repeat;
-  background-size: 17px; }
+  background-size: 17px;
+  padding-top: 16px; }
+
+.ip-net-downdhcp {
+  background: url(/images/redesign/ethernet-down-dhcp.svg);
+  background-repeat: no-repeat;
+  background-size: 17px;
+  padding-top: 16px; }
+
+.ip-net-downstatic {
+  background: url(/images/redesign/ethernet-down-static.svg);
+  background-repeat: no-repeat;
+  background-size: 17px;
+  padding-top: 16px; }
 
 .form-group.flow label {
   display: block; }

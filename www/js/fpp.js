@@ -1013,14 +1013,22 @@ function LoadNetworkDetails() {
             if (e.ifname === "lo") { return 0; }
             if (e.ifname.startsWith("eth0:0")) { return 0; }
             if (e.ifname.startsWith("usb")) { return 0; }
-            if (e.ifname.startsWith("SoftAp")) { return 0; }
             if (e.ifname.startsWith("can.")) { return 0; }
             e.addr_info.forEach(function (n) {
-                if (n.family === "inet") {
-                    var row = '<span title="IP: ' + n.local + '" class="ip-net net-' + e.ifname + '"><small>' + e.ifname + '</small></span>';
-                    if ("wifi" in e) {
-                        row = '<span title="IP: ' + n.local + ', Strength:' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp"))) {
+                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }else if (n.family === "inet" && "wifi" in e) {
+                    var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                    rc.push(row); 
+                }else if (n.family === "inet") {
+                    var icon = "connected";
+                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
+                        icon = "downdhcp";
+                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
+                        icon = "downstatic";
                     }
+                    var row = '<span title="IP: ' + n.local + '" class="ip-net-'+icon+' net-' + e.ifname + '"><small>' + e.ifname + '</small></span>';
                     rc.push(row);
                 }
             });

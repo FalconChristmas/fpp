@@ -193,7 +193,7 @@ function RebuildFPPD() {
   <div id="compileFPPDBanner" class="alert alert-danger"><span class='inlineBlock'>FPPD not found. Rebuild required</span><span class='inlineBlock'><input name="btnRebuild" onClick="RebuildFPPD();" type="button" class = "buttons btn-outline-light" value="Rebuild"></span></div>
 <? } ?>
   <div id='unsupportedBrowser' class="alert alert-danger">FPP will not work with this browser.  Chrome, Firefox, or Edge is strongly recommended.</div>
-  <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed.Reboot Required</span><span class='inlineBlock'><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons btn-outline-light" value="Reboot">
+  <div id='rebootFlag' class="alert detract"><span class='inlineBlock'>Base configuration has changed. Reboot Required</span><span class='inlineBlock'><input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons btn-outline-light" value="Reboot">
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
   {
