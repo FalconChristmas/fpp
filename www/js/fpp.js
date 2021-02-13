@@ -2568,6 +2568,13 @@ function moveFile(file) {
                             response.warnings = [];
                         }
                         response.warnings.push('FPPD Daemon is not running');
+
+                        $.get("api/system/volume"
+                        ).done(function(data){
+                            updateVolumeUI(parseInt(data.volume));
+                        }).fail(function(){
+                            DialogError('Volume Query Failed', "Failed to query Volume when FPPD stopped");
+                        });
 						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
@@ -2645,6 +2652,14 @@ function updateWarnings(jsonStatus) {
         return "Unknown Mode";
     }
 
+function updateVolumeUI(Volume) {
+    $('#volume').html(Volume);
+    $('#remoteVolume').html(Volume);
+    $('#slider').slider('value', Volume);
+    $('#remoteVolumeSlider').slider('value', Volume);
+    SetSpeakerIndicator(Volume);
+}
+
     var firstStatusLoad = 1;
     
 	function parseStatus(jsonStatus) {
@@ -2664,12 +2679,7 @@ function updateWarnings(jsonStatus) {
 			$('#daemonStatus').html("FPPD is running.");
 		}
 
-		var Volume = parseInt(jsonStatus.volume);
-		$('#volume').html(Volume);
-        $('#remoteVolume').html(Volume);
-		$('#slider').slider('value', Volume);
-        $('#remoteVolumeSlider').slider('value', Volume);
-		SetSpeakerIndicator(Volume);
+        updateVolumeUI(parseInt(jsonStatus.volume));
 
         AdjustFPPDModeFromStatus(fppMode);
 	if (jsonStatus.hasOwnProperty('MQTT')) {
@@ -3767,13 +3777,19 @@ function SelectPlaylistDetailsEntryRow(index)
 		PlayEntrySelected  = index;
 }
 
-function SetVolume(value)
-{
-			var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=setVolume&volume=" + value;
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.send();
+function SetVolume(value) {
+    var obj = {
+        volume: value
+    };
+    $.post({
+        url: "api/system/volume",
+        data: JSON.stringify(obj)
+    }
+    ).done(function (data) {
+        // Nothing
+    }).fail(function () {
+        DialogError("ERROR", "Failed to set volume to " + value);
+    })
 }
 
 function SetFPPDmode()

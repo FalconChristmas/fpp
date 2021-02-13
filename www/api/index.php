@@ -111,6 +111,8 @@ dispatch_get   ('/system/fppd/stop', 'StopFPPD');
 dispatch_get   ('/system/reboot', 'RebootDevice');
 dispatch_get   ('/system/releaseNotes/:version', 'ViewReleaseNotes');
 dispatch_get   ('/system/shutdown', 'SystemShutdownOS');
+dispatch_get   ('/system/volume', 'SystemGetAudio');
+dispatch_post  ('/system/volume', 'SystemSetAudio');
 
 dispatch_get   ('/time', 'GetTime');
 

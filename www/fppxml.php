@@ -47,14 +47,14 @@ $command_array = Array(
 	"restartFPPD" => 'RestartFPPD', // retained for xLights and Multisync
 	// "startPlaylist" => 'StartPlaylist',  // use Command API Instead
 	"rebootPi" => 'RebootPi', // Used my MultiSync
-	"shutdownPi" => 'ShutdownPi',
+	"shutdownPi" => 'ShutdownPi', // Kept for Multisync
 	//"changeGitBranch" => 'ChangeGitBranch', // Deprecated use changebranch.php?
 	// "upgradeFPPVersion" => 'UpgradeFPPVersion', Replaced by upgradefpp.php?
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
-	// "resetGit" => 'ResetGit', // use GET /git/reset
-	"setVolume" => 'SetVolume',
+	// "resetGit" => 'ResetGit', // use GET /api/git/reset
+	// "setVolume" => 'SetVolume', // use POST /api/system/volume
 	"setFPPDmode" => 'SetFPPDmode', // Legacy. Should use PUT /api/settings/fppMode
-	"getVolume" => 'GetVolume',
+	// "getVolume" => 'GetVolume', // use GET /api/system/volume
 	//"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"getFPPDmode" => 'GetFPPDmode', // Replaced by /api/settings/fppMode
@@ -120,70 +120,6 @@ function RebootPi()
 	EchoStatusXML($status);
 }
 
-function SetVolume()
-{
-	global $SUDO;
-	global $settings;
-
-	$volume = $_GET['volume'];
-	check($volume, "volume", __FUNCTION__);
-
-	if ($volume == "NaN")
-		$volume = 75;
-
-	WriteSettingToFile("volume",$volume);
-
-	$vol = intval ($volume);
-	if ($vol>100)
-		$vol = "100";
-
-	$status=SendCommand('v,' . $vol . ',');
-
-	$card = 0;
-	if (isset($settings['AudioOutput']))
-	{
-		$card = $settings['AudioOutput'];
-	}
-	else
-	{
-		exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-		if ( $return_val )
-		{
-			// Should we error here, or just move on?
-			// Technically this should only fail on non-pi
-			// and pre-0.3.0 images
-			error_log("Error retrieving current sound card, using default of '0'!");
-		}
-		else
-			$card = $output[0];
-
-		WriteSettingToFile("AudioOutput", $card);
-	}
-
-
-	$mixerDevice = "PCM";
-	if (isset($settings['AudioMixerDevice']))
-	{
-		$mixerDevice = $settings['AudioMixerDevice'];
-	}
-	else
-	{
-		unset($output);
-		exec($SUDO . " amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
-		$mixerDevice = $output[0];
-		WriteSettingToFile("AudioMixerDevice", $mixerDevice);
-	}
-
-    if ( $card == 0 && $settings['Platform'] == "Raspberry Pi" && $settings['AudioCard0Type'] == "bcm2") {
-        $vol = 50 + ($vol/2.0);
-    }
-
-	// Why do we do this here and in fppd's settings.c
-	$status=exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
-
-	EchoStatusXML($status);
-}
-
 function SetFPPDmode()
 {
 	$mode_string['0'] = "unknown";
@@ -195,19 +131,6 @@ function SetFPPDmode()
 	check($mode, "mode", __FUNCTION__);
 	WriteSettingToFile("fppMode",$mode_string["$mode"]);
 	EchoStatusXML("true");
-}
-
-function GetVolume()
-{
-	$volume = ReadSettingFromFile("volume");
-	if ($volume == "")
-		$volume = 75;
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('Volume');
-	$root = $doc->appendChild($root);
-	$value = $doc->createTextNode($volume);
-	$value = $root->appendChild($value);
-	echo $doc->saveHTML();
 }
 
 function ShutdownPi()

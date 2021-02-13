@@ -1514,6 +1514,28 @@
                     }
                 }
             }
+        },
+        {
+            "endpoint": "system/volume",
+            "methods": {
+                "GET": {
+                    "desc": "Returns the Current volume if FPPD is running or the Volume Setting if not",
+                    "output": {
+                        "status": "OK",
+                        "method": "FPPD",
+                        "volume": 70
+                    }
+                },
+                "POST": {
+                    "desc": "Sets the volume.  The volume should be passed as a JSON message.",
+                    "input": {
+                        "volume": 34
+                    },
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
         }
     ]
 }
