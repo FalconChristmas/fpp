@@ -144,17 +144,6 @@ function printTetheringInterfaces() {
     }
     PrintSettingSelect("Tether Interface", "TetherInterface", 0, 1, $tiface, $tinterfaces);
 }
-function printWifiNetworks() {
-    $networksRaw = explode("\n",trim(shell_exec("connmanctl services | grep wifi | perl -nle 'm/\s+(.*)\s+wifi_.*/; print $1 if $1'")));
-    echo "<datalist id='eth_ssids'>\n";
-    foreach ($networksRaw as $iface) {
-        $if2 = explode(" ", $iface);
-        if ($if2[0] != "" && $if2[0] != "Wired") {
-            echo "<option value='$if2[0]'>\n";
-        }
-    }
-    echo "</datalist>\n";
-}
     
 ?>
 <script>
@@ -163,6 +152,7 @@ function WirelessSettingsVisible(visible)
 {
   if(visible == true)
   {
+    LoadSIDS($('#selInterfaces').val());
     $("#WirelessSettings").show();
   }
   else
@@ -285,6 +275,33 @@ function GetDNSInfo(data)
 	}
 
 	CheckDNS();
+}
+
+function onlyUnique(value, index, self) {
+  return self.indexOf(value) === index;
+}
+
+function LoadSIDS(interface) {
+  $.get("http://fpptest/api/network/wifi/scan/" + interface
+  ).done(function(data){
+    var ssids = [];
+    data.networks.forEach(function(n){
+      if (n.SSID != "") {
+        ssids.push(n.SSID);
+      }
+    });
+    ssids = ssids.filter(onlyUnique);
+    ssids.sort();
+    html=[];
+    ssids.forEach(function(n){
+      html.push("<option value='");
+      html.push(n);
+      html.push("'>");
+    });
+    $("#eth_ssids").html(html.join(''));
+  }).fail(function(){
+    DialogError("Scan Failed", "Failed to Scan for wifi networks");
+  });
 }
 
 function LoadDNSConfig()
@@ -674,7 +691,7 @@ function showHidePassword(id) {
               <table width = "100%" border="0" cellpadding="1" cellspacing="1">
                 <tr>
                   <td width = "25%">WPA SSID:</td>
-                  <td width = "75%"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><? printWifiNetworks(); ?>&nbsp;<input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
+                  <td width = "75%"><input list="eth_ssids" name="eth_ssid" id="eth_ssid" size="32" maxlength="32"><datalist id='eth_ssids'></datalist><input type="checkbox" name="eth_hidden" id="eth_hidden" value="Hidden">Hidden</td>
                 </tr>
                 <tr>
                   <td>WPA Pre Shared key (PSK):</td><td><input type="password" name="eth_psk" id="eth_psk" size="32" maxlength="64">&nbsp;<input id="eth_psk_showHideButton" type="button" class="buttons" value="Show" onclick="showHidePassword('eth_psk')"></td>

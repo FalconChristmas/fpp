@@ -29,7 +29,7 @@ function network_wifi_strength()
 function network_wifi_scan()
 {
 	$networks = array();
-	$current = array();
+	$current = FALSE;
 	$interface = params('interface');
 
 	# Validate interface.   -- Important because of SUDO
@@ -50,7 +50,9 @@ function network_wifi_scan()
 	exec($cmd, $output);
 	foreach ($output as $row) {
 		if (startsWith($row, "BSS")) {
-			array_push($networks, $current);
+			if ($current !== FALSE) {
+				array_push($networks, $current);
+			}
 			$current = array();
 		} else if (preg_match('/freq: (.*)/', $row, $matches)) {
 			$current['freq'] = intval($matches[1]);
