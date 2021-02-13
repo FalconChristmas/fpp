@@ -42,4 +42,29 @@ function script_run()
     return $request_content;
 }
 
+// GET /api/scripts/viewRemote/:category/:filename
+function scripts_view_remote()
+{
+	$category = params('category');
+	$filename = params('filename');
+
+	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
+
+	echo $script;
+}
+
+function scripts_install_remote()
+{
+	global $fppDir, $SUDO;
+	global $scriptDirectory;
+
+    $category = params('category');
+	$filename = params('filename');
+
+	exec("$SUDO $fppDir/scripts/installScript \"$category\" \"$filename\"");
+
+    return json(array("status" => "OK"));
+}
+
+
 ?>

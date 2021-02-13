@@ -100,6 +100,8 @@ dispatch_get   ('/settings/:SettingName/options', 'GetOptions');
 dispatch_put   ('/settings/:SettingName', 'PutSetting');
 
 dispatch_get   ('/scripts', 'scripts_list');
+dispatch_get   ('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
+dispatch_get   ('/scripts/viewRemote/:category/:filename', 'scripts_view_remote');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 

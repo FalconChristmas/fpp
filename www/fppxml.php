@@ -34,8 +34,8 @@ $command_array = Array(
 	"deleteUniverse" => 'DeleteUniverse',
 	"cloneUniverse" => 'CloneUniverse',
 	// "viewReleaseNotes" => 'ViewReleaseNotes',  // use GET /api/system/releaseNotes/:version
-	"viewRemoteScript" => 'ViewRemoteScript',
-	"installRemoteScript" => 'InstallRemoteScript',
+	// "viewRemoteScript" => 'ViewRemoteScript', // GET /api/scripts/viewRemote/:category/:filename
+	//"installRemoteScript" => 'InstallRemoteScript', //GET /api/script/install/:category/:filename
 	"moveFile" => 'MoveFile', // DEPRECATED. Saved for xLights uploads
 	"isFPPDrunning" => 'IsFPPDrunning',
 	// "getFPPstatus" => 'GetFPPstatus', use GET /api/fppd/status instead
@@ -216,35 +216,6 @@ function ShutdownPi()
 
 	$status=exec($SUDO . " shutdown -h now");
 	EchoStatusXML($status);
-}
-
-function ViewRemoteScript()
-{
-	$category = $_GET['category'];
-	check($category, "category", __FUNCTION__);
-
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$script = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/" . $category . "/" . $filename);
-
-	echo $script;
-}
-
-function InstallRemoteScript()
-{
-	global $fppDir, $SUDO;
-	global $scriptDirectory;
-
-	$category = $_GET['category'];
-	check($category, "category", __FUNCTION__);
-
-	$filename = $_GET['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	exec("$SUDO $fppDir/scripts/installScript $category $filename");
-
-	EchoStatusXML('Success');
 }
 
 function MoveFile()

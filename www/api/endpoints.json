@@ -1263,6 +1263,56 @@
             }
         },
         {
+            "endpoint": "scripts",
+            "methods": {
+                "GET": {
+                    "desc": "Return a list of currently installed scripts",
+                    "output": [
+                        "script1.sh",
+                        "script2.sh"
+                    ]
+                }
+            }
+        },
+        {
+            "endpoint": "scripts/installRemote/:category/:filename",
+            "methods": {
+                "GET": {
+                    "desc": "Install a remote script from the script repository",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "scripts/viewRemote/:category/:filename",
+            "methods": {
+                "GET": {
+                    "desc": "View the source code of a remote script",
+                    "output": "The content of the script as a string"
+                }
+            }
+        },
+        {
+            "endpoint": "/scripts/:scriptName",
+            "methods": {
+                "GET": {
+                    "desc": "View the source code of an already installed script",
+                    "output": "The content of the script as a string"
+                }
+            }
+        },
+        {
+            "endpoint": "/scripts/:scriptName/run",
+            "methods": {
+                "GET": {
+                    "desc": "Run a locally installed Script",
+                    "output": "The output of the script as a String"
+                }
+            }
+        },
+        {
             "endpoint": "sequence",
             "methods": {
                 "GET": {

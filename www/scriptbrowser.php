@@ -35,7 +35,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 		$('#dialog-help').dialog({ height: 600, width: 800, title: "Script Viewer" });
 		$('#dialog-help').dialog( "moveToTop" );
 
-		$.get("fppxml.php?command=viewRemoteScript&category=" + category + "&filename=" + filename
+		$.get("api/scripts/viewRemote/" + encodeURIComponent(category) + "/" + encodeURIComponent(filename)
 		).done(function(data) {
 			$('#helpText').html("<pre>" + data.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 		}).fail(function() {
@@ -44,7 +44,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 	}
 
   function InstallRemoteScript(category, filename) {
-		$.get("fppxml.php?command=installRemoteScript&category=" + category + "&filename=" + filename
+		$.get("api/scripts/installRemote/" + encodeURIComponent(category) + "/" + encodeURIComponent(filename)
 		).done(function() {
 			$.jGrowl("Script installed.");
 		}).fail(function() {
