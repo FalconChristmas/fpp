@@ -250,8 +250,8 @@ tr.rowScheduleDetails td {
       
       <div>
           <div style="overflow: hidden; padding: 10px;">
-          <div>
-            <div class='aboutLeft'>
+          <div class="row">
+            <div class="aboutLeft col-md">
               <table class='tblAbout'>
                 <tr><td><b>Version Info</b></td><td>&nbsp;</td></tr>
                 <tr><td>FPP Version:</td><td id='fppVersion'><? echo $fpp_version; ?></td></tr>
@@ -325,10 +325,9 @@ tr.rowScheduleDetails td {
                 <tr><td colspan='2'><? echo $uptime; ?></td></tr>
     
               </table>
+              <br/>
             </div>
-            <div class='aboutCenter'>
-            </div>
-            <div class='aboutRight'>
+            <div class="aboutRight col-md">
               <table class='tblAbout'>
                 <tr><td><b>Player Stats</b></td><td>&nbsp;</td></tr>
                 <tr><td>Playlists:</td><td><a href='playlists.php' class='nonULLink'><? echo getFileCount($playlistDirectory); ?></a></td></tr>
