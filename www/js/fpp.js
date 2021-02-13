@@ -3408,22 +3408,29 @@ function StartPlaylistNow() {
     });
 }
 
-function StopEffect()
-{
-	if (RunningEffectSelectedId < 0)
-		return;
+function StopEffect() {
+    if (RunningEffectSelectedId < 0)
+        return;
 
-	var url = "fppxml.php?command=stopEffect&id=" + RunningEffectSelectedId;
-	var xmlhttp=new XMLHttpRequest();
-	xmlhttp.open("GET",url,false);
-	xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-	xmlhttp.send();
+    var msg = {
+        "command": "Effect Stop",
+        "args": [
+            "block_driveways"
+        ]
+    };
 
-	RunningEffectSelectedId = -1;
-	RunningEffectSelectedName = "";
-	SetButtonState('#btnStopEffect','disable');
-
-	GetRunningEffects();
+    $.post({
+        url: "api/command",
+        data: JSON.stringify(msg)
+    }).done(function (data) {
+        RunningEffectSelectedId = -1;
+        RunningEffectSelectedName = "";
+        SetButtonState('#btnStopEffect', 'disable');
+        GetRunningEffects();
+    }).fail(function () {
+        DialogError('Command failed', 'Call to Sop Effect Failed');
+        GetRunningEffects();
+    });
 }
 
 var gblLastRunningEffectsXML = "";

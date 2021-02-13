@@ -58,9 +58,9 @@ $command_array = Array(
 	//"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"getFPPDmode" => 'GetFPPDmode', // Replaced by /api/settings/fppMode
-	"playEffect" => 'PlayEffect',
-	"stopEffect" => 'StopEffect',
-	"stopEffectByName" => 'StopEffectByName',
+	//"playEffect" => 'PlayEffect', // Use Command API
+	//"stopEffect" => 'StopEffect', // Use Command API
+	//"stopEffectByName" => 'StopEffectByName', // Use Command API
 	//"deleteEffect" => 'DeleteEffect', // never implemented
 	"getRunningEffects" => 'GetRunningEffects',
 	"triggerEvent" => 'TriggerEvent',
@@ -218,37 +218,6 @@ function IsFPPDrunning()
 	if ($status == "false")
 		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
-}
-
-function PlayEffect()
-{
-	$effect = $_GET['effect'];
-	check($effect, "effect", __FUNCTION__);
-	$startChannel = $_GET['startChannel'];
-
-	$loop = 0;
-	if (isset($_GET['loop']))
-		$loop = $_GET['loop'];
-
-	check($startChannel, "startChannel", __FUNCTION__);
-	$status = SendCommand("e," . $effect . "," . $startChannel . "," . $loop. ",");
-	EchoStatusXML('Success');
-}
-
-function StopEffect()
-{
-	$id = $_GET['id'];
-	check($id, "id", __FUNCTION__);
-	$status = SendCommand("StopEffect," . $id . ",");
-	EchoStatusXML('Success');
-}
-
-function StopEffectByName()
-{
-	$effect = $_GET['effect'];
-	check($effect, "effect", __FUNCTION__);
-	$status = SendCommand("StopEffectByName," . $effect . ",");
-	EchoStatusXML('Success');
 }
 
 function GetRunningEffects()
