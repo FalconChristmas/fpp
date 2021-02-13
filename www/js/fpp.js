@@ -1015,7 +1015,7 @@ function LoadNetworkDetails() {
             if (e.ifname.startsWith("usb")) { return 0; }
             if (e.ifname.startsWith("can.")) { return 0; }
             e.addr_info.forEach(function (n) {
-                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp"))) {
+                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
                     var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
                     rc.push(row);
                 }else if (n.family === "inet" && "wifi" in e) {
