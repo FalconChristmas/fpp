@@ -210,8 +210,8 @@ include 'common/menuHead.inc';
             <!-- Main FPP Mode/status/time header w/ sensor info -->
             <div id='daemonControl' class='statusDiv'>
                 <div class='statusBoxLeft'>
-                    <div class='statusTable'>
-                        <div>
+                    <div class='statusTable row'>
+                        <div class="col-md">
                             <div class="labelHeading labelHeadingFPPDMode">FPPD Mode:</div>
                             <div>
                                 <select id="selFPPDmode" onChange="SetFPPDmode();">
@@ -223,15 +223,15 @@ include 'common/menuHead.inc';
                                 <input type="button" id="btnDaemonControl" class ="buttons btn-outline-light" value="" onClick="ControlFPPD();">
                                 </div>
                         </div>
-                        <div>
+                        <div class="col-md">
                             <div class="labelHeading">FPPD Status:</div>
                             <div id = "daemonStatus" class="labelValue"></div>
                         </div>
-                        <div>
+                        <div class="col-md">
                             <div class="labelHeading">FPP Time:</div>
                             <div id="fppTime" class="labelValue"></div>
                         </div>
-                        <div id="mqttRow">
+                        <div id="mqttRow" class="col-md">
                             <div class="labelHeading">MQTT:</div>
                             <div id="mqttStatus" class="labelValue"></div>
                         </div>
@@ -436,25 +436,25 @@ include 'common/menuHead.inc';
                 <hr>
                 <div id='schedulerInfo'>
                     <div class='statusBoxLeft'>
-                        <div class='statusTable'>
-                            <div>
+                        <div class='statusTable row'>
+                            <div class="col-md-3">
                                 <div class="labelHeading">Scheduler Status:</div>
                                 <div class="labelValue"><span id='schedulerStatus'></span>
                                     &nbsp;&nbsp;<input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></div>
                             </div>
-                            <div>
+                            <div class="col-md-3">
                                 <div class="labelHeading">Next Playlist: </div>
                                 <div id='nextPlaylist' class="labelValue"></div>
                             </div>
-                            <div>
+                            <div class="col-md-2">
                                 <div class='labelHeading schedulerStartTime'>Started at:</div>
                                 <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
                             </div>
-                            <div>
+                            <div class="col-md-2">
                                 <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
                                 <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
                             </div>
-                            <div class="schedulerExtend schedulerEndTime">
+                            <div class="schedulerExtend schedulerEndTime col-md-2">
                                 <div class="labelHeading">Extend Current Playlist:</div>
                                 <div class='labelValue' colspan='2'>
                                     <input type='button' value='Extend' class="buttons" onClick='ExtendSchedulePopup();'>

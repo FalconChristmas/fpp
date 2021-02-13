@@ -345,6 +345,7 @@ body legend{
 	display: flex;
 	margin-top: 0.5em;
 	margin-bottom: 3em;
+	margin-left:0;
 }
 #daemonControl .statusTable > div{
 	margin-left: 2em;
@@ -665,12 +666,12 @@ border-top-color: transparent;
 #schedulerInfo .statusTable {
 	display: flex;	
 }
-#schedulerInfo .statusTable>div{
+/* #schedulerInfo .statusTable>div{
 	margin-left: 4em;
-}
+} 
 #schedulerInfo .statusTable>div:first-child{
 	margin-left: 0;
-}
+}*/
 .icon-help{
 	width: 28px;
 	height: 28px;
