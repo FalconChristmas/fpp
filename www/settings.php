@@ -267,9 +267,9 @@ $("#tabs").tabs( {
 });
 
 */
-$( function() {
+/* $( function() {
     SetupToolTips();
-});
+}); */
 /*
 $('#tabs').show();
 */

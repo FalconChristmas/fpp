@@ -26,6 +26,7 @@ var lastStatus = '';
 /* On Page Ready Functions */
 $(function() {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
+    SetupToolTips();
 });
 (function ( $ ) {
     $.fn.fppDialog = function( options ) {

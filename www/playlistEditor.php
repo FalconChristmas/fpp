@@ -192,7 +192,7 @@ function BranchTypeChanged() {
 
 $(document).ready(function() {
     allowMultisyncCommands = true;
-    SetupToolTips();
+    //SetupToolTips();
 	playlistEditorDocReady();
     LoadCommandList($('#commandSelect'));
     CommandSelectChanged('commandSelect', 'tblCommandBody');

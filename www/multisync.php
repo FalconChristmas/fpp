@@ -1404,7 +1404,7 @@ function multiActionChanged() {
 <script>
 
 $(document).ready(function() {
-    SetupToolTips();
+    //SetupToolTips();
 	getFPPSystems();
 
     var $table = $('#fppSystemsTable');
