@@ -63,9 +63,9 @@ $command_array = Array(
 	//"stopEffectByName" => 'StopEffectByName', // Use Command API
 	//"deleteEffect" => 'DeleteEffect', // never implemented
 	//"getRunningEffects" => 'GetRunningEffects',
-	"triggerEvent" => 'TriggerEvent',
-	"saveEvent" => 'SaveEvent',
-	"deleteEvent" => 'DeleteEvent',
+	//"triggerEvent" => 'TriggerEvent', // DEPRECATED
+	//"saveEvent" => 'SaveEvent', // DEPRECATED
+	//"deleteEvent" => 'DeleteEvent', // DEPRECATED
 	//"getFile" => 'GetFile', // Replaced by /api/file/
 	//"tailFile" => 'TailFile', // Replaced by api/file
 	//"saveUSBDongle" => 'SaveUSBDongle', replaced by PUT /api/settings/
@@ -218,68 +218,6 @@ function IsFPPDrunning()
 	if ($status == "false")
 		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
 	EchoStatusXML($status);
-}
-
-function GetExpandedEventID($id)
-{
-	check($id, "id", __FUNCTION__);
-
-	$majorID = preg_replace('/_.*/', '', $id);
-	$minorID = preg_replace('/.*_/', '', $id);
-
-	$filename = sprintf("%02d_%02d", $majorID, $minorID);
-
-	return $filename;
-}
-
-function TriggerEvent()
-{
-	$id = GetExpandedEventID($_GET['id']);
-
-	$status = SendCommand("t," . $id . ",");
-
-	EchoStatusXML($status);
-}
-
-function SaveEvent()
-{
-	global $eventDirectory;
-    $event = json_decode(file_get_contents("php://input"), true);
-    print_r($event);
-
-	$id = $event['id'];
-	check($id, "id", __FUNCTION__);
-
-	$ids = preg_split('/_/', $id);
-
-	if (count($ids) < 2)
-		return;
-
-    
-    $majorID = preg_replace('/_.*/', '', $id);
-    $minorID = preg_replace('/.*_/', '', $id);
-    $event['majorId'] = (int)$majorID;
-    $event['minorId'] = (int)$minorID;
-    unset($event['id']);
-    
-        
-	$id = GetExpandedEventID($id);
-	$filename = $id . ".fevt";
-
-    file_put_contents($eventDirectory . '/' . $filename, json_encode($event, JSON_PRETTY_PRINT));
-
-	EchoStatusXML('Success');
-}
-
-function DeleteEvent()
-{
-	global $eventDirectory;
-
-	$filename = GetExpandedEventID($_GET['id']) . ".fevt";
-
-	unlink($eventDirectory . '/' . $filename);
-
-	EchoStatusXML('Success');
 }
 
 
