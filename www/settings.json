@@ -220,8 +220,8 @@
         },
         "backgroundColor": {
             "name": "backgroundColor",
-            "description": "UI Border Color",
-            "tip": "The background border of the FPP User Interface can be changed to make it easier to distinguish visually between multiple installed FPP instances.",
+            "description": "Header Background Color",
+            "tip": "The header background color of the FPP User Interface can be changed to make it easier to distinguish visually between multiple installed FPP instances.",
             "reboot": 0,
             "restart": 0,
             "reloadUI": 1,
@@ -240,8 +240,7 @@
                 "Oliva":     "808000",
                 "Purple":    "800080",
                 "Silver":    "C0C0C0",
-                "Teal":      "008080",
-                "White":     "FFFFFF"
+                "Teal":      "008080"
             }
         },
         "BBBLedPWR": {

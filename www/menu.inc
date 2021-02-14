@@ -67,8 +67,7 @@ function list_plugin_entries($menu)
 }
 ?>
 
-  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
-  <div class="header">
+   <div class="header">
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="/">
@@ -83,16 +82,22 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo "<div class='headerHostName'><span>Host: </span><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a></div>" ;
+        //echo "<span>Host: </span><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
+        echo("<span class=\"headerHostName headerBox largeonly\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></small></span></span>");
     } else {
-        echo "<div class='headerHostName'>" . gethostname() . "</div>";
+        //echo "" . gethostname() . "&nbsp;";
+        echo("<span class=\"headerHostName headerBox largeonly\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small>".gethostname()."</small></span></span>");
     }
-
-    echo("<span id=\"header_IPs\"></span>");
+    $fpp_head_version_short = explode("-",$fpp_head_version)[0];
+    if($fpp_head_version_short[0] == "v") $fpp_head_version_short = substr($fpp_head_version_short,1);
+    echo("<span class=\"headerBox largeonly\" id=\"header_version\"><span title=\"".$fpp_head_version."\"><b>Ver</b><small>".$fpp_head_version_short."</small></span></span>");
+    echo("<span class=\"headerBox\" id=\"header_player\"></span>");
+    echo("<span class=\"headerBox largeonly\" id=\"header_sensors\"></span>");
+    echo("<span class=\"headerBox\" id=\"header_IPs\"></span>");
 ?>
 </div>
     </div>
-    <div class="headerRight">
+    <div class="headerRight largeonly">
 		  <?
             if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
 		    if ($settings['Logo'] != "") {
@@ -124,7 +129,8 @@ function list_plugin_entries($menu)
 		</div>
     
   </div>
-  <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
+  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
+  <div class='helpLinkDiv largeonly'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
   <div class="fppOuterContainer container">
     <div class="fppMenuContainer container">
@@ -329,6 +335,7 @@ function CheckBrowser() {
 $(document).ready(function() {
 	CheckBrowser();
 	LoadNetworkDetails();
+  LoadHeaderDetails();
 	$(document).on('keydown', handleKeypress);
 
 	CheckRestartRebootFlags();

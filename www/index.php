@@ -229,15 +229,12 @@ include 'common/menuHead.inc';
                             <div class="labelHeading">MQTT:</div>
                             <div id="mqttStatus" class="labelValue"></div>
                         </div>
-                    
-                    </div>
-                </div>
-                <div class='statusBoxRight'>
-                    <div id="sensorData">
+                        <div id="sensorData" class="col-md">
+                            
+                        </div>
                     </div>
                 </div>
                 <div class='clear'></div>
-             
             </div>
 
    

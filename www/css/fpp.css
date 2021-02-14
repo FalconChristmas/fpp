@@ -102,7 +102,21 @@ body .ui-tabs .ui-tabs-nav li {
 	border-bottom:1px solid #2D3043;
 	display: flex;
 	color:#fff;
+	background-color: #171720;
 }
+@media(min-width:990px){
+	.header{
+		position: fixed;
+		z-index: 1099;
+		left:0;
+		right:0;
+		top:0;
+	}
+	#bodyWrapper{
+		margin-top:64px;
+	}
+}
+
 .helpLinkDiv{
 	text-align: right;
 	padding: 0.5em;
@@ -231,21 +245,25 @@ body .ui-tabs .ui-tabs-nav li {
 	font-weight: bold;
 	padding-right: 1em;
 }
-#header_IPs span{
+
+.headerBox span {
 	display: inline-block;
 	height: 28px;
 
 	background-position: center top;
 	vertical-align: middle;
 	margin-left: 0.6em;
-	margin-right: 0.6em;
+	padding-right: 0.6em;
 	text-align: center;
+	border-right:1px solid #2E4260;
 }
-#header_IPs small{
+
+.headerBox small{
 	font-size: 1.05em;
 	display: block;
 	text-align: center;
 }
+
 .headerCenter>div{
 	margin-left: 0.5em;
 	margin-right: 0.5em;
@@ -325,11 +343,11 @@ body legend{
 	font-family: Helvetica,Arial,sans-serif;
 	font-weight: bold;
 	cursor: pointer;
-	color:#1E1E1E;
+	color:#363636;
 }
 
 #fppMenuList .dropdown-item{
-	color:#1E1E1E;
+	color:#363636;
 }
 #fppMenuList li ul a:hover, #fppMenu li ul a:focus, #fppMenu li ul a:active{
 	background-color:#F63939;
@@ -350,7 +368,7 @@ body legend{
 }
 
 .nav-open #fppMenuList>li.active>a{
-	color:#1E1E1E;
+	color:#363636;
 }
 
 #btnDaemonControl{
@@ -369,7 +387,6 @@ body legend{
 	margin-left:0;
 }
 #daemonControl .statusTable > div{
-	margin-left: 2em;
 	padding-left: 2em;
 	position: relative;
 }
@@ -1503,8 +1520,6 @@ input[type=search].tablesorter-filter:disabled{
 	justify-content: flex-end;
 }
 
-
-
 @media(max-width:480px){
 	.fpp-logo, .headerHostName, .headerRight{
 		display: none;
@@ -1597,3 +1612,8 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 
+@media(max-width:990px){
+	.largeonly{
+		display: none;
+	}
+}
