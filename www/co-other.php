@@ -819,7 +819,7 @@ function NewnRFSPIConfig() {
 function PopulateChannelOutputTable(data) {
 	$('#tblOtherOutputs > tbody').html("");
     
-    if (data) {
+    if ("channelOutputs" in data) {
         for (var i = 0; i < data.channelOutputs.length; i++) {
             var output = data.channelOutputs[i];
             var type = output.type;
@@ -897,7 +897,7 @@ function PopulateChannelOutputTable(data) {
 }
 
 function GetChannelOutputs() {
-	$.getJSON("fppjson.php?command=getChannelOutputs&file=co-other", function(data) {
+	$.getJSON("api/channel/output/co-other", function(data) {
 		PopulateChannelOutputTable(data);
 	});
 }
@@ -1070,10 +1070,7 @@ function SaveOtherChannelOutputs() {
 
 	postData.channelOutputs = outputs;
 
-	// Double stringify so JSON in .json file is surrounded by { }
-	var postDataStr = "command=setChannelOutputs&file=co-other&data=" + encodeURIComponent(JSON.stringify(JSON.stringify(postData)));
-
-	$.post("fppjson.php", postDataStr).done(function(data) {
+	$.post("api/channel/output/co-other", JSON.stringify(postData)).done(function(data) {
 		PopulateChannelOutputTable(data);
 		$.jGrowl("Channel Output Configuration Saved");
 		SetRestartFlag(1);

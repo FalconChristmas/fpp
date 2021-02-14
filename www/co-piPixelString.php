@@ -121,7 +121,7 @@ function populatePixelStringOutputs(data)
 {
 	$('#pixelOutputs').html("");
     
-    if (data) {
+    if ("channelOutputs" in data) {
         for (var i = 0; i < data.channelOutputs.length; i++)
         {
             var output = data.channelOutputs[i];
@@ -215,7 +215,7 @@ function populatePixelStringOutputs(data)
 
 function loadPixelStringOutputs()
 {
-	$.getJSON("fppjson.php?command=getChannelOutputs&file=co-pixelStrings", function(data) {
+	$.getJSON("api/channel/output/co-pixelStrings", function(data) {
 		populatePixelStringOutputs(data)
 	});
 }
@@ -223,10 +223,7 @@ function loadPixelStringOutputs()
 function savePixelStringOutputs() {
     var postData = getPixelStringOutputJSON();
     
-	// Double stringify so JSON in .json file is surrounded by { }
-	postData = "command=setChannelOutputs&file=co-pixelStrings&data=" + encodeURIComponent(JSON.stringify(JSON.stringify(postData)));
-
-	$.post("fppjson.php", postData).done(function(data) {
+	$.post("api/channel/output/co-pixelStrings", JSON.stringify(postData)).done(function(data) {
 		$.jGrowl("Pixel String Output Configuration Saved");
 		SetRestartFlag(1);
 	}).fail(function() {

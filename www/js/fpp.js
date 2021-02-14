@@ -1851,7 +1851,16 @@ function updateUniverseEndChannel(row) {
             var inputStr = 'Output';
             var anyEnabled = 0;
 
-            var channelData = input ? data.channelInputs[0] : data.channelOutputs[0];
+            // Incase none found
+            var channelData = {
+                universes: []
+            };
+
+            if (input && ("channelInputs" in data)) {
+                channelData = data.channelInputs[0];
+            } else if ("channelOutputs" in data) {
+                channelData = data.channelOutputs[0];
+            }
         
             if (input) {
                 inputStr = 'Input';
@@ -1864,7 +1873,6 @@ function updateUniverseEndChannel(row) {
                     $("#E131ThreadedOutput").prop( "checked", channelData.threaded );
                 }
             }
-            
             UniverseCount = channelData.universes.length;
             for (var i = 0; i < channelData.universes.length; i++) {
                 var universe = channelData.universes[i];
@@ -1988,9 +1996,9 @@ function updateUniverseEndChannel(row) {
 		}
         function getUniverses(reload, input)
         {
-            var url = "fppjson.php?command=getChannelOutputs&file=universeOutputs";
+            var url = "api/channel/output/universeOutputs";
             if (input) {
-                url = "fppjson.php?command=getChannelOutputs&file=universeInputs";
+                url = "api/channel/output/universeInputs";
             }
             $.getJSON(url, function(data) {
                         populateUniverseData(data, reload, input)
@@ -2203,67 +2211,67 @@ function updateUniverseEndChannel(row) {
 			}
 		}
 
-        function postUniverseJSON(input) {
-            var postData = {};
-            var anyEnabled = 0;
-            
-            var output = {};
-            output.type = "universes";
-            if (!input) {
-                output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
-                output.interface = document.getElementById("selE131interfaces").value;
-                output.threaded = document.getElementById("E131ThreadedOutput").checked ? 1 : 0;
-            } else {
-                output.enabled = 1;
-            }
-            output.startChannel = 1;
-            output.channelCount = -1;
-            output.universes = [];
-            
-            var i;
-            for(i = 0; i < UniverseCount; i++) {
-                var universe = {};
-                universe.active = document.getElementById("chkActive[" + i + "]").checked ? 1 : 0;
-                anyEnabled |= universe.active;
-                universe.description = document.getElementById("txtDesc[" + i + "]").value;;
-                universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
-                universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
-                universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
+function postUniverseJSON(input) {
+    var postData = {};
+    var anyEnabled = 0;
 
-                universe.channelCount = parseInt(document.getElementById("txtSize[" + i + "]").value);
-                universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
-                universe.address = document.getElementById("txtIP[" + i + "]").value;
-                universe.priority = parseInt(document.getElementById("txtPriority[" + i + "]").value);
-                if (!input) {
-                    universe.monitor = document.getElementById("txtMonitor[" + i + "]").checked ? 1 : 0;
-                    universe.deDuplicate = document.getElementById("txtDeDuplicate[" + i + "]").checked ? 1 : 0;
-                }
-                output.universes.push(universe);
-            }
-            if (input) {
-                postData.channelInputs = [];
-                postData.channelInputs.push(output);
-            } else {
-                postData.channelOutputs = [];
-                postData.channelOutputs.push(output);
-            }
-            var fileName = input ? 'universeInputs' : 'universeOutputs';
-            var postDataString = 'command=setChannelOutputs&file='+ fileName +'&data={' + encodeURIComponent(JSON.stringify(postData)) + '}';
+    var output = {};
+    output.type = "universes";
+    if (!input) {
+        output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
+        output.interface = document.getElementById("selE131interfaces").value;
+        output.threaded = document.getElementById("E131ThreadedOutput").checked ? 1 : 0;
+    } else {
+        output.enabled = 1;
+    }
+    output.startChannel = 1;
+    output.channelCount = -1;
+    output.universes = [];
 
-            if (anyEnabled && !output.enabled)
-                $('#outputOffWarning').show();
-            else
-                $('#outputOffWarning').hide();
-            
-            $.post("fppjson.php", postDataString).done(function(data) {
-                                                       $.jGrowl("E1.31 Universes Saved");
-                                                       SetRestartFlag(2);
-                                                       CheckRestartRebootFlags();
-                                                 }).fail(function() {
-                                                        DialogError('Save Universes', "Error: Unable to save E1.31 Universes.");
-                                                  });
-            
+    var i;
+    for (i = 0; i < UniverseCount; i++) {
+        var universe = {};
+        universe.active = document.getElementById("chkActive[" + i + "]").checked ? 1 : 0;
+        anyEnabled |= universe.active;
+        universe.description = document.getElementById("txtDesc[" + i + "]").value;;
+        universe.id = parseInt(document.getElementById("txtUniverse[" + i + "]").value);
+        universe.startChannel = parseInt(document.getElementById("txtStartAddress[" + i + "]").value);
+        universe.universeCount = parseInt(document.getElementById("numUniverseCount[" + i + "]").value);
+
+        universe.channelCount = parseInt(document.getElementById("txtSize[" + i + "]").value);
+        universe.type = parseInt(document.getElementById("universeType[" + i + "]").value);
+        universe.address = document.getElementById("txtIP[" + i + "]").value;
+        universe.priority = parseInt(document.getElementById("txtPriority[" + i + "]").value);
+        if (!input) {
+            universe.monitor = document.getElementById("txtMonitor[" + i + "]").checked ? 1 : 0;
+            universe.deDuplicate = document.getElementById("txtDeDuplicate[" + i + "]").checked ? 1 : 0;
         }
+        output.universes.push(universe);
+    }
+    if (input) {
+        postData.channelInputs = [];
+        postData.channelInputs.push(output);
+    } else {
+        postData.channelOutputs = [];
+        postData.channelOutputs.push(output);
+    }
+    var fileName = input ? 'universeInputs' : 'universeOutputs';
+    var postDataString = JSON.stringify(postData);
+
+    if (anyEnabled && !output.enabled)
+        $('#outputOffWarning').show();
+    else
+        $('#outputOffWarning').hide();
+
+    $.post("api/channel/output/" + fileName, postDataString).done(function (data) {
+        $.jGrowl("E1.31 Universes Saved");
+        SetRestartFlag(2);
+        CheckRestartRebootFlags();
+    }).fail(function () {
+        DialogError('Save Universes', "Error: Unable to save E1.31 Universes.");
+    });
+
+}
 
 		function validateUniverseData()
 		{

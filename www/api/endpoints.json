@@ -140,6 +140,21 @@
             }
         },
         {
+            "endpoint": "channel/output/:file",
+            "fppd": false,
+            "methods": {
+                "GET": {
+                    "desc": "Returns the current configuration of the specified output in JSON format",
+                    "output": "JSON output varies based on file."
+                },
+                "POST": {
+                    "desc": "Overwrites the specified output configuration file with the specified JSON",
+                    "input": "Format Varies based on File",
+                    "output": "Format Varies based on File"
+                }
+            }
+        },
+        {
             "endpoint": "command/:CommandName(/:Args)",
             "fppd": true,
             "methods": {
