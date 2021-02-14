@@ -115,7 +115,7 @@ function CloseUpgradeDialog() {
 }
 
 function UpdateVersionInfo() {
-    $.get('fppjson.php?command=getFPPstatus&advancedView=true', function(data) {
+    $.get('api/system/status', function(data) {
         $('#fppVersion').html(data.advancedView.Version);
         $('#fppdUptime').html(data.uptime);
         $('#osVersion').html(data.advancedView.OSVersion);

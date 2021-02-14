@@ -14,6 +14,9 @@ dispatch_get   ('/cape', 'GetCapeInfo');
 dispatch_get   ('/channel/input/stats', 'channel_input_get_stats');
 dispatch_get   ('/channel/output/processors', 'channel_get_output_processors');
 dispatch_post  ('/channel/output/processors', 'channel_save_output_processors');
+dispatch_get   ('/channel/output/:file', 'channel_get_output');
+dispatch_post  ('/channel/output/:file', 'channel_save_output');
+
 
 dispatch_get   ('/configfile', 'GetConfigFileList');
 dispatch_get   ('/configfile/**', 'DownloadConfigFile');
@@ -45,6 +48,8 @@ dispatch_get   ('/media', 'GetMedia');
 dispatch_get   ('/media/:MediaName/duration', 'GetMediaDuration');
 dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
 
+dispatch_get   ('/network/dns', 'network_get_dns');
+dispatch_post  ('/network/dns', 'network_save_dns');
 dispatch_get   ('/network/interface', 'network_list_interfaces');
 dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
 dispatch_post  ('/network/presisentNames', 'network_presisentNames_create');
@@ -113,6 +118,7 @@ dispatch_get   ('/system/fppd/stop', 'StopFPPD');
 dispatch_get   ('/system/reboot', 'RebootDevice');
 dispatch_get   ('/system/releaseNotes/:version', 'ViewReleaseNotes');
 dispatch_get   ('/system/shutdown', 'SystemShutdownOS');
+dispatch_get   ('/system/status', 'SystemGetStatus');
 dispatch_get   ('/system/volume', 'SystemGetAudio');
 dispatch_post  ('/system/volume', 'SystemSetAudio');
 

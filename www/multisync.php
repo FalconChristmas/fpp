@@ -201,7 +201,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} else {
         ips = "&ip[]=" + ipAddresses;
     }
-		$.get("fppjson.php?command=getFPPstatus&ip=" + ips + (advancedView == true ? '&advancedView=true' : '')
+		$.get("api/system/status?ip=" + ips + (advancedView == true ? '&advancedView=true' : '')
 		).done(function(alldata) {
             jQuery.each(alldata, function(ip, data) {
 			var status = 'Idle';

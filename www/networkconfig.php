@@ -242,9 +242,9 @@ function SaveDNSConfig()
 		data.DNS2 = "";
 	}
 
-	var postData = "command=setDNSInfo&data=" + JSON.stringify(data);
+	var postData = JSON.stringify(data);
 
-	$.post("fppjson.php", postData
+	$.post("api/network/dns", postData
 	).done(function(data) {
 		LoadDNSConfig();
         SetRebootFlag();
@@ -306,7 +306,7 @@ function LoadSIDS(interface) {
 
 function LoadDNSConfig()
 {
-	var url = "fppjson.php?command=getDNSInfo";
+	var url = "api/network/dns";
 
 	$.get(url, GetDNSInfo);
 }
