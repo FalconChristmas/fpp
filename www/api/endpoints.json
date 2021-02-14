@@ -60,6 +60,86 @@
             }
         },
         {
+            "endpoint": "channel/output/processors",
+            "fppd": false,
+            "methods": {
+                "GET": {
+                    "desc": "Returns the current configuration of any output processors.",
+                    "output": {
+                        "outputProcessors": [
+                            {
+                                "type": "Brightness",
+                                "active": 0,
+                                "description": "",
+                                "start": 1,
+                                "count": 10,
+                                "brightness": 50,
+                                "gamma": 1
+                            },
+                            {
+                                "type": "Brightness",
+                                "active": 0,
+                                "description": "",
+                                "start": 100,
+                                "count": 2,
+                                "brightness": 24,
+                                "gamma": 1
+                            }
+                        ],
+                        "status": "OK"
+                    }
+                },
+                "POST": {
+                    "desc": "Overwrites the output Processor settings file with a new configuration and returns back the file after the save",
+                    "input": {
+                        "outputProcessors": [
+                            {
+                                "type": "Brightness",
+                                "active": 0,
+                                "description": "",
+                                "start": 1,
+                                "count": 10,
+                                "brightness": 50,
+                                "gamma": 1
+                            },
+                            {
+                                "type": "Brightness",
+                                "active": 0,
+                                "description": "",
+                                "start": 100,
+                                "count": 2,
+                                "brightness": 24,
+                                "gamma": 1
+                            }
+                        ]
+                    },
+                    "output": {
+                        "outputProcessors": [
+                            {
+                                "type": "Brightness",
+                                "active": 0,
+                                "description": "",
+                                "start": 1,
+                                "count": 10,
+                                "brightness": 50,
+                                "gamma": 1
+                            },
+                            {
+                                "type": "Brightness",
+                                "active": 0,
+                                "description": "",
+                                "start": 100,
+                                "count": 2,
+                                "brightness": 24,
+                                "gamma": 1
+                            }
+                        ],
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "command/:CommandName(/:Args)",
             "fppd": true,
             "methods": {
