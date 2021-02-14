@@ -7347,3 +7347,6 @@ table.settingsTable div.th {
   margin-bottom: 0.8em;
   font-weight: normal;
   padding-bottom: 1em; }
+
+.modal-dialog {
+  margin-top: 70px; }

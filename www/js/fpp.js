@@ -1095,7 +1095,9 @@ function LoadHeaderDetails() {
                 }
                 row = '<span title="'+title+'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
             }else if(data.status_name == "idle"){
-                row = '<span title="Idle"><i class="fas fa-stop text-danger"></i><small>Idle</small></span>';
+                row = '<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
+            }else if(data.status_name == "stopped"){
+                row = '<span title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
             }
             $("#header_player").html(row);
         }
