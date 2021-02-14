@@ -9,6 +9,7 @@ SD/*.xz
 lib/librgbmatrix.so
 node_modules
 .vscode
+.env
 src/fpp
 src/fppmm
 src/fppd
