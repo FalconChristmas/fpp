@@ -3600,7 +3600,7 @@ function StartPlaylistNow() {
     }
     $.post("api/command", JSON.stringify(obj)
     ).done(function () {
-        $.jGrowl("Playlist Started");
+        $.jGrowl("Playlist Started", {themeState:'success'});
     }).fail(function () {
         DialogError('Command failed', 'Unable to start Playlist');
     });
