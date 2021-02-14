@@ -221,161 +221,23 @@ function SetSetting()
 	GetSetting();
 }
 
+// This is now just a redirect to new API.
 function GetFPPStatusJson()
 {
-	global $args;
+    global $_SERVER;
 
-	//close the session before we start, this removes the session lock and lets other scripts run
+    //close the session before we start, this removes the session lock and lets other scripts run
     session_write_close();
 
-    //Default json to be returned
-    $default_return_json = array(
-        'fppd' => 'unknown',
-	'status' => -1,
-	'wifi' => [],
-        'status_name' => 'unknown',
-        'current_playlist' =>
-            [
-                'playlist' => '',
-                'type' => '',
-                'index' => '0',
-                'count' => '0'
-            ],
-        'current_sequence' => '',
-        'current_song' => '',
-        'seconds_played' => '0',
-        'seconds_remaining' => '0',
-        'time_elapsed' => '00:00',
-        'time_remaining' => '00:00'
-    );
+    //QUERY_STRING is always populated because this is getFPPStatus()
+    $url = "http://localhost/api/system/status?". $_SERVER['QUERY_STRING'];
 
-    //if the ip= argument supplied
-    if (isset($args['ip'])) {
-        $ipAddresses = $args['ip'];
-        $isArray = true;
-        if (!is_array($ipAddresses)) {
-            $ipAddresses = array();
-            $ipAddresses[] = $args['ip'];
-            $isArray = false;
-        }
-        
-        $isAdvanced = false;
-        if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
-            $isAdvanced = true;
-        }
-        $result = array();
-        
-        $curlmulti = curl_multi_init();
-        $curls = array();
-        foreach ($ipAddresses as $ip) {
-            //validate IP address is a valid IPv4 address - possibly overkill but have seen IPv6 addresses polled
-            if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                $do_expert = $isAdvanced ? "&advancedView=true" : "";
-                //Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
-                $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus" . $do_expert);
-                curl_setopt($curl, CURLOPT_FAILONERROR, true);
-                curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
-                curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
-                $curls[$ip] = $curl;
-                curl_multi_add_handle($curlmulti, $curl);
-            }
-        }
-        $running = null;
-        do {
-            curl_multi_exec($curlmulti, $running);
-        } while ($running > 0);
-        
-        foreach ($curls as $ip => $curl) {
-            $request_content = curl_multi_getcontent($curl);
-        
-            if ($request_content === FALSE || $request_content == null || $request_content == "") {
-                $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-                $result[$ip] = array_merge(array(), $default_return_json);
-                if ($responseCode == 401) {
-                    $result[$ip]['reason'] = "Cannot Access - Web GUI Password Set";
-                    $result[$ip]["status_name"] = "password";
-                } else if ($responseCode == 0) {
-                    $result[$ip]["status_name"] = "unreachable";
-                }
-            } else if (strpos($request_content, 'Not Running') !== FALSE) {
-                    $result[$ip]["status_name"] = "not running";
-            } else {
-                $content = json_decode($request_content);
-                
-                if ($isAdvanced && strpos($request_content, 'advancedView') === FALSE) {
-                    //Work around for older versioned devices where the advanced data was pulled in separately rather than being
-                    //included (when requested) with the standard data via getFPPStatus
-                    //If were in advanced view and the request_content doesn't have the 'advancedView' key (this is included when requested with the standard data) then we're dealing with a older version
-                    //that's using the expertView key and was being obtained separately
-                    
-                    $curl2 = curl_init("http://" . $ip . "/fppjson.php?command=getSysInfo");
-                    curl_setopt($curl2, CURLOPT_FAILONERROR, true);
-                    curl_setopt($curl2, CURLOPT_FOLLOWLOCATION, true);
-                    curl_setopt($curl2, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($curl2, CURLOPT_CONNECTTIMEOUT_MS, 250);
-                    curl_setopt($curl2, CURLOPT_TIMEOUT_MS, 3000);
-                    $request_expert_content = curl_exec($curl2);
-                    curl_close($curl2);
-                    //check we have valid data
-                    if ($request_expert_content === FALSE) {
-                        $request_expert_content = array();
-                    }
-                    //Add data into the final response, since getFPPStatus returns JSON, decode into array, add data, encode back to json
-                    //Add a new key for the advanced data, also decode it as it's an array
-                    $content['advancedView'] = json_decode($request_expert_content, true);
-                }
-                $result[$ip] = $content;
-            }
-            curl_multi_remove_handle($curlmulti, $curl);
-        }
-        curl_multi_close($curlmulti);
-        if (!$isArray) {
-            $result = $result[$ipAddresses[0]];
-        }
-		returnJSON($result);
-	}
-	else
-	{
-        //go through the new API to get the status
-        // use curl so we can set a low connect timeout so if fppd isn't running we detect that quickly
-        $curl = curl_init('http://localhost:32322/fppd/status');
-        curl_setopt($curl, CURLOPT_FAILONERROR, true);
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
-        $request_content = curl_exec($curl);
-        curl_close($curl);
-        
-        if ($request_content === FALSE) {
-            $status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
-            
-            $default_return_json['fppd'] = "Not Running";
-            $default_return_json['status_name'] = $status == 'updating' ? $status : 'stopped';
-	    $default_return_json['wifi'] = network_wifi_strength_obj();
-            
-            returnJSON($default_return_json);
-            exit(0);
-        }
-		$data = json_decode($request_content, TRUE);
-	        $data['wifi'] = network_wifi_strength_obj();
-
-		//Check to see if we should also get the systemInfo for multiSync Expert view
-		if (isset($args['advancedView']) && ($args['advancedView'] == true || strtolower($args['advancedView']) == "true")) {
-			//Get the advanced info directly as an array
-			$request_expert_content = GetSystemInfoJsonInternal(true, false);
-			//check we have valid data
-			if ($request_expert_content === FALSE) {
-				$request_expert_content = array();
-			}
-			//Add data into the final response, since we have the status as an array already then just add the expert view
-			//Add a new key for the expert data to the original data array
-			$data['advancedView'] = $request_expert_content;
-		}
-
-        returnJSON($data);
-	}
+    $json = file_get_contents($url);
+    if ($json === false) {
+        returnJSON(array("status" => "ERROR: Unable to redirect", "url" => $url));
+    } else {
+        returnJSON(json_decode($json, true));
+    }
 }
 
 function parseTimeFromSeconds($seconds) {

@@ -2564,7 +2564,7 @@ function moveFile(file) {
     }
 	function GetFPPStatus()	{
 		$.ajax({
-			url: 'fppjson.php?command=getFPPstatus',
+			url: 'api/system/status',
 			dataType: 'json',
 			success: function(response, reqStatus, xhr) {	
 				
