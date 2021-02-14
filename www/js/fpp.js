@@ -26,6 +26,16 @@ var lastStatus = '';
 /* On Page Ready Functions */
 $(function() {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
+
+    if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
+        $('body').addClass('has-touch');
+    }
+    var statusTableWidth=0;
+    $('#daemonControl .statusTable .col-auto').each(function(){
+        console.log($(this).outerWidth(true))
+        statusTableWidth+=$(this).outerWidth(true)+100;
+    });
+    $('#daemonControl .statusTable').width(statusTableWidth);
     SetupToolTips();
 });
 (function ( $ ) {
@@ -626,7 +636,7 @@ function psiDetailsForEntrySimple(entry, editMode) {
 
             if (partialResult != '') {
                 if (result != '')
-                    result += "&nbsp;&nbsp;&nbsp;<b>|</b>&nbsp;&nbsp;&nbsp;";
+                    result += " <b>|</b> ";
 
                 result += partialResult;
             }

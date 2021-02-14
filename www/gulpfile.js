@@ -15,6 +15,7 @@ $ gulp
 $gulp watch-bs
 
 */
+require('dotenv').config();
 var gulp = require('gulp');
 var plumber = require('gulp-plumber');
 var sass = require('gulp-sass');
@@ -42,8 +43,22 @@ var cfg = {
 		port: 3180
 
 	},
+	"browserSyncProxyOptions": {
+        proxy: process.env.FPP_IP,
+		serveStatic: [{
+			route: '/css',
+			dir: ['./css']
+		}],
+		"notify": false,
+		ui: {
+			port: 3183
+		},
+		port: 3182
+
+	},
 	"browserSyncWatchFiles": [
 		"./css/fpp-bootstrap/dist/*.min.css",
+		"./css/fpp.css",
 		"./components.html"
 		//"./**/*.html"
 	]
@@ -147,10 +162,16 @@ gulp.task('browser-sync', function () {
 	browserSync.init(cfg.browserSyncWatchFiles, cfg.browserSyncOptions);
 });
 
+gulp.task('browser-sync-proxy', function () {
+	browserSync.init(cfg.browserSyncWatchFiles, cfg.browserSyncProxyOptions);
+});
+
 // Run:
 // gulp watch-bs
 // Starts watcher and launches component page with browsersync for live previewing.
 
 gulp.task('watch-bs', gulp.parallel('browser-sync', 'watch'));
+
+gulp.task('watch-bs-proxy', gulp.parallel('browser-sync-proxy', 'watch'));
 
 gulp.task('default', gulp.series('watch'));

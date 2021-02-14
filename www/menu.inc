@@ -83,9 +83,9 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo "<span>Host: </span><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a> " ;
+        echo "<div class='headerHostName'><span>Host: </span><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink headerLink headerHostLink'>" . $settings['HostName'] . "</a></div>" ;
     } else {
-        echo "" . gethostname() . "&nbsp;";
+        echo "<div class='headerHostName'>" . gethostname() . "</div>";
     }
 
     echo("<span id=\"header_IPs\"></span>");
@@ -94,7 +94,7 @@ function list_plugin_entries($menu)
     </div>
     <div class="headerRight">
 		  <?
-            if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank'>";
+            if ($settings['LogoLink'] != "") echo "<a href='" . $settings['LogoLink'] . "' target='_blank' class='platformLogoLink'>";
 		    if ($settings['Logo'] != "") {
            echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";

@@ -205,7 +205,7 @@ include 'common/menuHead.inc';
             <div id='daemonControl' class='statusDiv'>
                 <div class='statusBoxLeft'>
                     <div class='statusTable row'>
-                        <div class="col-md">
+                        <div class="col-auto">
                             <div class="labelHeading labelHeadingFPPDMode">FPPD Mode:</div>
                             <div>
                                 <select id="selFPPDmode" onChange="SetFPPDmode();">
@@ -217,11 +217,11 @@ include 'common/menuHead.inc';
                                 <input type="button" id="btnDaemonControl" class ="buttons btn-outline-light" value="" onClick="ControlFPPD();">
                                 </div>
                         </div>
-                        <div class="col-md">
+                        <div class="col-auto">
                             <div class="labelHeading">FPPD Status:</div>
                             <div id = "daemonStatus" class="labelValue"></div>
                         </div>
-                        <div class="col-md">
+                        <div class="col-auto">
                             <div class="labelHeading">FPP Time:</div>
                             <div id="fppTime" class="labelValue"></div>
                         </div>
@@ -347,9 +347,9 @@ include 'common/menuHead.inc';
                 <div id="playerStatusTop">
                     <div class='statusBoxLeft'>
                         <div class='statusTable container-fluid'>
-                            <div class="row">
-                                <div>Player Status:</div>
-                                <div id="txtPlayerStatus" class="labelValue" style="text-align:left; width=80%"></div>
+                            <div class="row playerStatusRow">
+                                <div class="playerStatusLabel">Player Status:</div>
+                                <div id="txtPlayerStatus" class="labelValue playerStatusLabelValue"></div>
                             </div>
                             <div class="row playlistSelectRow">
          
@@ -359,7 +359,7 @@ include 'common/menuHead.inc';
                             </div>
 
                         </div>
-                        <div class="d-flex">
+                        <div class="d-flex playerControlsContainer">
                                 
                             <div id="playerControls" >
                                 <input id= "btnPlay" type="button"  class ="buttons btn-rounded btn-success"value="Play" onClick="StartPlaylistNow();">

@@ -113,7 +113,18 @@ body .ui-tabs .ui-tabs-nav li {
 	font-size: 0.8em;
 	
 }
-
+@media (min-width:990px) {
+	.header{
+		position: fixed;
+		left: 0;
+		right: 0;
+		background-color: #171720;
+		z-index: 1;
+	}
+	.helpLinkDiv{
+		padding-top: 4.6em;
+	}
+}
 @media (max-width: 991px) {
 	.helpLinkDiv{
 		display: none;
@@ -212,6 +223,10 @@ body .ui-tabs .ui-tabs-nav li {
 	font-size: 0.8em;
 	padding-right: 0;
 }
+.headerHost{
+	display: flex;
+	align-items: center;
+}
 .headerHostLink{
 	font-weight: bold;
 	padding-right: 1em;
@@ -259,6 +274,12 @@ body .headerCenter a:hover{
 .fppMenuContainer{
 	padding-bottom: 2em;
 }
+@media(max-width:990px){
+	.mainContainer{
+		padding-top: 1em;
+	}
+}
+
 .title{
 	font-size: 2.75em;
 	margin-top: -1em;
@@ -1481,3 +1502,98 @@ input[type=search].tablesorter-filter:disabled{
     flex-direction: row-reverse;
 	justify-content: flex-end;
 }
+
+
+
+@media(max-width:480px){
+	.fpp-logo, .headerHostName, .headerRight{
+		display: none;
+	}
+	.container {
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
+	}
+	.pageContent{
+		margin-left: -0.1rem;
+		margin-right: -0.1rem;
+		padding: 1.4em 1.6em;
+	}
+	#txtPlayerStatus{
+		padding-left: 0;
+	}
+	.playlistSelectRow{
+		flex-direction: column;
+	}
+	.playlistRepeatCol{
+		display: flex;
+		width: 100%;
+		
+		padding-left: 0;
+		justify-content: flex-end;
+		border-bottom: 1px solid #D2D2D2;
+		border-top: 1px solid #D2D2D2;
+		padding-bottom: 0.6em;
+		padding-top: 0.6em;
+		margin-top: 1.2em;
+	}
+	.playlistRepeatCol .settingLabelHeading {
+		flex:1;
+
+	}
+	.playerControlsContainer{
+		flex-direction: column;
+	}
+	#playerControls{
+		margin-bottom: 1.2em;
+	}
+	#playerControls .buttons {
+		display: inline-block;
+		margin-bottom: 0.65em;
+	}
+	#btnPrev, #btnNext {
+		width: calc(50% - 0.35em);
+	}
+	#btnPlay, #btnStopNow, #btnStopGracefully, #btnStopGracefullyAfterLoop{
+		width: 100%;
+	}
+	
+
+	.tblPlaylistDetailsHeader>div{
+		display: block;
+	}
+	.tblPlaylistHeaderDetails>div, #playerTime > div{
+		flex:1;
+	}
+	#playerModeInfo .statusBoxRight, #settingsManager .statusBoxRight {
+		float: none;
+		width: 100%;
+	}
+	#playerTime > div:last-child > div, .tblPlaylistHeaderDetails > div:last-child > div {
+		padding-right: 10px;
+	}
+	.psi {
+		display: block;
+	}
+	.playlistRow td:first-child {
+		padding-right:0;
+	}
+	.playlistRow td:last-child {
+		padding-left: 0.5em;
+	}
+	.playlistEntriesBody, .tblPlaylistWrap{
+		padding: 0;
+	}
+	#daemonControl{
+		overflow-x: auto;
+	}
+	#daemonControl .statusTable {
+		width: 2000px;
+	}
+	#daemonControl .statusTable .col-auto{
+		padding-right: 0;
+	}
+	.fppBrand {
+		padding-left: 0;
+	}
+}
+
