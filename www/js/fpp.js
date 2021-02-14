@@ -3043,6 +3043,9 @@ if (1) {
             if (typeof sensorData != "undefined" && sensorData != null) {
                 sensorData.innerHTML = sensorText;
             }
+            $("#sensorData").show();
+        }else{
+            $("#sensorData").hide();
         }
 
 		firstStatusLoad = 0;
