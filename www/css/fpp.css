@@ -128,12 +128,6 @@ body .ui-tabs .ui-tabs-nav li {
 	
 }
 
-@media (max-width: 991px) {
-	.helpLinkDiv{
-		display: none;
-	}
-}
-
 .header>div{
 	padding:1em;
 }
@@ -230,21 +224,25 @@ body .ui-tabs .ui-tabs-nav li {
 	font-weight: bold;
 	padding-right: 1em;
 }
-#header_IPs span{
+
+.headerBox span {
 	display: inline-block;
 	height: 28px;
 
 	background-position: center top;
 	vertical-align: middle;
 	margin-left: 0.6em;
-	margin-right: 0.6em;
+	padding-right: 0.6em;
 	text-align: center;
+	border-right:1px solid #2E4260;
 }
-#header_IPs small{
+
+.headerBox small{
 	font-size: 1.05em;
 	display: block;
 	text-align: center;
 }
+
 .headerCenter>div{
 	margin-left: 0.5em;
 	margin-right: 0.5em;
@@ -362,7 +360,6 @@ body legend{
 	margin-left:0;
 }
 #daemonControl .statusTable > div{
-	margin-left: 2em;
 	padding-left: 2em;
 	position: relative;
 }
@@ -1494,4 +1491,10 @@ input[type=search].tablesorter-filter:disabled{
     display: flex;
     flex-direction: row-reverse;
 	justify-content: flex-end;
+}
+
+@media(max-width:990px){
+	.largeonly{
+		display: none;
+	}
 }

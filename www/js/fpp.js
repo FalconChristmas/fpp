@@ -1006,7 +1006,7 @@ function PlaylistNameOK(name) {
     return 1;
 }
 
-function LoadNetworkDetails() {
+/* function LoadNetworkDetails() {
     $.get('api/network/interface'
     ).done(function (data) {
         var rc = [];
@@ -1037,6 +1037,74 @@ function LoadNetworkDetails() {
         $("#header_IPs").html(rc.join(""));
     }).fail(function () {
         DialogError('Error loading network info', 'Error loading network interface details.');
+    });
+} */
+
+function LoadNetworkDetails() {
+    $.get('api/network/interface'
+    ).done(function (data) {
+        var rc = [];
+        data.forEach(function (e) {
+            if (e.ifname === "lo") { return 0; }
+            if (e.ifname.startsWith("eth0:0")) { return 0; }
+            if (e.ifname.startsWith("usb")) { return 0; }
+            if (e.ifname.startsWith("can.")) { return 0; }
+            e.addr_info.forEach(function (n) {
+                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
+                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }else if (n.family === "inet" && "wifi" in e) {
+                    var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                    rc.push(row); 
+                }else if (n.family === "inet") {
+                    var icon = "text-success";
+                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
+                        icon = "text-warning";
+                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
+                        icon = "text-danger";
+                    }
+                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }
+            });
+        });
+        $("#header_IPs").html(rc.join(""));
+    }).fail(function () {
+        DialogError('Error loading network info', 'Error loading network interface details.');
+    });
+}
+
+function LoadHeaderDetails() {
+    $.get('fppjson.php?command=getFPPstatus'
+    ).done(function (data) {
+        var sensors = [];
+        if(data.sensors != undefined){
+            data.sensors.forEach(function (e) {
+                if (e.valueType != "Temperature") { return 0; }
+                var row = '<span title="' + e.label + e.formatted+'"><i class="fas fa-thermometer-half"></i><small>' + e.label + e.formatted + '</small></span>';
+                sensors.push(row);
+            });
+            $("#header_sensors").html(sensors.join(""));
+        }
+        if(data.status_name != undefined){
+            var row = "";
+            if(data.status_name == "playing"){
+                var title = "Playing";
+                if(data.current_sequence != undefined){
+                    title += ': '+data.current_sequence;
+                }
+                row = '<span title="'+title+'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
+            }else if(data.status_name == "idle"){
+                row = '<span title="Idle"><i class="fas fa-stop text-danger"></i><small>Idle</small></span>';
+            }
+            $("#header_player").html(row);
+        }
+        //HARDCODED DEMO, REMOVE THIS!!!!!!!
+        //var row = '<span title="CPU: 38.1"><i class="fas fa-thermometer-half"></i><small>CPU: 38.1</small></span>';
+        //sensors.push(row);
+        $("#header_sensors").html(sensors.join(""));
+    }).fail(function () {
+        DialogError('Error loading header info', 'Error loading header details.');
     });
 }
 

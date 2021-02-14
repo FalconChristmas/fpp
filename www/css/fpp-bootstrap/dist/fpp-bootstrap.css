@@ -7148,24 +7148,24 @@ input[type=checkbox]:checked {
   height: 17px;
   padding-top: 16px; }
 
-.ip-net-connected {
-  background: url(/images/redesign/ethernet-connected.svg);
-  background-repeat: no-repeat;
-  background-size: 17px;
-  padding-top: 16px; }
-
-.ip-net-downdhcp {
-  background: url(/images/redesign/ethernet-down-dhcp.svg);
-  background-repeat: no-repeat;
-  background-size: 17px;
-  padding-top: 16px; }
-
-.ip-net-downstatic {
-  background: url(/images/redesign/ethernet-down-static.svg);
-  background-repeat: no-repeat;
-  background-size: 17px;
-  padding-top: 16px; }
-
+/* .ip-net-connected{
+    background:url(/images/redesign/ethernet-connected.svg);
+    background-repeat: no-repeat;
+    background-size: 17px;
+    padding-top: 16px;
+}
+.ip-net-downdhcp{
+    background:url(/images/redesign/ethernet-down-dhcp.svg);
+    background-repeat: no-repeat;
+    background-size: 17px;
+    padding-top: 16px;
+}
+.ip-net-downstatic{
+    background:url(/images/redesign/ethernet-down-static.svg);
+    background-repeat: no-repeat;
+    background-size: 17px;
+    padding-top: 16px;
+} */
 .form-group.flow label {
   display: block; }
 
