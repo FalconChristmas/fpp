@@ -1088,6 +1088,33 @@
             }
         },
         {
+            "endpoint": "network/dns",
+            "methods": {
+                "GET": {
+                    "desc": "returns informationon DNS configuration. If not configured, status will be 'Not Configured'",
+                    "output": {
+                        "DNS1": "192.168.50.1",
+                        "DNS2": "192.168.1.1",
+                        "status": "OK"
+                    }
+                },
+                "PUT": {
+                    "desc": "Updates the DNS Configuration",
+                    "input": {
+                        "DNS1": "192.168.50.1",
+                        "DNS2": "192.168.1.1"
+                    },
+                    "output": {
+                        "status": "OK",
+                        "DNS": {
+                            "DNS1": "192.168.50.1",
+                            "DNS2": "192.168.1.1"
+                        }
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/interface",
             "methods": {
                 "GET": {

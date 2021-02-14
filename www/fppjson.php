@@ -22,13 +22,13 @@ $command_array = Array(
 	"getChannelOutputs"   => 'GetChannelOutputs', // Kept for xLights
 	"setChannelOutputs"   => 'SetChannelOutputs', // Kept for xLights
 	"setUniverses"        => 'SetUniverses',
-	"getDNSInfo"          => 'GetDNSInfo',
-	"setDNSInfo"          => 'SetDNSInfo',
+	// "getDNSInfo"          => 'GetDNSInfo', // Replaced by GET /api/network/dns
+	// "setDNSInfo"          => 'SetDNSInfo', // Replaced by POST /api/network/dns
 	//"getFPPDUptime"       => 'GetFPPDUptime', // replaced by  /api/fppd/status
 	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
 	"getInterfaceInfo"    => 'GetInterfaceInfoJson',
 	"setInterfaceInfo"    => 'SetInterfaceInfo',
-	"getFPPSystems"       => 'GetFPPSystems', // Kept for Multisync but replacement is /api/system/status
+	"getFPPSystems"       => 'GetFPPSystems', // NOT USED in UI. - Kept for Multisync 3.x,4.x but replacement is /api/system/status
 	"getFPPstatus"		  => 'GetFPPStatusJson', // Kept for Multisync but replacement is /api/system/status
 	"getSetting"          => 'GetSetting',
 	"setSetting"          => 'SetSetting',
@@ -969,41 +969,6 @@ function SetInterfaceInfo()
 			$data['SSID'], $data['PSK'], $data['HIDDEN']);
 	}
 
-	fclose($f);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-function GetDNSInfo()
-{
-	global $settings;
-
-	$cfgFile = $settings['configDirectory'] . "/dns";
-	if (file_exists($cfgFile)) {
-		returnJSON(parse_ini_file($cfgFile));
-	}
-
-	returnJSON(Array());
-}
-
-function SetDNSInfo()
-{
-	global $settings;
-	global $args;
-
-	$data = json_decode($args['data'], true);
-
-	$cfgFile = $settings['configDirectory'] . "/dns";
-
-	$f = fopen($cfgFile, "w");
-	if ($f == FALSE) {
-		return;
-	}
-
-	fprintf($f,
-		"DNS1=\"%s\"\n" .
-		"DNS2=\"%s\"\n",
-		$data['DNS1'], $data['DNS2']);
 	fclose($f);
 }
 
