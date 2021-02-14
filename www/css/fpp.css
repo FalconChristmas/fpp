@@ -135,9 +135,7 @@ body .ui-tabs .ui-tabs-nav li {
 		background-color: #171720;
 		z-index: 1;
 	}
-	.helpLinkDiv{
-		padding-top: 4.6em;
-	}
+
 }
 @media (max-width: 991px) {
 	.helpLinkDiv{
@@ -1561,7 +1559,7 @@ input[type=search].tablesorter-filter:disabled{
 	#playerControls{
 		margin-bottom: 1.2em;
 	}
-	#playerControls .buttons {
+	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
 		display: inline-block;
 		margin-bottom: 0.65em;
 	}
@@ -1604,9 +1602,7 @@ input[type=search].tablesorter-filter:disabled{
 	#daemonControl .statusTable {
 		width: 2000px;
 	}
-	#daemonControl .statusTable .col-auto{
-		padding-right: 0;
-	}
+
 	.fppBrand {
 		padding-left: 0;
 	}
