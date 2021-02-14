@@ -67,8 +67,7 @@ function list_plugin_entries($menu)
 }
 ?>
 
-  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
-  <div class="header">
+   <div class="header">
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="/">
@@ -124,6 +123,7 @@ function list_plugin_entries($menu)
 		</div>
     
   </div>
+  <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
   <div class='helpLinkDiv'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
 
   <div class="fppOuterContainer container">

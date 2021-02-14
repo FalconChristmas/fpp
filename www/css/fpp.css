@@ -102,7 +102,21 @@ body .ui-tabs .ui-tabs-nav li {
 	border-bottom:1px solid #2D3043;
 	display: flex;
 	color:#fff;
+	background-color: #171720;
 }
+@media(min-width:990px){
+	.header{
+		position: fixed;
+		z-index: 1099;
+		left:0;
+		right:0;
+		top:0;
+	}
+	#bodyWrapper{
+		margin-top:64px;
+	}
+}
+
 .helpLinkDiv{
 	text-align: right;
 	padding: 0.5em;
@@ -304,11 +318,11 @@ body legend{
 	font-family: Helvetica,Arial,sans-serif;
 	font-weight: bold;
 	cursor: pointer;
-	color:#1E1E1E;
+	color:#363636;
 }
 
 #fppMenuList .dropdown-item{
-	color:#1E1E1E;
+	color:#363636;
 }
 #fppMenuList li ul a:hover, #fppMenu li ul a:focus, #fppMenu li ul a:active{
 	background-color:#F63939;
@@ -329,7 +343,7 @@ body legend{
 }
 
 .nav-open #fppMenuList>li.active>a{
-	color:#1E1E1E;
+	color:#363636;
 }
 
 #btnDaemonControl{

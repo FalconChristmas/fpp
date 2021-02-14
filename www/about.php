@@ -462,7 +462,7 @@ tr.rowScheduleDetails td {
   <?php include 'common/footer.inc'; ?>
 </div>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
-    <textarea style='width: 800px; height: 500px;' disabled id='upgradeText'>
+    <textarea style='width: 99%; height: 500px;' disabled id='upgradeText'>
     </textarea>
     <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='CloseUpgradeDialog();' style='display: none;'>
 </div>

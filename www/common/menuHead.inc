@@ -39,10 +39,8 @@
 	{
 ?>
 		<style>
-			#bodyWrapper {
-				border: 50px;
-				border-style: solid;
-				border-color: #<? echo $settings['backgroundColor'] ?>;
+			.header {
+				background-color: #<? echo $settings['backgroundColor'] ?>;
 			}
 		</style>
 <?
