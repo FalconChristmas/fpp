@@ -88,9 +88,6 @@ function list_plugin_entries($menu)
         //echo "" . gethostname() . "&nbsp;";
         echo("<span class=\"headerHostName headerBox largeonly\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small>".gethostname()."</small></span></span>");
     }
-    $fpp_head_version_short = explode("-",$fpp_head_version)[0];
-    if($fpp_head_version_short[0] == "v") $fpp_head_version_short = substr($fpp_head_version_short,1);
-    echo("<span class=\"headerBox largeonly\" id=\"header_version\"><span title=\"".$fpp_head_version."\"><b>Ver</b><small>".$fpp_head_version_short."</small></span></span>");
     echo("<span class=\"headerBox\" id=\"header_player\"></span>");
     echo("<span class=\"headerBox largeonly\" id=\"header_sensors\"></span>");
     echo("<span class=\"headerBox\" id=\"header_IPs\"></span>");
@@ -308,38 +305,3 @@ if (!file_exists("/etc/fpp/desktop")) {
 
 
 </div>
-
-<script language="Javascript">
-function handleKeypress(e) {
-	if(e.keyCode == 112) {
-		e.preventDefault();
-		DisplayHelp();
-	}
-};
-
-function CheckBrowser() {
-    var ua = window.navigator.userAgent;
-    var msie = ua.indexOf('MSIE '); // IE<11
-    var trident = ua.indexOf('Trident/'); // IE11
-    if (msie > 0 || trident > 0) {
-       // IE 10 or older => return version number
-        $('#unsupportedBrowser').show();
-    } else {
-        $('#unsupportedBrowser').hide();
-    }
-    if(navigator.userAgent.indexOf('Mac') > 0) {
-        $('body').addClass('mac-os');
-    }
-}
-
-$(document).ready(function() {
-	CheckBrowser();
-	LoadNetworkDetails();
-  LoadHeaderDetails();
-	$(document).on('keydown', handleKeypress);
-
-	CheckRestartRebootFlags();
-});
-
-</script>
-

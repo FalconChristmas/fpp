@@ -14,6 +14,7 @@ include 'common/menuHead.inc';
 <link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 
 <script>
+    SetStatusRefreshSeconds(1);
     PlayEntrySelected = 0;
     PlaySectionSelected = '';
 
@@ -177,7 +178,7 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();">
+<body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
 <div id="bodyWrapper">
 <?php
 	include 'menu.inc';

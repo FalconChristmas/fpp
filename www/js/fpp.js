@@ -14,6 +14,7 @@ gblCurrentPlaylistEntrySong = '';
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
 gblNavbarMenuVisible = 0;
+gblStatusRefreshSeconds = 5;
 
 var max_retries = 60;
 var retry_poll_interval_arr = [];
@@ -22,10 +23,15 @@ var minimalUI = 0;
 
 var statusTimeout = null;
 var lastStatus = '';
+var lastStatusJSON = null;
+var statusChangeFuncs = [];
 
 /* On Page Ready Functions */
 $(function() {
+    OnSystemStatusChange(RefreshHeaderBar);
+    bindVisibilityListener();
     $(document).on('click', '.navbar-toggler', ToggleMenu);
+    $(document).on('keydown', handleKeypress);
 
     if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
         $('body').addClass('has-touch');
@@ -37,7 +43,11 @@ $(function() {
     });
     $('#daemonControl .statusTable').width(statusTableWidth);
     SetupToolTips();
+    LoadSystemStatus();
+    CheckBrowser();
+	CheckRestartRebootFlags();
 });
+
 (function ( $ ) {
     $.fn.fppDialog = function( options ) {
         if(options=='close'){
@@ -147,6 +157,29 @@ $(function() {
         return this;
     };
 }( jQuery ));
+
+function handleKeypress(e) {
+	if(e.keyCode == 112) {
+		e.preventDefault();
+		DisplayHelp();
+	}
+};
+
+function CheckBrowser() {
+    var ua = window.navigator.userAgent;
+    var msie = ua.indexOf('MSIE '); // IE<11
+    var trident = ua.indexOf('Trident/'); // IE11
+    if (msie > 0 || trident > 0) {
+       // IE 10 or older => return version number
+        $('#unsupportedBrowser').show();
+    } else {
+        $('#unsupportedBrowser').hide();
+    }
+    if(navigator.userAgent.indexOf('Mac') > 0) {
+        $('body').addClass('mac-os');
+    }
+}
+
 
 function PadLeft(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
@@ -1014,110 +1047,6 @@ function PlaylistNameOK(name) {
     }
 
     return 1;
-}
-
-/* function LoadNetworkDetails() {
-    $.get('api/network/interface'
-    ).done(function (data) {
-        var rc = [];
-        data.forEach(function (e) {
-            if (e.ifname === "lo") { return 0; }
-            if (e.ifname.startsWith("eth0:0")) { return 0; }
-            if (e.ifname.startsWith("usb")) { return 0; }
-            if (e.ifname.startsWith("can.")) { return 0; }
-            e.addr_info.forEach(function (n) {
-                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
-                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
-                    rc.push(row);
-                }else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
-                    rc.push(row); 
-                }else if (n.family === "inet") {
-                    var icon = "connected";
-                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
-                        icon = "downdhcp";
-                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
-                        icon = "downstatic";
-                    }
-                    var row = '<span title="IP: ' + n.local + '" class="ip-net-'+icon+' net-' + e.ifname + '"><small>' + e.ifname + '</small></span>';
-                    rc.push(row);
-                }
-            });
-        });
-        $("#header_IPs").html(rc.join(""));
-    }).fail(function () {
-        DialogError('Error loading network info', 'Error loading network interface details.');
-    });
-} */
-
-function LoadNetworkDetails() {
-    $.get('api/network/interface'
-    ).done(function (data) {
-        var rc = [];
-        data.forEach(function (e) {
-            if (e.ifname === "lo") { return 0; }
-            if (e.ifname.startsWith("eth0:0")) { return 0; }
-            if (e.ifname.startsWith("usb")) { return 0; }
-            if (e.ifname.startsWith("can.")) { return 0; }
-            e.addr_info.forEach(function (n) {
-                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
-                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
-                    rc.push(row);
-                }else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
-                    rc.push(row); 
-                }else if (n.family === "inet") {
-                    var icon = "text-success";
-                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
-                        icon = "text-warning";
-                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
-                        icon = "text-danger";
-                    }
-                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '</small></span>';
-                    rc.push(row);
-                }
-            });
-        });
-        $("#header_IPs").html(rc.join(""));
-    }).fail(function () {
-        DialogError('Error loading network info', 'Error loading network interface details.');
-    });
-}
-
-function LoadHeaderDetails() {
-    $.get('fppjson.php?command=getFPPstatus'
-    ).done(function (data) {
-        var sensors = [];
-        if(data.sensors != undefined){
-            data.sensors.forEach(function (e) {
-                if (e.valueType != "Temperature") { return 0; }
-                var row = '<span title="' + e.label + e.formatted+'"><i class="fas fa-thermometer-half"></i><small>' + e.label + e.formatted + '</small></span>';
-                sensors.push(row);
-            });
-            $("#header_sensors").html(sensors.join(""));
-        }
-        if(data.status_name != undefined){
-            var row = "";
-            if(data.status_name == "playing"){
-                var title = "Playing";
-                if(data.current_sequence != undefined){
-                    title += ': '+data.current_sequence;
-                }
-                row = '<span title="'+title+'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
-            }else if(data.status_name == "idle"){
-                row = '<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
-            }else if(data.status_name == "stopped"){
-                row = '<span title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
-            }
-            $("#header_player").html(row);
-        }
-        //HARDCODED DEMO, REMOVE THIS!!!!!!!
-        //var row = '<span title="CPU: 38.1"><i class="fas fa-thermometer-half"></i><small>CPU: 38.1</small></span>';
-        //sensors.push(row);
-        $("#header_sensors").html(sensors.join(""));
-    }).fail(function () {
-        DialogError('Error loading header info', 'Error loading header details.');
-    });
 }
 
 function LoadPlaylistDetails(name) {
@@ -2766,11 +2695,12 @@ function moveFile(file) {
         }
     }
 	function GetFPPStatus()	{
-		$.ajax({
+		/* $.ajax({
 			url: 'api/system/status',
 			dataType: 'json',
 			success: function(response, reqStatus, xhr) {	
-				
+				 */
+                var response = lastStatusJSON;
 				if(response && typeof response === 'object') {
 
 					if(response.status_name == 'stopped') {
@@ -2829,14 +2759,15 @@ function moveFile(file) {
 
 					lastStatus = response.status;
 				}
-
+/* 
 			},
 			complete: function() {
 				clearTimeout(statusTimeout);
 				statusTimeout = setTimeout(GetFPPStatus, 1000);
 			}
 		})
-	}
+ */	
+}
 
 function updateWarnings(jsonStatus) {
     if (jsonStatus.hasOwnProperty('warnings')) {
@@ -4350,7 +4281,8 @@ function handleVisibilityChange() {
         clearTimeout(statusTimeout);
         statusTimeout = null;
     } else {
-         GetFPPStatus();
+        LoadSystemStatus();
+        //GetFPPStatus();
     }
 }
 
@@ -5409,4 +5341,110 @@ function ToggleMenu() {
         $('html').addClass('nav-open');
         gblNavbarMenuVisible = 1;
     }
+}
+
+/*
+* Simply Loads the current system status into a JSON variable.
+* Other functions can either call the variable as a on-off or subscribe to changes.
+*/
+function LoadSystemStatus(){
+    $.ajax({
+        url: 'api/system/status',
+        dataType: 'json',
+        success: function(response, reqStatus, xhr) {	
+            if(response && typeof response === 'object') {
+                lastStatusJSON = response;
+                lastStatus = response.status;
+                //Call any "listeners"
+                statusChangeFuncs.forEach(func => {
+                    func();
+                });
+            }
+        },
+        complete: function() {
+            clearTimeout(statusTimeout);
+            statusTimeout = setTimeout(LoadSystemStatus, gblStatusRefreshSeconds*1000);
+        }
+    });
+}
+
+/*
+* How often should the page call api/system/status
+*/
+function SetStatusRefreshSeconds(seconds){
+    if(seconds == undefined) return;
+    if(!Number.isInteger(seconds) ) return;
+    if(seconds <1) return;
+    gblStatusRefreshSeconds = seconds;
+}
+
+/*
+* Pass your function to this and it will be executed when the system status API is called
+*/
+function OnSystemStatusChange(funcToCall){
+    statusChangeFuncs.push(funcToCall);
+}
+
+/*
+* Called each time the system status JSON is updated to refresh icons in the header bar.
+*/
+function RefreshHeaderBar(){
+    var data = lastStatusJSON;
+    if(data == undefined || data == null) return;
+    console.log("Current status: "+ data.status_name+" at "+ data.time);
+    if(data.interfaces != undefined){
+        var rc = [];
+        data.interfaces.forEach(function (e) {
+            if (e.ifname === "lo") { return 0; }
+            if (e.ifname.startsWith("eth0:0")) { return 0; }
+            if (e.ifname.startsWith("usb")) { return 0; }
+            if (e.ifname.startsWith("can.")) { return 0; }
+            e.addr_info.forEach(function (n) {
+                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
+                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }else if (n.family === "inet" && "wifi" in e) {
+                    var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                    rc.push(row); 
+                }else if (n.family === "inet") {
+                    var icon = "text-success";
+                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
+                        icon = "text-warning";
+                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
+                        icon = "text-danger";
+                    }
+                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }
+            });
+        });
+        $("#header_IPs").html(rc.join(""));
+    }
+    
+    if(data.sensors != undefined){
+        var sensors = [];
+        data.sensors.forEach(function (e) {
+            if (e.valueType != "Temperature") { return 0; }
+            var row = '<span title="' + e.label + e.formatted+'"><i class="fas fa-thermometer-half"></i><small>' + e.label + e.formatted + '</small></span>';
+            sensors.push(row);
+        });
+        $("#header_sensors").html(sensors.join(""));
+    }
+
+    if(data.status_name != undefined){
+        var row = "";
+        if(data.status_name == "playing"){
+            var title = "Playing";
+            if(data.current_sequence != undefined){
+                title += ': '+data.current_sequence;
+            }
+            row = '<span title="'+title+'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
+        }else if(data.status_name == "idle"){
+            row = '<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
+        }else if(data.status_name == "stopped"){
+            row = '<span title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
+        }
+        $("#header_player").html(row);
+    }
+
 }
