@@ -1,0 +1,23 @@
+version: "3.8"
+
+# The `context` and 'volumes' directives are relative to THIS directory, while
+# the `dockerfile` directive is relative to the `context` directory.  For best
+# results, run the `docker-compose` command in the fpp/ root directory.
+#
+# fpp> docker-compose -f Docker/docker-compose.yml up
+
+services:
+  fpp:
+    build:
+      args:
+        - "EXTRA_INSTALL_FLAG=--skip-clone"
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    hostname: fpp-docker
+    volumes:
+      - ../:/opt/fpp
+    ports:
+      - "80:80/tcp"
+      - "4048:4048/udp"
+      - "5568:5568/udp"
+      - "32320:32320/udp"
