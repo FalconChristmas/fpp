@@ -1,0 +1,5 @@
+FROM node:latest
+
+WORKDIR /opt/fpp/www
+RUN npm install -g gulp ; \
+    npm install

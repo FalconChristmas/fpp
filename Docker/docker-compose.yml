@@ -21,3 +21,11 @@ services:
       - "4048:4048/udp"
       - "5568:5568/udp"
       - "32320:32320/udp"
+
+  node:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile.node
+    command: "gulp watch"
+    volumes:
+      - ../:/opt/fpp
