@@ -129,6 +129,7 @@ public:
 	std::string          version;
 	std::string          model;
     std::string          ranges;
+    std::string          uuid;
 	unsigned char        ipa = 0;
 	unsigned char        ipb = 0;
 	unsigned char        ipc = 0;
@@ -143,6 +144,7 @@ public:
                 const std::string &version,
                 const std::string &model,
                 const std::string &ranges,
+                const std::string &uuid,
                 const bool multiSync);
     Json::Value toJSON(bool local, bool timestamps);
 };
@@ -229,6 +231,7 @@ class MultiSync {
                       const std::string &version,
                       const std::string &model,
                       const std::string &range,
+                      const std::string &uuid,
                       const bool multiSync);
 
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);

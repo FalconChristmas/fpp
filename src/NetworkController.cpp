@@ -31,6 +31,7 @@ NetworkController::NetworkController(const std::string &ipStr)
     vendorURL("Unknown"),
     typeId(kSysTypeUnknown),
     typeStr("Unknown"),
+    uuid("Unknown"),
     ranges("0-0"),
     version("Unknown"),
     majorVersion(0),
@@ -79,6 +80,9 @@ bool NetworkController::DetectFPP(const std::string &ip, const std::string &html
         vendorURL = "https://falconchristmas.com/forum/";
         if (v.isMember("channelRanges")) {
             ranges = v["channelRanges"].asString();
+        }
+        if (v.isMember("uuid")){
+            uuid = v["uuid"].asString();
         }
         version = v["Version"].asString();
         typeStr = v["Variant"].asString();
@@ -354,6 +358,7 @@ void NetworkController::DumpControllerInfo(void)
 {
     LogDebug(VB_SYNC, "Network Controller Info:\n"
         "IP              : %s\n"
+        "UUID            : %s\n"
         "Hostname        : %s\n"
         "Vendor          : %s\n"
         "Vendor URL      : %s\n"
@@ -364,7 +369,7 @@ void NetworkController::DumpControllerInfo(void)
         "Firmware MajorV : %u\n"
         "Firmware MinorV : %u\n"
         "System Mode     : %s\n",
-        ip.c_str(), hostname.c_str(), vendor.c_str(), vendorURL.c_str(),
+        ip.c_str(), uuid.c_str(), hostname.c_str(), vendor.c_str(), vendorURL.c_str(),
         (int)typeId, typeStr.c_str(), ranges.c_str(), version.c_str(),
         majorVersion, minorVersion, getFPPmodeStr(systemMode).c_str());
 }

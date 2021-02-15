@@ -1143,6 +1143,10 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['minorVersion'] = $json['minorVersion'];
         $result['typeId'] = $json['typeId'];
     }
+
+	if (file_exists("/etc/fpp/fpp_uuid")) {
+		$result['uuid'] = trim(file_get_contents("/etc/fpp/fpp_uuid"));
+	}
     
     if (! $simple) {
         //Get CPU & memory usage before any heavy processing to try get relatively accurate stat
