@@ -5,6 +5,9 @@ BINDIR=$(cd $(dirname $0) && pwd)
 . ${BINDIR}/common
 . ${BINDIR}/functions
 
+# Make sure a UUID file exists
+${BINDIR}/get_uuid > /dev/null
+
 # Clear any restart flag
 sed -i -e "s/^restartFlag .*/restartFlag = 0/" ${FPPHOME}/media/settings
 

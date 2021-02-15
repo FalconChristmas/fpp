@@ -7,6 +7,9 @@ BINDIR=$(cd $(dirname $0) && pwd)
 
 cd ${FPPDIR}
 
+# Make sure a UUID file exists
+${BINDIR}/get_uuid > /dev/null
+
 logOutput
 
 # Clear any restart flag
