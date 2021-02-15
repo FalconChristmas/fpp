@@ -26,6 +26,11 @@ services:
     build:
       context: ../
       dockerfile: ./Docker/Dockerfile.node
-    command: "gulp watch"
+    command: /bin/sh -c "(
+      echo 'Please wait while node modules are installed...';
+      npm install;
+      npm rebuild node-sass;
+      gulp watch-bs
+      )"
     volumes:
       - ../:/opt/fpp
