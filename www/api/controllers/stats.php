@@ -155,6 +155,7 @@ function stats_getMultiSync()
         "minorVersion" => "minorVersion",
         "type" => "type",
         "typeId" => "typeId",
+        "uuid" => "uuid",
     );
 
     $data = json_decode(file_get_contents("http://localhost/api/fppd/multiSyncSystems"), true);

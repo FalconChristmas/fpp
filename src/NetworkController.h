@@ -38,6 +38,7 @@ class NetworkController {
     std::string typeStr;
     std::string ranges;
     std::string version;
+    std::string uuid;
     unsigned int majorVersion;
     unsigned int minorVersion;
     FPPMode systemMode;
