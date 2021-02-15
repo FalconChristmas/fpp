@@ -32,6 +32,9 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
 
@@ -54,6 +57,7 @@ SettingsConfig::~SettingsConfig() {
     if (silenceMusic) free(silenceMusic);
     if (settingsFile) free(settingsFile);
     if (E131interface) free(E131interface);
+	if (systemUUID) free(systemUUID);
     
     for (auto &a :keyVal) {
         if (a.second) {
@@ -134,6 +138,30 @@ void initSettings(int argc, char **argv)
 
 	// Default all to info
 	SetLogLevel("info");
+
+	// load UUID File
+	if( access( "/etc/fpp/fpp_uuid", F_OK ) == 0 ) {
+		// file exists
+		FILE *f = fopen("/etc/fpp/fpp_uuid", "rb");
+		fseek(f, 0, SEEK_END);
+		long fsize = ftell(f);
+		fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
+
+		// make sure the size is reasonable
+		if (fsize < 100) {
+			settings.systemUUID = (char*) malloc(fsize + 1);
+			fread(settings.systemUUID, 1, fsize, f);
+			settings.systemUUID[fsize] = 0;
+			if (settings.systemUUID[fsize-1] = '\n') {
+				settings.systemUUID[fsize-1] = 0;
+			}
+		} 
+		fclose(f);
+	} 
+	// Must be malloced for deconstructor
+	if (settings.systemUUID == nullptr) {
+		settings.systemUUID = strdup("UNKNONW");
+	}
 }
 
 // Returns a string that's the white-space trimmed version
@@ -588,6 +616,10 @@ char *getLogFile(void)
 char *getSilenceMusic(void)
 {
 	return settings.silenceMusic;
+}
+char *getSystemUUID(void)
+{
+	return settings.systemUUID;
 }
 
 char *getSettingsFile(void)

@@ -636,6 +636,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
     int mode = getFPPmode();
     result["fppd"] = "running";
+	result["uuid"] = getSystemUUID();
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = Player::INSTANCE.GetStatus();

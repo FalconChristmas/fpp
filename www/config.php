@@ -146,6 +146,7 @@ $settings['HostName'] = 'FPP';
 $settings['HostDescription'] = '';
 $settings['Title'] = "Falcon Player - FPP";
 $settings['fppBinDir'] = '/opt/fpp/src';
+$settings['wwwDir'] = '/opt/fpp/www';
 
 $settings['Platform'] = FALSE;
 if (file_exists("/etc/fpp/platform"))

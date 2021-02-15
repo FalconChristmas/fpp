@@ -1,0 +1,9 @@
+#!/bin/bash
+
+UUIDFILE="/etc/fpp/fpp_uuid"
+if [ ! -f $UUIDFILE ]; then
+    sudo cp /proc/sys/kernel/random/uuid $UUIDFILE
+    sudo chmod 644 $UUIDFILE
+fi;
+
+cat $UUIDFILE

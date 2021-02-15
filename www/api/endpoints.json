@@ -1808,6 +1808,176 @@
             }
         },
         {
+            "endpoint": "statistics",
+            "methods": {
+                "GET": {
+                    "desc": "Returns the statics file that will be shared with the development team if sharing statistics is enabled.",
+                    "output": {
+                        "uuid": "6ba176e7-da7f-49f4-8b27-edb5bd9ff616",
+                        "systemInfo": {
+                            "mqtt": {
+                                "configured": true,
+                                "connected": true
+                            },
+                            "fppdStatus": "running",
+                            "fppdMode": "player",
+                            "fppdUptimeSeconds": 3436,
+                            "wifiInterfaceCount": 0,
+                            "platform": "Debian",
+                            "platformVariant": "Debian",
+                            "version": "4.x-master-914-gebda8520",
+                            "majorVersion": 4,
+                            "minorVersion": 1000,
+                            "typeId": 1,
+                            "branch": "master",
+                            "osVersion": "v3.0",
+                            "Kernel": "4.19.0-6-amd64",
+                            "osRelease": "Debian GNU/Linux 10 (buster)",
+                            "channelRanges": "0-103",
+                            "utilization": {
+                                "CPU": 2.2251743606775136,
+                                "Memory": 15.913906294147957,
+                                "Uptime": "7 days"
+                            }
+                        },
+                        "capeInfo": {
+                            "type": "None"
+                        },
+                        "outputProcessors": {
+                            "Brightness": {
+                                "activeCnt": 0,
+                                "totalCnt": 2
+                            }
+                        },
+                        "files": {
+                            "sequences": {
+                                "cnt": 2,
+                                "bytes": 19025632
+                            },
+                            "effects": {
+                                "cnt": 0,
+                                "bytes": 0
+                            },
+                            "music": {
+                                "cnt": 4,
+                                "bytes": 20202892
+                            },
+                            "videos": {
+                                "cnt": 3,
+                                "bytes": 2270154
+                            }
+                        },
+                        "models": {
+                            "count": 0
+                        },
+                        "multisync": [
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-103",
+                                "lastSeen": 1613355417,
+                                "version": "4.x-master-914-gebda8520",
+                                "majorVersion": 4,
+                                "minorVersion": 1000,
+                                "type": "FPP (Debian GNU/Linux)",
+                                "typeId": 1
+                            },
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-79383",
+                                "lastSeen": 1613355416,
+                                "version": "4.1",
+                                "majorVersion": 4,
+                                "minorVersion": 1,
+                                "type": "Raspberry Pi 3 B",
+                                "typeId": 8
+                            },
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-1199",
+                                "lastSeen": 1613355416,
+                                "version": "4.x-master-918-g08c8dd19",
+                                "majorVersion": 4,
+                                "minorVersion": 1000,
+                                "type": "BeagleBone Black",
+                                "typeId": 65
+                            },
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-7",
+                                "lastSeen": 1613355416,
+                                "version": "4.x-master-1015-g93555273",
+                                "majorVersion": 4,
+                                "minorVersion": 1000,
+                                "type": "Raspberry Pi 3 B",
+                                "typeId": 8
+                            },
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-9215",
+                                "lastSeen": 1613355416,
+                                "version": "4.x-master-782-gcf3d3381",
+                                "majorVersion": 4,
+                                "minorVersion": 1000,
+                                "type": "BeagleBone Black",
+                                "typeId": 65
+                            },
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-7",
+                                "lastSeen": 1613355417,
+                                "version": "4.x-master-1015-g93555273",
+                                "majorVersion": 4,
+                                "minorVersion": 1000,
+                                "type": "FPP (unknown hardware)",
+                                "typeId": 1
+                            },
+                            {
+                                "fppModeString": "player",
+                                "channelRanges": "0-79383",
+                                "lastSeen": 1613355417,
+                                "version": "4.1",
+                                "majorVersion": 4,
+                                "minorVersion": 1,
+                                "type": "FPP (unknown hardware)",
+                                "typeId": 1
+                            }
+                        ],
+                        "plugins": {
+                            "fpp-brightness": {
+                                "hash": "72b6b1465fe03ad681bd9854cc0ee72940f4a514",
+                                "commitDate": "Tue Jan 12 20:49:11 2021 -0800"
+                            },
+                            "TwilioControl": {
+                                "hash": "5d6533e25b8e56db511ed6fa0355763d8f94e2c3",
+                                "commitDate": "Fri Jul 17 12:27:32 2020 -0400"
+                            }
+                        },
+                        "schedule": {
+                            "enabled": 1,
+                            "types": {
+                                "playlist": 3,
+                                "command": 2
+                            }
+                        },
+                        "settings": {
+                            "AudioMixerDevice": "Master",
+                            "AudioOutput": "0",
+                            "BridgeInputDelayBeforeBlack": "5",
+                            "masqUIPlatform": "",
+                            "uiLevel": "3",
+                            "verbosePlaylistItemDetails": "0"
+                        }
+                    }
+                },
+                "DELETE": {
+                    "desc": "Deletes the cached statistics file",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "system/fppd/restart",
             "methods": {
                 "GET": {

@@ -64,6 +64,7 @@ public:
     char    *silenceMusic = nullptr;
     char    *settingsFile = nullptr;
     char    *E131interface = nullptr;
+    char    *systemUUID = nullptr;
     
     unsigned int controlChannel;
     
@@ -110,4 +111,5 @@ char *getSilenceMusic(void);
 char *getSettingsFile(void);
 char *getE131interface(void);
 unsigned int getControlChannel(void);
+char *getSystemUUID(void);
 
