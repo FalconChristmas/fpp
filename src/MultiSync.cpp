@@ -77,8 +77,12 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string &ranges,
                              const std::string &uuid,
                              const bool multiSync) {
+    // Always update uuid
+    this->uuid         = uuid;
+
     // If this record is from info learned via the MultiSync protocol,
     // don't allow it to be overwritten by data discovered elsewhere
+    // except for uuid.
     if (this->multiSync && !multiSync)
         return;
 
@@ -91,7 +95,6 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     this->version      = version;
     this->model        = model;
     this->ranges       = ranges;
-    this->uuid         = uuid;
 
     if (!this->multiSync && multiSync)
         this->multiSync = true;
@@ -786,6 +789,13 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
     NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data);
 
     if (nc) {
+        // This block was designed to avoid updating from NetworkControl if
+        // the device was found by ping.  However, UUID doesn't come from ping
+        // and the NC update has already be executed, so removing it out for now
+        // so that uuid gets updated.  update() function already has 
+        // smarts not to override discovery protoocol data anyway. 
+        
+        /*
         if (isLocalSubnet && nc->typeId < 0x80) {
             std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
             bool found = false;
@@ -803,6 +813,7 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
                 nc = nullptr;
             }
         }
+        */
         
         if (nc) {
             UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
