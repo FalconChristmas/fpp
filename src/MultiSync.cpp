@@ -77,8 +77,10 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string &ranges,
                              const std::string &uuid,
                              const bool multiSync) {
-    // Always update uuid
-    this->uuid         = uuid;
+    // Always update uuid if not Unknown
+    if (uuid != "Unknown") {
+        this->uuid         = uuid;
+    }
 
     // If this record is from info learned via the MultiSync protocol,
     // don't allow it to be overwritten by data discovered elsewhere
