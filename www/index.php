@@ -143,7 +143,7 @@ include 'common/menuHead.inc';
 		volume += 1;
 		if (volume > 100)
 			volume = 100;
-            
+
         updateVolumeUI(volume);
 		SetVolume(volume);
 	}
@@ -186,7 +186,7 @@ include 'common/menuHead.inc';
 
 
 <div class="mainContainer container">
-<h1 class="title">Status</h1>
+<h1 class="title d-none d-sm-block ">Status</h1>
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
@@ -200,45 +200,7 @@ include 'common/menuHead.inc';
 ?>
 <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
     <div id="programControl" class="settings">
-  
-            
-            <!-- Main FPP Mode/status/time header w/ sensor info -->
-            <div id='daemonControl' class='statusDiv'>
-                <div class='statusBoxLeft'>
-                    <div class='statusTable row'>
-                        <div class="col-auto">
-                            <div class="labelHeading labelHeadingFPPDMode">FPPD Mode:</div>
-                            <div>
-                                <select id="selFPPDmode" onChange="SetFPPDmode();">
-                                    <option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
-                                    <option id="optFPPDmode_Master" value="6">Player (Master)</option>
-                                    <option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
-                                    <option id="optFPPDmode_Bridge" value="1">Bridge</option>
-                                </select>
-                                <input type="button" id="btnDaemonControl" class ="buttons btn-outline-light" value="" onClick="ControlFPPD();">
-                                </div>
-                        </div>
-                        <div class="col-auto">
-                            <div class="labelHeading">FPPD Status:</div>
-                            <div id = "daemonStatus" class="labelValue"></div>
-                        </div>
-                        <div class="col-auto">
-                            <div class="labelHeading">FPP Time:</div>
-                            <div id="fppTime" class="labelValue"></div>
-                        </div>
-                        <div id="mqttRow" class="col-md">
-                            <div class="labelHeading">MQTT:</div>
-                            <div id="mqttStatus" class="labelValue"></div>
-                        </div>
-                        <div id="sensorData" class="col-md">
-                            
-                        </div>
-                    </div>
-                </div>
-                <div class='clear'></div>
-            </div>
 
-   
             <div class="statusPageLoading pageContent">
                 <div class="skeleton-loader">
                     <div ></div>
@@ -350,15 +312,15 @@ include 'common/menuHead.inc';
                                 <div id="txtPlayerStatus" class="labelValue playerStatusLabelValue"></div>
                             </div>
                             <div class="row playlistSelectRow">
-         
+
                                 <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" class="form-control form-control-lg form-control-rounded has-shadow" size="1" onClick="SelectPlaylistDetailsEntryRow();PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
                                 <div class="playlistRepeatCol"><span class="settingLabelHeading">Repeat:</span> <input type="checkbox" id="chkRepeat"></input></div>
-                                
+
                             </div>
 
                         </div>
                         <div class="d-flex playerControlsContainer">
-                                
+
                             <div id="playerControls" >
                                 <input id= "btnPlay" type="button"  class ="buttons btn-rounded btn-success"value="Play" onClick="StartPlaylistNow();">
                                 <input id= "btnPrev" type="button"  class ="buttons btn-rounded btn-pleasant"value="Previous" onClick="PreviousPlaylistEntry();">
@@ -368,7 +330,7 @@ include 'common/menuHead.inc';
                                 <input id= "btnStopNow" type="button" class ="buttons btn-rounded btn-danger" value="Stop Now" onClick="StopNow();">
                             </div>
                             <div class="volumeControlsContainer">
-                                
+
                                     <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
                                     <div class="volumeControls">
                                         <div>
@@ -382,7 +344,7 @@ include 'common/menuHead.inc';
                                         </div>
                                         <span id='speaker'></span> <!-- Volume -->
                                     </div>
-                                
+
                             </div>
 
                         </div>
@@ -422,8 +384,8 @@ include 'common/menuHead.inc';
                     <table>
                     <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
                     </table>
-                    
-                    
+
+
                 </div>
                 <hr>
                 <div id='schedulerInfo'>
@@ -456,10 +418,10 @@ include 'common/menuHead.inc';
                         </div>
                     </div>
 
-     
+
                 </div>
             </div>
-   
+
     </div>
 </div>
 <?php	include 'common/footer.inc'; ?>

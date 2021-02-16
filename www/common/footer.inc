@@ -7,6 +7,7 @@
 <div id="footer">
 <br />
   <div id="rebootShutdown">
+    <input type="button" id="btnDaemonControl" class ="buttons btn-outline-light" value="" onClick="ControlFPPD();">
     <input type='button' class='buttons wideButton btn-outline-light' value='Run FPP Command' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span>
     <input name="btnReboot" onClick="RebootPi();" type="button" class = "buttons btn-outline-light" value="Reboot">
     <input name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons btn-outline-light" value="Shutdown">

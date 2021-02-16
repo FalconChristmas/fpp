@@ -36,12 +36,6 @@ $(function() {
     if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
         $('body').addClass('has-touch');
     }
-    var statusTableWidth=0;
-    $('#daemonControl .statusTable .col-auto').each(function(){
-        console.log($(this).outerWidth(true))
-        statusTableWidth+=$(this).outerWidth(true)+100;
-    });
-    $('#daemonControl .statusTable').width(statusTableWidth);
     SetupToolTips();
     LoadSystemStatus();
     CheckBrowser();
@@ -132,7 +126,7 @@ $(function() {
                 if(settings.closeText){
                     if(!$(this).hasClass('has-closeText')){
                         $(this).addClass('has-closeText');
-                        $title.append(settings.closeText);            
+                        $title.append(settings.closeText);
                     }
                 }
 
@@ -146,7 +140,7 @@ $(function() {
                     options.open.call(self);
                 })
             }
-            
+
             if(options.close && typeof options.close==='function'){
                 $(this).on('hide.bs.modal', function(){
                     options.close.call(self);
@@ -206,7 +200,7 @@ function versionToNumber(version)
         version = version.substr(0, version.indexOf("-"));
     }
     var parts = version.split('.');
-    
+
     while (parts.length < 3) {
         parts.push("0");
     }
@@ -1599,7 +1593,7 @@ function CopyPlaylist()	{
                 $(this).fppDialog("close");
             },
             Cancel: function() {
-                
+
                 $(this).fppDialog("close");
             }
         },
@@ -1709,7 +1703,7 @@ function EditPlaylistEntry() {
     var keys = Object.keys(pet.args);
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
-        
+
         if (a.hidden == true) {
             continue;
         }
@@ -1819,12 +1813,12 @@ function RemovePlaylistEntry()	{
 		{
             location.href="changebranch.php?branch=" + newBranch;
 		}
-		
+
 		function RebuildFPPSource()
 		{
             location.href="rebuildfpp.php";
 		}
-	
+
 		function SetUniverseCount(input)
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
@@ -1832,7 +1826,7 @@ function RemovePlaylistEntry()	{
 			if(isNaN(count)) {
 				count = 8;
 			}
-            
+
             if (count < UniverseCount) {
                 while (count < UniverseCount) {
                     UniverseSelected = UniverseCount - 1;
@@ -1915,7 +1909,7 @@ function RemovePlaylistEntry()	{
                 univc.prop('disabled', true);
                 var sz = $(item).parent().parent().find("input.txtSize");
                 sz.prop('max', 512000);
-                
+
                 var monitor = $(item).parent().parent().find("input.txtMonitor");
                 monitor.prop('disabled', false);
 
@@ -1938,7 +1932,7 @@ function RemovePlaylistEntry()	{
                     sz.val(512);
                 }
                 sz.prop('max', 512);
-                
+
                 if (!input) {
                     if ((type == 0) || (type == 2)) {
                         $(item).parent().parent().find("input.txtIP").val('');
@@ -1992,7 +1986,7 @@ function updateUniverseEndChannel(row) {
             } else if ("channelOutputs" in data) {
                 channelData = data.channelOutputs[0];
             }
-        
+
             if (input) {
                 inputStr = 'Input';
                 inputStyle = "style='display: none;'";
@@ -2147,9 +2141,9 @@ function updateUniverseEndChannel(row) {
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
  			var innerHTML="";
 			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
 				{
-					var xmlDoc=xmlhttp.responseXML; 
+					var xmlDoc=xmlhttp.responseXML;
 					var entries = xmlDoc.getElementsByTagName('PixelnetDMXentries')[0];
 					if(entries.childNodes.length> 0)
 					{
@@ -2170,13 +2164,13 @@ function updateUniverseEndChannel(row) {
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
 								var pixelnetChecked = type == 0 ? "selected" : "";
 								var dmxChecked = type == 1 ? "selected" : "";
-								
+
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"FPDchkActive[" + i.toString() + "]\" id=\"FPDchkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
 															"<td><select id=\"pixelnetDMXtype[" + i.toString() + "]\" name=\"pixelnetDMXtype[" + i.toString() + "]\" style=\"width:150px\">" +
 															      "<option value=\"0\" " + pixelnetChecked + ">Pixelnet</option>" +
-															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" + 
+															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" +
 															"<td><input name=\"FPDtxtStartAddress[" + i.toString() + "]\" id=\"FPDtxtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
 															"</tr>";
 
@@ -2184,14 +2178,14 @@ function updateUniverseEndChannel(row) {
 					}
 					else
 					{
-						innerHTML = "No Results Found";	
+						innerHTML = "No Results Found";
 					}
 					var results = document.getElementById("tblOutputs");
-					results.innerHTML = innerHTML;	
+					results.innerHTML = innerHTML;
 				}
 			};
-			
-			xmlhttp.send();			
+
+			xmlhttp.send();
 		}
 
         function SetUniverseRowInputNames(row, id) {
@@ -2199,7 +2193,7 @@ function updateUniverseEndChannel(row) {
                                'txtUniverse', 'numUniverseCount', 'txtSize', 'universeType', 'txtIP',
                                'txtPriority', 'txtMonitor', 'txtDeDuplicate');
             row.find('span.rowID').html((id + 1).toString());
-            
+
             for (var i = 0; i < fields.length; i++)
             {
                 row.find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
@@ -2222,13 +2216,13 @@ function updateUniverseEndChannel(row) {
 			UniverseSelected = -1;
 			UniverseCount = 0;
 		}
-		
+
 		function DeleteUniverse(input)
 		{
             if (UniverseSelected >= 0) {
                 var selectedIndex = UniverseSelected;
                 for(i = UniverseSelected + 1; i < UniverseCount; i++, selectedIndex++) {
-                    
+
                     document.getElementById("txtUniverse[" + selectedIndex + "]").value = document.getElementById("txtUniverse[" + i + "]").value
                     document.getElementById("txtDesc[" + selectedIndex + "]").value = document.getElementById("txtDesc[" + i + "]").value
                     document.getElementById("universeType[" + selectedIndex + "]").value = document.getElementById("universeType[" + i + "]").value;
@@ -2255,9 +2249,9 @@ function updateUniverseEndChannel(row) {
                 document.getElementById("txtUniverseCount").value = UniverseCount;
                 UniverseSelected = -1;
             }
-        
+
         }
-		
+
 		function CloneUniverses(cloneNumber)
 		{
 			var selectIndex = (UniverseSelected).toString();
@@ -2439,7 +2433,7 @@ function postUniverseJSON(input) {
                     }
                 }
 				// start address
-				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
+				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");
 				if(!validateNumber(txtStartAddress,1,1048576))
 				{
 					returnValue = false;
@@ -2464,7 +2458,7 @@ function postUniverseJSON(input) {
 			}
 			return returnValue;
 		}
-		
+
 		function validateIPaddress(id)
 		{
 			var ipb = document.getElementById(id);
@@ -2479,35 +2473,35 @@ function postUniverseJSON(input) {
 
 			ipb.style.border = "#F00 2px solid";
 			return false;
-		}  
+		}
 
-		function validateNumber(textbox,minimum,maximum)   
-		{  
+		function validateNumber(textbox,minimum,maximum)
+		{
 			result = true;
 			value = Number(textbox.value);
 			if(isNaN(value))
 			{
 				textbox.style.border="red solid 1px";
-				textbox.value = ""; 
+				textbox.value = "";
 				result = false;
 			}
 			if(value >= minimum && value <= maximum)
 			{
-				return true;	
+				return true;
 			}
 			else
 			{
 				textbox.style.border="red solid 1px";
-				textbox.value = ""; 
+				textbox.value = "";
 				result = false;
 			alert(textbox.value + ' is not between ' + minimum + ' and ' + maximum);
 			}
 		}
-		
+
 		function ReloadPixelnetDMX()
 		{
 			getPixelnetDMXoutputs("TRUE");
-		} 
+		}
 
 		function ExtendSchedule(minutes)
 		{
@@ -2618,18 +2612,18 @@ function moveFile(file) {
 	{
 		var status = GetFPPStatus();
 	}
-	
+
 	function IsFPPDrunning()
 	{
     	var xmlhttp=new XMLHttpRequest();
 			var url = "fppxml.php?command=isFPPDrunning";
 			xmlhttp.open("GET",url,true);
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () 
+			xmlhttp.onreadystatechange = function ()
 			{
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
 				{
-					var xmlDoc=xmlhttp.responseXML; 
+					var xmlDoc=xmlhttp.responseXML;
 					var status = xmlDoc.getElementsByTagName('Status')[0];
 					var retValue='false';
 					if(status.childNodes.length> 0)
@@ -2646,7 +2640,7 @@ function moveFile(file) {
 							SetButtonState('#btnDaemonControl','disable');
 							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPP is currently updating.");
-						} 
+						}
 						else
 						{
 							SetButtonState('#btnDaemonControl','enable');
@@ -2654,7 +2648,7 @@ function moveFile(file) {
 							$('#daemonStatus').html("FPPD is stopped.");
 							$('.schedulerStartTime').hide();
 							$('.schedulerEndTime').hide();
-						} 
+						}
 					}
 				}
 			};
@@ -2698,7 +2692,7 @@ function moveFile(file) {
 		/* $.ajax({
 			url: 'api/system/status',
 			dataType: 'json',
-			success: function(response, reqStatus, xhr) {	
+			success: function(response, reqStatus, xhr) {
 				 */
                 var response = lastStatusJSON;
 				if(response && typeof response === 'object') {
@@ -2716,7 +2710,7 @@ function moveFile(file) {
                         }).fail(function(){
                             DialogError('Volume Query Failed', "Failed to query Volume when FPPD stopped");
                         });
-						
+
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
 						$("#btnDaemonControl").attr('value', 'Start FPPD');
@@ -2731,7 +2725,7 @@ function moveFile(file) {
                         $('#mqttRow').hide()
                         updateWarnings(response);
 
-					
+
 					} else if(response.status_name == 'updating') {
 
 						$('#fppTime').html('');
@@ -2759,14 +2753,14 @@ function moveFile(file) {
 
 					lastStatus = response.status;
 				}
-/* 
+/*
 			},
 			complete: function() {
 				clearTimeout(statusTimeout);
 				statusTimeout = setTimeout(GetFPPStatus, 1000);
 			}
 		})
- */	
+ */
 }
 
 function updateWarnings(jsonStatus) {
@@ -2805,7 +2799,7 @@ function updateVolumeUI(Volume) {
 }
 
     var firstStatusLoad = 1;
-    
+
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -2818,7 +2812,7 @@ function updateVolumeUI(Volume) {
             fppStatus == STATUS_PAUSED ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
-		
+
 			$("#btnDaemonControl").attr('value', 'Stop FPPD');
 			$('#daemonStatus').html("FPPD is running.");
 		}
@@ -2882,7 +2876,7 @@ function updateVolumeUI(Volume) {
 				$('#schedulerStatus').html("Idle");
 				$('.schedulerStartTime').hide();
 				$('.schedulerEndTime').hide();
-								
+
 				// Enable Play
 				SetButtonState('#btnPlay','enable');
                 SetButtonState('#btnStopNow','disable');
@@ -2945,12 +2939,12 @@ function updateVolumeUI(Volume) {
 				$('#txtSeqFilename').html(jsonStatus.current_sequence);
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 
-//				if(currentPlaylist.index != gblCurrentPlaylistIndex && 
+//				if(currentPlaylist.index != gblCurrentPlaylistIndex &&
 //					currentPlaylist.index <= gblCurrentLoadedPlaylistCount) {
 // FIXME, somehow this doesn't refresh on the first page load, so refresh
 // every time for now
 if (1) {
-							
+
 							UpdateCurrentEntryPlaying(currentPlaylist.index);
 							gblCurrentPlaylistIndex = currentPlaylist.index;
 					}
@@ -3007,7 +3001,7 @@ if (1) {
                 SetButtonState('#btnStopNow','enable');
                 SetButtonState('#btnStopGracefully','enable');
                 SetButtonState('#btnStopGracefullyAfterLoop','enable');
-                
+
                 $('#txtPlayerStatus').html(playerStatusText);
 				$('#playerTime').show();
                 $('#txtTimePlayed').html(jsonStatus.time_elapsed );
@@ -3052,7 +3046,7 @@ if (1) {
                     sensorText += jsonStatus.sensors[i].formatted;
                 }
                 sensorText += "</td>";
-                
+
                 if ((jsonStatus.sensors.length > 4) && ((i % 2) == 1)) {
                     sensorText += "<tr>";
                 }
@@ -3177,7 +3171,7 @@ function GetUniverseBytesReceived() {
         $("#bridgeStatistics2").html('');
     });
 }
-	
+
 	function UpdateCurrentEntryPlaying(index,lastIndex)
 	{
 		$('#tblPlaylistDetails tr').removeClass('PlaylistRowPlaying');
@@ -3189,12 +3183,12 @@ function GetUniverseBytesReceived() {
 			$("#playlistRow" + index).addClass("PlaylistRowPlaying");
 		}
 	}
-	
+
 	function SetIconForCurrentPlayingEntry(index)
 	{
 	}
-	
-	
+
+
 	function SetButtonState(button,state)
 	{
 			// Enable Button
@@ -3211,7 +3205,7 @@ function GetUniverseBytesReceived() {
 				$(button).attr("disabled", "disabled");
 			}
 	}
-	
+
 	function StopGracefully()
 	{
         var url = 'api/playlists/stopgracefully';
@@ -3476,7 +3470,7 @@ function zeroPad(num, places) {
 	var zero = places - num.toString().length + 1;
 	return Array(+(zero > 0 && zero)).join("0") + num;
 }
-	
+
 function ControlFPPD() {
     var url = "api/system/fppd/";
     var btnVal = $("#btnDaemonControl").attr('value');
@@ -3623,10 +3617,10 @@ function GetRunningEffects() {
                     error: function() {
                         DialogError('Command failed', 'Command failed');
                     }
-            
-                });    
+
+                });
             }, 1000);
-		} 
+		}
 	}
 
 	function ShutdownPi()
@@ -3643,9 +3637,9 @@ function GetRunningEffects() {
                 error: function() {
                     DialogError('Command failed', 'Command failed');
                 }
-        
+
             });
-		} 
+		}
 	}
 
 function UpgradePlaylist(data, editMode)
@@ -4246,13 +4240,13 @@ function DialogError(title, message)
 // page visibility prefixing
 function getHiddenProp(){
     var prefixes = ['webkit','moz','ms','o'];
-    
+
     // if 'hidden' is natively supported just return it
     if ('hidden' in document) return 'hidden';
-    
+
     // otherwise loop over all the known prefixes until we find one
     for (var i = 0; i < prefixes.length; i++){
-        if ((prefixes[i] + 'Hidden') in document) 
+        if ((prefixes[i] + 'Hidden') in document)
             return prefixes[i] + 'Hidden';
     }
 
@@ -4264,7 +4258,7 @@ function getHiddenProp(){
 function isHidden() {
     var prop = getHiddenProp();
     if (!prop) return false;
-    
+
     return document[prop];
 }
 
@@ -4511,7 +4505,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
            line += "<option value='" + k + "'>" + v + "</option>\n";
            });
     line += "</datalist></td></tr>";
-    
+
     $('#' + tblCommand).append(line);
 
     argPrintFunc(tblCommand, configAdjustable, co['args']);
@@ -4529,7 +4523,7 @@ function SubCommandChanged(subCommandV, configAdjustable = false, argPrintFunc =
     }
     var count = subCommand.data("count");
     var tblCommand = subCommand.data('tblcommand');
-    
+
     for (var x = count+1; x < 25; x++) {
         $('#' + tblCommand + '_arg_' + x + '_row').remove();
     }
@@ -4555,7 +4549,7 @@ function PrintArgsInputsForEditable(tblCommand, configAdjustable, args, startCou
         if (val['type'] == 'args') {
             return;
         }
-        
+
         if ((val.hasOwnProperty('statusOnly')) &&
             (val.statusOnly == true)) {
             return;
@@ -4706,12 +4700,12 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
          var ID = tblCommand + "_arg_" + count;
          var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
          var subCommandInitFunc = null;
-           
+
          if (children.includes(val['name']))
             line += "&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;";
 
          line += val["description"] + ":</td><td>";
-         
+
          var dv = "";
          if (typeof val['default'] != "undefined") {
             dv = val['default'];
@@ -4895,7 +4889,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
              });
              line += "</select>";
          }
-         
+
          line += "</td></tr>";
          $('#' + tblCommand).append(line);
          if (typeof val['contentListUrl'] != "undefined") {
@@ -4968,7 +4962,7 @@ function ReloadContentList(baseUrl, inp) {
                if (arg.find("options[0]").value == "") {
                    arg.innerHTML = "<option value=''></option>";
                }
-               
+
                if (Array.isArray(data)) {
                     $.each( data, function( key, v ) {
                       var line = '<option value="' + v + '"'
@@ -4993,7 +4987,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
         var baseUrl = "";
         if (allowMultisyncCommands) {
             var to = typeof json['multisyncCommand'] ;
-            
+
             if (typeof json['multisyncCommand'] != "undefined") {
                 var val = json['multisyncCommand'];
                 $("#" + tblCommand + "_multisync").prop("checked", val);
@@ -5008,8 +5002,8 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
             $("#" + tblCommand + "_multisync_row").hide();
             $("#" + tblCommand + "_multisyncHosts_row").hide();
         }
-        
-    
+
+
         if (typeof json['args'] != "undefined") {
             var count = 1;
             $.each( json['args'], function( key, v ) {
@@ -5017,7 +5011,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    if (inp.data('contentlisturl') != null && baseUrl != "") {
                        ReloadContentList(baseUrl, inp);
                    }
-                          
+
                    var multattr = inp.attr('multiple');
                    if (inp.attr('type') == 'checkbox') {
                        var checked = false;
@@ -5028,18 +5022,18 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    } else if (typeof multattr !== typeof undefined && multattr !== false) {
                        var split = v.split(",");
                        console.log(inp.attr('type') + "  " + inp.attr('multiple') + "  " + v + "  " + split + " " + split.length + "\n");
-                       
+
                        $("#" + tblCommand + "_arg_" + count + " option").prop("selected", function () {
                            return ~$.inArray(this.text, split);
                        });
                    } else {
                        inp.val(v);
                    }
-                   
+
                    if (inp.data('url') != null) {
                       SubCommandChanged(tblCommand + "_arg_" + count, configAdjustable, argPrintFunc);
                    }
-                   
+
                    if (typeof json['adjustable'] != "undefined"
                        && typeof json['adjustable'][count] != "undefined") {
                        $("#" + tblCommand + "_arg_" + count + "_adjustable").prop("checked", true);
@@ -5351,7 +5345,7 @@ function LoadSystemStatus(){
     $.ajax({
         url: 'api/system/status',
         dataType: 'json',
-        success: function(response, reqStatus, xhr) {	
+        success: function(response, reqStatus, xhr) {
             if(response && typeof response === 'object') {
                 lastStatusJSON = response;
                 lastStatus = response.status;
@@ -5405,7 +5399,7 @@ function RefreshHeaderBar(){
                     rc.push(row);
                 }else if (n.family === "inet" && "wifi" in e) {
                     var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
-                    rc.push(row); 
+                    rc.push(row);
                 }else if (n.family === "inet") {
                     var icon = "text-success";
                     if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
@@ -5420,7 +5414,7 @@ function RefreshHeaderBar(){
         });
         $("#header_IPs").html(rc.join(""));
     }
-    
+
     if(data.sensors != undefined){
         var sensors = [];
         data.sensors.forEach(function (e) {
