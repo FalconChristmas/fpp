@@ -83,7 +83,7 @@ body .ui-widget input, body .ui-widget select, body .ui-widget textarea, body .u
 	transform: rotate(-45deg);
   }
 
-  
+
 
 body .pageContent .ui-widget.ui-widget-content{
 	border:none;
@@ -125,7 +125,7 @@ body .ui-tabs .ui-tabs-nav li {
 	color:#8A8A8A;
 	text-decoration: none;
 	font-size: 0.8em;
-	
+
 }
 @media (min-width:990px) {
 	.header{
@@ -152,7 +152,7 @@ body .ui-tabs .ui-tabs-nav li {
 }
 .headerLeft a{
 	text-decoration: none;
-} 
+}
 .headerLeftCol{
 	display:flex;
 	align-items: center;
@@ -175,7 +175,7 @@ body .ui-tabs .ui-tabs-nav li {
 }
 .fppBrand a:hover{
 	color:#fff;
-	
+
 }
 .fppBrand .versionHead{
 	font-size: 0.8em;
@@ -221,7 +221,7 @@ body .ui-tabs .ui-tabs-nav li {
 }
 .headerRight .capeVendor .logo{
 	max-height: 32px;
-	
+
 }
 .headerRight .logo{
 	max-height:32px;
@@ -320,8 +320,8 @@ body legend{
 	margin-bottom: 0.5em;
 	display: block;
 	margin-bottom: 0.5em;
-	
-	
+
+
 }
 .settings .row{
 	margin-bottom: 1.1em;
@@ -400,7 +400,7 @@ body legend{
 }
 #daemonControl .statusTable>:first-child{
 	margin-left: 0;
-	padding-left: 0;	
+	padding-left: 0;
 }
 #daemonControl .statusTable>:first-child:before{
 	content:none;
@@ -461,7 +461,7 @@ input[type=range]::-webkit-slider-runnable-track {
 	background: #D9D9D9;
 	border-radius: 4px;
 }
-  
+
 input[type=range]::-webkit-slider-thumb {
 	-webkit-appearance: none;
 	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
@@ -515,7 +515,7 @@ input[type=range]::-webkit-slider-thumb {
 .volumeControls input {
 	margin-left: 0.5em;
 	margin-right: 0.5em;
-	
+
 }
 .volumeControlsContainer {
 	margin-bottom: 1.1em;
@@ -555,7 +555,7 @@ hr {
 	background-color: #ECECEC;
 	border-radius:8px;
 	padding:1.1em;
-	
+
 	width: 100%;
 }
 .playlistEntriesBody{
@@ -695,23 +695,21 @@ border-top-color: transparent;
 #verbosePlaylistItemDetailsRow th{
 	padding-right: 1em;
 }
-#schedulerInfo{
-	margin-top: 2em;
-	margin-bottom: 0.5em;
-}
-#schedulerInfo .statusTable {
-	display: flex;	
-}
 /* #schedulerInfo .statusTable>div{
 	margin-left: 4em;
-} 
+}
 #schedulerInfo .statusTable>div:first-child{
 	margin-left: 0;
 }*/
+#schedulerInfo .container {
+	padding-left: 0em;
+	padding-right: 0em;
+}
+
 .icon-help{
 	width: 28px;
 	height: 28px;
-	
+
     padding-left: 6px;
     padding-bottom: 6px;
 	margin-top: 6px;
@@ -730,7 +728,7 @@ border-top-color: transparent;
 	margin-top: 2em;
 	padding-bottom: 0;
 }
-.footerLink a{ 
+.footerLink a{
 	color:#fff;
 	font-size: 0.9em;
 	text-decoration: none;
@@ -749,13 +747,13 @@ body .sm-clean a .sub-arrow {
 	-webkit-animation: ajax-spin 2s linear infinite; /* Safari */
 	animation: ajax-spin 2s linear infinite;
   }
-  
+
   /* Safari */
   @-webkit-keyframes ajax-spin {
 	0% { -webkit-transform: rotate(0deg); }
 	100% { -webkit-transform: rotate(360deg); }
   }
-  
+
   @keyframes ajax-spin {
 	0% { transform: rotate(0deg); }
 	100% { transform: rotate(360deg); }
@@ -766,7 +764,7 @@ body .sm-clean a .sub-arrow {
 
 
 
-  
+
 .dropdown:after {
 	-webkit-transform: rotate(0deg);
 	-moz-transform: rotate(0deg);
@@ -779,7 +777,7 @@ body .sm-clean a .sub-arrow {
 	-ms-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
   }
-  
+
   .dropdown.show>.dropdown-toggle:after {
 	-webkit-transform: rotate(180deg);
 	-moz-transform: rotate(180deg);
@@ -792,7 +790,7 @@ body .sm-clean a .sub-arrow {
 	-ms-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
   }
-  
+
   .dropdown-menu {
 	display: none;
 	padding: 0.3125rem 0;
@@ -805,58 +803,58 @@ body .sm-clean a .sub-arrow {
 	box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.26);
 	top:40px;
   }
-  
+
 .dropdown-menu.show {
 	animation-name: dropdown-animation;
 	animation-duration: 0.3s;
 	animation-fill-mode: forwards;
 	animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }  
+  }
   @keyframes dropdown-animation {
 	from {
 	  opacity: 0;
 	  transform: scale(0);
 	}
-  
+
 	to {
 	  opacity: 1;
 	  transform: scale(1);
 	}
   }
-  
+
   .open>.dropdown-menu,
   .dropdown-menu.show {
 	display: block;
 	opacity: 1;
 	transform: scale(1);
   }
-  
+
   .dropdown-menu.hiding {
 	display: block;
 	opacity: 0;
 	transform: scale(0);
   }
-  
+
   .dropdown-menu[x-placement="bottom-start"] {
 	transform-origin: 0 0;
   }
-  
+
   .dropdown-menu[x-placement="bottom-end"] {
 	transform-origin: 100% 0;
   }
-  
+
   .dropdown-menu[x-placement="top-start"] {
 	transform-origin: 0 100%;
   }
-  
+
   .dropdown-menu[x-placement="top-end"] {
 	transform-origin: 100% 100%;
   }
-  
+
   .dropdown-menu .disabled>a {
 	color: #777;
   }
-  
+
   .dropdown-menu .disabled>a:focus,
   .dropdown-menu .disabled>a:hover {
 	text-decoration: none;
@@ -864,7 +862,7 @@ body .sm-clean a .sub-arrow {
 	background-image: none;
 	color: #777;
   }
-  
+
   .dropdown-menu.dropdown-with-icons .dropdown-item {
 	padding: 0.75rem 1.25rem 0.75rem 0.75rem;
   }
@@ -875,7 +873,7 @@ body .sm-clean a .sub-arrow {
 	text-align: center;
 	padding-right: 4px;
 }
-  
+
   .dropdown-menu.dropdown-with-icons .dropdown-item .material-icons {
 	vertical-align: middle;
 	font-size: 24px;
@@ -885,7 +883,7 @@ body .sm-clean a .sub-arrow {
 	margin-right: 12px;
 	opacity: .5;
   }
-  
+
   .dropdown-menu .dropdown-item,
   .dropdown-menu li>a {
 	position: relative;
@@ -911,16 +909,16 @@ body .sm-clean a .sub-arrow {
 	text-overflow: ellipsis;
 	word-wrap: break-word;
   }
-  
+
   @media (min-width: 768px) {
-  
+
 	.dropdown-menu .dropdown-item,
 	.dropdown-menu li>a {
 	  padding-right: 1.5rem;
 	  padding-left: 1.5rem;
 	}
   }
-  
+
   .dropdown-menu .dropdown-item:hover,
   .dropdown-menu .dropdown-item:focus,
   .dropdown-menu .dropdown-item:active,
@@ -999,7 +997,7 @@ body .sm-clean a .sub-arrow {
 	  transition: all 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  box-shadow: -5px 0 10px rgba(0,0,0,0.5) ;
 	}
-  
+
 	.navbar-collapse::after {
 	  top: 0;
 	  left: 0;
@@ -1011,27 +1009,27 @@ body .sm-clean a .sub-arrow {
 	  content: "";
 	  z-index: 1;
 	}
-  
+
 	.navbar-collapse .dropdown-toggle:after {
 	  position: absolute;
 	  right: 16px;
 	  margin-top: 8px;
 	}
-  
+
 	.navbar-collapse .navbar-nav {
 	  position: relative;
 	  z-index: 3;
 	}
-  
+
 	.navbar-collapse .navbar-nav .nav-item .nav-link {
 	  color: #000000;
 	  margin: 5px 15px;
 	}
-  
+
 	.navbar-collapse .navbar-nav .nav-item.button-container .nav-link {
 	  margin: 15px;
 	}
-  
+
 	.navbar-collapse .navbar-nav .nav-item:after {
 	  width: calc(100% - 30px);
 	  content: "";
@@ -1040,19 +1038,19 @@ body .sm-clean a .sub-arrow {
 	  margin-left: 15px;
 	  background-color: #e5e5e5;
 	}
-  
+
 	.navbar-collapse .navbar-nav .nav-item:last-child:after {
 	  display: none;
 	}
-  
+
 		.nav-open .navbar-collapse {
 	  -webkit-transform: translate3d(0px, 0, 0);
 	  -moz-transform: translate3d(0px, 0, 0);
 	  -o-transform: translate3d(0px, 0, 0);
 	  -ms-transform: translate3d(0px, 0, 0);
 	  transform: translate3d(0px, 0, 0);
-	} 
-  
+	}
+
 	.nav-open .navbar-translate {
 	  -webkit-transform: translate3d(-330px, 0, 0);
 	  -moz-transform: translate3d(-330px, 0, 0);
@@ -1060,13 +1058,13 @@ body .sm-clean a .sub-arrow {
 	  -ms-transform: translate3d(-330px, 0, 0);
 	  transform: translate3d(-330px, 0, 0);
 	}
-  
+
  	.navbar .navbar-translate {
 	  position: fixed;
 	   display: flex;
 	  -ms-flex-pack: justify !important;
 	  justify-content: space-between !important;
-	  -ms-flex-align: center; 
+	  -ms-flex-align: center;
 	  align-items: center;
 	  -webkit-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  -moz-transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
@@ -1075,21 +1073,21 @@ body .sm-clean a .sub-arrow {
 	  transition: transform 0.5s cubic-bezier(0.685, 0.0473, 0.346, 1);
 	  top:10px;
 	  right:0px;
-	} 
- 
+	}
+
 	.navbar .dropdown.show .dropdown-menu {
 	  display: block;
 	}
-  
+
 	.navbar .dropdown .dropdown-menu {
 	  display: none;
 	}
-  
+
 	.navbar .dropdown-menu .dropdown-item {
 	  margin-left: 1.5rem;
 	  margin-right: 1.5rem;
 	}
-  
+
 	.navbar .dropdown.show .dropdown-menu,
 	.navbar .dropdown .dropdown-menu {
 	  background-color: transparent;
@@ -1107,33 +1105,33 @@ body .sm-clean a .sub-arrow {
 	  opacity: 1;
 	  overflow-y: auto;
 	}
-  
-	
+
+
 @keyframes fadeIn {
 	0% {opacity:0;}
 	100% {opacity:0.2;}
 	}
-	
+
 	@-moz-keyframes fadeIn {
 	0% {opacity:0;}
 	100% {opacity:0.2;}
 	}
-	
+
 	@-webkit-keyframes fadeIn {
 	0% {opacity:0;}
 	100% {opacity:0.2;}
 	}
-	
+
 	@-o-keyframes fadeIn {
 	0% {opacity:0;}
 	100% {opacity:0.2;}
 	}
-	
+
 	@-ms-keyframes fadeIn {
 	0% {opacity:0;}
 	100% {opacity:0.2;}
 	}
-  
+
 	#bodyClick {
 	  height: 100%;
 	  width: 100%;
@@ -1147,11 +1145,11 @@ body .sm-clean a .sub-arrow {
 	  overflow-x: hidden;
 	  background-color: #ffffff;
 	  animation: fadeIn ease 1s;
-	  -webkit-animation: fadeIn ease 1s;	  
+	  -webkit-animation: fadeIn ease 1s;
 	}
-  
+
   }
-  
+
 
   .navbar-toggler {
 	padding: 0.25rem 0.75rem;
@@ -1161,16 +1159,16 @@ body .sm-clean a .sub-arrow {
 	border: 0px solid transparent;
 	border-radius: 0.25rem;
   }
-  
+
   .navbar-toggler:hover,
   .navbar-toggler:focus {
 	text-decoration: none;
   }
-  
+
   .navbar-toggler:not(:disabled):not(.disabled) {
 	cursor: pointer;
   }
-  
+
   .navbar-toggler-icon {
 	display: inline-block;
 	width: 1.5em;
@@ -1187,7 +1185,7 @@ body .sm-clean a .sub-arrow {
 
    .nav-open .navbar-dark .navbar-toggler-icon {
 	background-image: none;
-  } 
+  }
 
    .nav-open .navbar-dark .navbar-toggler-icon:before {
 	content: "✖";
@@ -1197,8 +1195,8 @@ body .sm-clean a .sub-arrow {
 	color:#ffffff;
 	font-size: 30px;
 	z-index: 1040;
- } 
- 
+ }
+
   .psi {
     width: 100%;
     padding: 0px;
@@ -1370,7 +1368,7 @@ body .sm-clean a .sub-arrow {
 }
 #fppSystems>tr>td:last-child{
 	padding-right: 1em;
-	
+
 }
 #multisyncViewOptions .settingsTable {
 	flex-wrap: wrap;
@@ -1543,7 +1541,7 @@ input[type=search].tablesorter-filter:disabled{
 	.playlistRepeatCol{
 		display: flex;
 		width: 100%;
-		
+
 		padding-left: 0;
 		justify-content: flex-end;
 		border-bottom: 1px solid #D2D2D2;
@@ -1572,7 +1570,7 @@ input[type=search].tablesorter-filter:disabled{
 	#btnPlay, #btnStopNow, #btnStopGracefully, #btnStopGracefullyAfterLoop{
 		width: 100%;
 	}
-	
+
 
 	.tblPlaylistDetailsHeader>div{
 		display: block;

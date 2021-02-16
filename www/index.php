@@ -303,6 +303,38 @@ include 'common/menuHead.inc';
             </div>
             <!-- Player/Master Mode Info -->
             <div id="playerModeInfo" class='statusDiv pageContent'>
+            <div id='schedulerInfo'>
+                    <div class='statusBoxLeft container'>
+                        <div class='statusTable row'>
+                            <div class="col-md-3">
+                                <div class="labelHeading">Scheduler Status:</div>
+                                <div class="labelValue"><span id='schedulerStatus'></span></div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="labelHeading">Next Playlist: </div>
+                                <div id='nextPlaylist' class="labelValue"></div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class='labelHeading schedulerStartTime'>Started at:</div>
+                                <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
+                                <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
+                            </div>
+                            <div class="schedulerExtend schedulerEndTime col-md-2">
+                                <div class="labelHeading">Extend Current Playlist:</div>
+                                <div class='labelValue' colspan='2'>
+                                    <button type='button' class="buttons" onClick='ExtendSchedulePopup();'><i class="fas fa-fw fa-calendar-plus"></i>Extend</button>
+                                    <button type='button' class="buttons" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class='buttons wideButton' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>View Schedule</button>
+                    </div>
+                </div>
+
+                <hr>
 
                 <div id="playerStatusTop">
                     <div class='statusBoxLeft'>
@@ -330,13 +362,13 @@ include 'common/menuHead.inc';
                             </div>
 
                             <div class="volumeControlsContainer">
-                                    <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
-                                    <div class="volumeControls">
+                                <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
+                                <div class="volumeControls">
                                         <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
-                                            <input type="range" min="0" max="100" class="slider" id="slider">
+                                        <input type="range" min="0" max="100" class="slider" id="slider">
                                         <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
-                                        <span id='speaker'></span> <!-- Volume -->
-                                    </div>
+                                    <span id='speaker'></span> <!-- Volume -->
+                                </div>
                             </div>
 
                         </div>
@@ -376,39 +408,6 @@ include 'common/menuHead.inc';
                     <table>
                     <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
                     </table>
-
-
-                </div>
-                <hr>
-                <div id='schedulerInfo'>
-                    <div class='statusBoxLeft'>
-                        <div class='statusTable row'>
-                            <div class="col-md-3">
-                                <div class="labelHeading">Scheduler Status:</div>
-                                <div class="labelValue"><span id='schedulerStatus'></span>
-                                    &nbsp;&nbsp;<input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="labelHeading">Next Playlist: </div>
-                                <div id='nextPlaylist' class="labelValue"></div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class='labelHeading schedulerStartTime'>Started at:</div>
-                                <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
-                                <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
-                            </div>
-                            <div class="schedulerExtend schedulerEndTime col-md-2">
-                                <div class="labelHeading">Extend Current Playlist:</div>
-                                <div class='labelValue' colspan='2'>
-                                    <input type='button' value='Extend' class="buttons" onClick='ExtendSchedulePopup();'>
-                                    <input type='button' value='+5m' class="buttons" onClick='ExtendSchedule(5);'>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
 
                 </div>
