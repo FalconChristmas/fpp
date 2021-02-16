@@ -3,4 +3,4 @@ FROM node:latest
 WORKDIR /opt/fpp/www
 EXPOSE 3180 3181
 
-RUN npm install -g gulp
+RUN npm install -g npm gulp
