@@ -5382,10 +5382,11 @@ function OnSystemStatusChange(funcToCall){
 /*
 * Called each time the system status JSON is updated to refresh icons in the header bar.
 */
+var headerCache = {}; //Used to cache what we've displayed on screen so we only update it if it has changed
 function RefreshHeaderBar(){
     var data = lastStatusJSON;
     if(data == undefined || data == null) return;
-    console.log("Current status: "+ data.status_name+" at "+ data.time);
+
     if(data.interfaces != undefined){
         var rc = [];
         data.interfaces.forEach(function (e) {
@@ -5398,7 +5399,7 @@ function RefreshHeaderBar(){
                     var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
                     rc.push(row);
                 }else if (n.family === "inet" && "wifi" in e) {
-                    var row = '<span title="IP: ' + n.local + ', Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
                     rc.push(row);
                 }else if (n.family === "inet") {
                     var icon = "text-success";
@@ -5412,17 +5413,38 @@ function RefreshHeaderBar(){
                 }
             });
         });
-        $("#header_IPs").html(rc.join(""));
+        if(headerCache.Interfaces != rc.join("")){
+            $("#header_IPs").html(rc.join(""));
+            headerCache.Interfaces = rc.join("");
+        }
     }
 
     if(data.sensors != undefined){
         var sensors = [];
         data.sensors.forEach(function (e) {
-            if (e.valueType != "Temperature") { return 0; }
-            var row = '<span title="' + e.label + e.formatted+'"><i class="fas fa-thermometer-half"></i><small>' + e.label + e.formatted + '</small></span>';
+            var visibilityClass = "";
+            if(sensors.length > 0) visibilityClass = ' style="display:none" ';
+            var icon = "bolt";
+            var val = e.formatted;
+            if(e.valueType == "Temperature"){
+                var inF = settings['temperatureInF'] == 1;
+                icon = "thermometer-half";
+                if(inF) {
+                    val = (val*1.8)+32;
+                    val += '&deg;F';
+                }else{
+                    val += '&deg;C';
+                }
+            }
+            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" '+visibilityClass+' title="' + e.label + val +'"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
-        $("#header_sensors").html(sensors.join(""));
+        if(headerCache.Sensors != sensors.join("")){
+            $("#header_sensors").html(sensors.join(""));
+            headerCache.Sensors = sensors.join("");
+            if(sensors.length > 1) $("#header_sensors").css("cursor","pointer");
+        }
+        
     }
 
     if(data.status_name != undefined){
@@ -5438,7 +5460,29 @@ function RefreshHeaderBar(){
         }else if(data.status_name == "stopped"){
             row = '<span title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
         }
-        $("#header_player").html(row);
+        if(headerCache.Player != row){
+            $("#header_player").html(row);
+            headerCache.Player = row;
+        }
     }
 
+    if(data.advancedView.HostDescription){
+        var hostDetails = "Host: "+data.advancedView.HostName+"<br/>Desc: "+data.advancedView.HostDescription;
+        if(headerCache.HostDetails != hostDetails){
+            $(".headerHostName>span").attr("title", hostDetails);
+            headerCache.HostDetails = hostDetails;
+        }
+    }
+
+}
+
+/*
+* Used to rotate through the sensors in the header bar
+*/
+function RotateHeaderSensor(goto){
+    var current = $("#header_sensors").find("[data-sensorcount='" + (goto-1) + "']");
+    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']"); 
+    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']"); 
+    current.hide();
+    next.show();
 }
