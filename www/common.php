@@ -221,7 +221,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         LoadPluginSettingInfos($plugin);
 
     if (!isset($settingInfos[$setting])) {
-        echo "<div class='tr'><div class='td td-colspan-2' colspan='2'><b>Invalid Setting: $setting</b></div></div>\n";
+        echo "<div class='row'><div class='td td-colspan-2' colspan='2'><b>Invalid Setting: $setting</b></div></div>\n";
         return;
     }
 
@@ -257,9 +257,9 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
         if ($textOnRight)
-            echo "<div class='tr' id='" . $setting . "Row'><div class='td'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'>";
         else
-            echo "<div class='tr' id='" . $setting . "Row'><div class='th'><span>" . $s['description'] . ":</span></div><div class='td'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'><div class='description'>" . $s['description'] . ":</div></div><div class='col-lg'>";
 
         switch ($s['type']) {
             case 'select':
@@ -397,7 +397,7 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
         echo "<h2>" . $g['description'] . "</h2>\n";
-        echo "<div class='settingsTable ";
+        echo "<div class='container settingsTable ";
 
         if ($indent)
             echo "settingsGroupTable'>\n";
@@ -405,10 +405,10 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             echo "'>\n";
 
         if ($prependData != "") {
-            if (preg_match("/<div class=tr>/", $prependData))
+            if (preg_match("/<div class=row>/", $prependData))
                 echo $prependData;
             else
-                echo "<div class=tr><div class='th' colspan=2>$prependData</div></div>\n";
+                echo "<div class=row><div class='col-lg' colspan=2>$prependData</div></div>\n";
         }
 
         foreach ($g['settings'] as $setting) {
@@ -419,10 +419,10 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
         }
 
         if ($appendData != "") {
-            if (preg_match("/<div class=tr>/", $appendData))
+            if (preg_match("/<div class=row>/", $appendData))
                 echo $appendData;
             else
-                echo "<div class=tr><div class='th' colspan=2>$appendData</div></div>\n";
+                echo "<div class=row><div class='col-lg' colspan=2>$appendData</div></div>\n";
         }
 
         echo "</div><br>\n";

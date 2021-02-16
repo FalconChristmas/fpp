@@ -388,13 +388,14 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
     background-color: $gray-light;
 }
 
-div.settingsTable{
-    display: flex;
+div.settingsTable div.row {
+    margin-top: .33em;
 }
-#settingsManagerTabsContent div.settingsTable{
-    flex-direction: column;
-    align-items: flex-start;
+
+div.settingsTable div.description {
+    margin-top: 10px;
 }
+
 div.settingsTable div.td, div.settingsTable div.th{
     margin-left: 1em;
     margin-right: 1em;
@@ -547,4 +548,8 @@ $fppTableExtraPadding:1.1em;
 
 .modal-dialog{
     margin-top:70px;
+}
+
+#settingsManagerTabsContent #ClockDate, #settingsManagerTabsContent #ClockTime {
+    width: 8em;
 }

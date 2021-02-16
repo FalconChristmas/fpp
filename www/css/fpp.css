@@ -715,6 +715,10 @@ border-top-color: transparent;
     padding-left: 6px;
     padding-bottom: 6px;
 }
+div.settingsTable img.icon-help {
+	margin-top: 6px;
+}
+
 #footer{
 	position: relative;
 	text-align: center;
@@ -1511,11 +1515,6 @@ input[type=search].tablesorter-filter:disabled{
 }
 #CopyFlagsTable input {
 	margin: 0.4em;
-}
-.settingsManagerTimeContent{
-    display: flex;
-    flex-direction: row-reverse;
-	justify-content: flex-end;
 }
 
 @media(max-width:480px){

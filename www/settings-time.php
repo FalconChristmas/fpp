@@ -16,20 +16,11 @@ function GetTimeZone() {
 </script>
 
 <div class="settingsManagerTimeContent">
-    <div id="playerTime" class="statusTable d-flex">
-        <div>
-            <div class="labelHeading">FPP Time:</div>
-            <div id="currentTime" class="labelValue"></div>
-        </div>
-    </div>
-    <div>
         <?
         $extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
-        PrintSettingGroup('time', $extraData);
+        $prependData = "<div class='row'><div class='col-lg'><div>Current System Time</div></div><div id='currentTime' class='col-xl labelValue disabled'></div></div>";
+        PrintSettingGroup('time', $extraData, $prependData);
         ?>
-    </div>
-
-
 </div>
 
 <script>
