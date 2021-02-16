@@ -715,6 +715,10 @@ border-top-color: transparent;
     padding-left: 6px;
     padding-bottom: 6px;
 }
+div.settingsTable img.icon-help {
+	margin-top: 6px;
+}
+
 #footer{
 	position: relative;
 	text-align: center;
@@ -931,37 +935,43 @@ body .sm-clean a .sub-arrow {
 	background-color: #F63939;
 	color: #fff !important;
   }
-  
-  .nav-link{
-	  text-decoration: none;
+
+  .nav-link {
+	text-decoration: none;
+    padding: 0.6rem 1em;
+  }
+
+  .nav-pills li {
+	margin-top: .2em;
+	text-align: center;
   }
 
   @media all and (max-width: 991px) {
 
  	.header{
 		padding-right:56px;
-	} 
+	}
 
 	[class*="navbar-expand-"]>.container,
 	[class*="navbar-expand-"]>.container-fluid {
 	  padding-left: 15px;
 	  padding-right: 15px;
 	}
-  
+
 	.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show {
 	  right: 101% !important;
 	}
-  
+
 	.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show .dropdown-item.open+.dropdown-menu,
 	.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show {
 	  left: -165px !important;
 	}
-  
+
 	.navbar .navbar-collapse .navbar-nav>li.button-container {
 	  padding: 15px;
 	}
- 
-  
+
+
 	.navbar-collapse {
 	  position: fixed;
 	  display: block;
@@ -1511,11 +1521,6 @@ input[type=search].tablesorter-filter:disabled{
 }
 #CopyFlagsTable input {
 	margin: 0.4em;
-}
-.settingsManagerTimeContent{
-    display: flex;
-    flex-direction: row-reverse;
-	justify-content: flex-end;
 }
 
 @media(max-width:480px){
