@@ -320,31 +320,23 @@ include 'common/menuHead.inc';
 
                         </div>
                         <div class="d-flex playerControlsContainer">
-
                             <div id="playerControls" >
-                                <input id= "btnPlay" type="button"  class ="buttons btn-rounded btn-success"value="Play" onClick="StartPlaylistNow();">
-                                <input id= "btnPrev" type="button"  class ="buttons btn-rounded btn-pleasant"value="Previous" onClick="PreviousPlaylistEntry();">
-                                <input id= "btnNext" type="button"  class ="buttons btn-rounded btn-pleasant"value="Next" onClick="NextPlaylistEntry();">
-                                <input id= "btnStopGracefully" type="button"  class ="buttons btn-rounded btn-graceful" value="Stop Gracefully" onClick="StopGracefully();">
-                                <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons btn-rounded btn-detract" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
-                                <input id= "btnStopNow" type="button" class ="buttons btn-rounded btn-danger" value="Stop Now" onClick="StopNow();">
+                                <button id= "btnPlay" class ="buttons btn-rounded btn-success disableButtons" onClick="StartPlaylistNow();"><i class='fas fa-fw fa-play'></i>Play</button>
+                                <button id= "btnPrev" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="PreviousPlaylistEntry();"><i class='fas fa-fw fa-step-backward'></i>Previous</button>
+                                <button id= "btnNext" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="NextPlaylistEntry();"><i class='fas fa-fw fa-step-forward'></i>Next</button>
+                                <button id= "btnStopGracefully" class ="buttons btn-rounded btn-graceful disableButtons" onClick="StopGracefully();"><i class='fas fa-fw fa-stop'></i>Stop Gracefully</button>
+                                <button id= "btnStopGracefullyAfterLoop" class ="buttons btn-rounded btn-detract disableButtons" onClick="StopGracefullyAfterLoop();"><i class='fas fa-fw fa-hourglass-half'></i>Stop After Loop</button>
+                                <button id= "btnStopNow" class ="buttons btn-rounded btn-danger disableButtons"  onClick="StopNow();"><i class='fas fa-fw fa-hand-paper'></i>Stop Now</button>
                             </div>
-                            <div class="volumeControlsContainer">
 
+                            <div class="volumeControlsContainer">
                                     <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
                                     <div class="volumeControls">
-                                        <div>
-                                            <input type="button" class='volumeButton buttons' value="-" onClick="DecrementVolume();">
-                                        </div>
-                                        <div>
+                                        <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
                                             <input type="range" min="0" max="100" class="slider" id="slider">
-                                        </div>
-                                        <div>
-                                            <input type="button" class='volumeButton buttons' value="+" onClick="IncrementVolume();">
-                                        </div>
+                                        <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
                                         <span id='speaker'></span> <!-- Volume -->
                                     </div>
-
                             </div>
 
                         </div>
