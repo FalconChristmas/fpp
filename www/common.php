@@ -259,7 +259,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         if ($textOnRight)
             echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'>";
         else
-            echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'><div class='description'>" . $s['description'] . ":</div></div><div class='col-lg'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'><div class='description'>" . $s['description'] . "</div></div><div class='col-lg'>";
 
         switch ($s['type']) {
             case 'select':
