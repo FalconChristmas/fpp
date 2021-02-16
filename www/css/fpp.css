@@ -935,37 +935,43 @@ body .sm-clean a .sub-arrow {
 	background-color: #F63939;
 	color: #fff !important;
   }
-  
-  .nav-link{
-	  text-decoration: none;
+
+  .nav-link {
+	text-decoration: none;
+    padding: 0.6rem 1em;
+  }
+
+  .nav-pills li {
+	margin-top: .2em;
+	text-align: center;
   }
 
   @media all and (max-width: 991px) {
 
  	.header{
 		padding-right:56px;
-	} 
+	}
 
 	[class*="navbar-expand-"]>.container,
 	[class*="navbar-expand-"]>.container-fluid {
 	  padding-left: 15px;
 	  padding-right: 15px;
 	}
-  
+
 	.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show {
 	  right: 101% !important;
 	}
-  
+
 	.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show .dropdown-item.open+.dropdown-menu,
 	.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show .dropdown-item.open+.dropdown-menu.show {
 	  left: -165px !important;
 	}
-  
+
 	.navbar .navbar-collapse .navbar-nav>li.button-container {
 	  padding: 15px;
 	}
- 
-  
+
+
 	.navbar-collapse {
 	  position: fixed;
 	  display: block;
