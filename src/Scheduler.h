@@ -66,6 +66,16 @@
 #define INX_DAY_MASK_THURSDAY       0x00400
 #define INX_DAY_MASK_FRIDAY         0x00200
 #define INX_DAY_MASK_SATURDAY       0x00100
+// The masks below are for internal use only, not in UI
+#define INX_DAY_MASK_EVERYDAY       0x07F00
+#define INX_DAY_MASK_WEEKDAYS       0x03E00
+#define INX_DAY_MASK_WEEKEND        0x04100
+#define INX_DAY_MASK_M_W_F          0x02A00
+#define INX_DAY_MASK_T_TH           0x01400
+#define INX_DAY_MASK_SUN_TO_THURS   0x07C00
+#define INX_DAY_MASK_FRI_SAT        0x00300
+#define INX_DAY_MASK_START_ODD      0x05500
+#define INX_DAY_MASK_START_EVEN     0x02A00
 
 
 class SchedulePlaylistDetails {
