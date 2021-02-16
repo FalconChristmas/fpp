@@ -114,6 +114,7 @@
         "system": {
             "description": "System Settings",
             "settings": [
+                "fppMode",
                 "DisableScheduler",
                 "Locale",
                 "screensaver",
@@ -490,6 +491,19 @@
             "type": "text",
             "size": 30,
             "maxlength": 64
+        },
+        "fppMode": {
+            "name": "fppMode",
+            "description": "FPP Player Mode",
+            "tip": "FPP can run in one of several modes including Standalone mode where it operates independently of other FPP systems, Master where it can control other FPP systems, and Remote where it acts as a remote controlled by another Master FPP instance.  FPP can also be set to receive data over the network when running in Bridge mode.",
+            "restart": 2,
+            "type": "select",
+            "options": {
+                "Standalone": "player",
+                "Master": "master",
+                "Remote": "remote",
+                "Bridge": "bridge"
+            }
         },
         "ForceHDMI": {
             "name": "ForceHDMI",
