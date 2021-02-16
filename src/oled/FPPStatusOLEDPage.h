@@ -51,6 +51,7 @@ private:
     
     int _iterationCount;
     int _currentTest;
+    int _testSpeed;
     int _curPage;
     bool _doFullStatus;
     
