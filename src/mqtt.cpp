@@ -412,10 +412,10 @@ void MosquittoClient::HandleConnect() {
     subscribe_topics.push_back(m_baseTopic + "/set/#");
     subscribe_topics.push_back(m_baseTopic + "/effect/#"); // Legacy
 
-    std::string baseSubTopic = getSetting("MQTTSubscribe");
-    if (baseSubTopic != "") {
-        LogDebug(VB_CONTROL, "MQTT Subscribing to topic: '%s'\n", baseSubTopic.c_str());
-        subscribe_topics.push_back(baseSubTopic);
+    m_subBaseTopic = getSetting("MQTTSubscribe");
+    if (m_subBaseTopic != "") {
+        LogDebug(VB_CONTROL, "MQTT Subscribing to topic: '%s'\n", m_subBaseTopic.c_str());
+        subscribe_topics.push_back(m_subBaseTopic);
     }
 
     for (auto &a : callbacks) {
@@ -472,9 +472,11 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
     CacheSetMessage(topic, payload);
 
 	// If not our base, then return.
-	// Would only happen if subscribe is wrong
     if (topic.find(m_baseTopic) != 0) {
-	    LogWarn(VB_CONTROL, "Topic '%s' doesn't match base. How is that possible?\n", message->topic);
+        // Warn if we are not subscribing to any other topics
+        if (m_subBaseTopic == "")
+            LogWarn(VB_CONTROL, "Topic '%s' doesn't match base. How is that possible?\n", message->topic);
+
 		return;
 	}
     

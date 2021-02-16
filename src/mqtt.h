@@ -81,6 +81,7 @@ class MosquittoClient : public WarningListener {
 
 	std::string m_topicPrefix;
 	std::string m_baseTopic;
+	std::string m_subBaseTopic;
 
 	struct mosquitto *m_mosq;
 	pthread_mutex_t   m_mosqLock;
