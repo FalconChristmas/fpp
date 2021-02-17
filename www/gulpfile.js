@@ -23,7 +23,7 @@ var postcss = require('gulp-postcss');
 var touch = require('gulp-touch-fd');
 var browserSync = require('browser-sync').create();
 var autoprefixer = require('autoprefixer');
-
+var sourcemaps = require('gulp-sourcemaps');
 var cfg = {
 	"browserSyncOptions": {
         "server": {
