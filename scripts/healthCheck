@@ -111,10 +111,27 @@ HC_Scheduler() {
     PrintItemFoot ${STATUS} "${STATUSSTR}"
 }
 
-HC_Gateway() {
-    PrintItemHead "Default Gateway"
+HC_CheckGateways() {
+    GW=$(netstat -rn | grep "^0\.0\.0\.0" | wc -l)
 
+    PrintItemHead "Gateway Check"
+
+    if [ "${GW}" == "1" ]; then
+        STATUS=1
+        STATUSSTR="A single gateway was found."
+    else
+        STATUS=0
+        STATUSSTR="Multiple default gateways were found!"
+    fi
+
+    PrintItemFoot ${STATUS} "${STATUSSTR}"
+}
+
+
+HC_PingGateway() {
     GW=$(netstat -rn | grep "^0\.0\.0\.0" | awk '{print $2}')
+
+    PrintItemHead "Default Gateway (${GW})"
 
     if [ "x${GW}" != "x" ]
     then
@@ -122,7 +139,7 @@ HC_Gateway() {
         if [ $? -eq 0 ]
         then
             STATUS=1
-            STATUSSTR="Ping default gateway @ ${GW} was successful"
+            STATUSSTR="Ping default gateway (${GW}) was successful"
         else
             STATUS=0
             STATUSSTR="Unable to ping default gateway ${GW}"
@@ -240,7 +257,8 @@ fi
 
 #############################
 # Network
-HC_Gateway
+HC_CheckGateways
+HC_PingGateway
 if [ ${STATUS} -eq 1 ]
 then
     HC_Internet
