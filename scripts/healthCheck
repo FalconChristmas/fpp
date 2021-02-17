@@ -21,6 +21,15 @@ fi
 ID=0
 
 #############################################################################
+# Each Health Check function needs to do 3 things:
+# 1) Call PrintItemHead with the description of the test being run
+# 2) Set the numeric STATUS and string STATUSSTR variables
+#    - STATUS=0 - Fail
+#    - STATUS=1 - Pass
+#    - STATUS=2 - Warning
+# 3) Call PrintItemFoot to display the result of the test
+
+#############################################################################
 # Helpers
 
 # Usage: PrintItemHead DESCRIPTION
@@ -42,9 +51,6 @@ PrintItemHead() {
 
 # Usage: PrintItemFoot NUMERICAL_STATUS STRING_STATUS TOOLTIP_TEXT
 PrintItemFoot() {
-    STATUS=$1
-    STATUSSTR="$2"
-
     if [ "${PHPOUT}" = "y" ]
     then
         STATUSHTML="${HTML_GOOD}"
@@ -91,7 +97,7 @@ HC_FPPD() {
         STATUSSTR="FPPD is not running"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_Scheduler() {
@@ -108,7 +114,7 @@ HC_Scheduler() {
         STATUSSTR="Scheduler is disabled"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_CheckGateways() {
@@ -124,7 +130,7 @@ HC_CheckGateways() {
         STATUSSTR="Multiple default gateways were found!"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 
@@ -149,7 +155,7 @@ HC_PingGateway() {
         STATUSSTR="No default gateway found"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_Internet() {
@@ -165,7 +171,7 @@ HC_Internet() {
         STATUSSTR="Internet connectivity check unsuccessful."
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_DNS() {
@@ -181,7 +187,7 @@ HC_DNS() {
         STATUSSTR="DNS lookup of github.com was successful"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_NTPOffset() {
@@ -200,7 +206,7 @@ HC_NTPOffset() {
         fi
     done
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_RootDisk() {
@@ -216,7 +222,7 @@ HC_RootDisk() {
         STATUSSTR="Root filesystem is ${USED}% used"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 HC_MediaDisk() {
@@ -238,7 +244,7 @@ HC_MediaDisk() {
         STATUSSTR="/home/fpp/media filesystem is ${USED}% used"
     fi
 
-    PrintItemFoot ${STATUS} "${STATUSSTR}"
+    PrintItemFoot
 }
 
 #############################################################################
