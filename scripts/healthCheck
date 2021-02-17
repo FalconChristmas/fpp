@@ -167,6 +167,25 @@ HC_DNS() {
     PrintItemFoot ${STATUS} "${STATUSSTR}"
 }
 
+HC_NTPOffset() {
+    PrintItemHead "Time Offset"
+
+    # ntpq is not fully reliable, additional verification may be required
+    offsets=$(ntpq -nc peers | tail -n +3 | cut -c 62-66 | tr -d '-')
+
+    STATUS=1
+    STATUSSTR="Your time is accurate"
+
+    for offset in ${offsets}; do
+        if [ ${offset:-0} -ge ${limit:-100} ]; then
+            STATUS=0
+            STATUSSTR="Your time may be incorrect, please verify"
+        fi
+    done
+
+    PrintItemFoot ${STATUS} "${STATUSSTR}"
+}
+
 HC_RootDisk() {
     PrintItemHead "Root filesystem free space"
 
@@ -228,6 +247,9 @@ then
     if [ ${STATUS} -eq 1 ]
     then
         HC_DNS
+        if [ ${STATUS} -eq 1 ]; then
+            HC_NTPOffset
+        fi
     fi
 fi
 
@@ -235,4 +257,3 @@ fi
 # System Resources
 HC_RootDisk
 HC_MediaDisk
-
