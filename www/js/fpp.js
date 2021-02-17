@@ -324,7 +324,39 @@ function HandleTableRowMouseClick(event, row) {
     }
 }
 
-function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null, postProcessData = true) {
+var StreamScriptStart = "<script class='streamScript'>";
+var StreamScriptEnd   = "</script>";
+var StreamScript = '';
+function ProcessStreamedScript(str, allowEmpty = false) {
+    if (str.length == 0)
+        return;
+
+    if ((StreamScript != '') || (allowEmpty == true)) {
+        var i = str.indexOf(StreamScriptEnd);
+        if (i >= 0) {
+            // this packet contains the end of the script
+            StreamScript += str.substr(0, i);
+            eval(StreamScript);
+            StreamScript = '';
+
+            var remaining = str.length - i - StreamScriptEnd.length;
+            if (remaining > 0)
+                ProcessStreamedScript(str.substr(i + 1, remaining));
+        } else {
+            // script is continued on in next data packet
+            StreamScript += str;
+        }
+    } else {
+        var i = str.indexOf(StreamScriptStart);
+        if (i >= 0) {
+            var remaining = str.length - i - StreamScriptStart.length;
+            if (remaining > 0)
+                ProcessStreamedScript(str.substr(i + StreamScriptStart.length, remaining), true);
+        }
+    }
+}
+
+function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null, postProcessData = true, raw = false) {
     var last_response_len = false;
     var outputArea = document.getElementById(id);
     var reAddLF = false;
@@ -359,11 +391,13 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
                     reAddLF = true;
                 }
 
+                var orig_response = this_response;
+
                 if ((outputArea.nodeName == "DIV") ||
                     (outputArea.nodeName == "TD") ||
                     (outputArea.nodeName == "PRE") ||
                     (outputArea.nodeName == "SPAN")) {
-                    if (outputArea.nodename != "PRE") {
+                    if ((outputArea.nodename != "PRE") && (raw == false)) {
                         this_response = this_response.replace(/(?:\r\n|\r|\n)/g, '<br>');
                     }
 
@@ -371,6 +405,8 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
                 } else {
                     outputArea.value += this_response;
                 }
+
+                ProcessStreamedScript(orig_response);
 
                 outputArea.scrollTop = outputArea.scrollHeight;
                 outputArea.parentElement.scrollTop = outputArea.parentElement.scrollHeight;

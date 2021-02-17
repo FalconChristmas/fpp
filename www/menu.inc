@@ -292,6 +292,7 @@ if (!file_exists("/etc/fpp/desktop")) {
           <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API Help</a>
 <? } ?>
           <a class="dropdown-item" href="cliHelp.php"><i class="fas fa-life-ring"></i> fpp &amp; fppmm Usage</a>
+          <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
           <a class="dropdown-item" href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>
