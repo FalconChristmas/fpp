@@ -2664,6 +2664,7 @@ function moveFile(file) {
 					var retValue='false';
 					if(status.childNodes.length> 0)
 					{
+						$("#btnDaemonControl").show();
 						ret = status.childNodes[0].textContent;
 						if(ret == 'true')
 						{
@@ -2732,6 +2733,7 @@ function moveFile(file) {
 				 */
                 var response = lastStatusJSON;
 				if(response && typeof response === 'object') {
+					$("#btnDaemonControl").show();
 
 					if(response.status_name == 'stopped') {
 
@@ -2849,6 +2851,7 @@ function updateVolumeUI(Volume) {
 			fppStatus == STATUS_STOPPING_GRACEFULLY ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
 
+			$("#btnDaemonControl").show();
 			$("#btnDaemonControl").attr('value', 'Stop FPPD');
 			$('#daemonStatus').html("FPPD is running.");
 		}

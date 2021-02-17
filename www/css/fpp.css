@@ -369,9 +369,6 @@ body legend{
 	color:#363636;
 }
 
-#btnDaemonControl{
-	margin-left: 1em;
-}
 #playerModeInfo,#remoteModeInfo,#bridgeModeInfo{
 	display: none;
  }
