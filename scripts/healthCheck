@@ -36,7 +36,7 @@ PrintItemHead() {
         printf "${HTML_STATUS}" "${ID}" "${HTML_RUNNING}"
         echo "${HTML_FOOT}"
     else
-        printf "%s: " "${DESC}"
+        printf "%-40.40s: " "${DESC}.................................................................."
     fi
 }
 
