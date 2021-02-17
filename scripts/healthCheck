@@ -154,14 +154,14 @@ HC_Internet() {
 HC_DNS() {
     PrintItemHead "External DNS"
 
-    OUT=$(ping -c 1 -q github.com 2>&1 | grep "Name or service not known")
+    OUT=$(getent hosts github.com 2>&1)
     if [ "x${OUT}" = "x" ]
     then
+        STATUS=0
+        STATUSSTR="Unable to query github.com via DNS"
+    else
         STATUS=1
         STATUSSTR="DNS lookup of github.com was successful"
-    else
-        STATUS=0
-        STATUSSTR="Unable to query IP of github.com via DNS"
     fi
 
     PrintItemFoot ${STATUS} "${STATUSSTR}"
