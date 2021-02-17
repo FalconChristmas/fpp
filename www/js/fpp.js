@@ -5467,8 +5467,6 @@ function RefreshHeaderBar(){
     if(data.sensors != undefined){
         var sensors = [];
         data.sensors.forEach(function (e) {
-            var visibilityClass = "";
-            if(sensors.length > 0) visibilityClass = ' style="display:none" ';
             var icon = "bolt";
             var val = e.formatted;
             if(e.valueType == "Temperature"){
@@ -5476,18 +5474,25 @@ function RefreshHeaderBar(){
                 icon = "thermometer-half";
                 if(inF) {
                     val = (val*1.8)+32;
+                    val = parseFloat(val).toFixed(2);
                     val += '&deg;F';
                 }else{
                     val += '&deg;C';
                 }
             }
-            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" '+visibilityClass+' title="' + e.label + val +'"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
+            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="' + e.label + val +'"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
         if(headerCache.Sensors != sensors.join("")){
             $("#header_sensors").html(sensors.join(""));
             headerCache.Sensors = sensors.join("");
             if(sensors.length > 1) $("#header_sensors").css("cursor","pointer");
+            if($("#header_sensors").data("defaultsensor") != undefined 
+                    && Number.isInteger($("#header_sensors").data("defaultsensor"))){
+                RotateHeaderSensor($("#header_sensors").data("defaultsensor"));
+            }else{
+                RotateHeaderSensor(0);
+            }
         }
         
     }
@@ -5530,4 +5535,7 @@ function RotateHeaderSensor(goto){
     if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']"); 
     current.hide();
     next.show();
+    //Save setting
+    $.get("fppjson.php?command=setSetting&key=currentHeaderSensor&value=" + goto);
+    $("#header_sensors").data("defaultsensor", goto);
 }
