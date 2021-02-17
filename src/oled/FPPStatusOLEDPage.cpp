@@ -81,7 +81,7 @@ static int writer(char *data, size_t size, size_t nmemb,
 
 
 FPPStatusOLEDPage::FPPStatusOLEDPage()
-: _currentTest(0), _curPage(0), _doFullStatus(true), _iterationCount(0), _hasSensors(false) {
+: _currentTest(0), _testSpeed(500), _curPage(0), _doFullStatus(true), _iterationCount(0), _hasSensors(false) {
     curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:32322/fppd/status");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -482,8 +482,11 @@ void FPPStatusOLEDPage::fillInNetworks() {
 }
 
 void FPPStatusOLEDPage::runTest(const std::string &test) {
+    
+    printf("Test: %s    Speed: %d\n", test.c_str(), _testSpeed);
+    
     Json::Value val;
-    val["cycleMS"] = 1000;
+    val["cycleMS"] = _testSpeed;
     val["enabled"] = 1;
     val["channelSet"] = "1-1048576";
     val["channelSetType"] = "channelRange";
@@ -559,19 +562,13 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
     curl_easy_perform(curl);
     curl_easy_cleanup(curl);
 }
-
+static std::vector<std::string> TESTS = {"Off", "R-G-B Cycle", "R-G-B-W-N Cycle", "R-G-B Chase", "R-G-B-W-N Chase"};
 void FPPStatusOLEDPage::cycleTest() {
     _currentTest++;
-    if (_currentTest == 1) {
-        runTest("R-G-B Cycle");
-    } else if (_currentTest == 2) {
-        runTest("R-G-B-W-N Cycle");
-    } else if (_currentTest == 3) {
-        runTest("Off");
-        _currentTest = 0;
-    } else {
+    if (_currentTest >= TESTS.size()) {
         _currentTest = 0;
     }
+    runTest(TESTS[_currentTest]);
 }
 
 
@@ -665,8 +662,18 @@ bool FPPStatusOLEDPage::doAction(const std::string &action) {
     //printf("In do action  %s\n", action.c_str());
     if (action == "Test"
         || action == "Test/Down") {
+        _testSpeed = 500;
         cycleTest();
         _curPage = 0;
+    } else if (action == "Up" && _currentTest) {
+        _testSpeed *= 2;
+        runTest(TESTS[_currentTest]);
+    } else if (action == "Down" && _currentTest) {
+        _testSpeed /= 2;
+        if (_testSpeed < 100) {
+            _testSpeed = 100;
+        }
+        runTest(TESTS[_currentTest]);
     } else if (action == "Enter" && !oledForcedOff) {
         if (_hasSensors) {
             _curPage++;
