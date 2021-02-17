@@ -155,14 +155,14 @@ HC_PingGateway() {
 HC_Internet() {
     PrintItemHead "Internet Access"
 
-    ping -c 1 -q -W 2 8.8.8.8 > /dev/null 2>&1
+    curl http://1.1.1.1/cdn-cgi/trace --max-time 2 > /dev/null 2>&1
     if [ $? -eq 0 ]
     then
         STATUS=1
-        STATUSSTR="Ping Google DNS @ 8.8.8.8 was successful"
+        STATUSSTR="Internet connectivity confirmed."
     else
         STATUS=0
-        STATUSSTR="Unable to ping Google DNS @ 8.8.8.8"
+        STATUSSTR="Internet connectivity check unsuccessful."
     fi
 
     PrintItemFoot ${STATUS} "${STATUSSTR}"
