@@ -13,20 +13,36 @@ include 'common/menuHead.inc';
     var RunningEffectSelectedName = "";
 
     $(function() {
-    $('#tblEffectLibraryBody').on('mousedown', 'tr', function(event,ui){
+    $('#tblEffectLibraryBody').on('click', '.buttons', function(event,ui){
           $('#tblEffectLibraryBody tr').removeClass('effectSelectedEntry');
-          $(this).addClass('effectSelectedEntry');
-          EffectSelectedName  = $(this).find('td:first').text();
-          EffectSelectedType  = $(this).find('td:nth-child(2)').text();
-          SetButtonState('#btnStartEffect','enable');
+          var $selectedEntry = $(this).parent().parent();
+          $selectedEntry.addClass('effectSelectedEntry');
+          EffectSelectedName  = $selectedEntry.find('td:first').text();
+          EffectSelectedType  = $selectedEntry.find('td:nth-child(2)').text();
+          $('#divEffectStartModal').fppDialog({
+            title:$selectedEntry.find('td:first').text(),
+            buttons:{
+              'Start Effect': {
+                click:function(){
+                  StartSelectedEffect();
+                  $('#divEffectStartModal').fppDialog('close');
+                },
+                class:'btn-success'
+              }
+              
+            }
+          });
+          //SetButtonState('#btnStartEffect','enable');
     });
 
-    $('#tblRunningEffectsBody').on('mousedown', 'tr', function(event,ui){
+    $('#tblRunningEffectsBody').on('click', '.buttons', function(event,ui){
           $('#tblRunningEffectsBody tr').removeClass('effectSelectedEntry');
-          $(this).addClass('effectSelectedEntry');
-          RunningEffectSelectedId = $(this).find('td:first').text();
-          RunningEffectSelectedName = $(this).find('td:nth-child(2)').text();
-          SetButtonState('#btnStopEffect','enable');
+          var $selectedEntry = $(this).parent().parent();
+          $selectedEntry.addClass('effectSelectedEntry');
+          RunningEffectSelectedId = $selectedEntry.find('td:first').text();
+          RunningEffectSelectedName = $selectedEntry.find('td:nth-child(2)').text();
+          StopEffect();
+          //SetButtonState('#btnStopEffect','enable');
     });
   });
 
@@ -82,7 +98,7 @@ function StartSelectedEffect() {
       if($seqFile != '.' && $seqFile != '..' && preg_match('/.eseq$/', $seqFile))
       {
         $seqFile = preg_replace('/.eseq$/', '', $seqFile);
-        $files[$seqFile] = "ESEQ";
+        $files[$seqFile] = "eseq";
       }
     }
 
@@ -92,60 +108,78 @@ function StartSelectedEffect() {
       if($seqFile != '.' && $seqFile != '..' && preg_match('/.fseq$/', $seqFile))
       {
         $seqFile = preg_replace('/.fseq$/', '', $seqFile);
-        $files[$seqFile] = "FSEQ";
+        $files[$seqFile] = "fseq";
       }
     }
 
     ksort($files);
 
     foreach ($files as $f => $t) {
-        echo "<tr id='effect_" . $f . "'><td>" . $f . "</td><td valign='top'>" . $t . "</td></tr>\n";
+        echo "<tr id='effect_" . $f . "'><td><img src='images/redesign/icon-" . $t . ".svg' alt=" . $t . " class='icon-effect-type'/>" . $f . "</td><td>" . $t . "</td><td><button class='buttons btn-success'>Start</button></td></tr>\n";
     }
   }
 
   ?>
-<br/>
+
 <div class="container">
 <h1 class="title">Effects</h1>
   <div class="pageContent">
-    
-    <div id="top" class="settings">
-      <fieldset class="fs">
-    	  <legend> Effects </legend>
-            <div id= "divEffectLibrary">
-                  <table>
-                    <tr><td>Loop Effect:</td><td><input type='checkbox' id='loopEffect'></td>
-                        <td width='20px'></td>
-                        <td>Run in Background:</td><td><input type='checkbox' id='backgroundEffect'></td>
-                        </tr>
-                    <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></td></tr>
-                    <tr><td><input id= "btnStartEffect" type="button" class ="disableButtons" value="Start Effect" onClick="StartSelectedEffect();"></td>
-                    </tr>
-                  </table>
-                <div class='fppTableWrapper'>
-                    <div class='fppTableContents'>
-                        <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0>
-                            <thead><tr><th>Effects Library</th><th>Type</th></tr></thead>
-                            <tbody id='tblEffectLibraryBody'>
-    <? PrintEffectRows(); ?>
-                            </tbody>
-                        </table>
-                    </div>
+
+  
+              <div class="row">
+                <div class="col">
+                <h2>Effects Library</h2>
+                  <div id= "divEffectLibrary">
+                  
+                 
+                      <div id="divEffectStartModal" class="hidden">
+
+
+                              <table>
+                                <tr><td>Loop Effect:</td><td><input type='checkbox' id='loopEffect'></td>
+                                    <td width='20px'></td>
+                                    <td>Run in Background:</td><td><input type='checkbox' id='backgroundEffect'></td>
+                                    </tr>
+                                <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></td></tr>
+                              </table>
+
+
+
+                      </div>
+                 
+
+
+
+                      <div class='fppTableWrapper'>
+                          <div class='fppTableContents'>
+                              <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0 class="fppActionTable">
+                                  <thead><tr><th>Effects Library</th><th>Type</th><th width='15%'></th></tr></thead>
+                                  <tbody id='tblEffectLibraryBody'>
+                      <? PrintEffectRows(); ?>
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  </div>
+
                 </div>
-          </div>
-          <div id= "divRunningEffects">
-              <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br>
-              <div class='fppTableWrapper'>
-                <div class='fppTableContents'>
-                  <table id="tblRunningEffects" width="100%" cellpadding=1 cellspacing=0>
-                    <thead><tr><th width='8%'>ID</th><th>Running Effects</th></tr></thead>
-                    <tbody id='tblRunningEffectsBody'></tbody>
-                  </table>
+                <div class="col">
+                  <div id= "divRunningEffects" class="backdrop-success">
+                    <h2>Running Effects</h2>
+                    <!-- <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br> -->
+                    <div class='fppTableWrapper'>
+                      <div class='fppTableContents'>
+                        <table id="tblRunningEffects" class="fppActionTable fppActionTable-success" width="100%" cellpadding=1 cellspacing=0>
+                          <thead><tr><th width='8%'>ID</th><th>Running Effects</th><th width='15%'></th></tr></thead>
+                          <tbody id='tblRunningEffectsBody'></tbody>
+                        </table>
+                      </div>
+                    </div>
+                            </div>
                 </div>
               </div>
-          </div>
-       </fieldset>
-    </div>
+  
+
   </div>
 </div>
 

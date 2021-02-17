@@ -21,14 +21,8 @@ var plumber = require('gulp-plumber');
 var sass = require('gulp-sass');
 var postcss = require('gulp-postcss');
 var touch = require('gulp-touch-fd');
-var rename = require('gulp-rename');
-var ignore = require('gulp-ignore');
-var rimraf = require('gulp-rimraf');
 var browserSync = require('browser-sync').create();
-var sourcemaps = require('gulp-sourcemaps');
-var cleanCSS = require('gulp-clean-css');
 var autoprefixer = require('autoprefixer');
-const named = require('vinyl-named');
 
 var cfg = {
 	"browserSyncOptions": {
@@ -45,7 +39,7 @@ var cfg = {
 	},
 
 	"browserSyncWatchFiles": [
-		"./css/fpp-bootstrap/dist/*.min.css",
+		"./css/fpp-bootstrap/dist/fpp-bootstrap.css",
 		"./css/fpp.css",
 		"./components.html"
 		//"./**/*.html"
@@ -89,69 +83,15 @@ gulp.task('watch', function () {
 });
 
 
-gulp.task('cssnano', function () {
-	return gulp
-		.src(paths.css + '/fpp-bootstrap.css')
-		.pipe(sourcemaps.init({ loadMaps: true }))
-		.pipe(
-			plumber({
-				errorHandler: function (err) {
-					console.log(err);
-					this.emit('end');
-				}
-			})
-		)
-		.pipe(rename({ suffix: '.min' }))
-		.pipe(cssnano({ discardComments: { removeAll: true } }))
-		.pipe(sourcemaps.write('./'))
-		.pipe(gulp.dest(paths.css))
-		.pipe(touch());
-});
 
-gulp.task('minifycss', function () {
-
-	return gulp
-		.src([
-			`${paths.css}/fpp-bootstrap.css`,
-		])
-		.pipe(sourcemaps.init({
-			loadMaps: true
-		}))
-		.pipe(cleanCSS({
-			compatibility: '*'
-		}))
-		.pipe(
-			plumber({
-				errorHandler: function (err) {
-					console.log(err);
-					this.emit('end');
-				}
-			})
-		)
-		.pipe(rename({ suffix: '.min' }))
-		.pipe(sourcemaps.write('./'))
-		.pipe(gulp.dest(paths.css))
-		.pipe(touch());
-});
-
-gulp.task('cleancss', function () {
-	return gulp
-		.src(`${paths.css}/*.min.css`, { read: false }) 
-		.pipe(ignore('fpp-bootstrap.css'))
-		.pipe(rimraf());
-});
 
 gulp.task('styles', function (callback) {
-	return gulp.series('sass', 'minifycss')(callback);
+	return gulp.series('sass')(callback);
 });
 
 
 gulp.task('browser-sync', function () {
 	browserSync.init(cfg.browserSyncWatchFiles, cfg.browserSyncOptions);
-});
-
-gulp.task('browser-sync-proxy', function () {
-	browserSync.init(cfg.browserSyncWatchFiles, cfg.browserSyncProxyOptions);
 });
 
 // Run:

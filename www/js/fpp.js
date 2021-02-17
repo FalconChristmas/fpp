@@ -91,6 +91,8 @@ $(function() {
                     title='<h3 class="modal-title">'+settings.title+'</h3>'
                 }
                 $title=$('<div class="modal-header">'+title+'</div>');
+            }else{
+                $(this).find('.modal-title').html(settings.title);
             }
 
             if(settings.buttons){
@@ -100,15 +102,19 @@ $(function() {
                 $.each(settings.buttons,function(buttonKey,buttonProps){
                   var buttonText=buttonKey;
                   var handleClick = buttonProps;
+                  var buttonClass = 'buttons';
                   if(typeof buttonProps ==='object'){
                     if(buttonProps.click){
                       handleClick=buttonProps.click;
                     }
                     if(buttonProps.text){
-                      handleClick=buttonProps.text;
+                      buttonText=buttonProps.text;
+                    }
+                    if(buttonProps.class){
+                        buttonClass+=' '+buttonProps.class
                     }
                   }
-                  $newButton=$('<button class="buttons">'+buttonText+'</button>');
+                  $newButton=$('<button class="'+buttonClass+'">'+buttonText+'</button>');
                   $newButton.on('click',function(){
                     handleClick.call(self);
                   })
@@ -3583,9 +3589,9 @@ function GetRunningEffects() {
         if ("runningEffects" in data) {
             data.runningEffects.forEach(function (e) {
                 if (e.name == RunningEffectSelectedName)
-                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
+                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');
                 else
-                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
+                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');
             });
         }
         setTimeout(GetRunningEffects, 1000);

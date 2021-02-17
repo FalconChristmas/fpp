@@ -1519,6 +1519,13 @@ input[type=search].tablesorter-filter:disabled{
 	margin: 0.4em;
 }
 
+.icon-effect-type{
+	margin-right: 1em;
+}
+
+
+
+
 @media(max-width:480px){
 	.fpp-logo, .headerHostName, .headerRight{
 		display: none;

@@ -18,7 +18,7 @@
 
     <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.min.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.min.css'); ?>" />
+	<link rel="stylesheet" href="css/fpp-bootstrap/dist/fpp-bootstrap.css?ref=<?php echo filemtime('css/fpp-bootstrap/dist/fpp-bootstrap.css'); ?>" />
 	<link rel="stylesheet" href="css/fpp.css?ref=<?php echo filemtime('css/fpp.css'); ?>" />
 
 <? if (file_exists("/home/fpp/media/config/custom.css")) { ?>

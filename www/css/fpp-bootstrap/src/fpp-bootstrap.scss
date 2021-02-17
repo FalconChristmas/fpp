@@ -388,6 +388,11 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
     @extend .backdrop;
     background-color: $gray-light;
 }
+.backdrop-success{
+    @extend .backdrop;
+    background-color: $green;
+    color:#fff;
+}
 
 div.settingsTable div.row {
     margin-top: .33em;
@@ -535,6 +540,75 @@ $fppTableExtraPadding:1.1em;
 	border-bottom-right-radius: 8px;
 }
 .fppBasicTable>thead>tr>th{
+	font-size: 0.75rem;
+	text-transform: uppercase;
+	margin-bottom: 0.8em;
+	font-weight: normal;
+	padding-bottom:1em;
+}
+
+
+
+
+$fppTableDefaultPadding:0.6em;
+$fppTableExtraPadding:1.65em;
+.fppActionTable{
+	width: 100%;
+	margin-bottom: 2em;
+	margin-top: 2em;
+}
+
+.fppActionTable>tbody>tr>td{
+	padding-top: $fppTableDefaultPadding;
+	padding-bottom: $fppTableDefaultPadding;
+	background-color: #F5F5F5;
+	border-bottom: 1px solid #dee2e6;
+}
+.fppActionTable.fppActionTable-success>tbody>tr>td{
+    background-color: #3E9A50;
+    border-bottom-color:#85BF91
+}
+.fppActionTable>tbody>tr:hover>td{
+	background-color: #ECECEC;
+}
+.fppActionTable.fppActionTable-success>tbody>tr:hover>td{
+    background-color: #fff;
+    color:$black;
+}
+
+.fppActionTable.fppActionTable-success>tbody>tr .btn-danger {
+    @include fpp-btn-outline-variant($white,$black);
+    transition: none;
+}
+.fppActionTable.fppActionTable-success>tbody>tr:hover .btn-danger {
+
+    @include fpp-btn-variant($danger,$danger); 
+    
+}
+.fppActionTable>tbody>tr>td:first-child{
+	padding-left: $fppTableExtraPadding;
+	padding-right:0.4em;
+
+}
+.fppActionTable>tbody>tr>td:last-child{
+	padding-right: $fppTableDefaultPadding;
+}
+.fppActionTable>tbody>tr:first-child>td:first-child{
+	border-top-left-radius: 8px;
+}
+.fppActionTable>tbody>tr:first-child>td:last-child {
+	border-top-right-radius: 8px;
+}
+.fppActionTable>tbody>tr:last-child>td{
+	border-bottom: none;
+}
+.fppActionTable>tbody>tr:last-child>td:first-child{
+	border-bottom-left-radius: 8px;
+}
+.fppActionTable>tbody>tr:last-child>td:last-child {
+	border-bottom-right-radius: 8px;
+}
+.fppActionTable>thead>tr>th{
 	font-size: 0.75rem;
 	text-transform: uppercase;
 	margin-bottom: 0.8em;
