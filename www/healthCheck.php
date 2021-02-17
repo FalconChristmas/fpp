@@ -49,7 +49,5 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 </div>
 <?php	include 'common/footer.inc'; ?>
 </div>
-<pre id='log'>
-</pre>
 </body>
 </html>
