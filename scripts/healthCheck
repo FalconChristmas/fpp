@@ -9,8 +9,8 @@ HTML_FOOT="</div>"
 HTML_LABEL="<div class='col-md'><div class='description'>%s</div></div>"
 HTML_STATUS="<div class='col-sm' id='checkNumber%d'>%s</div>"
 HTML_GOOD="<i class='fas fa-check-circle text-success' title='%s'></i>"
-HTML_BAD="<i class='fas fa-times-circle text-danger' title='%s'></i>"
-HTML_WARN="<i class='fas fa-check-circle text-warning' title='%s'></i>"
+HTML_BAD="<i class='fas fa-times-circle text-danger'></i>&nbsp;%s"
+HTML_WARN="<i class='fas fa-check-circle text-warning'></i>&nbsp;%s"
 HTML_RUNNING="Running..."
 
 if [ "x$1" = "x-p" -o "x$1" = "x--php" ]
