@@ -233,7 +233,7 @@
             "default": "",
             "type": "select",
             "options": {
-                "No Border": "",
+                "Default":   "",
                 "Red":       "FF0000",
                 "Green":     "008000",
                 "Blue":      "0000FF",
@@ -242,7 +242,7 @@
                 "Gray":      "808080",
                 "Lime":      "00FF00",
                 "Navy":      "000080",
-                "Oliva":     "808000",
+                "Olive":     "808000",
                 "Purple":    "800080",
                 "Silver":    "C0C0C0",
                 "Teal":      "008080"

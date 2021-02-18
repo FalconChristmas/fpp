@@ -238,7 +238,7 @@ if (!file_exists("/etc/fpp/desktop")) {
             $js = json_decode(file_get_contents($settings['co-other']), true);
             foreach($js["channelOutputs"] as $key => $val) {
                 if (($val["enabled"] == 1) && ($val["type"] == "HTTPVirtualDisplay")) {
-                echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'>Virtual Display</a>";
+                echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'><i class='fas fa-tv'></i> Virtual Display</a>";
                 }
             }
           
