@@ -118,11 +118,11 @@ function list_plugin_entries($menu)
                         </div>
                       </div>
                 <?
-                
+
             }
           ?>
 		</div>
-    
+
   </div>
   <div style='float: right'><a href='#' class='nonULLink' onClick='ClearRestartFlag(); ClearRebootFlag();'><img src='images/1x1.png' width='5' height='5' style="vertical-align: top;"></a></div>
   <div class='helpLinkDiv largeonly'><a href='javascript:void();' onClick='DisplayHelp();' class='nonULLink'>&nbsp;Press F1 for help&nbsp;&nbsp;</a></div>
@@ -166,7 +166,7 @@ function list_plugin_entries($menu)
 		}
 	}
 ?>
-  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><input name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class = "buttons btn-outline-light" value="Restart FPPD">
+  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light">"<i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
 
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
@@ -205,7 +205,7 @@ function RebuildFPPD() {
 ?>
     </span>
   </div>
-  
+
 
   <nav id="fppMenu" class="navbar navbar-expand-lg navbar-dark">
   <div class="navbar-translate">
@@ -241,10 +241,10 @@ if (!file_exists("/etc/fpp/desktop")) {
                 echo "<a class='dropdown-item' href='virtualdisplaywrapper.php'><i class='fas fa-tv'></i> Virtual Display</a>";
                 }
             }
-          
+
           }
           ?>
-          
+
           <?php list_plugin_entries("status"); ?>
         </div>
       </li>

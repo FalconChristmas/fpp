@@ -15,5 +15,3 @@ RUN npm ci --verbose && npm cache clean --force && npm rebuild node-sass
 # Set environment variables
 ENV PATH /opt/node_modules/.bin:$PATH
 WORKDIR /opt/fpp
-
-ENTRYPOINT ["/opt/node_modules/.bin/gulp"]

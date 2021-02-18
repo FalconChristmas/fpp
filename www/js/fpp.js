@@ -2682,19 +2682,19 @@ function moveFile(file) {
 						if(ret == 'true')
 						{
 							SetButtonState('#btnDaemonControl','enable');
-							$("#btnDaemonControl").attr('value', 'Stop FPPD');
+                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
 							$('#daemonStatus').html("FPPD is running.");
 						}
 						else if (ret == 'updating')
 						{
 							SetButtonState('#btnDaemonControl','disable');
-							$("#btnDaemonControl").attr('value', 'Start FPPD');
+                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
 							$('#daemonStatus').html("FPP is currently updating.");
 						}
 						else
 						{
 							SetButtonState('#btnDaemonControl','enable');
-							$("#btnDaemonControl").attr('value', 'Start FPPD');
+                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
 							$('#daemonStatus').html("FPPD is stopped.");
 							$('.schedulerStartTime').hide();
 							$('.schedulerEndTime').hide();
@@ -2748,8 +2748,7 @@ function moveFile(file) {
 				if(response && typeof response === 'object') {
 					$("#btnDaemonControl").show();
 
-					if(response.status_name == 'stopped') {
-
+                    if (response.status_name == 'stopped') {
                         if ( ! ("warnings" in response)) {
                             response.warnings = [];
                         }
@@ -2761,10 +2760,9 @@ function moveFile(file) {
                         }).fail(function(){
                             DialogError('Volume Query Failed', "Failed to query Volume when FPPD stopped");
                         });
-
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
-						$("#btnDaemonControl").attr('value', 'Start FPPD');
+                        $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
 						$('#daemonStatus').html("FPPD is stopped.");
 						$('#txtPlayerStatus').html(status);
 						$('#playerTime').hide();
@@ -2776,12 +2774,10 @@ function moveFile(file) {
                         $('#mqttRow').hide()
                         updateWarnings(response);
 
-
-					} else if(response.status_name == 'updating') {
-
+                    } else if (response.status_name == 'updating') {
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','disable');
-						$("#btnDaemonControl").attr('value', 'Start FPPD');
+                        $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
 						$('#daemonStatus').html("FPP is currently updating.");
 						$('#txtPlayerStatus').html(status);
 						$('#playerTime').hide();
@@ -2792,14 +2788,11 @@ function moveFile(file) {
 						$('.schedulerEndTime').hide();
                         $('#mqttRow').hide()
 
-					} else {
-
-							SetButtonState('#btnDaemonControl','enable');
-							$("#btnDaemonControl").attr('value', 'Stop FPPD');
-							$('#daemonStatus').html("FPPD is running.");
-
-						parseStatus(response);
-
+                    } else {
+						SetButtonState('#btnDaemonControl','enable');
+                        $("#btnDaemonControl").attr("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
+                        $('#daemonStatus').html("FPPD is running.");
+                        parseStatus(response);
 					}
 
 					lastStatus = response.status;
@@ -2865,7 +2858,7 @@ function updateVolumeUI(Volume) {
 			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
 
 			$("#btnDaemonControl").show();
-			$("#btnDaemonControl").attr('value', 'Stop FPPD');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
 			$('#daemonStatus').html("FPPD is running.");
 		}
 
@@ -5497,14 +5490,14 @@ function RefreshHeaderBar(){
             $("#header_sensors").html(sensors.join(""));
             headerCache.Sensors = sensors.join("");
             if(sensors.length > 1) $("#header_sensors").css("cursor","pointer");
-            if($("#header_sensors").data("defaultsensor") != undefined 
+            if($("#header_sensors").data("defaultsensor") != undefined
                     && Number.isInteger($("#header_sensors").data("defaultsensor"))){
                 RotateHeaderSensor($("#header_sensors").data("defaultsensor"));
             }else{
                 RotateHeaderSensor(0);
             }
         }
-        
+
     }
 
     if(data.status_name != undefined){
@@ -5541,8 +5534,8 @@ function RefreshHeaderBar(){
 */
 function RotateHeaderSensor(goto){
     var current = $("#header_sensors").find("[data-sensorcount='" + (goto-1) + "']");
-    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']"); 
-    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']"); 
+    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']");
+    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']");
     current.hide();
     next.show();
     //Save setting

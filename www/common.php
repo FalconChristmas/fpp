@@ -127,7 +127,7 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 	}
 	file_put_contents($filename, $settingsStr);
 }
-    
+
 function DeleteSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
@@ -211,6 +211,17 @@ function PrintPluginSetting($plugin, $setting, $callback = '', $options = Array(
     PrintSetting($setting, $callback, $options, $plugin);
 }
 
+function PrintIcon($level) {
+	if ($level == 1)
+		echo " <i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1'></i>";
+	else if ($level == 2)
+		echo " <i class='fas fa-fw fa-flask fa-nbsp ui-level-2'></i>";
+	else if ($level == 3)
+		echo " <i class='fas fa-fw fa-code fa-nbsp ui-level-3'></i>";
+	else
+		echo " <i class='fas fa-fw fa-nbsp ui-level-0'></i>";
+}
+
 function PrintSetting($setting, $callback = '', $options = Array(), $plugin = '') {
     global $settings;
     global $settingInfos;
@@ -257,9 +268,12 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
         if ($textOnRight)
-            echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'>";
-        else
-            echo "<div class='row' id='" . $setting . "Row'><div class='col-lg'><div class='description'>" . $s['description'] . "</div></div><div class='col-lg'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-md-5'>";
+        else {
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-md-5'><div class='description'>";
+			PrintIcon($level);
+			echo $s['description']."</div></div><div class='col-md-7'>";
+		}
 
         switch ($s['type']) {
             case 'select':
@@ -349,17 +363,12 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         if ($suffix != '')
             echo $suffix . ' ';
 
-        if ($textOnRight)
+        if ($textOnRight) {
             echo "</div><div class='th'><span>" . $s['description'] . "</span> ";
+			PrintIcon($level);
+		}
 
         PrintToolTip($setting);
-
-        if ($level == 1)
-            echo " <b>*</b>";
-        else if ($level == 2)
-            echo " <b>**</b>";
-        else if ($level == 3)
-            echo " <b>***</b>";
 
         if ($textOnRight)
             echo "</div></div>\n";
@@ -408,7 +417,7 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             if (preg_match("/<div class=row>/", $prependData))
                 echo $prependData;
             else
-                echo "<div class=row><div class='col-lg' colspan=2>$prependData</div></div>\n";
+                echo "<div class=row><div class='col-md' colspan=2>$prependData</div></div>\n";
         }
 
         foreach ($g['settings'] as $setting) {
@@ -422,7 +431,7 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             if (preg_match("/<div class=row>/", $appendData))
                 echo $appendData;
             else
-                echo "<div class=row><div class='col-lg' colspan=2>$appendData</div></div>\n";
+                echo "<div class=row><div class='col-md' colspan=2>$appendData</div></div>\n";
         }
 
         echo "</div><br>\n";
@@ -669,7 +678,7 @@ echo "
 	{
 		echo "<option value='$value'";
 
-		
+
 		if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
 			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
         else if ($value == $defaultValue)
@@ -707,7 +716,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 }
 
 function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text", $sData = Array())
-{ 
+{
 	global $settings;
 	global $pluginSettings;
 
@@ -725,7 +734,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 		$settingsName = "pluginSettings";
 	}
 
-    
+
     if ($callbackName != "")
         $callbackName = $callbackName . "();";
     if ($changedFunction == "")
@@ -784,12 +793,12 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
               $.jGrowl('$setting Saved',{themeState:'success'});
               $settingsName" . "['$setting'] = value;
               ";
-              
+
               if ($restart)
                 echo "SetRestartFlag($restart);\n";
               if ($reboot)
                 echo "SetRebootFlag();\n";
-              
+
               if (isset($sData['children'])) {
                 echo "Update$setting" . "Children(0);\n";
               }
@@ -1261,7 +1270,7 @@ function get_kernel_version(){
 	return $kernel_version;
 }
 
-    
+
 function get_cpu_stats() {
     $stats = @file_get_contents("/proc/stat");
     if ($stats !== false) {
@@ -1290,7 +1299,7 @@ function get_cpu_stats() {
     }
     return array(0, 0, 0 ,0);
 }
-    
+
 /**
  * Returns average CPU usage
  * @return mixed
@@ -1308,7 +1317,7 @@ function get_server_cpu_usage(){
     $stats = get_cpu_stats();
     $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
     @file_put_contents("/tmp/cpustats.txt", $vs);
-    
+
     $user = $stats[0] - $ostats[0];
     $nice = $stats[1] - $ostats[1];
     $system = $stats[2] - $ostats[2];
@@ -1323,7 +1332,7 @@ function get_server_cpu_usage(){
     if ($total > 0) {
 	    $val = 100.0 - ($val / $total);
     }
-    
+
 	return $val;
 }
 
@@ -1664,7 +1673,7 @@ function network_wifi_strength_obj()
 	$lines = file("/proc/net/wireless");
 	#
 	# Expected format
-	# 
+	#
 	# face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
 	# wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
 	#
