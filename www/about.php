@@ -364,12 +364,13 @@ tr.rowScheduleDetails td {
         if (isSet($settings["cape-info"]))  {
             $currentCapeInfo = $settings["cape-info"];
         ?>
-            <br>
-            <fieldset class="fieldSection">
-            <legend>About Cape/Hat</legend>
-            <div style="overflow: hidden; padding: 10px;">
-            <div>
-            <div class='<? if (isSet($currentCapeInfo['vendor'])) { echo "aboutLeft"; } else { echo "aboutAll";} ?> '>
+        </div>
+        <div class="row">
+            <div class="aboutAll col-md">
+            <h2>About Cape/Hat</h2>
+            <div class="container">
+            <div class="row">
+            <div class='<? if (isSet($currentCapeInfo['vendor'])) { echo "aboutLeft col-md"; } else { echo "aboutAll";} ?> '>
             <table class='tblAbout'>
             <tr><td><b>Name:</b></td><td width="100%"><? echo $currentCapeInfo['name']  ?></td></tr>
             <?
@@ -395,7 +396,7 @@ tr.rowScheduleDetails td {
             </table>
             </div>
             <? if (isSet($currentCapeInfo['vendor'])) { ?>
-                   <div class='aboutRight'>
+                   <div class='aboutRight col-md'>
                    <table class='tblAbout'>
                         <tr><td><b>Vendor&nbsp;Name:</b></td><td><? echo $currentCapeInfo['vendor']['name']  ?></td></tr>
                 <? if (isSet($currentCapeInfo['vendor']['url'])) {
@@ -426,25 +427,33 @@ tr.rowScheduleDetails td {
                    </table>
                    </div>
                 <? } ?>
-            </div>
-            </div>
+            </div> <!-- row -->
+            </div> <!-- container -->
+            </div> <!-- col -->
+        </div> <!-- row -->
        
             
             
         <?
         }
-    
         $eepromFile  = "/sys/bus/i2c/devices/1-0050/eeprom";
         if ($settings['Platform'] == "BeagleBone Black") {
             $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
         }
         if (file_exists($eepromFile)) {
         ?>
-        <br>
-        <fieldset class="fieldSection">
-        <legend>Cape/Hat Firmware Upgrade</legend>
+        <div class="row">
+            <div class="aboutAll col-md">
+            <h2>Cape/Hat Firmware Upgrade</h2>
+            <div class="container"><div class="row"><div class="aboutAll col-md">
             Firmware file: <input type="file" name="firmware" id="firmware"/>&nbsp;<input type='button' value='Upgrade' onClick='UpgradeFirmware();'  id='UpdateFirmware'>
-        </fieldset>
+            </div>
+            </div>
+            </div>
+
+            </div>
+        </div>
+
             <?
             }
     ?>
