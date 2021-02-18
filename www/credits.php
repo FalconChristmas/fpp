@@ -34,7 +34,7 @@ $fpp_version = "v" . getFPPVersion();
         Greg Hormann (ghormann)<br/>
         Andrew Ayton (drew8n) - UI<br/>
         Adam Coulombe (wzadz1) - UI<br/>
-        Justin Novack - UI<br/>
+        Justin J. Novack (jnovack) - UI<br/>
         Pat Delaney (patdelaney) - QA<br/>
         Rick Harris (Poporacer) - Manual/QA<br/>
         Mark Amber (pixelpuppy) - Manual/QA<br/>
