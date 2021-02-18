@@ -233,7 +233,7 @@
             "default": "",
             "type": "select",
             "options": {
-                "No Border": "",
+                "Default":   "",
                 "Red":       "FF0000",
                 "Green":     "008000",
                 "Blue":      "0000FF",
