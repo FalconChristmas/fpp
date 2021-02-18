@@ -44,6 +44,10 @@ $(function() {
 });
 
 (function ( $ ) {
+
+    /*  A custom jQuery plugin that uses jQueryUI.Dialog API
+        to create equivalent bootstrap modals. */
+    
     $.fn.fppDialog = function( options ) {
         if(options=='close'){
           this.each(function() {
@@ -1487,8 +1491,10 @@ function SavePlaylist(filter, callback) {
 }
 
 function SetPlaylistName(name) {
-    $('#txtPlaylistName').val(name);
-    $('#txtPlaylistName').prop('size', name.length);
+    if (name) { 
+        $('#txtPlaylistName').val(name);
+        $('#txtPlaylistName').prop('size', name.length);
+    }
 }
 
 function SavePlaylistAs(name, filter, callback) {
