@@ -181,6 +181,7 @@ include 'common/menuHead.inc';
 <body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
 <div id="bodyWrapper">
 <?php
+    $activeParentMenuItem = 'status';
 	include 'menu.inc';
   ?>
 
@@ -198,6 +199,52 @@ include 'common/menuHead.inc';
 <?php
     }
 ?>
+<div class="statusDivTopWrap">
+    <div id="schedulerInfo" class="statusDiv statusDivTop">
+        <div class="statusTable row">
+
+            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+                <div class="schedulerStatusCol">
+                    <div>
+                        <div class="labelHeading">Scheduler Status:</div>
+                        <div class="labelValue"><span id='schedulerStatus'></span></div>
+                    </div>
+                    <div>
+                        <div class="labelAction">
+                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>View Schedule</button>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+                <div class="labelHeading">Next Playlist: </div>
+                <div id='nextPlaylist' class="labelValue"></div>
+
+            </div>
+            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+                <div class='labelHeading schedulerStartTime'>Started at:</div>
+                <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
+            </div>
+            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+                <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
+                <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
+            </div>
+            <div class="schedulerExtend schedulerEndTime col-sm-auto col-md-4 col-xxl-auto ">
+                <div class="labelHeading">Extend Current Playlist:</div>
+                <div class='labelValue' colspan='2'>
+                    <div class="btn-group">
+                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedulePopup();'><i class="fas fa-fw fa-calendar-plus"></i>Extend</button>
+                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>      
+                    </div>
+                    
+                </div>
+            </div>
+                
+        </div>
+    </div>
+</div>
 <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
     <div id="programControl" class="settings">
 
@@ -303,38 +350,6 @@ include 'common/menuHead.inc';
             </div>
             <!-- Player/Master Mode Info -->
             <div id="playerModeInfo" class='statusDiv pageContent'>
-            <div id='schedulerInfo'>
-                    <div class='statusBoxLeft container'>
-                        <div class='statusTable row'>
-                            <div class="col-md-3">
-                                <div class="labelHeading">Scheduler Status:</div>
-                                <div class="labelValue"><span id='schedulerStatus'></span></div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="labelHeading">Next Playlist: </div>
-                                <div id='nextPlaylist' class="labelValue"></div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class='labelHeading schedulerStartTime'>Started at:</div>
-                                <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
-                                <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
-                            </div>
-                            <div class="schedulerExtend schedulerEndTime col-md-2">
-                                <div class="labelHeading">Extend Current Playlist:</div>
-                                <div class='labelValue' colspan='2'>
-                                    <button type='button' class="buttons" onClick='ExtendSchedulePopup();'><i class="fas fa-fw fa-calendar-plus"></i>Extend</button>
-                                    <button type='button' class="buttons" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button class='buttons wideButton' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>View Schedule</button>
-                    </div>
-                </div>
-
-                <hr>
 
                 <div id="playerStatusTop">
                     <div class='statusBoxLeft'>
@@ -398,9 +413,9 @@ include 'common/menuHead.inc';
                     ?>
 
 
-                    <div id='deprecationWarning' style='display:none'>
-                    <font color='red'><b>* - Playlist items marked with an asterisk have been deprecated
-                        and will be auto-upgraded the next time you edit the playlist.</b></font>
+                    <div id='deprecationWarning' class="hidden callout callout-danger">
+                    <b>* - Playlist items marked with an asterisk have been deprecated
+                        and will be auto-upgraded the next time you edit the playlist.</b>
                     </div>
                 </div>
 

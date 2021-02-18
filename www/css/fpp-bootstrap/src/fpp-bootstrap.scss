@@ -116,6 +116,9 @@
 .labelValue{
 	font-weight: bold;
 }
+.labelAction{
+	margin-top: 0.85em;
+}
 input[type=text], input[type=number], select, .tablesorter input{
 	border: 1px solid #D2D2D2;
 	color:$black;

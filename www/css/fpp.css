@@ -251,10 +251,22 @@ body .ui-tabs .ui-tabs-nav li {
 	background-position: center top;
 	vertical-align: middle;
 	margin-left: 0.6em;
-	padding-right: 0.6em;
+	padding-right: 0.9em;
 	text-align: center;
-	border-right:1px solid #2E4260;
+	position: relative;
 }
+.headerBox span:after {
+	content:'';
+	border-right: 1px solid #2D3043;
+	width: 0;
+	height: 100%;
+	position: absolute;
+	top: 0;
+	right:0;
+	transform: skewX(-13deg);
+
+}
+
 
 .headerBox small{
 	font-size: 1.05em;
@@ -336,6 +348,10 @@ body legend{
 	cursor: pointer;
 	color:#B8B8B8;
 }
+#fppMenu a:hover, #fppMenu a:focus, #fppMenu a:active{
+
+	color:#fff;
+}
 
 .nav-open #fppMenu a, .nav-open #fppMenu a:hover, .nav-open #fppMenu a:focus, .nav-open #fppMenu a:active{
 	font-family: Helvetica,Arial,sans-serif;
@@ -375,34 +391,39 @@ body legend{
 #programControl{
 	color:#fff;
 }
-#daemonControl .statusTable{
+.statusDivTop .statusTable{
+	color:#fff;
 	display: flex;
 	margin-top: 0.5em;
 	margin-bottom: 3em;
 	margin-left:0;
 }
-#daemonControl .statusTable > div{
-	padding-left: 2em;
+.statusDivTop .statusTable > div{
 	position: relative;
 }
-#daemonControl .statusTable > div:before{
+.statusDivTop .statusTable > div:before{
 	content:'';
 	display: block;
-	border-left:1px solid #2E4260;
+	border-left:1px solid #2D3043;
 	height: 100%;
 	position: absolute;
 	top: 0;
 	left: 0;
 	transform: skewX(-13deg);
 }
-#daemonControl .statusTable>:first-child{
+.statusDivTop .statusTable>:first-child{
 	margin-left: 0;
 	padding-left: 0;
 }
-#daemonControl .statusTable>:first-child:before{
+.statusDivTop .statusTable>:first-child:before{
 	content:none;
 }
-
+.schedulerStatusCol{
+	display: flex;
+}
+.schedulerStatusCol .labelAction{
+	padding-left: 4em;
+}
 #txtPlayerStatus{
 	padding-left: 0.5em;
 }
@@ -663,9 +684,9 @@ border-top-color: transparent;
 }
 #playerTime .labelValue, .tblPlaylistHeaderDetails .labelValue{
 	background-color: #ECECEC;
-	padding-top: 0.75em;
-	padding-bottom: 0.75em;
-	font-size: 1.3em;
+	padding-top: 0.5em;
+	padding-bottom: 0.5em;
+	font-size: 1.2em;
 
 }
 #playerTime > div:first-child > div, .tblPlaylistHeaderDetails > div:first-child > div {
@@ -734,7 +755,7 @@ border-top-color: transparent;
 	box-shadow: 1000px 100px 0px 0px #20222E,-1000px 100px 0px 0px #20222E ,0px 100px 0px 0px #20222E;
 }
 .footerLink{
-	border-top:1px solid #4C4C4C;
+	border-top:1px solid #2D3043;
 	padding:2em;
 	margin-top: 2em;
 	padding-bottom: 0;
@@ -1561,8 +1582,48 @@ input[type=search].tablesorter-filter:disabled{
 	color: #D1D1D1;
 }
 
-
+@media (min-width:768px) and (max-width:1360px){
+	.statusDivTop .statusTable {
+		margin-top: -3em;
+		margin-bottom: 3.5em;
+	}
+	.statusDivTop .statusTable > div{
+		margin-top: 3.5em;
+	}
+	.statusDivTop .statusTable > div:nth-child(4) {  
+		margin-left: 0;
+		padding-left: 0;
+		
+	}
+	.statusDivTop .statusTable > div:nth-child(4):before {
+		content:none;  
+	}
+}
+@media (min-width:481px) and (max-width:768px){
+	.statusDivTop .statusTable {
+		margin-top: 0.1em;
+		margin-bottom: 0.5em;
+		max-width: 100%;
+	}
+	.statusDivTop .statusTable > div {
+		border-bottom:1px solid #2D3043;
+		margin-bottom: 1em;
+		padding-bottom: 1em;
+		padding-left: 0;
+		margin-top: 0.2em;
+	}
+	.statusDivTop .statusTable > div:last-child {
+		border-bottom:none;
+	}
+	.statusDivTop .statusTable > div:before {
+		content:none;
+	}
+}
 @media(max-width:480px){
+	.fppMenuContainer {
+		padding-bottom: 0.1em;
+
+	}
 	.fpp-logo, .headerHostName, .headerRight{
 		display: none;
 	}
@@ -1640,13 +1701,38 @@ input[type=search].tablesorter-filter:disabled{
 	.playlistEntriesBody, .tblPlaylistWrap{
 		padding: 0;
 	}
-	#daemonControl{
+	#schedulerInfo{
+		display: block;
+	}
+	.statusDivTop{
 		overflow-x: auto;
 	}
-	#daemonControl .statusTable {
+	.statusDivTop .statusTable {
 		width: 2000px;
+		flex-wrap: nowrap;
 	}
-
+	.schedulerStatusCol {
+		display: block;
+	}
+	.schedulerStatusCol .labelAction{
+		padding-left: 0;
+	}
+	.statusDivTopWrap{
+		position: relative;
+	}
+	.statusDivTopWrap:after{
+		content:'';
+		position: absolute;
+		right:0;
+		width: 45px;
+		bottom: 0;
+		top: 0;
+		pointer-events: none;
+		background: linear-gradient(90deg, rgba(23,23,32,0) 0%, rgba(23,23,32,1) 100%);
+	}
+	.statusTable.row > div{
+		width: auto;
+	}
 	.fppBrand {
 		padding-left: 0;
 	}

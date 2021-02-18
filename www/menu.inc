@@ -215,7 +215,7 @@ function RebuildFPPD() {
           </div>
   <div class="collapse navbar-collapse" id="navbarNavDropdown">
     <ul id="fppMenuList" class="navbar-nav">
-    <li class="nav-item dropdown">
+    <li class="nav-item dropdown <? echo $activeParentMenuItem=='status' ? 'active' :''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Status/Control
         </a>
@@ -249,7 +249,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown">
+      <li class="nav-item dropdown <? echo $activeParentMenuItem=='content' ? 'active' :''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Content Setup
         </a>
@@ -263,7 +263,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown ">
+      <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'active' :''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Input/Output Setup
         </a>
@@ -277,7 +277,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown ">
+      <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'help' :''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
