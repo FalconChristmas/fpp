@@ -26,11 +26,6 @@ services:
     build:
       context: ../
       dockerfile: ./Docker/Dockerfile.node
-    command: /bin/sh -c "(
-      echo 'Please wait while node modules are verified...';
-      npm install --verbose;
-      echo '... all dependencies installed.';
-      gulp watch-bs
-      )"
+    command: ["-f", "/opt/fpp/www/gulpfile.js", "watch-bs"]
     volumes:
       - ../:/opt/fpp
