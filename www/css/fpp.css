@@ -198,18 +198,7 @@ body .ui-tabs .ui-tabs-nav li {
 	position: relative;
 	margin-left: 1em;
 }
-.capeVendor:after{
-	content:'';
-	display: block;
-	height: 12px;
-	width: 12px;
-	background-color:#56B760;
-	border-radius: 6px;
-	bottom: -6px;
-	border:2px solid #000;
-	right: 4px;
-	position: absolute;
-}
+
 .capeVendorLogo {
 	border-radius: 7px;
 	overflow: hidden;
