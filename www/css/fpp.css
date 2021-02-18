@@ -1401,6 +1401,12 @@ body .sm-clean a .sub-arrow {
 	display: block;
 	padding-top: 0.5em;
 }
+.tablesorter-filter-row>td:last-child input{
+	display: none;
+}
+#selectAllCheckbox{
+	transform: translateY(40px);
+}
 .fppSystemsUiSettings {
 
 	padding-top: 2em;
