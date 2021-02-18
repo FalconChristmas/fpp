@@ -7136,6 +7136,15 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
 .labelAction {
   margin-top: 0.85em; }
 
+.ui-level-1 {
+  color: #0059ff; }
+
+.ui-level-2 {
+  color: #1ac147; }
+
+.ui-level-3 {
+  color: #de1010; }
+
 input[type=text], input[type=number], select, .tablesorter input {
   border: 1px solid #D2D2D2;
   color: #171720;
@@ -7192,8 +7201,6 @@ input[type=checkbox]:checked {
     color: #F63939; }
   .pageContent .nav-link.active {
     border-color: #F63939; }
-    .pageContent .nav-link.active:hover {
-      color: #fff; }
 
 .form-control-rounded {
   border-radius: 1.5em; }
@@ -7454,6 +7461,9 @@ table.settingsTable div.th {
 #settingsManagerTabsContent input[type=text] {
   width: auto;
   display: inline-block; }
+
+#settingsManager #nav-tabContent {
+  padding-top: 1.5em; }
 
 .fppSelectableRowTable {
   width: 100%;

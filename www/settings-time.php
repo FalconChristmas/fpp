@@ -18,11 +18,21 @@ function GetTimeZone() {
 <div class="settingsManagerTimeContent">
         <?
         $extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
-        $prependData = "<div class='row'><div class='col-lg'><div>Current System Time</div></div><div id='currentTime' class='col-xl labelValue disabled'></div></div>";
+        $prependData = "<div class='row'><div class='col-md-5'><div class='description'><i class='fas fa-fw ui-level-0'></i>&nbsp;Current System Time</div></div><div id='currentTime' class='col-md-7 labelValue disabled'></div></div>";
         PrintSettingGroup('time', $extraData, $prependData);
         ?>
 </div>
 
 <script>
-UpdateCurrentTime(true);
+$( document ).ready(function() {
+    var statusTimeout = null;
+    function UpdateCurrentTime() {
+        if ($('#settings-time-tab').hasClass('active')) {
+            $.get('api/time', function(data) {
+                $('#currentTime').html(data.time);
+            });
+        }
+    }
+    statusTimeout = setInterval(UpdateCurrentTime, 1000);
+});
 </script>

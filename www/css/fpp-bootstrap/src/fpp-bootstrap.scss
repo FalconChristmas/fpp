@@ -38,7 +38,7 @@
 
 .buttons {
     @extend .btn;
-    @include fpp-btn-outline-variant($black); 
+    @include fpp-btn-outline-variant($black);
 }
 .btn-lg {
     font-size: $font-size-lg * 0.9;
@@ -53,16 +53,16 @@
     @include fpp-btn-variant($pleasant,$pleasant);
 }
 .pageContent .btn-detract, .btn-detract{
-    @include fpp-btn-variant($detract,$detract,$white); 
+    @include fpp-btn-variant($detract,$detract,$white);
 }
 .pageContent .btn-graceful, .btn-graceful{
-    @include fpp-btn-variant($graceful,$graceful); 
+    @include fpp-btn-variant($graceful,$graceful);
 }
 .pageContent .btn-danger, .btn-danger{
-    @include fpp-btn-variant($danger,$danger); 
+    @include fpp-btn-variant($danger,$danger);
 }
 .pageContent .btn-outline-light, .btn-outline-light{
-    @include fpp-btn-outline-variant($white,$black); 
+    @include fpp-btn-outline-variant($white,$black);
 }
 .btn-rounded, .disableButtons.btn-rounded,.btn-rounded, .disableButtons.btn-rounded{
     border-radius: 1.5em;
@@ -119,6 +119,11 @@
 .labelAction{
 	margin-top: 0.85em;
 }
+
+.ui-level-1 { color: #0059ff; }
+.ui-level-2 { color: #1ac147; }
+.ui-level-3 { color: #de1010; }
+
 input[type=text], input[type=number], select, .tablesorter input{
 	border: 1px solid #D2D2D2;
 	color:$black;
@@ -152,7 +157,7 @@ input[type=checkbox]{
 	height: 33px;
     font-size: $font-size-base;
     vertical-align: middle;
-    
+
 }
 input[type=checkbox]:checked{
 
@@ -181,10 +186,6 @@ input[type=checkbox]:checked{
     }
     &.active{
         border-color: $nav-pills-link-active-bg;
-        &:hover{
-          
-            color:$white;
-        }
     }
 }
 .form-control-rounded{
@@ -201,7 +202,7 @@ input[type=checkbox]:checked{
     }
 }
 .alert{
-    
+
     color:$white;
     a{
         color:$black;
@@ -309,7 +310,7 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
 
 
 
-  
+
 
 @each $strength in (excellent, good, fair, weak) {
     .wifi-#{$strength} {
@@ -451,7 +452,9 @@ table.settingsTable div.th{
     }
 }
 
-
+#settingsManager #nav-tabContent {
+    padding-top: 1.5em;
+}
 
 .fppSelectableRowTable{
 
@@ -594,8 +597,8 @@ $fppTableExtraPadding:1.65em;
 }
 .fppActionTable.fppActionTable-success>tbody>tr:hover .btn-danger {
 
-    @include fpp-btn-variant($danger,$danger); 
-    
+    @include fpp-btn-variant($danger,$danger);
+
 }
 .fppActionTable>tbody>tr>td:first-child{
 	padding-left: $fppTableExtraPadding;
