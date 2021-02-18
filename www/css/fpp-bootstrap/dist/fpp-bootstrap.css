@@ -7241,6 +7241,10 @@ input[type=checkbox]:checked {
   background-color: #F2BC5F;
   color: #fff; }
 
+.jGrowl-closer {
+  background-color: #dee2e6;
+  color: #171720; }
+
 .skeleton-loader div {
   -webkit-animation-duration: 0.5s;
           animation-duration: 0.5s;
@@ -7497,6 +7501,9 @@ table.settingsTable div.th {
 .fppSelectableRowTable tr.selectedEntry td,
 .fppSelectableRowTable tr.fppTableSelectedEntry td {
   background-color: #DEE8FF; }
+
+#tblSchedule.fppSelectableRowTable tr td {
+  vertical-align: top; }
 
 .fppBasicTable {
   width: 100%;

@@ -243,6 +243,10 @@ input[type=checkbox]:checked{
         color:#fff;
     }
 }
+.jGrowl-closer{
+    background-color: $gray-300;
+    color:$black;
+}
 
 .skeleton-loader div {
     animation-duration: 0.5s;
@@ -499,7 +503,9 @@ table.settingsTable div.th{
 {
 	background-color: $highlight;
 }
-
+#tblSchedule.fppSelectableRowTable tr td {
+	vertical-align: top;
+}
 
 
 $fppTableDefaultPadding:1.1em;

@@ -702,6 +702,20 @@ border-top-color: transparent;
 	padding-left: 0em;
 	padding-right: 0em;
 }
+.schOptionsCommand .cmdTmplArgsTable {
+	margin-top: 0.5em;
+}
+.schOptionsCommand .cmdTmplArgsTable tr th, .schOptionsCommand .cmdTmplArgsTable tr td  {
+	padding:0em;
+	margin: 0;
+	text-transform: none;
+	font-weight: bold;
+	font-size: 1em;
+}
+.schOptionsCommand .cmdTmplArgsTable tr td  {
+	font-weight: normal;
+	padding-left: 0.5em;
+}
 
 .icon-help{
 	width: 28px;

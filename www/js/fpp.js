@@ -36,6 +36,7 @@ $(function() {
     if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
         $('body').addClass('has-touch');
     }
+    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
     SetupToolTips();
     LoadSystemStatus();
     CheckBrowser();
