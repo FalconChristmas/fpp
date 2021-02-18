@@ -7136,6 +7136,9 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
 .labelAction {
   margin-top: 0.85em; }
 
+.fa-nbsp {
+  margin-right: 0.4em; }
+
 .ui-level-1 {
   color: #0059ff; }
 

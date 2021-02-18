@@ -213,14 +213,13 @@ function PrintPluginSetting($plugin, $setting, $callback = '', $options = Array(
 
 function PrintIcon($level) {
 	if ($level == 1)
-		echo " <i class='fas fa-fw fa-graduation-cap ui-level-1'></i>";
+		echo " <i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1'></i>";
 	else if ($level == 2)
-		echo " <i class='fas fa-fw fa-flask ui-level-2'></i>";
+		echo " <i class='fas fa-fw fa-flask fa-nbsp ui-level-2'></i>";
 	else if ($level == 3)
-		echo " <i class='fas fa-fw fa-code ui-level-3'></i>";
+		echo " <i class='fas fa-fw fa-code fa-nbsp ui-level-3'></i>";
 	else
-		echo " <i class='fas fa-fw ui-level-0'></i>";
-	echo "&nbsp;";
+		echo " <i class='fas fa-fw fa-nbsp ui-level-0'></i>";
 }
 
 function PrintSetting($setting, $callback = '', $options = Array(), $plugin = '') {
