@@ -20,7 +20,7 @@ include 'common/menuHead.inc';
           EffectSelectedName  = $selectedEntry.find('td:first').text();
           EffectSelectedType  = $selectedEntry.find('td:nth-child(2)').text();
           $('#divEffectStartModal').fppDialog({
-            title:$selectedEntry.find('td:first').text(),
+            title:'Start Effect '+$selectedEntry.find('td:first').text(),
             buttons:{
               'Start Effect': {
                 click:function(){
@@ -133,18 +133,32 @@ function StartSelectedEffect() {
                   
                  
                       <div id="divEffectStartModal" class="hidden">
-
-
-                              <table>
-                                <tr><td>Loop Effect:</td><td><input type='checkbox' id='loopEffect'></td>
-                                    <td width='20px'></td>
-                                    <td>Run in Background:</td><td><input type='checkbox' id='backgroundEffect'></td>
-                                    </tr>
-                                <tr><td colspan='5'>Start Channel Override: <input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></td></tr>
-                              </table>
-
-
-
+                        <div class="row">
+                          <div class="col-auto">
+                            <div class="form-inline">
+                              <div class="form-group">
+                                <div>Loop Effect:</div>
+                                <div class="p-1"><input type='checkbox' id='loopEffect'></div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-auto">
+                            <div class="form-inline">
+                              <div class="form-group">
+                                <div>Run in Background:</div>
+                                <div class="p-1"><input type='checkbox' id='backgroundEffect'></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div class="form-inline">
+                            <div class="form-group">
+                              <div>Start Channel Override:</div>
+                              <div class="p-1"><input id="effectStartChannel" class="default-value" type="number" value="" min="1" max="<? echo FPPD_MAX_CHANNELS; ?>" /></div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                  
 
@@ -164,7 +178,7 @@ function StartSelectedEffect() {
 
                 </div>
                 <div class="col">
-                  <div id= "divRunningEffects" class="backdrop-success">
+                  <div id= "divRunningEffects" class="backdrop-disabled">
                     <h2>Running Effects</h2>
                     <!-- <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br> -->
                     <div class='fppTableWrapper'>
@@ -173,6 +187,9 @@ function StartSelectedEffect() {
                           <thead><tr><th width='8%'>ID</th><th>Running Effects</th><th width='15%'></th></tr></thead>
                           <tbody id='tblRunningEffectsBody'></tbody>
                         </table>
+                        <div class="tblRunningEffectsPlaceholder">
+                          There are currently no effects running
+                        </div>
                       </div>
                     </div>
                             </div>

@@ -2431,7 +2431,7 @@ function postUniverseJSON(input) {
         $('#outputOffWarning').hide();
 
     $.post("api/channel/output/" + fileName, postDataString).done(function (data) {
-        $.jGrowl("E1.31 Universes Saved");
+        $.jGrowl("E1.31 Universes Saved",{themeState:'success'});
         SetRestartFlag(2);
         CheckRestartRebootFlags();
     }).fail(function () {
@@ -3628,10 +3628,13 @@ function GetRunningEffects() {
         if ("runningEffects" in data) {
             data.runningEffects.forEach(function (e) {
                 if (e.name == RunningEffectSelectedName)
-                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');
+                    {$('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');}
                 else
-                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');
+                    {$('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');}
+                $('#divRunningEffects').removeClass('divRunningEffectsDisabled backdrop-disabled').addClass('divRunningEffectsRunning backdrop-success');
             });
+        } else {
+            $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
         }
         setTimeout(GetRunningEffects, 1000);
     }).fail(function () {
@@ -3677,7 +3680,7 @@ function GetRunningEffects() {
                 data: "",
                 success: function(data) {
                     //Show FPP is rebooting notification for 60 seconds then reload the page
-                    $.jGrowl('FPP is shutting down..', {life: 60000});
+                    $.jGrowl('FPP is shutting down..', {life: 60000,themeState:'detract'});
                 },
                 error: function() {
                     DialogError('Command failed', 'Command failed');

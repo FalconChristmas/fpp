@@ -1519,8 +1519,27 @@ input[type=search].tablesorter-filter:disabled{
 .icon-effect-type{
 	margin-right: 1em;
 }
-
-
+.tblRunningEffectsPlaceholder{
+	text-align: center;
+}
+#tblRunningEffects{
+	display: none;
+}
+.divRunningEffectsRunning #tblRunningEffects{
+	display: block;
+}
+.divRunningEffectsDisabled .tblRunningEffectsPlaceholder {
+	padding-bottom: 0.8em;
+	padding-top: 0.2em;
+}
+.divRunningEffectsDisabled .tblRunningEffectsPlaceholder:before {
+	content: "\f0d0";
+	font-family: "Font Awesome 5 Free";
+	font-weight: 900;
+	display: block;
+	font-size: 3em;
+	color: #D1D1D1;
+}
 
 
 @media(max-width:480px){
