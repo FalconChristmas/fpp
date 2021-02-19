@@ -3423,7 +3423,7 @@ function StopEffect() {
     var msg = {
         "command": "Effect Stop",
         "args": [
-            "block_driveways"
+            RunningEffectSelectedName
         ]
     };
 

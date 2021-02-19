@@ -7,6 +7,8 @@
 build/
 SD/*.xz
 lib/librgbmatrix.so
+.env
+node_modules
 src/fpp
 src/fppmm
 src/fppd
