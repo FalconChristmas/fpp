@@ -143,8 +143,8 @@ if (hash) {
 }
 // Changes hash in url bar for easy copy/paste
 $('.nav a.nav-item').on('shown.bs.tab', function (e) {
-    window.location.hash = e.target.hash;
-})
+    history.pushState(null, null, e.target.hash);
+});
 </script>
 </body>
 </html>
