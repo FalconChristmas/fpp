@@ -1,7 +1,7 @@
 {
     "name": "BBB16",
-    "longName": "BBB16 (8 Serial)",
-    "numSerial": 8,
+    "longName": "BBB16 (2 Serial)",
+    "numSerial": 2,
     "outputs": [
         {  "pin": "P8-08" },
         {  "pin": "P8-10" },
