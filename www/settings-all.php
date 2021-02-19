@@ -14,51 +14,6 @@ include('common/menuHead.inc');
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><? echo $pageTitle; ?></title>
-
-
-<script>
-
-function bindSettingsVisibilityListener() {
-    var visProp = getHiddenProp();
-    if (visProp) {
-      var evtname = visProp.replace(/[H|h]idden/,'') + 'visibilitychange';
-      document.addEventListener(evtname, handleSettingsVisibilityChange);
-    }
-}
-
-function handleSettingsVisibilityChange() {
-    if (isHidden() && statusTimeout != null) {
-        clearTimeout(statusTimeout);
-        statusTimeout = null;
-    } else {
-        UpdateCurrentTime();
-    }
-}
-
-function reloadSettingsPage() {
-    location.href = 'settings.php?tab=' + $('#settingsManagerTabs .nav-link.active').data('option');
-}
-
-var hiddenChildren = {};
-function UpdateChildSettingsVisibility() {
-    hiddenChildren = {};
-    $('.parentSetting').each(function() {
-        var fn = 'Update' + $(this).attr('id') + 'Children';
-        window[fn](2); // Hide if necessary
-    });
-    $('.parentSetting').each(function() {
-        var fn = 'Update' + $(this).attr('id') + 'Children';
-        window[fn](1); // Show if not hidden
-    });
-}
-
-$(document).ready(function() {
-    UpdateChildSettingsVisibility();
-    bindSettingsVisibilityListener();
-});
-
-</script>
-
 </head>
 
 <?php
