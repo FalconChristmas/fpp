@@ -88,7 +88,7 @@ $pages = array(
             <div class='fppTabs'>
                 <div id="settingsManager">
                 <nav>
-                    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                    <div class="nav nav-pills" id="nav-tab" role="tablist">
                     <?php
                         foreach ($pages as $page) {
                             if ($page[ui] <= $uiLevel) {
@@ -135,5 +135,16 @@ $pages = array(
 <?php	include 'common/footer.inc'; ?>
 
 </div>
+<script>
+// Enable link to tab (e.g. settings.php#settings-mqtt )
+var hash = location.hash.replace(/^#/, '');
+if (hash) {
+    $('.nav a[href="#' + hash + '"]').tab('show');
+}
+// Changes hash in url bar for easy copy/paste
+$('.nav a.nav-item').on('shown.bs.tab', function (e) {
+    window.location.hash = e.target.hash;
+})
+</script>
 </body>
 </html>

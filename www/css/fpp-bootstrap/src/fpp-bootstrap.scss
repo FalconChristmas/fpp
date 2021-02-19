@@ -190,8 +190,12 @@ input[type=checkbox]:checked{
     }
     &.active{
         border-color: $nav-pills-link-active-bg;
+        &:hover{
+            color:$white;
+        }
     }
 }
+
 .form-control-rounded{
     border-radius:1.5em;
 }

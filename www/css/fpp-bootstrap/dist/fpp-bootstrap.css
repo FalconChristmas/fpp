@@ -7204,6 +7204,8 @@ input[type=checkbox]:checked {
     color: #F63939; }
   .pageContent .nav-link.active {
     border-color: #F63939; }
+    .pageContent .nav-link.active:hover {
+      color: #fff; }
 
 .form-control-rounded {
   border-radius: 1.5em; }
