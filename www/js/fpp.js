@@ -36,19 +36,13 @@ $(function() {
     if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
         $('body').addClass('has-touch');
     }
-    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
     SetupToolTips();
     LoadSystemStatus();
     CheckBrowser();
 	CheckRestartRebootFlags();
-    IsFPPDrunning();
 });
 
 (function ( $ ) {
-
-    /*  A custom jQuery plugin that uses jQueryUI.Dialog API
-        to create equivalent bootstrap modals. */
-    
     $.fn.fppDialog = function( options ) {
         if(options=='close'){
           this.each(function() {
@@ -77,7 +71,6 @@ $(function() {
         var settings = $.extend({
             title:'',
             dialogClass:'',
-            width:null,
             content:null,
             closeText:'<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
         }, options );
@@ -132,9 +125,6 @@ $(function() {
 
             if(!$(this).hasClass('modal')){
                 var $dialogBody = $('<div class="modal-body"/>');
-                if(settings.height){
-                    $dialogBody.height(settings.height);
-                }
                 $(this).wrapInner( $dialogBody );
                 $(this).addClass('modal fade');
                 $(this).prepend($title);
@@ -145,37 +135,21 @@ $(function() {
                         $title.append(settings.closeText);
                     }
                 }
-                var modalDialogSizeClass = '';
 
-                if(settings.width){
-                    if(settings.width<400){
-                        modalDialogSizeClass='modal-sm';
-                    }
-                    if(settings.width>500){
-                        modalDialogSizeClass='modal-lg';
-                    }
-                    if(settings.width>800){
-                        modalDialogSizeClass='modal-xl';
-                    }
-                }
-
-                var modalDialogClass = "modal-dialog "+modalDialogSizeClass;
-                var $dialogInner = $('<div class="'+modalDialogClass+'"/>');
-
-                
+                var $dialogInner = $('<div class="modal-dialog"/>');
                 var $dialogContent = $('<div class="modal-content"/>');
                 $(this).wrapInner($dialogInner.wrapInner($dialogContent))
             }
 
-            if(settings.open && typeof settings.open==='function'){
+            if(options.open && typeof options.open==='function'){
                 $(this).on('show.bs.modal', function(){
-                    settings.open.call(self);
+                    options.open.call(self);
                 })
             }
 
-            if(settings.close && typeof settings.close==='function'){
+            if(options.close && typeof options.close==='function'){
                 $(this).on('hide.bs.modal', function(){
-                    settings.close.call(self);
+                    options.close.call(self);
                 })
             }
             $(this).modal(modalOptions);
@@ -206,6 +180,43 @@ function CheckBrowser() {
     }
 }
 
+/* jQuery helper method to allow for PUT (similar to standard GET/POST)*/
+$.put = function(url, data, callback, type){
+    if ( $.isFunction(data) ){
+        type = type || callback,
+        callback = data,
+        data = {}
+    }else if(data != undefined && typeof data != "object"){
+        data = JSON.stringify(data);
+    }
+
+    return $.ajax({
+        url: url,
+        type: 'PUT',
+        success: callback,
+        data: data,
+        contentType: type
+    });
+}
+
+/* jQuery helper method to allow for DELETE (similar to standard GET/POST)*/
+$.delete = function(url, data, callback, type){
+    if ( $.isFunction(data) ){
+        type = type || callback,
+        callback = data,
+        data = {}
+    }else if(data != undefined && typeof data != "object"){
+        data = JSON.stringify(data);
+    }
+
+    return $.ajax({
+        url: url,
+        type: 'DELETE',
+        success: callback,
+        data: data,
+        contentType: type
+    });
+}
 
 function PadLeft(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
@@ -1512,10 +1523,8 @@ function SavePlaylist(filter, callback) {
 }
 
 function SetPlaylistName(name) {
-    if (name) { 
-        $('#txtPlaylistName').val(name);
-        $('#txtPlaylistName').prop('size', name.length);
-    }
+    $('#txtPlaylistName').val(name);
+    $('#txtPlaylistName').prop('size', name.length);
 }
 
 function SavePlaylistAs(name, filter, callback) {
@@ -2459,7 +2468,7 @@ function postUniverseJSON(input) {
         $('#outputOffWarning').hide();
 
     $.post("api/channel/output/" + fileName, postDataString).done(function (data) {
-        $.jGrowl("E1.31 Universes Saved",{themeState:'success'});
+        $.jGrowl("E1.31 Universes Saved");
         SetRestartFlag(2);
         CheckRestartRebootFlags();
     }).fail(function () {
@@ -2703,19 +2712,19 @@ function moveFile(file) {
 						if(ret == 'true')
 						{
 							SetButtonState('#btnDaemonControl','enable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD").attr('value', 'Stop FPPD');
+							$("#btnDaemonControl").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
 						}
 						else if (ret == 'updating')
 						{
 							SetButtonState('#btnDaemonControl','disable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
+							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPP is currently updating.");
 						}
 						else
 						{
 							SetButtonState('#btnDaemonControl','enable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
+							$("#btnDaemonControl").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
 							$('.schedulerStartTime').hide();
 							$('.schedulerEndTime').hide();
@@ -2769,7 +2778,8 @@ function moveFile(file) {
 				if(response && typeof response === 'object') {
 					$("#btnDaemonControl").show();
 
-                    if (response.status_name == 'stopped') {
+					if(response.status_name == 'stopped') {
+
                         if ( ! ("warnings" in response)) {
                             response.warnings = [];
                         }
@@ -2781,9 +2791,10 @@ function moveFile(file) {
                         }).fail(function(){
                             DialogError('Volume Query Failed', "Failed to query Volume when FPPD stopped");
                         });
+
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
-                        $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
+						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPPD is stopped.");
 						$('#txtPlayerStatus').html(status);
 						$('#playerTime').hide();
@@ -2795,10 +2806,12 @@ function moveFile(file) {
                         $('#mqttRow').hide()
                         updateWarnings(response);
 
-                    } else if (response.status_name == 'updating') {
+
+					} else if(response.status_name == 'updating') {
+
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','disable');
-                        $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
+						$("#btnDaemonControl").attr('value', 'Start FPPD');
 						$('#daemonStatus').html("FPP is currently updating.");
 						$('#txtPlayerStatus').html(status);
 						$('#playerTime').hide();
@@ -2809,11 +2822,14 @@ function moveFile(file) {
 						$('.schedulerEndTime').hide();
                         $('#mqttRow').hide()
 
-                    } else {
-						SetButtonState('#btnDaemonControl','enable');
-                        $("#btnDaemonControl").attr("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
-                        $('#daemonStatus').html("FPPD is running.");
-                        parseStatus(response);
+					} else {
+
+							SetButtonState('#btnDaemonControl','enable');
+							$("#btnDaemonControl").attr('value', 'Stop FPPD');
+							$('#daemonStatus').html("FPPD is running.");
+
+						parseStatus(response);
+
 					}
 
 					lastStatus = response.status;
@@ -2879,7 +2895,7 @@ function updateVolumeUI(Volume) {
 			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
 
 			$("#btnDaemonControl").show();
-            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
+			$("#btnDaemonControl").attr('value', 'Stop FPPD');
 			$('#daemonStatus').html("FPPD is running.");
 		}
 
@@ -3553,7 +3569,6 @@ function ControlFPPD() {
         data: "",
     }).done(function(data) {
         $.jGrowl("Completed " + btnVal,{themeState:'success'});
-        IsFPPDrunning();
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
     });
@@ -3623,7 +3638,7 @@ function StopEffect() {
     var msg = {
         "command": "Effect Stop",
         "args": [
-            RunningEffectSelectedName
+            "block_driveways"
         ]
     };
 
@@ -3633,6 +3648,7 @@ function StopEffect() {
     }).done(function (data) {
         RunningEffectSelectedId = -1;
         RunningEffectSelectedName = "";
+        SetButtonState('#btnStopEffect', 'disable');
         GetRunningEffects();
     }).fail(function () {
         DialogError('Command failed', 'Call to Stop Effect Failed');
@@ -3640,35 +3656,19 @@ function StopEffect() {
     });
 }
 
-var lastRunningEffectsData = null;
+var gblLastRunningEffectsXML = "";
 
 function GetRunningEffects() {
     $.get("api/fppd/effects"
     ).done(function (data) {
-
+        $('#tblRunningEffectsBody').html('');
         if ("runningEffects" in data) {
-            var isFreshData = !lastRunningEffectsData || JSON.stringify(lastRunningEffectsData)!=JSON.stringify(data.runningEffects);
-            console.log(data.runningEffects.length);
-            if(data.runningEffects.length>0){
-                console.log('has length');
-                if(isFreshData){
-                    $('#tblRunningEffectsBody').html('');
-                    data.runningEffects.forEach(function (e) {
-                        if (e.name == RunningEffectSelectedName)
-                            {$('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="80%">' + e.name + '</td><td width="15%"><button class="buttons btn-danger">Stop</button></td></tr>');}
-                        else
-                            {$('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="80%">' + e.name + '</td><td width="15%"><button class="buttons btn-danger">Stop</button></td></tr>');}
-                        $('#divRunningEffects').removeClass('divRunningEffectsDisabled backdrop-disabled').addClass('divRunningEffectsRunning backdrop-success');
-                    });
-                    lastRunningEffectsData=data.runningEffects
-                }
-            }else{
-                lastRunningEffectsData = null;
-                $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
-            }            
-        } else {
-            lastRunningEffectsData = null;
-            $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
+            data.runningEffects.forEach(function (e) {
+                if (e.name == RunningEffectSelectedName)
+                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');
+                else
+                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');
+            });
         }
         setTimeout(GetRunningEffects, 1000);
     }).fail(function () {
@@ -3714,7 +3714,7 @@ function GetRunningEffects() {
                 data: "",
                 success: function(data) {
                     //Show FPP is rebooting notification for 60 seconds then reload the page
-                    $.jGrowl('FPP is shutting down..', {life: 60000,themeState:'detract'});
+                    $.jGrowl('FPP is shutting down..', {life: 60000});
                 },
                 error: function() {
                     DialogError('Command failed', 'Command failed');
@@ -5503,6 +5503,7 @@ function RefreshHeaderBar(){
 
     if(data.sensors != undefined){
         var sensors = [];
+        var tooltip = "";
         data.sensors.forEach(function (e) {
             var icon = "bolt";
             var val = e.formatted;
@@ -5517,21 +5518,24 @@ function RefreshHeaderBar(){
                     val += '&deg;C';
                 }
             }
-            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="' + e.label + val +'"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
+            tooltip += '<b>' + e.label +'</b>'+ val +'<br/>';
+            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="[[TOOLTIP]]"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
-        if(headerCache.Sensors != sensors.join("")){
-            $("#header_sensors").html(sensors.join(""));
-            headerCache.Sensors = sensors.join("");
+        var sensorsJoined = sensors.join("");
+        sensorsJoined = sensorsJoined.replaceAll("[[TOOLTIP]]",tooltip);
+        if(headerCache.Sensors != sensorsJoined){
+            $("#header_sensors").html(sensorsJoined);
+            headerCache.Sensors = sensorsJoined;
             if(sensors.length > 1) $("#header_sensors").css("cursor","pointer");
-            if($("#header_sensors").data("defaultsensor") != undefined
+            if($("#header_sensors").data("defaultsensor") != undefined 
                     && Number.isInteger($("#header_sensors").data("defaultsensor"))){
                 RotateHeaderSensor($("#header_sensors").data("defaultsensor"));
             }else{
                 RotateHeaderSensor(0);
             }
         }
-
+        
     }
 
     if(data.status_name != undefined){
@@ -5567,12 +5571,18 @@ function RefreshHeaderBar(){
 * Used to rotate through the sensors in the header bar
 */
 function RotateHeaderSensor(goto){
+    var currentDefault = $("#header_sensors").data("defaultsensor");
+    var visible = $("#header_sensors span:visible").length;
+    if(currentDefault == goto && visible > 0) return;
+    
     var current = $("#header_sensors").find("[data-sensorcount='" + (goto-1) + "']");
-    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']");
-    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']");
+    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']"); 
+    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']"); 
     current.hide();
     next.show();
+
     //Save setting
-    $.get("fppjson.php?command=setSetting&key=currentHeaderSensor&value=" + goto);
+    if(currentDefault == goto) return;
+    $.put("api/settings/currentHeaderSensor", goto);
     $("#header_sensors").data("defaultsensor", goto);
 }
