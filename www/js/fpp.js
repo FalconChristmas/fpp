@@ -207,6 +207,44 @@ function CheckBrowser() {
 }
 
 
+/* jQuery helper method to allow for PUT (similar to standard GET/POST)*/
+$.put = function(url, data, callback, type){
+    if ( $.isFunction(data) ){
+        type = type || callback,
+        callback = data,
+        data = {}
+    }else if(data != undefined && typeof data != "object"){
+        data = JSON.stringify(data);
+    }
+
+    return $.ajax({
+        url: url,
+        type: 'PUT',
+        success: callback,
+        data: data,
+        contentType: type
+    });
+}
+
+/* jQuery helper method to allow for DELETE (similar to standard GET/POST)*/
+$.delete = function(url, data, callback, type){
+    if ( $.isFunction(data) ){
+        type = type || callback,
+        callback = data,
+        data = {}
+    }else if(data != undefined && typeof data != "object"){
+        data = JSON.stringify(data);
+    }
+
+    return $.ajax({
+        url: url,
+        type: 'DELETE',
+        success: callback,
+        data: data,
+        contentType: type
+    });
+}
+
 function PadLeft(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
 }
@@ -5503,6 +5541,7 @@ function RefreshHeaderBar(){
 
     if(data.sensors != undefined){
         var sensors = [];
+        var tooltip = "";
         data.sensors.forEach(function (e) {
             var icon = "bolt";
             var val = e.formatted;
@@ -5517,21 +5556,24 @@ function RefreshHeaderBar(){
                     val += '&deg;C';
                 }
             }
-            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="' + e.label + val +'"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
+            tooltip += '<b>' + e.label +'</b>'+ val +'<br/>';
+            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="[[TOOLTIP]]"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
-        if(headerCache.Sensors != sensors.join("")){
-            $("#header_sensors").html(sensors.join(""));
-            headerCache.Sensors = sensors.join("");
+        var sensorsJoined = sensors.join("");
+        sensorsJoined = sensorsJoined.replaceAll("[[TOOLTIP]]",tooltip);
+        if(headerCache.Sensors != sensorsJoined){
+            $("#header_sensors").html(sensorsJoined);
+            headerCache.Sensors = sensorsJoined;
             if(sensors.length > 1) $("#header_sensors").css("cursor","pointer");
-            if($("#header_sensors").data("defaultsensor") != undefined
+            if($("#header_sensors").data("defaultsensor") != undefined 
                     && Number.isInteger($("#header_sensors").data("defaultsensor"))){
                 RotateHeaderSensor($("#header_sensors").data("defaultsensor"));
             }else{
                 RotateHeaderSensor(0);
             }
         }
-
+        
     }
 
     if(data.status_name != undefined){
@@ -5567,12 +5609,18 @@ function RefreshHeaderBar(){
 * Used to rotate through the sensors in the header bar
 */
 function RotateHeaderSensor(goto){
+    var currentDefault = $("#header_sensors").data("defaultsensor");
+    var visible = $("#header_sensors span:visible").length;
+    if(currentDefault == goto && visible > 0) return;
+    
     var current = $("#header_sensors").find("[data-sensorcount='" + (goto-1) + "']");
-    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']");
-    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']");
+    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']"); 
+    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']"); 
     current.hide();
     next.show();
+
     //Save setting
-    $.get("fppjson.php?command=setSetting&key=currentHeaderSensor&value=" + goto);
+    if(currentDefault == goto) return;
+    $.put("api/settings/currentHeaderSensor", goto);
     $("#header_sensors").data("defaultsensor", goto);
 }
