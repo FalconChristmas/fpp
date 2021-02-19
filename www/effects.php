@@ -42,6 +42,7 @@ include 'common/menuHead.inc';
           RunningEffectSelectedId = $selectedEntry.find('td:first').text();
           RunningEffectSelectedName = $selectedEntry.find('td:nth-child(2)').text();
           StopEffect();
+          console.log('stopping')
           //SetButtonState('#btnStopEffect','enable');
     });
   });

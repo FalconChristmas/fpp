@@ -585,23 +585,26 @@ $fppTableExtraPadding:1.65em;
 }
 .fppActionTable.fppActionTable-success>tbody>tr>td{
     background-color: #3E9A50;
-    border-bottom-color:#85BF91
+    border-bottom-color:#85BF91;
+    transition:none;
 }
 .fppActionTable>tbody>tr:hover>td{
 	background-color: #ECECEC;
 }
 .fppActionTable.fppActionTable-success>tbody>tr:hover>td{
-    background-color: #fff;
-    color:$black;
+    background-color: lighten($green, 5%);
+
 }
 
 .fppActionTable.fppActionTable-success>tbody>tr .btn-danger {
     @include fpp-btn-outline-variant($white,$black);
     transition: none;
 }
-.fppActionTable.fppActionTable-success>tbody>tr:hover .btn-danger {
+.fppActionTable.fppActionTable-success>tbody>tr .btn-danger:hover {
 
-    @include fpp-btn-variant($danger,$danger);
+    background-color: $red;
+    border-color:$red;
+    color:$white;
 
 }
 .fppActionTable>tbody>tr>td:first-child{

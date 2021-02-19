@@ -1558,6 +1558,9 @@ input[type=search].tablesorter-filter:disabled{
 .divRunningEffectsRunning #tblRunningEffects{
 	display: block;
 }
+.divRunningEffectsRunning .tblRunningEffectsPlaceholder{
+	display: none;
+}
 .divRunningEffectsDisabled .tblRunningEffectsPlaceholder {
 	padding-bottom: 0.8em;
 	padding-top: 0.2em;

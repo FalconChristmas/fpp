@@ -3601,7 +3601,7 @@ function StopEffect() {
     var msg = {
         "command": "Effect Stop",
         "args": [
-            "block_driveways"
+            RunningEffectSelectedName
         ]
     };
 
@@ -3611,7 +3611,6 @@ function StopEffect() {
     }).done(function (data) {
         RunningEffectSelectedId = -1;
         RunningEffectSelectedName = "";
-        SetButtonState('#btnStopEffect', 'disable');
         GetRunningEffects();
     }).fail(function () {
         DialogError('Command failed', 'Call to Stop Effect Failed');
@@ -3619,21 +3618,34 @@ function StopEffect() {
     });
 }
 
-var gblLastRunningEffectsXML = "";
+var lastRunningEffectsData = null;
 
 function GetRunningEffects() {
     $.get("api/fppd/effects"
     ).done(function (data) {
-        $('#tblRunningEffectsBody').html('');
+
         if ("runningEffects" in data) {
-            data.runningEffects.forEach(function (e) {
-                if (e.name == RunningEffectSelectedName)
-                    {$('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');}
-                else
-                    {$('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="67%">' + e.name + '</td><button class="buttons btn-danger">Stop</button></td></tr>');}
-                $('#divRunningEffects').removeClass('divRunningEffectsDisabled backdrop-disabled').addClass('divRunningEffectsRunning backdrop-success');
-            });
+            var isFreshData = !lastRunningEffectsData || JSON.stringify(lastRunningEffectsData)!=JSON.stringify(data.runningEffects);
+            console.log(data.runningEffects.length);
+            if(data.runningEffects.length>0){
+                console.log('has length');
+                if(isFreshData){
+                    $('#tblRunningEffectsBody').html('');
+                    data.runningEffects.forEach(function (e) {
+                        if (e.name == RunningEffectSelectedName)
+                            {$('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="80%">' + e.name + '</td><td width="15%"><button class="buttons btn-danger">Stop</button></td></tr>');}
+                        else
+                            {$('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="80%">' + e.name + '</td><td width="15%"><button class="buttons btn-danger">Stop</button></td></tr>');}
+                        $('#divRunningEffects').removeClass('divRunningEffectsDisabled backdrop-disabled').addClass('divRunningEffectsRunning backdrop-success');
+                    });
+                    lastRunningEffectsData=data.runningEffects
+                }
+            }else{
+                lastRunningEffectsData = null;
+                $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
+            }            
         } else {
+            lastRunningEffectsData = null;
             $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
         }
         setTimeout(GetRunningEffects, 1000);

@@ -7577,14 +7577,14 @@ table.settingsTable div.th {
 
 .fppActionTable.fppActionTable-success > tbody > tr > td {
   background-color: #3E9A50;
-  border-bottom-color: #85BF91; }
+  border-bottom-color: #85BF91;
+  transition: none; }
 
 .fppActionTable > tbody > tr:hover > td {
   background-color: #ECECEC; }
 
 .fppActionTable.fppActionTable-success > tbody > tr:hover > td {
-  background-color: #fff;
-  color: #171720; }
+  background-color: #68bf71; }
 
 .fppActionTable.fppActionTable-success > tbody > tr .btn-danger {
   color: #fff;
@@ -7602,33 +7602,10 @@ table.settingsTable div.th {
     color: #fff;
     background-color: transparent; }
 
-.fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger {
-  color: #fff;
+.fppActionTable.fppActionTable-success > tbody > tr .btn-danger:hover {
   background-color: #F63939;
-  border-color: #F63939; }
-  .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:hover {
-    color: #fff;
-    background-color: #f86a6a;
-    border-color: #f86a6a; }
-  .btn-check:focus + .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger, .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:focus {
-    color: #fff;
-    background-color: #f86a6a;
-    border-color: #f86a6a;
-    box-shadow: 0 0 0 0.25rem rgba(247, 87, 87, 0.5); }
-  .btn-check:checked + .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger,
-  .btn-check:active + .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger, .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:active, .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.active,
-  .show > .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.dropdown-toggle {
-    color: #fff;
-    background-color: #f86a6a;
-    border-color: #f86a6a; }
-    .btn-check:checked + .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:focus,
-    .btn-check:active + .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:focus, .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:active:focus, .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.active:focus,
-    .show > .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.dropdown-toggle:focus {
-      box-shadow: 0 0 0 0.25rem rgba(247, 87, 87, 0.5); }
-  .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger:disabled, .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.disabled, .fppActionTable.fppActionTable-success > tbody > tr:hover .pageContent .btn-danger.disableButtons, .pageContent .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.disableButtons, .fppActionTable.fppActionTable-success > tbody > tr:hover .ui-dialog .btn-danger.disableButtons, .ui-dialog .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.disableButtons, .fppActionTable.fppActionTable-success > tbody > tr:hover .modal .btn-danger.disableButtons, .modal .fppActionTable.fppActionTable-success > tbody > tr:hover .btn-danger.disableButtons {
-    color: rgba(0, 0, 0, 0.3);
-    background-color: rgba(0, 0, 0, 0.1);
-    border-color: rgba(0, 0, 0, 0.1); }
+  border-color: #F63939;
+  color: #fff; }
 
 .fppActionTable > tbody > tr > td:first-child {
   padding-left: 1.65em;
