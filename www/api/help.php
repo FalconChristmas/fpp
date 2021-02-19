@@ -7,11 +7,7 @@ if (!isset($apiDir))
     $wrapped = 0;
     $apiDir = "";
 ?>
-<html>
-<head>
-<script type='text/javascript' src='../js/jquery-latest.min.js'></script>
-<script type='text/javascript' src='../js/fpp.js'></script>
-<link rel='stylesheet' href='../css/fpp.css' />
+
 <?
 }
 ?>
@@ -297,11 +293,11 @@ $(document).ready(function() {
 }
 
 .endpointTable tbody {
-    border-bottom: 2px solid #777777;
+    border-bottom: 2px solid #E2E2E2;
 }
 
 .commandTable tbody {
-    border-bottom: 2px solid #777777;
+    border-bottom: 2px solid #E2E2E2;
 }
 
 td {
@@ -312,9 +308,6 @@ td {
 	white-space: nowrap;
 }
 
-html {
-    background: rgb(240, 240,240);
-}
 
 #bodyWrapper {
     width: 100%;
@@ -337,7 +330,7 @@ pre {
 }
 
 .fppTableWrapper {
-    border: solid 2px;
+    border: solid 2px #E2E2E2;
     margin-top: 5px;
     -moz-border-radius: 6px;
     border-radius: 6px;
@@ -351,15 +344,17 @@ pre {
    -ms-user-select: auto;
    user-select: auto;
 }
+.fppTableWrapper td, .fppTableWrapper th {
+    border-color: #E2E2E2;
+    border-style:solid;
+}
 
 </style>
 <?
 if (!$wrapped)
 {
 ?>
-</head>
-<body>
-<div id='bodyWrapper'>
+
 <?
 }
 ?>
@@ -390,8 +385,7 @@ if (!$wrapped)
 if (!$wrapped)
 {
 ?>
-</body>
-</html>
+
 <?
 }
 ?>

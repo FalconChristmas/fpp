@@ -11,7 +11,7 @@
     <button name="btnReboot" onClick="RebootPi();" type="button" class="buttons btn-outline-light"><i class='fas fa-fw fa-retweet fa-nbsp'></i>Reboot</button>
     <button name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons btn-outline-light"><i class='fas fa-fw fa-power-off fa-nbsp'></i>Shutdown</button>
     <button name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
-    <button type="button" id="btnDaemonControl" class="buttons btn-outline-light hidden" onClick="ControlFPPD();"></button>
+    <button type="button" id="btnDaemonControl" value="" class="buttons btn-outline-light hidden" onClick="ControlFPPD();"></button>
   </div>
 <br />
 <div class="footerLink">

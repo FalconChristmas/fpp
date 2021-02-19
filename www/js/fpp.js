@@ -41,6 +41,7 @@ $(function() {
     LoadSystemStatus();
     CheckBrowser();
 	CheckRestartRebootFlags();
+    IsFPPDrunning();
 });
 
 (function ( $ ) {
@@ -2682,19 +2683,19 @@ function moveFile(file) {
 						if(ret == 'true')
 						{
 							SetButtonState('#btnDaemonControl','enable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
+                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD").attr('value', 'Stop FPPD');
 							$('#daemonStatus').html("FPPD is running.");
 						}
 						else if (ret == 'updating')
 						{
 							SetButtonState('#btnDaemonControl','disable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
+                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPP is currently updating.");
 						}
 						else
 						{
 							SetButtonState('#btnDaemonControl','enable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
+                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
 							$('#daemonStatus').html("FPPD is stopped.");
 							$('.schedulerStartTime').hide();
 							$('.schedulerEndTime').hide();
@@ -3532,6 +3533,7 @@ function ControlFPPD() {
         data: "",
     }).done(function(data) {
         $.jGrowl("Completed " + btnVal,{themeState:'success'});
+        IsFPPDrunning();
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
     });
