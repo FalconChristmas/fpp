@@ -5557,11 +5557,11 @@ function RefreshHeaderBar(){
                 }
             }
             tooltip += '<b>' + e.label +'</b>'+ val +'<br/>';
-            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="[[TOOLTIP]]"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
+            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="TOOLTIP_DETAILS"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
             sensors.push(row);
         });
         var sensorsJoined = sensors.join("");
-        sensorsJoined = sensorsJoined.replaceAll("[[TOOLTIP]]",tooltip);
+        sensorsJoined = sensorsJoined.replace(/TOOLTIP_DETAILS/g,tooltip);
         if(headerCache.Sensors != sensorsJoined){
             $("#header_sensors").html(sensorsJoined);
             headerCache.Sensors = sensorsJoined;
