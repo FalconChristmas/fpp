@@ -77,6 +77,7 @@ $(function() {
         var settings = $.extend({
             title:'',
             dialogClass:'',
+            width:null,
             content:null,
             closeText:'<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
         }, options );
@@ -131,6 +132,9 @@ $(function() {
 
             if(!$(this).hasClass('modal')){
                 var $dialogBody = $('<div class="modal-body"/>');
+                if(settings.height){
+                    $dialogBody.height(settings.height);
+                }
                 $(this).wrapInner( $dialogBody );
                 $(this).addClass('modal fade');
                 $(this).prepend($title);
@@ -141,21 +145,37 @@ $(function() {
                         $title.append(settings.closeText);
                     }
                 }
+                var modalDialogSizeClass = '';
 
-                var $dialogInner = $('<div class="modal-dialog"/>');
+                if(settings.width){
+                    if(settings.width<400){
+                        modalDialogSizeClass='modal-sm';
+                    }
+                    if(settings.width>500){
+                        modalDialogSizeClass='modal-lg';
+                    }
+                    if(settings.width>800){
+                        modalDialogSizeClass='modal-xl';
+                    }
+                }
+
+                var modalDialogClass = "modal-dialog "+modalDialogSizeClass;
+                var $dialogInner = $('<div class="'+modalDialogClass+'"/>');
+
+                
                 var $dialogContent = $('<div class="modal-content"/>');
                 $(this).wrapInner($dialogInner.wrapInner($dialogContent))
             }
 
-            if(options.open && typeof options.open==='function'){
+            if(settings.open && typeof settings.open==='function'){
                 $(this).on('show.bs.modal', function(){
-                    options.open.call(self);
+                    settings.open.call(self);
                 })
             }
 
-            if(options.close && typeof options.close==='function'){
+            if(settings.close && typeof settings.close==='function'){
                 $(this).on('hide.bs.modal', function(){
-                    options.close.call(self);
+                    settings.close.call(self);
                 })
             }
             $(this).modal(modalOptions);
