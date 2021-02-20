@@ -1,6 +1,6 @@
 <?php
 
-// GET /api/statistics
+// GET /api/statistics/usage
 function stats_get_last_file()
 {
     global $_GET;
@@ -20,7 +20,7 @@ function stats_get_last_file()
     return json(json_decode(file_get_contents($statsFile)));
 }
 
-// DELETE /api/statistics
+// DELETE /api/statistics/usage
 function stats_delete_last_file()
 {
     $statsFile = stats_get_filename();

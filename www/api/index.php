@@ -116,8 +116,8 @@ dispatch_get   ('/scripts/viewRemote/:category/:filename', 'scripts_view_remote'
 dispatch_get   ('/scripts/:scriptName', 'script_get');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 
-dispatch_get   ('/statistics', 'stats_get_last_file');
-dispatch_delete('/statistics', 'stats_delete_last_file');
+dispatch_get   ('/statistics/usage', 'stats_get_last_file');
+dispatch_delete('/statistics/usage', 'stats_delete_last_file');
 
 dispatch_get   ('/system/fppd/restart', 'RestartFPPD');
 dispatch_get   ('/system/fppd/start', 'StartFPPD');

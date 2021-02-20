@@ -1851,7 +1851,7 @@
             }
         },
         {
-            "endpoint": "statistics",
+            "endpoint": "statistics/usage",
             "methods": {
                 "GET": {
                     "desc": "Returns the statics file that will be shared with the development team if sharing statistics is enabled.  Generally a cached file is returned, but if ?force=1 is sent then it will be regenereated.",
