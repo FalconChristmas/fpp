@@ -223,13 +223,13 @@ include 'common/menuHead.inc';
                 <div id='nextPlaylist' class="labelValue"></div>
 
             </div>
-            <div class="col-sm-auto col-md-4 col-xxl-auto ">
-                <div class='labelHeading schedulerStartTime'>Started at:</div>
-                <div class='labelValue schedulerStartTime' id='schedulerStartTime'></div>
+            <div class="col-sm-auto col-md-4 col-xxl-auto schedulerStartTime">
+                <div class='labelHeading'>Started at:</div>
+                <div class='labelValue' id='schedulerStartTime'></div>
             </div>
-            <div class="col-sm-auto col-md-4 col-xxl-auto ">
-                <div class='labelHeading schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</div>
-                <div class='labelValue schedulerEndTime' id='schedulerEndTime'></div>
+            <div class="col-sm-auto col-md-4 col-xxl-auto schedulerEndTime">
+                <div class='labelHeading'><span id='schedulerStopType'></span> Stop at:</div>
+                <div class='labelValue' id='schedulerEndTime'></div>
             </div>
             <div class="schedulerExtend schedulerEndTime col-sm-auto col-md-4 col-xxl-auto ">
                 <div class="labelHeading">Extend Current Playlist:</div>
@@ -392,7 +392,7 @@ include 'common/menuHead.inc';
                     <hr>
                 </div>
                 <div class='statusBoxRight'>
-                    <div id='playerTime' class='statusTable d-flex'>
+                    <div id='playerTime' class='statusTable'>
                         <div>
                             <div class="labelHeading">Elapsed:</div>
                             <div id="txtTimePlayed" class="labelValue"></div>
@@ -420,9 +420,8 @@ include 'common/menuHead.inc';
                 </div>
 
                 <div class="verbosePlaylistItemSetting">
-                    <table>
                     <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
-                    </table>
+        
 
 
                 </div>

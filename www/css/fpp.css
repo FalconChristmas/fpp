@@ -20,6 +20,9 @@ body .ui-tooltip{
 	display: block;
 	margin: auto;
 }
+#schedulerInfo .schedulerStartTime, #schedulerInfo .schedulerEndTime {
+	display: none;
+}
 .statusPageLoading{
 	display: none;
 	align-items: center;
@@ -31,6 +34,42 @@ body .ui-tooltip{
 body.is-loading .statusPageLoading{
 	display: block;
 }
+body.is-loading #schedulerInfo .labelHeading, body.is-loading #schedulerInfo .labelValue{
+	position: relative;
+	color:rgba(0, 0, 0, 0);
+}
+body.is-loading #schedulerInfo .labelAction{
+	opacity: 0;
+}
+body.is-loading #schedulerInfo .labelHeading:before, 
+body.is-loading #schedulerInfo .labelValue:before{
+	display: block;
+	content:'';
+	top: 0;
+	left: 0;
+
+	position: absolute;
+    animation-duration: 6s;
+    animation-fill-mode: forwards;
+    animation-iteration-count: infinite;
+    animation-name: placeholderSkeleton;
+    animation-timing-function: linear;
+    background: #20222E;
+	border-radius:5px;
+	background: linear-gradient(90deg, #2C3048 0%, #20222E 39%, #20222E 57%, #2C3048 100%);
+}
+body.is-loading #schedulerInfo .labelHeading:before{
+	right: 0;
+	height: 14px;
+}
+body.is-loading #schedulerInfo .labelValue:before{
+
+	height: 14px;
+	width: 60px;
+}
+
+
+
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
 	padding: 0.75em 1.5em;
 }
@@ -662,6 +701,9 @@ border-top-color: transparent;
 	display: flex;
 }
 #playerTime{
+	display: flex;
+}
+#playerTime{
 	margin-top: 1.4em;
 }
 #playerTime .labelValue, #playerTime .labelHeading, .tblPlaylistHeaderDetails .labelValue, .tblPlaylistHeaderDetails .labelHeading{
@@ -692,6 +734,10 @@ border-top-color: transparent;
 	border-top-right-radius: 28px ;
 	border-bottom-right-radius: 28px ;
 }
+#verbosePlaylistItemDetailsRow i{
+	display: none;
+	
+}
 .verbosePlaylistItemSetting th{
 	font-weight: normal;
 }
@@ -699,9 +745,10 @@ border-top-color: transparent;
 	margin-top: 1.5em;
 	margin-bottom: 1.5em;
 }
-#verbosePlaylistItemDetailsRow th{
-	padding-right: 1em;
+#verbosePlaylistItemDetailsRow {
+	margin-bottom: 0;
 }
+
 /* #schedulerInfo .statusTable>div{
 	margin-left: 4em;
 }
@@ -1576,7 +1623,16 @@ input[type=search].tablesorter-filter:disabled{
 	font-size: 3em;
 	color: #D1D1D1;
 }
-
+@media (min-width: 768px){
+	#verbosePlaylistItemDetailsRow .col-md-5 {
+		flex: 0 0 auto;
+		width: auto;
+		max-width: 100%;
+		padding-right: 0;
+		align-items: center;
+		display: flex;
+	}
+}
 @media (min-width:768px) and (max-width:1360px){
 	.statusDivTop .statusTable {
 		margin-top: -3em;
