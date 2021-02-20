@@ -304,7 +304,7 @@ function ApplyNetworkConfig()
 		buttons: {
 			"Yes" : function() {
 				$(this).dialog("close");
-				$.get("fppjson.php?command=applyInterfaceInfo&interface=" + $('#selInterfaces').val());
+				$.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
 				},
 			"Cancel and apply at next reboot" : function() {
 				$(this).dialog("close");
@@ -341,10 +341,11 @@ function SaveNetworkConfig()
         data.HIDDEN = $('#eth_hidden').is(':checked');
 	}
 
-	var postData = "command=setInterfaceInfo&data=" + JSON.stringify(data);
+	var postData = JSON.stringify(data);
 
-	$.post("fppjson.php", postData
+	$.post("api/network/interface/" + iface, postData
 	).done(function(rc) {
+    if (rc.status == "OK") {
 		LoadNetworkConfig();
 		$.jGrowl(iface + " network interface configuration saved");
 		$('#btnConfigNetwork').show();
@@ -352,6 +353,9 @@ function SaveNetworkConfig()
 		if (data.PROTO == 'static' && $('#dns1').val() == "" && $('#dns2').val() == "") {
 			DialogOK("Check DNS", "Don't forget to set a DNS IP address. You may use 8.8.8.8 or 1.1.1.1 if you are not sure.")
 		}
+  } else {
+		DialogError("Save Network Config", "Save Failed: " + rc.status);
+  }
 	}).fail(function() {
 		DialogError("Save Network Config", "Save Failed");
 	});
@@ -401,7 +405,7 @@ function ClearPersistentNames() {
 
 function LoadNetworkConfig() {
 	var iface = $('#selInterfaces').val();
-	var url = "fppjson.php?command=getInterfaceInfo&interface=" + iface;
+	var url = "api/network/interface/" + iface;
 	var visible = iface.slice(0,4).toLowerCase() == "wlan"?true:false;
 
 	WirelessSettingsVisible(visible);
@@ -437,7 +441,7 @@ function CheckDNS() {
 		iface = 'eth0';
 	}
 
-	var url = "fppjson.php?command=getInterfaceInfo&interface=" + iface;
+	var url = "api/network/interface/" + iface;
 
 	$.get(url,CheckDNSCallback);
 }

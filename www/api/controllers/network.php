@@ -127,5 +127,106 @@ function network_save_dns() {
 	return json(array("status"=>"OK", "DNS"=> $data));
 }
 
+// GET /network/interface/:interface
+function network_get_interface()
+{
+    global $settings;
 
+    $interface = params('interface');
+    $result = array("status" => "ERROR: Interface not found");
+
+    $cfgFile = $settings['configDirectory'] . "/interface." . $interface;
+    if (file_exists($cfgFile)) {
+        $result = parse_ini_file($cfgFile);
+        $result['status'] = 'OK';
+    }
+
+    exec("/sbin/ifconfig $interface", $output);
+    foreach ($output as $line) {
+        if (preg_match('/inet /', $line)) {
+            $result['CurrentAddress'] = preg_replace('/.*inet ([0-9\.]+) .*/', '$1', $line);
+            $result['CurrentNetmask'] = preg_replace('/.*netmask ([0-9\.]+).*/', '$1', $line);
+        }
+    }
+    unset($output);
+
+    if (substr($interface, 0, 4) == "wlan") {
+        exec("/sbin/iwconfig $interface", $output);
+        foreach ($output as $line) {
+            if (preg_match('/ESSID:/', $line)) {
+                $result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
+            }
+
+            if (preg_match('/Rate:/', $line)) {
+                $result['CurrentRate'] = preg_replace('/.*Bit Rate=([0-9\.]+) .*/', '$1', $line);
+            }
+
+        }
+        unset($output);
+    }
+
+    return json($result);
+}
+
+// POST /network/interface/:interface
+function network_set_interface()
+{
+    global $settings;
+
+    $interface = params('interface');
+    $raw = file_get_contents('php://input');
+    $data = json_decode($raw, true);
+    if (!isset($data['INTERFACE'])) {
+        echo("WTF");
+        return json(array("status" => "Invalid Name is required", "debug" => $raw));
+    }
+
+    $cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
+
+    $f = fopen($cfgFile, "w");
+    if ($f == false) {
+        return json(array("status" => "Unable to create file for interface"));
+    }
+
+    if ($data['PROTO'] == "static") {
+        fprintf($f,
+            "INTERFACE=\"%s\"\n" .
+            "PROTO=\"static\"\n" .
+            "ADDRESS=\"%s\"\n" .
+            "NETMASK=\"%s\"\n" .
+            "GATEWAY=\"%s\"\n",
+            $data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
+            $data['GATEWAY']);
+
+    } else if ($data['PROTO'] == "dhcp") {
+        fprintf($f,
+            "INTERFACE=%s\n" .
+            "PROTO=dhcp\n",
+            $data['INTERFACE']);
+    }
+
+    if (substr($data['INTERFACE'], 0, 4) == "wlan") {
+        fprintf($f,
+            "SSID=\"%s\"\n" .
+            "PSK=\"%s\"\n" .
+            "HIDDEN=%s\n",
+            $data['SSID'], $data['PSK'], $data['HIDDEN']);
+    }
+
+    fclose($f);
+
+    return json(array("status" => "OK"));
+
+}
 /////////////////////////////////////////////////////////////////////////////
+
+function network_apply_interface()
+{
+	global $settings, $SUDO;
+
+    $interface = params('interface');
+
+	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface", $output);
+    return json(array("status" => "OK", "output" => $output));
+}
+

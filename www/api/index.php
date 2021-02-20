@@ -51,6 +51,10 @@ dispatch_get   ('/media/:MediaName/meta', 'GetMediaMetaData');
 dispatch_get   ('/network/dns', 'network_get_dns');
 dispatch_post  ('/network/dns', 'network_save_dns');
 dispatch_get   ('/network/interface', 'network_list_interfaces');
+dispatch_get   ('/network/interface/:interface', 'network_get_interface');
+dispatch_post  ('/network/interface/:interface', 'network_set_interface');
+dispatch_post   ('/network/interface/:interface/apply', 'network_apply_interface');
+
 dispatch_delete('/network/presisentNames', 'network_presisentNames_delete');
 dispatch_post  ('/network/presisentNames', 'network_presisentNames_create');
 dispatch_get   ('/network/wifi/scan/:interface', 'network_wifi_scan');

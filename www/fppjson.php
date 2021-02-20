@@ -25,9 +25,9 @@ $command_array = Array(
 	// "getDNSInfo"          => 'GetDNSInfo', // Replaced by GET /api/network/dns
 	// "setDNSInfo"          => 'SetDNSInfo', // Replaced by POST /api/network/dns
 	//"getFPPDUptime"       => 'GetFPPDUptime', // replaced by  /api/fppd/status
-	"applyInterfaceInfo"  => 'ApplyInterfaceInfo',
-	"getInterfaceInfo"    => 'GetInterfaceInfoJson',
-	"setInterfaceInfo"    => 'SetInterfaceInfo',
+	// "applyInterfaceInfo"  => 'ApplyInterfaceInfo', // replaced by POST /api/network/interface/:interface/apply
+	//"getInterfaceInfo"    => 'GetInterfaceInfoJson', // replaced by GET /api/network/interface/:interface
+	//"setInterfaceInfo"    => 'SetInterfaceInfo', // replaced by POST /api/network/interface/:interface
 	"getFPPSystems"       => 'GetFPPSystems', // NOT USED in UI. - Kept for Multisync 3.x,4.x but replacement is /api/system/status
 	"getFPPstatus"		  => 'GetFPPStatusJson', // Kept for Multisync but replacement is /api/system/status
 	"getSetting"          => 'GetSetting',
@@ -871,105 +871,6 @@ function SetChannelOutputs()
 	file_put_contents($settings[$file], $data);
 
 	GetChannelOutputs();
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// Network Interface configuration
-function ApplyInterfaceInfo()
-{
-	global $settings, $args, $SUDO;
-
-	$interface = $args['interface'];
-
-	exec($SUDO . " " . $settings['fppDir'] . "/scripts/config_network  $interface");
-}
-
-
-function GetInterfaceInfoJson()
-{
-	global $settings;
-	global $args;
-
-	$interface = $args['interface'];
-
-	check($interface);
-
-	$result = Array();
-
-	$cfgFile = $settings['configDirectory'] . "/interface." . $interface;
-	if (file_exists($cfgFile)) {
-		$result = parse_ini_file($cfgFile);
-	}
-
-	exec("/sbin/ifconfig $interface", $output);
-	foreach ($output as $line)
-	{
-		if (preg_match('/addr:/', $line))
-		{
-			$result['CurrentAddress'] = preg_replace('/.*addr:([0-9\.]+) .*/', '$1', $line);
-			$result['CurrentNetmask'] = preg_replace('/.*Mask:([0-9\.]+).*/', '$1', $line);
-		}
-	}
-	unset($output);
-
-	if (substr($interface, 0, 4) == "wlan")
-	{
-		exec("/sbin/iwconfig $interface", $output);
-		foreach ($output as $line)
-		{
-			if (preg_match('/ESSID:/', $line))
-				$result['CurrentSSID'] = preg_replace('/.*ESSID:"([^"]+)".*/', '$1', $line);
-
-			if (preg_match('/Rate:/', $line))
-				$result['CurrentRate'] = preg_replace('/.*Bit Rate:([0-9\.]+) .*/', '$1', $line);
-		}
-		unset($output);
-	}
-
-	returnJSON($result);
-}
-
-function SetInterfaceInfo()
-{
-	global $settings;
-	global $args;
-
-	$data = json_decode($args['data'], true);
-
-	$cfgFile = $settings['configDirectory'] . "/interface." . $data['INTERFACE'];
-
-	$f = fopen($cfgFile, "w");
-	if ($f == FALSE) {
-		return;
-	}
-
-	if ($data['PROTO'] == "static") {
-		fprintf($f,
-			"INTERFACE=\"%s\"\n" .
-			"PROTO=\"static\"\n" .
-			"ADDRESS=\"%s\"\n" .
-			"NETMASK=\"%s\"\n" .
-			"GATEWAY=\"%s\"\n",
-			$data['INTERFACE'], $data['ADDRESS'], $data['NETMASK'],
-			$data['GATEWAY']);
-
-	} else if ($data['PROTO'] == "dhcp") {
-		fprintf($f,
-			"INTERFACE=%s\n" .
-			"PROTO=dhcp\n",
-			$data['INTERFACE']);
-	}
-
-	if (substr($data['INTERFACE'], 0, 4) == "wlan")
-	{
-		fprintf($f,
-			"SSID=\"%s\"\n" .
-			"PSK=\"%s\"\n" .
-            "HIDDEN=%s\n",
-			$data['SSID'], $data['PSK'], $data['HIDDEN']);
-	}
-
-	fclose($f);
 }
 
 /////////////////////////////////////////////////////////////////////////////
