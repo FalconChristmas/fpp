@@ -1,5 +1,42 @@
 <?php
 
+function stats_genereate($statsFile)
+{
+//////////// MAIN ////////////
+    $tasks = array(
+        "uuid" => 'stats_getUUID',
+        "systemInfo" => 'stats_getSystemInfo',
+        "capeInfo" => 'stats_getCapeInfo',
+        "outputProcessors" => 'stats_getOutputProcessors',
+        "files" => 'stats_getFiles',
+        "models" => 'stats_getModels',
+        "multisync" => 'stats_getMultiSync',
+        "plugins" => 'stats_getPlugins',
+        "schedule" => 'stats_getSchedule',
+        "settings" => 'stats_getSettings',
+        "universe_input" => 'stats_universe_in',
+        "output_e131" => 'stats_universe_out',
+        "output_pannel" => 'stats_pannel_out',
+        "output_other" => 'stats_other_out',
+        "output_pixel_pi" => 'stats_pixel_pi_out',
+        "output_pixel_bbb" => 'stats_pixel_bbb_out',
+    );
+
+    foreach ($tasks as $key => $fun) {
+        try {
+            $obj[$key] = call_user_func($fun);
+        } catch (exception $e) {
+            echo ("Call to $t failed");
+        }
+    }
+    if (file_exists($statsFile)) {
+        unlink($statsFile);
+    }
+
+    $data = json_encode($obj, JSON_PRETTY_PRINT);
+    file_put_contents($statsFile, $data);
+}
+
 // GET /api/statistics/usage
 function stats_get_last_file()
 {
@@ -33,37 +70,6 @@ function stats_delete_last_file()
 function stats_get_filename()
 {
     return "/tmp/fpp_stats.json";
-}
-
-function stats_genereate($statsFile)
-{
-//////////// MAIN ////////////
-    $tasks = array(
-        "uuid" => 'stats_getUUID',
-        "systemInfo" => 'stats_getSystemInfo',
-        "capeInfo" => 'stats_getCapeInfo',
-        "outputProcessors" => 'stats_getOutputProcessors',
-        "files" => 'stats_getFiles',
-        "models" => 'stats_getModels',
-        "multisync" => 'stats_getMultiSync',
-        "plugins" => 'stats_getPlugins',
-        "schedule" => 'stats_getSchedule',
-        "settings" => 'stats_getSettings',
-    );
-
-    foreach ($tasks as $key => $fun) {
-        try {
-            $obj[$key] = call_user_func($fun);
-        } catch (exception $e) {
-            echo ("Call to $t failed");
-        }
-    }
-    if (file_exists($statsFile)) {
-        unlink($statsFile);
-    }
-
-    $data = json_encode($obj, JSON_PRETTY_PRINT);
-    file_put_contents($statsFile, $data);
 }
 
 function validateAndAdd(&$obj, &$input, &$mapping)
@@ -208,7 +214,7 @@ function addMultiSyncUUID(&$data)
                     $system['uuid'] = $missing[$ip];
                 }
             }
-        }    
+        }
     }
 }
 
@@ -303,11 +309,17 @@ function stats_getUUID()
 function stats_getCapeInfo()
 {
     $rc = array("type" => "None");
+    $mapping = array(
+        "type" => "type",
+        "cs" => "cs",
+        "id" => "id",
+        "name" => "name",
+        "serialNumber" => "serialNumber",
+    );
+
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
     if ($data != false) {
-        if (isset($data['name'])) {
-            $rc['type'] = $data['name'];
-        }
+        validateAndAdd($rc, $data, $mapping);
     }
 
     return $rc;
@@ -327,4 +339,226 @@ function stats_getSettings()
     validateAndAdd($rc, $settings, $safeSettings);
 
     return $rc;
+}
+
+function stats_universe_in()
+{
+    global $settings;
+    $rc = array("file" => $settings['universeInputs']);
+    if (!file_exists($settings['universeInputs'])) {
+        return $rc;
+    }
+
+    $data = json_decode(file_get_contents($settings['universeInputs']), true);
+    if (!isset($data["channelInputs"])) {
+        return $rc;
+    }
+    $data = $data["channelInputs"][0];
+    $rc['enabled'] = 0;
+    if (isset($data['enabled'])) {
+        $rc['enabled'] = $data['enabled'];
+    }
+
+    $universeCount = 0;
+    $rowCount = 0;
+    $activeRowCount = 0;
+    $channelCount = 0;
+    $rowType = array();
+    if (isset($data["universes"])) {
+        foreach ($data["universes"] as $row) {
+            ++$rowCount;
+            if ($row["active"] == 1) {
+                ++$activeRowCount;
+                $universeCount += $row["universeCount"];
+                $channelCount += ($row["universeCount"] * $row["channelCount"]);
+                $type = "type_" . strval($row['type']);
+                if (!isset($rowType[$type])) {
+                    $rowType[$type] = 0;
+                }
+                $rowType[$type] += 1;
+            }
+        }
+    }
+    $rc['universeCount'] = $universeCount;
+    $rc['rowCount'] = $rowCount;
+    $rc['activeRowCount'] = $activeRowCount;
+    $rc['channelCount'] = $channelCount;
+    $rc['rowType'] = $rowType;
+
+    return $rc;
+}
+
+function stats_universe_out()
+{
+    global $settings;
+    $rc = array("file" => $settings['universeOutputs']);
+    if (!file_exists($rc['file'])) {
+        return $rc;
+    }
+
+    $data = json_decode(file_get_contents($rc['file']), true);
+    if (!isset($data["channelOutputs"])) {
+        return $rc;
+    }
+    $data = $data["channelOutputs"][0];
+    $mapping = array(
+        "enabled" => "enabled",
+        "threaded" => "threaded",
+        "type" => "type",
+    );
+    validateAndAdd($rc, $data["channelOutputs"], $mapping);
+
+    $universeCount = 0;
+    $rowCount = 0;
+    $activeRowCount = 0;
+    $channelCount = 0;
+    $monitorCount = 0;
+    $deDupeCount = 0;
+    $rowType = array();
+    if (isset($data["universes"])) {
+        foreach ($data["universes"] as $row) {
+            ++$rowCount;
+            if ($row["active"] == 1) {
+                ++$activeRowCount;
+                $universeCount += $row["universeCount"];
+                $channelCount += ($row["universeCount"] * $row["channelCount"]);
+                $deDupeCount += $row["deDuplicate"];
+                $monitorCount += $row["monitor"];
+
+                $type = "type_" . strval($row['type']);
+                if (!isset($rowType[$type])) {
+                    $rowType[$type] = 0;
+                }
+                $rowType[$type] += 1;
+            }
+        }
+    }
+    $rc['universeCount'] = $universeCount;
+    $rc['rowCount'] = $rowCount;
+    $rc['activeRowCount'] = $activeRowCount;
+    $rc['channelCount'] = $channelCount;
+    $rc['rowType'] = $rowType;
+    $rc['deDupeCount'] = $deDupeCount;
+    $rc['monitorCount'] = $monitorCount;
+
+    return $rc;
+}
+
+function stats_pannel_out()
+{
+    global $settings;
+    $rc = array("file" => $settings['channelOutputsJSON']);
+    if (!file_exists($rc['file'])) {
+        return $rc;
+    }
+
+    $data = json_decode(file_get_contents($rc['file']), true);
+    if (!isset($data["channelOutputs"])) {
+        return $rc;
+    }
+    $data = $data["channelOutputs"][0];
+    $mapping = array(
+        "enabled" => "enabled",
+        "type" => "type",
+        "subType" => "subType",
+        "enabled" => "enabled",
+        "panelWidth" => "panelWidth",
+        "panelHeight" => "panelHeight",
+        "panelScan" => "panelScan",
+        "cfgVersion" => "cfgVersion",
+        "panelOutputBlankRow" => "panelOutputBlankRow",
+        "channelCount" => "channelCount",
+    );
+    validateAndAdd($rc, $data, $mapping);
+
+    return $rc;
+}
+
+function stats_other_out()
+{
+    global $settings;
+    $rc = array("file" => $settings['co-other']);
+    if (!file_exists($rc['file'])) {
+        $rc['status'] = "File not found";
+        return $rc;
+    }
+
+    $data = json_decode(file_get_contents($rc['file']), true);
+    if (!isset($data["channelOutputs"])) {
+        $rc['status'] = "ChannelOutputs not found";
+        return $rc;
+    }
+    $types = array();
+    foreach ($data["channelOutputs"] as $row) {
+        if (isset($row['enabled']) && $row['enabled'] == 1) {
+            if (isset($row['type'])) {
+                array_push($types, $row['type']);
+            }
+        }
+    }
+
+    $rc['types'] = $types;
+
+    return $rc;
+}
+
+function stats_pixel_or_pi($file)
+{
+    global $settings;
+    $rc = array("file" => $file);
+    if (!file_exists($rc['file'])) {
+        $rc['status'] = "File not found";
+        return $rc;
+    }
+
+    $data = json_decode(file_get_contents($rc['file']), true);
+    if (!isset($data["channelOutputs"])) {
+        $rc['status'] = "ChannelOutputs not found";
+        return $rc;
+    }
+
+    $data = $data["channelOutputs"][0];
+
+    $mapping = array(
+        "type" => "type",
+        "subType" => "subType",
+        "enabled" => "enabled",
+        "pinoutVersion" => "pinoutVersion",
+        "outputCount" => "outputCount",
+    );
+    validateAndAdd($rc, $data, $mapping);
+
+    $pixelCount = 0;
+    $protoocols = array();
+    if (isset($data['outputs'])) {
+        foreach ($data['outputs'] as $row) {
+            if (isset($row['protocol'])) {
+                $protocols[$row['protocol']] = 1;
+            }
+
+            if (isset($row['virtualStrings'])) {
+                foreach ($row['virtualStrings'] as $line) {
+                    if (isset($line['pixelCount'])) {
+                        $pixelCount += $line["pixelCount"];
+                    }
+                }
+            }
+        }
+    }
+
+    $rc['pixelCount'] = $pixelCount;
+    $rc['protocols'] = $protocols;
+    return $rc;
+}
+
+function stats_pixel_pi_out()
+{
+    global $settings;
+    return stats_pixel_or_pi( $settings['co-pixelStrings']);
+}
+
+function stats_pixel_bbb_out()
+{
+    global $settings;
+    return stats_pixel_or_pi( $settings['co-bbbStrings']);
 }
