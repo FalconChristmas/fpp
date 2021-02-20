@@ -1240,6 +1240,49 @@
             }
         },
         {
+            "endpoint": "network/interface/:interfaceName",
+            "methods": {
+                "GET": {
+                    "desc": "Retreieves the current network interface configuration",
+                    "output": {
+                        "INTERFACE": "eth0",
+                        "PROTO": "static",
+                        "ADDRESS": "192.168.1.149",
+                        "NETMASK": "255.255.255.0",
+                        "GATEWAY": "192.168.1.1",
+                        "status": "OK",
+                        "CurrentAddress": "192.168.1.149",
+                        "CurrentNetmask": "255.255.255.0"
+                    }
+                },
+                "POST": {
+                    "desc": "Updates the saved configuration but does not restart the network.",
+                    "input": {
+                        "INTERFACE": "eth0",
+                        "PROTO": "static",
+                        "ADDRESS": "192.168.1.149",
+                        "NETMASK": "255.255.255.0",
+                        "GATEWAY": "192.168.1.1"
+                    },
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "network/interface/:interfaceName/apply",
+            "methods": {
+                "POST": {
+                    "desc": "Applies the networking settings for the specified interface at the OS level and restarts the interface.",
+                    "input": "NONE",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "network/presisentNames",
             "methods": {
                 "DELETE": {
@@ -1808,10 +1851,10 @@
             }
         },
         {
-            "endpoint": "statistics",
+            "endpoint": "statistics/usage",
             "methods": {
                 "GET": {
-                    "desc": "Returns the statics file that will be shared with the development team if sharing statistics is enabled.",
+                    "desc": "Returns the statics file that will be shared with the development team if sharing statistics is enabled.  Generally a cached file is returned, but if ?force=1 is sent then it will be regenereated.",
                     "output": {
                         "uuid": "6ba176e7-da7f-49f4-8b27-edb5bd9ff616",
                         "systemInfo": {

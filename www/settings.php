@@ -84,7 +84,6 @@ if (isset($_GET['tab'])) {
 <div class="container">
 <h1 class="title">FPP Settings</h1>
     <div class="pageContent">
-        
             <div class='fppTabs'>
                 <div id="settingsManager">
                     <ul id="settingsManagerTabs" class="nav nav-pills pageContent-tabs" role="tablist">
@@ -155,16 +154,16 @@ if (isset($_GET['tab'])) {
                             <span class="sr-only">Loading...</span>
                         </div>
                     </div>
-        
-                <table>
+
+                    <table>
         <? if ($uiLevel >= 1) { ?>
-                    <tr><th align='right'>*</th><th align='left'>- Advanced Level Setting</th></tr>
+                    <tr><th align='right'><i class='fas fa-fw fa-graduation-cap ui-level-1'></i></th><th align='left'>- Advanced Level Setting</th></tr>
         <? } ?>
         <? if ($uiLevel >= 2) { ?>
-                    <tr><th align='right'>**</th><th align='left'>- Experimental Level Setting</th></tr>
+                    <tr><th align='right'><i class='fas fa-fw fa-flask ui-level-2'></i></th><th align='left'>- Experimental Level Setting</th></tr>
         <? } ?>
         <? if ($uiLevel >= 3) { ?>
-                    <tr><th align='right'>***</th><th align='left'>- Developer Level Setting</th></tr>
+                    <tr><th align='right'><i class='fas fa-fw fa-code ui-level-3'></i></th><th align='left'>- Developer Level Setting</th></tr>
         <? } ?>
                 </table>
             </div>
@@ -189,7 +188,7 @@ var activeTabNumber =
     if ($uiLevel >= 1 || $tabId == "Storage") $tabIDs["Storage"] = $id++;
     $tabIDs["System"] = $id++;
     if ($uiLevel >= 3 || $tabId == "Developer") $tabIDs["Developer"] = $id++;
-    
+
     if (!array_key_exists($tabId, $tabIDs)) {
         print $tabId;
     } else {
@@ -246,7 +245,7 @@ $('#settingsManagerTabs .nav-link').each(function(i){
 //         if(i==activeTabNumber){
 //             $tabContent.addClass('show active');
 //         }
-        
+
 //     });
 //     $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
 //     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {

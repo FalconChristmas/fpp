@@ -1,5 +1,8 @@
 <?
 
+require_once "../common/settings.php";
+require_once '../commandsocket.php';
+
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/system/reboot
 function RebootDevice()
@@ -108,9 +111,6 @@ function ViewReleaseNotes()
 // PUT /system/volume
 function SystemSetAudio()
 {
-    global $SUDO;
-    global $settings;
-
     $rc = "OK";
     $json = strval(file_get_contents('php://input'));
     $input = json_decode($json, true);
@@ -125,45 +125,7 @@ function SystemSetAudio()
     if ($vol > 100) {
         $vol = 100;
     }
-
-    WriteSettingToFile("volume", $vol);
-
-    $status = SendCommand('v,' . $vol . ',');
-
-    $card = 0;
-    if (isset($settings['AudioOutput'])) {
-        $card = $settings['AudioOutput'];
-    } else {
-        exec($SUDO . " grep card /root/.asoundrc | head -n 1 | awk '{print $2}'", $output, $return_val);
-        if ($return_val) {
-            // Should we error here, or just move on?
-            // Technically this should only fail on non-pi
-            // and pre-0.3.0 images
-            $rc = "Error retrieving current sound card, using default of '0'!";
-        } else {
-            $card = $output[0];
-        }
-
-        WriteSettingToFile("AudioOutput", $card);
-    }
-
-    $mixerDevice = "PCM";
-    if (isset($settings['AudioMixerDevice'])) {
-        $mixerDevice = $settings['AudioMixerDevice'];
-    } else {
-        unset($output);
-        exec($SUDO . " amixer -c $card scontrols | head -1 | cut -f2 -d\"'\"", $output, $return_val);
-        $mixerDevice = $output[0];
-        WriteSettingToFile("AudioMixerDevice", $mixerDevice);
-    }
-
-    if ($card == 0 && $settings['Platform'] == "Raspberry Pi" && $settings['AudioCard0Type'] == "bcm2") {
-        $vol = 50 + ($vol / 2.0);
-    }
-
-    // Why do we do this here and in fppd's settings.c
-    $status = exec($SUDO . " amixer -c $card set $mixerDevice -- " . $vol . "%");
-
+    setVolume($vol);
     return json(array("status" => $rc, "volume" => $vol));
 }
 

@@ -6,9 +6,10 @@ $skipJSsettings = 1;
 //Include other scripts
 require_once('common.php');
 require_once('common/settings.php');
+require_once('commandsocket.php');
 //Includes for API access
 //require_once('fppjson.php');
-require_once('fppxml.php');
+//require_once('fppxml.php');
 
 //Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
 $system_config_areas = array(
@@ -582,14 +583,14 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
         $overlays_json_filepath = $system_config_areas['model-overlays']['file'];
         //PrettyPrint the JSON data and save it
         $outputProcessors_data = prettyPrintJSON(json_encode($restore_area_data));
-        
+
         if (file_put_contents($overlays_json_filepath, $outputProcessors_data) === FALSE) {
             $save_result = false;
         } else {
             $save_result = true;
         }
         $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
-        
+
         //Set FPPD restart flag
         WriteSettingToFile('restartFlag', 1);
     }
@@ -810,8 +811,7 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
                                 $args['value'] = $setting_value;
                                 SetAudioOutput($setting_value);
                             } else if ($setting_name == "volume") {
-                                $_GET['volume'] = trim($setting_value);
-                                SetVolume();
+                                SetVolume(trim($setting_value));
                             } else {
                                 ApplySetting($setting_name, $setting_value);
                             }
@@ -1105,8 +1105,8 @@ function LoadPixelnetDMXFile_FPDv1()
     require_once './pixelnetdmxentry.php';
     //Store data in an array instead of session
     $return_data = array();
-    
-    
+
+
     if (filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
         return $return_data;
     }
@@ -1376,7 +1376,7 @@ function is_array_empty($InputVariable)
 
 //Move backup files
 moveBackupFiles_ToBackupDirectory();
-    
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -1424,7 +1424,7 @@ $backupHosts = getKnownFPPSystems();
 
 function GetCopyFlags() {
     var flags = "";
-    
+
     if (document.getElementById("backup.Configuration").checked) {
         flags += " Configuration";
     }
@@ -1546,7 +1546,7 @@ function GetBackupDevices() {
                         desc += ' ';
                     else
                         desc += ' - ';
-                    
+
                     desc += data[i].model;
                 }
 
@@ -1680,7 +1680,7 @@ GetBackupDevices();
     <div class="container">
         <h1 class='title'>FPP Backups</h1>
         <div class="pageContent">
-            
+
                 <div id="global" class="settings">
                 <div id='tabs'>
                     <ul class="nav nav-pills pageContent-tabs" role="tablist">
@@ -1695,7 +1695,7 @@ GetBackupDevices();
                             </a>
                         </li>
                     </ul>
-            
+
                     <div class="tab-content">
                     <div id='tab-jsonBackup' class="tab-pane fade show active" role="tabpanel" aria-labelledby="tab-jsonBackup-tab">
                         <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
@@ -1726,7 +1726,7 @@ GetBackupDevices();
         							if (is_array($success)) {
         								$success_area_data = false;
         								$success_messages = "";
-        
+
         								//If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
         								if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
         									//process internal array for areas with sub areas
@@ -1734,13 +1734,13 @@ GetBackupDevices();
         										if (array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
         											$success_area_attempt = $success_area_data['ATTEMPT'];
         											$success_area_success = $success_area_data['SUCCESS'];
-        
+
         											if ($success_area_attempt == true && $success_area_success == true) {
         												$success_str = "Success";
         											} else {
         												$success_str = "Failed";
         											}
-        
+
         											$success_messages .= ucwords(str_replace("_", " ", $success_area_idx)) . " - " . $success_str . "<br/>";
         										}
         									}
@@ -1748,13 +1748,13 @@ GetBackupDevices();
         								else if (array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
         									$success_area_attempt = $success['ATTEMPT'];
         									$success_area_success = $success['SUCCESS'];
-        
+
         									if ($success_area_attempt == true && $success_area_success == true) {
         										$success_str = "Success";
         									} else {
         										$success_str = "Failed";
         									}
-        
+
         									$success_messages .= ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
         								} // No Attempt key, then we shouldn't print the success
         								else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
@@ -1792,7 +1792,7 @@ GetBackupDevices();
         									echo "<br/>";
         								}
         							}
-        
+
         							echo "REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting.";
         						}
                                 ?>
@@ -1802,78 +1802,79 @@ GetBackupDevices();
                         ?>
                         <div class="backdrop">
                             <h2>Backup Configuration</h2>
-                            Select settings to backup, then download the selected system configuration in JSON format.
-                            <br/>
-                            <table width="100%">
-                                <tr>
-                                    <td width="35%"><b>Protect sensitive data?</b></td>
-                                    <td width="65%">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <span>Protect sensitive data?</span>
+                                    </div>
+                                    <div class="col-md-7">
                                         <input id="dataProtect" name="protectSensitive"
-                                               type="checkbox"
-                                               checked="true">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td width="25%">Backup Area</td>
-                                    <td width="75%"><?php echo genSelectList('backuparea'); ?></td>
-                                </tr>
-                                <tr>
-                                    <td width="25%"></td>
-                                    <td width="75%">
-                                        <input name="btnDownloadConfig" type="Submit" style="width:30%" class="buttons"
-                                               value="Download Configuration">
-                                    </td>
-                                </tr>
-                            </table>
-                    </div>
+                                                   type="checkbox"
+                                                   checked="true">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5"><span>Backup Area</span></div>
+                                    <div class="col-md-7"><?php echo genSelectList('backuparea'); ?></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5"></div>
+                                    <div class="col-md-7"><button name="btnDownloadConfig" type="Submit" class="buttons"
+                                               value="Download Configuration"><i class="fas fa-fw fa-nbsp fa-download"></i>Download Configuration</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <br/>
                         <div class="backdrop">
                             <h2>Restore Configuration</h2>
                             <div class="callout callout-danger">
-                                <h4>Note:</h4>
-                            <b class="text-danger">JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b>
-
+                                <b class="text-danger">JSON Backups made from FPP v1.x are not compatible with FPP 3.x and higher.</b>
                             </div>
-                    
-                            Select settings to restore and then choose backup file containing backup data.
-                            <br/>
-                            <table width="100%">
-                                <tr>
-                                    <td width="35%"><b>Keep Existing Network Settings</b></td>
-                                    <td width="65%">
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-5">Keep Existing Network Settings</div>
+                                    <div class="col-md-7">
                                         <input name="keepExitingNetwork"
                                                type="checkbox"
                                                checked="true">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td width="35%"><b>Keep Existing Master/Slave Settings</b></td>
-                                    <td width="65%">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5">Keep Existing Master/Slave Settings</div>
+                                    <div class="col-md-7">
                                         <input name="keepMasterSlave"
                                                type="checkbox"
                                                checked="true">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td width="25%">Restore Area</td>
-                                    <td width="75%">
-                                        <?php echo genSelectList('restorearea'); ?></td>
-                                </tr>
-                                <tr>
-                                    <td width="25%"></td>
-                                    <td width="75%">
-                                        <input name="conffile" type="file" accept=".json" class="formbtn" id="conffile"
-                                               size="50"
-                                               autocomplete="off"></td>
-                                </tr>
-                                <tr>
-                                    <td width="25%"></td>
-                                    <td width="75%">
-                                        <input name="btnRestoreConfig" type="Submit" style="width:30%" class="buttons"
-                                               value="Restore Configuration">
-                                    </td>
-                                </tr>
-                            </table>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5">Restore Area</div>
+                                    <div class="col-md-7">
+                                        <?php echo genSelectList('restorearea'); ?></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5"></div>
+                                    <div class="col-md-7">
+                                        <i class="fas fa-fw fa-nbsp fa-upload"></i>
+                                        <input id="btnUploadConfig" name="conffile" type="file" accept=".json" id="conffile" autocomplete="off">
+                                        <script>
+                                            $('#btnUploadConfig').change(function(e){
+                                                if (e.target.files[0].name.length > 4) {
+                                                    $('#btnRestoreConfig').show();
+                                                }
+                                            });
+                                        </script>
+                                    </div>
+                                </div>
+                                <div class='row'>
+                                    <div class="col-md-5"></div>
+                                    <div class="col-md-7">
+                                        <button id="btnRestoreConfig" name="btnRestoreConfig" type="Submit" class="buttons hidden">
+                                            <i class="fas fa-fw fa-nbsp fa-file-import"></i>Restore Configuration</button>
+                                    </div>
+                                </div>
+                            </div>
                     </div>
                         </form>
                     </div>
@@ -1918,7 +1919,7 @@ GetBackupDevices();
                                 <tr><td></td><td>
                                         <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
                                 </table>
-                      
+
                                 <div class="callout callout-danger">
                                     <h4>Notes:</h4>
                                     <ul>

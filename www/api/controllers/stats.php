@@ -1,13 +1,16 @@
 <?php
 
-
-// GET /api/statistics
+// GET /api/statistics/usage
 function stats_get_last_file()
 {
+    global $_GET;
     $statsFile = stats_get_filename();
+
     if (file_exists($statsFile)) {
         // No reason to regenereate if less than 2 hours old
         if (time() - filemtime($statsFile) > 2 * 3600) {
+            stats_genereate($statsFile);
+        } else if (isset($_GET['force']) && $_GET['force'] == 1) {
             stats_genereate($statsFile);
         }
     } else {
@@ -17,8 +20,9 @@ function stats_get_last_file()
     return json(json_decode(file_get_contents($statsFile)));
 }
 
-// DELETE /api/statistics
-function stats_delete_last_file() {
+// DELETE /api/statistics/usage
+function stats_delete_last_file()
+{
     $statsFile = stats_get_filename();
     if (file_exists($statsFile)) {
         unlink($statsFile);
@@ -26,7 +30,8 @@ function stats_delete_last_file() {
     return json(array("status" => "OK"));
 }
 
-function stats_get_filename() {
+function stats_get_filename()
+{
     return "/tmp/fpp_stats.json";
 }
 
@@ -144,6 +149,69 @@ function stats_getFiles()
     return $rc;
 }
 
+// Reviews the multisync records and adds missing UUIDS
+function addMultiSyncUUID(&$data)
+{
+    if (!isset($data["systems"])) {
+        return;
+    }
+    $missing = array();
+    foreach ($data["systems"] as $system) {
+        $rec = array();
+        validateAndAdd($rec, $system, $mapping);
+        if (!isset($system['uuid']) || $system['uuid'] === "") {
+            $missing[$system['address']] = "1";
+        }
+        array_push($rc, $rec);
+    }
+    // Find missing UUIDs
+    if (count($missing) > 0) {
+        $curlmulti = curl_multi_init();
+        $curls = array();
+        foreach ($missing as $ip => $value) {
+            $curl = curl_init("http://" . $ip . "/api/fppd/status");
+            curl_setopt($curl, CURLOPT_FAILONERROR, true);
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 500);
+            curl_setopt($curl, CURLOPT_TIMEOUT_MS, 3000);
+            $curls[$ip] = $curl;
+            curl_multi_add_handle($curlmulti, $curl);
+        }
+        $running = null;
+        do {
+            curl_multi_exec($curlmulti, $running);
+        } while ($running > 0);
+
+        foreach ($curls as $ip => $curl) {
+            $request_content = curl_multi_getcontent($curl);
+
+            if ($request_content === false || $request_content == null || $request_content == "") {
+                $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+                $missing[$ip] = "Failed";
+            } else {
+                $content = json_decode($request_content, true);
+                $missing[$ip] = "Not Set";
+                if (isset($content['uuid'])) {
+                    $missing[$ip] = $content['uuid'];
+                }
+            }
+            curl_multi_remove_handle($curlmulti, $curl);
+        }
+        curl_multi_close($curlmulti);
+
+        // Add them back
+        foreach ($data["systems"] as &$system) {
+            $ip = $system['address'];
+            if (!isset($system['uuid']) || $system['uuid'] === "") {
+                if (isset($missing[$ip])) {
+                    $system['uuid'] = $missing[$ip];
+                }
+            }
+        }    
+    }
+}
+
 function stats_getMultiSync()
 {
     $mapping = array(
@@ -161,6 +229,7 @@ function stats_getMultiSync()
     $data = json_decode(file_get_contents("http://localhost/api/fppd/multiSyncSystems"), true);
     $rc = array();
     if (isset($data["systems"])) {
+        addMultiSyncUUID($data);
         foreach ($data["systems"] as $system) {
             $rec = array();
             validateAndAdd($rec, $system, $mapping);
