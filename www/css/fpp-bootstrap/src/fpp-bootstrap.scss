@@ -148,6 +148,9 @@ input[type=text], input[type=number], select, .tablesorter input{
 .tablesorter input{
     @extend .form-control;
 }
+textarea{
+    resize: both;
+}
 input[type=checkbox]{
     @extend .form-control;
 	appearance: none;

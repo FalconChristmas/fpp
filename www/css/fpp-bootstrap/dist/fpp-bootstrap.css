@@ -7167,6 +7167,9 @@ input[type=text], input[type=number], select, .tablesorter input {
   cursor: pointer;
   vertical-align: middle; }
 
+textarea {
+  resize: both; }
+
 input[type=checkbox] {
   -webkit-appearance: none;
      -moz-appearance: none;
