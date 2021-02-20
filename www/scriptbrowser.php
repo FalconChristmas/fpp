@@ -32,7 +32,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 
 	function ViewRemoteScript(category, filename) {
 		$('#helpText').html("Retrieving Script");
-		$('#dialog-help').fppDialog({ height: 600, width: 800, title: "Script Viewer" });
+		$('#dialog-help').fppDialog({  width: 800, title: "Script Viewer" });
 		$('#dialog-help').fppDialog( "moveToTop" );
 
 		$.get("api/scripts/viewRemote/" + encodeURIComponent(category) + "/" + encodeURIComponent(filename)

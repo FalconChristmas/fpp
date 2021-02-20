@@ -1886,7 +1886,7 @@ function RemovePlaylistEntry()	{
 
 		function ViewReleaseNotes(version) {
 				$('#helpText').html("Retrieving Release Notes");
-				$('#dialog-help').fppDialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
+				$('#dialog-help').fppDialog({ width: 800, title: "Release Notes for FPP v" + version });
 				$('#dialog-help').fppDialog( "moveToTop" );
 
 				$.get("api/system/releaseNotes/" + version
@@ -4276,7 +4276,7 @@ function ViewFileImpl(url, file)
 			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 	});
 
-	$('#fileViewer').fppDialog({ height: 600, width: 800, title: "File Viewer: " + file });
+	$('#fileViewer').fppDialog({  width: 800, title: "File Viewer: " + file });
 	$('#fileViewer').fppDialog( "moveToTop" );
 }
 

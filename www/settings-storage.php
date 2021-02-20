@@ -24,7 +24,7 @@ function growSDCardFS() {
             buttons: {
             "Yes" : function() {
                 $(this).fppDialog("close");
-                $('#storageSettingsProgressPopup').fppDialog({ height: 600, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "Storage Expand", dialogClass: 'no-close' });
                 $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('growsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
@@ -39,13 +39,12 @@ function newSDCardPartition() {
     $('#dialog-confirm-newpartition')
     .fppDialog({
             resizeable: false,
-            height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
                 $(this).fppDialog("close");
-                $('#storageSettingsProgressPopup').fppDialog({ height: 600, width: 900, title: "New Partition", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "New Partition", dialogClass: 'no-close' });
                 $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('newpartitionsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
@@ -65,7 +64,7 @@ function checkForStorageCopy() {
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
                  if (result == "Yes") {
-                    $('#storageSettingsProgressPopup').fppDialog({ height: 600, width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
+                    $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
                     $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                     document.getElementById('storageText').value = '';
                     StreamURL("copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
