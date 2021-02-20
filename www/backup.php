@@ -6,9 +6,10 @@ $skipJSsettings = 1;
 //Include other scripts
 require_once('common.php');
 require_once('common/settings.php');
+require_once('commandsocket.php');
 //Includes for API access
 //require_once('fppjson.php');
-require_once('fppxml.php');
+//require_once('fppxml.php');
 
 //Define a map of backup/restore areas and setting locations, this is also used to populate the area select lists
 $system_config_areas = array(
@@ -810,8 +811,7 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
                                 $args['value'] = $setting_value;
                                 SetAudioOutput($setting_value);
                             } else if ($setting_name == "volume") {
-                                $_GET['volume'] = trim($setting_value);
-                                SetVolume();
+                                SetVolume(trim($setting_value));
                             } else {
                                 ApplySetting($setting_name, $setting_value);
                             }
