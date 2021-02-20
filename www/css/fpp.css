@@ -801,6 +801,37 @@ border-top-color: transparent;
 	font-size: 0.9em;
 	text-decoration: none;
 }
+#rebootShutdown > button, #rebootShutdown > .dropdown,  #rebootShutdown > .dropup {
+	display: inline-block;
+}
+#fppModeDropdown .dropdown-menu {
+	transition: none;
+	padding-left: 0.3125rem;
+	padding-right: 0.3125rem;
+}
+#fppModeDropdown .dropdown-menu.show{
+	animation: none;
+
+}
+#fppModeDropdown .dropdown-menu button{
+	width: 100%;
+	margin: 0;
+}
+
+#fppModeDropdownButton{
+	font-weight: normal;
+	font-size: 0.90rem;
+}
+#fppModeDropdownButton::after{
+	border-top: 0.3em solid;
+	border-right: 0.3em solid transparent;
+	border-bottom: 0;
+	border-left: 0.3em solid transparent;
+}
+#fppModeDropdownButtonModeText{
+	font-weight: bold;
+	font-size: 0.95rem;
+}
 body .sm-clean a .sub-arrow {
 	right: 5px;
 }

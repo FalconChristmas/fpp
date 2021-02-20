@@ -1707,7 +1707,6 @@ function CopyPlaylist()	{
         },
         open: function (event, ui) {
             //Generate a name for the new playlist
-            console.log('open')
             $(this).find(".newPlaylistName").val(name + " - Copy");
         },
         close: function () {
@@ -3686,9 +3685,7 @@ function GetRunningEffects() {
 
         if ("runningEffects" in data) {
             var isFreshData = !lastRunningEffectsData || JSON.stringify(lastRunningEffectsData)!=JSON.stringify(data.runningEffects);
-            console.log(data.runningEffects.length);
             if(data.runningEffects.length>0){
-                console.log('has length');
                 if(isFreshData){
                     $('#tblRunningEffectsBody').html('');
                     data.runningEffects.forEach(function (e) {
@@ -4037,19 +4034,19 @@ function SetVolume(value) {
     })
 }
 
-function SetFPPDmode()
+function SetFPPDmode(modeText)
 {
-    var mode = $('#selFPPDmode').val();
-    var modeText = "unknown"; // 0
-    if (mode == 1) {
-        modeText = "bridge";
-    } else if (mode == 2) {
-        modeText = "player";
-    } else if (mode ==6) {
-        modeText = "master";
-    } else if (mode == 8) {
-        modeText = "remote";
-    }
+    //var mode = $('#selFPPDmode').val();
+    // var modeText = "unknown"; // 0
+    // if (mode == 1) {
+    //     modeText = "bridge";
+    // } else if (mode == 2) {
+    //     modeText = "player";
+    // } else if (mode ==6) {
+    //     modeText = "master";
+    // } else if (mode == 8) {
+    //     modeText = "remote";
+    // }
 
     $.ajax({
         url: "api/settings/fppMode",
@@ -5506,9 +5503,9 @@ var headerCache = {}; //Used to cache what we've displayed on screen so we only 
 function RefreshHeaderBar(){
     var data = lastStatusJSON;
     if(data == undefined || data == null) return;
-
     if(data.interfaces != undefined){
         var rc = [];
+        
         data.interfaces.forEach(function (e) {
             if (e.ifname === "lo") { return 0; }
             if (e.ifname.startsWith("eth0:0")) { return 0; }
@@ -5593,6 +5590,9 @@ function RefreshHeaderBar(){
             $("#header_player").html(row);
             headerCache.Player = row;
         }
+    }
+    if(data.mode_name != undefined){
+        $("#fppModeDropdownButtonModeText").html( data.mode_name =="player"?"Standalone" : data.mode_name );
     }
 
     if(data.advancedView.HostDescription){

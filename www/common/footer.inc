@@ -8,10 +8,23 @@
 <br />
   <div id="rebootShutdown">
     <button type='button' class='buttons wideButton btn-outline-light' onClick='ShowRunCommandPopup();'><span class='hidden' id='runCommandJSON'></span><i class='fas fa-fw fa-terminal fa-nbsp'></i>Run FPP Command</button>
+    <div class="dropup" id="fppModeDropdown">
+      <button class="buttons btn-outline-light dropdown-toggle"  type="button" id="fppModeDropdownButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        FPP Mode: <span id="fppModeDropdownButtonModeText"></span>
+      </button>
+      <div class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton"  >
+        <button class="dropdown-item" onClick="SetFPPDmode('player');">Standalone</button>
+        <button class="dropdown-item" onClick="SetFPPDmode('master');">Master</button>
+        <button class="dropdown-item" onClick="SetFPPDmode('remote');">Remote</button>
+      </div>
+    </div>
     <button name="btnReboot" onClick="RebootPi();" type="button" class="buttons btn-outline-light"><i class='fas fa-fw fa-retweet fa-nbsp'></i>Reboot</button>
     <button name="btnShutdown" type="button" onClick="ShutdownPi();" class = "buttons btn-outline-light"><i class='fas fa-fw fa-power-off fa-nbsp'></i>Shutdown</button>
     <button name="btnRestartFPPD" type="button" onClick="ClearRestartFlag(); RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
     <button type="button" id="btnDaemonControl" value="" class="buttons btn-outline-light hidden" onClick="ControlFPPD();"></button>
+
+ 
+ 
   </div>
 <br />
 <div class="footerLink">
