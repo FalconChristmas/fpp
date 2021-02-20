@@ -166,7 +166,7 @@ function list_plugin_entries($menu)
 		}
 	}
 ?>
-  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light">"<i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
+  <div id='restartFlag' class="alert detract"><span class='inlineBlock'>Settings have changed. FPPD Restart Required</span><span class='inlineBlock'><button name="btnRestartFPPD" type="button" onClick="RestartFPPD();" class="buttons btn-outline-light"><i class='fas fa-fw fa-sync fa-nbsp'></i>Restart FPPD</button>
 
 <?
   if (basename($_SERVER['PHP_SELF']) == "developer.php")
