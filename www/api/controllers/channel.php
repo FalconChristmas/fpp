@@ -53,11 +53,13 @@ function channel_get_output()
     global $settings;
 
     $file = params("file");
-    $rc = array("Status" => "ERROR: File not found");
+    $rc = array("status" => "ERROR: File not found");
 
     $jsonStr = "";
 
-    if (file_exists($settings[$file])) {
+    if (! isset($settings[$file])) {
+        $rc['status'] = "Invalid file $file";
+    } else if (file_exists($settings[$file])) {
         $rc = json_decode(file_get_contents($settings[$file]), true);
         $rc["status"] = "OK";
     }
