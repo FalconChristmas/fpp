@@ -7193,7 +7193,7 @@ input[type=checkbox]:checked {
   .nav-pills li {
     margin-left: 4px;
     margin-right: 4px; }
-  .nav-pills a {
+  .nav-pills > a {
     margin-left: 4px;
     margin-right: 4px; }
 

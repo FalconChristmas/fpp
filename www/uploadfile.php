@@ -185,13 +185,28 @@ $(function() {
 			var ext = scriptName.split('.').pop();
 			if (ext != "html")
 			{
-				var html = "<fieldset  class='fs'><legend> " + scriptName + " </legend><div><center><input type='button' class='buttons' onClick='SaveScript(\"" + scriptName + "\");' value='Save'> <input type='button' class='buttons' onClick='AbortScriptChange();' value='Cancel'><hr/>";
-				html += "<textarea cols='100' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
+				var html = "<textarea cols='100' rows='25' id='scriptText'>" + text + "</textarea></center></div></fieldset>";
 				$('#fileText').html(html);
+        $('#scriptText').data('scriptName',scriptName);
 			}
 		});
 
-		$('#fileViewer').fppDialog({ height: 600, width: 800, title: "Script Editor" });
+		$('#fileViewer').fppDialog({ 
+
+      width: 1400, 
+      title: "Script Editor : "+scriptName,
+      buttons:{
+        "Save":{
+          class:'btn-success',
+          click:function(){
+            SaveScript($('#scriptText').data('scriptName'));
+          }
+        },
+        "Cancel":function(){
+          AbortScriptChange();
+        }
+      } 
+    });
 		$('#fileViewer').fppDialog( "moveToTop" );
 	}
 

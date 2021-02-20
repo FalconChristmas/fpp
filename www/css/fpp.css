@@ -1538,6 +1538,9 @@ input[type=search].tablesorter-filter:disabled{
 .fileManagerDivData .fileDetails td:first-child {
 	padding-left: 1em;
 }
+#fileText textarea{
+	width: 100%;
+}
 #tab-jsonBackup td, #tab-fileCopy td{
 	padding-top: 0.8em;
 	padding-bottom: 0.8em;
