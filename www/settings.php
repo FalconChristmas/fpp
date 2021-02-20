@@ -196,28 +196,40 @@ var activeTabNumber =
         print $tabIDs[$tabId];
     }
 ?>;
-var tabRequests=[];
-var tabElements={}
+
+var tabs={}
 $('#settingsManagerTabs .nav-link').each(function(i){
     var tabName = $(this).attr('href').slice(1);
-    tabRequests.push($.ajax({
-        url:tabName+".php"
-    }).done(function(data) {
-        
-        var $tabContent = $('<div class="tab-pane fade" id="'+tabName+'" role="tabpanel" aria-labelledby="'+tabName+'-tab"/>');
-        tabElements[i] = $tabContent.html(data);
-    }));
-});
-
-$.when.apply( undefined, tabRequests ).then(function() {
-   $('#settingsManagerTabsContent>.spinner-border').hide();
-    $.each(tabElements,function(i,$tabContent){
-        if(i==activeTabNumber){
-            $tabContent.addClass('show active');
-        }
-        $('#settingsManagerTabsContent').append($tabContent);
-    });
-    $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
+    var dataOption=$(this).data('option');
+    var $tabContent = $('<div class="tab-pane fade" id="'+tabName+'" role="tabpanel" aria-labelledby="'+tabName+'-tab"/>');
+    $('#settingsManagerTabsContent').append($tabContent);
+    if(i==activeTabNumber){
+        $tabContent.addClass('show active');
+        $(this).addClass('active');
+        $.ajax({
+            url:tabName+".php"
+        }).done(function(data) {
+            $('#settingsManagerTabsContent .spinner-border').hide();
+            $tabContent.html(data);
+            $.each(tabs,function(i,tab){
+                $.ajax({
+                    url:tab.tabName+".php"
+                }).done(function(data) {
+                    tab.$tabContent.html(data);
+                    UpdateChildSettingsVisibility();
+                    InitializeTimeInputs();
+                    InitializeDateInputs();
+                })
+            })
+        })
+    }else{
+        tabs[dataOption]={
+            navEl: this,
+            tabNumber: i,
+            tabName:tabName,
+            $tabContent:$tabContent
+        };
+    }
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
         if ($(this).attr("href") == '#settings-time') {
             UpdateCurrentTime();
@@ -226,10 +238,29 @@ $.when.apply( undefined, tabRequests ).then(function() {
             statusTimeout = null;
         }
     });
-    UpdateChildSettingsVisibility();
-    InitializeTimeInputs();
-    InitializeDateInputs();
 });
+
+// $.when.apply( undefined, tabRequests ).then(function() {
+//    $('#settingsManagerTabsContent>.spinner-border').hide();
+//     $.each(tabElements,function(i,$tabContent){
+//         if(i==activeTabNumber){
+//             $tabContent.addClass('show active');
+//         }
+        
+//     });
+//     $('#settingsManagerTabs .nav-link').eq(activeTabNumber).addClass('active');
+//     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+//         if ($(this).attr("href") == '#settings-time') {
+//             UpdateCurrentTime();
+//         } else if (statusTimeout != null) {
+//             clearTimeout(statusTimeout);
+//             statusTimeout = null;
+//         }
+//     });
+//     UpdateChildSettingsVisibility();
+//     InitializeTimeInputs();
+//     InitializeDateInputs();
+// });
 /*
 var currentLoadingTab = 0;
 $("#tabs").tabs( {
