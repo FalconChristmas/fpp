@@ -1,5 +1,27 @@
 #!/bin/bash
 
+
+#
+# First try and use CPUInfo -- works on PI and BBB
+#
+UUID=$(grep -i serial /proc/cpuinfo | awk '{ print $3}')
+if [ "$UUID" != "" ]; then
+    echo "M1-$UUID"
+    exit 0
+fi
+
+#
+# Second try dmidecode 
+#
+UUID=$(sudo dmidecode | grep -i 'serial number' | head -1 | awk '{print $3}')
+if [ "$UUID" != "" ]; then
+    echo "M2-$UUID"
+    exit 0
+fi
+
+#
+# If all else fails, Genereate one
+#
 UUIDFILE="/etc/fpp/fpp_uuid"
 if [ ! -f $UUIDFILE ]; then
     sudo cp /proc/sys/kernel/random/uuid $UUIDFILE
