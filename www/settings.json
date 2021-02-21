@@ -75,6 +75,8 @@
             "description": "Initial Setup",
             "settings": [
                 "fppMode",
+                "HostName",
+                "HostDescription",
                 "statsPublish",
                 "TimeZone",
                 "Latitude",
@@ -559,6 +561,27 @@
             "description": "Git Branch",
             "tip": "Switch code branches to test features outside the current release branch.  The 'master' branch is the main development branch for the next version of FPP.  There may also be a 'master-vY.x' branch were 'Y' is the major FPP version.  These master-v* branches are created to allow development on the next major release to continue in the master branch while bugfixes for the 'Y' release are applied only to the master-vY.x branch.",
             "level": 2
+        },
+        "HostDescription": {
+            "name": "HostDescription",
+            "description": "Host description",
+            "tip": "Description of host",
+            "default": "FPP",
+            "type": "text",
+            "size": 30,
+            "maxlength": 48
+        },
+        "HostName": {
+            "name": "HostName",
+            "description": "Host Name",
+            "tip": "Host names must contain only letters, numbers, and hypens and must begin with a letter or a number",
+            "reboot": 1,
+            "default": "fpp",
+            "type": "text",
+            "size": 30,
+            "maxlength": 30,
+            "regex": "^\\([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])$",
+            "regexDesc": "Host names must contain only letters, numbers and hyphens"
         },
         "Latitude": {
             "name": "Latitude",
