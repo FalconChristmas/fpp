@@ -2017,6 +2017,13 @@
                     "output": {
                         "status": "OK"
                     }
+                },
+                "POST": {
+                    "desc": "Transmists the statics to the remote server",
+                    "output": {
+                        "status": "OK",
+                        "uuid": "M2-xxxxxxxx-f67f-930d-56ee-7xxxxxxxxxx"
+                    }
                 }
             }
         },
