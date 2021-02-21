@@ -1,6 +1,6 @@
 {
     "name": "BBB16-MEXP",
-    "longName": "BBB16 w/ Multi Expansion Board (2 Serial) + ",
+    "longName": "BBB16 w/ Multi Expansion Board (2 Serial)",
     "numSerial": 2,
     "outputs": [
         {  "pin": "P8-08" },
