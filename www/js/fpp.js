@@ -571,6 +571,26 @@ function GetItemCount(url, id, key = '') {
 }
 
 function SetupToolTips(delay = 100) {
+    $('[title]').each(function(){
+        if($(this).is('[data-tooltip-position-at]')||$(this).is('[data-tooltip-position-my]')){
+            var title = $(this).attr('title');
+            $(this).data('tooltip-title',title);
+            
+            $(this).removeAttr('title');
+            var pos = { my: "left top+15", at: "left bottom", collision: "flipfit" };
+            if($(this).is('[data-tooltip-position-at]')){
+                pos.at=$(this).data('tooltip-position-at');
+            }
+            if($(this).is('[data-tooltip-position-my]')){
+                pos.my=$(this).data('tooltip-position-my');
+            }
+            $(this).tooltip({
+                items: $(this).prop('nodeName'),
+                content:$(this).data('tooltip-title'),
+                position:pos,
+            });
+        }
+    });
     $(document).tooltip({
         content: function() {
             $('.ui-tooltip').hide();
@@ -585,11 +605,14 @@ function SetupToolTips(delay = 100) {
             if (typeof title != "undefined") {
                 return title;
             }
-
+            console.log(this)
             return "";
         },
+
         hide: { delay: delay }
     });
+
+
 }
 
 function ShowTableWrapper(tableName) {
