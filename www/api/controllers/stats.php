@@ -54,7 +54,7 @@ function stats_get_last_file()
         stats_genereate($statsFile);
     }
 
-    return json(json_decode(file_get_contents($statsFile)));
+    return json(json_decode(file_get_contents($statsFile)), JSON_PRETTY_PRINT);
 }
 
 function stats_publish_stats_file()
@@ -64,9 +64,10 @@ function stats_publish_stats_file()
 
     $ch = curl_init($settings['statsPublishUrl']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
     curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonString);
-
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
+    curl_setopt($ch, CURLOPT_TIMEOUT_MS, 3000);
 // execute!
     $response = json_decode(curl_exec($ch));
 

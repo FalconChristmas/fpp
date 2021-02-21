@@ -5186,4 +5186,20 @@ function PreviewSchedule()
     $('#schedulePreviewDiv').load('schedulePreview.php');
 }
 
+function PreviewStatistics() {
+    if ($('#statsPreviewPopup').length == 0) {
+        var dialogHTML = "<div id='statsPreviewPopup'><pre><div id='statsPreviewDiv'></div></pre></div>";
+        $(dialogHTML).appendTo('body');
+    }
 
+    $('#statsPreviewDiv').html('');
+    $('#statsPreviewPopup').dialog({
+        height: 600,
+        width: 900,
+        title: "Schedule Preview",
+        modal: true
+    });
+    $('#statsPreviewPopup').dialog( "moveToTop" );
+    $('#statsPreviewDiv').load('api/statistics/usage');
+
+}
