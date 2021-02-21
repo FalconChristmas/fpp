@@ -490,7 +490,7 @@ body legend{
 .labelHeadingFPPDMode{
 	margin-bottom: 0;
 }
-#volume{
+.volume{
 	display: block;
 	font-size: 1.3em;
 	font-weight: bold;
@@ -831,6 +831,7 @@ border-top-color: transparent;
 #fppModeDropdownButtonModeText{
 	font-weight: bold;
 	font-size: 0.95rem;
+	text-transform: capitalize;
 }
 body .sm-clean a .sub-arrow {
 	right: 5px;
@@ -1422,32 +1423,32 @@ body .sm-clean a .sub-arrow {
     margin-bottom: 2em;
 }
 
-#fppSystemsTable thead td,#fppSystemsTable thead th{
+.tablesorter thead td,.tablesorter thead th{
 	background-color: #ECECEC;
 }
-#fppSystemsTable thead th:first-child{
+.tablesorter thead th:first-child{
 	border-top-left-radius: 8px;
 }
-#fppSystemsTable thead th:last-child {
+.tablesorter thead th:last-child {
 	border-top-right-radius: 8px;
 }
-#fppSystemsTable thead td:first-child{
+.tablesorter thead td:first-child{
 	border-bottom-left-radius: 8px;
 }
-#fppSystemsTable thead td:last-child {
+.tablesorter thead td:last-child {
 	border-bottom-right-radius: 8px;
 }
-#fppSystemsTable thead th{
+.tablesorter thead th{
 	padding-top: 1.1em;
 }
-#fppSystemsTable thead td{
+.tablesorter thead td{
 
 	padding-bottom: 1.1em;
 }
-#fppSystemsTable thead>tr>:first-child{
+.tablesorter thead>tr>:first-child{
 	padding-left: 1em;
 }
-#fppSystemsTable thead>tr>:last-child{
+.tablesorter thead>tr>:last-child{
 	padding-right: 1em;
 }
 .fppTableWrapper.backdrop {

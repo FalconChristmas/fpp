@@ -2919,7 +2919,7 @@ function updateVolumeUI(Volume) {
     $('#volume').html(Volume);
     $('#remoteVolume').html(Volume);
     $('#slider').val( Volume);
-    $('#remoteVolumeSlider').slider('value', Volume);
+    $('#remoteVolumeSlider').val(Volume);
     SetSpeakerIndicator(Volume);
 }
 

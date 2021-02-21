@@ -35,7 +35,7 @@ include 'common/menuHead.inc';
                 1: { sorter: 'ipAddress' }
             },
             widthFixed: false,
-            theme: 'blue',
+            theme: 'fpp',
             widgets: ['zebra', 'filter', 'staticRow'],
             widgetOptions: {
                 filter_hideFilters : true
@@ -87,8 +87,8 @@ include 'common/menuHead.inc';
             });
             rslider.slider({
               stop: function( event, ui ) {
-                  var value = rslider.slider('value');
 
+                  var value = rslider.val();
                   SetSpeakerIndicator(value);
                   $('#volume').html(value);
                   $('#remoteVolume').html(value);
@@ -285,51 +285,65 @@ include 'common/menuHead.inc';
 
             <!-- Remote Mode info -->
             <div id="remoteModeInfo" class='statusDiv pageContent'>
-                <table class='statusTable'>
-                    <tr><th>Master System:</th>
-                        <td id='syncMaster'></td></tr>
-                    <tr><th>Remote Status:</th>
-                        <td id='txtRemoteStatus'></td></tr>
-                    <tr><th>Sequence Filename:</th>
-                        <td id='txtRemoteSeqFilename'></td></tr>
-                    <tr><th>Media Filename:</th>
-                        <td id='txtRemoteMediaFilename'></td></tr>
-                    <tr>
-                        <th>Volume [<span id='remoteVolume' class='volume'></span>]:</th>
-                        <td>
-                            <input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                            <span id="remoteVolumeSlider"></span> <!-- the Slider -->
-                            <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
-                            <span id='remoteSpeaker'></span> <!-- Volume -->
-                        </td>
-                    </tr>
-                </table>
-                <hr>
 
-                <span class='title'>MultiSync Packet Counts</span><br>
-                <table style='width: 100%' class='statusTable'>
-                    <tr>
-                        <td align='left'>
-                            <input type='button' onClick='GetMultiSyncStats();' value='Update' class='buttons'>
-                            <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
-                        </td>
-                        <td align='right'>
-    <? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
-                        </td>
-                    </tr>
-                </table>
-                <div class='fppTableWrapper'>
+                <div class='statusTable'>
+                    <div class="row">
+                    <div class="col-md-3">
+                            <div class="playerStatusLabel">Remote Status:</div>
+                            <div id="txtRemoteStatus" class="labelValue txtRemoteStatusLabelValue"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="playerStatusLabel">Master System:</div>
+                            <div id="syncMaster" class="labelValue syncMasterLabelValue"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="playerStatusLabel">Sequence Filename:</div>
+                            <div id="txtRemoteSeqFilename" class="labelValue txtRemoteSeqFilenameLabelValue"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="playerStatusLabel">Media Filename:</div>
+                            <div id="txtRemoteMediaFilename" class="labelValue txtRemoteMediaFilenameLabelValue"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="volumeControlsContainer d-flex">
+                    <div class="ml-auto">
+                        <div class="labelHeading">Volume</div> <span id='remoteVolume' class='volume'></span></div>
+                        <div class="volumeControls">
+                            <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
+                            <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
+                            <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
+                        <span id='speaker'></span> <!-- Volume -->
+                    </div>
+                </div>
+                <hr>
+                <br>
+                <h2>MultiSync Packet Counts</h2>
+
+                <div class="row pb-1">
+                    <div class="col-auto">
+                        <input type='button' onClick='GetMultiSyncStats();' value='Update' class='buttons'>
+                        <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
+                    </div>
+                    <div class="col-auto ml-auto">
+                    <? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+
+                    </div>
+                </div>
+
+                <div class='fppTableWrapper backdrop'>
                     <div class='fppTableContents'>
                         <table id='syncStatsTable'>
                             <thead>
                                 <tr><th rowspan=2>Host</th>
-                                    <th rowspan=2>Last Received</th>
+                                    <th rowspan=2>Last<br>Rcvd</th>
                                     <th colspan=4 class="sorter-false">Sequence Sync</th>
                                     <th colspan=4 class="sorter-false">Media Sync</th>
                                     <th rowspan=2>Blank<br>Data</th>
                                     <th rowspan=2>Ping</th>
                                     <th rowspan=2>Plugin</th>
-                                    <th rowspan=2>FPP<br>Command</th>
+                                    <th rowspan=2>FPP<br>Cmd</th>
                                     <th rowspan=2>Errors</th>
                                     </tr>
                                 <tr><th>Open</th>
