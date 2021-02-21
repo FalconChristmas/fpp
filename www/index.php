@@ -109,7 +109,32 @@ include 'common/menuHead.inc';
             //     hide: { delay: 1000 }
             // });
 
+            SetupBanner();
 		};
+
+    function SetupBanner() {
+        $.get("api/settings/statsPublish"
+        ).done(function(data) {
+            let showIt = false;
+            if ("value" in data) {
+                if (data.value == "Banner" || data.value == "") {
+                    showIt = true;
+                }
+            } else {
+                // Often missing if not set. Default is Banner
+                showIt = true;
+            }
+            if (showIt) {
+                var html = [];
+                html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
+                html.push("help us improve FPP in the future. You may preview the data that will be shared and opt-in ");
+                html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>");
+                $("#bannerRow").html(html.join(' ')).show();
+            }
+        }).fail(function(){
+             // Should probably do something here.
+        });
+    }
 
 	function SetSpeakerIndicator(value) {
 		var speaker = $('#speaker');
@@ -246,6 +271,7 @@ include 'common/menuHead.inc';
     </div>
 </div>
 <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
+<div id="bannerRow" class="alert alert-info">Banner Messages go here.</div>
     <div id="programControl" class="settings">
 
             <div class="statusPageLoading pageContent">
