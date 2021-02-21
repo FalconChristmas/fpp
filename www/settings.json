@@ -71,6 +71,16 @@
                 "remoteOffset"
             ]
         },
+        "initialSetup": {
+            "description": "Initial Setup",
+            "settings": [
+                "fppMode",
+                "statsPublish",
+                "TimeZone",
+                "Latitude",
+                "Longitude"
+            ]
+        },
         "input": {
             "description": "Input Control",
             "settings": [

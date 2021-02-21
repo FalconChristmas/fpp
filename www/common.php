@@ -381,7 +381,7 @@ function PrintPluginSettingGroup($plugin, $group, $appendData = "", $prependData
     PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
 }
 
-function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
+function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "", $callback = "") {
     global $settings;
     global $settingGroups;
 
@@ -422,9 +422,9 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
 
         foreach ($g['settings'] as $setting) {
             if ($plugin != "")
-                PrintPluginSetting($plugin, $setting);
+                PrintPluginSetting($plugin, $setting, $callback);
             else
-                PrintSetting($setting);
+                PrintSetting($setting, $callback);
         }
 
         if ($appendData != "") {

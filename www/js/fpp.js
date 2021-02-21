@@ -493,12 +493,12 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
     });
 }
 
-function Post(url, async, data, silent = false) {
+function PostPutHelper(url, async, data, silent, type) {
     var result = {};
 
     $.ajax({
         url: url,
-        type: 'POST',
+        type: type,
         contentType: 'application/json',
         data: data,
         async: async,
@@ -508,12 +508,20 @@ function Post(url, async, data, silent = false) {
         },
         error: function() {
             if (!silent) {
-                $.jGrowl('Error posting to ' + url,{themeState:'danger'});
+                $.jGrowl('Error with ' + type + ' to ' + url,{themeState:'danger'});
             }
         }
     });
 
     return result;
+}
+
+function Post(url, async, data, silent = false) {
+    PostPutHelper(url, async, data, silent, 'POST');
+}
+
+function Put(url, async, data, silent = false) {
+    PostPutHelper(url, async, data, silent, 'PUT');
 }
 
 function Get(url, async, silent = false) {
@@ -1671,6 +1679,25 @@ function RandomizePlaylistEntries() {
     RenumberPlaylistEditorEntries();
 
 //    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
+}
+
+function GetGeoLocation() {
+    $.get('https://ipapi.co/json/'
+    ).done(function(data) {
+        $('#Latitude').val(data.latitude).change();
+        $('#Longitude').val(data.longitude).change();
+    }).fail(function() {
+        DialogError("GeoLocation Lookup", "GeoLocation lookup failed.");
+    });
+}
+
+function ViewLatLon()
+{
+    var lat = $('#Latitude').val();
+    var lon = $('#Longitude').val();
+
+    var url = 'https://www.google.com/maps/@' + lat + ',' + lon + ',15z';
+    window.open(url, '_blank');
 }
 
 /**
