@@ -54,7 +54,8 @@ function CloseKioskDialog() {
 
 </script>
 <?
-PrintSettingGroup('system');
+$extraData = "<input type='button' value='Preview Statistics' onClick='PreviewStatistics();'> ";
+PrintSettingGroup('system', $extraData);
 PrintSettingGroup('BBBLeds');
 
 $extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";

@@ -74,6 +74,7 @@ volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */
 void MainLoop(void);
+void PublishStats(void);
 
 
 static int IsDebuggerPresent() {
@@ -684,6 +685,7 @@ void MainLoop(void)
 {
 	PlaylistStatus prevFPPstatus = FPP_STATUS_IDLE;
 	int            sleepms = 50;
+    long           publishCounter = 200; // about 40 seconds after boot
     std::map<int, std::function<bool(int)>> callbacks;
 
 	LogDebug(VB_GENERAL, "MainLoop()\n");
@@ -856,15 +858,20 @@ void MainLoop(void)
         if (doPing) {
             idleCount = 0;
             multiSync->PeriodicPing();
-	    if (getFPPmode() == BRIDGE_MODE) {
-	       int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
-	       if (maxInputDelay) {
-                  double inputDelay = GetSecondsFromInputPacket();
-	          if (inputDelay > 2.0) {
-		     sequence->BlankSequenceData();
-	          }
-	       }
-	    }
+            if (--publishCounter < 0) {
+                PublishStats();
+                publishCounter = (604800*5); // About one week
+            }
+            
+            if (getFPPmode() == BRIDGE_MODE) {
+                int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
+                if (maxInputDelay) {
+                        double inputDelay = GetSecondsFromInputPacket();
+                    if (inputDelay > 2.0) {
+                    sequence->BlankSequenceData();
+                    }
+                }
+            }
         }
         GPIOManager::INSTANCE.CheckGPIOInputs();
 	}
@@ -918,4 +925,17 @@ void CreateDaemon(void)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
+}
+
+void PublishStats()
+{
+    const char *settingsValue = getSetting("statsPublish");
+
+    if (strcmp("Enabled", settingsValue) == 0 ) {
+        std::string result("");
+        urlPost("http://localhost/api/statistics/usage", "", result);
+        LogInfo(VB_GENERAL, "Publishing statistics = %s\n", result.c_str());
+    } else {
+        LogInfo(VB_GENERAL, "Not Publishing statistics as mode is %s\n", settingsValue);
+    }
 }

@@ -5647,3 +5647,21 @@ function RotateHeaderSensor(goto){
     $.put("api/settings/currentHeaderSensor", goto);
     $("#header_sensors").data("defaultsensor", goto);
 }
+
+function PreviewStatistics() {
+    if ($('#statsPreviewPopup').length == 0) {
+        var dialogHTML = "<div id='statsPreviewPopup'><pre><div id='statsPreviewDiv'></div></pre></div>";
+        $(dialogHTML).appendTo('body');
+    }
+
+    $('#statsPreviewDiv').html('');
+    $('#statsPreviewPopup').dialog({
+        height: 600,
+        width: 900,
+        title: "Statistics Preview",
+        modal: true
+    });
+    $('#statsPreviewPopup').dialog( "moveToTop" );
+    $('#statsPreviewDiv').load('api/statistics/usage');
+
+}
