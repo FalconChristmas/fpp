@@ -140,27 +140,31 @@ void initSettings(int argc, char **argv)
 	SetLogLevel("info");
 
 	// load UUID File
-	if( access( "/etc/fpp/fpp_uuid", F_OK ) == 0 ) {
-		// file exists
-		FILE *f = fopen("/etc/fpp/fpp_uuid", "rb");
-		fseek(f, 0, SEEK_END);
-		long fsize = ftell(f);
-		fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
-
-		// make sure the size is reasonable
-		if (fsize < 100) {
-			settings.systemUUID = (char*) malloc(fsize + 1);
-			fread(settings.systemUUID, 1, fsize, f);
-			settings.systemUUID[fsize] = 0;
-			if (settings.systemUUID[fsize-1] = '\n') {
-				settings.systemUUID[fsize-1] = 0;
+	if( access( "/opt/fpp/scripts/get_uuid", F_OK ) == 0 ) {
+		FILE *uuid_fp;
+  		char temp_uuid[500];
+		uuid_fp = popen("/opt/fpp/scripts/get_uuid", "r");
+		if (uuid_fp == NULL) {
+			LogWarn(VB_SETTING, "Couldn't execute get_uuid");
+		}
+		if (fgets(temp_uuid, sizeof(temp_uuid), uuid_fp) != NULL) {
+			int pos = strlen(temp_uuid) - 1;
+			// Strip newline
+			if ('\n' == temp_uuid[pos]) {
+				temp_uuid[pos] = '\0';
 			}
-		} 
-		fclose(f);
-	} 
-	// Must be malloced for deconstructor
+			settings.systemUUID = strdup(temp_uuid);
+		}
+
+		if (uuid_fp != NULL){
+			pclose(uuid_fp);
+		}
+	}
+
+	// Set to unknown if not found
 	if (settings.systemUUID == nullptr) {
 		settings.systemUUID = strdup("UNKNONW");
+		LogWarn(VB_SETTING, "Couldn't find UUID");
 	}
 }
 
