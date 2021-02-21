@@ -119,27 +119,18 @@ include 'common/menuHead.inc';
 		};
 
     function SetupBanner() {
-        $.get("api/settings/statsPublish"
-        ).done(function(data) {
-            let showIt = false;
-            if ("value" in data) {
-                if (data.value == "Banner" || data.value == "") {
-                    showIt = true;
-                }
-            } else {
-                // Often missing if not set. Default is Banner
-                showIt = true;
-            }
-            if (showIt) {
-                var html = [];
-                html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
-                html.push("help us improve FPP in the future. You may preview the data that will be shared and opt-in ");
-                html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>");
-                $("#bannerRow").html(html.join(' ')).show();
-            }
-        }).fail(function(){
-             // Should probably do something here.
-        });
+       let showIt = true;
+       if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
+          showIt = false;
+       }
+
+       if (showIt) {
+          var html = [];
+          html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
+          html.push("help us improve FPP in the future. You may preview the data that will be shared and opt-in ");
+          html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>");
+          $("#bannerRow").html(html.join(' ')).show();
+       }
     }
 
 	function SetSpeakerIndicator(value) {
