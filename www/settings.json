@@ -1301,7 +1301,7 @@
             "name": "statsPublish",
             "description": "Share Statistics",
             "tip": "Configures if anonymous hardware and feature statistics are shared with the FPP Development team. (FPP must have intranet access.) A value of \"Banner\" will result in a prompt being displayed on the user's screen. Setting this to \"Enabled\" or \"Disabled\" removes the banner",
-            "level": 1,
+            "level": 0,
             "reboot": 0,
             "restart": 2,
             "reloadUI": 0,
