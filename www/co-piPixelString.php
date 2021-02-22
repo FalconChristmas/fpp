@@ -224,7 +224,7 @@ function savePixelStringOutputs() {
     var postData = getPixelStringOutputJSON();
     
 	$.post("api/channel/output/co-pixelStrings", JSON.stringify(postData)).done(function(data) {
-		$.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'}));
+		$.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'});
 		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Pixel String Outputs", "Save Failed");
