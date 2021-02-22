@@ -2446,8 +2446,8 @@ template {
 .container-xxxl,
 .container-xxxxl {
   width: 100%;
-  padding-right: 1.775rem;
-  padding-left: 1.775rem;
+  padding-right: 1rem;
+  padding-left: 1rem;
   margin-right: auto;
   margin-left: auto; }
 
@@ -2482,8 +2482,8 @@ template {
 .row {
   display: flex;
   flex-wrap: wrap;
-  margin-right: -1.775rem;
-  margin-left: -1.775rem; }
+  margin-right: -1rem;
+  margin-left: -1rem; }
 
 .no-gutters {
   margin-right: 0;
@@ -2504,8 +2504,8 @@ template {
 .col-xxxxl-auto {
   position: relative;
   width: 100%;
-  padding-right: 1.775rem;
-  padding-left: 1.775rem; }
+  padding-right: 1rem;
+  padding-left: 1rem; }
 
 .col {
   flex-basis: 0;
@@ -5752,22 +5752,22 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   border-bottom-left-radius: calc(0.25rem - 1px); }
 
 .card-deck .card {
-  margin-bottom: 1.775rem; }
+  margin-bottom: 1rem; }
 
 @media (min-width: 576px) {
   .card-deck {
     display: flex;
     flex-flow: row wrap;
-    margin-right: -1.775rem;
-    margin-left: -1.775rem; }
+    margin-right: -1rem;
+    margin-left: -1rem; }
     .card-deck .card {
       flex: 1 0 0%;
-      margin-right: 1.775rem;
+      margin-right: 1rem;
       margin-bottom: 0;
-      margin-left: 1.775rem; } }
+      margin-left: 1rem; } }
 
 .card-group > .card {
-  margin-bottom: 1.775rem; }
+  margin-bottom: 1rem; }
 
 @media (min-width: 576px) {
   .card-group {

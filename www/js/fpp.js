@@ -83,7 +83,7 @@ $(function() {
         }, options );
 
         this.each(function() {
-            var $buttons='';
+            var $buttons= $(this).find('.modal-footer').html('');
             var $title='';
             var self = this;
             var modalOptions ={}
@@ -106,28 +106,28 @@ $(function() {
               if(!$(this).hasClass('has-buttons')){
                 $(this).addClass('has-buttons');
                 $buttons=$('<div class="modal-footer"/>');
-                $.each(settings.buttons,function(buttonKey,buttonProps){
-                  var buttonText=buttonKey;
-                  var handleClick = buttonProps;
-                  var buttonClass = 'buttons';
-                  if(typeof buttonProps ==='object'){
-                    if(buttonProps.click){
-                      handleClick=buttonProps.click;
-                    }
-                    if(buttonProps.text){
-                      buttonText=buttonProps.text;
-                    }
-                    if(buttonProps.class){
-                        buttonClass+=' '+buttonProps.class
-                    }
-                  }
-                  $newButton=$('<button class="'+buttonClass+'">'+buttonText+'</button>');
-                  $newButton.on('click',function(){
-                    handleClick.call(self);
-                  })
-                  $buttons.append($newButton);
-                });
               }
+              $.each(settings.buttons,function(buttonKey,buttonProps){
+                var buttonText=buttonKey;
+                var handleClick = buttonProps;
+                var buttonClass = 'buttons';
+                if(typeof buttonProps ==='object'){
+                  if(buttonProps.click){
+                    handleClick=buttonProps.click;
+                  }
+                  if(buttonProps.text){
+                    buttonText=buttonProps.text;
+                  }
+                  if(buttonProps.class){
+                      buttonClass+=' '+buttonProps.class
+                  }
+                }
+                $newButton=$('<button class="'+buttonClass+'">'+buttonText+'</button>');
+                $newButton.on('click',function(){
+                  handleClick.call(self);
+                })
+                $buttons.append($newButton);
+              });
             }
 
             if(!$(this).hasClass('modal')){
@@ -646,10 +646,18 @@ function HidePlaylistDetails() {
 	$('#btnHidePlaylistDetails').hide();
 }
 
-function PopulateLists() {
+function PopulateLists(options) {
+    var onPlaylistArrayLoaded=function(){}
+    if(options){
+        if(typeof options.onPlaylistArrayLoaded==='function'){
+            onPlaylistArrayLoaded=options.onPlaylistArrayLoaded;
+        }
+    }
     DisableButtonClass('playlistEditButton');
 	PlaylistTypeChanged();
-    PopulatePlaylists(false);
+    PopulatePlaylists(false,{
+        onPlaylistArrayLoaded:onPlaylistArrayLoaded
+    });
 }
 
 function PlaylistEntryTypeToString(type)
@@ -1187,7 +1195,7 @@ function LoadPlaylistDetails(name) {
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
         VerbosePlaylistItemDetailsToggled();
-        $("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
+        //$("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
     }).fail(function() {
         DialogError('Error loading playlist', 'Error loading playlist details!');
     });
@@ -1230,6 +1238,7 @@ function EditPlaylist() {
     DisableButtonClass('playlistDetailsEditButton');
 
     LoadPlaylistDetails(name);
+    $('#playlistEditor').addClass('hasPlaylistDetailsLoaded');
 }
 
 function EnableButtonClass(c) {
@@ -1569,7 +1578,15 @@ function GetPlaylistEntry(row) {
 
     return e;
 }
+function AddPlaylist(filter, callback) {
+    var name = $('#txtAddPlaylistName').val();
+    if (name == "") {
+        alert("Playlist name cannot be empty");
+        return;
+    }
 
+    return SavePlaylistAs(name, filter, callback);
+}
 function SavePlaylist(filter, callback) {
     var name = $('#txtPlaylistName').val();
     if (name == "") {
@@ -1587,7 +1604,7 @@ function SetPlaylistName(name) {
     }
 }
 
-function SavePlaylistAs(name, filter, callback) {
+function SavePlaylistAs(name, options, callback) {
     if (!PlaylistNameOK(name))
         return 0;
 
@@ -1599,6 +1616,10 @@ function SavePlaylistAs(name, filter, callback) {
     pl.loopCount = 0; // currently unused by player
     pl.desc = $('#txtPlaylistDesc').val();
     pl.random = parseInt($('#randomizePlaylist').val());
+    if(typeof options === 'Object'){
+        $.extend(pl,options)
+    }
+    
 
     var leadIn = [];
     $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
@@ -1652,6 +1673,9 @@ function SavePlaylistAs(name, filter, callback) {
                 EditPlaylistEntry();
 
             $.jGrowl("Playlist Saved",{themeState:'success'});
+            if(typeof callback==='function'){
+                callback();
+            }
         },
         error: function() {
             DialogError('Unable to save playlist', "Error: Unable to save playlist.");
@@ -1847,7 +1871,7 @@ function EditPlaylistEntry() {
         return;
     }
 
-    $("#playlistEntryProperties").get(0).scrollIntoView();
+    //$("#playlistEntryProperties").get(0).scrollIntoView();
 
     var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
     var type = $(row).find('.entryType').html();
@@ -2697,7 +2721,7 @@ function postUniverseJSON(input) {
 
 
 var playListArray = [];
-function GetPlaylistArray()
+function GetPlaylistArray(callback)
 {
     $.ajax({
         dataType: "json",
@@ -2705,6 +2729,9 @@ function GetPlaylistArray()
         async: false,
         success: function(data) {
             playListArray = data;
+            if(typeof callback === 'function'){
+                callback();
+            }
         },
         error: function() {
             DialogError('Load Playlists', 'Error loading list of playlists');
@@ -3647,10 +3674,16 @@ function ControlFPPD() {
 
 }
 
-function PopulatePlaylists(sequencesAlso)
+function PopulatePlaylists(sequencesAlso,options)
 {
     var playlistOptionsText="";
-    GetPlaylistArray();
+    var onPlaylistArrayLoaded=function(){}
+    if(options){
+        if(typeof options.onPlaylistArrayLoaded==='function'){
+            onPlaylistArrayLoaded=options.onPlaylistArrayLoaded;
+        }
+    }
+    GetPlaylistArray(onPlaylistArrayLoaded);
 
     if (sequencesAlso)
         playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";

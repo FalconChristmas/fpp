@@ -84,6 +84,19 @@ function playlistEditorDocReady() {
     $('.playlistEntriesBody').on('click','.playlistRowEditButton',function() {
         selectPlaylistEntryRow($(this).closest('tr'));
         EditPlaylistEntry();
+        $('#playlistEntryProperties').fppDialog({
+            title:'Edit Entry',
+            buttons:{
+                "Save":{
+                    click: function(){
+                        AddPlaylistEntry(1);
+                        $('#playlistEntryProperties').fppDialog('close');
+                        //CreateNewPlaylist();
+                    },
+                    class:'btn-success'
+                }
+            }
+        });
     });
 
 	$('#txtNewPlaylistName').on('focus',function() {
@@ -201,7 +214,7 @@ $(document).ready(function() {
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
     <div class="playlistEditContainer">
-        <div class="playlistEditForm">
+        <div class="playlistEditForm hidden">
             <div class="playlistEdit">
                 <div class="form-group">
                     <label for="txtPlaylistName">Playlist Name:</label>
@@ -235,10 +248,6 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                         </div>
                     </div>
                 </div>
-
-
-            
-            
             </div>
 
             <!-- <div style="float:left;" class="playlistInfoText">
@@ -266,14 +275,13 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
         </div>
 
 
-    <div id="playlistEntryProperties" class="backdrop-dark">
+    <div id="playlistEntryProperties" class="hidden" >
         <table border='0'>
             <colgroup>
                 <col class='colPlaylistEditorLabel'></col>
                 <col class='colPlaylistEditorData'></col>
             </colgroup>
             <tbody>
-                <tr><td colspan='2'><b>Edit Playlist Entry</b></td></tr>
                 <tr><td>Type:</td>
                     <td><select id="pe_type" size="1" onchange="PlaylistTypeChanged();">
 <?
@@ -296,7 +304,7 @@ foreach ($playlistEntryTypes as $pet) {
             <tbody id='playlistEntryCommandOptions'>
             </tbody>
         </table>
-        <div class="form-actions">
+        <!-- <div class="form-actions">
             <button onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" value="Add">Add</button>
             <button onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" value="Replace">Replace</button>
             <button onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" value="Remove">Remove</button>
@@ -313,13 +321,24 @@ foreach ($playlistEntryTypes as $pet) {
             </div>
 
             
-        </div>
+        </div> -->
         <div>
              <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
             </div>
     </div>
 </div>
 <div class="playlistEditEntriesContainer">
+<div class="form-actions playlistEditEntriesActions">
+
+    <button class="buttons btn-success savePlaylistBtn" >
+        Save Playlist
+    </button>
+    <button class="buttons btn-outline-success playlistEntriesAddNewBtn ml-auto" >
+        Add a Sequence/Entry
+    </button>
+</div>
+
+
 <?
 include "playlistDetails.php";
 ?>

@@ -1391,9 +1391,7 @@ body .sm-clean a .sub-arrow {
 .playlistEditorPanel {
 	margin-top: 2em;
 }
-.playlistEditContainer{
-	display: flex;
-}
+
 .playlistEditContainer #playlistEntryProperties td{
 	padding-top: 0.2em;
 	padding-bottom: 0.2em;
@@ -1417,10 +1415,26 @@ body .sm-clean a .sub-arrow {
 .playlistEdit{
 
 }
-.playlistEditContainer{
-    border-bottom: 1px solid #dee2e6;
-    padding-bottom:2em;
-    margin-bottom: 2em;
+.playlistSelectHeader{
+	display: flex;
+	border-bottom:1px solid #ced4da;
+	padding-bottom: 1em;
+	margin-bottom: 2em;
+	align-items: center;
+}
+.hasPlaylistDetailsLoaded .playlistSelectContainer{
+	display: none;
+
+}
+.playlistEditorContainer{
+	display: none;
+}
+.hasPlaylistDetailsLoaded .playlistEditorContainer{
+	display: block;
+}
+.playlistCard{
+	padding: 2em;
+	
 }
 
 .tablesorter thead td,.tablesorter thead th{
