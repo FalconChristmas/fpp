@@ -48,7 +48,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
             <div class='form-actions'><input type='button' class='buttons' value='Skip Setup' onClick='skipSetup();'></div>
 <?
 
-$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
+$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'><input type='button'  class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'></div>";
 PrintSettingGroup('initialSetup', $extraData, '', 1, '', 'initialSetupChanged');
 ?>
         </div>
