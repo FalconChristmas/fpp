@@ -118,33 +118,6 @@ function PopulateInterfaces()
   }
 }
 
-function printTetheringSelect() {
-    $tetherValues = array();
-    $tetherValues["If no connection"] = 0;
-    $tetherValues["Enabled"] = 1;
-    $tetherValues["Disabled"] = 2;
-    PrintSettingSelect("Enable Tethering", "EnableTethering", 0, 1, "0", $tetherValues);
-}
-function printTetheringTechnology() {
-    $tetherValues = array();
-    $tetherValues["Hostapd"] = 0;
-    $tetherValues["ConnMan"] = 1;
-    PrintSettingSelect("Tether Technology", "TetherTechnology", 0, 1, "0", $tetherValues);
-}
-function printTetheringInterfaces() {
-    $tinterfacesRaw = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep wlan | colrm 6")));
-    $tingerfaces = Array();
-    foreach ($tinterfacesRaw as $iface) {
-        $tinterfaces[$iface] = $iface;
-        echo "<!-- $iface -->\n";
-    }
-    $tiface = ReadSettingFromFile("TetherInterface");
-    if (!isset($tiface) || $tiface == "") {
-        $tiface = "wlan0";
-    }
-    PrintSettingSelect("Tether Interface", "TetherInterface", 0, 1, $tiface, $tinterfaces);
-}
-    
 ?>
 <script>
 
@@ -748,31 +721,10 @@ PrintSettingGroup('host');
 
     </div>
     <div class="tab-pane fade" id="tab-tethering" role="tabpanel" aria-labelledby="tab-tethering-tab">
-   
-              <h2>Tethering</h2>
-                  <table width = "100%" border="0" cellpadding="1" cellspacing="1">
-                  <tr>
-                      <td width = "25%">Tethering Mode:</td>
-                      <td width = "75%"><? printTetheringSelect(); ?></td>
-                  </tr>
-                  <tr>
-                      <td width = "25%">Tethering Interface:</td>
-                      <td width = "75%"><? printTetheringInterfaces(); ?></td>
-                  </tr>
-                  <tr>
-                      <td width = "25%">Tethering Technology:</td>
-                      <td width = "75%"><? printTetheringTechnology(); ?></td>
-                  </tr>
-                  <tr>
-                      <td width = "25%">Tethering SSID:</td>
-                      <td width = "75%"><? PrintSettingTextSaved("TetherSSID", 0, 1, 32, 32, "", "FPP"); ?></td>
-                  </tr>
-                  <tr>
-                      <td>Tethering Pre Shared key (PSK):</td>
-                      <td><? PrintSettingPasswordSaved("TetherPSK", 0, 1, 32, 32, "", "Christmas"); ?></td>
-                  </tr>
-                  </tr>
-                  </table>
+
+<?
+PrintSettingGroup('tethering');
+?>
                       <br>
                       <div class="callout callout-warning">
                       <h4>Warning:</h4> Turning on tethering may make FPP unavailable.   The WIFI adapter will be used for

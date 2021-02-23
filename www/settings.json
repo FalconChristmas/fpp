@@ -149,6 +149,16 @@
                 "statsPublish"
             ]
         },
+        "tethering": {
+            "description": "Tethering",
+            "settings": [
+                "EnableTethering",
+                "TetherInterface",
+                "TetherTechnology",
+                "TetherSSID",
+                "TetherPSK"
+            ]
+        },
         "time": {
             "description": "Time Config",
             "settings": [
@@ -554,6 +564,19 @@
             "type": "text",
             "size": 30,
             "maxlength": 64
+        },
+        "EnableTethering": {
+            "name": "EnableTethering",
+            "description": "Tethering Mode",
+            "tip": "Enable or disable FPP WiFi tethering mode",
+            "reboot": 1,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "If no connection": 0,
+                "Enabled": 1,
+                "Disabled": 2
+            }
         },
         "fppMode": {
             "name": "fppMode",
@@ -1437,6 +1460,46 @@
             "options": {
                 "Celsius": 0,
                 "Fahrenheit": 1
+            }
+        },
+        "TetherInterface": {
+            "name": "TetherInterface",
+            "description": "Tethering Interface",
+            "tip": "WiFi interface to use for tethering.",
+            "reboot": 1,
+            "type": "select",
+            "optionsCommand": "/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep wlan | colrm 6"
+        },
+        "TetherPSK": {
+            "name": "TetherPSK",
+            "description": "Tethering Pre Shared Key (PSK)",
+            "tip": "Pre Shared Key to use to connect to FPP WiFi tethering.",
+            "type": "password",
+            "reboot": 1,
+            "size": 32,
+            "maxlength": 32,
+            "default": "Christmas"
+        },
+        "TetherSSID": {
+            "name": "TetherSSID",
+            "description": "Tethering SSID",
+            "tip": "SSID to use for FPP WiFi tethering.",
+            "type": "text",
+            "reboot": 1,
+            "size": 32,
+            "maxlength": 32,
+            "default": "FPP"
+        },
+        "TetherTechnology": {
+            "name": "TetherTechnology",
+            "description": "Tethering Technology",
+            "tip": "FPP WiFi tethering technology to use.",
+            "reboot": 1,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "Hostapd": 0,
+                "ConnMan": 1
             }
         },
         "uiLevel": {
