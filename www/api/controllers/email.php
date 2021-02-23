@@ -3,10 +3,9 @@ require_once '../common.php';
 
 /////////////////////////////////////////////////////////////////////////////
 function ConfigureEmail() {
-    global $settings;
     $result = Array();
 
-    SaveEmailConfig($settings['emailguser'], $settings['emailgpass'], $settings['emailfromtext'], $settings['emailtoemail']);
+    ApplyEmailConfig();
 
     $result['Status'] = 'OK';
     $result['Message'] = '';

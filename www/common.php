@@ -42,7 +42,7 @@ function getFileList($dir, $ext)
 }
 
 
-function ScrubFile($filename, $taboo = Array("emailgpass"))
+function ScrubFile($filename, $taboo = Array("emailpass", "emailgpass", "MQTTPassword", "password", "passwordVerify"))
 {
 	if ( !file_exists($filename) )
 		return "";
@@ -346,6 +346,8 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
                 $default = isset($s['default']) ? $s['default'] : "";
 
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', "password", $s);
+
+                echo "<i class='fas fa-eye' id='$setting" . "HideShow' onClick='TogglePasswordHideShow(\"" . $setting . "\");'></i>";
                 break;
             case 'number':
                 $min = isset($s['min']) ? $s['min'] : 0;
@@ -1522,31 +1524,111 @@ function ReplaceIllegalCharacters($input_string)
 
 /**
  * Generates appropriate files and settings for exim4
- * @param $emailguser String Gmail Username
- * @param $emailgpass String Gmail Password
- * @param $emailfromtext String Mail From address (eg. fpp01@example.com)
- * @param $emailtoemail String Destination email address
  */
-function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail){
+function ApplyEmailConfig() {
     global $exim4Directory;
+    global $settings;
+
+    if (isset($settings['HostName']))
+        $hostname = $settings['HostName'];
+    else
+        $hostname = 'FPP';
+
+    if (isset($settings['emailserver']))
+        $emailserver = $settings['emailserver'];
+    else
+        $emailserver = 'smtp.gmail.com';
+
+    if (isset($settings['emailport']))
+        $emailport = $settings['emailport'];
+    else
+        $emailport = 587;
+
+    if (isset($settings['emailuser']))
+        $emailuser = $settings['emailuser'];
+    else
+        $emailuser = '';
+
+    if (isset($settings['emailpass']))
+        $emailpass = $settings['emailpass'];
+    else
+        $emailpass = '';
+
+    if (isset($settings['emailfromuser']))
+        $emailfromuser = $settings['emailfromuser'];
+    else
+        $emailfromuser = $emailuser;
+
+    if (isset($settings['emailfromtext']))
+        $emailfromtext = $settings['emailfromtext'];
+    else
+        $emailfromtext = 'FPP - ' . $hostname;
+
+    if (isset($settings['emailtoemail']))
+        $emailtoemail = $settings['emailtoemail'];
+    else
+        $emailtoemail = '';
+
+    if (($emailuser == '') ||
+        ($emailpass == '') ||
+        ($emailtoemail == ''))
+        return;
+
+    $exim4Conf = sprintf(
+        "dc_eximconfig_configtype='smarthost'\n" .
+            "dc_other_hostnames='%s'\n" .
+            "dc_local_interfaces='127.0.0.1'\n" .
+            "dc_readhost=''\n" .
+            "dc_relay_domains=''\n" .
+            "dc_minimaldns='false'\n" .
+            "dc_relay_nets=''\n" .
+            "dc_smarthost='%s::%d'\n" .
+            "CFILEMODE='644'\n" .
+            "dc_use_split_config='true'\n" .
+            "dc_hide_mailname='false'\n" .
+            "dc_mailname_in_oh='true'\n" .
+            "dc_localdelivery='mail_spool'\n",
+        $hostname, $emailserver, $emailport);
+
+    $fp = fopen($exim4Directory . '/update-exim4.conf.conf', 'w');
+    fwrite($fp, $exim4Conf);
+    fclose($fp);
 
     $fp = fopen($exim4Directory . '/passwd.client', 'w');
     fwrite($fp, "# password file used when the local exim is authenticating to a remote host as a client.\n");
     fwrite($fp, "#\n");
-    fwrite($fp, "*.google.com:" . $emailguser . ":" . $emailgpass . "\n");
-    fwrite($fp, "smtp.gmail.com:" . $emailguser . ":" . $emailgpass . "\n");
+    fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
     fclose($fp);
+
+    $fp = fopen($exim4Directory . '/aliases', 'w');
+    fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: fpp\n");
+    fwrite($fp, "pi: " . $emailtoemail . "\n");
+    fwrite($fp, "fpp: " . $emailtoemail . "\n");
+    fclose($fp);
+
+    $fp = fopen($exim4Directory . '/email-addresses', 'w');
+    fwrite($fp, "fpp: " . $emailfromuser . "\n");
+    fwrite($fp, "root: " . $emailfromuser . "\n");
+    fclose($fp);
+
+    # copy our conf files into place
+    exec("sudo cp " . $exim4Directory . "/update-exim4.conf.conf /etc/exim4/");
     exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
+    exec("sudo cp " . $exim4Directory . "/aliases /etc/");
+    exec("sudo cp " . $exim4Directory . "/email-addresses /etc/");
+
+    # update exim4 config using our generated conf files
     exec("sudo update-exim4.conf");
-    exec ("sudo /etc/init.d/exim4 restart");
-    exec ("sudo systemctl restart exim4.service");
+
+    # set the fpp user GECOS field
     $cmd="sudo chfn -f \"" . $emailfromtext . "\" fpp";
     exec($cmd);
-    $fp = fopen($exim4Directory . '/aliases', 'w');
-    fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
-    fwrite($fp, "pi: " . $emailtoemail . "\n");
-    fclose($fp);
-    exec("sudo cp " . $exim4Directory . "/aliases /etc/");
+
+    if (file_exists("/.dockerenv")) {
+        exec("sudo /etc/init.d/exim4 restart");
+    } else {
+        exec("sudo systemctl restart exim4.service");
+    }
 }
 
 

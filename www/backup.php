@@ -861,7 +861,14 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
                         if ($uploadDataProtected == false && $emailgpass != "") {
                             WriteSettingToFile('emailgpass', $emailgpass);
                             //Update the email config (writes out exim config)
-                            SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+                            $settings['emailserver'] = $restore_data['emailserver'];
+                            $settings['emailport'] = $restore_data['emailport'];
+                            $settings['emailuser'] = $restore_data['emailuser'];
+                            $settings['emailpass'] = $restore_data['emailpass'];
+                            $settings['emailfromuser'] = $restore_data['emailfromuser'];
+                            $settings['emailfromtext'] = $restore_data['emailfromtext'];
+                            $settings['emailtoemail'] = $restore_data['emailtoemail'];
+                            ApplyEmailConfig();
                             $save_result = true;
                         }
                         $save_result = true;

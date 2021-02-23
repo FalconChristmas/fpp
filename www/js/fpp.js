@@ -287,6 +287,27 @@ function versionToNumber(version)
     return number;
 }
 
+function TogglePasswordHideShow(setting) {
+    if (setting.indexOf('Verify') > 0)
+        setting = setting.replace(/Verify$/, '');
+
+    if ($('#' + setting).attr('type') == 'text') {
+        $('#' + setting).attr('type', 'password');
+        $('#' + setting + 'Verify').attr('type', 'password');
+        $('#' + setting + 'HideShow').removeClass('fa-eye-slash');
+        $('#' + setting + 'VerifyHideShow').removeClass('fa-eye-slash');
+        $('#' + setting + 'HideShow').addClass('fa-eye');
+        $('#' + setting + 'VerifyHideShow').addClass('fa-eye');
+    } else {
+        $('#' + setting).attr('type', 'text');
+        $('#' + setting + 'Verify').attr('type', 'text');
+        $('#' + setting + 'HideShow').removeClass('fa-eye');
+        $('#' + setting + 'VerifyHideShow').removeClass('fa-eye');
+        $('#' + setting + 'HideShow').addClass('fa-eye-slash');
+        $('#' + setting + 'VerifyHideShow').addClass('fa-eye-slash');
+    }
+}
+
 function RegexCheckData(regexStr, value, desc, hideValue = false) {
     var regex = new RegExp(regexStr);
 
@@ -1679,6 +1700,15 @@ function RandomizePlaylistEntries() {
     RenumberPlaylistEditorEntries();
 
 //    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
+}
+
+function GetTimeZone() {
+    $.get('https://ipapi.co/json/'
+    ).done(function(data) {
+        $('#TimeZone').val(data.timezone).change();
+    }).fail(function() {
+        DialogError("Time Zone Lookup", "Time Zone lookup failed.");
+    });
 }
 
 function GetGeoLocation() {
@@ -5681,7 +5711,7 @@ function PreviewStatistics() {
         $(dialogHTML).appendTo('body');
     }
 
-    $('#statsPreviewDiv').html('');
+    $('#statsPreviewDiv').html('Loading...');
     $('#statsPreviewPopup').dialog({
         height: 600,
         width: 900,
@@ -5690,5 +5720,4 @@ function PreviewStatistics() {
     });
     $('#statsPreviewPopup').dialog( "moveToTop" );
     $('#statsPreviewDiv').load('api/statistics/usage');
-
 }
