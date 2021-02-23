@@ -8,6 +8,7 @@ Before=rc-local.service
 [Service]
 Type=oneshot
 ExecStart=/opt/fpp/scripts/fpp_boot
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
