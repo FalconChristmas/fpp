@@ -100,20 +100,37 @@ function AddScheduleEntry(data = {}) {
     }
 
     if ((data.playlist != '') || (data.type == 'playlist')) {
-        // Run a Playlist
-        row.find('.schOptionsPlaylist').show();
+        // Playlist or .fseq Sequence
         row.find('.schOptionsCommand').hide();
-        row.find('.schPlaylist').val(data.playlist);
-        row.find('.schType').val('playlist');
 
-        row.find('.schPlaylist').tooltip({
-            content: function() {
-                return $(this).val();
-            }
-        });
+        if (data.hasOwnProperty('sequence') && data.sequence == 1) {
+            row.find('.schOptionsPlaylist').hide();
+            row.find('.schOptionsSequence').show();
+            row.find('.schSequence').val(data.playlist);
+            row.find('.schType').val('sequence');
+
+            row.find('.schSequence').tooltip({
+                content: function() {
+                    return $(this).val().replace(/.fseq$/,'');
+                }
+            });
+        } else {
+            row.find('.schOptionsSequence').hide();
+            row.find('.schOptionsPlaylist').show();
+            row.find('.schPlaylist').val(data.playlist);
+            row.find('.schType').val('playlist');
+
+            row.find('.schPlaylist').tooltip({
+                content: function() {
+                    return $(this).val();
+                }
+            });
+        }
+
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
+        row.find('.schOptionsSequence').hide();
         row.find('.schOptionsCommand').show();
         row.find('.schType').val('command');
 
@@ -163,6 +180,14 @@ function getSchedule()
             options +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
         }
         $('.fppTableRowTemplate').find('.schPlaylist').html(options);
+
+        GetSequenceArray();
+        options = "";
+        for(j = 0; j < sequenceArray.length; j++)
+        {
+            options +=  "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + "</option>";
+        }
+        $('.fppTableRowTemplate').find('.schSequence').html(options);
 
         for (var i = 0; i < data.length; i++) {
             AddScheduleEntry(data[i]);
@@ -285,12 +310,19 @@ function ScheduleEntryTypeChanged(item)
     var row = $(item).parent().parent();
 
     if ($(item).val() == 'playlist') {
-        // Run a Playlist
-        row.find('.schOptionsPlaylist').show();
+        // Playlist
         row.find('.schOptionsCommand').hide();
+        row.find('.schOptionsSequence').hide();
+        row.find('.schOptionsPlaylist').show();
+    } else if ($(item).val() == 'sequence') {
+        // Sequence
+        row.find('.schOptionsCommand').hide();
+        row.find('.schOptionsPlaylist').hide();
+        row.find('.schOptionsSequence').show();
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
+        row.find('.schOptionsSequence').hide();
         row.find('.schOptionsCommand').show();
 
         if (row.find('.cmdTmplArgs').val() == '')
@@ -360,7 +392,15 @@ function GetScheduleEntryRowData(item) {
     var schType = $(item).find('.schType').val();
     e = {};
     e.enabled = $(item).find('.schEnable').is(':checked') ? 1 : 0;
-    e.playlist = $(item).find('.schPlaylist').val();
+    e.sequence = 0;
+
+    if (schType == 'playlist') {
+        e.playlist = $(item).find('.schPlaylist').val();
+    } else if (schType == 'sequence') {
+        e.playlist = $(item).find('.schSequence').val();
+        e.sequence = 1;
+    }
+
     e.day = parseInt($(item).find('.schDay').val());
     e.startTime = $(item).find('.schStartTime').val();
     e.startTimeOffset = parseInt($(item).find('.schStartTimeOffset').val());
@@ -615,18 +655,23 @@ tr.rowScheduleDetails select.selPlaylist option {
 <span class='offset startOffset'><br>+<input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                             <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
                                 <option value='playlist'>Playlist</option>
+                                <option value='sequence'>Sequence</option>
                                 <option value='command'>Command</option>
                                  </select>
                             </td>
-                        <!-- start 'Playlist' options -->
+                        <!-- start Playlist and Sequence options -->
                              <td class='schOptionsPlaylist'>
                                  <select class='schPlaylist' title=''>
                                 </select>
                             </td>
-                            <td class='schOptionsPlaylist'><input class='time center schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
+                             <td class='schOptionsSequence'>
+                                 <select class='schSequence' title=''>
+                                </select>
+                            </td>
+                            <td class='schOptionsPlaylist schOptionsSequence'><input class='time center schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
                                 <span class='offset endOffset'><br>+<input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span>
                             </td>
-                            <td class='schOptionsPlaylist' class='center' >
+                            <td class='schOptionsPlaylist schOptionsSequence' class='center' >
                                 <select class='schRepeat'>
                                     <option value='0'>None</option>
                                     <option value='1'>Immediate</option>
@@ -638,7 +683,7 @@ tr.rowScheduleDetails select.selPlaylist option {
                                     <option value='6000'>60 Min.</option>
                                 </select>
                             </td>
-                            <td class='schOptionsPlaylist' class='center' >
+                            <td class='schOptionsPlaylist schOptionsSequence' class='center' >
                                 <select class='schStopType'>
                                     <option value='0'>Graceful</option>
                                     <option value='2'>Graceful Loop</option>
