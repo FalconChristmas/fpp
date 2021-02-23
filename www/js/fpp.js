@@ -84,7 +84,6 @@ $(function() {
         }, options );
 
         this.each(function() {
-            console.log(this)
             var $buttons= $(this).find('.modal-footer').html('');
             var $title='';
             var self = this;
@@ -1223,6 +1222,7 @@ function PlaylistNameOK(name) {
 function LoadPlaylistDetails(name) {
     $.get('api/playlist/' + name
     ).done(function(data) {
+        console.log('in LoadPlaylistDetails')
         PopulatePlaylistDetails(data, 1, name);
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
@@ -1647,11 +1647,11 @@ function SavePlaylistAs(name, options, callback) {
     pl.repeat = 0;    // currently unused by player
     pl.loopCount = 0; // currently unused by player
     pl.desc = $('#txtPlaylistDesc').val();
-    pl.random = parseInt($('#randomizePlaylist').val());
+    pl.random = parseInt($('#randomizePlaylist').prop('value'));
     if(typeof options === 'Object'){
         $.extend(pl,options)
     }
-    
+    console.log('saving playlist :'+$('#randomizePlaylist').prop('value'));
 
     var leadIn = [];
     $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
@@ -4031,7 +4031,7 @@ function PopulatePlaylistDetails(data, editMode, name = "")
 {
     var innerHTML = "";
     var entries = 0;
-
+    console.log('in PopulatePlaylistDetails')
     data = UpgradePlaylist(data, editMode);
 
     if (!editMode)
@@ -4086,7 +4086,7 @@ function PopulatePlaylistDetails(data, editMode, name = "")
     } else {
         SetPlaylistName(name);
     }
-
+    console.log('loading playlist random details: '+data.random)
     if (editMode) {
         if (typeof data.random === "undefined") {
             $('#randomizePlaylist').val(0);

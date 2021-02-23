@@ -38,12 +38,14 @@ if (isset($_GET['playlist'])) {
                         click: function(){
                             SavePlaylistAs(
                                 $("#txtAddPlaylistName").val(),
-                                {desc:$("#txtAddPlaylistDesc").val()},
+                                {
+                                    desc:$("#txtAddPlaylistDesc").val(),
+                                    random:$("#randomizeAddPlaylist").val(),
+                                },
                                 function(){
                                     onPlaylistArrayLoaded();
                                     $('#playlistSelect').val($("#txtAddPlaylistName").val()).trigger('change');
                                     //LoadPlaylistDetails($("#txtAddPlaylistName").val())
-                                    
                                     $('.playlistAdd').fppDialog('close');
                                 }
                             )
@@ -56,8 +58,17 @@ if (isset($_GET['playlist'])) {
         });
         $('.editPlaylistBtn').click(function(){
             $('.playlistEdit').fppDialog({
-                title:'Edit Playlist',
-                footer:$('.playlistEdit').find('.modal-actions')
+                title:'Edit Playlist Details',
+                buttons: {
+                    Save: {
+                        click:function(){
+                            SavePlaylist('', function(){
+                                $('.playlistEdit').fppDialog('close');
+                            });
+                        },
+                        class:'btn-success'
+                    }
+                }
             });
         })
         $('.playlistEditorHeaderTitleEditButton').click(function(){
@@ -220,8 +231,8 @@ include 'menu.inc';
                     <input type="text" id="txtAddPlaylistDesc" class="pl_description form-control" />
                 </div>
                 <div class="form-group flow">
-                    <label for="randomizePlaylist">Randomize:</label>
-                    <select id='randomizePlaylist' class="form-control">
+                    <label for="randomizeAddPlaylist">Randomize:</label>
+                    <select id='randomizeAddPlaylist' class="form-control">
                         <option value='0'>Off</option>
                         <option value='1'>Once per load</option>
                         <option value='2'>Every iteration</option>
@@ -230,7 +241,7 @@ include 'menu.inc';
 
             </div>
             <div class="playlistEdit hidden">
-                <div class="form-group">
+                <div class="form-group hidden">
                     <label for="txtPlaylistName">Playlist Name:</label>
                     <input type="text" id="txtPlaylistName" class="pl_title form-control" />
                 </div>
@@ -246,9 +257,7 @@ include 'menu.inc';
                         <option value='2'>Every iteration</option>
                     </select>
                 </div>
-                <div class="modal-actions">
-                    <button value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons btn-success playlistEditButton">Save</button>
-                </div>
+    
             </div>
 
         </div>
