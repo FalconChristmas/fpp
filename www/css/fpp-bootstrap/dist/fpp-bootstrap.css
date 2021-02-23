@@ -3872,7 +3872,7 @@ textarea.form-control {
     .form-inline .custom-control-label {
       margin-bottom: 0; } }
 
-.btn, .ajax-file-upload, .buttons, .ui-dialog-buttonset button, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons {
+.btn, .buttons, .ui-dialog-buttonset button, .ajax-file-upload, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons {
   display: inline-block;
   font-weight: bold;
   color: #171720;
@@ -3891,23 +3891,23 @@ textarea.form-control {
   border-radius: 0.25rem;
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .btn, .ajax-file-upload, .buttons, .ui-dialog-buttonset button, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons {
+    .btn, .buttons, .ui-dialog-buttonset button, .ajax-file-upload, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons {
       transition: none; } }
-  .btn:hover, .ajax-file-upload:hover, .buttons:hover, .ui-dialog-buttonset button:hover, .pageContent .disableButtons:hover, .ui-dialog .disableButtons:hover, .modal .disableButtons:hover {
+  .btn:hover, .buttons:hover, .ui-dialog-buttonset button:hover, .ajax-file-upload:hover, .pageContent .disableButtons:hover, .ui-dialog .disableButtons:hover, .modal .disableButtons:hover {
     color: #171720;
     text-decoration: none; }
-  .btn:focus, .ajax-file-upload:focus, .buttons:focus, .ui-dialog-buttonset button:focus, .pageContent .disableButtons:focus, .ui-dialog .disableButtons:focus, .modal .disableButtons:focus, .btn.focus, .focus.ajax-file-upload, .focus.buttons, .ui-dialog-buttonset button.focus, .pageContent .focus.disableButtons, .ui-dialog .focus.disableButtons, .modal .focus.disableButtons {
+  .btn:focus, .buttons:focus, .ui-dialog-buttonset button:focus, .ajax-file-upload:focus, .pageContent .disableButtons:focus, .ui-dialog .disableButtons:focus, .modal .disableButtons:focus, .btn.focus, .focus.buttons, .ui-dialog-buttonset button.focus, .focus.ajax-file-upload, .pageContent .focus.disableButtons, .ui-dialog .focus.disableButtons, .modal .focus.disableButtons {
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
-  .btn.disabled, .disabled.ajax-file-upload, .disabled.buttons, .ui-dialog-buttonset button.disabled, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons, .btn:disabled, .ajax-file-upload:disabled, .buttons:disabled, .ui-dialog-buttonset button:disabled, .pageContent .disableButtons:disabled, .ui-dialog .disableButtons:disabled, .modal .disableButtons:disabled {
+  .btn.disabled, .disabled.buttons, .ui-dialog-buttonset button.disabled, .disabled.ajax-file-upload, .pageContent .disableButtons, .ui-dialog .disableButtons, .modal .disableButtons, .btn:disabled, .buttons:disabled, .ui-dialog-buttonset button:disabled, .ajax-file-upload:disabled, .pageContent .disableButtons:disabled, .ui-dialog .disableButtons:disabled, .modal .disableButtons:disabled {
     opacity: 0.65; }
-  .btn:not(:disabled):not(.disabled), .ajax-file-upload:not(:disabled):not(.disabled), .buttons:not(:disabled):not(.disabled), .ui-dialog-buttonset button:not(:disabled):not(.disabled), .pageContent .disableButtons:not(:disabled):not(.disabled), .ui-dialog .disableButtons:not(:disabled):not(.disabled), .modal .disableButtons:not(:disabled):not(.disabled) {
+  .btn:not(:disabled):not(.disabled), .buttons:not(:disabled):not(.disabled), .ui-dialog-buttonset button:not(:disabled):not(.disabled), .ajax-file-upload:not(:disabled):not(.disabled), .pageContent .disableButtons:not(:disabled):not(.disabled), .ui-dialog .disableButtons:not(:disabled):not(.disabled), .modal .disableButtons:not(:disabled):not(.disabled) {
     cursor: pointer; }
 
-a.btn.disabled, a.disabled.ajax-file-upload, a.disabled.buttons, .pageContent a.disableButtons, .ui-dialog a.disableButtons, .modal a.disableButtons,
+a.btn.disabled, a.disabled.buttons, a.disabled.ajax-file-upload, .pageContent a.disableButtons, .ui-dialog a.disableButtons, .modal a.disableButtons,
 fieldset:disabled a.btn,
-fieldset:disabled a.ajax-file-upload,
 fieldset:disabled a.buttons,
+fieldset:disabled a.ajax-file-upload,
 fieldset:disabled .pageContent a.disableButtons,
 .pageContent fieldset:disabled a.disableButtons,
 fieldset:disabled .ui-dialog a.disableButtons,
@@ -4401,13 +4401,13 @@ fieldset:disabled .modal a.disableButtons,
     color: #6c757d;
     pointer-events: none; }
 
-.btn-lg, .btn-group-lg > .btn, .btn-group-lg > .ajax-file-upload, .btn-group-lg > .buttons, .ui-dialog-buttonset .btn-group-lg > button, .pageContent .btn-group-lg > .disableButtons, .ui-dialog .btn-group-lg > .disableButtons, .modal .btn-group-lg > .disableButtons {
+.btn-lg, .btn-group-lg > .btn, .btn-group-lg > .buttons, .ui-dialog-buttonset .btn-group-lg > button, .btn-group-lg > .ajax-file-upload, .pageContent .btn-group-lg > .disableButtons, .ui-dialog .btn-group-lg > .disableButtons, .modal .btn-group-lg > .disableButtons {
   padding: 0.5rem 1rem;
   font-size: 1.1875rem;
   line-height: 2;
   border-radius: 0.3rem; }
 
-.btn-sm, .btn-group-sm > .btn, .btn-group-sm > .ajax-file-upload, .btn-group-sm > .buttons, .ui-dialog-buttonset .btn-group-sm > button, .pageContent .btn-group-sm > .disableButtons, .ui-dialog .btn-group-sm > .disableButtons, .modal .btn-group-sm > .disableButtons {
+.btn-sm, .btn-group-sm > .btn, .btn-group-sm > .buttons, .ui-dialog-buttonset .btn-group-sm > button, .btn-group-sm > .ajax-file-upload, .pageContent .btn-group-sm > .disableButtons, .ui-dialog .btn-group-sm > .disableButtons, .modal .btn-group-sm > .disableButtons {
   padding: 0.25rem 0.5rem;
   font-size: 0.83125rem;
   line-height: 1.25;
@@ -4676,44 +4676,44 @@ input[type="button"].btn-block {
   position: relative;
   display: inline-flex;
   vertical-align: middle; }
-  .btn-group > .btn, .btn-group > .ajax-file-upload, .btn-group > .buttons, .ui-dialog-buttonset .btn-group > button, .pageContent .btn-group > .disableButtons, .ui-dialog .btn-group > .disableButtons, .modal .btn-group > .disableButtons,
+  .btn-group > .btn, .btn-group > .buttons, .ui-dialog-buttonset .btn-group > button, .btn-group > .ajax-file-upload, .pageContent .btn-group > .disableButtons, .ui-dialog .btn-group > .disableButtons, .modal .btn-group > .disableButtons,
   .btn-group-vertical > .btn,
-  .btn-group-vertical > .ajax-file-upload,
   .btn-group-vertical > .buttons,
   .ui-dialog-buttonset .btn-group-vertical > button,
+  .btn-group-vertical > .ajax-file-upload,
   .pageContent .btn-group-vertical > .disableButtons,
   .ui-dialog .btn-group-vertical > .disableButtons,
   .modal .btn-group-vertical > .disableButtons {
     position: relative;
     flex: 1 1 auto; }
-    .btn-group > .btn:hover, .btn-group > .ajax-file-upload:hover, .btn-group > .buttons:hover, .ui-dialog-buttonset .btn-group > button:hover, .pageContent .btn-group > .disableButtons:hover, .ui-dialog .btn-group > .disableButtons:hover, .modal .btn-group > .disableButtons:hover,
+    .btn-group > .btn:hover, .btn-group > .buttons:hover, .ui-dialog-buttonset .btn-group > button:hover, .btn-group > .ajax-file-upload:hover, .pageContent .btn-group > .disableButtons:hover, .ui-dialog .btn-group > .disableButtons:hover, .modal .btn-group > .disableButtons:hover,
     .btn-group-vertical > .btn:hover,
-    .btn-group-vertical > .ajax-file-upload:hover,
     .btn-group-vertical > .buttons:hover,
     .ui-dialog-buttonset .btn-group-vertical > button:hover,
+    .btn-group-vertical > .ajax-file-upload:hover,
     .pageContent .btn-group-vertical > .disableButtons:hover,
     .ui-dialog .btn-group-vertical > .disableButtons:hover,
     .modal .btn-group-vertical > .disableButtons:hover {
       z-index: 1; }
-    .btn-group > .btn:focus, .btn-group > .ajax-file-upload:focus, .btn-group > .buttons:focus, .ui-dialog-buttonset .btn-group > button:focus, .pageContent .btn-group > .disableButtons:focus, .ui-dialog .btn-group > .disableButtons:focus, .modal .btn-group > .disableButtons:focus, .btn-group > .btn:active, .btn-group > .ajax-file-upload:active, .btn-group > .buttons:active, .ui-dialog-buttonset .btn-group > button:active, .pageContent .btn-group > .disableButtons:active, .ui-dialog .btn-group > .disableButtons:active, .modal .btn-group > .disableButtons:active, .btn-group > .btn.active, .btn-group > .active.ajax-file-upload, .btn-group > .active.buttons, .ui-dialog-buttonset .btn-group > button.active, .pageContent .btn-group > .active.disableButtons, .ui-dialog .btn-group > .active.disableButtons, .modal .btn-group > .active.disableButtons,
+    .btn-group > .btn:focus, .btn-group > .buttons:focus, .ui-dialog-buttonset .btn-group > button:focus, .btn-group > .ajax-file-upload:focus, .pageContent .btn-group > .disableButtons:focus, .ui-dialog .btn-group > .disableButtons:focus, .modal .btn-group > .disableButtons:focus, .btn-group > .btn:active, .btn-group > .buttons:active, .ui-dialog-buttonset .btn-group > button:active, .btn-group > .ajax-file-upload:active, .pageContent .btn-group > .disableButtons:active, .ui-dialog .btn-group > .disableButtons:active, .modal .btn-group > .disableButtons:active, .btn-group > .btn.active, .btn-group > .active.buttons, .ui-dialog-buttonset .btn-group > button.active, .btn-group > .active.ajax-file-upload, .pageContent .btn-group > .active.disableButtons, .ui-dialog .btn-group > .active.disableButtons, .modal .btn-group > .active.disableButtons,
     .btn-group-vertical > .btn:focus,
-    .btn-group-vertical > .ajax-file-upload:focus,
     .btn-group-vertical > .buttons:focus,
     .ui-dialog-buttonset .btn-group-vertical > button:focus,
+    .btn-group-vertical > .ajax-file-upload:focus,
     .pageContent .btn-group-vertical > .disableButtons:focus,
     .ui-dialog .btn-group-vertical > .disableButtons:focus,
     .modal .btn-group-vertical > .disableButtons:focus,
     .btn-group-vertical > .btn:active,
-    .btn-group-vertical > .ajax-file-upload:active,
     .btn-group-vertical > .buttons:active,
     .ui-dialog-buttonset .btn-group-vertical > button:active,
+    .btn-group-vertical > .ajax-file-upload:active,
     .pageContent .btn-group-vertical > .disableButtons:active,
     .ui-dialog .btn-group-vertical > .disableButtons:active,
     .modal .btn-group-vertical > .disableButtons:active,
     .btn-group-vertical > .btn.active,
-    .btn-group-vertical > .active.ajax-file-upload,
     .btn-group-vertical > .active.buttons,
     .ui-dialog-buttonset .btn-group-vertical > button.active,
+    .btn-group-vertical > .active.ajax-file-upload,
     .pageContent .btn-group-vertical > .active.disableButtons,
     .ui-dialog .btn-group-vertical > .active.disableButtons,
     .modal .btn-group-vertical > .active.disableButtons {
@@ -4726,26 +4726,26 @@ input[type="button"].btn-block {
   .btn-toolbar .input-group {
     width: auto; }
 
-.btn-group > .btn:not(:first-child), .btn-group > .ajax-file-upload:not(:first-child), .btn-group > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group > button:not(:first-child), .pageContent .btn-group > .disableButtons:not(:first-child), .ui-dialog .btn-group > .disableButtons:not(:first-child), .modal .btn-group > .disableButtons:not(:first-child),
+.btn-group > .btn:not(:first-child), .btn-group > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group > button:not(:first-child), .btn-group > .ajax-file-upload:not(:first-child), .pageContent .btn-group > .disableButtons:not(:first-child), .ui-dialog .btn-group > .disableButtons:not(:first-child), .modal .btn-group > .disableButtons:not(:first-child),
 .btn-group > .btn-group:not(:first-child) {
   margin-left: -1px; }
 
-.btn-group > .btn:not(:last-child):not(.dropdown-toggle), .btn-group > .ajax-file-upload:not(:last-child):not(.dropdown-toggle), .btn-group > .buttons:not(:last-child):not(.dropdown-toggle), .ui-dialog-buttonset .btn-group > button:not(:last-child):not(.dropdown-toggle), .pageContent .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .ui-dialog .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .modal .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle),
+.btn-group > .btn:not(:last-child):not(.dropdown-toggle), .btn-group > .buttons:not(:last-child):not(.dropdown-toggle), .ui-dialog-buttonset .btn-group > button:not(:last-child):not(.dropdown-toggle), .btn-group > .ajax-file-upload:not(:last-child):not(.dropdown-toggle), .pageContent .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .ui-dialog .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle), .modal .btn-group > .disableButtons:not(:last-child):not(.dropdown-toggle),
 .btn-group > .btn-group:not(:last-child) > .btn,
-.btn-group > .btn-group:not(:last-child) > .ajax-file-upload,
 .btn-group > .btn-group:not(:last-child) > .buttons,
 .ui-dialog-buttonset .btn-group > .btn-group:not(:last-child) > button,
+.btn-group > .btn-group:not(:last-child) > .ajax-file-upload,
 .pageContent .btn-group > .btn-group:not(:last-child) > .disableButtons,
 .ui-dialog .btn-group > .btn-group:not(:last-child) > .disableButtons,
 .modal .btn-group > .btn-group:not(:last-child) > .disableButtons {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0; }
 
-.btn-group > .btn:not(:first-child), .btn-group > .ajax-file-upload:not(:first-child), .btn-group > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group > button:not(:first-child), .pageContent .btn-group > .disableButtons:not(:first-child), .ui-dialog .btn-group > .disableButtons:not(:first-child), .modal .btn-group > .disableButtons:not(:first-child),
+.btn-group > .btn:not(:first-child), .btn-group > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group > button:not(:first-child), .btn-group > .ajax-file-upload:not(:first-child), .pageContent .btn-group > .disableButtons:not(:first-child), .ui-dialog .btn-group > .disableButtons:not(:first-child), .modal .btn-group > .disableButtons:not(:first-child),
 .btn-group > .btn-group:not(:first-child) > .btn,
-.btn-group > .btn-group:not(:first-child) > .ajax-file-upload,
 .btn-group > .btn-group:not(:first-child) > .buttons,
 .ui-dialog-buttonset .btn-group > .btn-group:not(:first-child) > button,
+.btn-group > .btn-group:not(:first-child) > .ajax-file-upload,
 .pageContent .btn-group > .btn-group:not(:first-child) > .disableButtons,
 .ui-dialog .btn-group > .btn-group:not(:first-child) > .disableButtons,
 .modal .btn-group > .btn-group:not(:first-child) > .disableButtons {
@@ -4762,11 +4762,11 @@ input[type="button"].btn-block {
   .dropleft .dropdown-toggle-split::before {
     margin-right: 0; }
 
-.btn-sm + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split, .btn-group-sm > .ajax-file-upload + .dropdown-toggle-split, .btn-group-sm > .buttons + .dropdown-toggle-split, .ui-dialog-buttonset .btn-group-sm > button + .dropdown-toggle-split, .pageContent .btn-group-sm > .disableButtons + .dropdown-toggle-split, .ui-dialog .btn-group-sm > .disableButtons + .dropdown-toggle-split, .modal .btn-group-sm > .disableButtons + .dropdown-toggle-split {
+.btn-sm + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split, .btn-group-sm > .buttons + .dropdown-toggle-split, .ui-dialog-buttonset .btn-group-sm > button + .dropdown-toggle-split, .btn-group-sm > .ajax-file-upload + .dropdown-toggle-split, .pageContent .btn-group-sm > .disableButtons + .dropdown-toggle-split, .ui-dialog .btn-group-sm > .disableButtons + .dropdown-toggle-split, .modal .btn-group-sm > .disableButtons + .dropdown-toggle-split {
   padding-right: 0.375rem;
   padding-left: 0.375rem; }
 
-.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .btn-group-lg > .ajax-file-upload + .dropdown-toggle-split, .btn-group-lg > .buttons + .dropdown-toggle-split, .ui-dialog-buttonset .btn-group-lg > button + .dropdown-toggle-split, .pageContent .btn-group-lg > .disableButtons + .dropdown-toggle-split, .ui-dialog .btn-group-lg > .disableButtons + .dropdown-toggle-split, .modal .btn-group-lg > .disableButtons + .dropdown-toggle-split {
+.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .btn-group-lg > .buttons + .dropdown-toggle-split, .ui-dialog-buttonset .btn-group-lg > button + .dropdown-toggle-split, .btn-group-lg > .ajax-file-upload + .dropdown-toggle-split, .pageContent .btn-group-lg > .disableButtons + .dropdown-toggle-split, .ui-dialog .btn-group-lg > .disableButtons + .dropdown-toggle-split, .modal .btn-group-lg > .disableButtons + .dropdown-toggle-split {
   padding-right: 0.75rem;
   padding-left: 0.75rem; }
 
@@ -4776,66 +4776,66 @@ input[type="button"].btn-block {
   justify-content: center; }
   
   .btn-group-vertical > .btn,
-  .btn-group-vertical > .ajax-file-upload,
   .btn-group-vertical > .buttons,
   .ui-dialog-buttonset .btn-group-vertical > button,
+  .btn-group-vertical > .ajax-file-upload,
   .pageContent .btn-group-vertical > .disableButtons,
   .ui-dialog .btn-group-vertical > .disableButtons,
   .modal .btn-group-vertical > .disableButtons,
   .btn-group-vertical > .btn-group {
     width: 100%; }
-  .btn-group-vertical > .btn:not(:first-child), .btn-group-vertical > .ajax-file-upload:not(:first-child), .btn-group-vertical > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group-vertical > button:not(:first-child), .pageContent .btn-group-vertical > .disableButtons:not(:first-child), .ui-dialog .btn-group-vertical > .disableButtons:not(:first-child), .modal .btn-group-vertical > .disableButtons:not(:first-child),
+  .btn-group-vertical > .btn:not(:first-child), .btn-group-vertical > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group-vertical > button:not(:first-child), .btn-group-vertical > .ajax-file-upload:not(:first-child), .pageContent .btn-group-vertical > .disableButtons:not(:first-child), .ui-dialog .btn-group-vertical > .disableButtons:not(:first-child), .modal .btn-group-vertical > .disableButtons:not(:first-child),
   .btn-group-vertical > .btn-group:not(:first-child) {
     margin-top: -1px; }
-  .btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .ajax-file-upload:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .buttons:not(:last-child):not(.dropdown-toggle), .ui-dialog-buttonset .btn-group-vertical > button:not(:last-child):not(.dropdown-toggle), .pageContent .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .ui-dialog .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .modal .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle),
+  .btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .buttons:not(:last-child):not(.dropdown-toggle), .ui-dialog-buttonset .btn-group-vertical > button:not(:last-child):not(.dropdown-toggle), .btn-group-vertical > .ajax-file-upload:not(:last-child):not(.dropdown-toggle), .pageContent .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .ui-dialog .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle), .modal .btn-group-vertical > .disableButtons:not(:last-child):not(.dropdown-toggle),
   .btn-group-vertical > .btn-group:not(:last-child) > .btn,
-  .btn-group-vertical > .btn-group:not(:last-child) > .ajax-file-upload,
   .btn-group-vertical > .btn-group:not(:last-child) > .buttons,
   .ui-dialog-buttonset .btn-group-vertical > .btn-group:not(:last-child) > button,
+  .btn-group-vertical > .btn-group:not(:last-child) > .ajax-file-upload,
   .pageContent .btn-group-vertical > .btn-group:not(:last-child) > .disableButtons,
   .ui-dialog .btn-group-vertical > .btn-group:not(:last-child) > .disableButtons,
   .modal .btn-group-vertical > .btn-group:not(:last-child) > .disableButtons {
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0; }
-  .btn-group-vertical > .btn:not(:first-child), .btn-group-vertical > .ajax-file-upload:not(:first-child), .btn-group-vertical > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group-vertical > button:not(:first-child), .pageContent .btn-group-vertical > .disableButtons:not(:first-child), .ui-dialog .btn-group-vertical > .disableButtons:not(:first-child), .modal .btn-group-vertical > .disableButtons:not(:first-child),
+  .btn-group-vertical > .btn:not(:first-child), .btn-group-vertical > .buttons:not(:first-child), .ui-dialog-buttonset .btn-group-vertical > button:not(:first-child), .btn-group-vertical > .ajax-file-upload:not(:first-child), .pageContent .btn-group-vertical > .disableButtons:not(:first-child), .ui-dialog .btn-group-vertical > .disableButtons:not(:first-child), .modal .btn-group-vertical > .disableButtons:not(:first-child),
   .btn-group-vertical > .btn-group:not(:first-child) > .btn,
-  .btn-group-vertical > .btn-group:not(:first-child) > .ajax-file-upload,
   .btn-group-vertical > .btn-group:not(:first-child) > .buttons,
   .ui-dialog-buttonset .btn-group-vertical > .btn-group:not(:first-child) > button,
+  .btn-group-vertical > .btn-group:not(:first-child) > .ajax-file-upload,
   .pageContent .btn-group-vertical > .btn-group:not(:first-child) > .disableButtons,
   .ui-dialog .btn-group-vertical > .btn-group:not(:first-child) > .disableButtons,
   .modal .btn-group-vertical > .btn-group:not(:first-child) > .disableButtons {
     border-top-left-radius: 0;
     border-top-right-radius: 0; }
 
-.btn-group-toggle > .btn, .btn-group-toggle > .ajax-file-upload, .btn-group-toggle > .buttons, .ui-dialog-buttonset .btn-group-toggle > button, .pageContent .btn-group-toggle > .disableButtons, .ui-dialog .btn-group-toggle > .disableButtons, .modal .btn-group-toggle > .disableButtons,
+.btn-group-toggle > .btn, .btn-group-toggle > .buttons, .ui-dialog-buttonset .btn-group-toggle > button, .btn-group-toggle > .ajax-file-upload, .pageContent .btn-group-toggle > .disableButtons, .ui-dialog .btn-group-toggle > .disableButtons, .modal .btn-group-toggle > .disableButtons,
 .btn-group-toggle > .btn-group > .btn,
-.btn-group-toggle > .btn-group > .ajax-file-upload,
 .btn-group-toggle > .btn-group > .buttons,
 .ui-dialog-buttonset .btn-group-toggle > .btn-group > button,
+.btn-group-toggle > .btn-group > .ajax-file-upload,
 .pageContent .btn-group-toggle > .btn-group > .disableButtons,
 .ui-dialog .btn-group-toggle > .btn-group > .disableButtons,
 .modal .btn-group-toggle > .btn-group > .disableButtons {
   margin-bottom: 0; }
-  .btn-group-toggle > .btn input[type="radio"], .btn-group-toggle > .ajax-file-upload input[type="radio"], .btn-group-toggle > .buttons input[type="radio"], .ui-dialog-buttonset .btn-group-toggle > button input[type="radio"], .pageContent .btn-group-toggle > .disableButtons input[type="radio"], .ui-dialog .btn-group-toggle > .disableButtons input[type="radio"], .modal .btn-group-toggle > .disableButtons input[type="radio"],
+  .btn-group-toggle > .btn input[type="radio"], .btn-group-toggle > .buttons input[type="radio"], .ui-dialog-buttonset .btn-group-toggle > button input[type="radio"], .btn-group-toggle > .ajax-file-upload input[type="radio"], .pageContent .btn-group-toggle > .disableButtons input[type="radio"], .ui-dialog .btn-group-toggle > .disableButtons input[type="radio"], .modal .btn-group-toggle > .disableButtons input[type="radio"],
   .btn-group-toggle > .btn input[type="checkbox"],
-  .btn-group-toggle > .ajax-file-upload input[type="checkbox"],
   .btn-group-toggle > .buttons input[type="checkbox"],
   .ui-dialog-buttonset .btn-group-toggle > button input[type="checkbox"],
+  .btn-group-toggle > .ajax-file-upload input[type="checkbox"],
   .pageContent .btn-group-toggle > .disableButtons input[type="checkbox"],
   .ui-dialog .btn-group-toggle > .disableButtons input[type="checkbox"],
   .modal .btn-group-toggle > .disableButtons input[type="checkbox"],
   .btn-group-toggle > .btn-group > .btn input[type="radio"],
-  .btn-group-toggle > .btn-group > .ajax-file-upload input[type="radio"],
   .btn-group-toggle > .btn-group > .buttons input[type="radio"],
   .ui-dialog-buttonset .btn-group-toggle > .btn-group > button input[type="radio"],
+  .btn-group-toggle > .btn-group > .ajax-file-upload input[type="radio"],
   .pageContent .btn-group-toggle > .btn-group > .disableButtons input[type="radio"],
   .ui-dialog .btn-group-toggle > .btn-group > .disableButtons input[type="radio"],
   .modal .btn-group-toggle > .btn-group > .disableButtons input[type="radio"],
   .btn-group-toggle > .btn-group > .btn input[type="checkbox"],
-  .btn-group-toggle > .btn-group > .ajax-file-upload input[type="checkbox"],
   .btn-group-toggle > .btn-group > .buttons input[type="checkbox"],
   .ui-dialog-buttonset .btn-group-toggle > .btn-group > button input[type="checkbox"],
+  .btn-group-toggle > .btn-group > .ajax-file-upload input[type="checkbox"],
   .pageContent .btn-group-toggle > .btn-group > .disableButtons input[type="checkbox"],
   .ui-dialog .btn-group-toggle > .btn-group > .disableButtons input[type="checkbox"],
   .modal .btn-group-toggle > .btn-group > .disableButtons input[type="checkbox"] {
@@ -5661,7 +5661,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   background-color: #fff;
   background-clip: border-box;
   border: 1px solid rgba(23, 23, 32, 0.125);
-  border-radius: 0.25rem; }
+  border-radius: 10px; }
   .card > hr {
     margin-right: 0;
     margin-left: 0; }
@@ -5670,12 +5670,12 @@ a.text-pleasant:hover, a.text-pleasant:focus {
     border-bottom: inherit; }
     .card > .list-group:first-child {
       border-top-width: 0;
-      border-top-left-radius: calc(0.25rem - 1px);
-      border-top-right-radius: calc(0.25rem - 1px); }
+      border-top-left-radius: 9px;
+      border-top-right-radius: 9px; }
     .card > .list-group:last-child {
       border-bottom-width: 0;
-      border-bottom-right-radius: calc(0.25rem - 1px);
-      border-bottom-left-radius: calc(0.25rem - 1px); }
+      border-bottom-right-radius: 9px;
+      border-bottom-left-radius: 9px; }
   .card > .card-header + .list-group,
   .card > .list-group + .card-footer {
     border-top: 0; }
@@ -5707,14 +5707,14 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   background-color: rgba(23, 23, 32, 0.03);
   border-bottom: 1px solid rgba(23, 23, 32, 0.125); }
   .card-header:first-child {
-    border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0; }
+    border-radius: 9px 9px 0 0; }
 
 .card-footer {
   padding: 0.75rem 1.25rem;
   background-color: rgba(23, 23, 32, 0.03);
   border-top: 1px solid rgba(23, 23, 32, 0.125); }
   .card-footer:last-child {
-    border-radius: 0 0 calc(0.25rem - 1px) calc(0.25rem - 1px); }
+    border-radius: 0 0 9px 9px; }
 
 .card-header-tabs {
   margin-right: -0.625rem;
@@ -5733,7 +5733,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   bottom: 0;
   left: 0;
   padding: 1.25rem;
-  border-radius: calc(0.25rem - 1px); }
+  border-radius: 9px; }
 
 .card-img,
 .card-img-top,
@@ -5743,13 +5743,13 @@ a.text-pleasant:hover, a.text-pleasant:focus {
 
 .card-img,
 .card-img-top {
-  border-top-left-radius: calc(0.25rem - 1px);
-  border-top-right-radius: calc(0.25rem - 1px); }
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px; }
 
 .card-img,
 .card-img-bottom {
-  border-bottom-right-radius: calc(0.25rem - 1px);
-  border-bottom-left-radius: calc(0.25rem - 1px); }
+  border-bottom-right-radius: 9px;
+  border-bottom-left-radius: 9px; }
 
 .card-deck .card {
   margin-bottom: 1rem; }
@@ -5830,14 +5830,14 @@ a.text-pleasant:hover, a.text-pleasant:focus {
 
 .badge {
   display: inline-block;
-  padding: 0.25em 0.4em;
+  padding: 0.35em 0.6em;
   font-size: 75%;
   font-weight: 700;
   line-height: 1;
   text-align: center;
   white-space: nowrap;
   vertical-align: baseline;
-  border-radius: 0.25rem;
+  border-radius: 16px;
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
     .badge {
@@ -5847,7 +5847,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   .badge:empty {
     display: none; }
 
-.btn .badge, .ajax-file-upload .badge, .buttons .badge, .ui-dialog-buttonset button .badge, .pageContent .disableButtons .badge, .ui-dialog .disableButtons .badge, .modal .disableButtons .badge {
+.btn .badge, .buttons .badge, .ui-dialog-buttonset button .badge, .ajax-file-upload .badge, .pageContent .disableButtons .badge, .ui-dialog .disableButtons .badge, .modal .disableButtons .badge {
   position: relative;
   top: -1px; }
 
@@ -6740,157 +6740,6 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   .callout-warning h4 {
     color: #F2BC5F; }
 
-.btn-icon-add:before {
-  content: '';
-  display: inline-block;
-  background: url("/images/redesign/icon-plus-white.svg") no-repeat;
-  vertical-align: middle; }
-
-.btn-icon-add.btn-lg:before, .btn-group-lg > .btn-icon-add.btn:before, .btn-group-lg > .btn-icon-add.ajax-file-upload:before, .btn-group-lg > .btn-icon-add.buttons:before, .ui-dialog-buttonset .btn-group-lg > button.btn-icon-add:before, .pageContent .btn-group-lg > .btn-icon-add.disableButtons:before, .ui-dialog .btn-group-lg > .btn-icon-add.disableButtons:before, .modal .btn-group-lg > .btn-icon-add.disableButtons:before {
-  width: 22px;
-  height: 22px; }
-
-.btn-icon-edit:before {
-  content: '';
-  display: inline-block;
-  background: url("/images/redesign/create-24px-white.svg") no-repeat;
-  vertical-align: middle; }
-
-.btn-icon-edit.btn-lg:before, .btn-group-lg > .btn-icon-edit.btn:before, .btn-group-lg > .btn-icon-edit.ajax-file-upload:before, .btn-group-lg > .btn-icon-edit.buttons:before, .ui-dialog-buttonset .btn-group-lg > button.btn-icon-edit:before, .pageContent .btn-group-lg > .btn-icon-edit.disableButtons:before, .ui-dialog .btn-group-lg > .btn-icon-edit.disableButtons:before, .modal .btn-group-lg > .btn-icon-edit.disableButtons:before {
-  width: 50px;
-  height: 50px; }
-
-.playlistRowEditButton {
-  background-color: #F2BC5F;
-  border-radius: 21px;
-  color: #F2BC5F;
-  -webkit-appearance: none;
-     -moz-appearance: none;
-          appearance: none;
-  border: none;
-  width: 35px;
-  height: 35px;
-  position: relative;
-  overflow: hidden;
-  margin-top: -6px;
-  margin-bottom: -6px;
-  box-shadow: 3px 3px 5px rgba(23, 23, 32, 0.2);
-  transition: 0.3s all cubic-bezier(0.08, 0.78, 0.36, 0.95);
-  transform: scale(0.5);
-  opacity: 0; }
-  .playlistRowEditButton:before {
-    content: '';
-    display: block;
-    background: url("/images/redesign/create-24px-white.svg") no-repeat center;
-    vertical-align: middle;
-    width: 35px;
-    height: 35px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    background-size: 24px; }
-
-.playlistRow:hover .playlistRowEditButton {
-  transform: scale(1);
-  opacity: 1; }
-
-.ajax-file-upload-statusbar {
-  background-color: #F5F5F5;
-  border-radius: 12px;
-  margin: 1em 0;
-  padding: 1em; }
-  .ajax-file-upload-statusbar .backdrop, .ajax-file-upload-statusbar .backdrop-dark, .ajax-file-upload-statusbar .backdrop-success, .ajax-file-upload-statusbar .backdrop-disabled {
-    border-radius: 8px; }
-
-.ajax-file-upload-filename {
-  width: 100%;
-  height: auto;
-  margin: 0 5px 5px 10px;
-  color: #171720; }
-
-.ajax-file-upload-progress {
-  margin: 0 10px 5px 10px;
-  position: relative;
-  width: 250px;
-  background: #dee2e6;
-  border-radius: 3px;
-  display: inline-block; }
-
-.ajax-file-upload-bar {
-  background-color: #56B760;
-  width: 0;
-  height: 20px;
-  border-radius: 3px;
-  color: #FFFFFF; }
-
-.ajax-file-upload-percent {
-  position: absolute;
-  display: inline-block;
-  top: 3px;
-  left: 48%; }
-
-.ajax-file-upload-red {
-  background-color: #F63939;
-  border-radius: 4px;
-  display: inline-block;
-  color: #fff;
-  font-family: arial;
-  font-size: 13px;
-  font-weight: normal;
-  padding: 4px 15px;
-  text-decoration: none;
-  cursor: pointer;
-  vertical-align: top;
-  margin-right: 5px; }
-
-.ajax-file-upload-green {
-  background-color: #56B760;
-  border-radius: 4px;
-  margin: 0;
-  padding: 0;
-  display: inline-block;
-  color: #fff;
-  font-family: arial;
-  font-size: 13px;
-  font-weight: normal;
-  padding: 4px 15px;
-  text-decoration: none;
-  cursor: pointer;
-  vertical-align: top;
-  margin-right: 5px; }
-
-.ajax-file-upload {
-  max-width: 250px; }
-
-.fileUploaderPlaceholder {
-  display: block;
-  margin-bottom: 1em;
-  font-size: 1.4em; }
-
-.ajax-upload-dragdrop {
-  border: 2px dashed #ced4da;
-  border-radius: 10px;
-  text-align: center;
-  vertical-align: middle;
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  padding: 2em;
-  transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99); }
-  .ajax-upload-dragdrop.state-hover {
-    background-color: #F5F5F5;
-    border: 2px dashed #171720;
-    transform: scale(1.03); }
-
-.btn-ajax-file-upload-done {
-  border: 1px solid #171720;
-  background-color: transparent;
-  color: #171720;
-  font-weight: bold; }
-  .btn-ajax-file-upload-done:hover {
-    background-color: #171720;
-    color: #fff; }
-
 .buttons, .ui-dialog-buttonset button {
   color: #171720;
   background-color: transparent;
@@ -6906,11 +6755,8 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
     color: #171720;
     background-color: transparent; }
 
-.btn-lg, .btn-group-lg > .btn, .btn-group-lg > .ajax-file-upload, .btn-group-lg > .buttons, .ui-dialog-buttonset .btn-group-lg > button, .pageContent .btn-group-lg > .disableButtons, .ui-dialog .btn-group-lg > .disableButtons, .modal .btn-group-lg > .disableButtons {
+.btn-lg, .btn-group-lg > .btn, .btn-group-lg > .buttons, .ui-dialog-buttonset .btn-group-lg > button, .btn-group-lg > .ajax-file-upload, .pageContent .btn-group-lg > .disableButtons, .ui-dialog .btn-group-lg > .disableButtons, .modal .btn-group-lg > .disableButtons {
   font-size: 1.06875rem; }
-
-.navbar {
-  padding: 0; }
 
 .pageContent .btn-success, .btn-success {
   color: #fff;
@@ -7087,15 +6933,186 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
     color: #fff;
     background-color: transparent; }
 
+.pageContent .btn-outline-success, .btn-outline-success {
+  color: #56B760;
+  background-color: transparent;
+  background-image: none;
+  border-color: #56B760; }
+  .pageContent .btn-outline-success:hover, .btn-outline-success:hover {
+    color: #fff;
+    background-color: #56B760;
+    border-color: #56B760; }
+  .pageContent .btn-outline-success:focus, .pageContent .btn-outline-success.focus, .btn-outline-success:focus, .btn-outline-success.focus {
+    box-shadow: 0 0 0 0.25rem rgba(86, 183, 96, 0.5); }
+  .pageContent .btn-outline-success.disabled, .pageContent .btn-outline-success.disableButtons, .pageContent .btn-outline-success:disabled, .btn-outline-success.disabled, .pageContent .btn-outline-success.disableButtons, .ui-dialog .btn-outline-success.disableButtons, .modal .btn-outline-success.disableButtons, .btn-outline-success:disabled {
+    color: #56B760;
+    background-color: transparent; }
+
 .btn-rounded, .disableButtons.btn-rounded, .btn-rounded, .disableButtons.btn-rounded {
   border-radius: 1.5em;
   border-radius: 1.5em;
   margin-right: 0.2em; }
 
-.btn-rounded.btn-lg, .btn-group-lg > .btn-rounded.btn, .btn-group-lg > .btn-rounded.ajax-file-upload, .btn-group-lg > .btn-rounded.buttons, .ui-dialog-buttonset .btn-group-lg > button.btn-rounded, .pageContent .btn-group-lg > .btn-rounded.disableButtons, .ui-dialog .btn-group-lg > .btn-rounded.disableButtons, .modal .btn-group-lg > .btn-rounded.disableButtons {
+.btn-rounded.btn-lg, .btn-group-lg > .btn-rounded.btn, .btn-group-lg > .btn-rounded.buttons, .ui-dialog-buttonset .btn-group-lg > button.btn-rounded, .btn-group-lg > .btn-rounded.ajax-file-upload, .pageContent .btn-group-lg > .btn-rounded.disableButtons, .ui-dialog .btn-group-lg > .btn-rounded.disableButtons, .modal .btn-group-lg > .btn-rounded.disableButtons {
   padding-left: 1.5em;
   padding-right: 1.5em;
   font-weight: bold; }
+
+.btn-icon-add:before {
+  content: '';
+  display: inline-block;
+  background: url("/images/redesign/icon-plus-white.svg") no-repeat;
+  vertical-align: middle; }
+
+.btn-icon-add.btn-lg:before, .btn-group-lg > .btn-icon-add.btn:before, .btn-group-lg > .btn-icon-add.buttons:before, .ui-dialog-buttonset .btn-group-lg > button.btn-icon-add:before, .btn-group-lg > .btn-icon-add.ajax-file-upload:before, .pageContent .btn-group-lg > .btn-icon-add.disableButtons:before, .ui-dialog .btn-group-lg > .btn-icon-add.disableButtons:before, .modal .btn-group-lg > .btn-icon-add.disableButtons:before {
+  width: 22px;
+  height: 22px; }
+
+.btn-icon-edit:before {
+  content: '';
+  display: inline-block;
+  background: url("/images/redesign/create-24px-white.svg") no-repeat;
+  vertical-align: middle; }
+
+.btn-icon-edit.btn-lg:before, .btn-group-lg > .btn-icon-edit.btn:before, .btn-group-lg > .btn-icon-edit.buttons:before, .ui-dialog-buttonset .btn-group-lg > button.btn-icon-edit:before, .btn-group-lg > .btn-icon-edit.ajax-file-upload:before, .pageContent .btn-group-lg > .btn-icon-edit.disableButtons:before, .ui-dialog .btn-group-lg > .btn-icon-edit.disableButtons:before, .modal .btn-group-lg > .btn-icon-edit.disableButtons:before {
+  width: 50px;
+  height: 50px; }
+
+.circularEditButton {
+  background-color: #F2BC5F;
+  border-radius: 21px;
+  color: #F2BC5F;
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  border: none;
+  width: 35px;
+  height: 35px;
+  position: relative;
+  overflow: hidden;
+  margin-top: -6px;
+  margin-bottom: -6px;
+  box-shadow: 3px 3px 5px rgba(23, 23, 32, 0.2);
+  transition: 0.3s all cubic-bezier(0.08, 0.78, 0.36, 0.95);
+  transform: scale(0.5);
+  opacity: 0; }
+  .circularEditButton:before {
+    content: '';
+    display: block;
+    background: url("/images/redesign/create-24px-white.svg") no-repeat center;
+    vertical-align: middle;
+    width: 35px;
+    height: 35px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-size: 24px; }
+
+.playlistRow:hover .circularButton, .playlistEditorHeaderTitleWrapper:hover .circularButton {
+  transform: scale(1);
+  opacity: 1; }
+  .playlistRow:hover .circularButton:hover, .playlistEditorHeaderTitleWrapper:hover .circularButton:hover {
+    transform: scale(1.1); }
+
+.ajax-file-upload-statusbar {
+  background-color: #F5F5F5;
+  border-radius: 12px;
+  margin: 1em 0;
+  padding: 1em; }
+  .ajax-file-upload-statusbar .backdrop, .ajax-file-upload-statusbar .backdrop-dark, .ajax-file-upload-statusbar .backdrop-success, .ajax-file-upload-statusbar .backdrop-disabled {
+    border-radius: 8px; }
+
+.ajax-file-upload-filename {
+  width: 100%;
+  height: auto;
+  margin: 0 5px 5px 10px;
+  color: #171720; }
+
+.ajax-file-upload-progress {
+  margin: 0 10px 5px 10px;
+  position: relative;
+  width: 250px;
+  background: #dee2e6;
+  border-radius: 3px;
+  display: inline-block; }
+
+.ajax-file-upload-bar {
+  background-color: #56B760;
+  width: 0;
+  height: 20px;
+  border-radius: 3px;
+  color: #FFFFFF; }
+
+.ajax-file-upload-percent {
+  position: absolute;
+  display: inline-block;
+  top: 3px;
+  left: 48%; }
+
+.ajax-file-upload-red {
+  background-color: #F63939;
+  border-radius: 4px;
+  display: inline-block;
+  color: #fff;
+  font-family: arial;
+  font-size: 13px;
+  font-weight: normal;
+  padding: 4px 15px;
+  text-decoration: none;
+  cursor: pointer;
+  vertical-align: top;
+  margin-right: 5px; }
+
+.ajax-file-upload-green {
+  background-color: #56B760;
+  border-radius: 4px;
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+  color: #fff;
+  font-family: arial;
+  font-size: 13px;
+  font-weight: normal;
+  padding: 4px 15px;
+  text-decoration: none;
+  cursor: pointer;
+  vertical-align: top;
+  margin-right: 5px; }
+
+.ajax-file-upload {
+  max-width: 250px; }
+
+.fileUploaderPlaceholder {
+  display: block;
+  margin-bottom: 1em;
+  font-size: 1.4em; }
+
+.ajax-upload-dragdrop {
+  border: 2px dashed #ced4da;
+  border-radius: 10px;
+  text-align: center;
+  vertical-align: middle;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  padding: 2em;
+  transition: 0.3s all cubic-bezier(0.02, 0.72, 0.32, 0.99); }
+  .ajax-upload-dragdrop.state-hover {
+    background-color: #F5F5F5;
+    border: 2px dashed #171720;
+    transform: scale(1.03); }
+
+.btn-ajax-file-upload-done {
+  border: 1px solid #171720;
+  background-color: transparent;
+  color: #171720;
+  font-weight: bold; }
+  .btn-ajax-file-upload-done:hover {
+    background-color: #171720;
+    color: #fff; }
+
+.navbar {
+  padding: 0; }
 
 .spinner-lg {
   width: 50px;
@@ -7225,6 +7242,9 @@ input[type=checkbox]:checked {
   .has-shadow:hover {
     box-shadow: 5px 5px 30px rgba(0, 0, 0, 0.09); }
 
+.badge-light {
+  background-color: #ECECEC; }
+
 .alert {
   color: #fff; }
   .alert a {
@@ -7308,6 +7328,10 @@ input[type=checkbox]:checked {
 .skeleton-loader .sk-box {
   width: 45px; }
 
+.skeleton-loader .sk-card {
+  height: 76px;
+  border-radius: 10px; }
+
 @-webkit-keyframes placeholderSkeleton {
   0% {
     background-position: -400px 0; }
@@ -7385,12 +7409,16 @@ input[type=checkbox]:checked {
   display: inline-block;
   width: auto; }
 
-.form-actions {
+.form-actions, .modal-actions {
   display: flex;
   margin-top: 1em;
   margin-bottom: 1em; }
-  .form-actions > * {
+  .form-actions > *, .modal-actions > * {
     margin-right: 0.5rem; }
+
+.form-actions, .modal-actions {
+  margin-top: 1em;
+  margin-bottom: 1em; }
 
 .form-group label {
   font-size: 0.75rem;

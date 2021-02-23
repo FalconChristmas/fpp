@@ -36,44 +36,10 @@
 @import './uploadfile';
 // @import "./hamburger";
 
-.buttons {
-    @extend .btn;
-    @include fpp-btn-outline-variant($black);
-}
-.btn-lg {
-    font-size: $font-size-lg * 0.9;
-}
 .navbar{
     padding:0;
 }
-.pageContent .btn-success, .btn-success{
-    @include fpp-btn-variant($success,$success);
-}
-.pageContent .btn-pleasant, .btn-pleasant{
-    @include fpp-btn-variant($pleasant,$pleasant);
-}
-.pageContent .btn-detract, .btn-detract{
-    @include fpp-btn-variant($detract,$detract,$white);
-}
-.pageContent .btn-graceful, .btn-graceful{
-    @include fpp-btn-variant($graceful,$graceful);
-}
-.pageContent .btn-danger, .btn-danger{
-    @include fpp-btn-variant($danger,$danger);
-}
-.pageContent .btn-outline-light, .btn-outline-light{
-    @include fpp-btn-outline-variant($white,$black);
-}
-.btn-rounded, .disableButtons.btn-rounded,.btn-rounded, .disableButtons.btn-rounded{
-    border-radius: 1.5em;
-    border-radius:1.5em;
-	margin-right: 0.2em;
-}
-.btn-rounded.btn-lg{
-    padding-left: 1.5em;
-    padding-right: 1.5em;
-    font-weight: bold;
-}
+
 .spinner-lg{
     width: 50px;
     height: 50px;
@@ -217,6 +183,9 @@ input[type=checkbox]:checked{
         box-shadow: 5px 5px 30px rgba(0,0,0,0.09);
     }
 }
+.badge-light {
+    background-color: #ECECEC;
+}
 .alert{
 
     color:$white;
@@ -307,6 +276,10 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
 .skeleton-loader .sk-box{
     width: 45px;
 }
+.skeleton-loader .sk-card{
+    height: 76px;
+    border-radius:$card-border-radius;
+}
 @keyframes placeholderSkeleton {
 0% {
     background-position: -400px 0;
@@ -365,13 +338,17 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
         width: auto;
     }
 }
-.form-actions{
+.form-actions, .modal-actions{
     display: flex;
     margin-top: 1em;
     margin-bottom: 1em;
     >*{
         margin-right: 0.5rem;
     }
+}
+.form-actions, .modal-actions{
+    margin-top: 1em;
+    margin-bottom: 1em;
 }
 .form-group {
     label{

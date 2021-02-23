@@ -648,7 +648,7 @@ hr {
 	border-radius: 10px;
 	margin-top: 1.5em;
 }
-.playlistSelectedEntry, .playlistSelectedEntry.PlaylistRowPlaying, .fileDetails.selectedEntry{
+.playlistSelectedEntry:not(.unselectable), .playlistSelectedEntry.PlaylistRowPlaying:not(.unselectable), .fileDetails.selectedEntry:not(.unselectable){
 	color:#000;
 	background-color: #C5D6F9;
 }
@@ -1391,6 +1391,12 @@ body .sm-clean a .sub-arrow {
 .playlistEditorPanel {
 	margin-top: 2em;
 }
+#playlistEditor .tblPlaylistWrap{
+	padding: 0;
+}
+#playlistEditor .tblPlaylistLeadInContainer .tblPlaylistDetailsHeader>div{
+	margin-top: 0;
+}
 
 .playlistEditContainer #playlistEntryProperties td{
 	padding-top: 0.2em;
@@ -1415,12 +1421,54 @@ body .sm-clean a .sub-arrow {
 .playlistEdit{
 
 }
-.playlistSelectHeader{
+.playlistSelectHeader, .playlistEditorHeader{
 	display: flex;
 	border-bottom:1px solid #ced4da;
 	padding-bottom: 1em;
 	margin-bottom: 2em;
-	align-items: center;
+	align-items: top;
+}
+.playlistEditorHeaderTitleWrapper{
+	display: flex;
+}
+.playlistEditorHeaderTitleEditButton{
+	margin-left: 1em;
+}
+.playlistEditorHeaderTitleEditButtonWrapper{
+	transform:translateY(5px);
+}
+.playlistEditorHeaderTitle {
+	margin-bottom: 0;
+	margin-left: 1em;
+}
+.playlistEditorHeaderActions {
+	margin-left: auto;
+	display: flex;
+	margin-top: 0;
+}
+.playlistEditorBackButton {
+	appearance: none;
+	background-color: #fff;
+	border:1px solid #D2D2D2;
+	font-size: 1.2em;
+	color:#707070;
+    padding: 0.3em 1.0em;
+    border-radius: 1.5rem;
+	transition: 0.5s all cubic-bezier(0.075, 0.82, 0.165, 1);
+}
+
+.playlistEditorBackButton .fa-chevron-left{
+	padding-right: 0.5em;
+}
+.playlistEditorBackButton:hover {
+	border-color:#F63939;
+	color:#F63939;
+}
+.playlistEditorBackButton .fa-grip-horizontal{
+	color:#F63939;
+}
+.playlistEditEntriesActions{
+	float: right;
 }
 .hasPlaylistDetailsLoaded .playlistSelectContainer{
 	display: none;
@@ -1433,9 +1481,45 @@ body .sm-clean a .sub-arrow {
 	display: block;
 }
 .playlistCard{
-	padding: 2em;
+	padding: 1.4em;
+	position: relative;
 	
 }
+
+.playlistCard{
+	margin-top: 0.5em;
+	cursor: pointer;
+}
+.playlistSelectBody{
+	margin-top: -1em;
+}
+.playlistCard h3{
+	margin-bottom: 0;
+	cursor: pointer;
+	
+}
+.playlistCard:hover{
+	color:#F63939;
+	transition: 0.3s all cubic-bezier(0.075, 0.82, 0.165, 1);
+	transform: translateY(-4px);
+}
+.playlistCard h3:before{
+	content:"\f0cb";
+	background-color: #F63939;
+	color:#fff;
+	display: inline-block;
+	text-align: center;
+	vertical-align: middle;
+	width: 32px;
+	height: 32px;
+	border-radius: 17px;
+	font-family: "Font Awesome 5 Free";
+	font-weight: 900;
+	font-size: 0.75em;
+	padding-top: 0.4em;
+	margin-right: 0.8em;
+}
+
 
 .tablesorter thead td,.tablesorter thead th{
 	background-color: #ECECEC;

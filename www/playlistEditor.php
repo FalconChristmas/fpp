@@ -214,41 +214,8 @@ $(document).ready(function() {
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
     <div class="playlistEditContainer">
-        <div class="playlistEditForm hidden">
-            <div class="playlistEdit">
-                <div class="form-group">
-                    <label for="txtPlaylistName">Playlist Name:</label>
-                    <input type="text" id="txtPlaylistName" class="pl_title form-control" disabled />
-                </div>
-                <div class="form-group">
-                    <label for="txtPlaylistDesc">Playlist Description:</label>
-                    <input type="text" id="txtPlaylistDesc" class="pl_description form-control" />
-                </div>
-                <div class="form-group flow">
-                    <label for="randomizePlaylist">Randomize:</label>
-                    <select id='randomizePlaylist' class="form-control">
-                        <option value='0'>Off</option>
-                        <option value='1'>Once per load</option>
-                        <option value='2'>Every iteration</option>
-                    </select>
-                </div>
-                <div class="form-actions">
-                    <button value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons btn-success playlistEditButton">Save</button>
-                    <div class="dropdown">
-                        <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            More
-                        </button>
-                        <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
-                            
-                            <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy</a>
-                            <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename</a>
-                            <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize</a>
-                            <a href="#" value="Reset" onclick="EditPlaylist();"  class="dropdown-item ">Reset</a>
-                            <a href="#" value="Delete" onclick="DeletePlaylist();"  class="dropdown-item ">Delete</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="playlistEditForm ">
+            
 
             <!-- <div style="float:left;" class="playlistInfoText">
                 <table>
@@ -328,15 +295,11 @@ foreach ($playlistEntryTypes as $pet) {
     </div>
 </div>
 <div class="playlistEditEntriesContainer">
-<div class="form-actions playlistEditEntriesActions">
-
-    <button class="buttons btn-success savePlaylistBtn" >
-        Save Playlist
-    </button>
-    <button class="buttons btn-outline-success playlistEntriesAddNewBtn ml-auto" >
-        Add a Sequence/Entry
-    </button>
-</div>
+    <div class="playlistEditEntriesActions">
+        <button class="buttons btn-outline-success playlistEntriesAddNewBtn ml-auto" >
+        <i class="fas fa-plus"></i> Add a Sequence/Entry
+        </button>
+    </div>
 
 
 <?

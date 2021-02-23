@@ -79,6 +79,7 @@ $(function() {
             dialogClass:'',
             width:null,
             content:null,
+            footer:null,
             closeText:'<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
         }, options );
 
@@ -128,6 +129,12 @@ $(function() {
                 })
                 $buttons.append($newButton);
               });
+            }else if(settings.footer){
+                if(!$(this).hasClass('has-footer')){
+                    $(this).addClass('has-footer');
+                    $buttons=$('<div class="modal-footer"/>');
+                }
+                $buttons.append(settings.footer);
             }
 
             if(!$(this).hasClass('modal')){
@@ -1096,7 +1103,7 @@ function GetPlaylistRowHTML(ID, entry, editMode)
 
     HTML += GetPlaylistDurationDiv(entry)
     if (editMode)
-        HTML += '<button class="psiEditModeEditButton playlistRowEditButton">Edit</button>';
+        HTML += '<button class="psiEditModeEditButton circularButton circularEditButton playlistRowEditButton">Edit</button>';
     HTML += "</div></td></tr>";
 
     return HTML;
@@ -1794,7 +1801,9 @@ function RenamePlaylist()	{
 
     $("#renamePlaylist_dialog").fppDialog({
         width: 400,
+        title:'Rename Playlist',
         buttons: {
+           
             "Rename": function() {
                 var new_playlist_name = $(this).find(".newPlaylistName").val();
 

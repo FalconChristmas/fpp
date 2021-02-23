@@ -1,5 +1,44 @@
 
 
+.buttons {
+  @extend .btn;
+  @include fpp-btn-outline-variant($black);
+}
+.btn-lg {
+  font-size: $font-size-lg * 0.9;
+}
+.pageContent .btn-success, .btn-success{
+  @include fpp-btn-variant($success,$success);
+}
+.pageContent .btn-pleasant, .btn-pleasant{
+  @include fpp-btn-variant($pleasant,$pleasant);
+}
+.pageContent .btn-detract, .btn-detract{
+  @include fpp-btn-variant($detract,$detract,$white);
+}
+.pageContent .btn-graceful, .btn-graceful{
+  @include fpp-btn-variant($graceful,$graceful);
+}
+.pageContent .btn-danger, .btn-danger{
+  @include fpp-btn-variant($danger,$danger);
+}
+.pageContent .btn-outline-light, .btn-outline-light{
+  @include fpp-btn-outline-variant($white,$black);
+}
+.pageContent .btn-outline-success, .btn-outline-success{
+  @include fpp-btn-outline-variant($success,$white);
+}
+.btn-rounded, .disableButtons.btn-rounded,.btn-rounded, .disableButtons.btn-rounded{
+  border-radius: 1.5em;
+  border-radius:1.5em;
+margin-right: 0.2em;
+}
+.btn-rounded.btn-lg{
+  padding-left: 1.5em;
+  padding-right: 1.5em;
+  font-weight: bold;
+}
+
   .btn-icon-add{
     &:before{
       content:'';
@@ -31,7 +70,7 @@
     }
   }
 
-  .playlistRowEditButton{
+  .circularEditButton{
     background-color: $yellow;
     border-radius:21px;
     color:$yellow;
@@ -58,14 +97,16 @@
       top: 0;
       left: 0;
       background-size: 24px;
-
-
     }    
-   
+
   }
-  .playlistRow:hover {
-    .playlistRowEditButton{
+  .playlistRow:hover, .playlistEditorHeaderTitleWrapper:hover {
+    .circularButton{
       transform: scale(1);
       opacity: 1;
+      &:hover{
+        transform: scale(1.1);
+      }
     }
   }
+  
