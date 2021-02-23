@@ -297,6 +297,15 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
                                 }
                             }
                         }
+                    } else if (isset($s['optionsCommand'])) {
+                        $optionsRaw = explode("\n",trim(shell_exec($s['optionsCommand'])));
+                        foreach ($optionsRaw as $line) {
+                            $parts = preg_split("/,/", trim($line));
+                            if (count($parts) > 1)
+                                $options[$parts[0]] = $parts[1];
+                            else
+                                $options[$parts[0]] = $parts[0];
+                        }
                     } else if (isset($s['options'])) {
                         $options = $s['options'];
                     }

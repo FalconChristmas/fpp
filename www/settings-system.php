@@ -35,7 +35,7 @@ function CloseKioskDialog() {
 
 </script>
 <?
-$extraData = "<input type='button' value='Preview Statistics' onClick='PreviewStatistics();'> ";
+$extraData = "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
 PrintSettingGroup('system', $extraData);
 PrintSettingGroup('BBBLeds');
 

@@ -47,6 +47,7 @@ class ScheduleEntry {
 
 	bool         enabled;
 	std::string  playlist;
+    bool         sequence;
     std::string  command;
     Json::Value  args;
     bool         multisyncCommand;

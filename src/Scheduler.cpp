@@ -236,11 +236,22 @@ void Scheduler::CalculateScheduledItems()
     for (int i = 0; i < m_Schedule.size(); i++) {
 		if (m_Schedule[i].enabled) {
             if (m_Schedule[i].playlist != "") {
-                playlistFile = getPlaylistDirectory();
-                playlistFile += "/";
-                playlistFile += m_Schedule[i].playlist + ".json";
+                std::string warning = "Scheduled ";
 
-                std::string warning = "Scheduled Playlist '";
+                if (m_Schedule[i].sequence) {
+                    playlistFile = getSequenceDirectory();
+                    playlistFile += "/";
+                    playlistFile += m_Schedule[i].playlist;
+
+                    warning = "Sequence";
+                } else {
+                    playlistFile = getPlaylistDirectory();
+                    playlistFile += "/";
+                    playlistFile += m_Schedule[i].playlist + ".json";
+
+                    warning = "Playlist";
+                }
+                warning = " '";
                 warning += m_Schedule[i].playlist + "' does not exist";
 
                 if (FileExists(playlistFile)) {
@@ -711,17 +722,30 @@ void Scheduler::LoadScheduleFromFile(void)
 	if (!scheduleEntry.LoadFromJson(sch[i]))
         continue;
 
-    playlistFile = getPlaylistDirectory();
-    playlistFile += "/";
-    playlistFile += scheduleEntry.playlist + ".json";
+    std::string warning = "Scheduled ";
 
-    std::string warning = "Scheduled Playlist '";
+    if (scheduleEntry.sequence) {
+        playlistFile = getSequenceDirectory();
+        playlistFile += "/";
+        playlistFile += scheduleEntry.playlist;
+
+        warning += "Sequence";
+    } else {
+        playlistFile = getPlaylistDirectory();
+        playlistFile += "/";
+        playlistFile += scheduleEntry.playlist + ".json";
+
+        warning += "Playlist";
+    }
+
+    warning += " '";
     warning += scheduleEntry.playlist + "' does not exist";
 
     if ((scheduleEntry.enabled) &&
         (scheduleEntry.playlist != "") &&
         (!FileExists(playlistFile))) {
-        LogErr(VB_SCHEDULE, "ERROR: Scheduled Playlist '%s' does not exist\n",
+        LogErr(VB_SCHEDULE, "ERROR: Scheduled %s '%s' does not exist\n",
+            scheduleEntry.sequence ? "Sequence" : "Playlist",
             scheduleEntry.playlist.c_str());
         WarningHolder::AddWarning(warning);
         continue;

@@ -240,11 +240,6 @@ include 'common/menuHead.inc';
 
 
             </div>
-            <div class="col-sm-auto col-md-4 col-xxl-auto ">
-                <div class="labelHeading">Next Playlist: </div>
-                <div id='nextPlaylist' class="labelValue"></div>
-
-            </div>
             <div class="col-sm-auto col-md-4 col-xxl-auto schedulerStartTime">
                 <div class='labelHeading'>Started at:</div>
                 <div class='labelValue' id='schedulerStartTime'></div>
@@ -262,6 +257,10 @@ include 'common/menuHead.inc';
                     </div>
                     
                 </div>
+            </div>
+            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+                <div class="labelHeading">Next Playlist: </div>
+                <div id='nextPlaylist' class="labelValue"></div>
             </div>
                 
         </div>
