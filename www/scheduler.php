@@ -547,7 +547,7 @@ tr.rowScheduleDetails select.selPlaylist option {
           <div>
             <div class="form-actions">
                 <div class="td"><input class="buttons btn-success" type='button' value="Save" onClick='SaveSchedule();' /></div>
-                <div class="td"><input class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></div>
+                <div class="td"><button class="buttons btn-outline-success" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
                 <div class="td"><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
                 <div class="td"><input class="buttons disableButtons deleteSchButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
                 <div class="td"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>

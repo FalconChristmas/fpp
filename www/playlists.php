@@ -139,7 +139,7 @@ include 'menu.inc';
                             </select>
                         </div>
                         <div class="ml-auto">
-                            <button class="playlistAddNewBtn buttons btn-success btn-rounded  btn-icon-add"><i class="fas fa-plus"></i> New Playlist
+                            <button class="playlistAddNewBtn buttons btn-outline-success btn-rounded  btn-icon-add"><i class="fas fa-plus"></i> New Playlist
                             </button>
                         </div>
                     </div>
