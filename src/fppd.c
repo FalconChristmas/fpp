@@ -936,6 +936,6 @@ void PublishStats()
         urlPost("http://localhost/api/statistics/usage", "", result);
         LogInfo(VB_GENERAL, "Publishing statistics = %s\n", result.c_str());
     } else {
-        LogInfo(VB_GENERAL, "Not Publishing statistics as mode is %s\n", settingsValue);
+        LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", settingsValue);
     }
 }
