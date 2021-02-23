@@ -32,6 +32,7 @@
 ScheduleEntry::ScheduleEntry()
   : enabled(false),
 	playlist(""),
+    sequence(false),
 	repeat(false),
 	dayIndex(0),
 	startHour(0),
@@ -330,6 +331,9 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
     dayIndex           = entry["day"].asInt();
     repeatInterval     = entry["repeat"].asInt();
     repeat             = repeatInterval == 1;
+
+    if (entry.isMember("sequence"))
+        sequence = entry["sequence"].asBool();
 
     if (entry.isMember("command"))
         command = entry["command"].asString();
