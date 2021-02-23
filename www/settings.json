@@ -88,6 +88,7 @@
                 "HostName",
                 "HostDescription",
                 "statsPublish",
+                "Locale",
                 "TimeZone",
                 "Latitude",
                 "Longitude"
