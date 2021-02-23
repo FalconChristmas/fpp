@@ -25,6 +25,13 @@
                 "emailtoemail"
             ]
         },
+        "host": {
+            "description": "Host Settings",
+            "settings": [
+                "HostName",
+                "HostDescription"
+            ]
+        },
         "log-levels": {
             "description": "Log Levels",
             "settings": [
