@@ -450,7 +450,7 @@ body legend{
 	display: flex;
 }
 .schedulerStatusCol .labelAction{
-	padding-left: 4em;
+	padding-left: 2em;
 }
 #txtPlayerStatus{
 	padding-left: 0.5em;
