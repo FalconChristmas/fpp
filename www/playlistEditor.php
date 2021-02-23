@@ -296,7 +296,7 @@ foreach ($playlistEntryTypes as $pet) {
 </div>
 <div class="playlistEditEntriesContainer">
     <div class="playlistEditEntriesActions">
-        <button class="buttons btn-outline-success playlistEntriesAddNewBtn ml-auto" >
+        <button class="buttons btn-outline-success btn-lg btn-rounded playlistEntriesAddNewBtn ml-auto" >
         <i class="fas fa-plus"></i> Add a Sequence/Entry
         </button>
     </div>

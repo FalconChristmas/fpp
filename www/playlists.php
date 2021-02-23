@@ -139,8 +139,7 @@ include 'menu.inc';
                             </select>
                         </div>
                         <div class="ml-auto">
-                            <button class="playlistAddNewBtn buttons btn-success btn-rounded  btn-icon-add">
-                                New Playlist
+                            <button class="playlistAddNewBtn buttons btn-success btn-rounded  btn-icon-add"><i class="fas fa-plus"></i> New Playlist
                             </button>
                         </div>
                     </div>
@@ -185,6 +184,19 @@ include 'menu.inc';
                             <button class="buttons editPlaylistBtn" >
                             <i class="fas fa-cog"></i>
                             </button>
+                            <div class="dropdown pr-2">
+                                <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    Actions
+                                </button>
+                                <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
+                                    
+                                    <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy</a>
+                                    <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename</a>
+                                    <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize</a>
+                                    <a href="#" value="Reset" onclick="EditPlaylist();"  class="dropdown-item ">Reset</a>
+                                    <a href="#" value="Delete" onclick="DeletePlaylist();"  class="dropdown-item ">Delete</a>
+                                </div>
+                            </div>
                             <button class="buttons btn-success savePlaylistBtn" >
                                 Save Playlist
                             </button>
@@ -236,19 +248,6 @@ include 'menu.inc';
                 </div>
                 <div class="modal-actions">
                     <button value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons btn-success playlistEditButton">Save</button>
-                    <div class="dropdown">
-                        <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            More
-                        </button>
-                        <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
-                            
-                            <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy</a>
-                            <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename</a>
-                            <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize</a>
-                            <a href="#" value="Reset" onclick="EditPlaylist();"  class="dropdown-item ">Reset</a>
-                            <a href="#" value="Delete" onclick="DeletePlaylist();"  class="dropdown-item ">Delete</a>
-                        </div>
-                    </div>
                 </div>
             </div>
 
