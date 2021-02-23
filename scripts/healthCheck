@@ -117,6 +117,33 @@ HC_Scheduler() {
     PrintItemFoot
 }
 
+HC_HostName() {
+    PrintItemHead "HostName is unique"
+
+    FPPHOSTNAMES=$(curl -s http://127.0.0.1/api/fppd/multiSyncSystems | sed -e "s/},/}\n/g" | grep fppMode | sed -e 's/\(.*\)"hostname":"\([^"]*\)"\(.*\)/\2/' | grep -i "^fpp$" | wc -l)
+    HOSTNAME=$(getSetting HostName)
+
+    if [ ${FPPHOSTNAMES} -gt 1 ]
+    then
+        STATUS=2
+        STATUSSTR="There may be more than one host on the network with the 'FPP' hostname.  Consider changing the hostname of this system"
+    else
+        if [ "x${HOSTNAME}" = "x" ]
+        then
+            STATUS=2
+            STATUSSTR="Hostname is not set, consider setting the hostname of this system if you intend to have more than one FPP instance on the same network"
+        elif [ "x${HOSTNAME}" != "xFPP" -a "x${HOSTNAME}" != "xfpp" ] ; then
+            STATUS=1
+            STATUSSTR="Hostname is set to other than the default of FPP"
+        else
+            STATUS=2
+            STATUSSTR="Hostname is set to the default of 'FPP'.  Consider setting the hostname of this system if you intend to have more than one FPP instance on the same network"
+        fi
+    fi
+
+    PrintItemFoot
+}
+
 HC_CheckGateways() {
     GW=$(netstat -rn | grep "^0\.0\.0\.0" | wc -l)
 
@@ -260,6 +287,8 @@ if [ "x${MODE}" = "xplayer" -o "x${MODE}" = "xmaster" ]
 then
     HC_Scheduler
 fi
+
+HC_HostName
 
 #############################
 # Network

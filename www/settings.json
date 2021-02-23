@@ -16,10 +16,20 @@
         "email": {
             "description": "Outbound Email Configuration",
             "settings": [
-                "emailguser",
-                "emailgpass",
+                "emailserver",
+                "emailport",
+                "emailuser",
+                "emailpass",
+                "emailfromuser",
                 "emailfromtext",
                 "emailtoemail"
+            ]
+        },
+        "host": {
+            "description": "Host Settings",
+            "settings": [
+                "HostName",
+                "HostDescription"
             ]
         },
         "log-levels": {
@@ -475,32 +485,70 @@
         },
         "emailfromtext": {
             "name": "emailfromtext",
-            "description": "Destination From Text",
+            "description": "From Name",
             "tip": "Text to use in From field of emails.",
             "type": "text",
             "size": 30,
             "maxlength": 64
         },
-        "emailgpass": {
-            "name": "emailgpass",
-            "description": "Gmail Password",
-            "tip": "Password to be used to authenticate with Gmail mail server.",
-            "type": "password",
-            "size": 30,
-            "maxlength": 64
-        },
-        "emailguser": {
-            "name": "emailguser",
-            "description": "Gmail Account",
-            "tip": "Gmail email address to be used to send emails.",
+        "emailfromuser": {
+            "name": "emailfromuser",
+            "description": "From Email Address",
+            "tip": "Email address to be used to send emails.",
             "type": "text",
             "size": 30,
             "maxlength": 64
         },
+        "emailpass": {
+            "name": "emailpass",
+            "description": "SMTP Server Password",
+            "tip": "Password to be used to authenticate with email server.",
+            "type": "password",
+            "size": 30,
+            "maxlength": 64
+        },
+        "emailport": {
+            "name": "emailport",
+            "description": "SMTP Server Port",
+            "gatherStats" : true,
+            "tip": "TCP Port used on SMTP server.  Most server use 587 for encrypted traffic, some servers may still use 25 for non-encrypted SMTP traffic.",
+            "restart": 0,
+            "type": "select",
+            "options": {
+                "25": "25",
+                "465": "465",
+                "587": "587"
+            },
+            "default": "587"
+        },
+        "emailserver": {
+            "name": "emailserver",
+            "description": "SMTP Server Hostname",
+            "tip": "Server used to send outbound email.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64,
+            "children": [
+                "emailport",
+                "emailuser",
+                "emailpass",
+                "emailfromuser",
+                "emailtoemail",
+                "emailfromtext"
+            ]
+        },
         "emailtoemail": {
             "name": "emailtoemail",
-            "description": "Destination To Email",
-            "tip": "Destination email address to send all emails.",
+            "description": "Default TO Address",
+            "tip": "Default destination email address to send all emails.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64
+        },
+        "emailuser": {
+            "name": "emailuser",
+            "description": "SMTP Server Login",
+            "tip": "Login for SMTP server, may be the same as the from address.",
             "type": "text",
             "size": 30,
             "maxlength": 64
@@ -1193,17 +1241,9 @@
             "children": {
                 "1": [
                     "password",
-                    "passwordVerify",
-                    "passwordShow"
+                    "passwordVerify"
                 ]
             }
-        },
-        "passwordShow": {
-            "name": "passwordShow",
-            "description": "Show password",
-            "tip": "Show the UI password instead of ********",
-            "type": "checkbox",
-            "onChange": "ShowHidePassword"
         },
         "passwordVerify": {
             "name": "passwordVerify",

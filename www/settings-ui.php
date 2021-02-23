@@ -24,22 +24,6 @@ function ConfirmPasswordEnable()
     }
 }
 
-function UpdatePasswordFieldsType() {
-    if ($('#passwordShow').is(':checked')) {
-        $('#password').attr('type', 'text');
-        $('#passwordVerify').attr('type', 'text');
-    } else {
-        $('#password').attr('type', 'password');
-        $('#passwordVerify').attr('type', 'password');
-    }
-}
-
-function ShowHidePassword() {
-    UpdatePasswordFieldsType();
-
-    window["passwordShowChanged"]();
-}
-
 function ValidatePassword(password)
 {
     // Allow minimum of 6 so default 'falcon' password is valid
@@ -103,8 +87,3 @@ PrintSetting('password');
 PrintSetting('passwordVerify');
 PrintSetting('passwordShow');
 ?>
-
-
-<script>
-UpdatePasswordFieldsType();
-</script>

@@ -45,10 +45,16 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
         <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
 
         <div class='container'>
-            <div class='form-actions'><input type='button' class='buttons' value='Skip Setup' onClick='skipSetup();'></div>
+            <div class='form-actions'><input type='button' class='buttons' value='Skip Initial Setup' onClick='skipSetup();'></div>
 <?
 
-$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'><input type='button'  class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'></div>";
+$extraData = "<div class='form-actions'>" .
+    "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> " .
+    "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'> " .
+    "<input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> " .
+    "<input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'> " .
+    "</div>";
+
 PrintSettingGroup('initialSetup', $extraData, '', 1, '', 'initialSetupChanged');
 ?>
         </div>

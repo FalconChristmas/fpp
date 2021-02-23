@@ -713,29 +713,12 @@ function showHidePassword(id) {
     </div>
     <div class="tab-pane fade" id="tab-host-dns" role="tabpanel" aria-labelledby="tab-host-dns-tab">
       
-       
-              <h2>Host & DNS Settings</h2>
+
+<?
+PrintSettingGroup('host');
+?>
+              <h2>DNS Settings</h2>
               <table width="100%" border="0" cellpadding="1" cellspacing="1">
-                <tr>
-                  <td width = "25%">HostName:</td>
-                  <td colspan='2'>
-                    <div class="form-inline">
-                     <input id='hostName' class="form-control" type='text' value='<? if (isset($settings['HostName'])) echo $settings['HostName']; else echo 'FPP'; ?>' size='30' maxlength='30'> <input type='button' class='buttons btn-success' value='Save' onClick='setHostName();'>
-
-                    </div>
-                  </td>
-                </tr>
-                  <tr>
-                      <td width = "25%">Description:</td>
-                      <td colspan='2'>
-                        <div class="form-inline">
-                        <input id='hostDescription' class="form-control" type='text' value='<? if (isset($settings['HostDescription'])) echo $settings['HostDescription']; else echo ('Falcon Player - ' .  $settings['Variant']); ?>' size='30' maxlength='48'> <input type='button' class='buttons btn-success' value='Save' onClick='setHostDescription();'></td>
-
-                        </div>
-                  </tr>
-                <tr>
-                  <td>&nbsp;</td>
-                </tr>
                 <tr>
                   <td>DNS Server Mode:</td>
                   <td><label><input type="radio" id ="dns_manual" value="manual">
