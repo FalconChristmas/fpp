@@ -165,7 +165,8 @@
             "settings": [
                 "uiLevel",
                 "showAllOptions",
-                "disableUIWarnings"
+                "disableUIWarnings",
+                "temperatureInF"
             ]
         },
         "uiColors": {
@@ -1425,6 +1426,18 @@
             "restart": 0,
             "type": "color",
             "default": "FFFF00"
+        },
+        "temperatureInF": {
+            "name": "temperatureInF",
+            "description": "Temperature display units",
+            "tip": "Display temperatures in Fahrenheit or Celsius",
+            "reloadUI": 1,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "Celsius": 0,
+                "Fahrenheit": 1
+            }
         },
         "uiLevel": {
             "name": "uiLevel",
