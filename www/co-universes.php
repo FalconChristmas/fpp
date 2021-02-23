@@ -151,17 +151,18 @@ function PopulateInterfaces()
                                     <th title='Output Number'>Output</th>
                                     <th title='Output Enabled/Disabled status'>Active</th>
                                     <th title='User Description'>Description</th>
-                                    <th title='Output Type'>Output Type</th>
-                                    <th title='Unicast IP Address'>Unicast Address</th>
-                                    <th title='Monitor controller'>Monitor</th>
+                                    <th title='Output Type'>Output <br>Type</th>
+                                    <th title='Unicast IP Address'>Unicast <br>Address</th>
+   
+                                    <th title='FPP Start Channel'>FPP Start <br>Channel</th>
+                                    <th title='FPP End Channel'>FPP End <br>Channel</th>
+                                    <th title='Universe Number'>Universe #</th>
+                                    <th title='Universe Count for this controller'>Universe <br>Count</th>
+                                    <th title='Universe size'>Universe <br>Size</th>
+                                    <th title='Universe Priority'>Universe <br>Priority</th>
+									<th title='Monitor controller'>Monitor</th>
                                     <th title='Suppress Duplicate network packets'>DeDup</th>
                                     <th title='Test ping controller'>Ping</th>
-                                    <th title='FPP Start Channel'>FPP Start Channel</th>
-                                    <th title='FPP End Channel'>FPP End Channel</th>
-                                    <th title='Universe Number'>Universe #</th>
-                                    <th title='Universe Count for this controller'>Universe Count</th>
-                                    <th title='Universe size'>Universe Size</th>
-                                    <th title='Universe Priority'>Universe Priority</th>
                                 </tr>
 							</thead>
 							<tbody id='tblUniversesBody'>

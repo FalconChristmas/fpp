@@ -84,6 +84,7 @@ $(function() {
         }, options );
 
         this.each(function() {
+            console.log(this)
             var $buttons= $(this).find('.modal-footer').html('');
             var $title='';
             var self = this;
@@ -171,7 +172,10 @@ $(function() {
 
                 
                 var $dialogContent = $('<div class="modal-content"/>');
-                $(this).wrapInner($dialogInner.wrapInner($dialogContent))
+                $(this).wrapInner($dialogInner.wrapInner($dialogContent));
+                if(settings.content){
+                    $dialogBody.html(settings.content);
+                }
             }
 
             if(settings.open && typeof settings.open==='function'){
@@ -4453,8 +4457,9 @@ function SetupSelectableTableRow(info)
 function DialogOK(title, message)
 {
 	$('#dialog-popup').fppDialog({
-		mocal: true,
-		height: 'auto',
+	
+        content:message,
+        title:title,
 		width: 400,
 		autoResize: true,
 		closeOnEscape: false,
@@ -4464,10 +4469,8 @@ function DialogOK(title, message)
 			}
 		}
 	});
-	$('#dialog-popup').fppDialog('option', 'title', title);
-	$('#dialog-popup').html("<center>" + message + "</center>");
-	$('#dialog-popup').show();
-	$('#dialog-popup').draggable();
+
+
 }
 
 // Simple wrapper for now, but we may highlight this somehow later

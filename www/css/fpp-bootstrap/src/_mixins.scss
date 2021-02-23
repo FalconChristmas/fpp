@@ -13,7 +13,10 @@
     @return url('/images/redesign/#{$filename}');
 }
   
-  @mixin fpp-btn-outline-variant($color, $color-hover: color-yiq($color), $active-background: $color, $active-border: $color) {
+  @mixin fpp-btn-outline-variant($color,
+  $color-hover: color-yiq($color),
+  $active-background: $color,
+  $active-border: $color) {
     color: $color;
     background-color: transparent;
     background-image: none;
