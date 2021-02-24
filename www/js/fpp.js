@@ -644,7 +644,6 @@ function SetupToolTips(delay = 100) {
             if (typeof title != "undefined") {
                 return title;
             }
-            console.log(this)
             return "";
         },
 
@@ -1126,9 +1125,14 @@ function GetPlaylistRowHTML(ID, entry, editMode)
     HTML += "</div>";
 
     HTML += GetPlaylistDurationDiv(entry)
-    if (editMode)
-        HTML += '<button class="psiEditModeEditButton circularButton circularEditButton playlistRowEditButton">Edit</button>';
-    HTML += "</div></td></tr>";
+    HTML += "</div></td>"
+    if (editMode) {
+        HTML += '<td class="playlistRowEditActionCell">'
+        HTML += '<button class="circularButton circularEditButton playlistRowEditButton">Edit</button>';
+        HTML += '<button class="circularButton circularDeleteButton playlistRowDeleteButton ml-2">Delete</button>';
+        HTML += '</td>'
+    }
+    HTML += "</tr>";
 
     return HTML;
 }
@@ -1222,7 +1226,6 @@ function PlaylistNameOK(name) {
 function LoadPlaylistDetails(name) {
     $.get('api/playlist/' + name
     ).done(function(data) {
-        console.log('in LoadPlaylistDetails')
         PopulatePlaylistDetails(data, 1, name);
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
@@ -1289,10 +1292,15 @@ function RenumberPlaylistEditorEntries() {
     var id = 1;
     var sections = ['LeadIn', 'MainPlaylist', 'LeadOut'];
     for (var s = 0; s < sections.length; s++) {
-        $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function() {
-            $(this).find('.playlistRowNumber').html('' + id + '.');
-            id++;
-        });
+        var $sectionTable = $('#tblPlaylist' + sections[s]);
+        if(!$sectionTable.is(':empty')){
+            $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function() {
+                $(this).find('.playlistRowNumber').html('' + id + '.');
+                id++;
+            });
+        }else{
+            $sectionTable.append("<tr id='tblPlaylist" + sections[s] + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");   
+        }
     }
 }
 
@@ -1651,7 +1659,6 @@ function SavePlaylistAs(name, options, callback) {
     if(typeof options === 'Object'){
         $.extend(pl,options)
     }
-    console.log('saving playlist :'+$('#randomizePlaylist').prop('value'));
 
     var leadIn = [];
     $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
@@ -4031,7 +4038,6 @@ function PopulatePlaylistDetails(data, editMode, name = "")
 {
     var innerHTML = "";
     var entries = 0;
-    console.log('in PopulatePlaylistDetails')
     data = UpgradePlaylist(data, editMode);
 
     if (!editMode)
@@ -4086,7 +4092,6 @@ function PopulatePlaylistDetails(data, editMode, name = "")
     } else {
         SetPlaylistName(name);
     }
-    console.log('loading playlist random details: '+data.random)
     if (editMode) {
         if (typeof data.random === "undefined") {
             $('#randomizePlaylist').val(0);

@@ -1477,6 +1477,13 @@ body .sm-clean a .sub-arrow {
 .playlistEditorContainer{
 	display: none;
 }
+.playlistRowEditActionCell{
+	width: 150px;
+	text-align: right;
+}
+.arg_note{
+	width: 100%;
+}
 .hasPlaylistDetailsLoaded .playlistEditorContainer{
 	display: block;
 }

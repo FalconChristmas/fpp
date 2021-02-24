@@ -90,11 +90,11 @@
     margin-right: 0.4em;
 }
 
-.ui-level-1 { color: #0059ff; }
-.ui-level-2 { color: #1ac147; }
-.ui-level-3 { color: #de1010; }
+.ui-level-1 { color: $blue; }
+.ui-level-2 { color: $green; }
+.ui-level-3 { color: $red; }
 
-input[type=text], input[type=number], select, .tablesorter input{
+input[type=text], input[type=number], input[type=password], input[type=email], select, .tablesorter input{
 	border: 1px solid #D2D2D2;
 	color:$black;
 	appearance: none;

@@ -257,7 +257,9 @@ include 'menu.inc';
                         <option value='2'>Every iteration</option>
                     </select>
                 </div>
-    
+                <div>
+                    <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+                </div>
             </div>
 
         </div>

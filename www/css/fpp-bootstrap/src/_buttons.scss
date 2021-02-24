@@ -16,6 +16,9 @@
 .pageContent .btn-detract, .btn-detract{
   @include fpp-btn-variant($detract,$detract,$white);
 }
+.pageContent .btn-warning, .btn-warning{
+  @include fpp-btn-variant($warning,$warning,$black);
+}
 .pageContent .btn-graceful, .btn-graceful{
   @include fpp-btn-variant($graceful,$graceful);
 }
@@ -27,6 +30,9 @@
 }
 .pageContent .btn-outline-success, .btn-outline-success{
   @include fpp-btn-outline-variant($success,$white);
+}
+.pageContent .btn-outline-danger, .btn-outline-danger{
+  @include fpp-btn-outline-variant($danger,$white);
 }
 .btn-rounded, .disableButtons.btn-rounded,.btn-rounded, .disableButtons.btn-rounded{
   border-radius: 1.5em;
@@ -70,10 +76,10 @@ margin-right: 0.2em;
     }
   }
 
-  .circularEditButton{
-    background-color: $yellow;
+  .circularButton {
+    background-color: $green;
     border-radius:21px;
-    color:$yellow;
+    color:$green;
     appearance: none;
     border:none;
     width: 35px;
@@ -89,16 +95,31 @@ margin-right: 0.2em;
     &:before{
       content:'';
       display: block;
-      background: img('create-24px-white.svg') no-repeat center;
-      vertical-align: middle;
       width: 35px;
       height: 35px;
       position: absolute;
       top: 0;
       left: 0;
       background-size: 24px;
+      vertical-align: middle;
+      background-repeat: no-repeat;
+      background-position: center;
+    } 
+  }
+  .circularEditButton{
+    background-color: $yellow;
+    color:$yellow;
+    &:before{
+      background-image: img('create-24px-white.svg');
     }    
-
+  }
+  .circularDeleteButton{
+    background-color: $danger;
+    color:$danger;
+    &:before{
+      background-image: img('icon-trash.svg');
+      background-size: 14px;
+    }    
   }
   .playlistRow:hover, .playlistEditorHeaderTitleWrapper:hover {
     .circularButton{

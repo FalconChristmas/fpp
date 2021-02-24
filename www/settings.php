@@ -155,17 +155,22 @@ if (isset($_GET['tab'])) {
                         </div>
                     </div>
 
-                    <table>
-        <? if ($uiLevel >= 1) { ?>
-                    <tr><th align='right'><i class='fas fa-fw fa-graduation-cap ui-level-1'></i></th><th align='left'>- Advanced Level Setting</th></tr>
-        <? } ?>
-        <? if ($uiLevel >= 2) { ?>
-                    <tr><th align='right'><i class='fas fa-fw fa-flask ui-level-2'></i></th><th align='left'>- Experimental Level Setting</th></tr>
-        <? } ?>
-        <? if ($uiLevel >= 3) { ?>
-                    <tr><th align='right'><i class='fas fa-fw fa-code ui-level-3'></i></th><th align='left'>- Developer Level Setting</th></tr>
-        <? } ?>
-                </table>
+                    <br>
+                    <div class="backdrop">
+                            <div class="row">
+                            <? if ($uiLevel >= 1) { ?>
+                                       <div class="col-auto"><i class='fas fa-fw fa-graduation-cap ui-level-1'></i> - Advanced Level Setting</div>
+                            <? } ?>
+                            <? if ($uiLevel >= 2) { ?>
+                                       <div class="col-auto"><i class='fas fa-fw fa-flask ui-level-2'></i> - Experimental Level Setting</div>
+                            <? } ?>
+                            <? if ($uiLevel >= 3) { ?>
+                                       <div class="col-auto"><i class='fas fa-fw fa-code ui-level-3'></i> - Developer Level Setting</div>
+                            <? } ?>
+                            </div>
+
+                    </div>
+    
             </div>
     </div>
 </div>

@@ -29,6 +29,7 @@ function playlistEditorDocReady() {
 		});
 	});
 
+
 	//make table rows sortable
     if (window.innerWidth > 600) {
         $('.playlistEntriesBody').sortable({
@@ -42,15 +43,22 @@ function playlistEditorDocReady() {
                 if (this === ui.item.parent()[0]) {
                     var parent = $(ui.item).parent().attr('id');
                     $('#' + parent + 'PlaceHolder').remove();
+                    var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+                if (rowsLeft == 0)
+                    $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
 
-                    var rowsLeft = $('#' + start_parent + ' >tr').length;
-                    if (rowsLeft == 0)
-                        $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
 
                     RenumberPlaylistEditorEntries();
                     UpdatePlaylistDurations();
                 }
             },
+            over:function(){
+                var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+                if (rowsLeft == 1)
+                    $('#' + start_parent).append("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
+               // console.log(rowsLeft)
+            },
+
             beforeStop: function (event, ui) {
                 //undo the firefox fix.
                 if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
@@ -98,7 +106,10 @@ function playlistEditorDocReady() {
             }
         });
     });
-
+    $('.playlistEntriesBody').on('click','.playlistRowDeleteButton',function() {
+        selectPlaylistEntryRow($(this).closest('tr'));
+        RemovePlaylistEntry();
+    });
 	$('#txtNewPlaylistName').on('focus',function() {
 		$(this).select();
 	});
@@ -289,9 +300,7 @@ foreach ($playlistEntryTypes as $pet) {
 
             
         </div> -->
-        <div>
-             <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
-            </div>
+
     </div>
 </div>
 <div class="playlistEditEntriesContainer">
