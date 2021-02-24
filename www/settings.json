@@ -437,6 +437,7 @@
             "tip": "Format of displayed dates",
             "type": "select",
             "default": "%a %b %e",
+            "gatherStats" : true,
             "options": {
                 "YYYY-MM-DD (2021-12-25)": "%Y-%m-%d",
                 "MM/DD/YYYY (12/25/2021)": "%m/%d/%Y",
@@ -466,6 +467,7 @@
         "disableIPAnnouncement": {
             "name": "disableIPAnnouncement",
             "description": "Disable IP announcement",
+            "gatherStats" : true,
             "tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when the Pi is connected to a FM transmitter or speakers.",
             "platforms": [
                 "Raspberry Pi"
@@ -477,6 +479,7 @@
             "description": "Disable restart/reboot UI Warnings",
             "tip": "Disable the 'restart required' and 'reboot required' warnings that appear at the top of the page when settings are changed.",
             "level": 3,
+            "gatherStats" : true,
             "reboot": 0,
             "restart": 0,
             "reloadUI": 0,
@@ -585,6 +588,7 @@
             "name": "EnableTethering",
             "description": "Tethering Mode",
             "tip": "Enable or disable FPP WiFi tethering mode",
+            "gatherStats" : true,
             "reboot": 1,
             "default": 0,
             "type": "select",
@@ -598,6 +602,7 @@
             "name": "fppMode",
             "description": "FPP Player Mode",
             "tip": "FPP can run in one of several modes including Standalone mode where it operates independently of other FPP systems, Master where it can control other FPP systems, and Remote where it acts as a remote controlled by another Master FPP instance.  FPP can also be set to receive data over the network when running in Bridge mode.",
+            "gatherStats" : true,
             "restart": 2,
             "type": "select",
             "options": {
@@ -686,6 +691,7 @@
             "name": "LEDDisplayType",
             "description": "Status Display",
             "tip": "Status Display type.  There are serveral OLED/LCD displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
+            "gatherStats" : true,
             "reboot": 1,
             "checkFile": [
                 "/dev/i2c-1",
@@ -712,6 +718,7 @@
         "Locale": {
             "name": "Locale",
             "description": "Locale",
+            "gatherStats" : true,
             "tip": "The Locale is used to automatically configure some locale or region-specific functionality within FPP such as the list of Holidays included in the FPP Scheduler.",
             "restart": 2,
             "default": "global",
@@ -1167,6 +1174,7 @@
         "MultiSyncExtraRemotes": {
             "name": "MultiSyncExtraRemotes",
             "description": "MultiSync Unicast Discovery IPs (CSV list)",
+            "gatherStats" : true,
             "tip": "FPP will send unicast MultiSync discovery messages to the IPs in this list to allow discovery of devices which are unable to be discovered via FPP's normal multicast discovery.  This may include systems on remote networks or connected to certain routers which do not pass multicast packets between wired and wireless interfaces.",
             "level": 1,
             "restart": 2,
@@ -1222,6 +1230,7 @@
         "ntp": {
             "name": "ntp",
             "description": "Enable NTP",
+            "gatherStats" : true,
             "tip": "Enable the NTP client to allow this system to sync time with a NTP server elsewhere.",
             "type": "checkbox",
             "reboot": 1,
@@ -1308,6 +1317,7 @@
             "name": "PresetControlChannel",
             "description": "Command Preset Control Channel",
             "tip": "The Command Preset Control Channel allows FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable.",
+            "gatherStats" : true,
             "level": 0,
             "restart": 2,
             "default": 0,
@@ -1509,6 +1519,7 @@
         "TetherTechnology": {
             "name": "TetherTechnology",
             "description": "Tethering Technology",
+            "gatherStats" : true,
             "tip": "FPP WiFi tethering technology to use.",
             "reboot": 1,
             "default": 0,
@@ -1522,6 +1533,7 @@
             "name": "TimeFormat",
             "description": "Time Format",
             "tip": "Format of displayed time",
+            "gatherStats" : true,
             "type": "select",
             "default": "%I:%M %p",
             "options": {
@@ -1573,6 +1585,7 @@
         "TimeZone": {
             "name": "TimeZone",
             "description": "Time Zone",
+            "gatherStats" : true,
             "tip": "The Time Zone is used to set the local time zone of this FPP instance.",
             "restart": 2,
             "default": "Europe/London",
