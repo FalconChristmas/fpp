@@ -79,6 +79,26 @@ long long GetTimeMS(void) {
     return now_tv.tv_sec * 1000LL + now_tv.tv_usec / 1000;
 }
 
+std::string GetTimeStr(const char *fmt)
+{
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::stringstream sstr;
+    sstr << std::put_time(&tm, fmt);
+
+    return sstr.str();
+}
+
+std::string GetDateStr(const char *fmt)
+{
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    std::stringstream sstr;
+    sstr << std::put_time(&tm, fmt);
+
+    return sstr.str();
+}
+
 
 /*
  * Check to see if the specified directory exists

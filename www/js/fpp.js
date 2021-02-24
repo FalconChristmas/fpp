@@ -5698,6 +5698,24 @@ function RefreshHeaderBar(){
         
     }
 
+    if ((data.timeStr != undefined) && (data.dateStr != undefined)) {
+        var row = "";
+        if ((window.location.href.indexOf('index.php') >= 0) ||
+            (window.location.href.endsWith('/'))) {
+            row += "<span><small>" + data.dateStr + "</small><small>" + data.timeStrFull + "</small></span>";
+        } else {
+            row += "<span><small>" + data.dateStr + "</small><small>" + data.timeStr + "</small></span>";
+        }
+        row += "<!-- " + window.location.href + " -->";
+
+        if (headerCache.Time != row) {
+            $('#header_Time').html(row);
+            headerCache.Time = row;
+        }
+    } else {
+        $('#header_Time').hide();
+    }
+
     if(data.status_name != undefined){
         var row = "";
         if(data.status_name == "playing"){

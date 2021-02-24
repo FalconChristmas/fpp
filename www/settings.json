@@ -176,6 +176,8 @@
                 "uiLevel",
                 "showAllOptions",
                 "disableUIWarnings",
+                "DateFormat",
+                "TimeFormat",
                 "temperatureInF"
             ]
         },
@@ -428,6 +430,20 @@
             "tip": "Compress files during copy to speed up the sync process.  NOTE: Newer xLights versions already used a compressed FSEQ format, so this option may only slow down the transfer as FPP tries to recompress already-compressed data.",
             "type": "checkbox",
             "textOnRight": 1
+        },
+        "DateFormat": {
+            "name": "DateFormat",
+            "description": "Date Format",
+            "tip": "Format of displayed dates",
+            "type": "select",
+            "default": "%a %b %e",
+            "options": {
+                "YYYY-MM-DD (2021-12-25)": "%Y-%m-%d",
+                "MM/DD/YYYY (12/25/2021)": "%m/%d/%Y",
+                "DD/MM/YYYY (25/12/2021)": "%d/%m/%Y",
+                "Weekday Month Day (Sat Dec 25)": "%a %b %e",
+                "Month Day (Dec 25)": "%b %e"
+            }
         },
         "DisableFakeNetworkBridges": {
             "name": "DisableFakeNetworkBridges",
@@ -1500,6 +1516,17 @@
             "options": {
                 "Hostapd": 0,
                 "ConnMan": 1
+            }
+        },
+        "TimeFormat": {
+            "name": "TimeFormat",
+            "description": "Time Format",
+            "tip": "Format of displayed time",
+            "type": "select",
+            "default": "%I:%M %p",
+            "options": {
+                "HH:MM (23:40)": "%H:%M",
+                "HH:MM AM/PM (11:40 PM)": "%I:%M %p"
             }
         },
         "uiLevel": {

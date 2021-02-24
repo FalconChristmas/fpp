@@ -86,10 +86,11 @@ function list_plugin_entries($menu)
     } else {
         echo("<span class=\"headerHostName headerBox largeonly\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small>".gethostname()."</small></span></span>");
     }
-    echo("<span class=\"headerBox\" id=\"header_player\"></span>");
-    echo("<span class=\"headerBox largeonly\" id=\"header_sensors\" data-defaultsensor=\"".$settings['currentHeaderSensor']."\"></span>");
-    echo("<span class=\"headerBox\" id=\"header_IPs\"></span>");
 ?>
+    <span class="headerBox" id="header_player"></span>
+    <span class="headerBox largeonly" id="header_sensors" data-defaultsensor="<? echo $settings['currentHeaderSensor']; ?>"></span>
+    <span class="headerBox" id="header_IPs"></span>
+    <span class="headerBox" id="header_Time"></span>
 </div>
     </div>
     <div class="headerRight largeonly">

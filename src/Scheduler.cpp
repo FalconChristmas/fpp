@@ -875,7 +875,11 @@ std::string Scheduler::GetNextPlaylistStartStr()
     if (m_schedulerDisabled)
         return "";
 
-    const char timeFmt[] = "%a @ %H:%M:%S";
+    char timeFmt[20];
+    strcpy(timeFmt, getSetting("DateFormat", DEF_DATE_FORMAT));
+    strcat(timeFmt, " @ ");
+    strcat(timeFmt, getSetting("TimeFormat", DEF_TIME_FORMAT));
+
     std::string result;
     ScheduledItem *item = GetNextScheduledPlaylist();
 
@@ -939,8 +943,12 @@ std::string Scheduler::GetDayTextFromDayIndex(const int index)
 
 Json::Value Scheduler::GetInfo(void)
 {
-    const char timeFmt[] = "%a @ %H:%M:%S";
+    char timeFmt[20];
     Json::Value result;
+
+    strcpy(timeFmt, getSetting("DateFormat", DEF_DATE_FORMAT));
+    strcat(timeFmt, " @ ");
+    strcat(timeFmt, getSetting("TimeFormat", DEF_TIME_FORMAT));
 
     Json::Value np;
     np["playlistName"] = GetNextPlaylistName();
@@ -1014,7 +1022,11 @@ Json::Value Scheduler::GetInfo(void)
 
 Json::Value Scheduler::GetSchedule()
 {
-    const char timeFmt[] = "%a @ %H:%M:%S";
+    char timeFmt[20];
+    strcpy(timeFmt, getSetting("DateFormat", DEF_DATE_FORMAT));
+    strcat(timeFmt, " @ ");
+    strcat(timeFmt, getSetting("TimeFormat", DEF_TIME_FORMAT));
+
     Json::Value result;
     Json::Value entries(Json::arrayValue);
     Json::Value entry;

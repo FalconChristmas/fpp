@@ -677,6 +677,12 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     std::string str = sstr.str();
     result["time"] = str;
 
+    std::string fmt = getSetting("TimeFormat", DEF_TIME_FORMAT);
+    replaceAll(fmt, "%M", "%M:%S");
+    result["timeStrFull"] = GetTimeStr(fmt.c_str());
+    result["timeStr"] = GetTimeStr(getSetting("TimeFormat", DEF_TIME_FORMAT));
+    result["dateStr"] = GetDateStr(getSetting("DateFormat", DEF_DATE_FORMAT));
+
     std::time_t timeDiff = std::time(nullptr) - startupTime;
 	int totalseconds = (int)timeDiff;
 	double days =  ((double) timeDiff) / 86400;
