@@ -118,6 +118,11 @@ include 'common/menuHead.inc';
             SetupBanner();
 		};
 
+    function EnabledStats() {
+        SetSetting("statsPublish", "enable", 2);
+        $("#bannerRow").hide();
+    }
+
     function SetupBanner() {
        let showIt = true;
        if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
@@ -127,8 +132,9 @@ include 'common/menuHead.inc';
        if (showIt) {
           var html = [];
           html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
-          html.push("help us improve FPP in the future. You may preview the data that will be shared and opt-in ");
-          html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>");
+          html.push("help us improve FPP in the future. You may preview the data  ");
+          html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>. ");
+          html.push("<div style='margin-top:1em'><button class='buttons wideButton btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>")
           $("#bannerRow").html(html.join(' ')).show();
        }
     }
