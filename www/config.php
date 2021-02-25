@@ -162,7 +162,7 @@ if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
     $settings['cape-info'] = $cape_info;
 }
 
-$settings['statsPublishUrl'] = "https://fppstats.thehormanns.net/api/upload";
+$settings['statsPublishUrl'] = "https://fppstats.falconchristmas.com/api/upload";
 $settings['Variant'] = $settings['Platform'];
 $settings['SubPlatform'] = "";
 $settings['OSImagePrefix'] = "";
