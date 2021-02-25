@@ -614,7 +614,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 							
 				<div class="row">
-					<div class="col-3">
+					<div class="col-md-3">
 						<div class="backdrop-dark">
 							<b>Enable Test Mode:</b> <input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'>
 						</div>
@@ -683,12 +683,12 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 						</div>
 
 					</div>
-					<div class="col-9">
+					<div class="col-md-9">
 
 						<h2>RGB Test Patterns</h2>
 
 						<div class="row">
-							<div class="col-6">
+							<div class="col-md-6">
 								<div class="backdrop">
 									<h3>Chase Patterns</h3>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGB' id='RGBChase-RGB' checked onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGB'>Chase: R-G-B</label></div>
@@ -704,7 +704,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 								</div>
 							</div>
-							<div class="col-6">
+							<div class="col-md-6">
 								<div class="backdrop ">
 									<h3>Cycle Patterns</h3>
 									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGB' id='RGBCycle-RGB' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGB'>Cycle: R-G-B</label></div>
@@ -741,9 +741,9 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 						</div>
 							<div class="row">
 								
-								<div class="col-4 testModeColorRange"><span>R: </span><input id="testModeColorR" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorRText'>255</span><span></span></div>
-								<div class="col-4 testModeColorRange"><span>G: </span><input id="testModeColorG" type="range"  min="0" max="255" value="0" step="1"/> </span> <span id='testModeColorGText'>255</span><span></span></div>
-								<div class="col-4 testModeColorRange"><span>B: </span><input id="testModeColorB" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorBText'>255</span><span></span></div>
+								<div class="col-sm-4 testModeColorRange"><span>R: </span><input id="testModeColorR" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorRText'>255</span><span></span></div>
+								<div class="col-sm-4 testModeColorRange"><span>G: </span><input id="testModeColorG" type="range"  min="0" max="255" value="0" step="1"/> </span> <span id='testModeColorGText'>255</span><span></span></div>
+								<div class="col-sm-4 testModeColorRange"><span>B: </span><input id="testModeColorB" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorBText'>255</span><span></span></div>
 	
 							</div>
 						</div>
