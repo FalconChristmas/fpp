@@ -209,7 +209,7 @@ include 'common/menuHead.inc';
 
 
 <div class="mainContainer container">
-<h1 class="title d-none d-sm-block ">Status</h1>
+<h1 class="title statusTitle">Status</h1>
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
@@ -233,7 +233,7 @@ include 'common/menuHead.inc';
                     </div>
                     <div>
                         <div class="labelAction">
-                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>View Schedule</button>
+                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Schedule</button>
                         </div>
                     </div>
                 </div>

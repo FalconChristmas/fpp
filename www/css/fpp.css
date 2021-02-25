@@ -143,7 +143,7 @@ body .ui-tabs .ui-tabs-nav li {
 	color:#fff;
 	background-color: #171720;
 }
-@media(min-width:990px){
+@media(min-width:991px){
 	.header{
 		position: fixed;
 		z-index: 1099;
@@ -153,6 +153,13 @@ body .ui-tabs .ui-tabs-nav li {
 	}
 	#bodyWrapper{
 		margin-top:64px;
+	}
+	.header{
+		position: fixed;
+		left: 0;
+		right: 0;
+		background-color: #171720;
+		z-index: 1;
 	}
 }
 
@@ -166,17 +173,8 @@ body .ui-tabs .ui-tabs-nav li {
 	font-size: 0.8em;
 
 }
-@media (min-width:990px) {
-	.header{
-		position: fixed;
-		left: 0;
-		right: 0;
-		background-color: #171720;
-		z-index: 1;
-	}
 
-}
-@media (max-width: 991px) {
+@media (max-width: 990px) {
 	.helpLinkDiv{
 		display: none;
 	}
@@ -223,7 +221,7 @@ body .ui-tabs .ui-tabs-nav li {
 
 }
 
-@media(max-width:991px){
+@media(max-width:990px){
 	.fppBrand .versionHead{
 		display: none;
 	}
@@ -328,17 +326,12 @@ body .headerCenter a:hover{
 	padding-right: 0;
 }
 .fppMenuContainer{
-	padding-bottom: 2em;
+	padding-bottom: 0;
 }
-@media(max-width:990px){
-	.mainContainer{
-		padding-top: 1em;
-	}
-}
+
 
 .title{
 	font-size: 2.75em;
-	margin-top: -1em;
 	margin-bottom: 0.75em;
 	font-weight: bold;
 	color:#fff;
@@ -365,6 +358,9 @@ body legend{
 }
 .settings .row{
 	margin-bottom: 1.1em;
+}
+.fppMenuContainer {
+	margin-top: -15px;
 }
 #fppMenu{
 	background: none;
@@ -1042,7 +1038,12 @@ body .sm-clean a .sub-arrow {
 	text-align: center;
   }
 
-  @media all and (max-width: 991px) {
+  @media all and (min-width: 991px) {
+	  #navbarNavDropdown{
+		  margin-top: 0.75em;
+	  }
+  }
+  @media all and (max-width: 990px) {
 
  	.header{
 		padding-right:56px;
@@ -1732,7 +1733,21 @@ input[type=search].tablesorter-filter:disabled{
 #CopyFlagsTable input {
 	margin: 0.4em;
 }
-
+.displayTestingFillOptionBoxHeader{
+	display: flex;
+}
+.color-box{
+	width: 46px;
+	height: 33px;
+	border-radius:8px;
+    box-shadow: 3px 3px 8px rgb(0 0 0 / 10%);
+    border: 1px solid #D2D2D2;
+	cursor: pointer;
+}
+.displayTestingFillOptionBoxHeader .color-box{ 
+	margin-left: 1em;
+	margin-top: 0.35em;
+}
 .icon-effect-type{
 	margin-right: 1em;
 }
@@ -1808,10 +1823,7 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media(max-width:480px){
-	.fppMenuContainer {
-		padding-bottom: 0.1em;
 
-	}
 	.fpp-logo, .headerHostName, .headerRight{
 		display: none;
 	}
@@ -1929,5 +1941,13 @@ input[type=search].tablesorter-filter:disabled{
 @media(max-width:990px){
 	.largeonly{
 		display: none;
+	}
+	.title{
+		font-size: 2.15em;
+		margin-bottom: 0.5em;
+		padding-top:0.5em;
+	}
+	.fppMenuContainer {
+		margin-top: 0;
 	}
 }
