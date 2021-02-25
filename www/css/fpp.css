@@ -5,6 +5,9 @@ body{
     display: none;
 	clear:both;
 }
+#bannerRow a{
+	color:white;
+}
 body .ui-widget{
 	font-family: Helvetica,Arial,sans-serif;
 }
