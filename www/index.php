@@ -119,7 +119,7 @@ include 'common/menuHead.inc';
 		};
 
     function EnabledStats() {
-        SetSetting("statsPublish", "enable", 2);
+        SetSetting("statsPublish", "Enabled", 2);
         $("#bannerRow").hide();
     }
 
