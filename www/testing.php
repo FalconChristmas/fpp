@@ -407,7 +407,17 @@ function StopSequence()
 		DialogError("Failed to stop sequence", "Stop failed");
 	});
 }
-
+function UpdateTestModeFillColors(){
+	var rgb = {
+		r:parseInt($('#testModeColorR').val()), 
+		g:parseInt($('#testModeColorG').val()), 
+		b:parseInt($('#testModeColorB').val())
+	}
+	$('#testModeColorRText').html(rgb.r);
+	$('#testModeColorGText').html(rgb.g);
+	$('#testModeColorBText').html(rgb.b);
+	$('.color-box').colpickSetColor($.colpick.rgbToHex(rgb));
+}
 $(document).ready(function(){
 
 	$('#testModeCycleMS').on('input',function(){
@@ -457,15 +467,10 @@ $(document).ready(function(){
 	// 	}
 	// 	});
 	$('#testModeColorR').on('input',function(){
-		testModeColorR =$('#testModeColorR').val();
-			$('#testModeColorRText').html(testModeColorR);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').val(), b:$('#testModeColorB').val()}));
-
+		UpdateTestModeFillColors();
 	}).on('change',function(){
-			testModeColorR = $('#testModeColorR').val();
-			$('#testModeColorRText').html(testModeColorR);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').val(), b:$('#testModeColorB').val()}));
-			SetTestMode();
+		UpdateTestModeFillColors();
+		SetTestMode();
 	})
 
 	// $('#testModeColorR').slider({
@@ -486,15 +491,10 @@ $(document).ready(function(){
 	// 	});
 
 	$('#testModeColorG').on('input',function(){
-		testModeColorG =$('#testModeColorG').val();
-			$('#testModeColorGText').html(testModeColorG);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').val(), g:testModeColorG, b:$('#testModeColorB').val()}));
-
+		UpdateTestModeFillColors();
 	}).on('change',function(){
-			testModeColorG = $('#testModeColorG').val();
-			$('#testModeColorGText').html(testModeColorG);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').val(), g:testModeColorG, b:$('#testModeColorB').val()}));
-			SetTestMode();
+		UpdateTestModeFillColors();
+		SetTestMode();
 	})
 	// $('#testModeColorG').slider({
 	// 	min: 0,
@@ -514,16 +514,11 @@ $(document).ready(function(){
 	// 	}
 	// 	});
 	$('#testModeColorB').on('input',function(){
-		testModeColorB =$('#testModeColorB').val();
-			$('#testModeColorBText').html(testModeColorB);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').val(), g:$('#testModeColorG').val(), b:testModeColorB}));
-
+		UpdateTestModeFillColors();
 	}).on('change',function(){
-			testModeColorB = $('#testModeColorB').val();
-			$('#testModeColorBText').html(testModeColorB);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').val(), g:$('#testModeColorG').val(), b:testModeColorB}));
-			SetTestMode();
-	})
+		UpdateTestModeFillColors();
+		SetTestMode();
+	});
 	
 	$('.color-box').colpick({
 		layout:'rgbhex',
@@ -742,7 +737,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 							<div class="row">
 								
 								<div class="col-sm-4 testModeColorRange"><span>R: </span><input id="testModeColorR" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorRText'>255</span><span></span></div>
-								<div class="col-sm-4 testModeColorRange"><span>G: </span><input id="testModeColorG" type="range"  min="0" max="255" value="0" step="1"/> </span> <span id='testModeColorGText'>255</span><span></span></div>
+								<div class="col-sm-4 testModeColorRange"><span>G: </span><input id="testModeColorG" type="range"  min="0" max="255" value="0" step="1"/> </span> <span id='testModeColorGText'>0</span><span></span></div>
 								<div class="col-sm-4 testModeColorRange"><span>B: </span><input id="testModeColorB" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorBText'>255</span><span></span></div>
 	
 							</div>
