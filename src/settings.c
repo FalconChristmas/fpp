@@ -504,7 +504,9 @@ const char *getSetting(const char *setting, const char *defaultval)
         return settings.keyVal[setting];
 	}
 
-	LogExcess(VB_SETTING, "getSetting(%s) returned setting not found\n", setting);
+	if (defaultval[0] == 0x0)
+		LogExcess(VB_SETTING, "getSetting(%s) returned setting not found and no default supplied\n", setting);
+
 	return defaultval;
 }
 
