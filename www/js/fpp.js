@@ -3507,7 +3507,7 @@ function SetSetting(key, value, restart, reboot) {
         async: false,
         success: function() {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.",{themeState:'danger'});
+                $.jGrowl(key + " setting saved.",{themeState:'success'});
 
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
@@ -3530,7 +3530,7 @@ function SetPluginSetting(plugin, key, value, restart, reboot) {
         async: false,
         success: function() {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.",{themeState:'danger'});
+                $.jGrowl(key + " setting saved.",{themeState:'success'});
 
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
