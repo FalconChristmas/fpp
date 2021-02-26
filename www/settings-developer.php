@@ -93,5 +93,6 @@ $( document ).ready(function() {
     </tr>
 <?
 PrintSetting('masqUIPlatform');
+PrintSetting("FPP_UUID");
 ?>
 </table>
