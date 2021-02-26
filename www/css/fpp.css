@@ -381,17 +381,20 @@ body legend{
 #programControl{
 	color:#fff;
 }
-.statusDivTop .statusTable{
+.statusDivTopRow{
 	color:#fff;
 	display: flex;
 	margin-top: 0.5em;
 	margin-bottom: 3em;
 	margin-left:0;
+	
 }
-.statusDivTop .statusTable > div{
+.statusDivTopCol{
 	position: relative;
+	margin-left: 1.4em;
+	padding-left: 1.4em;
 }
-.statusDivTop .statusTable > div:before{
+.statusDivTopCol:before{
 	content:'';
 	display: block;
 	border-left:1px solid #2D3043;
@@ -401,11 +404,11 @@ body legend{
 	left: 0;
 	transform: skewX(-13deg);
 }
-.statusDivTop .statusTable>:first-child{
+.statusDivTopCol:first-child{
 	margin-left: 0;
 	padding-left: 0;
 }
-.statusDivTop .statusTable>:first-child:before{
+.statusDivTopCol:first-child:before{
 	content:none;
 }
 .schedulerStatusCol{
@@ -517,8 +520,8 @@ input[type=range]::-webkit-slider-thumb {
 .pageContent .volumeControls .buttons{
 	border-color:#D2D2D2;
 	border-radius:29px;
-	width: 50px;
-	height:50px;
+	width: 62px;
+	height:46px;
 }
 
 .pageContent .disableButtons{
@@ -1724,6 +1727,12 @@ input[type=search].tablesorter-filter:disabled{
 	font-size: 3em;
 	color: #D1D1D1;
 }
+#tblSchedule input[type=text], #tblSchedule select {
+	width: 100%;
+}
+#tblSchedule select.cmdTmplCommand {
+	width: auto;
+}
 @media (min-width: 768px){
 	#verbosePlaylistItemDetailsRow .col-md-5 {
 		flex: 0 0 auto;
@@ -1734,40 +1743,46 @@ input[type=search].tablesorter-filter:disabled{
 		display: flex;
 	}
 }
-@media (min-width:768px) and (max-width:1360px){
-	.statusDivTop .statusTable {
+@media (min-width:769px) and (max-width:1360px){
+	.statusDivTopRow {
 		margin-top: -3em;
-		margin-bottom: 3.5em;
+		flex-flow: wrap;
 	}
-	.statusDivTop .statusTable > div{
+	.statusDivTopCol{
 		margin-top: 3.5em;
 	}
-	.statusDivTop .statusTable > div:nth-child(4) {  
+	.statusDivTopCol:nth-child(4) {  
 		margin-left: 0;
 		padding-left: 0;
 		
 	}
-	.statusDivTop .statusTable > div:nth-child(4):before {
+	.statusDivTopCol:nth-child(4):before {
 		content:none;  
 	}
 }
+@media (max-width:1200px){
+	.pageContent{
+		box-shadow:400px 100px 0px 0px #20222e, -400px 100px 0px 0px #20222e, 0px 100px 0px 0px #20222e, 400px 300px 0px 0px #20222e, -400px 300px 0px 0px #20222e, 0px 300px 0px 0px #20222e
+	}
+}
 @media (min-width:481px) and (max-width:768px){
-	.statusDivTop .statusTable {
+	.statusDivTopRow {
 		margin-top: 0.1em;
 		margin-bottom: 0.5em;
 		max-width: 100%;
+		flex-flow: wrap;
 	}
-	.statusDivTop .statusTable > div {
+	.statusDivTopCol {
 		border-bottom:1px solid #2D3043;
 		margin-bottom: 1em;
 		padding-bottom: 1em;
 		padding-left: 0;
 		margin-top: 0.2em;
 	}
-	.statusDivTop .statusTable > div:last-child {
+	.statusDivTopCol:last-child {
 		border-bottom:none;
 	}
-	.statusDivTop .statusTable > div:before {
+	.statusDivTopCol:before {
 		content:none;
 	}
 }
@@ -1856,16 +1871,13 @@ input[type=search].tablesorter-filter:disabled{
 	.statusDivTop{
 		overflow-x: auto;
 	}
-	.statusDivTop .statusTable {
+	.statusDivTopRow {
 		width: 2000px;
 		flex-wrap: nowrap;
+		margin-bottom: 1.8em;
 	}
-	.schedulerStatusCol {
-		display: block;
-	}
-	.schedulerStatusCol .labelAction{
-		padding-left: 0;
-	}
+
+
 	.statusDivTopWrap{
 		position: relative;
 	}
@@ -1885,8 +1897,22 @@ input[type=search].tablesorter-filter:disabled{
 	.fppBrand {
 		padding-left: 0;
 	}
+	#header_Time{
+		width: 100px;
+	}
 }
+@media(min-width:481px) and (max-width:1440px){
+	.statusDivTopRow {
+		width: 100%;
+	}
 
+
+}
+@media(min-width:481px) and (max-width:1360px){
+	.statusDivTopCol {
+		width: calc( 33.3333% - 1.4em);
+	}
+}
 @media(max-width:990px){
 	.largeonly{
 		display: none;
@@ -1898,5 +1924,19 @@ input[type=search].tablesorter-filter:disabled{
 	}
 	.fppMenuContainer {
 		margin-top: 0;
+	}
+	.statusDivTopCol {
+		margin-top: 1.5em;
+	}
+	.statusDivTopRow {
+		margin-top: -1.0em;
+	}
+}
+@media (min-width:481px) and (max-width:768px){
+	.statusDivTopCol {
+		width: calc( 50% - 1.4em);
+	}
+	.statusDivTopCol:nth-child(odd) {
+		margin-left: 0;
 	}
 }

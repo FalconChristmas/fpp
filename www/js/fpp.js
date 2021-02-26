@@ -36,6 +36,7 @@ $(function() {
     if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
         $('body').addClass('has-touch');
     }
+    
     $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
     SetupToolTips();
     LoadSystemStatus();
@@ -652,7 +653,20 @@ function SetupToolTips(delay = 100) {
 
 
 }
+function SetHomepageStatusRowWidthForMobile(){
+    if($('.statusDivTopRow').length>0){
+        if($(window).width()<481){
+            var statusWidth=0;
+            $('.statusDivTopCol').each(function(){
+                statusWidth+=$(this).outerWidth(true);
+            });
+            $('.statusDivTopRow').css('width',statusWidth+40)
+        }else{
+            $('.statusDivTopRow').css('width','')
+        }
 
+    }
+}
 function ShowTableWrapper(tableName) {
     if ($('#' + tableName).parent().parent().hasClass('fppTableWrapperAsTable'))
         $('#' + tableName).parent().parent().attr('style', 'display: table');
@@ -3240,7 +3254,10 @@ if (1) {
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 
 			}
-
+            setTimeout(function(){
+                SetHomepageStatusRowWidthForMobile();
+            },100);
+            
 			$('#fppTime').html(jsonStatus.time);
 
 			var npl = jsonStatus.scheduler.nextPlaylist;

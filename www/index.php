@@ -229,9 +229,9 @@ include 'common/menuHead.inc';
 ?>
 <div class="statusDivTopWrap">
     <div id="schedulerInfo" class="statusDiv statusDivTop">
-        <div class="statusTable row">
+        <div class="statusTable statusDivTopRow">
 
-            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+            <div class="statusDivTopCol ">
                 <div class="schedulerStatusCol">
                     <div>
                         <div class="labelHeading">Scheduler Status:</div>
@@ -246,15 +246,15 @@ include 'common/menuHead.inc';
 
 
             </div>
-            <div class="col-sm-auto col-md-4 col-xxl-auto schedulerStartTime">
+            <div class="statusDivTopCol schedulerStartTime">
                 <div class='labelHeading'>Started at:</div>
                 <div class='labelValue' id='schedulerStartTime'></div>
             </div>
-            <div class="col-sm-auto col-md-4 col-xxl-auto schedulerEndTime">
+            <div class="statusDivTopCol schedulerEndTime">
                 <div class='labelHeading'><span id='schedulerStopType'></span> Stop at:</div>
                 <div class='labelValue' id='schedulerEndTime'></div>
             </div>
-            <div class="schedulerExtend schedulerEndTime col-sm-auto col-md-4 col-xxl-auto ">
+            <div class="schedulerExtend schedulerEndTime statusDivTopCol ">
                 <div class="labelHeading">Extend Current Playlist:</div>
                 <div class='labelValue' colspan='2'>
                     <div class="btn-group">
@@ -264,7 +264,7 @@ include 'common/menuHead.inc';
                     
                 </div>
             </div>
-            <div class="col-sm-auto col-md-4 col-xxl-auto ">
+            <div class="statusDivTopCol">
                 <div class="labelHeading">Next Playlist: </div>
                 <div id='nextPlaylist' class="labelValue"></div>
             </div>
