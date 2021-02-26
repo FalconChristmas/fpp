@@ -447,6 +447,19 @@ void CloseOpenFiles(void)
 	    close(fd);
 }
 
+int DateInRange(time_t when, int startDate, int endDate)
+{
+    struct tm dt;
+    localtime_r(&when, &dt);
+
+    int dateInt = 0;
+    dateInt += (dt.tm_year + 1900) * 10000;
+    dateInt += (dt.tm_mon + 1)     *   100;
+    dateInt += (dt.tm_mday)               ;
+
+    return DateInRange(dateInt, startDate, endDate);
+}
+
 /*
  * Check to see if current date int is in the range specified
  */
@@ -959,7 +972,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	}
 
-	if (data != "")
+	if ((method == "POST") || (method == "PUT"))
 	{
 		status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
 		if (status != CURLE_OK)
@@ -970,6 +983,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 	}
 
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 2);
 
 	if (method == "POST")
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -980,6 +994,8 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
 
+	LogDebug(VB_GENERAL, "Calling %s %s\n", method.c_str(), url.c_str());
+
 	status = curl_easy_perform(curl);
 	if (status != CURLE_OK)
 	{
@@ -987,7 +1003,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 		return false;
 	}
 
-	LogDebug(VB_GENERAL, "resp: %s\n", resp.c_str());
+	LogDebug(VB_GENERAL, "%s %s resp: %s\n", method.c_str(), url.c_str(), resp.c_str());
 
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);

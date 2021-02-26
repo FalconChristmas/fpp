@@ -36,11 +36,6 @@
 #include "ScheduleEntry.h"
 
 #define SCHEDULE_INDEX_INVALID  -1
-#define SECONDS_PER_MINUTE    60
-#define SECONDS_PER_HOUR      3600
-#define SECONDS_PER_DAY       86400
-#define SECONDS_PER_WEEK      604800
-#define DAYS_PER_WEEK         7
 
 #define INX_SUN                     0
 #define INX_MON                     1
@@ -78,27 +73,6 @@
 #define INX_DAY_MASK_START_EVEN     0x02A00
 
 
-class SchedulePlaylistDetails {
-public:
-    SchedulePlaylistDetails() {}
-    ~SchedulePlaylistDetails() {}
-
-	void SetTimes(time_t currTime, int nowWeeklySeconds);
-
-	ScheduleEntry entry;
-
-	int ScheduleEntryIndex = 0;
-	int weeklySecondIndex = 0;
-	int startWeeklySeconds = 0;
-	int endWeeklySeconds = 0;
-
-	int    actualStartWeeklySeconds = 0;
-	time_t actualStartTime = 0;
-	time_t actualEndTime = 0;
-	time_t scheduledStartTime = 0;
-	time_t scheduledEndTime = 0;
-};
-
 class ScheduledItem {
   public:
     ScheduledItem();
@@ -132,15 +106,14 @@ class Scheduler {
 	Json::Value GetSchedule(void);
 
   private:
-    void CalculateScheduledItems();
+	void AddScheduledItems(ScheduleEntry *entry, int index);
     void DumpScheduledItem(std::time_t itemTime, ScheduledItem *item);
     void DumpScheduledItems();
     void CheckScheduledItems();
+    void ClearScheduledItems();
     void SetItemRan(ScheduledItem *item, bool ran);
 
     ScheduledItem *GetNextScheduledPlaylist();
-	void GetSunInfo(const std::string &info, int moffset, int &hour, int &minute, int &second);
-	void SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry);
 	void LoadScheduleFromFile(void);
 	void SchedulePrint(void);
 	std::string GetDayTextFromDayIndex(const int index);
@@ -156,6 +129,7 @@ class Scheduler {
 	std::mutex                  m_scheduleLock;
 	std::vector<ScheduleEntry>  m_Schedule;
     std::map<std::time_t, std::vector<ScheduledItem*>*> m_scheduledItems;
+    std::map<std::time_t, std::vector<ScheduledItem*>*> m_oldItems;
     std::map<std::time_t, std::vector<ScheduledItem*>*> m_ranItems;
 
     int                     m_forcedNextPlaylist;
