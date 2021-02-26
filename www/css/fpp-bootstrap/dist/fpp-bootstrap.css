@@ -3872,7 +3872,7 @@ template {
   .offset-xxxxxl-11 {
     margin-left: 91.66667%; } }
 
-.form-control, .tablesorter input, input[type=checkbox], #settingsManagerTabsContent input[type=text] {
+.form-control, .tablesorter input, input[type=checkbox], .form-inline input[type=checkbox], #settingsManagerTabsContent input[type=text] {
   display: block;
   width: 100%;
   height: calc(1.5em + 0.66rem + 2px);
@@ -3887,9 +3887,9 @@ template {
   border-radius: 0.25rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .form-control, .tablesorter input, input[type=checkbox], #settingsManagerTabsContent input[type=text] {
+    .form-control, .tablesorter input, input[type=checkbox], .form-inline input[type=checkbox], #settingsManagerTabsContent input[type=text] {
       transition: none; } }
-  .form-control::-ms-expand, .tablesorter input::-ms-expand, input[type=checkbox]::-ms-expand, #settingsManagerTabsContent input[type=text]::-ms-expand {
+  .form-control::-ms-expand, .tablesorter input::-ms-expand, input[type=checkbox]::-ms-expand, .form-inline input[type=checkbox]::-ms-expand, #settingsManagerTabsContent input[type=text]::-ms-expand {
     background-color: transparent;
     border: 0; }
   .form-control:-moz-focusring, .tablesorter input:-moz-focusring, input:-moz-focusring[type=checkbox], #settingsManagerTabsContent input:-moz-focusring[type=text] {
@@ -3901,13 +3901,13 @@ template {
     border-color: #4c4c6a;
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
-  .form-control::-moz-placeholder, .tablesorter input::-moz-placeholder, input[type=checkbox]::-moz-placeholder, #settingsManagerTabsContent input[type=text]::-moz-placeholder {
+  .form-control::-moz-placeholder, .tablesorter input::-moz-placeholder, input[type=checkbox]::-moz-placeholder, .form-inline input[type=checkbox]::-moz-placeholder, #settingsManagerTabsContent input[type=text]::-moz-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder, #settingsManagerTabsContent input[type=text]:-ms-input-placeholder {
+  .form-control:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder, .form-inline input[type=checkbox]:-ms-input-placeholder, #settingsManagerTabsContent input[type=text]:-ms-input-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control::placeholder, .tablesorter input::placeholder, input[type=checkbox]::placeholder, #settingsManagerTabsContent input[type=text]::placeholder {
+  .form-control::placeholder, .tablesorter input::placeholder, input[type=checkbox]::placeholder, .form-inline input[type=checkbox]::placeholder, #settingsManagerTabsContent input[type=text]::placeholder {
     color: #6c757d;
     opacity: 1; }
   .form-control:disabled, .tablesorter input:disabled, input:disabled[type=checkbox], #settingsManagerTabsContent input:disabled[type=text], .form-control[readonly], .tablesorter input[readonly], input[readonly][type=checkbox], #settingsManagerTabsContent input[readonly][type=text] {
@@ -8156,7 +8156,7 @@ input[type=text], input[type=number], input[type=password], input[type=email], s
 textarea {
   resize: both; }
 
-input[type=checkbox] {
+input[type=checkbox], .form-inline input[type=checkbox] {
   -webkit-appearance: none;
      -moz-appearance: none;
           appearance: none;

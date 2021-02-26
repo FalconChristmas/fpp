@@ -185,7 +185,7 @@ function StartSelectedEffect() {
                     <div class='fppTableWrapper'>
                       <div class='fppTableContents'>
                         <table id="tblRunningEffects" class="fppActionTable fppActionTable-success" width="100%" cellpadding=1 cellspacing=0>
-                          <thead><tr><th width='8%'>ID</th><th>Running Effects</th><th width='15%'></th></tr></thead>
+                          <thead><tr><th>ID</th><th>Running Effects</th><th></th></tr></thead>
                           <tbody id='tblRunningEffectsBody'></tbody>
                         </table>
                         <div class="tblRunningEffectsPlaceholder">

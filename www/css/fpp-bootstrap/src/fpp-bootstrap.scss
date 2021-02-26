@@ -155,7 +155,7 @@ input[type=text], input[type=number], input[type=password], input[type=email], s
 textarea{
     resize: both;
 }
-input[type=checkbox]{
+input[type=checkbox], .form-inline input[type=checkbox]{
     @extend .form-control;
 	appearance: none;
 	cursor: pointer;

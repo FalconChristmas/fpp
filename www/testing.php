@@ -113,17 +113,17 @@ function GetTestMode()
 
                 if (data.hasOwnProperty('cycleMS')) {
                     $("#testModeCycleMSText").html(data.cycleMS);
-                    $("#testModeCycleMS").slider("value", data.cycleMS);
+                    $("#testModeCycleMS").val(data.cycleMS);
                 } else {
                     $("#testModeCycleMSText").html(1000);
-                    $("#testModeCycleMS").slider("value", 1000);
+                    $("#testModeCycleMS").val(1000);
                 }
 				if (data.mode == "SingleChase")
 				{
 					$("input[name=testModeMode][value=SingleChase]").prop('checked', true);
 					$('#testModeChaseSize').val(data.chaseSize);
 					$('#testModeColorSText').html(data.chaseValue);
-					$("#testModeColorS").slider("value", data.chaseValue);
+					$("#testModeColorS").val(data.chaseValue);
 				}
 				else if (data.mode == "RGBChase")
 				{
@@ -143,9 +143,15 @@ function GetTestMode()
 					$("#testModeColorRText").html(data.color1);
 					$("#testModeColorGText").html(data.color2);
 					$("#testModeColorBText").html(data.color3);
-					$("#testModeColorR").slider("value", data.color1);
-					$("#testModeColorG").slider("value", data.color2);
-					$("#testModeColorB").slider("value", data.color3);
+					$("#testModeColorR").val(data.color1);
+					$("#testModeColorG").val(data.color2);
+					$("#testModeColorB").val(data.color3);
+					var rgb = {
+						r:data.color1,
+						g:data.color2,
+						b:data.color3
+					};
+					$('.color-box').colpickSetColor(rgb).css('background-color', $.colpick.rgbToHex(rgb));	
 				}
 			}
 			else
@@ -234,7 +240,7 @@ function SetTestMode()
 	if (endChannel < startChannel)
 		endChannel = startChannel;
 
-	var selected = $("#testModeModeDiv input[type='radio']:checked");
+	var selected = $("#tab-channels input[type='radio']:checked");
 	if (selected.length > 0) {
 		mode = selected.val();
 	}
@@ -318,9 +324,10 @@ function SetTestMode()
 		data.channelSetType = channelSetType;
 
 		var postData = "command=setTestMode&data=" + JSON.stringify(data);
-
+		console.log(postData);
 		$.post("fppjson.php", postData).done(function(data) {
-//			$.jGrowl("Test Mode Set");
+			//$.jGrowl("Test Mode Set");
+			//console.log(data);
 		}).fail(function(data) {
 			DialogError("Failed to set Test Mode", "Setup failed");
 		});
