@@ -601,6 +601,7 @@
         "FPP_UUID": {
             "name": "FPP_UUID",
             "description": "UUID to use for stats collection",
+            "gatherStats" : true,
             "tip": "FPP UUID to use for stats collection.  This will override using the serial number from /proc/cpuinfo or dmidecode.",
             "level": 3,
             "type": "text",
