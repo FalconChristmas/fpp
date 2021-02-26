@@ -37,31 +37,41 @@
 #include "sunset.h"
 
 #define SCHEDULE_FILE     "/home/fpp/media/config/schedule.json"
+#define SCHEDULE_FILE_CSV "/home/fpp/media/schedule"
 
 Scheduler *scheduler = NULL;
 
+
+static int GetWeeklySeconds(int day, int hour, int minute, int second)
+{
+  int weeklySeconds = (day*SECONDS_PER_DAY) + (hour*SECONDS_PER_HOUR) + (minute*SECONDS_PER_MINUTE) + second;
+
+  if (weeklySeconds >= SECONDS_PER_WEEK)
+    weeklySeconds -= SECONDS_PER_WEEK;
+
+  return weeklySeconds;
+}
+
+
+void SchedulePlaylistDetails::SetTimes(time_t currTime, int nowWeeklySeconds)
+{
+    actualStartTime = currTime;
+    actualStartWeeklySeconds = nowWeeklySeconds;
+
+    scheduledStartTime = currTime - (nowWeeklySeconds - startWeeklySeconds);
+
+    if (nowWeeklySeconds < startWeeklySeconds)
+        scheduledStartTime -= 7 * 24 * 60 * 60;
+
+    scheduledEndTime = currTime + (endWeeklySeconds - nowWeeklySeconds);
+
+    if (endWeeklySeconds < startWeeklySeconds)
+        scheduledEndTime += 7 * 24 * 60 * 60;
+
+    actualEndTime = scheduledEndTime;
+}
+
 /////////////////////////////////////////////////////////////////////////////
-
-ScheduledItem::ScheduledItem()
-  : priority(1),
-    entry(nullptr),
-    ran(false)
-{
-}
-
-ScheduledItem::ScheduledItem(ScheduledItem *item)
-{
-    priority = item->priority;
-    entry = nullptr;
-    entryIndex = item->entryIndex;
-    ran = item->ran;
-    startTime = item->startTime;
-    endTime = item->endTime;
-    command = item->command;
-    args = item->args;
-}
-
-////////////////////////////////////////////////////////////////////////////
 
 Scheduler::Scheduler()
   : m_schedulerDisabled(false),
@@ -198,196 +208,141 @@ void Scheduler::ReloadScheduleFile(void)
 	m_loadSchedule = true;
 }
 
-void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
+void Scheduler::CalculateScheduledItems()
 {
-	if (!entry->enabled)
-		return;
+    LogDebug(VB_SCHEDULE, "Scheduler::CalculateScheduledItems()\n");
 
-	if (entry->playlist != "") {
-        std::string playlistFile;
-        std::string warning = "Scheduled ";
-
-        if (entry->sequence) {
-            playlistFile = getSequenceDirectory();
-            playlistFile += "/";
-            playlistFile += entry->playlist;
-
-            warning = "Sequence";
-        } else {
-            playlistFile = getPlaylistDirectory();
-            playlistFile += "/";
-            playlistFile += entry->playlist + ".json";
-
-            warning = "Playlist";
+    std::map<std::time_t, std::vector<ScheduledItem*>*> oldItems = m_scheduledItems;
+    for (auto& itemTime: m_scheduledItems) {
+        for (auto& item: *itemTime.second) {
+            delete item;
         }
-        warning = " '";
-        warning += entry->playlist + "' does not exist";
-
-		if (FileExists(playlistFile)) {
-			WarningHolder::RemoveWarning(warning);
-		} else {
-			WarningHolder::AddWarning(warning);
-			entry->enabled = false;
-			return;
-		}
-	}
-
-    int dayIndex = entry->dayIndex;
-
-    // Convert everything to a day mask to simplify code below
-    switch(dayIndex) {
-        case INX_SUN:           dayIndex = INX_DAY_MASK_SUNDAY;        break;
-        case INX_MON:           dayIndex = INX_DAY_MASK_MONDAY;        break;
-        case INX_TUE:           dayIndex = INX_DAY_MASK_TUESDAY;       break;
-        case INX_WED:           dayIndex = INX_DAY_MASK_WEDNESDAY;     break;
-        case INX_THU:           dayIndex = INX_DAY_MASK_THURSDAY;      break;
-        case INX_FRI:           dayIndex = INX_DAY_MASK_FRIDAY;        break;
-        case INX_SAT:           dayIndex = INX_DAY_MASK_SATURDAY;      break;
-        case INX_EVERYDAY:      dayIndex = INX_DAY_MASK_EVERYDAY;      break;
-        case INX_WKDAYS:        dayIndex = INX_DAY_MASK_WEEKDAYS;      break;
-        case INX_WKEND:         dayIndex = INX_DAY_MASK_WEEKEND;       break;
-        case INX_M_W_F:         dayIndex = INX_DAY_MASK_M_W_F;         break;
-        case INX_T_TH:          dayIndex = INX_DAY_MASK_T_TH;          break;
-        case INX_SUN_TO_THURS:  dayIndex = INX_DAY_MASK_SUN_TO_THURS;  break;
-        case INX_FRI_SAT:       dayIndex = INX_DAY_MASK_FRI_SAT;       break;
-        case INX_ODD_DAY:
-        case INX_EVEN_DAY:
-            // Odd/Even is based on the FPP 'epoch', the date of the first
-            // commit to the FPP repository on github, July 15, 2013
-            struct std::tm FPPEpoch = {0,0,0,15,6,113};
-            std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
-            std::time_t currTime = std::time(nullptr);
-            int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
-            bool oddSunday = false;
-
-            struct tm now;
-            localtime_r(&currTime, &now);
-
-            if ((daysSince - now.tm_wday) % 2) {
-                oddSunday = true; // This past Sunday was an odd day
-            }
-
-            bool dayOn = false;
-            if (dayIndex == INX_ODD_DAY) {
-                if (((oddSunday) && ((now.tm_wday % 2) == 0)) ||
-                    ((!oddSunday) && ((now.tm_wday % 2) == 1))) {
-                    dayOn = true;
-                }
-            } else { // dayIndex == INX_EVEN_DAY
-                if (((oddSunday) && ((now.tm_wday % 2) == 1)) ||
-                    ((!oddSunday) && ((now.tm_wday % 2) == 0))) {
-                    dayOn = true;
-                }
-            }
-
-            // Now through end of the week
-            for (int i = now.tm_wday; i < 7; i++) {
-                if (dayOn)
-                    dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
-
-                dayOn = !dayOn;
-            }
-            // Beginning of next week
-            for (int i = 0; i < now.tm_wday; i++) {
-                if (dayOn)
-                    dayIndex |= (INX_DAY_MASK_SUNDAY >> i);
-
-                dayOn = !dayOn;
-            }
-
-            break;
+        delete itemTime.second;
     }
+    m_scheduledItems.clear();
 
-    if (dayIndex & INX_DAY_MASK_SUNDAY)
-        entry->pushStartEndTimes(INX_SUN);
+    std::time_t currTime = std::time(NULL);
+    struct tm now;
 
-    if (dayIndex & INX_DAY_MASK_MONDAY)
-        entry->pushStartEndTimes(INX_MON);
-
-    if (dayIndex & INX_DAY_MASK_TUESDAY)
-        entry->pushStartEndTimes(INX_TUE);
-
-    if (dayIndex & INX_DAY_MASK_WEDNESDAY)
-        entry->pushStartEndTimes(INX_WED);
-
-    if (dayIndex & INX_DAY_MASK_THURSDAY)
-        entry->pushStartEndTimes(INX_THU);
-
-    if (dayIndex & INX_DAY_MASK_FRIDAY)
-        entry->pushStartEndTimes(INX_FRI);
-
-    if (dayIndex & INX_DAY_MASK_SATURDAY)
-        entry->pushStartEndTimes(INX_SAT);
-
-	// loop through entry->startEndTimes and add to m_scheduledItems
+    localtime_r(&currTime, &now);
+    int nowWeeklySeconds = GetWeeklySeconds(now.tm_wday, now.tm_hour, now.tm_min, now.tm_sec);
+    time_t weekEpoch = currTime - nowWeeklySeconds;
     time_t startTime = 0;
     time_t endTime = 0;
-    for (auto & startEnd : entry->startEndTimes) {
-        startTime = startEnd.first;
-        endTime = startEnd.second;
+    std::string playlistFile;
 
-        // Check to see if this occurrence is within the date range
-        struct tm later;
-        localtime_r(&startTime, &later);
-        int dateInt = 0;
-        dateInt += (later.tm_year + 1900) * 10000;
-        dateInt += (later.tm_mon + 1)     *   100;
-        dateInt += (later.tm_mday)               ;
+    LogDebug(VB_SCHEDULE, "CurrTime: %lld, NowWeeklySeconds: %d, WeekEpoch: %lld\n", (long long)currTime, nowWeeklySeconds, (long long)weekEpoch);
 
-        // Skip if occurrence is outside the date range
-        if (!DateInRange(dateInt, entry->startDate, entry->endDate))
-            continue;
+    for (int i = 0; i < m_Schedule.size(); i++) {
+		if (m_Schedule[i].enabled) {
+            if (m_Schedule[i].playlist != "") {
+                std::string warning = "Scheduled ";
 
-        ScheduledItem *newItem = new ScheduledItem;
+                if (m_Schedule[i].sequence) {
+                    playlistFile = getSequenceDirectory();
+                    playlistFile += "/";
+                    playlistFile += m_Schedule[i].playlist;
 
-        newItem->entry = entry;
-        newItem->entryIndex = index;
-        newItem->priority = index; // change this if we add a priority field
-        newItem->startTime = startTime;
-        newItem->endTime = startTime;
+                    warning = "Sequence";
+                } else {
+                    playlistFile = getPlaylistDirectory();
+                    playlistFile += "/";
+                    playlistFile += m_Schedule[i].playlist + ".json";
 
-        if (entry->playlist != "") {
-            // Old style schedule entry without a FPP Command
-            Json::Value args(Json::arrayValue);
-            args.append(entry->playlist);
-            args.append(entry->repeat ? "true" : "false");
-            args.append("false");
+                    warning = "Playlist";
+                }
+                warning = " '";
+                warning += m_Schedule[i].playlist + "' does not exist";
 
-            newItem->command = "Start Playlist";
-            newItem->args = args;
-            newItem->endTime = endTime;
-
-            // Check to see if this item already ran
-            auto sVec = m_ranItems.find(newItem->startTime);
-            if (sVec != m_ranItems.end()) {
-                for (auto& item: *sVec->second) {
-                    if ((newItem->command == item->command) &&
-                        (newItem->startTime == item->startTime) &&
-                        (newItem->endTime == item->endTime) &&
-                        (newItem->args.size() == item->args.size()) &&
-                        ((!newItem->args.size() && !item->args.size()) ||
-                         (newItem->args[0].asString() == item->args[0].asString()))) {
-                        LogDebug(VB_SCHEDULE, "Marking playlist item as already ran:\n");
-                        DumpScheduledItem(newItem->startTime, newItem);
-                        newItem->ran = true;
-                    }
+                if (FileExists(playlistFile)) {
+                    WarningHolder::RemoveWarning(warning);
+                } else {
+                    WarningHolder::AddWarning(warning);
+                    m_Schedule[i].enabled = false;
+                    continue;
                 }
             }
-        } else {
-            // New style schedule entry with a FPP Command
-            newItem->command = entry->command;
-            newItem->args = entry->args;
-        }
 
-        auto sVec = m_scheduledItems.find(startTime);
-        if (sVec != m_scheduledItems.end()) {
-            sVec->second->push_back(newItem);
-        } else {
-            std::vector<ScheduledItem*> *newVec = new std::vector<ScheduledItem*>;
-            newVec->push_back(newItem);
-            m_scheduledItems[startTime] = newVec;
+            for (auto & startEnd : m_Schedule[i].startEndSeconds) {
+                startTime = weekEpoch + startEnd.first;
+                if (startEnd.second < startEnd.first) {
+                    // wraps over the Sat->Sun week end
+                    endTime = weekEpoch + startEnd.second + (7 * 24 * 60 * 60);
+                } else {
+                    endTime = weekEpoch + startEnd.second;
+                }
+
+                if (startTime < (currTime - (24 * 60 * 60))) {
+                    startTime += (7 * 24 * 60 * 60);
+                    endTime += (7 * 24 * 60 * 60);
+                }
+
+                // Check to see if this occurrence is within the date range
+                struct tm later;
+                localtime_r(&startTime, &later);
+                int dateInt = 0;
+                dateInt += (later.tm_year + 1900) * 10000;
+                dateInt += (later.tm_mon + 1)     *   100;
+                dateInt += (later.tm_mday)               ;
+
+                // Skip if occurrence is outside the date range
+                if (!DateInRange(dateInt, m_Schedule[i].startDate, m_Schedule[i].endDate))
+                    continue;
+
+                ScheduledItem *newItem = new ScheduledItem;
+
+                newItem->entry = &m_Schedule[i];
+                newItem->entryIndex = i;
+                newItem->priority = i; // change this if we add a priority field
+                newItem->startTime = startTime;
+                newItem->endTime = startTime;
+
+                if (m_Schedule[i].playlist != "") {
+                    // Old style schedule entry without a FPP Command
+                    Json::Value args(Json::arrayValue);
+                    args.append(m_Schedule[i].playlist);
+                    args.append(m_Schedule[i].repeat ? "true" : "false");
+                    args.append("false");
+
+                    newItem->command = "Start Playlist";
+                    newItem->args = args;
+                    newItem->endTime = endTime;
+
+                    // Check to see if this item already ran
+                    auto sVec = m_ranItems.find(newItem->startTime);
+                    if (sVec != m_ranItems.end()) {
+                        for (auto& item: *sVec->second) {
+                            if ((newItem->command == item->command) &&
+                                (newItem->startTime == item->startTime) &&
+                                (newItem->endTime == item->endTime) &&
+                                (newItem->args.size() == item->args.size()) &&
+                                ((!newItem->args.size() && !item->args.size()) ||
+                                 (newItem->args[0].asString() == item->args[0].asString()))) {
+                                LogDebug(VB_SCHEDULE, "Marking playlist item as already ran:\n");
+                                DumpScheduledItem(newItem->startTime, newItem);
+                                newItem->ran = true;
+                            }
+                        }
+                    }
+                } else {
+                    // New style schedule entry with a FPP Command
+                    newItem->command = m_Schedule[i].command;
+                    newItem->args = m_Schedule[i].args;
+                }
+
+                auto sVec = m_scheduledItems.find(startTime);
+                if (sVec != m_scheduledItems.end()) {
+                    sVec->second->push_back(newItem);
+                } else {
+                    std::vector<ScheduledItem*> *newVec = new std::vector<ScheduledItem*>;
+                    newVec->push_back(newItem);
+                    m_scheduledItems[startTime] = newVec;
+                }
+            }
         }
     }
+
+    DumpScheduledItems();
 }
 
 void Scheduler::DumpScheduledItem(std::time_t itemTime, ScheduledItem *item)
@@ -411,7 +366,7 @@ void Scheduler::DumpScheduledItem(std::time_t itemTime, ScheduledItem *item)
 
 void Scheduler::DumpScheduledItems()
 {
-    LogDebug(VB_SCHEDULE, "DumpScheduledItems()\n");
+    LogDebug(VB_SCHEDULE, "Scheduler::DumpScheduledItems()\n");
 
     for (const auto& itemTime: m_scheduledItems) {
         for (const auto& item: *itemTime.second) {
@@ -566,17 +521,6 @@ void Scheduler::CheckScheduledItems()
     }
 }
 
-void Scheduler::ClearScheduledItems()
-{
-    for (auto& itemTime: m_scheduledItems) {
-        for (auto& item: *itemTime.second) {
-            delete item;
-        }
-        delete itemTime.second;
-    }
-    m_scheduledItems.clear();
-}
-
 void Scheduler::SetItemRan(ScheduledItem *item, bool ran)
 {
     item->ran = ran;
@@ -605,6 +549,161 @@ void Scheduler::SetItemRan(ScheduledItem *item, bool ran)
     }
 }
 
+void Scheduler::GetSunInfo(const std::string &info, int moffset, int &hour, int &minute, int &second)
+{
+	std::string latStr = getSetting("Latitude");
+	std::string lonStr = getSetting("Longitude");
+
+	if ((latStr == "") || (lonStr == ""))
+	{
+		latStr = "38.938524";
+		lonStr = "-104.600945";
+
+		LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not filled in, using Falcon, Colorado coordinates!\n");
+	}
+
+	std::string::size_type sz;
+	double lat = std::stod(latStr, &sz);
+	double lon = std::stod(lonStr, &sz);
+	double sunOffset = 0;
+	time_t currTime = time(NULL);
+	struct tm utc;
+	struct tm local;
+
+	gmtime_r(&currTime, &utc);
+	localtime_r(&currTime, &local);
+
+	LogDebug(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
+	LogDebug(VB_SCHEDULE, "Today (UTC) is %02d/%02d/%04d, UTC offset is %d hours\n",
+		utc.tm_mon + 1, utc.tm_mday, utc.tm_year + 1900, local.tm_gmtoff / 3600);
+
+	SunSet sun(lat, lon, (int)(local.tm_gmtoff / 3600));
+	sun.setCurrentDate(utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday);
+
+    if (info == "SunRise")
+        sunOffset = sun.calcSunrise();
+    else if (info == "SunSet")
+        sunOffset = sun.calcSunset();
+    else if (info == "Dawn")
+        sunOffset = sun.calcCivilSunrise();
+    else if (info == "Dusk")
+        sunOffset = sun.calcCivilSunset();
+    else
+        sunOffset = 0;
+    
+    sunOffset += moffset;
+
+    if (sunOffset < 0) {
+        LogDebug(VB_SCHEDULE, "Sunrise calculated as before midnight last night, using 8AM.  Check your time zone to make sure it is valid.\n");
+        hour = 8;
+        minute = 0;
+        second = 0;
+        return;
+    } else if (sunOffset >= (24 * 60 * 60)) {
+        LogDebug(VB_SCHEDULE, "Sunrise calculated as after midnight tomorrow, using 8PM.  Check your time zone to make sure it is valid.\n");
+        hour = 20;
+        minute = 0;
+        second = 0;
+        return;
+    }
+
+	LogDebug(VB_SCHEDULE, "%s Time Offset: %.2f minutes\n", info.c_str(), sunOffset);
+	hour = (int)sunOffset / 60;
+	minute = (int)sunOffset % 60;
+	second = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
+
+    LogDebug(VB_SCHEDULE, "%s is at %02d:%02d:%02d\n", info.c_str(), hour, minute, second);
+}
+
+
+void Scheduler::SetScheduleEntrysWeeklyStartAndEndSeconds(ScheduleEntry *entry)
+{
+    int dayIndex = entry->dayIndex;
+
+    // Convert everything to a day mask to simplify code below
+    switch(dayIndex) {
+        case INX_SUN:           dayIndex = INX_DAY_MASK_SUNDAY;        break;
+        case INX_MON:           dayIndex = INX_DAY_MASK_MONDAY;        break;
+        case INX_TUE:           dayIndex = INX_DAY_MASK_TUESDAY;       break;
+        case INX_WED:           dayIndex = INX_DAY_MASK_WEDNESDAY;     break;
+        case INX_THU:           dayIndex = INX_DAY_MASK_THURSDAY;      break;
+        case INX_FRI:           dayIndex = INX_DAY_MASK_FRIDAY;        break;
+        case INX_SAT:           dayIndex = INX_DAY_MASK_SATURDAY;      break;
+        case INX_EVERYDAY:      dayIndex = INX_DAY_MASK_EVERYDAY;      break;
+        case INX_WKDAYS:        dayIndex = INX_DAY_MASK_WEEKDAYS;      break;
+        case INX_WKEND:         dayIndex = INX_DAY_MASK_WEEKEND;       break;
+        case INX_M_W_F:         dayIndex = INX_DAY_MASK_M_W_F;         break;
+        case INX_T_TH:          dayIndex = INX_DAY_MASK_T_TH;          break;
+        case INX_SUN_TO_THURS:  dayIndex = INX_DAY_MASK_SUN_TO_THURS;  break;
+        case INX_FRI_SAT:       dayIndex = INX_DAY_MASK_FRI_SAT;       break;
+        case INX_ODD_DAY:
+        case INX_EVEN_DAY:
+            // Odd/Even is based on the FPP 'epoch', the date of the first
+            // commit to the FPP repository on github, July 15, 2013
+            struct std::tm FPPEpoch = {0,0,0,15,6,113};
+            std::time_t FPPEpochTimeT = std::mktime(&FPPEpoch);
+            std::time_t currTime = std::time(nullptr);
+            int daysSince = (int)std::difftime(currTime, FPPEpochTimeT) / (60 * 60 * 24);
+            bool oddSunday = false;
+
+            struct tm now;
+            localtime_r(&currTime, &now);
+
+            if ((daysSince - now.tm_wday) % 2) {
+                oddSunday = true; // This past Sunday was an odd day
+            }
+
+            if (dayIndex == INX_ODD_DAY) {
+                if (oddSunday)
+                    dayIndex = INX_DAY_MASK_START_ODD;
+                else
+                    dayIndex = INX_DAY_MASK_START_EVEN;
+            } else { // dayIndex == INX_EVEN_DAY
+                if (oddSunday)
+                    dayIndex = INX_DAY_MASK_START_EVEN;
+                else
+                    dayIndex = INX_DAY_MASK_START_ODD;
+            }
+
+            break;
+    }
+
+    if (dayIndex & INX_DAY_MASK_SUNDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_SUN,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_SUN,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+
+    if (dayIndex & INX_DAY_MASK_MONDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_MON,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_MON,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+
+    if (dayIndex & INX_DAY_MASK_TUESDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_TUE,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_TUE,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+
+    if (dayIndex & INX_DAY_MASK_WEDNESDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_WED,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_WED,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+
+    if (dayIndex & INX_DAY_MASK_THURSDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_THU,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_THU,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+
+    if (dayIndex & INX_DAY_MASK_FRIDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_FRI,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_FRI,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+
+    if (dayIndex & INX_DAY_MASK_SATURDAY) {
+        entry->pushStartEndTimes(GetWeeklySeconds(INX_SAT,entry->startHour,entry->startMinute,entry->startSecond),
+                                 GetWeeklySeconds(INX_SAT,entry->endHour,entry->endMinute,entry->endSecond));
+    }
+}
+
 void Scheduler::LoadScheduleFromFile(void)
 {
   LogDebug(VB_SCHEDULE, "Loading Schedule from %s\n", SCHEDULE_FILE);
@@ -614,7 +713,6 @@ void Scheduler::LoadScheduleFromFile(void)
 
   std::unique_lock<std::mutex> lock(m_scheduleLock);
   m_Schedule.clear();
-  ClearScheduledItems();
 
   std::string playlistFile;
 
@@ -655,14 +753,32 @@ void Scheduler::LoadScheduleFromFile(void)
         WarningHolder::RemoveWarning(warning);
     }
 
-	AddScheduledItems(&scheduleEntry, i);
+	// Check for sunrise/sunset flags
+    std::size_t found = scheduleEntry.startTimeStr.find(":");
+    if (found == std::string::npos) {
+		GetSunInfo( scheduleEntry.startTimeStr,
+                    scheduleEntry.startTimeOffset,
+					scheduleEntry.startHour,
+					scheduleEntry.startMinute,
+					scheduleEntry.startSecond);
+    }
+
+    found = scheduleEntry.endTimeStr.find(":");
+    if (found == std::string::npos) {
+		GetSunInfo( scheduleEntry.endTimeStr,
+                    scheduleEntry.endTimeOffset,
+					scheduleEntry.endHour,
+					scheduleEntry.endMinute,
+					scheduleEntry.endSecond);
+    }
+
+    // Set WeeklySecond start and end times
+    SetScheduleEntrysWeeklyStartAndEndSeconds(&scheduleEntry);
     m_Schedule.push_back(scheduleEntry);
   }
 
   SchedulePrint();
-
-  if (WillLog(LOG_EXCESSIVE, VB_SCHEDULE))
-      DumpScheduledItems();
+  CalculateScheduledItems();
 
   lock.unlock();
 
@@ -683,24 +799,42 @@ void Scheduler::SchedulePrint(void)
   LogInfo(VB_SCHEDULE, "---- ----------------------- ------------- ------------------- ---------------------------------------------\n");
   for (i = 0; i < m_Schedule.size(); i++) {
     dayStr = GetDayTextFromDayIndex(m_Schedule[i].dayIndex);
-    LogInfo(VB_SCHEDULE, "%c%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-13.13s %-8.8s %c %-8.8s %s\n",
-        m_Schedule[i].enabled ? '+': '-',
-        CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
-        m_Schedule[i].repeat ? '*': ' ',
-        stopTypes[m_Schedule[i].stopType],
-        (int)(m_Schedule[i].startDate / 10000),
-        (int)(m_Schedule[i].startDate % 10000 / 100),
-        (int)(m_Schedule[i].startDate % 100),
-        (int)(m_Schedule[i].endDate / 10000),
-        (int)(m_Schedule[i].endDate % 10000 / 100),
-        (int)(m_Schedule[i].endDate % 100),
-        dayStr.c_str(),
-        m_Schedule[i].startTimeStr.c_str(),
-        m_Schedule[i].playlist != "" ? '-' : ' ',
-        m_Schedule[i].playlist != "" ? m_Schedule[i].endTimeStr.c_str() : "",
-        m_Schedule[i].playlist != "" ?
-            m_Schedule[i].playlist.c_str() :
-            m_Schedule[i].command.c_str());
+    if (m_Schedule[i].playlist != "") { // Scheduled Playlist
+        LogInfo(VB_SCHEDULE, "%c%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-13.13s %02d:%02d:%02d - %02d:%02d:%02d %s\n",
+            m_Schedule[i].enabled ? '+': '-',
+            CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
+            m_Schedule[i].repeat ? '*': ' ',
+            stopTypes[m_Schedule[i].stopType],
+            (int)(m_Schedule[i].startDate / 10000),
+            (int)(m_Schedule[i].startDate % 10000 / 100),
+            (int)(m_Schedule[i].startDate % 100),
+            (int)(m_Schedule[i].endDate / 10000),
+            (int)(m_Schedule[i].endDate % 10000 / 100),
+            (int)(m_Schedule[i].endDate % 100),
+            dayStr.c_str(),
+            m_Schedule[i].startHour,m_Schedule[i].startMinute,m_Schedule[i].startSecond,
+            m_Schedule[i].endHour,m_Schedule[i].endMinute,m_Schedule[i].endSecond,
+            m_Schedule[i].playlist != "" ?
+                m_Schedule[i].playlist.c_str() :
+                m_Schedule[i].command.c_str());
+    } else { // FPP Command
+        LogInfo(VB_SCHEDULE, "%c%c%c%c %04d-%02d-%02d - %04d-%02d-%02d %-13.13s %02d:%02d:%02d            %s\n",
+            m_Schedule[i].enabled ? '+': '-',
+            CurrentDateInRange(m_Schedule[i].startDate, m_Schedule[i].endDate) ? ' ': '!',
+            m_Schedule[i].repeat ? '*': ' ',
+            stopTypes[m_Schedule[i].stopType],
+            (int)(m_Schedule[i].startDate / 10000),
+            (int)(m_Schedule[i].startDate % 10000 / 100),
+            (int)(m_Schedule[i].startDate % 100),
+            (int)(m_Schedule[i].endDate / 10000),
+            (int)(m_Schedule[i].endDate % 10000 / 100),
+            (int)(m_Schedule[i].endDate % 100),
+            dayStr.c_str(),
+            m_Schedule[i].startHour,m_Schedule[i].startMinute,m_Schedule[i].startSecond,
+            m_Schedule[i].playlist != "" ?
+                m_Schedule[i].playlist.c_str() :
+                m_Schedule[i].command.c_str());
+    }
   }
 
   LogDebug(VB_SCHEDULE, "//////////////////////////////////////////////////\n");
@@ -1015,5 +1149,24 @@ public:
 
 void Scheduler::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new ExtendScheduleCommand(this));
+}
+
+ScheduledItem::ScheduledItem()
+  : priority(1),
+    entry(nullptr),
+    ran(false)
+{
+}
+
+ScheduledItem::ScheduledItem(ScheduledItem *item)
+{
+    priority = item->priority;
+    entry = nullptr;
+    entryIndex = item->entryIndex;
+    ran = item->ran;
+    startTime = item->startTime;
+    endTime = item->endTime;
+    command = item->command;
+    args = item->args;
 }
 
