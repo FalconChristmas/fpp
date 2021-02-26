@@ -1940,3 +1940,23 @@ input[type=search].tablesorter-filter:disabled{
 		margin-left: 0;
 	}
 }
+
+/* force light mode for print */
+@media print {
+body, #footer{
+	background-color: #fff;
+	color:#fff;
+	box-shadow: none;
+ }
+ .statusDivTopRow,.title {
+	 color:#000;
+ }
+ .pageContent{
+	 box-shadow: none;
+	 border:1px solid #ddd;
+ }
+ .btn-outline-light,#fppMenu a, #fppMenu a:hover, #fppMenu a:focus, #fppMenu a:active,#fppMenuList>li.active>a{
+	 border-color:#000;
+	 color:#000;
+ }
+}
