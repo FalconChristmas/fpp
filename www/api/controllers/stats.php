@@ -16,7 +16,7 @@ function stats_genereate($statsFile)
         "settings" => 'stats_getSettings',
         "universe_input" => 'stats_universe_in',
         "output_e131" => 'stats_universe_out',
-        "output_pannel" => 'stats_pannel_out',
+        "output_panel" => 'stats_panel_out',
         "output_other" => 'stats_other_out',
         "output_pixel_pi" => 'stats_pixel_pi_out',
         "output_pixel_bbb" => 'stats_pixel_bbb_out',
@@ -463,7 +463,7 @@ function stats_universe_out()
     return $rc;
 }
 
-function stats_pannel_out()
+function stats_panel_out()
 {
     global $settings;
     $rc = array("file" => $settings['channelOutputsJSON']);
