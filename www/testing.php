@@ -611,7 +611,10 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 				<div class="row">
 					<div class="col-md-3">
 						<div class="backdrop-dark">
-							<b>Enable Test Mode:</b> <input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'>
+							<label for="testModeEnabled" class="mb-0 d-block">
+								<b>Enable Test Mode:</b>
+								<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'>
+							</label> 
 						</div>
 						<div class="backdrop-dark mt-3">
 
