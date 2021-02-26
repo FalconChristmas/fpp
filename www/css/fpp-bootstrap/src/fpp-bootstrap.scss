@@ -59,6 +59,9 @@
         padding-bottom:$input-btn-padding-y;
         padding-left:$input-btn-padding-x;
         padding-right:0px;
+        &.buttons{
+            padding-right:$input-btn-padding-x;
+        }
     }
     hr{
         border-width:0px;

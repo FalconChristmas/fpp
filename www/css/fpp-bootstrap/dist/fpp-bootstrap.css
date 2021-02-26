@@ -8067,6 +8067,8 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   padding-bottom: 0.33rem;
   padding-left: 0.65rem;
   padding-right: 0px; }
+  .pageContent input.buttons, .pageContent select.buttons, .ui-dialog input.buttons, .ui-dialog select.buttons, .modal input.buttons, .modal select.buttons {
+    padding-right: 0.65rem; }
 
 .pageContent hr, .ui-dialog hr, .modal hr {
   border-width: 0px;
