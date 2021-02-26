@@ -961,11 +961,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 
 	if ((method == "POST") || (method == "PUT"))
 	{
-		if (data != "")
-			status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
-		else
-			status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "\n");
-
+		status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
 		if (status != CURLE_OK)
 		{
 			LogErr(VB_GENERAL, "curl_easy_setopt() Error setting postfields data: %s\n", curl_easy_strerror(status));
