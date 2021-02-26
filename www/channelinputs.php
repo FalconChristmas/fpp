@@ -241,7 +241,7 @@ $(document).ready(function(){
 		    </table>
 		
 		    <div class='fppTableWrapper'>
-		        <div class='fppTableContents'>
+		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
 		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
 		                <thead id='tblUniversesHead'>
 		                    <th title='Input Number'>Input</th>

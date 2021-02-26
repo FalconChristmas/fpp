@@ -123,7 +123,7 @@ foreach ($hta as $line) {
                     </tr>
                 </table>
                 <div class="fppTableWrapper fppTableWrapperAsTable">
-                    <div class='fppTableContents'>
+                    <div class='fppTableContents' role="region" aria-labelledby="proxyTable" tabindex="0">
                         <table id="proxyTable" class="fppSelectableRowTable">
                             <thead>
                                 <tr>

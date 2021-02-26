@@ -3876,7 +3876,7 @@ template {
   display: block;
   width: 100%;
   height: calc(1.5em + 0.66rem + 2px);
-  padding: 0.33rem 1rem;
+  padding: 0.33rem 0.65rem;
   font-size: 0.95rem;
   font-weight: 400;
   line-height: 1.5;
@@ -4086,8 +4086,8 @@ textarea.form-control {
 
 .was-validated .custom-select:valid, .custom-select.is-valid {
   border-color: #56B760;
-  padding-right: calc(0.75em + 2.495rem);
-  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") right 1rem center/8px 10px no-repeat, #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e") center right 2rem/calc(0.75em + 0.33rem) calc(0.75em + 0.33rem) no-repeat; }
+  padding-right: calc(0.75em + 2.145rem);
+  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") right 0.65rem center/8px 10px no-repeat, #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e") center right 1.65rem/calc(0.75em + 0.33rem) calc(0.75em + 0.33rem) no-repeat; }
   .was-validated .custom-select:valid:focus, .custom-select.is-valid:focus {
     border-color: #56B760;
     box-shadow: 0 0 0 0.25rem rgba(86, 183, 96, 0.25); }
@@ -4170,8 +4170,8 @@ textarea.form-control {
 
 .was-validated .custom-select:invalid, .custom-select.is-invalid {
   border-color: #F63939;
-  padding-right: calc(0.75em + 2.495rem);
-  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") right 1rem center/8px 10px no-repeat, #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23F63939' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23F63939' stroke='none'/%3e%3c/svg%3e") center right 2rem/calc(0.75em + 0.33rem) calc(0.75em + 0.33rem) no-repeat; }
+  padding-right: calc(0.75em + 2.145rem);
+  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") right 0.65rem center/8px 10px no-repeat, #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23F63939' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23F63939' stroke='none'/%3e%3c/svg%3e") center right 1.65rem/calc(0.75em + 0.33rem) calc(0.75em + 0.33rem) no-repeat; }
   .was-validated .custom-select:invalid:focus, .custom-select.is-invalid:focus {
     border-color: #F63939;
     box-shadow: 0 0 0 0.25rem rgba(246, 57, 57, 0.25); }
@@ -4369,13 +4369,13 @@ textarea.form-control {
   display: inline-block;
   width: 100%;
   height: calc(1.5em + 0.66rem + 2px);
-  padding: 0.33rem 2rem 0.33rem 1rem;
+  padding: 0.33rem 1.65rem 0.33rem 0.65rem;
   font-size: 0.95rem;
   font-weight: 400;
   line-height: 1.5;
   color: #495057;
   vertical-align: middle;
-  background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") right 1rem center/8px 10px no-repeat;
+  background: #fff url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='4' height='5' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") right 0.65rem center/8px 10px no-repeat;
   border: 1px solid #ced4da;
   border-radius: 0.25rem;
   -webkit-appearance: none;
@@ -4390,7 +4390,7 @@ textarea.form-control {
       background-color: #fff; }
   .custom-select[multiple], .custom-select[size]:not([size="1"]) {
     height: auto;
-    padding-right: 1rem;
+    padding-right: 0.65rem;
     background-image: none; }
   .custom-select:disabled {
     color: #6c757d;
@@ -4448,7 +4448,7 @@ textarea.form-control {
   left: 0;
   z-index: 1;
   height: calc(1.5em + 0.66rem + 2px);
-  padding: 0.33rem 1rem;
+  padding: 0.33rem 0.65rem;
   overflow: hidden;
   font-weight: 400;
   line-height: 1.5;
@@ -4464,7 +4464,7 @@ textarea.form-control {
     z-index: 3;
     display: block;
     height: calc(1.5em + 0.66rem);
-    padding: 0.33rem 1rem;
+    padding: 0.33rem 0.65rem;
     line-height: 1.5;
     color: #495057;
     content: "Browse";
@@ -4606,7 +4606,7 @@ textarea.form-control {
           user-select: none;
   background-color: transparent;
   border: 1px solid transparent;
-  padding: 0.33rem 1rem;
+  padding: 0.33rem 0.65rem;
   font-size: 0.95rem;
   line-height: 1.5;
   border-radius: 0.25rem;
@@ -5482,8 +5482,8 @@ input[type="button"].btn-block {
   border-bottom-left-radius: 0; }
 
 .dropdown-toggle-split {
-  padding-right: 0.75rem;
-  padding-left: 0.75rem; }
+  padding-right: 0.4875rem;
+  padding-left: 0.4875rem; }
   .dropdown-toggle-split::after,
   .dropup .dropdown-toggle-split::after,
   .dropright .dropdown-toggle-split::after {
@@ -8065,8 +8065,8 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
 .pageContent input, .pageContent select, .ui-dialog input, .ui-dialog select, .modal input, .modal select {
   padding-top: 0.33rem;
   padding-bottom: 0.33rem;
-  padding-left: 1rem;
-  padding-right: 1rem; }
+  padding-left: 0.65rem;
+  padding-right: 0px; }
 
 .pageContent hr, .ui-dialog hr, .modal hr {
   border-width: 0px;
@@ -8140,7 +8140,8 @@ input[type=text], input[type=number], input[type=password], input[type=email], s
   border-radius: 0.25rem;
   font-weight: normal;
   font-size: 0.95rem;
-  vertical-align: middle; }
+  vertical-align: middle;
+  font-size: 16px; }
 
 .pageContent select, .ui-dialog select, .modal select {
   background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
@@ -8468,6 +8469,24 @@ table.settingsTable div.th {
 
 #settingsManager #nav-tabContent {
   padding-top: 1.5em; }
+
+[role="region"][aria-labelledby][tabindex] {
+  background: linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)), linear-gradient(to right, rgba(255, 255, 255, 0), #fff 70%) 0 100%, radial-gradient(farthest-side at 0% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)), radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)) 0 100%;
+  background-repeat: no-repeat;
+  background-color: #fff;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-position: 0 0, 100%, 0 0, 100%;
+  background-attachment: local, local, scroll, scroll;
+  overflow: auto; }
+  @media (max-width: 991.98px) {
+    [role="region"][aria-labelledby][tabindex] {
+      margin-right: -1.2em; } }
+
+[role="region"][aria-labelledby][tabindex] > table {
+  mix-blend-mode: multiply; }
+
+[role="region"][aria-labelledby][tabindex]:focus {
+  outline: 0.1em solid rgba(0, 0, 0, 0.1); }
 
 .fppSelectableRowTable {
   width: 100%;

@@ -58,7 +58,7 @@
         padding-top:$input-btn-padding-y;
         padding-bottom:$input-btn-padding-y;
         padding-left:$input-btn-padding-x;
-        padding-right:$input-btn-padding-x;
+        padding-right:0px;
     }
     hr{
         border-width:0px;
@@ -136,6 +136,7 @@ input[type=text], input[type=number], input[type=password], input[type=email], s
 	font-weight: normal;
     font-size: $font-size-base;
     vertical-align: middle;
+    font-size: 16px;
 }
 .pageContent select, .ui-dialog select, .modal select{
 	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
@@ -482,6 +483,42 @@ table.settingsTable div.th{
 
 #settingsManager #nav-tabContent {
     padding-top: 1.5em;
+}
+
+
+// Under-Engineered Responsive Tables
+// https://adrianroselli.com/2020/11/under-engineered-responsive-tables.html
+
+
+[role="region"][aria-labelledby][tabindex] {
+    background: linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)),
+      linear-gradient(to right, rgba(255, 255, 255, 0), #fff 70%) 0 100%,
+      radial-gradient(
+        farthest-side at 0% 50%,
+        rgba(0, 0, 0, 0.2),
+        rgba(0, 0, 0, 0)
+      ),
+      radial-gradient(
+          farthest-side at 100% 50%,
+          rgba(0, 0, 0, 0.2),
+          rgba(0, 0, 0, 0)
+        )
+        0 100%;
+    background-repeat: no-repeat;
+    background-color: #fff;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-position: 0 0, 100%, 0 0, 100%;
+    background-attachment: local, local, scroll, scroll;
+    overflow: auto;
+    @include media-breakpoint-down(md) { 
+        margin-right: -1.2em;
+    }
+}
+[role="region"][aria-labelledby][tabindex]>table{
+    mix-blend-mode: multiply;
+}
+[role="region"][aria-labelledby][tabindex]:focus {
+    outline: .1em solid rgba(0,0,0,.1);
 }
 
 .fppSelectableRowTable{

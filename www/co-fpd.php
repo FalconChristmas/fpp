@@ -52,7 +52,7 @@ $(document).ready(function(){
 							</tr>
 						</table>
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents'>
+                            <div class='fppTableContents' role="region" aria-labelledby="BBBSerial_Output" tabindex="0">
                                 <table id="tblOutputs">
                                 </table>
                             </div>

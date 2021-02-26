@@ -90,43 +90,6 @@ body .ui-widget input, body .ui-widget select, body .ui-widget textarea, body .u
 	background: #fff;
 }
 
-.ui-dialog .ui-dialog-titlebar {
-    padding: 0.75em 1.5em;
-}
-
-.ui-dialog .ui-dialog-titlebar-close {
-	appearance: none;
-	border:none;
-	position: absolute;
-    right: 7px;
-    top: 18px;
-    width: 36px;
-    height: 36px;
-	border-radius:21px;
-	background-color: #EBEBEB;
-  }
-  .ui-dialog .ui-dialog-titlebar-close:before, .ui-dialog .ui-dialog-titlebar-close:after {
-	position: absolute;
-	left: 17px;
-	top: 10px;
-	content: ' ';
-	height: 17px;
-	width: 1.5px;
-	background-color: #000;
-	border-radius:3px;
-  }
-  .ui-dialog .ui-dialog-titlebar-close:hover{
-	background-color: #E5E5E5;
-  }
-  .ui-dialog .ui-dialog-titlebar-close:before {
-	transform: rotate(45deg);
-  }
-  .ui-dialog .ui-dialog-titlebar-close:after {
-	transform: rotate(-45deg);
-  }
-
-
-
 body .pageContent .ui-widget.ui-widget-content{
 	border:none;
 	background: none;
@@ -471,23 +434,6 @@ body legend{
 	padding-bottom: 1.5em;
 	border-bottom:1px solid #DADADA;
 	margin-bottom: 2em;
-}
-#selFPPDmode{
-	background-color: #000;
-	color:#fff;
-	background: url(/images/redesign/chevron-down-white.svg) no-repeat;
-	background-position: right 10px center;
-	padding-left: 0;
-	padding-right: 3em;
-	cursor: pointer;
-	margin-top: -10px;
-	border: none;
-}
-#selFPPDmode option {
-	 color: black;
-}
-.labelHeadingFPPDMode{
-	margin-bottom: 0;
 }
 .volume{
 	display: block;

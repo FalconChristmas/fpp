@@ -489,7 +489,7 @@ function populatePixelStringOutputs(data) {
 
                 var str = "";
                 str += "<div class='fppTableWrapper'>" +
-                    "<div class='fppTableContents'>";
+                    "<div class='fppTableContents' role='region' aria-labelledby='BBB48String' tabindex='0'>"; 
                 str += "<table id='BBB48String' class='fppSelectableRowTable' type='" + output.subType + "' ports='" + outputCount + "'>";
                 str += pixelOutputTableHeader();
                 str += "<tbody>";
@@ -892,7 +892,7 @@ $(document).ready(function(){
 						</tr>
                     </table>
                         <div class='fppTableWrapper fppTableWrapperAsTable hidden'>
-                            <div class='fppTableContents serialOutputContents'>
+                            <div class='fppTableContents serialOutputContents' role="region" aria-labelledby="BBBSerial_Output" tabindex="0">
 						<table ports='8' id='BBBSerial_Output' class="fppBasicTable">
 							<thead>
 								<tr>

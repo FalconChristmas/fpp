@@ -90,7 +90,7 @@ function addPixelOutput()
 	str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable' checked><br>";
 
     str += "<div class='fppTableWrapper'>" +
-        "<div class='fppTableContents'>";
+        "<div class='fppTableContents' role='region' aria-labelledby='" + type + "_Output_0' tabindex='0'>";
 	str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + portCount + "'>";
 	str += pixelOutputTableHeader();
 	str += "<tbody>";
@@ -167,7 +167,7 @@ function populatePixelStringOutputs(data)
 
             str += '<b>' + type + ' Output</b><br>';
             str += "<div class='fppTableWrapper'>" +
-                "<div class='fppTableContents'>";
+                "<div class='fppTableContents' role='region' aria-labelledby='" + type + "_Output_0' tabindex='0'>";
             str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "'>";
             str += pixelOutputTableHeader();
             str += "<tbody>";

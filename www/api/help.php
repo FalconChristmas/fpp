@@ -361,7 +361,7 @@ if (!$wrapped)
     <h2>FPP API Endpoints</h2>
     <b>NOTE: FPPD endpoints are indicated by '<font color='red'>*</font>' and require FPPD to be running or a timeout error will occur</b><br>
     <div class='fppTableWrapper'>
-        <div class='fppTableContents'>
+        <div class='fppTableContents' role="region" aria-labelledby="endpointTable" tabindex="0">
             <table class='endpointTable' id='endpoints' border=1 cellspacing=0 cellpadding=2 width='100%'>
                 <thead>
                     <tr><th>Endpoint</th><th>Method</th><th>Description</th><th>Input / Output</th></tr>
@@ -372,7 +372,7 @@ if (!$wrapped)
     <h2>FPP Commands</h2>
 <b>NOTE: FPPD Commands are require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/Command" endpoint listed above.</b><br>
     <div class='fppTableWrapper fppTableWrapperAsTable'>
-        <div class='fppTableContents'>
+        <div class='fppTableContents' role="region" aria-labelledby="commandTable" tabindex="0">
             <table class='commandTable' id='commands' border=1 cellspacing=0 cellpadding=2 width='100%'>
                 <thead>
                     <tr><th>Command</th><th>Description</th><th>Arguments</th><th>Example POST</th></tr>

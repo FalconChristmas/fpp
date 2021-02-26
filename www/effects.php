@@ -166,7 +166,7 @@ function StartSelectedEffect() {
 
 
                       <div class='fppTableWrapper'>
-                          <div class='fppTableContents'>
+                          <div class='fppTableContents' role="region" aria-labelledby="tblEffectLibrary" tabindex="0">
                               <table id="tblEffectLibrary" width="100%" cellpadding=1 cellspacing=0 class="fppActionTable">
                                   <thead><tr><th>Effects Library</th><th>Type</th><th width='15%'></th></tr></thead>
                                   <tbody id='tblEffectLibraryBody'>
@@ -183,7 +183,7 @@ function StartSelectedEffect() {
                     <h2>Running Effects</h2>
                     <!-- <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br> -->
                     <div class='fppTableWrapper'>
-                      <div class='fppTableContents'>
+                      <div class='fppTableContents' role="region" aria-labelledby="tblEffectLibrary" tabindex="0">
                         <table id="tblRunningEffects" class="fppActionTable fppActionTable-success" width="100%" cellpadding=1 cellspacing=0>
                           <thead><tr><th width='8%'>ID</th><th>Running Effects</th><th width='15%'></th></tr></thead>
                           <tbody id='tblRunningEffectsBody'></tbody>

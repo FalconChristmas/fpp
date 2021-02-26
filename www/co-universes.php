@@ -144,8 +144,8 @@ function PopulateInterfaces()
 						</table>
 
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents'>
-						<table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
+                            <div class='fppTableContents' class='universeTable fullWidth fppSelectableRowTable' role="region" aria-labelledby="tblUniverses" tabindex="0">
+						<table id="tblUniverses">
 							<thead id='tblUniversesHead'>
                                 <tr>
                                     <th title='Output Number'>Output</th>

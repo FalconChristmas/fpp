@@ -293,8 +293,8 @@ function SaveControlChannels()
 				<br>
 				<div>
 		            <div class='fppTableWrapper'>
-		                <div class='fppTableContents fullWidth'>
-		                    <table>
+		                <div class='fppTableContents fullWidth' role="region" aria-labelledby="tblEventEntriesTable" tabindex="0">
+		                    <table id="tblEventEntriesTable">
 		                        <thead>
 		                            <tr>
 		                                <th class='eventTblID'>ID</th>

@@ -1279,7 +1279,7 @@ function multiActionChanged() {
     
         
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?> backdrop'>
-                        <div class='fppTableContents'>
+                        <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
         			<table id='fppSystemsTable' cellpadding='3'>
         				<thead>
         					<tr>

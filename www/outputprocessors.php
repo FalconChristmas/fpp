@@ -414,7 +414,7 @@ $(document).tooltip();
         					</tr>
         				</table>
         				<div class='fppTableWrapper fppTableWrapperAsTablefpp'>
-                            <div class='fppTableContents'>
+                            <div class='fppTableContents' role="region" aria-labelledby="outputProcessors" tabindex="0">
                                 <table id="outputProcessors" class="fppSelectableRowTable">
                                     <thead>
                                         <tr>

@@ -152,7 +152,7 @@ $(document).ready(function() {
                 </tr>
             </table>
             <div class='fppTableWrapper'>
-                <div class='fppTableContents'>
+                <div class='fppTableContents' role="region" aria-labelledby="tblUniversesHead" tabindex="0">
                     <table class='fppTableRowTemplate template-tblCommandsBody'>
                         <tr>
                             <td><input type='text' size='32' maxlength='64' class='cmdTmplName' list='PresetTriggerNames'></td>

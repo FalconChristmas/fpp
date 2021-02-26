@@ -595,7 +595,7 @@ tr.rowScheduleDetails select.selPlaylist option {
                 <div class="td"><input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></div>
             </div>
             <div class='fppTableWrapper'>
-                <div class='fppTableContents'>
+                <div class='fppTableContents'  role="region" aria-labelledby="tblSchedule" tabindex="0">
                     
                     <table class='fppTableRowTemplate template-tblScheduleBody'>
                         <tr class='rowScheduleDetails'>

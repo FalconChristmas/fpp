@@ -10,8 +10,8 @@ require_once('../config.php');
 <li>FPP will respond to certain events:
 </ul>
 <div class='fppTableWrapper selectable'>
-<div class='fppTableContents'>
-<table width = "100%" border="1" cellpadding="1" cellspacing="1">
+<div class='fppTableContents' role="region" aria-labelledby="MQTTSettingsTable" tabindex="0">
+<table width = "100%" border="1" id="MQTTSettingsTable" cellpadding="1" cellspacing="1">
 <thead>
 <tr><th>Topic</th><th>Action</th></tr>
 </thead>

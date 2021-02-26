@@ -218,7 +218,7 @@ $(document).tooltip();
 					</tr>
 				</table>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
-                    <div class='fppTableContents'>
+                    <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
                         <table id="channelMemMaps" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
