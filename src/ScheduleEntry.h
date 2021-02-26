@@ -28,6 +28,11 @@
 #include <utility>
 #include <time.h>
 
+#define SECONDS_PER_MINUTE    60
+#define SECONDS_PER_HOUR      3600
+#define SECONDS_PER_DAY       86400
+#define SECONDS_PER_WEEK      604800
+#define DAYS_PER_WEEK         7
 
 class ScheduleEntry {
   public:
@@ -41,7 +46,9 @@ class ScheduleEntry {
 	int  LoadFromString(std::string entryStr);
 	int  LoadFromJson(Json::Value &entry);
 
-    void pushStartEndTimes(int start, int end);
+    void pushStartEndTimes(int day);
+
+    void GetTimeFromSun(time_t &when, bool setStart);
     
 	Json::Value GetJson(void);
 
@@ -64,6 +71,7 @@ class ScheduleEntry {
     int          repeatInterval;
     
     std::vector<std::pair<int, int>> startEndSeconds;
+    std::vector<std::pair<time_t, time_t>> startEndTimes;
     
 	int          startDate; // YYYYMMDD format as an integer
 	int          endDate;   // YYYYMMDD format as an integer
