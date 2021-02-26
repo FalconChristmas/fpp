@@ -959,9 +959,13 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	}
 
-	if (data != "")
+	if ((method == "POST") || (method == "PUT"))
 	{
-		status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+		if (data != "")
+			status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
+		else
+			status = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "\n");
+
 		if (status != CURLE_OK)
 		{
 			LogErr(VB_GENERAL, "curl_easy_setopt() Error setting postfields data: %s\n", curl_easy_strerror(status));
@@ -970,6 +974,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 	}
 
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long)timeout);
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 2);
 
 	if (method == "POST")
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
@@ -980,6 +985,8 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
 
+	LogDebug(VB_GENERAL, "Calling %s %s\n", method.c_str(), url.c_str());
+
 	status = curl_easy_perform(curl);
 	if (status != CURLE_OK)
 	{
@@ -987,7 +994,7 @@ bool urlHelper(const std::string method, const std::string &url, const std::stri
 		return false;
 	}
 
-	LogDebug(VB_GENERAL, "resp: %s\n", resp.c_str());
+	LogDebug(VB_GENERAL, "%s %s resp: %s\n", method.c_str(), url.c_str(), resp.c_str());
 
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
