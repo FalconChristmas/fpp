@@ -126,7 +126,7 @@ function UpdateVersionInfo() {
         if ((data.advancedView.RemoteGitVersion != "") &&
             (data.advancedView.RemoteGitVersion != "Unknown") &&
             (data.advancedView.RemoteGitVersion != data.advancedView.LocalGitVersion)) {
-            localVer += " <font color='#FF0000'>(Update is available)</font>";
+            localVer += " <b class='text-success'>(Update is available)</b>";
             remoteVer += " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
         }
 
@@ -287,7 +287,7 @@ tr.rowScheduleDetails td {
         echo " <font color='#FF0000'><a href='javascript:void(0);' onClick='GetGitOriginLog();'>Preview Changes</a></font>";
     ?>
                     </td></tr>
-                <tr><td>Upgrade FPP:</td><td><input type='button' value='Upgrade FPP' onClick='UpgradeFPP();' class='buttons' id='ManualUpdate'></td></tr>
+                <tr><td>Upgrade FPP:</td><td><input type='button' value='Upgrade FPP' onClick='UpgradeFPP();' class='buttons btn-outline-success' id='ManualUpdate'></td></tr>
     <?
         if ($settings['uiLevel'] > 0) {
             $upgradeSources = Array();

@@ -482,9 +482,7 @@ input[type=range]::-webkit-slider-thumb {
 	display: inline-block;
 	padding-right: 1em;
 }
-#playerControls{
-	flex:1;
-}
+
 #playerModeInfo .statusBoxRight, #settingsManager .statusBoxRight {
 	float:right;
 }
@@ -1374,12 +1372,19 @@ body .sm-clean a .sub-arrow {
 .playlistEdit{
 
 }
+.fppScriptEntry>.row{
+	margin-bottom: 0;
+}
+
 .playlistSelectHeader, .playlistEditorHeader{
 	display: flex;
 	border-bottom:1px solid #ced4da;
 	padding-bottom: 1em;
 	margin-bottom: 2em;
 	align-items: top;
+}
+.playlistSelectHeader>.row{
+	flex:1;
 }
 .playlistEditorHeaderTitleWrapper{
 	display: flex;
@@ -1787,9 +1792,19 @@ input[type=search].tablesorter-filter:disabled{
 		content:none;  
 	}
 }
+@media (max-width:1360px){
+	.pageContent{
+		padding: 2.0em 2.5em;
+	}
+	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
+		display: inline-block;
+		margin-bottom: 0.65em;
+	}
+}
 @media (max-width:1200px){
 	.pageContent{
 		box-shadow:400px 100px 0px 0px #20222e, -400px 100px 0px 0px #20222e, 0px 100px 0px 0px #20222e, 400px 300px 0px 0px #20222e, -400px 300px 0px 0px #20222e, 0px 300px 0px 0px #20222e
+		
 	}
 }
 @media (min-width:481px) and (max-width:768px){
@@ -1849,16 +1864,11 @@ input[type=search].tablesorter-filter:disabled{
 		flex:1;
 
 	}
-	.playerControlsContainer{
-		flex-direction: column;
-	}
+
 	#playerControls{
 		margin-bottom: 1.2em;
 	}
-	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
-		display: inline-block;
-		margin-bottom: 0.65em;
-	}
+
 	#btnPrev, #btnNext {
 		width: calc(50% - 0.35em);
 	}
@@ -1972,6 +1982,17 @@ input[type=search].tablesorter-filter:disabled{
 	#tblSchedule input[type=text], #tblSchedule select {
 		width: 100%;
 		min-width: 160px;
+	}
+	.fppScriptEntryCol{
+		padding-bottom: 1em;
+		border-top: 1px solid #e6e6e6;
+		padding-top: 1em;
+	}
+	.fppScriptEntryCol:first-child{
+		margin-bottom: 1;
+		padding-bottom: 0.5em;
+		padding-top: 0em;
+		border-top: none;
 	}
 }
 @media (min-width:481px) and (max-width:768px){

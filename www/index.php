@@ -408,8 +408,8 @@ include 'common/menuHead.inc';
                             </div>
 
                         </div>
-                        <div class="d-flex playerControlsContainer">
-                            <div id="playerControls" >
+                        <div class="row">
+                            <div id="playerControls" class="col-md" >
                                 <button id= "btnPlay" class ="buttons btn-rounded btn-success disableButtons" onClick="StartPlaylistNow();"><i class='fas fa-fw fa-play'></i>Play</button>
                                 <button id= "btnPrev" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="PreviousPlaylistEntry();"><i class='fas fa-fw fa-step-backward'></i>Previous</button>
                                 <button id= "btnNext" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="NextPlaylistEntry();"><i class='fas fa-fw fa-step-forward'></i>Next</button>
@@ -418,7 +418,7 @@ include 'common/menuHead.inc';
                                 <button id= "btnStopNow" class ="buttons btn-rounded btn-danger disableButtons"  onClick="StopNow();"><i class='fas fa-fw fa-hand-paper'></i>Stop Now</button>
                             </div>
 
-                            <div class="volumeControlsContainer">
+                            <div class="volumeControlsContainer col-md-auto">
                                 <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
                                 <div class="volumeControls">
                                         <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
