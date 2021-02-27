@@ -498,6 +498,10 @@ function stats_panel_out()
     );
     validateAndAdd($rc, $data, $mapping);
 
+    if (isset($data["panels"])) {
+        $rc["panelCount"] = count($data["panels"]);
+    }
+
     return $rc;
 }
 
