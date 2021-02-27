@@ -207,38 +207,50 @@ $(document).ready(function(){
 
 
 						<div id='divE131'>
-			
-								<div id='divE131Data'>
-		
-	
-		
-		
-		    
-		      <form>
-		        <span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
-		        <table width="100%">
-		        <tr>
-		        <td>
-			   Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
-		        </td><td>
-			   Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
-		           <img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
-		        </td>
-		        </tr>
-		        </table>
-		      </form>
-		    </div>
+
+
 		    <form id="frmUniverses">
-		    <input name="command" type="hidden" value="setUniverses" />
-		    <input name="input" type="hidden" value="1" />
-		    <table>
-		    	<tr>
-		      	<td width = "70 px"><input id="btnSaveUniverses" class="buttons btn-success" type="submit" value = "Save" /></td>
-		      	<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
-		      	<td width = "40 px">&nbsp;</td>
-		      	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(1);" /></td>
-		      </tr>
-		    </table>
+
+	
+	
+				<div class="row tablePageHeader">
+					<div class="col-lg">
+
+						<div class="backdrop d-inline-flex">
+	
+								<div class="row">
+									<div class="col-lg-auto">
+										Inputs Count:
+										<input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" />
+										<input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
+									</div>
+									<div class="col-lg-auto">
+										Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
+										<img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
+										<span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
+									</div>
+								</div>
+	
+						</div>
+	
+	
+	
+					</div>
+					<div class="col-lg-auto ml-lg-auto">
+						<div class="form-actions">
+						<input name="input" type="hidden" value="1" />
+	
+	
+	
+						<input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
+						<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
+						<input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
+						</div>
+					</div>
+				</div>
+
+
+
 		
 		    <div class='fppTableWrapper'>
 		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
@@ -260,7 +272,7 @@ $(document).ready(function(){
 		            </table>
 		        </div>
 		    </div>
-				<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
+				<small class="text-muted">(Drag entry to reposition) </small>
 				</form>
 			</div>
 		

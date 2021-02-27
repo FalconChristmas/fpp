@@ -821,8 +821,8 @@ $(document).ready(function(){
 	<div id='divBBB48String'>
 	
         <div class="row tablePageHeader">
-            <div class="col"><h2> BeagleBone <span class='capeName'>String Capes</span> </h2></div>
-            <div class="col-auto ml-auto">
+            <div class="col-md"><h2> BeagleBone <span class='capeName'>String Capes</span> </h2></div>
+            <div class="col-md-auto ml-lg-auto">
                 <div class="form-actions">
                     
                         <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
@@ -833,7 +833,7 @@ $(document).ready(function(){
         </div>
         <div class="backdrop tableOptionsForm">
             <div class="row">
-                <div class="col-auto">
+                <div class="col-md-auto">
                     <div class="backdrop-dark form-inline enableCheckboxWrapper">
 
                     <div><b>Enable <span class='capeName'>BBB String Cape</span>:</b></div>
@@ -841,12 +841,12 @@ $(document).ready(function(){
                         
                     </div>
                 </div>
-                <div class="col-auto form-inline">
+                <div class="col-md-auto form-inline">
                     <div><b>Cape Type:</b></div>
                     <div ><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'></select><span id='BBB48StringSubTypeSpan'> </span></div>
 
                 </div>
-                <div class="col-auto form-inline">
+                <div class="col-md-auto form-inline">
                     <div><b id='versionTag'>Version: </b></div>
                     <div><select id='BBB48StringSubTypeVersion'>
                             <option value='1.x'>1.x</option>
@@ -855,7 +855,7 @@ $(document).ready(function(){
                         </select>
                     </div>
                 </div>
-                <div class="col-auto form-inline">
+                <div class="col-md-auto form-inline">
                     <div><b>Pixel Timing:</b></div>
                     <div colspan="3"><select id='BBB48StringPixelTiming'>
                         <option value="0">Normal (ws281x)</option>

@@ -1259,10 +1259,10 @@ $(document).ready(function(){
 	<div id='divOther'>
 		<div class="row tablePageHeader">
 				
-				<div class="col">
+				<div class="col-md">
 					<h2> Other Outputs </h2>
 				</div>
-				<div class="col-auto ml-auto">
+				<div class="col-md-auto ml-lg-auto">
 					<input name="command" type="hidden" value="saveOtherOutputs" />
 					<div class="form-actions">
 							

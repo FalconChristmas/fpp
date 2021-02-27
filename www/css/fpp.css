@@ -1708,6 +1708,11 @@ input[type=search].tablesorter-filter:disabled{
     box-shadow: 3px 3px 8px rgb(0 0 0 / 10%);
     border: 1px solid #D2D2D2;
 	cursor: pointer;
+	display: block;
+}
+[id^=tableColorPair].color-box{
+	display: inline-block;
+	vertical-align: middle;
 }
 .displayTestingFillOptionBoxHeader .color-box{ 
 	margin-left: 1em;
