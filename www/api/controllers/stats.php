@@ -334,13 +334,14 @@ function stats_getUUID()
 
 function stats_getCapeInfo()
 {
-    $rc = array("type" => "None");
+    $rc = array("name" => "None");
     $mapping = array(
         "type" => "type",
         "cs" => "cs",
         "id" => "id",
         "name" => "name",
         "serialNumber" => "serialNumber",
+        "designer" => "designer"
     );
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
@@ -496,6 +497,10 @@ function stats_panel_out()
         "channelCount" => "channelCount",
     );
     validateAndAdd($rc, $data, $mapping);
+
+    if (isset($data["panels"])) {
+        $rc["panelCount"] = count($data["panels"]);
+    }
 
     return $rc;
 }
