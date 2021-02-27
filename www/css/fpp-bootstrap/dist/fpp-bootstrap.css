@@ -3948,8 +3948,8 @@ select.form-control:focus::-ms-value {
   line-height: 1.5; }
 
 .col-form-label-lg {
-  padding-top: calc(0.5rem + 1px);
-  padding-bottom: calc(0.5rem + 1px);
+  padding-top: calc(0.35rem + 1px);
+  padding-bottom: calc(0.35rem + 1px);
   font-size: 1.1875rem;
   line-height: 2; }
 
@@ -3982,8 +3982,8 @@ select.form-control:focus::-ms-value {
   border-radius: 0.2rem; }
 
 .form-control-lg {
-  height: calc(2em + 1rem + 2px);
-  padding: 0.5rem 1rem;
+  height: calc(2em + 0.7rem + 2px);
+  padding: 0.35rem 0.85rem;
   font-size: 1.1875rem;
   line-height: 2;
   border-radius: 0.3rem; }
@@ -4409,10 +4409,10 @@ textarea.form-control {
   font-size: 0.83125rem; }
 
 .custom-select-lg {
-  height: calc(2em + 1rem + 2px);
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  padding-left: 1rem;
+  height: calc(2em + 0.7rem + 2px);
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  padding-left: 0.85rem;
   font-size: 1.1875rem; }
 
 .custom-file {
@@ -5123,7 +5123,7 @@ fieldset:disabled .modal a.disableButtons,
     pointer-events: none; }
 
 .btn-lg, .btn-group-lg > .btn, .btn-group-lg > .buttons, .ui-dialog-buttonset .btn-group-lg > button, .btn-group-lg > .ajax-file-upload, .pageContent .btn-group-lg > .disableButtons, .ui-dialog .btn-group-lg > .disableButtons, .modal .btn-group-lg > .disableButtons {
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.85rem;
   font-size: 1.1875rem;
   line-height: 2;
   border-radius: 0.3rem; }
@@ -5496,8 +5496,8 @@ input[type="button"].btn-block {
   padding-left: 0.375rem; }
 
 .btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .btn-group-lg > .buttons + .dropdown-toggle-split, .ui-dialog-buttonset .btn-group-lg > button + .dropdown-toggle-split, .btn-group-lg > .ajax-file-upload + .dropdown-toggle-split, .pageContent .btn-group-lg > .disableButtons + .dropdown-toggle-split, .ui-dialog .btn-group-lg > .disableButtons + .dropdown-toggle-split, .modal .btn-group-lg > .disableButtons + .dropdown-toggle-split {
-  padding-right: 0.75rem;
-  padding-left: 0.75rem; }
+  padding-right: 0.6375rem;
+  padding-left: 0.6375rem; }
 
 .btn-group-vertical {
   flex-direction: column;

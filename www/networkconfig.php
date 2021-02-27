@@ -255,7 +255,7 @@ function onlyUnique(value, index, self) {
 }
 
 function LoadSIDS(interface) {
-  $.get("http://fpptest/api/network/wifi/scan/" + interface
+  $.get("api/network/wifi/scan/" + interface
   ).done(function(data){
     var ssids = [];
     data.networks.forEach(function(n){
