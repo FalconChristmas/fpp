@@ -1257,19 +1257,28 @@ $(document).ready(function(){
 
 <div id='tab-other'>
 	<div id='divOther'>
-	
-			<h2> Other Outputs </h2>
+		<div class="row tablePageHeader">
+				
+				<div class="col">
+					<h2> Other Outputs </h2>
+				</div>
+				<div class="col-auto ml-auto">
+					<input name="command" type="hidden" value="saveOtherOutputs" />
+					<div class="form-actions">
+							
+							<input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();">
+							<button id="btnAddOther" class="buttons btn-outline-success" type="button" value = "Add" onClick="AddOtherOutput();"><i class="fas fa-plus"></i>Add</button>
+							<input id="btnSaveOther" class="buttons btn-success ml-1" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' />
+
+						</div>
+				</div>
+        </div>
+			
 			<div id='divOtherData'>
 				<div style="overflow: hidden; padding: 5px;">
 					<form id="frmOtherOutputs">
-						<input name="command" type="hidden" value="saveOtherOutputs" />
-						<table>
-							<tr><td width = "70 px"><input id="btnSaveOther" class="buttons btn-success" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' /></td>
-								<td width = "70 px"><input id="btnAddOther" class="buttons" type="button" value = "Add" onClick="AddOtherOutput();"/></td>
-								<td width = "40 px">&nbsp;</td>
-								<td width = "70 px"><input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();"></td>
-							</tr>
-						</table>
+						
+
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents' role="region" aria-labelledby="tblOtherOutputs" tabindex="0">
                                 <table id="tblOtherOutputs" class="fppSelectableRowTable">

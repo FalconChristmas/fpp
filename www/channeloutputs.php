@@ -186,17 +186,6 @@ $(document).ready(function(){
 		}
 	});
 
-	var total = $tabs.find('.ui-tabs-nav li').length;
-	var currentLoadingTab = 1;
-	$tabs.bind('tabsload',function(){
-		currentLoadingTab++;
-		if (currentLoadingTab < total)
-			$tabs.tabs('load',currentLoadingTab);
-		else
-			$tabs.unbind('tabsload');
-	}).tabs('load',currentLoadingTab);
-
-    $(document).tooltip();
 });
 
 </script>

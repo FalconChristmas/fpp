@@ -585,15 +585,27 @@ tr.rowScheduleDetails select.selPlaylist option {
       <h1 class="title">Scheduler</h1>
       <div class="pageContent"> 
           <div>
-            <div class="form-actions">
-                <div class="td"><input class="buttons btn-success" type='button' value="Save" onClick='SaveSchedule();' /></div>
-                <div class="td"><button class="buttons btn-outline-success" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
-                <div class="td"><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
-                <div class="td"><input class="buttons disableButtons deleteSchButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
-                <div class="td"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>
-                <div class="td"><input class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></div>
-                <div class="td"><input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></div>
+
+            <div class="row tablePageHeader tablePageHeader">
+                <div class="col-md">
+                    <div class="form-actions form-actions-secondary">    
+                        <div><button type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>View Schedule</button></div>
+                        <div><input class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></div>
+                    </div>
+
+                </div>
+                <div class="col-md-auto ml-lg-auto">
+                    <div class="form-actions form-actions-primary">
+                    <div><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>
+
+                        <div><input class="buttons disableButtons deleteSchButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
+                        <div><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
+                        <div><button class="buttons btn-outline-success form-actions-button-primary" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
+                        <div><input class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveSchedule();' /></div>
+                    </div>
+                </div>
             </div>
+
             <div class='fppTableWrapper'>
                 <div class='fppTableContents'  role="region" aria-labelledby="tblSchedule" tabindex="0">
                     

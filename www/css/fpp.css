@@ -1479,8 +1479,21 @@ body .sm-clean a .sub-arrow {
 	padding-top: 0.4em;
 	margin-right: 0.8em;
 }
+.tablePageHeader .form-actions{
+	margin-top: 0;
+	margin-bottom: 1.4em;
+}
 
 
+.tableOptionsForm{
+	padding: 1em ;
+}
+.tableOptionsForm .form-inline input, .tableOptionsForm .form-inline select{
+	margin-left: 0.6em;
+}
+.enableCheckboxWrapper {
+	padding: 1em 1.6em;
+}
 .tablesorter thead td,.tablesorter thead th{
 	background-color: #ECECEC;
 }
@@ -1900,6 +1913,17 @@ input[type=search].tablesorter-filter:disabled{
 	#header_Time{
 		width: 100px;
 	}
+	.form-actions.form-actions-primary {
+		flex-wrap: wrap;
+		flex-flow: wrap;
+	}
+	.tablePageHeader .form-actions, .tablePageHeader .form-actions .buttons{
+		margin-bottom: 0em;
+	}
+	.tablePageHeader .form-actions .buttons{
+		margin-bottom: 0.4em;
+	}
+
 }
 @media(min-width:481px) and (max-width:1440px){
 	.statusDivTopRow {
@@ -1930,6 +1954,10 @@ input[type=search].tablesorter-filter:disabled{
 	}
 	.statusDivTopRow {
 		margin-top: -1.0em;
+	}
+	#tblSchedule input[type=text], #tblSchedule select {
+		width: 100%;
+		min-width: 160px;
 	}
 }
 @media (min-width:481px) and (max-width:768px){

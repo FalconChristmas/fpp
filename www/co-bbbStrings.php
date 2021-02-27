@@ -820,57 +820,63 @@ $(document).ready(function(){
 <div id='tab-BBB48String'>
 	<div id='divBBB48String'>
 	
-			<h2> BeagleBone <span class='capeName'>String Capes</span> </h2>
+        <div class="row tablePageHeader">
+            <div class="col"><h2> BeagleBone <span class='capeName'>String Capes</span> </h2></div>
+            <div class="col-auto ml-auto">
+                <div class="form-actions">
+                    
+                        <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
+                        <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
+                        <input type='button' class="buttons btn-success ml-1" onClick='saveBBBOutputs();' value='Save'>
+                </div>
+            </div>
+        </div>
+        <div class="backdrop tableOptionsForm">
+            <div class="row">
+                <div class="col-auto">
+                    <div class="backdrop-dark form-inline enableCheckboxWrapper">
+
+                    <div><b>Enable <span class='capeName'>BBB String Cape</span>:</b></div>
+                                    <div><input id='BBB48String_enable' type='checkbox'></div>
+                        
+                    </div>
+                </div>
+                <div class="col-auto form-inline">
+                    <div><b>Cape Type:</b></div>
+                    <div ><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'></select><span id='BBB48StringSubTypeSpan'> </span></div>
+
+                </div>
+                <div class="col-auto form-inline">
+                    <div><b id='versionTag'>Version: </b></div>
+                    <div><select id='BBB48StringSubTypeVersion'>
+                            <option value='1.x'>1.x</option>
+                            <option value='2.x'>2.x</option>
+                            <option value='3.x'>3.x</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-auto form-inline">
+                    <div><b>Pixel Timing:</b></div>
+                    <div colspan="3"><select id='BBB48StringPixelTiming'>
+                        <option value="0">Normal (ws281x)</option>
+                        <option value="1">Slow (1903)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
 			<div id='divBBB48StringData'>
 				<div>
-					<table border=0 cellspacing=0>
-						<tr>
-							<td><b>Enable <span class='capeName'>BBB String Cape</span>:</b></td>
-							<td><input id='BBB48String_enable' type='checkbox'></td>
-							<td width=20>&nbsp;</td>
-							<td width=20>&nbsp;</td>
-							<td width=20>&nbsp;</td>
-						</tr>
-						<tr>
-							<td><b>Cape Type:</b></td>
-							<td colspan="3"><select id='BBB48StringSubType' onChange='BBB48StringSubTypeChanged();'></select><span id='BBB48StringSubTypeSpan'> </span>
+					
 
-							</td>
-                            <td><b id='versionTag'>Version: </b></td>
-                            <td><select id='BBB48StringSubTypeVersion'>
-                                    <option value='1.x'>1.x</option>
-                                    <option value='2.x'>2.x</option>
-                                    <option value='3.x'>3.x</option>
-                                </select>
-                            </td>
-						</tr>
-                        <tr>
-                        <td><b>Pixel Timing:</b></td>
-                        <td colspan="3"><select id='BBB48StringPixelTiming'>
-                            <option value="0">Normal (ws281x)</option>
-                            <option value="1">Slow (1903)</option>
-                            </select>
-                        </td>
-                        </tr>
-					</table>
+                    <small class="text-muted text-right pt-2 d-block">
+                        Press F2 to auto set the start channel on the next row.
+                    </small>
 
-
-                    <table style='width: 100%;'>
-                        <tr>
-                            <td align='left'>
-                                <input type='button' class="buttons btn-success" onClick='saveBBBOutputs();' value='Save'>
-                                <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
-                                <input type='button' class="buttons" onClick='loadBBBOutputs();' value='Revert'>
-                            </td>
-                            <td align='right'>
-                                Press F2 to auto set the start channel on the next row.
-                            </td>
-                        </tr>
-<?if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {  ?>
-    <tr><td colspan='2' style='color: red;'>Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.</td></tr>
+                    <?if ((isSet($settings['cape-info']) && $settings['cape-info']['id'] == "Unsupported")) {  ?>
+    <div class="alert alert-danger">Unsupported string cape.  Ports are limitted to 200 pixels, no virtual strings, and no DMX.</div>
     
     <? } ?>
-                    </table>
                     <div id='pixelOutputs'>
 
                     </div>
