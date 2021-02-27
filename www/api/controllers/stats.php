@@ -20,6 +20,7 @@ function stats_genereate($statsFile)
         "output_other" => 'stats_other_out',
         "output_pixel_pi" => 'stats_pixel_pi_out',
         "output_pixel_bbb" => 'stats_pixel_bbb_out',
+        "timezone" => 'stats_timezone',
     );
 
     foreach ($tasks as $key => $fun) {
@@ -586,4 +587,11 @@ function stats_pixel_bbb_out()
 {
     global $settings;
     return stats_pixel_or_pi($settings['co-bbbStrings']);
+}
+
+function stats_timezone()
+{
+    $output = [];
+    exec("date '+%z %Z'", $output);
+    return $output[0];
 }
