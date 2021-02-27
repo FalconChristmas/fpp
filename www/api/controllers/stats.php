@@ -20,6 +20,7 @@ function stats_genereate($statsFile)
         "output_other" => 'stats_other_out',
         "output_pixel_pi" => 'stats_pixel_pi_out',
         "output_pixel_bbb" => 'stats_pixel_bbb_out',
+        "timezone" => 'stats_timezone',
     );
 
     foreach ($tasks as $key => $fun) {
@@ -42,6 +43,10 @@ function stats_get_last_file()
 {
     global $_GET;
     $statsFile = stats_get_filename();
+    $reason = "unknown";
+    if (isset($_GET["reason"])) {
+        $reason = $_GET["reason"];
+    }
 
     if (file_exists($statsFile)) {
         // No reason to regenereate if less than 2 hours old
@@ -54,7 +59,9 @@ function stats_get_last_file()
         stats_genereate($statsFile);
     }
 
-    return json(json_decode(file_get_contents($statsFile)), JSON_PRETTY_PRINT);
+    $obj = json_decode(file_get_contents($statsFile), true);
+    $obj["statsReason"] = $reason;
+    return json($obj, JSON_PRETTY_PRINT);
 }
 
 function stats_publish_stats_file()
@@ -580,4 +587,11 @@ function stats_pixel_bbb_out()
 {
     global $settings;
     return stats_pixel_or_pi($settings['co-bbbStrings']);
+}
+
+function stats_timezone()
+{
+    $output = [];
+    exec("date '+%z %Z'", $output);
+    return $output[0];
 }

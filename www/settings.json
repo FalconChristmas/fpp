@@ -731,7 +731,7 @@
             "gatherStats" : true,
             "tip": "The Locale is used to automatically configure some locale or region-specific functionality within FPP such as the list of Holidays included in the FPP Scheduler.",
             "restart": 2,
-            "default": "global",
+            "default": "Global",
             "type": "select",
             "optionsURL": "api/settings/Locale/options"
         },

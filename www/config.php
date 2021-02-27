@@ -50,7 +50,7 @@ function LoadLocale()
     if (!isset($settings['Locale']))
         $settings['Locale'] = 'Global';
 
-    $localeFile = $settings['fppDir'] . '/etc/locale/global.json';
+    $localeFile = $settings['fppDir'] . '/etc/locale/Global.json';
     if (file_exists($localeFile)) {
         $localeStr = file_get_contents($localeFile);
         $locale = json_decode($localeStr, true);

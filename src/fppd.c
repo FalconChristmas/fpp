@@ -74,7 +74,8 @@ volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */
 void MainLoop(void);
-void PublishStats(void);
+void PublishStatsBackground(std::string reason);
+void PublishStatsForce(std::string reason);
 
 
 static int IsDebuggerPresent() {
@@ -625,6 +626,7 @@ int main(int argc, char *argv[])
     CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
 
 	MainLoop();
+    PublishStatsForce("Shutdown"); // not background
 
     CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
 
@@ -686,6 +688,7 @@ void MainLoop(void)
 	PlaylistStatus prevFPPstatus = FPP_STATUS_IDLE;
 	int            sleepms = 50;
     int            publishCounter = 200; // about 40 seconds after boot
+    std::string    publishReason("Startup");
     std::map<int, std::function<bool(int)>> callbacks;
 
 	LogDebug(VB_GENERAL, "MainLoop()\n");
@@ -859,9 +862,10 @@ void MainLoop(void)
             idleCount = 0;
             multiSync->PeriodicPing();
             if (--publishCounter < 0) {
-                PublishStats();
+                PublishStatsBackground(publishReason);
                 // counting down is less CPU then the time check every cycle
                 publishCounter = 60480; 
+                publishReason = "normal";
             }
             
             if (getFPPmode() == BRIDGE_MODE) {
@@ -928,7 +932,14 @@ void CreateDaemon(void)
     close(STDERR_FILENO);
 }
 
-void PublishStats()
+void PublishStatsForce(std::string reason) {
+    std::string result("");
+    urlPost("http://localhost/api/statistics/usage?reason=" + reason, "", result);
+    LogInfo(VB_GENERAL, "Publishing statistics because of \"%s\" = %s\n", reason.c_str(), result.c_str());
+
+}
+
+void PublishStatsBackground(std::string reason)
 {
     // No need to publish more than once every 10 days if fppd is up that long
     static auto lastPublish = std::chrono::system_clock::now() - std::chrono::hours(10 * 24) ;
@@ -940,9 +951,8 @@ void PublishStats()
         const char *settingsValue = getSetting("statsPublish");
         lastPublish = now_ts;
         if (strcmp("Enabled", settingsValue) == 0 ) {
-            std::string result("");
-            urlPost("http://localhost/api/statistics/usage", "", result);
-            LogInfo(VB_GENERAL, "Publishing statistics = %s\n", result.c_str());
+            std::thread t(PublishStatsForce, reason);
+            t.detach();
         } else {
             LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", settingsValue);
         }
