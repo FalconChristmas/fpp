@@ -626,7 +626,9 @@ int main(int argc, char *argv[])
     CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
 
 	MainLoop();
-    PublishStatsForce("Shutdown"); // not background
+    // DISABLED: Stats collected while fppd is shutting down 
+    // incomplete and cause problems with summary
+    //PublishStatsForce("Shutdown"); // not background
 
     CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
 
