@@ -42,6 +42,10 @@ function stats_get_last_file()
 {
     global $_GET;
     $statsFile = stats_get_filename();
+    $reason = "unknown";
+    if (isset($_GET["reason"])) {
+        $reason = $_GET["reason"];
+    }
 
     if (file_exists($statsFile)) {
         // No reason to regenereate if less than 2 hours old
@@ -54,7 +58,9 @@ function stats_get_last_file()
         stats_genereate($statsFile);
     }
 
-    return json(json_decode(file_get_contents($statsFile)), JSON_PRETTY_PRINT);
+    $obj = json_decode(file_get_contents($statsFile), true);
+    $obj["statsReason"] = $reason;
+    return json($obj, JSON_PRETTY_PRINT);
 }
 
 function stats_publish_stats_file()
