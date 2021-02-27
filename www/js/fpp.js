@@ -1289,17 +1289,33 @@ function EditPlaylist() {
     LoadPlaylistDetails(name);
     $('#playlistEditor').addClass('hasPlaylistDetailsLoaded');
 }
+function SetButtonState(button,state)
+{
+        // Enable Button
+        if(state == 'enable')
+        {
+            $(button).addClass('buttons').addClass($(button).data('btn-enabled-class'));
+            $(button).removeClass('disableButtons');
+            $(button).removeAttr("disabled");
+        }
+        else
+        {
+            $(button).removeClass('buttons').removeClass($(button).data('btn-enabled-class'));
+            $(button).addClass('disableButtons');
+            $(button).attr("disabled", "disabled");
+        }
+}
 
 function EnableButtonClass(c) {
-    $('.' + c).addClass('buttons');
-    $('.' + c).removeClass('disableButtons');
-    $('.' + c).removeAttr("disabled");
+    $('.'+c).each(function(){
+        SetButtonState(this,'enable');
+    })
 }
 
 function DisableButtonClass(c) {
-    $('.' + c).removeClass('buttons');
-    $('.' + c).addClass('disableButtons');
-    $('.' + c).attr("disabled", "disabled");
+    $('.'+c).each(function(){
+        SetButtonState(this,'disable');
+    })
 }
 
 function RenumberPlaylistEditorEntries() {
@@ -3435,23 +3451,6 @@ function GetUniverseBytesReceived() {
 	{
 	}
 
-
-	function SetButtonState(button,state)
-	{
-			// Enable Button
-			if(state == 'enable')
-			{
-				$(button).addClass('buttons');
-				$(button).removeClass('disableButtons');
-				$(button).removeAttr("disabled");
-			}
-			else
-			{
-				$(button).removeClass('buttons');
-				$(button).addClass('disableButtons');
-				$(button).attr("disabled", "disabled");
-			}
-	}
 
 	function StopGracefully()
 	{

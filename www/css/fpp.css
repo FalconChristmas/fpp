@@ -1479,9 +1479,15 @@ body .sm-clean a .sub-arrow {
 	padding-top: 0.4em;
 	margin-right: 0.8em;
 }
+.row.tablePageHeader {
+	margin-bottom: 0;
+}
 .tablePageHeader .form-actions{
 	margin-top: 0;
 	margin-bottom: 1.4em;
+}
+.tablePageHeader .btn-success, .tablePageHeader .btn-outline-success{
+	min-width: 100px;
 }
 
 
@@ -1493,6 +1499,9 @@ body .sm-clean a .sub-arrow {
 }
 .enableCheckboxWrapper {
 	padding: 1em 1.6em;
+}
+#outputOffWarning{
+	margin-top: 0;
 }
 .tablesorter thead td,.tablesorter thead th{
 	background-color: #ECECEC;

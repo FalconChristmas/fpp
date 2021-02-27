@@ -209,14 +209,18 @@ $(document).tooltip();
 
 		<div id="time" class="settings">
 
-				<table>
-					<tr>
-						<td width='70px'><input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success'></td>
-						<td width='70px'><input type=button value='Add' onClick='AddNewMemMap();' class='buttons btn-icon-add'></td>
-						<td width='40px'>&nbsp;</td>
-						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'></td>
-					</tr>
-				</table>
+				<div class="row tablePageHeader">
+					<div class="col-md-auto ml-lg-auto">
+						<div class="form-actions">
+			
+								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'>
+								<button type=button value='Add' onClick='AddNewMemMap();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
+								<input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success ml-1'>
+
+						</div>
+					</div>
+				</div>
+				<hr>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
                         <table id="channelMemMaps" class="fppSelectableRowTable">

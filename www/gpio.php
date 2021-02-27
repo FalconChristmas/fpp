@@ -128,10 +128,16 @@ extraCommands = [
         
         <!-- --------------------------------------------------------------------- -->
         
-          <div style="overflow: hidden; padding: 10px;">
-            <div>
-                <input type="button" value="Save" class="buttons btn-success" onClick="SaveGPIOInputs();"></input>
+          <div >
+
+            <div class="row tablePageHeader">
+                <div class="col-md-auto ml-lg-auto">
+                    <div class="form-actions">
+                     <input type="button" value="Save" class="buttons btn-success" onClick="SaveGPIOInputs();"></input>
+                    </div>
+                </div>
             </div>
+            <hr>
             <div class='fppTableWrapper'>
             <div class='fppTableContents fullWidth' role="region" aria-labelledby="GPIOInputs" tabindex="0">
             <table id='GPIOInputs' class="fppBasicTable">

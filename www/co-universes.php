@@ -107,45 +107,69 @@ function PopulateInterfaces()
 <div id='tab-e131'>
 	<div id='divE131'>
 
-			<h2> E1.31 / ArtNet / DDP / KiNet</h2>
+
 			<div id='divE131Data'>
 
 				<div>
 		
-						<b>Enable E1.31 / ArtNet / DDP / KiNet Output:</b> <input type="checkbox" id="E131Enabled"/>
-						<span id='outputOffWarning' style='display: none;' class='warning'>
-						- WARNING, universe outputs are active, but the primary channel output is disabled.  No data will be sent.
-						</span>
+						
 
-<br>
-					Source Interface: <select id="selE131interfaces"><? PopulateInterfaces(); ?></select>
-    <span
-    <? if ($uiLevel < 1) { ?>
-        style="display:none;"
-    <? } ?>
-    ><br>Multi-Threaded:&nbsp;<input id="E131ThreadedOutput" type="checkbox" checked /><b>*</b></span>
-					<br><br>
-
-					<div>
-						<form>
-							Outputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(0);" type="button"  class="buttons" value="Set" />
-						</form>
-					</div>
 					<form id="frmUniverses">
-						<input name="command" type="hidden" value="setUniverses" />
-						<input name="input" type="hidden" value="0" />
-						<table>
-							<tr>
-								<td width = "70 px"><input id="btnSaveUniverses" class="buttons btn-success" type="submit" value = "Save" /></td>
-								<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
-								<td width = "40 px">&nbsp;</td>
-								<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(0);" /></td>
-							</tr>
-						</table>
+
+
+
+						<div class="row tablePageHeader">
+							<div class="col-md"><h2>E1.31 / ArtNet / DDP / KiNet</h2></div>
+							<div class="col-md-auto ml-lg-auto">
+								<div class="form-actions">
+										<input name="command" type="hidden" value="setUniverses" />
+										<input name="input" type="hidden" value="0" />
+										<input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(0);" />
+										<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
+							
+										
+										<input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
+
+								</div>
+							</div>
+						</div>
+						<div id='outputOffWarning' style='display: none;' class='callout callout-warning'>
+							<b>WARNING </b>universe outputs are active, but the primary channel output is disabled.  No data will be sent. Check "Enable Output" below if if you wish to enable.
+						</div>
+						<div class="backdrop tableOptionsForm">
+							<div class="row">
+								<div class="col-md-auto">
+									<div class="backdrop-dark form-inline enableCheckboxWrapper">
+
+									<div><b>Enable Output:</b></div>
+										<div> <input type="checkbox" id="E131Enabled"/></div>
+										
+									</div>
+								</div>
+								<div class="col-md-auto form-inline">
+									<div><b>Source Interface:</b></div>
+									<div ><select id="selE131interfaces"><? PopulateInterfaces(); ?></select></div>
+
+								</div>
+								<div class="col-md-auto form-inline" <? if ($uiLevel < 1) { ?> style="display:none;" <? } ?>>
+									<div><b>Multi-Threaded:</b><b>*</b></div>
+									<div>
+										<input id="E131ThreadedOutput" type="checkbox" checked />
+									</div>
+								</div>
+								<div class="col-md-auto form-inline">
+									<div><b>Outputs Count: </b></div>
+									<div ><input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /></div>
+									<div><input id="btnUniverseCount" onclick="SetUniverseCount(0);" type="button"  class="buttons" value="Set" /></div>
+								</div>
+							</div>
+						</div>
+
+
 
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents' class='universeTable fullWidth fppSelectableRowTable' role="region" aria-labelledby="tblUniverses" tabindex="0">
-						<table id="tblUniverses">
+                            <div class='fppTableContents' class='universeTable fullWidth' role="region" aria-labelledby="tblUniverses" tabindex="0">
+						<table id="tblUniverses" class="fppSelectableRowTable">
 							<thead id='tblUniversesHead'>
                                 <tr>
                                     <th title='Output Number'>Output</th>
@@ -170,7 +194,7 @@ function PopulateInterfaces()
 						</table>
                             </div>
                         </div>
-						<span>(Drag entry to reposition) </span>
+						<small class="text-muted">(Drag entry to reposition) </small>
 					</form>
 				</div>
 			</div>

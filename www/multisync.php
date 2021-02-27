@@ -1313,7 +1313,7 @@ function multiActionChanged() {
         ?>
         <div class="form-actions multisyncAdvancedFormActions">
             <div >
-                <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
+                <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
             </div>
             <div  class="form-actions multisyncBulkActions">
                 <b>Action for selected systems:</b>
@@ -1329,7 +1329,7 @@ function multiActionChanged() {
                     <option value='remoteMode'>Set to Remote</option>
                     <option value='bridgeMode'>Set to Bridge</option>
                 </select>
-                <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
+                <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
                 <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
             </div>
         </div>

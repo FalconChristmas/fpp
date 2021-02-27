@@ -242,7 +242,7 @@ $(document).ready(function(){
 	
 	
 	
-						<input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
+						<input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
 						<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
 						<input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
 						</div>

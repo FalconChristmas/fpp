@@ -9142,6 +9142,10 @@ table.settingsTable div.th {
   background-position: 0 0, 100%, 0 0, 100%;
   background-attachment: local, local, scroll, scroll;
   overflow: auto; }
+  .backdrop [role="region"][aria-labelledby][tabindex] {
+    background: linear-gradient(to right, #F5F5F5 30%, rgba(255, 255, 255, 0)), linear-gradient(to right, rgba(255, 255, 255, 0), #F5F5F5 70%) 0 100%, radial-gradient(farthest-side at 0% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)), radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)) 0 100%;
+  
+  }
   @media (max-width: 991.98px) {
     [role="region"][aria-labelledby][tabindex] {
       margin-right: -1.2em; } }

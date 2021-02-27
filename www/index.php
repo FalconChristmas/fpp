@@ -286,8 +286,8 @@ include 'common/menuHead.inc';
                     <div></div>
                     <div></div>
                     <br><br>
-                    <div></div>
-                    <br><br>
+                    <hr>
+
                     <div class="sk-btn" ></div>
                     <div></div>
                 </div>

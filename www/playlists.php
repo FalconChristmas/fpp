@@ -144,17 +144,18 @@ include 'menu.inc';
 
                 <div class="playlistSelectContainer">
                     <div class="playlistSelectHeader">
-                        <div class="row">
-                            <div class="col-md">
-                                <h2>Your Playlists <div class="badge badge-light ml-1 playlistSelectCount"></div></h2>
-                                <select id='playlistSelect' class="hidden form-control form-control-lg form-control-rounded has-shadow" onChange='EditPlaylist();'>
-                                </select>
+
+                            <div class="row">
+                                <div class="col-md">
+                                    <h2>Your Playlists <div class="badge badge-light ml-1 playlistSelectCount"></div></h2>
+                                    <select id='playlistSelect' class="hidden form-control form-control-lg form-control-rounded has-shadow" onChange='EditPlaylist();'>
+                                    </select>
+                                </div>
+                                <div class="col-md-auto ml-lg-auto">
+                                    <button class="playlistAddNewBtn buttons btn-outline-success btn-rounded  btn-icon-add"><i class="fas fa-plus"></i> New Playlist
+                                    </button>
+                                </div>
                             </div>
-                            <div class="col-md-auto ml-lg-auto">
-                                <button class="playlistAddNewBtn buttons btn-outline-success btn-rounded  btn-icon-add"><i class="fas fa-plus"></i> New Playlist
-                                </button>
-                            </div>
-                        </div>
 
                     </div>
                  
