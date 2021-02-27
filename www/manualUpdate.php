@@ -38,6 +38,10 @@ touch("$mediaDirectory/tmp/fppd_restarted");
 
 system($SUDO . " $fppDir/scripts/fppd_restart");
 
+if (file_exists($settings['statsFile'])) {
+    unlink($settings['statsFile']);
+}
+ 
 exec($SUDO . " rm -f /tmp/cache_*.cache");
 ?>
 ==========================================================================
