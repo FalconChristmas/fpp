@@ -1448,7 +1448,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "cae7fb"
+            "default": "a6d7f8"
         },
         "tableColorPair3A": {
             "name": "tableColorPair3A",

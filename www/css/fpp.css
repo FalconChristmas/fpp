@@ -1769,6 +1769,12 @@ input[type=search].tablesorter-filter:disabled{
 #tblSchedule select.cmdTmplCommand {
 	width: auto;
 }
+.schRowNumber{
+	display: block;
+	padding-left: 0.4em;
+	padding-top: 0.4em;	
+	cursor:grab;
+}
 @media (min-width: 768px){
 	#verbosePlaylistItemDetailsRow .col-md-5 {
 		flex: 0 0 auto;

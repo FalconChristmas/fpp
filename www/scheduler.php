@@ -240,8 +240,9 @@ function SetRowDateTimeFieldVisibility(row) {
 }
 
 function SetScheduleInputNames() {
-	$('#tblScheduleBody > tr').each(function() {
+	$('#tblScheduleBody > tr').each(function(i) {
 		SetRowDateTimeFieldVisibility($(this));
+        $(this).find('.schRowNumber').html(i+1);
 	});
 
 	$('.time').timepicker({
@@ -273,7 +274,8 @@ function SetScheduleInputNames() {
 
 function SetupDatePicker(item)
 {
-    if(hasTouch){
+    if(hasTouch && window.innerWidth > 600){
+        //use native date picker for small touchscreens (datepicker widget is bad experience on mobile)
         $(item).attr('type','date');
     }else{
         $(item).datepicker({
@@ -616,9 +618,10 @@ tr.rowScheduleDetails select.selPlaylist option {
                     
                     <table class='fppTableRowTemplate template-tblScheduleBody'>
                         <tr class='rowScheduleDetails'>
+                            <td class='center' valign="middle"><b class="schRowNumber"></b></td>
                             <td class='center' ><input class='schEnable' type='checkbox' /></td>
-                            <td><input class='date center schStartDate' type='text' size='9'  /></td>
-                            <td><input class='date center schEndDate' type='text' size='9' /></td>
+                            <td><input class='date schStartDate' type='text' size='9'  /></td>
+                            <td><input class='date schEndDate' type='text' size='9' /></td>
                             <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
                                     <option value='7'>Everyday</option>
                                     <option value='0'>Sunday</option>
@@ -668,8 +671,8 @@ tr.rowScheduleDetails select.selPlaylist option {
                                     </table>
                                 </span>
                             </td>
-                            <td><input class='time center schStartTime' type='text' size='6' onChange='TimeChanged(this);' />
-<span class='offset startOffset'><br>+<input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+                            <td><input class='time schStartTime' type='text' size='6' onChange='TimeChanged(this);' />
+<span class='offset startOffset'><br>+<input class='schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
                             <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
                                 <option value='playlist'>Playlist</option>
                                 <option value='sequence'>Sequence</option>
@@ -685,10 +688,10 @@ tr.rowScheduleDetails select.selPlaylist option {
                                  <select class='schSequence' title=''>
                                 </select>
                             </td>
-                            <td class='schOptionsPlaylist schOptionsSequence'><input class='time center schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
-                                <span class='offset endOffset'><br>+<input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span>
+                            <td class='schOptionsPlaylist schOptionsSequence'><input class='time schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
+                                <span class='offset endOffset'><br>+<input class='schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span>
                             </td>
-                            <td class='schOptionsPlaylist schOptionsSequence' class='center' >
+                            <td class='schOptionsPlaylist schOptionsSequence' class='' >
                                 <select class='schRepeat'>
                                     <option value='0'>None</option>
                                     <option value='1'>Immediate</option>
@@ -700,7 +703,7 @@ tr.rowScheduleDetails select.selPlaylist option {
                                     <option value='6000'>60 Min.</option>
                                 </select>
                             </td>
-                            <td class='schOptionsPlaylist schOptionsSequence' class='center' >
+                            <td class='schOptionsPlaylist schOptionsSequence' class='' >
                                 <select class='schStopType'>
                                     <option value='0'>Graceful</option>
                                     <option value='2'>Graceful Loop</option>
@@ -724,6 +727,7 @@ tr.rowScheduleDetails select.selPlaylist option {
 
                         <thead id='tblScheduleHead'>
                             <tr>
+                                <th></th>
                                 <th>Active</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>

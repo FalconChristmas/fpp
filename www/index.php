@@ -231,7 +231,7 @@ include 'common/menuHead.inc';
     <div id="schedulerInfo" class="statusDiv statusDivTop">
         <div class="statusTable statusDivTopRow">
 
-            <div class="statusDivTopCol ">
+            <div class="statusDivTopCol">
                 <div class="schedulerStatusCol">
                     <div>
                         <div class="labelHeading">Scheduler Status:</div>
@@ -246,8 +246,12 @@ include 'common/menuHead.inc';
 
 
             </div>
+            <div class="statusDivTopCol">
+                <div class="labelHeading">Next Playlist: </div>
+                <div id='nextPlaylist' class="labelValue"></div>
+            </div>
             <div class="statusDivTopCol schedulerStartTime">
-                <div class='labelHeading'>Started at:</div>
+                <div class='labelHeading'>Schedule Started at:</div>
                 <div class='labelValue' id='schedulerStartTime'></div>
             </div>
             <div class="statusDivTopCol schedulerEndTime">
@@ -264,10 +268,7 @@ include 'common/menuHead.inc';
                     
                 </div>
             </div>
-            <div class="statusDivTopCol">
-                <div class="labelHeading">Next Playlist: </div>
-                <div id='nextPlaylist' class="labelValue"></div>
-            </div>
+
                 
         </div>
     </div>
