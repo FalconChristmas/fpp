@@ -95,7 +95,9 @@ function stats_delete_last_file()
 
 function stats_get_filename()
 {
-    return "/tmp/fpp_stats.json";
+    global $settings;
+    
+    return $settings['statsFile'];
 }
 
 function validateAndAdd(&$obj, &$input, &$mapping)

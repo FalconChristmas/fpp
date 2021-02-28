@@ -163,6 +163,7 @@ if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
 }
 
 $settings['statsPublishUrl'] = "https://fppstats.falconchristmas.com/api/upload";
+$settings['statsFile'] = "/tmp/fpp_stats.json";
 $settings['Variant'] = $settings['Platform'];
 $settings['SubPlatform'] = "";
 $settings['OSImagePrefix'] = "";
