@@ -15,9 +15,9 @@ body .ui-tooltip{
 	color:#171720;
 	font-size: 0.88rem;
 	line-height: 1.3;
-	padding:1.3em 1.5em;
+	padding:0.6em 0.8em;
 	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
-	border-radius: 7px;
+	border-radius: 5px;
 }
 .tab-content>.spinner-border{
 	display: block;
@@ -329,6 +329,9 @@ body legend{
 .settings .row{
 	margin-bottom: 1.1em;
 }
+.statusPageControlsRow.statusPageControlsRow{
+	margin-bottom: 0;
+}
 .fppMenuContainer {
 	margin-top: -15px;
 }
@@ -442,6 +445,7 @@ body legend{
 	border-bottom:1px solid #DADADA;
 	margin-bottom: 2em;
 }
+
 .volume{
 	display: block;
 	font-size: 1.3em;
@@ -1843,6 +1847,12 @@ input[type=search].tablesorter-filter:disabled{
 	.fpp-logo, .headerHostName, .headerRight{
 		display: none;
 	}
+	.header.swiped .headerHostName{
+		display: flex;
+	}
+	.header.swiped .headerLeft .logo{
+		display: none;
+	}
 	.container {
 		padding-left: 0.5rem;
 		padding-right: 0.5rem;
@@ -1941,8 +1951,12 @@ input[type=search].tablesorter-filter:disabled{
 	.statusTable.row > div{
 		width: auto;
 	}
+	.header>.headerLeft{
+		padding-left: 0.5em;
+	}
 	.fppBrand {
 		padding-left: 0;
+		padding-right: 0;
 	}
 	#header_Time{
 		width: 100px;
@@ -2003,6 +2017,16 @@ input[type=search].tablesorter-filter:disabled{
 		padding-bottom: 0.5em;
 		padding-top: 0em;
 		border-top: none;
+	}
+	.statusDiv #playerStatusBottom{
+		clear: both;
+		padding-top: 1px;
+	}
+	#playerModeInfo .statusBoxRight {
+		float: none;
+	}
+	#playerTime>div{
+		flex:1;
 	}
 }
 @media (min-width:481px) and (max-width:768px){

@@ -71,7 +71,7 @@ function list_plugin_entries($menu)
     <div class="headerLeft">
           <div class="headerLeftCol fppBrand">
             <a href="/">
-              <img src="images/redesign/falconlogo.svg" class="logo" />
+              <img src="images/redesign/falconlogo.svg" class="logo" title="Host: <? echo $settings['HostName']; ?>" />
               <img src="images/redesign/fpp-logo.svg" class="fpp-logo" />
             </a>
             <a href='about.php' class='nonULLink headerLink versionHead'><?php echo $fpp_head_version; ?></a>
@@ -82,9 +82,9 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo("<span class=\"headerHostName headerBox largeonly\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></small></span></span>");
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></small></span></span>");
     } else {
-        echo("<span class=\"headerHostName headerBox largeonly\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small>".gethostname()."</small></span></span>");
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small>".gethostname()."</small></span></span>");
     }
 ?>
     <span class="headerBox" id="header_player"></span>

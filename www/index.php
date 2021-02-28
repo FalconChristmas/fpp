@@ -409,7 +409,7 @@ include 'common/menuHead.inc';
                             </div>
 
                         </div>
-                        <div class="row">
+                        <div class="row statusPageControlsRow">
                             <div id="playerControls" class="col-md" >
                                 <button id= "btnPlay" class ="buttons btn-rounded btn-success disableButtons" onClick="StartPlaylistNow();"><i class='fas fa-fw fa-play'></i>Play</button>
                                 <button id= "btnPrev" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="PreviousPlaylistEntry();"><i class='fas fa-fw fa-step-backward'></i>Previous</button>
