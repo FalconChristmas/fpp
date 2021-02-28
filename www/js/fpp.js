@@ -5870,12 +5870,11 @@ function PreviewStatistics() {
     }
 
     $('#statsPreviewDiv').html('Loading...');
-    $('#statsPreviewPopup').dialog({
-        height: 600,
+    $('#statsPreviewPopup').fppDialog({
         width: 900,
         title: "Statistics Preview",
         modal: true
     });
-    $('#statsPreviewPopup').dialog( "moveToTop" );
+    $('#statsPreviewPopup').fppDialog( "moveToTop" );
     $('#statsPreviewDiv').load('api/statistics/usage');
 }
