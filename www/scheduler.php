@@ -660,14 +660,6 @@ tr.rowScheduleDetails select.selPlaylist option {
                                             <td><input class='maskFriday' type='checkbox' /></td>
                                             <td><input class='maskSaturday' type='checkbox' /></td>
                                         </tr>
-                                        <tr><td><input class='maskSunday' type='checkbox' /></td>
-                                            <td><input class='maskMonday' type='checkbox' /></td>
-                                            <td><input class='maskTuesday' type='checkbox' /></td>
-                                            <td><input class='maskWednesday' type='checkbox' /></td>
-                                            <td><input class='maskThursday' type='checkbox' /></td>
-                                            <td><input class='maskFriday' type='checkbox' /></td>
-                                            <td><input class='maskSaturday' type='checkbox' /></td>
-                                        </tr>
                                     </table>
                                 </span>
                             </td>
