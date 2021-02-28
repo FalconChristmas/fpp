@@ -26,6 +26,7 @@
 @import "../../../node_modules/bootstrap/scss/badge";
 @import "../../../node_modules/bootstrap/scss/alert";
 //@import "../../../node_modules/bootstrap/scss/progress";
+@import "../../../node_modules/bootstrap/scss/input-group";
 @import "../../../node_modules/bootstrap/scss/list-group";
 @import "../../../node_modules/bootstrap/scss/close";
 //@import "../../../node_modules/bootstrap/scss/toasts";
@@ -132,24 +133,59 @@
     background: radial-gradient(circle, $blue 35%, rgba($blue,0) 35%);
 
 }
-input[type=text], input[type=number], input[type=password], input[type=email], select, .tablesorter input{
+input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input{
+    @include border-radius($input-border-radius, 0);
+
+    @include box-shadow($input-box-shadow);
+    @include transition($input-transition);
+
+    &::-ms-expand {
+      background-color: transparent;
+      border: 0;
+    }
+
+    @include form-control-focus($ignore-warning: true);
+
+    &::placeholder {
+      color: $input-placeholder-color;
+      opacity: 1;
+    }
+
 	border: 1px solid #D2D2D2;
 	color:$black;
 	appearance: none;
-	border-radius:$border-radius;
 	font-weight: normal;
     font-size: $font-size-base;
     vertical-align: middle;
     font-size: 16px;
 }
+input[type=date]{
+   position: relative;
+    &::-webkit-calendar-picker-indicator {
+        //background-color: red;
+    
+        right:0;
+        top:0;
+        height:100%;
+        width: 40px;
+        position: absolute;
+        cursor: pointer;
+        padding:8px;
+        box-sizing: border-box;
+    }
+}   
 .pageContent select, .ui-dialog select, .modal select{
 	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
-	background-position: right 20px center;
+	background-position: right 11px center;
     background-size: 15px;
     padding-right:3.5em;
     cursor: pointer;
     vertical-align: middle;
+    &.form-control-lg{
+        background-position: right 20px center;
+    }
 }
+
 .tablesorter input{
     @extend .form-control;
 }
@@ -545,8 +581,8 @@ table.settingsTable div.th{
 	padding-bottom: 0.85em;
 }
 .fppSelectableRowTable tbody tr>td:first-child{
-	padding-left: 1.5em;
-	padding-right:0.4em;
+    padding-left: 0.5em;
+    padding-right: 0.1em;
 }
 .fppSelectableRowTable tbody tr>td:last-child,#tblSchedule tbody tr>td:nth-last-child(2){
 	padding-right: 0.5em;
@@ -631,7 +667,15 @@ $fppTableExtraPadding:1.1em;
 	padding-bottom:1em;
 }
 
-
+.fppDataTable {
+    @extend .fppBasicTable;
+    >tbody>tr>td,>tbody>tr>th {
+        background-color: transparent;
+        border-bottom: 1px solid #dee2e6;
+        padding-top: 0.2em;
+        padding-bottom: 0.2em;
+    }
+}
 
 
 $fppTableDefaultPadding:0.6em;

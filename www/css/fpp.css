@@ -26,6 +26,10 @@ body .ui-tooltip{
 #schedulerInfo .schedulerStartTime, #schedulerInfo .schedulerEndTime {
 	display: none;
 }
+.schedulePreviewTable {
+	margin-top: 0;
+	margin-bottom: 0;
+}
 .statusPageLoading{
 	display: none;
 	align-items: center;
@@ -1979,7 +1983,7 @@ input[type=search].tablesorter-filter:disabled{
 	.statusDivTopRow {
 		margin-top: -1.0em;
 	}
-	#tblSchedule input[type=text], #tblSchedule select {
+	#tblSchedule input[type=text], #tblSchedule select, #tblSchedule input[type=date] {
 		width: 100%;
 		min-width: 160px;
 	}

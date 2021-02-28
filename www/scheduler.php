@@ -273,36 +273,41 @@ function SetScheduleInputNames() {
 
 function SetupDatePicker(item)
 {
-	$(item).datepicker({
-		'changeMonth': true,
-		'changeYear': true,
-		'dateFormat': 'yy-mm-dd',
-		'minDate': new Date(MINYEAR-1, 1 - 1, 1),
-		'maxDate': new Date(MAXYEAR, 12 - 1, 31),
-		'showButtonPanel': true,
-		'selectOtherMonths': true,
-		'showOtherMonths': true,
-		'yearRange': "" + MINYEAR +":" + MAXYEAR,
-		'autoclose': true,
-		'beforeShow': function( input ) {
-            setTimeout(function() {
-                var buttonPane = $( input )
-                    .datepicker( "widget" )
-                    .find( ".ui-datepicker-buttonpane" );
+    if(hasTouch){
+        $(item).attr('type','date');
+    }else{
+        $(item).datepicker({
+            'changeMonth': true,
+            'changeYear': true,
+            'dateFormat': 'yy-mm-dd',
+            'minDate': new Date(MINYEAR-1, 1 - 1, 1),
+            'maxDate': new Date(MAXYEAR, 12 - 1, 31),
+            'showButtonPanel': true,
+            'selectOtherMonths': true,
+            'showOtherMonths': true,
+            'yearRange': "" + MINYEAR +":" + MAXYEAR,
+            'autoclose': true,
+            'beforeShow': function( input ) {
+                setTimeout(function() {
+                    var buttonPane = $( input )
+                        .datepicker( "widget" )
+                        .find( ".ui-datepicker-buttonpane" );
 
-                $( "<button>", {
-                    text: "Select from Holidays",
-                    click: function() {
-                        $('.ui-datepicker').hide();
-                        $(input).hide();
-                        $(input).val('Christmas');
-                        $(input).parent().find('.holidays').val('Christmas');
-                        $(input).parent().find('.holidays').show();
-                    }
-                }).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
-            }, 1 );
-        }
-    });
+                    $( "<button>", {
+                        text: "Select from Holidays",
+                        click: function() {
+                            $('.ui-datepicker').hide();
+                            $(input).hide();
+                            $(input).val('Christmas');
+                            $(input).parent().find('.holidays').val('Christmas');
+                            $(input).parent().find('.holidays').show();
+                        }
+                    }).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
+                }, 1 );
+            }
+        });
+    }
+
 }
 
 function ScheduleEntryTypeChanged(item)
@@ -719,16 +724,16 @@ tr.rowScheduleDetails select.selPlaylist option {
 
                         <thead id='tblScheduleHead'>
                             <tr>
-                                <th title='Schedule enabled/disabled'>Active</th>
-                                <th title='Start Date'>Start Date</th>
-                                <th title='End Date'>End Date</th>
-                                <th title='Day(s) of the week'>Day(s)</th>
-                                <th title='Start Time'>Start<br>Time</th>
-                                <th title='Schedule Type'>Schedule<br>Type</th>
-                                <th title='Playlist'>Playlist /<br> Command Args</th>
-                                <th title='End Time'>End Time</th>
-                                <th title='Repeat playlist'>Repeat</th>
-                                <th title='Playlist Stop Type'>Stop Type</th>
+                                <th>Active</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Day(s)</th>
+                                <th>Start<br>Time</th>
+                                <th>Schedule<br>Type</th>
+                                <th>Playlist /<br> Command Args</th>
+                                <th>End Time</th>
+                                <th>Repeat</th>
+                                <th>Stop Type</th>
                             </tr>
                         </thead>
                         <tbody id='tblScheduleBody'>

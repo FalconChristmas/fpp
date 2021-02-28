@@ -1421,7 +1421,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "D0EFB1"
+            "default": "b0efbc"
         },
         "tableColorPair1B": {
             "name": "tableColorPair1B",
@@ -1430,7 +1430,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "B3D89C"
+            "default": "7be38f"
         },
         "tableColorPair2A": {
             "name": "tableColorPair2A",
@@ -1439,7 +1439,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "D8DCFF"
+            "default": "cae7fb"
         },
         "tableColorPair2B": {
             "name": "tableColorPair2B",
@@ -1448,7 +1448,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "AEADF0"
+            "default": "cae7fb"
         },
         "tableColorPair3A": {
             "name": "tableColorPair3A",
@@ -1457,7 +1457,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "EDD382"
+            "default": "e9beed"
         },
         "tableColorPair3B": {
             "name": "tableColorPair3B",
@@ -1466,7 +1466,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "FC9E4F"
+            "default": "da92e1"
         },
         "tableColorPair4A": {
             "name": "tableColorPair4A",
@@ -1475,7 +1475,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "9DC3C2"
+            "default": "fcefbb"
         },
         "tableColorPair4B": {
             "name": "tableColorPair4B",
@@ -1484,7 +1484,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "77A6B6"
+            "default": "f9e077"
         },
         "temperatureInF": {
             "name": "temperatureInF",

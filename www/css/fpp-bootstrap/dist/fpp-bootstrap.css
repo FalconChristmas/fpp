@@ -7589,6 +7589,382 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   .alert-pleasant .alert-link {
     color: #b4cbf5; }
 
+.input-group {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  width: 100%; }
+  .input-group > .form-control, .tablesorter .input-group > input, .input-group > input[type=checkbox], .form-inline .input-group > input[type=checkbox], #settingsManagerTabsContent .input-group > input[type=text],
+  .input-group > .form-control-plaintext,
+  .input-group > .custom-select,
+  .input-group > .custom-file {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+    margin-bottom: 0; }
+    .input-group > .form-control + .form-control, .tablesorter .input-group > input + .form-control, .input-group > input[type=checkbox] + .form-control, .form-inline .input-group > input[type=checkbox] + .form-control, #settingsManagerTabsContent .input-group > input[type=text] + .form-control, .tablesorter .input-group > .form-control + input, .tablesorter .input-group > input + input, .tablesorter .input-group > input[type=checkbox] + input, .tablesorter .form-inline .input-group > input[type=checkbox] + input, #settingsManagerTabsContent .tablesorter .input-group > input[type=text] + input, .tablesorter #settingsManagerTabsContent .input-group > input[type=text] + input, .input-group > .form-control + input[type=checkbox], .tablesorter .input-group > input + input[type=checkbox], .input-group > input[type=checkbox] + input[type=checkbox], #settingsManagerTabsContent .input-group > input[type=text] + input[type=checkbox], .form-inline .input-group > .form-control + input[type=checkbox], .tablesorter .form-inline .input-group > input + input[type=checkbox], .form-inline .input-group > input[type=checkbox] + input[type=checkbox], #settingsManagerTabsContent .form-inline .input-group > input[type=text] + input[type=checkbox], #settingsManagerTabsContent .input-group > .form-control + input[type=text], .tablesorter #settingsManagerTabsContent .input-group > input + input[type=text], #settingsManagerTabsContent .tablesorter .input-group > input + input[type=text], #settingsManagerTabsContent .input-group > input[type=checkbox] + input[type=text], #settingsManagerTabsContent .form-inline .input-group > input[type=checkbox] + input[type=text], #settingsManagerTabsContent .input-group > input[type=text] + input[type=text],
+    .input-group > .form-control + .custom-select,
+    .tablesorter .input-group > input + .custom-select,
+    .input-group > input[type=checkbox] + .custom-select,
+    .form-inline .input-group > input[type=checkbox] + .custom-select,
+    #settingsManagerTabsContent .input-group > input[type=text] + .custom-select,
+    .input-group > .form-control + .custom-file,
+    .tablesorter .input-group > input + .custom-file,
+    .input-group > input[type=checkbox] + .custom-file,
+    .form-inline .input-group > input[type=checkbox] + .custom-file,
+    #settingsManagerTabsContent .input-group > input[type=text] + .custom-file,
+    .input-group > .form-control-plaintext + .form-control,
+    .tablesorter .input-group > .form-control-plaintext + input,
+    .input-group > .form-control-plaintext + input[type=checkbox],
+    .form-inline .input-group > .form-control-plaintext + input[type=checkbox],
+    #settingsManagerTabsContent .input-group > .form-control-plaintext + input[type=text],
+    .input-group > .form-control-plaintext + .custom-select,
+    .input-group > .form-control-plaintext + .custom-file,
+    .input-group > .custom-select + .form-control,
+    .tablesorter .input-group > .custom-select + input,
+    .input-group > .custom-select + input[type=checkbox],
+    .form-inline .input-group > .custom-select + input[type=checkbox],
+    #settingsManagerTabsContent .input-group > .custom-select + input[type=text],
+    .input-group > .custom-select + .custom-select,
+    .input-group > .custom-select + .custom-file,
+    .input-group > .custom-file + .form-control,
+    .tablesorter .input-group > .custom-file + input,
+    .input-group > .custom-file + input[type=checkbox],
+    .form-inline .input-group > .custom-file + input[type=checkbox],
+    #settingsManagerTabsContent .input-group > .custom-file + input[type=text],
+    .input-group > .custom-file + .custom-select,
+    .input-group > .custom-file + .custom-file {
+      margin-left: -1px; }
+  .input-group > .form-control:focus, .tablesorter .input-group > input:focus, .input-group > input:focus[type=checkbox], .form-inline .input-group > input:focus[type=checkbox], #settingsManagerTabsContent .input-group > input:focus[type=text],
+  .input-group > .custom-select:focus,
+  .input-group > .custom-file .custom-file-input:focus ~ .custom-file-label {
+    z-index: 3; }
+  .input-group > .custom-file .custom-file-input:focus {
+    z-index: 4; }
+  .input-group > .form-control:not(:first-child), .tablesorter .input-group > input:not(:first-child), .input-group > input:not(:first-child)[type=checkbox], .form-inline .input-group > input:not(:first-child)[type=checkbox], #settingsManagerTabsContent .input-group > input:not(:first-child)[type=text],
+  .input-group > .custom-select:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0; }
+  .input-group > .custom-file {
+    display: flex;
+    align-items: center; }
+    .input-group > .custom-file:not(:last-child) .custom-file-label,
+    .input-group > .custom-file:not(:first-child) .custom-file-label {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0; }
+  .input-group:not(.has-validation) > .form-control:not(:last-child), .tablesorter .input-group:not(.has-validation) > input:not(:last-child), .input-group:not(.has-validation) > input:not(:last-child)[type=checkbox], .form-inline .input-group:not(.has-validation) > input:not(:last-child)[type=checkbox], #settingsManagerTabsContent .input-group:not(.has-validation) > input:not(:last-child)[type=text],
+  .input-group:not(.has-validation) > .custom-select:not(:last-child),
+  .input-group:not(.has-validation) > .custom-file:not(:last-child) .custom-file-label::after {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0; }
+  .input-group.has-validation > .form-control:nth-last-child(n + 3), .tablesorter .input-group.has-validation > input:nth-last-child(n + 3), .input-group.has-validation > input:nth-last-child(n + 3)[type=checkbox], .form-inline .input-group.has-validation > input:nth-last-child(n + 3)[type=checkbox], #settingsManagerTabsContent .input-group.has-validation > input:nth-last-child(n + 3)[type=text],
+  .input-group.has-validation > .custom-select:nth-last-child(n + 3),
+  .input-group.has-validation > .custom-file:nth-last-child(n + 3) .custom-file-label::after {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0; }
+
+.input-group-prepend,
+.input-group-append {
+  display: flex; }
+  .input-group-prepend .btn, .input-group-prepend .buttons, .input-group-prepend .ui-dialog-buttonset button, .ui-dialog-buttonset .input-group-prepend button, .input-group-prepend .ajax-file-upload, .input-group-prepend .pageContent .disableButtons, .pageContent .input-group-prepend .disableButtons, .input-group-prepend .ui-dialog .disableButtons, .ui-dialog .input-group-prepend .disableButtons, .input-group-prepend .modal .disableButtons, .modal .input-group-prepend .disableButtons,
+  .input-group-append .btn,
+  .input-group-append .buttons,
+  .input-group-append .ui-dialog-buttonset button,
+  .ui-dialog-buttonset .input-group-append button,
+  .input-group-append .ajax-file-upload,
+  .input-group-append .pageContent .disableButtons,
+  .pageContent .input-group-append .disableButtons,
+  .input-group-append .ui-dialog .disableButtons,
+  .ui-dialog .input-group-append .disableButtons,
+  .input-group-append .modal .disableButtons,
+  .modal .input-group-append .disableButtons {
+    position: relative;
+    z-index: 2; }
+    .input-group-prepend .btn:focus, .input-group-prepend .buttons:focus, .input-group-prepend .ui-dialog-buttonset button:focus, .ui-dialog-buttonset .input-group-prepend button:focus, .input-group-prepend .ajax-file-upload:focus, .input-group-prepend .pageContent .disableButtons:focus, .pageContent .input-group-prepend .disableButtons:focus, .input-group-prepend .ui-dialog .disableButtons:focus, .ui-dialog .input-group-prepend .disableButtons:focus, .input-group-prepend .modal .disableButtons:focus, .modal .input-group-prepend .disableButtons:focus,
+    .input-group-append .btn:focus,
+    .input-group-append .buttons:focus,
+    .input-group-append .ui-dialog-buttonset button:focus,
+    .ui-dialog-buttonset .input-group-append button:focus,
+    .input-group-append .ajax-file-upload:focus,
+    .input-group-append .pageContent .disableButtons:focus,
+    .pageContent .input-group-append .disableButtons:focus,
+    .input-group-append .ui-dialog .disableButtons:focus,
+    .ui-dialog .input-group-append .disableButtons:focus,
+    .input-group-append .modal .disableButtons:focus,
+    .modal .input-group-append .disableButtons:focus {
+      z-index: 3; }
+  .input-group-prepend .btn + .btn, .input-group-prepend .buttons + .btn, .input-group-prepend .ui-dialog-buttonset button + .btn, .ui-dialog-buttonset .input-group-prepend button + .btn, .input-group-prepend .ajax-file-upload + .btn, .input-group-prepend .pageContent .disableButtons + .btn, .pageContent .input-group-prepend .disableButtons + .btn, .input-group-prepend .ui-dialog .disableButtons + .btn, .ui-dialog .input-group-prepend .disableButtons + .btn, .input-group-prepend .modal .disableButtons + .btn, .modal .input-group-prepend .disableButtons + .btn, .input-group-prepend .btn + .buttons, .input-group-prepend .buttons + .buttons, .input-group-prepend .ui-dialog-buttonset button + .buttons, .ui-dialog-buttonset .input-group-prepend button + .buttons, .input-group-prepend .ajax-file-upload + .buttons, .input-group-prepend .pageContent .disableButtons + .buttons, .pageContent .input-group-prepend .disableButtons + .buttons, .input-group-prepend .ui-dialog .disableButtons + .buttons, .ui-dialog .input-group-prepend .disableButtons + .buttons, .input-group-prepend .modal .disableButtons + .buttons, .modal .input-group-prepend .disableButtons + .buttons, .input-group-prepend .ui-dialog-buttonset .btn + button, .ui-dialog-buttonset .input-group-prepend .btn + button, .input-group-prepend .ui-dialog-buttonset .buttons + button, .ui-dialog-buttonset .input-group-prepend .buttons + button, .input-group-prepend .ui-dialog-buttonset button + button, .ui-dialog-buttonset .input-group-prepend button + button, .input-group-prepend .ui-dialog-buttonset .ajax-file-upload + button, .ui-dialog-buttonset .input-group-prepend .ajax-file-upload + button, .input-group-prepend .pageContent .ui-dialog-buttonset .disableButtons + button, .ui-dialog-buttonset .input-group-prepend .pageContent .disableButtons + button, .pageContent .input-group-prepend .ui-dialog-buttonset .disableButtons + button, .ui-dialog-buttonset .pageContent .input-group-prepend .disableButtons + button, .input-group-prepend .ui-dialog .ui-dialog-buttonset .disableButtons + button, .ui-dialog-buttonset .input-group-prepend .ui-dialog .disableButtons + button, .ui-dialog .input-group-prepend .ui-dialog-buttonset .disableButtons + button, .ui-dialog-buttonset .ui-dialog .input-group-prepend .disableButtons + button, .input-group-prepend .modal .ui-dialog-buttonset .disableButtons + button, .ui-dialog-buttonset .input-group-prepend .modal .disableButtons + button, .modal .input-group-prepend .ui-dialog-buttonset .disableButtons + button, .ui-dialog-buttonset .modal .input-group-prepend .disableButtons + button, .input-group-prepend .btn + .ajax-file-upload, .input-group-prepend .buttons + .ajax-file-upload, .input-group-prepend .ui-dialog-buttonset button + .ajax-file-upload, .ui-dialog-buttonset .input-group-prepend button + .ajax-file-upload, .input-group-prepend .ajax-file-upload + .ajax-file-upload, .input-group-prepend .pageContent .disableButtons + .ajax-file-upload, .pageContent .input-group-prepend .disableButtons + .ajax-file-upload, .input-group-prepend .ui-dialog .disableButtons + .ajax-file-upload, .ui-dialog .input-group-prepend .disableButtons + .ajax-file-upload, .input-group-prepend .modal .disableButtons + .ajax-file-upload, .modal .input-group-prepend .disableButtons + .ajax-file-upload, .input-group-prepend .pageContent .btn + .disableButtons, .pageContent .input-group-prepend .btn + .disableButtons, .input-group-prepend .pageContent .buttons + .disableButtons, .pageContent .input-group-prepend .buttons + .disableButtons, .input-group-prepend .ui-dialog-buttonset .pageContent button + .disableButtons, .pageContent .input-group-prepend .ui-dialog-buttonset button + .disableButtons, .ui-dialog-buttonset .input-group-prepend .pageContent button + .disableButtons, .pageContent .ui-dialog-buttonset .input-group-prepend button + .disableButtons, .input-group-prepend .pageContent .ajax-file-upload + .disableButtons, .pageContent .input-group-prepend .ajax-file-upload + .disableButtons, .input-group-prepend .pageContent .disableButtons + .disableButtons, .pageContent .input-group-prepend .disableButtons + .disableButtons, .input-group-prepend .ui-dialog .btn + .disableButtons, .ui-dialog .input-group-prepend .btn + .disableButtons, .input-group-prepend .ui-dialog .buttons + .disableButtons, .ui-dialog .input-group-prepend .buttons + .disableButtons, .input-group-prepend .ui-dialog-buttonset .ui-dialog button + .disableButtons, .ui-dialog .input-group-prepend .ui-dialog-buttonset button + .disableButtons, .ui-dialog-buttonset .input-group-prepend .ui-dialog button + .disableButtons, .ui-dialog .ui-dialog-buttonset .input-group-prepend button + .disableButtons, .input-group-prepend .ui-dialog .ajax-file-upload + .disableButtons, .ui-dialog .input-group-prepend .ajax-file-upload + .disableButtons, .input-group-prepend .ui-dialog .disableButtons + .disableButtons, .ui-dialog .input-group-prepend .disableButtons + .disableButtons, .input-group-prepend .modal .btn + .disableButtons, .modal .input-group-prepend .btn + .disableButtons, .input-group-prepend .modal .buttons + .disableButtons, .modal .input-group-prepend .buttons + .disableButtons, .input-group-prepend .ui-dialog-buttonset .modal button + .disableButtons, .modal .input-group-prepend .ui-dialog-buttonset button + .disableButtons, .ui-dialog-buttonset .input-group-prepend .modal button + .disableButtons, .modal .ui-dialog-buttonset .input-group-prepend button + .disableButtons, .input-group-prepend .modal .ajax-file-upload + .disableButtons, .modal .input-group-prepend .ajax-file-upload + .disableButtons, .input-group-prepend .modal .disableButtons + .disableButtons, .modal .input-group-prepend .disableButtons + .disableButtons,
+  .input-group-prepend .btn + .input-group-text,
+  .input-group-prepend .buttons + .input-group-text,
+  .input-group-prepend .ui-dialog-buttonset button + .input-group-text,
+  .ui-dialog-buttonset .input-group-prepend button + .input-group-text,
+  .input-group-prepend .ajax-file-upload + .input-group-text,
+  .input-group-prepend .pageContent .disableButtons + .input-group-text,
+  .pageContent .input-group-prepend .disableButtons + .input-group-text,
+  .input-group-prepend .ui-dialog .disableButtons + .input-group-text,
+  .ui-dialog .input-group-prepend .disableButtons + .input-group-text,
+  .input-group-prepend .modal .disableButtons + .input-group-text,
+  .modal .input-group-prepend .disableButtons + .input-group-text,
+  .input-group-prepend .input-group-text + .input-group-text,
+  .input-group-prepend .input-group-text + .btn,
+  .input-group-prepend .input-group-text + .buttons,
+  .input-group-prepend .ui-dialog-buttonset .input-group-text + button,
+  .ui-dialog-buttonset .input-group-prepend .input-group-text + button,
+  .input-group-prepend .input-group-text + .ajax-file-upload,
+  .input-group-prepend .pageContent .input-group-text + .disableButtons,
+  .pageContent .input-group-prepend .input-group-text + .disableButtons,
+  .input-group-prepend .ui-dialog .input-group-text + .disableButtons,
+  .ui-dialog .input-group-prepend .input-group-text + .disableButtons,
+  .input-group-prepend .modal .input-group-text + .disableButtons,
+  .modal .input-group-prepend .input-group-text + .disableButtons,
+  .input-group-append .btn + .btn,
+  .input-group-append .buttons + .btn,
+  .input-group-append .ui-dialog-buttonset button + .btn,
+  .ui-dialog-buttonset .input-group-append button + .btn,
+  .input-group-append .ajax-file-upload + .btn,
+  .input-group-append .pageContent .disableButtons + .btn,
+  .pageContent .input-group-append .disableButtons + .btn,
+  .input-group-append .ui-dialog .disableButtons + .btn,
+  .ui-dialog .input-group-append .disableButtons + .btn,
+  .input-group-append .modal .disableButtons + .btn,
+  .modal .input-group-append .disableButtons + .btn,
+  .input-group-append .btn + .buttons,
+  .input-group-append .buttons + .buttons,
+  .input-group-append .ui-dialog-buttonset button + .buttons,
+  .ui-dialog-buttonset .input-group-append button + .buttons,
+  .input-group-append .ajax-file-upload + .buttons,
+  .input-group-append .pageContent .disableButtons + .buttons,
+  .pageContent .input-group-append .disableButtons + .buttons,
+  .input-group-append .ui-dialog .disableButtons + .buttons,
+  .ui-dialog .input-group-append .disableButtons + .buttons,
+  .input-group-append .modal .disableButtons + .buttons,
+  .modal .input-group-append .disableButtons + .buttons,
+  .input-group-append .ui-dialog-buttonset .btn + button,
+  .ui-dialog-buttonset .input-group-append .btn + button,
+  .input-group-append .ui-dialog-buttonset .buttons + button,
+  .ui-dialog-buttonset .input-group-append .buttons + button,
+  .input-group-append .ui-dialog-buttonset button + button,
+  .ui-dialog-buttonset .input-group-append button + button,
+  .input-group-append .ui-dialog-buttonset .ajax-file-upload + button,
+  .ui-dialog-buttonset .input-group-append .ajax-file-upload + button,
+  .input-group-append .pageContent .ui-dialog-buttonset .disableButtons + button,
+  .ui-dialog-buttonset .input-group-append .pageContent .disableButtons + button,
+  .pageContent .input-group-append .ui-dialog-buttonset .disableButtons + button,
+  .ui-dialog-buttonset .pageContent .input-group-append .disableButtons + button,
+  .input-group-append .ui-dialog .ui-dialog-buttonset .disableButtons + button,
+  .ui-dialog-buttonset .input-group-append .ui-dialog .disableButtons + button,
+  .ui-dialog .input-group-append .ui-dialog-buttonset .disableButtons + button,
+  .ui-dialog-buttonset .ui-dialog .input-group-append .disableButtons + button,
+  .input-group-append .modal .ui-dialog-buttonset .disableButtons + button,
+  .ui-dialog-buttonset .input-group-append .modal .disableButtons + button,
+  .modal .input-group-append .ui-dialog-buttonset .disableButtons + button,
+  .ui-dialog-buttonset .modal .input-group-append .disableButtons + button,
+  .input-group-append .btn + .ajax-file-upload,
+  .input-group-append .buttons + .ajax-file-upload,
+  .input-group-append .ui-dialog-buttonset button + .ajax-file-upload,
+  .ui-dialog-buttonset .input-group-append button + .ajax-file-upload,
+  .input-group-append .ajax-file-upload + .ajax-file-upload,
+  .input-group-append .pageContent .disableButtons + .ajax-file-upload,
+  .pageContent .input-group-append .disableButtons + .ajax-file-upload,
+  .input-group-append .ui-dialog .disableButtons + .ajax-file-upload,
+  .ui-dialog .input-group-append .disableButtons + .ajax-file-upload,
+  .input-group-append .modal .disableButtons + .ajax-file-upload,
+  .modal .input-group-append .disableButtons + .ajax-file-upload,
+  .input-group-append .pageContent .btn + .disableButtons,
+  .pageContent .input-group-append .btn + .disableButtons,
+  .input-group-append .pageContent .buttons + .disableButtons,
+  .pageContent .input-group-append .buttons + .disableButtons,
+  .input-group-append .ui-dialog-buttonset .pageContent button + .disableButtons,
+  .pageContent .input-group-append .ui-dialog-buttonset button + .disableButtons,
+  .ui-dialog-buttonset .input-group-append .pageContent button + .disableButtons,
+  .pageContent .ui-dialog-buttonset .input-group-append button + .disableButtons,
+  .input-group-append .pageContent .ajax-file-upload + .disableButtons,
+  .pageContent .input-group-append .ajax-file-upload + .disableButtons,
+  .input-group-append .pageContent .disableButtons + .disableButtons,
+  .pageContent .input-group-append .disableButtons + .disableButtons,
+  .input-group-append .ui-dialog .btn + .disableButtons,
+  .ui-dialog .input-group-append .btn + .disableButtons,
+  .input-group-append .ui-dialog .buttons + .disableButtons,
+  .ui-dialog .input-group-append .buttons + .disableButtons,
+  .input-group-append .ui-dialog-buttonset .ui-dialog button + .disableButtons,
+  .ui-dialog .input-group-append .ui-dialog-buttonset button + .disableButtons,
+  .ui-dialog-buttonset .input-group-append .ui-dialog button + .disableButtons,
+  .ui-dialog .ui-dialog-buttonset .input-group-append button + .disableButtons,
+  .input-group-append .ui-dialog .ajax-file-upload + .disableButtons,
+  .ui-dialog .input-group-append .ajax-file-upload + .disableButtons,
+  .input-group-append .ui-dialog .disableButtons + .disableButtons,
+  .ui-dialog .input-group-append .disableButtons + .disableButtons,
+  .input-group-append .modal .btn + .disableButtons,
+  .modal .input-group-append .btn + .disableButtons,
+  .input-group-append .modal .buttons + .disableButtons,
+  .modal .input-group-append .buttons + .disableButtons,
+  .input-group-append .ui-dialog-buttonset .modal button + .disableButtons,
+  .modal .input-group-append .ui-dialog-buttonset button + .disableButtons,
+  .ui-dialog-buttonset .input-group-append .modal button + .disableButtons,
+  .modal .ui-dialog-buttonset .input-group-append button + .disableButtons,
+  .input-group-append .modal .ajax-file-upload + .disableButtons,
+  .modal .input-group-append .ajax-file-upload + .disableButtons,
+  .input-group-append .modal .disableButtons + .disableButtons,
+  .modal .input-group-append .disableButtons + .disableButtons,
+  .input-group-append .btn + .input-group-text,
+  .input-group-append .buttons + .input-group-text,
+  .input-group-append .ui-dialog-buttonset button + .input-group-text,
+  .ui-dialog-buttonset .input-group-append button + .input-group-text,
+  .input-group-append .ajax-file-upload + .input-group-text,
+  .input-group-append .pageContent .disableButtons + .input-group-text,
+  .pageContent .input-group-append .disableButtons + .input-group-text,
+  .input-group-append .ui-dialog .disableButtons + .input-group-text,
+  .ui-dialog .input-group-append .disableButtons + .input-group-text,
+  .input-group-append .modal .disableButtons + .input-group-text,
+  .modal .input-group-append .disableButtons + .input-group-text,
+  .input-group-append .input-group-text + .input-group-text,
+  .input-group-append .input-group-text + .btn,
+  .input-group-append .input-group-text + .buttons,
+  .input-group-append .ui-dialog-buttonset .input-group-text + button,
+  .ui-dialog-buttonset .input-group-append .input-group-text + button,
+  .input-group-append .input-group-text + .ajax-file-upload,
+  .input-group-append .pageContent .input-group-text + .disableButtons,
+  .pageContent .input-group-append .input-group-text + .disableButtons,
+  .input-group-append .ui-dialog .input-group-text + .disableButtons,
+  .ui-dialog .input-group-append .input-group-text + .disableButtons,
+  .input-group-append .modal .input-group-text + .disableButtons,
+  .modal .input-group-append .input-group-text + .disableButtons {
+    margin-left: -1px; }
+
+.input-group-prepend {
+  margin-right: -1px; }
+
+.input-group-append {
+  margin-left: -1px; }
+
+.input-group-text {
+  display: flex;
+  align-items: center;
+  padding: 0.33rem 0.65rem;
+  margin-bottom: 0;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #495057;
+  text-align: center;
+  white-space: nowrap;
+  background-color: #e3ebec;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem; }
+  .input-group-text input[type="radio"],
+  .input-group-text input[type="checkbox"] {
+    margin-top: 0; }
+
+.input-group-lg > .form-control:not(textarea), .tablesorter .input-group-lg > input:not(textarea), .input-group-lg > input:not(textarea)[type=checkbox], .form-inline .input-group-lg > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-lg > input:not(textarea)[type=text],
+.input-group-lg > .custom-select {
+  height: calc(2em + 0.7rem + 2px); }
+
+.input-group-lg > .form-control, .tablesorter .input-group-lg > input, .input-group-lg > input[type=checkbox], .form-inline .input-group-lg > input[type=checkbox], #settingsManagerTabsContent .input-group-lg > input[type=text],
+.input-group-lg > .custom-select,
+.input-group-lg > .input-group-prepend > .input-group-text,
+.input-group-lg > .input-group-append > .input-group-text,
+.input-group-lg > .input-group-prepend > .btn,
+.input-group-lg > .input-group-prepend > .buttons,
+.ui-dialog-buttonset .input-group-lg > .input-group-prepend > button,
+.input-group-lg > .input-group-prepend > .ajax-file-upload,
+.pageContent .input-group-lg > .input-group-prepend > .disableButtons,
+.ui-dialog .input-group-lg > .input-group-prepend > .disableButtons,
+.modal .input-group-lg > .input-group-prepend > .disableButtons,
+.input-group-lg > .input-group-append > .btn,
+.input-group-lg > .input-group-append > .buttons,
+.ui-dialog-buttonset .input-group-lg > .input-group-append > button,
+.input-group-lg > .input-group-append > .ajax-file-upload,
+.pageContent .input-group-lg > .input-group-append > .disableButtons,
+.ui-dialog .input-group-lg > .input-group-append > .disableButtons,
+.modal .input-group-lg > .input-group-append > .disableButtons {
+  padding: 0.35rem 0.85rem;
+  font-size: 1.1875rem;
+  line-height: 2;
+  border-radius: 0.3rem; }
+
+.input-group-sm > .form-control:not(textarea), .tablesorter .input-group-sm > input:not(textarea), .input-group-sm > input:not(textarea)[type=checkbox], .form-inline .input-group-sm > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-sm > input:not(textarea)[type=text],
+.input-group-sm > .custom-select {
+  height: calc(1.25em + 0.5rem + 2px); }
+
+.input-group-sm > .form-control, .tablesorter .input-group-sm > input, .input-group-sm > input[type=checkbox], .form-inline .input-group-sm > input[type=checkbox], #settingsManagerTabsContent .input-group-sm > input[type=text],
+.input-group-sm > .custom-select,
+.input-group-sm > .input-group-prepend > .input-group-text,
+.input-group-sm > .input-group-append > .input-group-text,
+.input-group-sm > .input-group-prepend > .btn,
+.input-group-sm > .input-group-prepend > .buttons,
+.ui-dialog-buttonset .input-group-sm > .input-group-prepend > button,
+.input-group-sm > .input-group-prepend > .ajax-file-upload,
+.pageContent .input-group-sm > .input-group-prepend > .disableButtons,
+.ui-dialog .input-group-sm > .input-group-prepend > .disableButtons,
+.modal .input-group-sm > .input-group-prepend > .disableButtons,
+.input-group-sm > .input-group-append > .btn,
+.input-group-sm > .input-group-append > .buttons,
+.ui-dialog-buttonset .input-group-sm > .input-group-append > button,
+.input-group-sm > .input-group-append > .ajax-file-upload,
+.pageContent .input-group-sm > .input-group-append > .disableButtons,
+.ui-dialog .input-group-sm > .input-group-append > .disableButtons,
+.modal .input-group-sm > .input-group-append > .disableButtons {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.83125rem;
+  line-height: 1.25;
+  border-radius: 0.2rem; }
+
+.input-group-lg > .custom-select,
+.input-group-sm > .custom-select {
+  padding-right: 1.65rem; }
+
+.input-group > .input-group-prepend > .btn, .input-group > .input-group-prepend > .buttons, .ui-dialog-buttonset .input-group > .input-group-prepend > button, .input-group > .input-group-prepend > .ajax-file-upload, .pageContent .input-group > .input-group-prepend > .disableButtons, .ui-dialog .input-group > .input-group-prepend > .disableButtons, .modal .input-group > .input-group-prepend > .disableButtons,
+.input-group > .input-group-prepend > .input-group-text,
+.input-group:not(.has-validation) > .input-group-append:not(:last-child) > .btn,
+.input-group:not(.has-validation) > .input-group-append:not(:last-child) > .buttons,
+.ui-dialog-buttonset .input-group:not(.has-validation) > .input-group-append:not(:last-child) > button,
+.input-group:not(.has-validation) > .input-group-append:not(:last-child) > .ajax-file-upload,
+.pageContent .input-group:not(.has-validation) > .input-group-append:not(:last-child) > .disableButtons,
+.ui-dialog .input-group:not(.has-validation) > .input-group-append:not(:last-child) > .disableButtons,
+.modal .input-group:not(.has-validation) > .input-group-append:not(:last-child) > .disableButtons,
+.input-group:not(.has-validation) > .input-group-append:not(:last-child) > .input-group-text,
+.input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .btn,
+.input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .buttons,
+.ui-dialog-buttonset .input-group.has-validation > .input-group-append:nth-last-child(n + 3) > button,
+.input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .ajax-file-upload,
+.pageContent .input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .disableButtons,
+.ui-dialog .input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .disableButtons,
+.modal .input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .disableButtons,
+.input-group.has-validation > .input-group-append:nth-last-child(n + 3) > .input-group-text,
+.input-group > .input-group-append:last-child > .btn:not(:last-child):not(.dropdown-toggle),
+.input-group > .input-group-append:last-child > .buttons:not(:last-child):not(.dropdown-toggle),
+.ui-dialog-buttonset .input-group > .input-group-append:last-child > button:not(:last-child):not(.dropdown-toggle),
+.input-group > .input-group-append:last-child > .ajax-file-upload:not(:last-child):not(.dropdown-toggle),
+.pageContent .input-group > .input-group-append:last-child > .disableButtons:not(:last-child):not(.dropdown-toggle),
+.ui-dialog .input-group > .input-group-append:last-child > .disableButtons:not(:last-child):not(.dropdown-toggle),
+.modal .input-group > .input-group-append:last-child > .disableButtons:not(:last-child):not(.dropdown-toggle),
+.input-group > .input-group-append:last-child > .input-group-text:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0; }
+
+.input-group > .input-group-append > .btn, .input-group > .input-group-append > .buttons, .ui-dialog-buttonset .input-group > .input-group-append > button, .input-group > .input-group-append > .ajax-file-upload, .pageContent .input-group > .input-group-append > .disableButtons, .ui-dialog .input-group > .input-group-append > .disableButtons, .modal .input-group > .input-group-append > .disableButtons,
+.input-group > .input-group-append > .input-group-text,
+.input-group > .input-group-prepend:not(:first-child) > .btn,
+.input-group > .input-group-prepend:not(:first-child) > .buttons,
+.ui-dialog-buttonset .input-group > .input-group-prepend:not(:first-child) > button,
+.input-group > .input-group-prepend:not(:first-child) > .ajax-file-upload,
+.pageContent .input-group > .input-group-prepend:not(:first-child) > .disableButtons,
+.ui-dialog .input-group > .input-group-prepend:not(:first-child) > .disableButtons,
+.modal .input-group > .input-group-prepend:not(:first-child) > .disableButtons,
+.input-group > .input-group-prepend:not(:first-child) > .input-group-text,
+.input-group > .input-group-prepend:first-child > .btn:not(:first-child),
+.input-group > .input-group-prepend:first-child > .buttons:not(:first-child),
+.ui-dialog-buttonset .input-group > .input-group-prepend:first-child > button:not(:first-child),
+.input-group > .input-group-prepend:first-child > .ajax-file-upload:not(:first-child),
+.pageContent .input-group > .input-group-prepend:first-child > .disableButtons:not(:first-child),
+.ui-dialog .input-group > .input-group-prepend:first-child > .disableButtons:not(:first-child),
+.modal .input-group > .input-group-prepend:first-child > .disableButtons:not(:first-child),
+.input-group > .input-group-prepend:first-child > .input-group-text:not(:first-child) {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0; }
+
 .list-group {
   display: flex;
   flex-direction: column;
@@ -8795,25 +9171,61 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
 .custom-radio .custom-control-input:checked ~ .custom-control-label::after {
   background: radial-gradient(circle, #6B95EC 35%, rgba(107, 149, 236, 0) 35%); }
 
-input[type=text], input[type=number], input[type=password], input[type=email], select, .tablesorter input {
+input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input {
+  border-radius: 0.25rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   border: 1px solid #D2D2D2;
   color: #171720;
   -webkit-appearance: none;
      -moz-appearance: none;
           appearance: none;
-  border-radius: 0.25rem;
   font-weight: normal;
   font-size: 0.95rem;
   vertical-align: middle;
   font-size: 16px; }
+  @media (prefers-reduced-motion: reduce) {
+    input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input {
+      transition: none; } }
+  input[type=text]::-ms-expand, input[type=number]::-ms-expand, input[type=password]::-ms-expand, input[type=email]::-ms-expand, input[type=date]::-ms-expand, select::-ms-expand, .tablesorter input::-ms-expand {
+    background-color: transparent;
+    border: 0; }
+  input[type=text]:focus, input[type=number]:focus, input[type=password]:focus, input[type=email]:focus, input[type=date]:focus, select:focus, .tablesorter input:focus {
+    color: #495057;
+    background-color: #fff;
+    border-color: #4c4c6a;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
+  input[type=text]::-moz-placeholder, input[type=number]::-moz-placeholder, input[type=password]::-moz-placeholder, input[type=email]::-moz-placeholder, input[type=date]::-moz-placeholder, select::-moz-placeholder, .tablesorter input::-moz-placeholder {
+    color: #6c757d;
+    opacity: 1; }
+  input[type=text]:-ms-input-placeholder, input[type=number]:-ms-input-placeholder, input[type=password]:-ms-input-placeholder, input[type=email]:-ms-input-placeholder, input[type=date]:-ms-input-placeholder, select:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder {
+    color: #6c757d;
+    opacity: 1; }
+  input[type=text]::placeholder, input[type=number]::placeholder, input[type=password]::placeholder, input[type=email]::placeholder, input[type=date]::placeholder, select::placeholder, .tablesorter input::placeholder {
+    color: #6c757d;
+    opacity: 1; }
+
+input[type=date] {
+  position: relative; }
+  input[type=date]::-webkit-calendar-picker-indicator {
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 40px;
+    position: absolute;
+    cursor: pointer;
+    padding: 8px;
+    box-sizing: border-box; }
 
 .pageContent select, .ui-dialog select, .modal select {
   background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
-  background-position: right 20px center;
+  background-position: right 11px center;
   background-size: 15px;
   padding-right: 3.5em;
   cursor: pointer;
   vertical-align: middle; }
+  .pageContent select.form-control-lg, .ui-dialog select.form-control-lg, .modal select.form-control-lg {
+    background-position: right 20px center; }
 
 textarea {
   resize: both; }
@@ -9142,10 +9554,6 @@ table.settingsTable div.th {
   background-position: 0 0, 100%, 0 0, 100%;
   background-attachment: local, local, scroll, scroll;
   overflow: auto; }
-  .backdrop [role="region"][aria-labelledby][tabindex] {
-    background: linear-gradient(to right, #F5F5F5 30%, rgba(255, 255, 255, 0)), linear-gradient(to right, rgba(255, 255, 255, 0), #F5F5F5 70%) 0 100%, radial-gradient(farthest-side at 0% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)), radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)) 0 100%;
-  
-  }
   @media (max-width: 991.98px) {
     [role="region"][aria-labelledby][tabindex] {
       margin-right: -1.2em; } }
@@ -9174,8 +9582,8 @@ table.settingsTable div.th {
   padding-bottom: 0.85em; }
 
 .fppSelectableRowTable tbody tr > td:first-child {
-  padding-left: 1.5em;
-  padding-right: 0.4em; }
+  padding-left: 0.5em;
+  padding-right: 0.1em; }
 
 .fppSelectableRowTable tbody tr > td:last-child, #tblSchedule tbody tr > td:nth-last-child(2) {
   padding-right: 0.5em; }
@@ -9209,48 +9617,54 @@ table.settingsTable div.th {
 #tblSchedule.fppSelectableRowTable tr td {
   vertical-align: top; }
 
-.fppBasicTable {
+.fppBasicTable, .fppDataTable {
   width: 100%;
   margin-bottom: 2em;
   margin-top: 2em; }
 
-.fppBasicTable > tbody > tr > td {
+.fppBasicTable > tbody > tr > td, .fppDataTable > tbody > tr > td {
   padding-top: 1.1em;
   padding-bottom: 1.1em;
   background-color: #F5F5F5;
   border-bottom: 1px solid #dee2e6; }
 
-.fppBasicTable > tbody > tr:last-child td {
+.fppBasicTable > tbody > tr:last-child td, .fppDataTable > tbody > tr:last-child td {
   padding-bottom: 1.1em; }
 
-.fppBasicTable > tbody > tr > td:first-child {
+.fppBasicTable > tbody > tr > td:first-child, .fppDataTable > tbody > tr > td:first-child {
   padding-left: 1.1em;
   padding-right: 0.4em; }
 
-.fppBasicTable > tbody > tr > td:last-child {
+.fppBasicTable > tbody > tr > td:last-child, .fppDataTable > tbody > tr > td:last-child {
   padding-right: 1.1em; }
 
-.fppBasicTable > tbody > tr:first-child > td:first-child {
+.fppBasicTable > tbody > tr:first-child > td:first-child, .fppDataTable > tbody > tr:first-child > td:first-child {
   border-top-left-radius: 8px; }
 
-.fppBasicTable > tbody > tr:first-child > td:last-child {
+.fppBasicTable > tbody > tr:first-child > td:last-child, .fppDataTable > tbody > tr:first-child > td:last-child {
   border-top-right-radius: 8px; }
 
-.fppBasicTable > tbody > tr:last-child > td {
+.fppBasicTable > tbody > tr:last-child > td, .fppDataTable > tbody > tr:last-child > td {
   border-bottom: none; }
 
-.fppBasicTable > tbody > tr:last-child > td:first-child {
+.fppBasicTable > tbody > tr:last-child > td:first-child, .fppDataTable > tbody > tr:last-child > td:first-child {
   border-bottom-left-radius: 8px; }
 
-.fppBasicTable > tbody > tr:last-child > td:last-child {
+.fppBasicTable > tbody > tr:last-child > td:last-child, .fppDataTable > tbody > tr:last-child > td:last-child {
   border-bottom-right-radius: 8px; }
 
-.fppBasicTable > thead > tr > th {
+.fppBasicTable > thead > tr > th, .fppDataTable > thead > tr > th {
   font-size: 0.75rem;
   text-transform: uppercase;
   margin-bottom: 0.8em;
   font-weight: normal;
   padding-bottom: 1em; }
+
+.fppDataTable > tbody > tr > td, .fppDataTable > tbody > tr > th {
+  background-color: transparent;
+  border-bottom: 1px solid #dee2e6;
+  padding-top: 0.2em;
+  padding-bottom: 0.2em; }
 
 .fppActionTable {
   width: 100%;

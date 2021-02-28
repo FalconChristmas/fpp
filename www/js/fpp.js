@@ -20,20 +20,25 @@ var max_retries = 60;
 var retry_poll_interval_arr = [];
 
 var minimalUI = 0;
-
+var hasTouch = false;
 var statusTimeout = null;
 var lastStatus = '';
 var lastStatusJSON = null;
 var statusChangeFuncs = [];
 
+if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
+    hasTouch=true;
+}
+
 /* On Page Ready Functions */
+
 $(function() {
     OnSystemStatusChange(RefreshHeaderBar);
     bindVisibilityListener();
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
-    if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
+    if(hasTouch==true){
         $('body').addClass('has-touch');
     }
     
@@ -5574,7 +5579,6 @@ function PreviewSchedule()
 
     $('#schedulePreviewDiv').html('');
     $('#schedulePreviewPopup').fppDialog({
-        height: 600,
         width: 900,
         title: "Schedule Preview",
         modal: true

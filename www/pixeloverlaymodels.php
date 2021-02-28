@@ -210,6 +210,9 @@ $(document).tooltip();
 		<div id="time" class="settings">
 
 				<div class="row tablePageHeader">
+					<div class="col-md">
+						<h2>Pixel Overlay Models</h2>
+					</div>
 					<div class="col-md-auto ml-lg-auto">
 						<div class="form-actions">
 			
