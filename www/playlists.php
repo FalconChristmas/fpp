@@ -133,6 +133,7 @@ if (isset($_GET['playlist'])) {
 <body>
 <div id="bodyWrapper">
 <?php
+$activeParentMenuItem = 'content';
 include 'menu.inc';
 ?>
     <div class="container">

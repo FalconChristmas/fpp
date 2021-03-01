@@ -12,7 +12,9 @@ require_once('troubleshootingCommands.php');
 
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php 
+  $activeParentMenuItem = 'help'; 
+  include 'menu.inc'; ?>
   <div class="container">
 
     <h1 class="title">Troubleshooting</h1>

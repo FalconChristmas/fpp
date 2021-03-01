@@ -414,7 +414,9 @@ $(document).ready(function() {
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php
+  $activeParentMenuItem = 'content';
+  include 'menu.inc'; ?>
 
 <div class="container">
 	<h1 class="title">Plugins</h1>

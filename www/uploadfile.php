@@ -247,7 +247,9 @@ $(function() {
 
 <body onload="GetAllFiles();">
 <div id="bodyWrapper">
-<?php	include 'menu.inc'; ?>
+<?php	
+$activeParentMenuItem = 'content';
+include 'menu.inc'; ?>
 <div class="container">
 <div class='title'>File Manager</div>
 <? if ($freespace > 95) { ?>

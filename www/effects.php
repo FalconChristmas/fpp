@@ -87,6 +87,7 @@ function StartSelectedEffect() {
 <body onLoad="GetRunningEffects();">
 <div id="bodyWrapper">
 <?php
+  $activeParentMenuItem = 'status';
   include 'menu.inc';
 
   function PrintEffectRows()

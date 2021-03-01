@@ -134,7 +134,9 @@ $(document).ready(function() {
 </head>
 <body onLoad="LoadCommandList($('#newEventCommand')); LoadCommands();">
 <div id="bodyWrapper">
-<?php include 'menu.inc'; ?>
+<?php 
+$activeParentMenuItem = 'status';
+include 'menu.inc'; ?>
 <div class="container">
 	  <h2 class="title">Command Presets</h2>
 	  <div class="pageContent">
