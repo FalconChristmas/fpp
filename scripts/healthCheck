@@ -145,7 +145,7 @@ HC_HostName() {
 }
 
 HC_CheckGateways() {
-    GW=$(netstat -rn | grep "^0\.0\.0\.0" | wc -l)
+    GW=$(netstat -rn | grep "^0\.0\.0\.0" | uniq | wc -l)
 
     PrintItemHead "Gateway Check"
 
