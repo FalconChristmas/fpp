@@ -51,9 +51,9 @@ if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
     <br>
 <?
     if (file_exists("/etc/fpp/kiosk")) {
-        echo "<input type='button' value='Disable Kiosk' onClick='DisableKiosk();'>";
+        echo "<input type='button' class='buttons' value='Disable Kiosk' onClick='DisableKiosk();'>";
     } else {
-        echo "<input type='button' value='Enable Kiosk' onClick='EnableKiosk();'>";
+        echo "<input type='button' class='buttons' value='Enable Kiosk' onClick='EnableKiosk();'>";
     }
 }
 ?>
