@@ -181,7 +181,9 @@ $(document).ready(function(){
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php include 'menu.inc'; ?>
+		<?php 
+		$activeParentMenuItem = 'input-output';
+		include 'menu.inc'; ?>
 <div class="container">
 	<h1 class="title">Channel Inputs</h1>
 	<div class="pageContent">

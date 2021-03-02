@@ -78,7 +78,8 @@ if ( file_exists($cssDir))
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php 
+  include 'menu.inc'; ?>
   <div class="container">
     <h1 class="title"><? echo $pluginInfo['name']; ?></h1>
     <div class="pageContent">

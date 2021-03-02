@@ -3296,9 +3296,9 @@ if (1) {
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b>");
 
 						$('.schedulerStartTime').show();
-						$('#schedulerStartTime').html(pl.actualStartTimeStr);
+						$('#schedulerStartTime').html(pl.actualStartTimeStr.replace(' @ ', '<br>'));
 						$('.schedulerEndTime').show();
-						$('#schedulerEndTime').html(pl.actualEndTimeStr);
+						$('#schedulerEndTime').html(pl.actualEndTimeStr.replace(' @ ', '<br>'));
 						$('#schedulerStopType').html(pl.stopTypeStr);
 
 						if ((fppStatus == STATUS_STOPPING_GRACEFULLY) ||
@@ -5870,12 +5870,11 @@ function PreviewStatistics() {
     }
 
     $('#statsPreviewDiv').html('Loading...');
-    $('#statsPreviewPopup').dialog({
-        height: 600,
+    $('#statsPreviewPopup').fppDialog({
         width: 900,
         title: "Statistics Preview",
         modal: true
     });
-    $('#statsPreviewPopup').dialog( "moveToTop" );
+    $('#statsPreviewPopup').fppDialog( "moveToTop" );
     $('#statsPreviewDiv').load('api/statistics/usage');
 }

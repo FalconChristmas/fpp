@@ -56,7 +56,9 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 </head>
 <body>
 <div id="bodyWrapper">
-	<?php include 'menu.inc'; ?>
+	<?php 
+	$activeParentMenuItem = 'content';
+	include 'menu.inc'; ?>
 	<br/>
 	<div class="container">
 		<h1 class="title">Script Repository</h1>

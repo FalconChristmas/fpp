@@ -79,7 +79,9 @@ if (isset($_GET['tab'])) {
 
 <body>
 <div id="bodyWrapper">
-<?php include 'menu.inc'; ?>
+<?php 
+$activeParentMenuItem = 'status';
+include 'menu.inc'; ?>
 
 <div class="container">
 <h1 class="title">FPP Settings</h1>

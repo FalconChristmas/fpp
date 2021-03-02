@@ -57,6 +57,7 @@ $extraData = "<div class='form-actions'>" .
 
 PrintSettingGroup('initialSetup', $extraData, '', 1, '', 'initialSetupChanged');
 ?>
+<div class='form-actions'><input type='button' class='buttons' value='Close Initial Setup' onClick='skipSetup();'></div>
         </div>
     </div>
 </div>

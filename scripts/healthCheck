@@ -145,7 +145,7 @@ HC_HostName() {
 }
 
 HC_CheckGateways() {
-    GW=$(netstat -rn | grep "^0\.0\.0\.0" | wc -l)
+    GW=$(netstat -rn | grep "^0\.0\.0\.0" | uniq | wc -l)
 
     PrintItemHead "Gateway Check"
 
@@ -162,7 +162,7 @@ HC_CheckGateways() {
 
 
 HC_PingGateway() {
-    GW=$(netstat -rn | grep "^0\.0\.0\.0" | awk '{print $2}')
+    GW=$(netstat -rn | grep "^0\.0\.0\.0" | head -1 | awk '{print $2}')
 
     PrintItemHead "Default Gateway (${GW})"
 

@@ -213,11 +213,11 @@ function PrintPluginSetting($plugin, $setting, $callback = '', $options = Array(
 
 function PrintIcon($level) {
 	if ($level == 1)
-		echo " <i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1'></i>";
+		echo " <i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i>";
 	else if ($level == 2)
-		echo " <i class='fas fa-fw fa-flask fa-nbsp ui-level-2'></i>";
+		echo " <i class='fas fa-fw fa-flask fa-nbsp ui-level-2' title='Experimental Level Setting'></i>";
 	else if ($level == 3)
-		echo " <i class='fas fa-fw fa-code fa-nbsp ui-level-3'></i>";
+		echo " <i class='fas fa-fw fa-code fa-nbsp ui-level-3' title='Developer Level Setting'></i>";
 	else
 		echo " <i class='fas fa-fw fa-nbsp ui-level-0'></i>";
 }
@@ -1795,14 +1795,23 @@ function network_wifi_strength_obj()
 function network_list_interfaces_obj()
 {
 	$output = array();
-	$cmd = "ip --json -4 address show";
+	$cmd = "ip --json address show";
 	exec($cmd, $output);
 	$rc = json_decode(join(" ", $output), true);
 	$wifiObj = network_wifi_strength_obj();
 
-	// Merge two objects
-	foreach ($wifiObj as $wifi) {
-		foreach ($rc as &$rec) {
+	foreach ($rc as &$rec) {
+		// Filter only ipv4 addresses
+		$addrInfo = $rec['addr_info'];
+		$newAddrInfo = array();
+		foreach ($addrInfo as $ai) {
+			if ($ai['family'] == 'inet')
+				array_push($newAddrInfo, $ai);
+		}
+		$rec['addr_info'] = $newAddrInfo;
+
+		// Merge two objects
+		foreach ($wifiObj as $wifi) {
 			if ($rec["ifname"] == $wifi->interface) {
 				$rec["wifi"] = $wifi;
 			}

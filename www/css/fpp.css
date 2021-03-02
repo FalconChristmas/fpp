@@ -378,6 +378,12 @@ body legend{
 	color:#fff;
 }
 
+#fppMenuList .external-link{
+	float:right;
+	color:rgb(160, 160, 160);
+	font-size: 0.70em;
+}
+
 .nav-open #fppMenuList>li.active>a{
 	color:#363636;
 }

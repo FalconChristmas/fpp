@@ -107,7 +107,9 @@ foreach ($hta as $line) {
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php 
+  $activeParentMenuItem = 'status';
+  include 'menu.inc'; ?>
 <div class="container">
     <div class="title">Proxied Hosts</div>
     <div class="pageContent">

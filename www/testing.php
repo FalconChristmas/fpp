@@ -590,7 +590,9 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php 
+  $activeParentMenuItem = 'status'; 
+  include 'menu.inc'; ?>
   <div class="container">
 	  <h2 class="title">Display Testing</h2>
 	  <div class="pageContent">

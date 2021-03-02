@@ -1270,7 +1270,9 @@ function multiActionChanged() {
 </head>
 <body>
 <div id="bodyWrapper">
-	<?php include 'menu.inc'; ?>
+	<?php 
+    $activeParentMenuItem = 'status';
+    include 'menu.inc'; ?>
     <div class="container">
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">

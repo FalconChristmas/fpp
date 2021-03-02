@@ -90,7 +90,9 @@ function GitCheckoutVersion(version) {
 
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php 
+  $activeParentMenuItem = 'help'; 
+  include 'menu.inc'; ?>
   <div class="mainContainer container">
   <h1 class="title">ChangeLog</h1>
   <div class="pageContent">

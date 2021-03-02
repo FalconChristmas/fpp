@@ -25,6 +25,7 @@ function StartHealthCheck() {
 <body class="is-loading" onLoad="StartHealthCheck();">
 <div id="bodyWrapper">
 <?php
+$activeParentMenuItem = 'help'; 
 include 'menu.inc';
 ?>
 

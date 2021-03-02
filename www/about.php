@@ -243,7 +243,9 @@ tr.rowScheduleDetails td {
 
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
+  <?php 
+  $activeParentMenuItem = 'help'; 
+  include 'menu.inc'; ?>
   <div class="container">
     <div class="title">About FPP</div>
     <div class="pageContent">

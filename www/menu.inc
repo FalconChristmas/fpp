@@ -278,20 +278,21 @@ if (!file_exists("/etc/fpp/desktop")) {
         </div>
       </li>
 
-      <li class="nav-item dropdown <? echo $activeParentMenuItem=='input-output' ? 'help' :''; ?>">
+      <li class="nav-item dropdown <? echo $activeParentMenuItem=='help' ? 'active' :''; ?>">
         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Help
         </a>
         <div class="dropdown-menu dropdown-with-icons dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
-          <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual</a>
-          <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank"><i class="fas fa-comments"></i> Forums</a>
-          <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help</a>
+          <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank"><i class="fas fa-comments"></i> Forums <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
+          <hr class="dropdown-divider">
           <a class="dropdown-item" href="help.php"><i class="fas fa-question-circle"></i> Help Index</a>
+          <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
 <? if ($settings['uiLevel'] > 0) { ?>
           <a class="dropdown-item" href="apihelp.php"><i class="fas fa-plug"></i> REST API Help</a>
 <? } ?>
           <a class="dropdown-item" href="cliHelp.php"><i class="fas fa-life-ring"></i> fpp &amp; fppmm Usage</a>
-          <a class="dropdown-item" href="healthCheck.php"><i class="fas fa-thermometer-half"></i> System Health Check</a>
           <a class="dropdown-item" href="troubleshooting.php"><i class="fas fa-code"></i> Troubleshooting Commands</a>
           <a class="dropdown-item" href="http://<?php echo $_SERVER['SERVER_ADDR'] ?>:4200" target="_new"><i class="fas fa-terminal"></i> SSH Shell</a>
           <a class="dropdown-item" href="about.php"><i class="fas fa-info-circle"></i> About</a>

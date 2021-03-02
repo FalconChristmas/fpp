@@ -193,7 +193,9 @@ $(document).ready(function(){
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php include 'menu.inc'; ?>
+		<?php 
+		$activeParentMenuItem = 'input-output';
+		include 'menu.inc'; ?>
 
 
 <div class="container mainContainer">

@@ -15,6 +15,7 @@ include 'common/menuHead.inc';
 <body>
 <div id="bodyWrapper">
 <?php
+$activeParentMenuItem = 'help'; 
 	include 'menu.inc';
   ?>
 <br/>

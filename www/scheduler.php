@@ -586,7 +586,9 @@ tr.rowScheduleDetails select.selPlaylist option {
 
 <body onload="PopulateCommandListCache(); getSchedule();">
 <div id="bodyWrapper">
-  <?php	include 'menu.inc'; ?>
+  <?php	
+  $activeParentMenuItem = 'content';
+  include 'menu.inc'; ?>
   <div class="container">
       <h1 class="title">Scheduler</h1>
       <div class="pageContent"> 

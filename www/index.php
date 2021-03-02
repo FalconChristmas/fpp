@@ -232,40 +232,37 @@ include 'common/menuHead.inc';
         <div class="statusTable statusDivTopRow">
 
             <div class="statusDivTopCol">
-                <div class="schedulerStatusCol">
-                    <div>
-                        <div class="labelHeading">Scheduler Status:</div>
-                        <div class="labelValue"><span id='schedulerStatus'></span></div>
-                    </div>
-                    <div>
-                        <div class="labelAction">
-                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Schedule</button>
-                        </div>
-                    </div>
-                </div>
-
-
-            </div>
-            <div class="statusDivTopCol">
-                <div class="labelHeading">Next Playlist: </div>
-                <div id='nextPlaylist' class="labelValue"></div>
-            </div>
-            <div class="statusDivTopCol schedulerStartTime">
-                <div class='labelHeading'>Schedule Started at:</div>
-                <div class='labelValue' id='schedulerStartTime'></div>
-            </div>
-            <div class="statusDivTopCol schedulerEndTime">
-                <div class='labelHeading'><span id='schedulerStopType'></span> Stop at:</div>
-                <div class='labelValue' id='schedulerEndTime'></div>
+                <div class="labelHeading">Scheduler Status:</div>
+                <div class="labelValue"><span id='schedulerStatus'></span></div>
             </div>
             <div class="schedulerExtend schedulerEndTime statusDivTopCol ">
                 <div class="labelHeading">Extend Current Playlist:</div>
                 <div class='labelValue' colspan='2'>
                     <div class="btn-group">
                     <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedulePopup();'><i class="fas fa-fw fa-calendar-plus"></i>Extend</button>
-                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>      
+                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>
                     </div>
-                    
+                </div>
+            </div>
+            <div class="statusDivTopCol schedulerStartTime">
+                <div class='labelHeading'>Playlist Started at:</div>
+                <div class='labelValue' id='schedulerStartTime'></div>
+            </div>
+            <div class="statusDivTopCol schedulerEndTime">
+                <div class='labelHeading'><span id='schedulerStopType'></span> Stop at:</div>
+                <div class='labelValue' id='schedulerEndTime'></div>
+            </div>
+            <div class="statusDivTopCol">
+                <div class="schedulerStatusCol">
+                    <div>
+                        <div class="labelHeading">Next Playlist: </div>
+                        <div id='nextPlaylist' class="labelValue"></div>
+                    </div>
+                    <div>
+                        <div class="labelAction">
+                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
