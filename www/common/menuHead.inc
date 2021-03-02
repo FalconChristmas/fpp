@@ -15,6 +15,7 @@
 		License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License)
     -->
 	<link rel="stylesheet" href="css/fontawesome.all.min.css" />
+	<link rel="stylesheet" href="webfonts/fpp-icons/styles.css" />
 
     <!-- finally FPP stuff, here so our CSS is last so we can override anything above -->
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">

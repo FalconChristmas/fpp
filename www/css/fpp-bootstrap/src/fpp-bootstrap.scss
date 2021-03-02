@@ -560,6 +560,18 @@ table.settingsTable div.th{
 [role="region"][aria-labelledby][tabindex]:focus {
     outline: .1em solid rgba(0,0,0,0);
 }
+.rowGrip{
+	display: block;
+	padding-left: 0.4em;
+	padding-top: 0.4em;
+    cursor:grab;
+    .rowGripIcon{
+        color:$gray-500;
+        .selectedEntry & {
+            color: darken($highlight,10%);
+        }
+    }
+}
 
 .fppSelectableRowTable{
 

@@ -1260,6 +1260,7 @@ body .sm-clean a .sub-arrow {
     width: 100%;
     padding: 0px;
     display: flex;
+	align-items: center;
 }
 
 .psiHeader {
@@ -1346,7 +1347,9 @@ body .sm-clean a .sub-arrow {
 .alert>span.inlineBlock{
 	margin-right: 0.8em;
 }
-
+.colPlaylistNumber {
+	width: 75px;
+}
 .playlistEditorPanel {
 	margin-top: 2em;
 }
@@ -1773,11 +1776,18 @@ input[type=search].tablesorter-filter:disabled{
 #tblSchedule select.cmdTmplCommand {
 	width: auto;
 }
-.schRowNumber{
-	display: block;
-	padding-left: 0.4em;
-	padding-top: 0.4em;	
-	cursor:grab;
+#tblSchedule tr td table.dayMaskTable {
+	margin-top: 0.5em;
+}
+#tblSchedule tr td table.dayMaskTable th{
+	padding-bottom: 0;
+	text-align: center;
+}
+#tblSchedule tr td table.dayMaskTable td{
+	padding-left: 0;
+	padding-right: 0.2em;
+	padding-top: 0.0em;
+	padding-bottom: 0;
 }
 @media (min-width: 768px){
 	#verbosePlaylistItemDetailsRow .col-md-5 {
@@ -1912,7 +1922,9 @@ input[type=search].tablesorter-filter:disabled{
 	}
 	.psi {
 		display: block;
+
 	}
+
 	.playlistRow td:first-child {
 		padding-right:0;
 	}

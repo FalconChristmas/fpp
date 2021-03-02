@@ -9564,6 +9564,17 @@ table.settingsTable div.th {
 [role="region"][aria-labelledby][tabindex]:focus {
   outline: 0.1em solid rgba(0, 0, 0, 0); }
 
+.rowGrip {
+  display: block;
+  padding-left: 0.4em;
+  padding-top: 0.4em;
+  cursor: -webkit-grab;
+  cursor: grab; }
+  .rowGrip .rowGripIcon {
+    color: #adb5bd; }
+    .selectedEntry .rowGrip .rowGripIcon {
+      color: #abc4ff; }
+
 .fppSelectableRowTable {
   width: 100%;
   margin-bottom: 2em;

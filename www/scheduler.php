@@ -242,7 +242,6 @@ function SetRowDateTimeFieldVisibility(row) {
 function SetScheduleInputNames() {
 	$('#tblScheduleBody > tr').each(function(i) {
 		SetRowDateTimeFieldVisibility($(this));
-        $(this).find('.schRowNumber').html(i+1);
 	});
 
 	$('.time').timepicker({
@@ -618,7 +617,11 @@ tr.rowScheduleDetails select.selPlaylist option {
                     
                     <table class='fppTableRowTemplate template-tblScheduleBody'>
                         <tr class='rowScheduleDetails'>
-                            <td class='center' valign="middle"><b class="schRowNumber"></b></td>
+                            <td class='center' valign="middle">
+                                <div class="rowGrip">
+                                    <i class="rowGripIcon fpp-icon-grip"></i>
+                                </div>
+                            </td>
                             <td class='center' ><input class='schEnable' type='checkbox' /></td>
                             <td><input class='date schStartDate' type='text' size='9'  /></td>
                             <td><input class='date schEndDate' type='text' size='9' /></td>
@@ -643,7 +646,7 @@ tr.rowScheduleDetails select.selPlaylist option {
                                     </select>
                                 <br>
                                 <span class='dayMask'>
-                                    <table border=0 cellpadding=0 cellspacing=0>
+                                    <table  class='dayMaskTable' border=0 cellpadding=0 cellspacing=0>
                                         <tr><th>S</th>
                                             <th>M</th>
                                             <th>T</th>

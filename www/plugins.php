@@ -472,7 +472,7 @@ $(document).ready(function() {
 
 
 <div id='pluginsProgressPopup' title='FPP Plugins' style="display: none">
-    <textarea style='width: 99%; height: 94%;' disabled id='pluginsText'>
+    <textarea style='width: 100%;' rows="25"  disabled id='pluginsText'>
     </textarea>
     <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='ClosePluginProgressDialog();' style='display: none;'>
 </div>
