@@ -85,5 +85,4 @@ PrintSetting('passwordEnable');
 <?
 PrintSetting('password');
 PrintSetting('passwordVerify');
-PrintSetting('passwordShow');
 ?>
