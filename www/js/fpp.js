@@ -3296,9 +3296,9 @@ if (1) {
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b>");
 
 						$('.schedulerStartTime').show();
-						$('#schedulerStartTime').html(pl.actualStartTimeStr);
+						$('#schedulerStartTime').html(pl.actualStartTimeStr.replace(' @ ', '<br>'));
 						$('.schedulerEndTime').show();
-						$('#schedulerEndTime').html(pl.actualEndTimeStr);
+						$('#schedulerEndTime').html(pl.actualEndTimeStr.replace(' @ ', '<br>'));
 						$('#schedulerStopType').html(pl.stopTypeStr);
 
 						if ((fppStatus == STATUS_STOPPING_GRACEFULLY) ||
