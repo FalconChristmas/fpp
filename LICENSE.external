@@ -5,16 +5,6 @@ due to the license restrictions from the the original authors.  These
 external code sources and any license exceptions are noted below.
 ==============================================================================
 
-omxplayer
-
-omxplayer is covered by the GPL v2, but it is included here because we
-have a patch to omxplayer to support the MultiSync Video capabilities
-in FPP.
-
-https://github.com/popcornmix/omxplayer
-
-==============================================================================
-
 limonade - PHP REST microframework
 
 limonade is covered by its own free software license which is included in the
