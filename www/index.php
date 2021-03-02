@@ -260,7 +260,7 @@ include 'common/menuHead.inc';
                     </div>
                     <div>
                         <div class="labelAction">
-                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Schedule</button>
+                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button>
                         </div>
                     </div>
                 </div>
