@@ -288,17 +288,16 @@ function ApplyNetworkConfig()
 {
 	$('#dialog-confirm').fppDialog({
 		resizeable: false,
-		height: 300,
 		width: 500,
 		modal: true,
 		buttons: {
-			"Yes" : function() {
+			"Yes" : {class:'btn-success',click:function() {
 				$(this).fppDialog("close");
 				$.post("api/network/interface/" + $('#selInterfaces').val() + "/apply");
-				},
-			"Cancel and apply at next reboot" : function() {
+				}},
+			"Cancel and apply at next reboot" : {click:function() {
 				$(this).fppDialog("close");
-				}
+				}}
 			}
 		});
 }

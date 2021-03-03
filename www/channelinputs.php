@@ -101,7 +101,7 @@ $(document).ready(function() {
 	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
 		$('#tblUniverses tr').removeClass('selectedEntry');
 		$(this).addClass('selectedEntry');
-		var items = $('#tblUniverses tr');
+		var items = $('#tblUniverses tbody tr');
 		UniverseSelected  = items.index(this);
 	});
 

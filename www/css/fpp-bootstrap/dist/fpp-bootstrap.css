@@ -9558,6 +9558,9 @@ table.settingsTable div.th {
     [role="region"][aria-labelledby][tabindex] {
       margin-right: -1.2em; } }
 
+.backdrop [role="region"][aria-labelledby][tabindex], .backdrop-dark [role="region"][aria-labelledby][tabindex], .backdrop-success [role="region"][aria-labelledby][tabindex], .backdrop-disabled [role="region"][aria-labelledby][tabindex] {
+  background: linear-gradient(to right, #F5F5F5 30%, rgba(255, 255, 255, 0)), linear-gradient(to right, rgba(255, 255, 255, 0), #F5F5F5 70%) 0 100%, radial-gradient(farthest-side at 0% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)), radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)) 0 100%; }
+
 [role="region"][aria-labelledby][tabindex] > table {
   mix-blend-mode: multiply; }
 

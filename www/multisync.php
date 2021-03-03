@@ -299,6 +299,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
         $('#' + rowID + '_mode').html(modeToString(data.mode));
 
+        
 	    if (data.hasOwnProperty('wifi')) {
 		    var wifi_html = [];
 		    data.wifi.forEach(function(w) {
@@ -308,10 +309,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			    wifi_html.push(w.desc);
 			    wifi_html.push('"></span>');
 		    });
-
-                    if (wifi_html.length > 0) {
+            console.log(ip)
+            if (wifi_html.length > 0) {
 		    	$('#' + rowID + "_ip").find(".wifi-icon").remove();
-                $(wifi_html.join('')).insertAfter($('#' + rowID + "_ip > a[ip='" + ip + "']"));
+                //$(wifi_html.join('')).appendTo($('#' + rowID + "_ip > a[ip='" + ip + "']"));
+                $(wifi_html.join('')).appendTo('td[ip="' + ip + '"]');
 		    }
 	    }
 
@@ -522,7 +524,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     star += " onClick='updateMultiSyncRemotes(true);'>";
                 }
             }
-
             if (uniqueHosts.hasOwnProperty(hostKey)) {
                 rowID = uniqueHosts[hostKey];
                 hostRows[hostRowKey] = rowID;

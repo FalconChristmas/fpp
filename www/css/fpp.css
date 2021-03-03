@@ -1592,6 +1592,15 @@ body .sm-clean a .sub-arrow {
 	display: block;
 	padding-top: 0.5em;
 }
+.wifi-icon{
+	height: 20px;
+	display: inline-block;
+	width: 28px;
+	vertical-align: middle;
+}
+.systemRow .wifi-icon{
+	margin-left: 0.5em;
+}
 .tablesorter-filter-row>td:last-child input{
 	display: none;
 }

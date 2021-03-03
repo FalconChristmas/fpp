@@ -273,7 +273,7 @@ function SetScheduleInputNames() {
 
 function SetupDatePicker(item)
 {
-    if(hasTouch && window.innerWidth > 600){
+    if(hasTouch && window.innerWidth < 601){
         //use native date picker for small touchscreens (datepicker widget is bad experience on mobile)
         $(item).attr('type','date');
     }else{
@@ -509,8 +509,7 @@ $(function() {
 </script>
 <script>
 $(document).ready(function(){
-    if (window.innerWidth > 600) {
-        $('#tblScheduleBody').sortable({
+        var sortableOptions = {
             start: function (event, ui) {
                 start_pos = ui.item.index();
             },
@@ -532,8 +531,11 @@ $(document).ready(function(){
                 return ui;
             },
             scroll: true
-        }).disableSelection();
-    }
+        };
+        if(hasTouch){
+            $.extend(sortableOptions,{handle:'.rowGrip'});
+        }
+        $('#tblScheduleBody').sortable(sortableOptions).disableSelection();
 });
 </script>
 <title><? echo $pageTitle; ?></title>
