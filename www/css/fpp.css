@@ -1878,6 +1878,9 @@ input[type=search].tablesorter-filter:disabled{
 	.header.swiped .headerLeft .logo{
 		display: none;
 	}
+	#header_IPs{
+		display: flex;
+	}
 	.container {
 		padding-left: 0.5rem;
 		padding-right: 0.5rem;
