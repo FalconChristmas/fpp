@@ -436,6 +436,7 @@
             "description": "Date Format",
             "tip": "Format of displayed dates",
             "type": "select",
+            "reloadUI": 1,
             "default": "%a %b %e",
             "gatherStats" : true,
             "options": {
@@ -1544,6 +1545,7 @@
             "description": "Time Format",
             "tip": "Format of displayed time",
             "gatherStats" : true,
+            "reloadUI": 1,
             "type": "select",
             "default": "%I:%M %p",
             "options": {

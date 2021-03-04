@@ -265,10 +265,13 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "CHIP") {
 	$settings['Logo'] = "chip_logo.png";
 	$settings['LogoLink'] = "http://www.getchip.com/";
+} else if (file_exists("/.dockerenv")) {
+        $settings['SubPlatform'] = $settings['Platform'];
+        $settings['Variant'] = $settings['Platform'];
+        $settings['Platform'] = "Docker";
+	$settings['Logo'] = "debian_logo.png";
+	$settings['LogoLink'] = "https://www.debian.org/";
 } else if ($settings['Platform'] == "Debian") {
-    if (file_exists("/.dockerenv")) {
-        $settings['SubPlatform'] = "Docker";
-    }
 	$settings['Logo'] = "debian_logo.png";
 	$settings['LogoLink'] = "https://www.debian.org/";
 } else if ($settings['Platform'] == "Ubuntu") {
