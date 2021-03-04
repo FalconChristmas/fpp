@@ -41,3 +41,27 @@
 .fpp-icon-grip:before {
   content: "\e000";
 }
+.fpp-icon-fpp-logo:before {
+  content: "\e001";
+}
+.fpp-icon-falcon:before {
+  content: "\e002";
+}
+.fpp-icon-edit:before {
+  content: "\e003";
+}
+.fpp-icon-check:before {
+  content: "\e004";
+}
+.fpp-icon-help:before {
+  content: "\e005";
+}
+.fpp-icon-plus:before {
+  content: "\e006";
+}
+.fpp-icon-search:before {
+  content: "\e007";
+}
+.fpp-icon-trash:before {
+  content: "\e008";
+}
