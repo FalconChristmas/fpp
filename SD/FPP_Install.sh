@@ -66,6 +66,9 @@ OSVER="UNKNOWN"
 # need the adduser/addgroup/ldconfig/a2enmod/etc... commands
 PATH=$PATH:/usr/sbin:/sbin
 
+# CPU Count
+CPUS=$(grep "^processor" /proc/cpuinfo | wc -l)
+
 #############################################################################
 # Some Helper Functions
 #############################################################################
@@ -428,7 +431,7 @@ case "${OSVER}" in
 
 
 		echo "FPP - Installing libhttpserver 0.17.5"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.17.5 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.17.5 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox
@@ -1063,7 +1066,7 @@ if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]; then
     fi
     
     cd /opt/fpp/capes/drivers/bbb
-    make
+    make -j ${CPUS}
     make install
     make clean
     
@@ -1123,7 +1126,7 @@ fi
 
 echo "FPP - Compiling binaries"
 cd /opt/fpp/src/
-make clean ; make optimized
+make clean ; make -j ${CPUS} optimized
 
 
 ######################################
