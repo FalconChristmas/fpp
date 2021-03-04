@@ -447,6 +447,19 @@ void CloseOpenFiles(void)
 	    close(fd);
 }
 
+int DateInRange(time_t when, int startDate, int endDate)
+{
+    struct tm dt;
+    localtime_r(&when, &dt);
+
+    int dateInt = 0;
+    dateInt += (dt.tm_year + 1900) * 10000;
+    dateInt += (dt.tm_mon + 1)     *   100;
+    dateInt += (dt.tm_mday)               ;
+
+    return DateInRange(dateInt, startDate, endDate);
+}
+
 /*
  * Check to see if current date int is in the range specified
  */
