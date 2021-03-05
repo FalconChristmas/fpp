@@ -309,7 +309,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 			    wifi_html.push(w.desc);
 			    wifi_html.push('"></span>');
 		    });
-            console.log(ip)
             if (wifi_html.length > 0) {
 		    	$('#' + rowID + "_ip").find(".wifi-icon").remove();
                 //$(wifi_html.join('')).appendTo($('#' + rowID + "_ip > a[ip='" + ip + "']"));
