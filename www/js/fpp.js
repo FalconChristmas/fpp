@@ -624,11 +624,11 @@ function PostPutHelper(url, async, data, silent, type) {
 }
 
 function Post(url, async, data, silent = false) {
-    PostPutHelper(url, async, data, silent, 'POST');
+    return PostPutHelper(url, async, data, silent, 'POST');
 }
 
 function Put(url, async, data, silent = false) {
-    PostPutHelper(url, async, data, silent, 'PUT');
+    return PostPutHelper(url, async, data, silent, 'PUT');
 }
 
 function Get(url, async, silent = false) {
