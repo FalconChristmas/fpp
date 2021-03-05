@@ -91,7 +91,7 @@ function SetupHtaccess($enablePW)
         unlink($filename);
 
     $data = "";
-    if (PHP_SAPI != 'fpm-fcgi')
+    if (PHP_SAPI != 'fpm-fcgi') // If updating this string of PHP options, also update /opt/fpp/www/.user.ini for php-fpm
         $data = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
 
     if ($enablePW) {
