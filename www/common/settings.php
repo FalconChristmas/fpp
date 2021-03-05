@@ -90,7 +90,10 @@ function SetupHtaccess($enablePW)
     if (file_exists($filename))
         unlink($filename);
 
-    $data = $settings['htaccessContents'];
+    $data = "";
+    if (PHP_SAPI != 'fpm-fcgi')
+        $data = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
+
     if ($enablePW) {
         $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\nRequire local\nRequire valid-user\n";
     }
