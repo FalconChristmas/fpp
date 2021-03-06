@@ -95,8 +95,17 @@ function SetupHtaccess($enablePW)
         $data = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
 
     if ($enablePW) {
-        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\nRequire local\nRequire valid-user\n";
+        $data .= "AuthUserFile " . $settings['mediaDirectory'] . "/config/.htpasswd\nAuthType Basic\nAuthName \"Falcon Player\"\nRequire valid-user\n";
     }
+
+    // can use env vars in child .htaccess using mod_setenvif
+    $data .= "SetEnvIf Host ^ LOCAL_PROTECT=" . $enablePW ."\n";
+
+    // Allow open access for fppxml & fppjson
+    $data .= "<FilesMatch \"^(fppjson|fppxml)\.php$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
+
+    // Don't block Fav icon
+    $data .= "<FilesMatch \"^(favicon)\.ico$\">\nAllow from All\nSatisfy Any\n</FilesMatch>\n";
 
     file_put_contents($filename, $data);
 }
@@ -122,7 +131,7 @@ function SetUIPassword($value)
     if ($value == '')
         $value = 'falcon';
 
-    // Write a new password file, replacing odl one if exists. 
+    // Write a new password file, replacing odl one if exists.
     // users fpp and admin
     // BCRYPT requires apache 2.4+
     $encrypted_password = password_hash($value, PASSWORD_BCRYPT);
@@ -139,7 +148,7 @@ function SetUIPassword($value)
 
 function SetForceHDMI($value)
 {
-    
+
     if (strpos(file_get_contents("/boot/config.txt"), "hdmi_force_hotplug:1") == false) {
         exec("sudo sed -i -e 's/hdmi_force_hotplug=\(.*\)$/hdmi_force_hotplug=\\1\\nhdmi_force_hotplug:1=0/' /boot/config.txt", $output, $return_val);
         exec("sudo sed -i -e 's/^hdmi_force_hotplug:1/#hdmi_force_hotplug:1/' /boot/config.txt", $output, $return_val);
@@ -161,7 +170,7 @@ function SetForceHDMIResolution($value, $postfix)
         exec("sudo sed -i -e 's/^hdmi_group:1/#hdmi_group:1/' /boot/config.txt", $output, $return_val);
         exec("sudo sed -i -e 's/^hdmi_mode:1/#hdmi_mode:1/' /boot/config.txt", $output, $return_val);
     }
-    
+
     if ($parts[0] == '0') {
         exec("sudo sed -i -e 's/^hdmi_group".$postfix."=/#hdmi_group".$postfix."=/' /boot/config.txt", $output, $return_val);
         exec("sudo sed -i -e 's/^hdmi_mode".$postfix."=/#hdmi_mode".$postfix."=/' /boot/config.txt", $output, $return_val);
