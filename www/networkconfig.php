@@ -546,8 +546,7 @@ function setHostName() {
 		return;
 	}
 
-	$.get("fppjson.php?command=setSetting&key=HostName&value="
-		+ $('#hostName').val()
+	$.put("api/settings/HostName", $('#hostName').val()
 	).done(function() {
 		$.jGrowl("HostName Saved",{themeState:'success'});
         SetRebootFlag();
@@ -557,8 +556,7 @@ function setHostName() {
 }
 
 function setHostDescription() {
-    $.get("fppjson.php?command=setSetting&key=HostDescription&value="
-        + $('#hostDescription').val()
+    $.put("api/settings/HostDescription", $('#hostDescription').val()
     ).done(function() {
         $.jGrowl("HostDescription Saved",{themeState:'success'});
         SetRestartFlag(2);

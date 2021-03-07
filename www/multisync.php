@@ -64,7 +64,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             alert('FPP will use multicast if no other sync methods are chosen.  To disable sync entirely, switch FPP to standalone player mode instead of Master mode.');
         }
         
-		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
+		$.put("api/settings/MultiSyncRemotes", remotes
 		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
             if (verbose) {
@@ -76,7 +76,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             }
 
             //Mark FPPD as needing restart
-            $.get('fppjson.php?command=setSetting&key=restartFlag&value=2');
+            $.put('api/settings/restart', '2');
             settings['restartFlag'] = 2;
             //Get the resart banner showing
             CheckRestartRebootFlags();
