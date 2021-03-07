@@ -4,24 +4,8 @@ require_once('common.php');
 ?>
 
 <script>
-function updateSettings() {
-    $.get("fppjson.php?command=setSetting&key=LogMask&value="
-        + newValue).fail(function() { alert("Error saving new mask") });
-
-    $.ajax({ url: 'fppjson.php?command=setSetting&key=LogMask&value=' + newValue, 
-        async: false,
-        dataType: 'json',
-        success: function(data) {
-            $.jGrowl("Log Mask Saved.",{themeState:'success'});
-        },
-        failure: function(data) {
-            DialogError("Save Log Mask", "Error Saving new Log Mask.");
-        }
-    });
-}
 
 function changeAll(newVal) {
-   console.log("Changing all to ", newVal);
    $("select[id^=LogLevel]").val(newVal).trigger("change");
 }
 
