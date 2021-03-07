@@ -3592,8 +3592,11 @@ function GetUniverseBytesReceived() {
 	}
 
 function SetSetting(key, value, restart, reboot) {
+    console.log("api/settings/", key);
     $.ajax({
-        url: "fppjson.php?command=setSetting&key=" + key + "&value=" + encodeURIComponent(value),
+        url: "api/settings/" + key,
+        data: value,
+        method: "PUT",
         timeout: 1000,
         async: false,
         success: function() {
