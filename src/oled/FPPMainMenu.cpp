@@ -245,19 +245,19 @@ void FPPMainMenu::itemSelected(const std::string &item) {
                 } else if (nitem == "On") {
                     nvdata = "1";
                 } else if (nitem == "Off") {
-                   nvdata = "2";
+                    nvdata = "2";
                 } else if (nitem == "HostApd") {
                     nv = "http://127.0.0.1/api/settings/TetherTechnology";
-		    nvdata = "0";
+                    nvdata = "0";
                 } else if (nitem == "ConnMan") {
                     nv = "http://127.0.0.1/api/settings/TetherTechnology";
-		    nvdata = "1";
+                    nvdata = "1";
                 } else {
                     nvdata = "0";
                 }
-                urlPost(nv, nvdata, nvresults);
-		nvdata = "1";
-                urlPost("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
+                urlPut(nv, nvdata, nvresults);
+                nvdata = "1";
+                urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
                 
                 
                 RebootPromptPage *pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);
