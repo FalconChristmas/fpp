@@ -142,7 +142,7 @@ function AddScheduleEntry(data = {}) {
     else if (data.startTime == '26:00:00')
         row.find('.schStartTime').val('SunSet');
     else
-        row.find('.schStartTime').val(data.startTime);
+        row.find('.schStartTime').val(Convert24HToUIFormat(data.startTime));
     row.find('.schStartTime').trigger('change');
 
     if (data.endTime == '25:00:00')
@@ -150,7 +150,7 @@ function AddScheduleEntry(data = {}) {
     else if (data.endTime == '26:00:00')
         row.find('.schEndTime').val('SunSet');
     else
-        row.find('.schEndTime').val(data.endTime);
+        row.find('.schEndTime').val(Convert24HToUIFormat(data.endTime));
     row.find('.schEndTime').trigger('change');
     
     if (data.endTimeOffset != null) row.find('.schEndTimeOffset').val(data.endTimeOffset);
@@ -224,7 +224,7 @@ function SetRowDateTimeFieldVisibility(row) {
         row.find('.holEndDate').show();
     }
     
-    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/);
+    var re = new RegExp(/[0-9]:[0-9]/);
     var startTime = row.find('.schStartTime').val();
     if (startTime.match(re)) {
         row.find('.startOffset').hide();
@@ -244,8 +244,21 @@ function SetScheduleInputNames() {
 		SetRowDateTimeFieldVisibility($(this));
 	});
 
+    var timeFormat = 'H:i:s';
+    if (settings.hasOwnProperty('TimeFormat')) {
+        var fmt = settings['TimeFormat'];
+        var seconds = '';
+        if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+            seconds = ':s';
+
+        if (fmt == '%I:%M %p')
+            timeFormat = 'h:i' + seconds + ' A';
+        else
+            timeFormat = 'H:i' + seconds;
+    }
+
 	$('.time').timepicker({
-		'timeFormat': 'H:i:s',
+		'timeFormat': timeFormat,
 		'typeaheadHighlight': false,
 		'show2400': true,
 		'noneOption': [
@@ -408,10 +421,17 @@ function GetScheduleEntryRowData(item) {
     }
 
     e.day = parseInt($(item).find('.schDay').val());
-    e.startTime = $(item).find('.schStartTime').val();
+    e.startTime = Convert24HFromUIFormat($(item).find('.schStartTime').val());
     e.startTimeOffset = parseInt($(item).find('.schStartTimeOffset').val());
-    e.endTime = $(item).find('.schEndTime').val();
-    e.endTimeOffset = parseInt($(item).find('.schEndTimeOffset').val());
+
+    if (schType == 'command') {
+        e.endTime = e.startTime;
+        e.endTimeOffset = e.startTimeOffset;
+    } else {
+        e.endTime = Convert24HFromUIFormat($(item).find('.schEndTime').val());
+        e.endTimeOffset = parseInt($(item).find('.schEndTimeOffset').val());
+    }
+
     e.repeat = parseInt($(item).find('.schRepeat').val());
     e.startDate = $(item).find('.schStartDate').val();
     e.endDate = $(item).find('.schEndDate').val();
