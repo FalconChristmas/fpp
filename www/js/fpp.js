@@ -4462,7 +4462,7 @@ function DisplayHelp()
 
 	$('#helpText').html("No help file exists for this page yet.  Check the <a href='https://falconchristmas.github.io/FPP_Manual(4.0).pdf' target='_blank'>FPP Manual</a> for more info.");
 	$('#helpText').load(tmpHelpPage);
-	$('#dialog-help').fppDialog({ height: 600, width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
+	$('#dialog-help').fppDialog({ width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
 	$('#dialog-help').fppDialog( "moveToTop" );
     helpOpen = 1;
 }
