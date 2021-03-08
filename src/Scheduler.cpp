@@ -480,7 +480,17 @@ void Scheduler::CheckScheduledItems()
                     continue;
                 }
 
-                if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+                // Don't restart a playlist if it was just force stopped
+                if ((Player::INSTANCE.GetForceStopped()) &&
+                    (Player::INSTANCE.GetOrigStartTime() == item->startTime) &&
+                    (Player::INSTANCE.GetForceStoppedPlaylist() == item->entry->playlist)) {
+                    SetItemRan(item, true);
+                    continue;
+                }
+
+                if (Player::INSTANCE.GetStatus() == FPP_STATUS_PLAYLIST_PLAYING) {
+                    // If we are playing, check to see if we should be playing something else
+
                     // Check to see if we are already playing this item, for
                     // instance if we reloaded the schedule while a scheduled
                     // playlist was playing.
@@ -489,14 +499,6 @@ void Scheduler::CheckScheduledItems()
                         (Player::INSTANCE.GetRepeat() == item->entry->repeat) &&
                         (Player::INSTANCE.GetStopTime() == item->endTime) &&
                         (Player::INSTANCE.GetStopMethod() == item->entry->stopType)) {
-                        SetItemRan(item, true);
-                        continue;
-                    }
-
-                    // Don't restart a playlist if it was just force stopped
-                    if ((Player::INSTANCE.GetForceStopped()) &&
-                        (Player::INSTANCE.GetOrigStartTime() == item->startTime) &&
-                        (Player::INSTANCE.GetForceStoppedPlaylist() == item->entry->playlist)) {
                         SetItemRan(item, true);
                         continue;
                     }
@@ -521,9 +523,21 @@ void Scheduler::CheckScheduledItems()
                             }
                         }
 
-                        // and now stop it
-                        while (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
-                            Player::INSTANCE.StopNow(1);
+                        int forceStop = 0;
+                        if (Player::INSTANCE.GetStopTime() < Player::INSTANCE.GetOrigStopTime()) {
+                            forceStop = 1;
+                        }
+
+                        // Stop whatever is playing, and the next time through this loop we'll
+                        switch (Player::INSTANCE.GetStopMethod()) {
+                            case 0: Player::INSTANCE.StopGracefully(forceStop);
+                                    break;
+                            case 2: Player::INSTANCE.StopGracefully(forceStop, 1);
+                                    break;
+                            case 1:
+                            default:
+                                    Player::INSTANCE.StopNow(forceStop);
+                                    break;
                         }
                     } else {
                         // Need to wait for current Scheduled Higher-Priority
@@ -531,6 +545,9 @@ void Scheduler::CheckScheduledItems()
                         // concurrently
                         continue;
                     }
+                } else if (Player::INSTANCE.GetStatus() != FPP_STATUS_IDLE) {
+                    // We are either paused or stopping already so do nothing
+                    continue;
                 }
 
                 LogDebug(VB_SCHEDULE, "Starting Scheduled Playlist:\n");
