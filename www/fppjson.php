@@ -21,7 +21,7 @@ $command_array = Array(
 	//"setOutputProcessors" => 'SetOutputProcessors', // replaced by POST /api/channel/output/processors
 	"getChannelOutputs"   => 'GetChannelOutputs', // Kept for xLights
 	"setChannelOutputs"   => 'SetChannelOutputs', // Kept for xLights
-	"setUniverses"        => 'SetUniverses',
+	//"setUniverses"        => 'SetUniverses', // Deprecated, moved to UI.
 	// "getDNSInfo"          => 'GetDNSInfo', // Replaced by GET /api/network/dns
 	// "setDNSInfo"          => 'SetDNSInfo', // Replaced by POST /api/network/dns
 	//"getFPPDUptime"       => 'GetFPPDUptime', // replaced by  /api/fppd/status
@@ -678,48 +678,6 @@ function SaveUniversesToFile($enabled, $input)
 	return $universeJSON;
 }
 
-function SetUniverses()
-{
-	$enabled = $_POST['E131Enabled'];
-	check($enabled);
-	$input = $_POST['input'];
-	check($input);
-    
-    $count = count($_SESSION['UniverseEntries']);
-    if ( isset($_POST['UniverseCount']) ) {
-        $count = intval($_POST['UniverseCount']);
-        $_SESSION['UniverseEntries'] = NULL;
-        for ($i = 0; $i < $count; $i++) {
-            $_SESSION['UniverseEntries'][$i] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
-        }
-    }
-
-	for($i=0;$i<$count;$i++)
-	{
-		if( isset($_POST['chkActive'][$i]))
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 1;
-		}
-		else
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 0;
-		}
-		$_SESSION['UniverseEntries'][$i]->desc = 	$_POST['txtDesc'][$i];
-        
-        if ( isset($_POST['txtUniverse']) && isset($_POST['txtUniverse'][$i])) {
-            $_SESSION['UniverseEntries'][$i]->universe = intval($_POST['txtUniverse'][$i]);
-        } else {
-            $_SESSION['UniverseEntries'][$i]->universe = 1;
-        }
-		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
-		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
-		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
-		$_SESSION['UniverseEntries'][$i]->unicastAddress = 	trim($_POST['txtIP'][$i]);
-		$_SESSION['UniverseEntries'][$i]->priority = 	intval($_POST['txtPriority'][$i]);
-	}
-
-	return(SaveUniversesToFile($enabled, $input));
-}
 /////////////////////////////////////////////////////////////////////////////
 function GetChannelOutputs()
 {

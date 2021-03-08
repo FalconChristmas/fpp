@@ -122,7 +122,6 @@ function PopulateInterfaces()
 							<div class="col-md"><h2>E1.31 / ArtNet / DDP / KiNet</h2></div>
 							<div class="col-md-auto ml-lg-auto">
 								<div class="form-actions">
-										<input name="command" type="hidden" value="setUniverses" />
 										<input name="input" type="hidden" value="0" />
 										<input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(0);" />
 										<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
