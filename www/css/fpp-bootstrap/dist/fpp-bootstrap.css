@@ -9181,8 +9181,7 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
           appearance: none;
   font-weight: normal;
   font-size: 0.95rem;
-  vertical-align: middle;
-  font-size: 16px; }
+  vertical-align: middle; }
   @media (prefers-reduced-motion: reduce) {
     input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input {
       transition: none; } }
@@ -9204,6 +9203,8 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
   input[type=text]::placeholder, input[type=number]::placeholder, input[type=password]::placeholder, input[type=email]::placeholder, input[type=date]::placeholder, select::placeholder, .tablesorter input::placeholder {
     color: #6c757d;
     opacity: 1; }
+  body.has-touch input[type=text], body.has-touch input[type=number], body.has-touch input[type=password], body.has-touch input[type=email], body.has-touch input[type=date], body.has-touch select, body.has-touch .tablesorter input {
+    font-size: 16px; }
 
 input[type=date] {
   position: relative; }

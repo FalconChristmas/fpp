@@ -133,7 +133,7 @@
     background: radial-gradient(circle, $blue 35%, rgba($blue,0) 35%);
 
 }
-input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input{
+input[type=text], input[type=number], input[type=password], input[type=email], input[type=date],select, .tablesorter input{
     @include border-radius($input-border-radius, 0);
 
     @include box-shadow($input-box-shadow);
@@ -157,7 +157,10 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
 	font-weight: normal;
     font-size: $font-size-base;
     vertical-align: middle;
-    font-size: 16px;
+    body.has-touch &{
+        font-size: 16px; //makes sure browser does not zoom into field on mobile
+    }
+    
 }
 input[type=date]{
    position: relative;

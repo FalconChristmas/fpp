@@ -5,7 +5,6 @@ require_once('config.php');
 require_once("common.php");
 ?>
 <head>
-<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
 <?php
 include 'common/menuHead.inc';
 
