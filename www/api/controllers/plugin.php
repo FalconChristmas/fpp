@@ -274,5 +274,31 @@ function PluginHasUpdates($plugin)
 
 /////////////////////////////////////////////////////////////////////////////
 
+function PluginGetSetting() 
+{
+	$setting = params("SettingName");
+	$plugin  = params("RepoName");
+
+	$value = ReadSettingFromFile($setting, $plugin);
+
+	$result = Array("status" => "OK");
+	$result[$setting] = $value;
+
+	return json($result);
+
+}
+
+function PluginSetSetting()
+{
+
+	$setting = params("SettingName");
+	$plugin  = params("RepoName");
+	$value = file_get_contents('php://input');
+
+	WriteSettingToFile($setting, $value, $plugin);
+
+	return PluginGetSetting();
+}
+
 
 ?>
