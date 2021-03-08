@@ -624,11 +624,11 @@ function PostPutHelper(url, async, data, silent, type) {
 }
 
 function Post(url, async, data, silent = false) {
-    PostPutHelper(url, async, data, silent, 'POST');
+    return PostPutHelper(url, async, data, silent, 'POST');
 }
 
 function Put(url, async, data, silent = false) {
-    PostPutHelper(url, async, data, silent, 'PUT');
+    return PostPutHelper(url, async, data, silent, 'PUT');
 }
 
 function Get(url, async, silent = false) {
@@ -3592,8 +3592,11 @@ function GetUniverseBytesReceived() {
 	}
 
 function SetSetting(key, value, restart, reboot) {
+    console.log("api/settings/", key);
     $.ajax({
-        url: "fppjson.php?command=setSetting&key=" + key + "&value=" + encodeURIComponent(value),
+        url: "api/settings/" + key,
+        data: value,
+        method: "PUT",
         timeout: 1000,
         async: false,
         success: function() {

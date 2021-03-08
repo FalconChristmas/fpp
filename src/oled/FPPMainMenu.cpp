@@ -237,22 +237,27 @@ void FPPMainMenu::itemSelected(const std::string &item) {
         MenuOLEDPage *pg = new MenuOLEDPage("Tethering", options, [this, sp] (const std::string &item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
-                std::string nv = "http://127.0.0.1/fppjson.php?command=setSetting&plugin=&key=EnableTethering&value=";
+		std::string nvdata;
+		std::string nvresults;
+                std::string nv = "http://127.0.0.1/api/settings/EnableTethering";
                 if (nitem == "Automatic") {
-                    nv += "0";
+                    nvdata = "0";
                 } else if (nitem == "On") {
-                    nv += "1";
+                    nvdata = "1";
                 } else if (nitem == "Off") {
-                    nv += "2";
+                    nvdata = "2";
                 } else if (nitem == "HostApd") {
-                    nv = "http://127.0.0.1/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=0";
+                    nv = "http://127.0.0.1/api/settings/TetherTechnology";
+                    nvdata = "0";
                 } else if (nitem == "ConnMan") {
-                    nv = "http://127.0.0.1/fppjson.php?command=setSetting&plugin=&key=TetherTechnology&value=1";
+                    nv = "http://127.0.0.1/api/settings/TetherTechnology";
+                    nvdata = "1";
                 } else {
-                    nv += "0";
+                    nvdata = "0";
                 }
-                doCurlGet(nv);
-                doCurlGet("http://127.0.0.1/fppjson.php?command=setSetting&key=rebootFlag&value=1");
+                urlPut(nv, nvdata, nvresults);
+                nvdata = "1";
+                urlPut("http://127.0.0.1/api/settings/rebootFlag", "1", nvresults);
                 
                 
                 RebootPromptPage *pg = new RebootPromptPage("Reboot Required", "Reboot FPPD?", this);

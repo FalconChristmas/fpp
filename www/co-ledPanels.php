@@ -296,7 +296,7 @@ function LEDPanelLayoutChanged()
 function LEDPanelsLayoutChanged() {
     var value = $('#LEDPanelsLayoutCols').val() + "x" + $('#LEDPanelsLayoutRows').val();
 
-    $.get('fppjson.php?command=setSetting&plugin=&key=LEDPanelsLayout&value=' + value)
+    $.put('api/settings/LEDPanelsLayout', value)
         .done(function() {
             $.jGrowl('Panel Layout saved',{themeState:'success'});
             settings['LEDPanelsLayout'] = value;

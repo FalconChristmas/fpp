@@ -113,6 +113,11 @@ body .ui-tabs .ui-tabs-nav li {
 	color:#fff;
 	background-color: #171720;
 }
+
+.statusHostname {
+	display: none;
+}
+
 @media(min-width:991px){
 	.header{
 		position: fixed;
@@ -1869,6 +1874,9 @@ input[type=search].tablesorter-filter:disabled{
 }
 @media(max-width:480px){
 
+	.statusHostname {
+		display:inline;
+	}
 	.fpp-logo, .headerHostName, .headerRight{
 		display: none;
 	}

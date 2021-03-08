@@ -137,6 +137,7 @@ function WirelessSettingsVisible(visible)
 function checkStaticIP()
 {
 	var ip = $('#eth_ip').val();
+  $("#ipWarning").html('');
 	if (ip.startsWith( "192.168") || ip.startsWith("10.") )
 	{
 		if ($('#eth_netmask').val() == "")
@@ -149,19 +150,27 @@ function checkStaticIP()
 			$('#eth_gateway').val(gateway);
 		}
 	}
+  if (ip.startsWith("192.168.6.") || ip.startsWith("192.168.7.") || ip.startsWith("192.168.8.")) {
+      var text = "It is recommended to use subnets other than 192.168.6.x, 192.168.7.x, and 192.168.8.x to avoid issues with tethering."
+			$("#ipWarning").html(text);
+			$.jGrowl(text,{themeState:'danger'});
+    }
+
 }
 
 function validateNetworkFields()
 {
-        $("#ipWarning").html('');
+  var eth_ip = $('#eth_ip').val();
+  $("#ipWarning").html('');
 	if($('#eth_static').is(':checked'))
 	{
-		if((validateIPaddress('eth_ip')== false) || ($('#eth_ip').val() == ""))
+		if((validateIPaddress('eth_ip')== false) || (eth_ip == ""))
 		{
 			$.jGrowl("Invalid IP Address. Expect format like 192.168.0.101",{themeState:'danger'});
 			$("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
 			return false;
 		}
+    
 		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
 		{
 			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0",{themeState:'danger'});
@@ -537,8 +546,7 @@ function setHostName() {
 		return;
 	}
 
-	$.get("fppjson.php?command=setSetting&key=HostName&value="
-		+ $('#hostName').val()
+	$.put("api/settings/HostName", $('#hostName').val()
 	).done(function() {
 		$.jGrowl("HostName Saved",{themeState:'success'});
         SetRebootFlag();
@@ -548,8 +556,7 @@ function setHostName() {
 }
 
 function setHostDescription() {
-    $.get("fppjson.php?command=setSetting&key=HostDescription&value="
-        + $('#hostDescription').val()
+    $.put("api/settings/HostDescription", $('#hostDescription').val()
     ).done(function() {
         $.jGrowl("HostDescription Saved",{themeState:'success'});
         SetRestartFlag(2);
