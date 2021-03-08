@@ -244,13 +244,13 @@ function SetScheduleInputNames() {
 		SetRowDateTimeFieldVisibility($(this));
 	});
 
-    var timeFormat = 'H:i:s';
+    var seconds = '';
+    if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+        seconds = ':s';
+
+    var timeFormat = 'H:i' + seconds;
     if (settings.hasOwnProperty('TimeFormat')) {
         var fmt = settings['TimeFormat'];
-        var seconds = '';
-        if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
-            seconds = ':s';
-
         if (fmt == '%I:%M %p')
             timeFormat = 'h:i' + seconds + ' A';
         else
