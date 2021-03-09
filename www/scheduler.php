@@ -202,9 +202,30 @@ function getSchedule()
         }
         $('.fppTableRowTemplate').find('.schSequence').html(options);
 
+        var ScheduleSeconds = 0;
+        var checkTimes = false;
+        if ((!settings.hasOwnProperty('ScheduleSeconds')) ||
+            ((settings['ScheduleSeconds'] != '1') &&
+             (settings['ScheduleSeconds'] != '0'))) {
+            checkTimes = true;
+        }
+
         for (var i = 0; i < data.length; i++) {
+            if (checkTimes) {
+                if (((data[i].startTime.indexOf(':') != -1) &&
+                     (!data[i].startTime.endsWith(':00'))) ||
+                    ((data[i].endTime.indexOf(':') != -1) &&
+                     (!data[i].endTime.endsWith(':00')))) {
+                    ScheduleSeconds = 1;
+                    settings['ScheduleSeconds'] = 1;
+                }
+            }
+
             AddScheduleEntry(data[i]);
         }
+
+        if (checkTimes)
+            SetSetting('ScheduleSeconds', ScheduleSeconds, 0, 0);
 
         SetScheduleInputNames();
     }).fail(function() {

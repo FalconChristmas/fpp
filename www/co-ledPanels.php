@@ -114,9 +114,10 @@ function printLEDPanelSizeSelect($platform, $variant, $def, $addr)
         $values["32x16 1/8 Scan"] = "32x16x8";
         $values["32x16 1/4 Scan"] = "32x16x4";
         $values["32x32 1/16 Scan"] = "32x32x16";
+        $values["32x32 1/8 Scan"] = "32x32x8";
         $values["64x32 1/16 Scan"] = "64x32x16";
         $values["64x32 1/8 Scan"] = "64x32x8";
-        $values["32x32 1/8 Scan"] = "32x32x8";
+        $values["128x64 1/32 Scan"] = "128x64x32";
     }
     
     if ($addr != "0" && $addr != "") {
