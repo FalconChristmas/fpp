@@ -743,6 +743,17 @@ function parseESPixelStickVersion(ip, data) {
     }
 }
 
+function parseESPixelStickCommandResponse(ip, data) {
+    var s = JSON.parse(data);
+    var ips = ip.replace(/\./g, '_');
+
+    if ((s.hasOwnProperty('get')) &&
+        (s.get.hasOwnProperty('device')) &&
+        (s.get.device.hasOwnProperty('id'))) {
+        $('#fpp_' + ips + '_desc').html(s.get.device.id);
+    }
+}
+
 function getESPixelStickBridgeStatus(ip) {
     var ips = ip.replace(/\./g, '_');
 
@@ -756,8 +767,9 @@ function getESPixelStickBridgeStatus(ip) {
         ws.onopen = function() {
             ws.send("G1");
             ws.send("G2");
-            ws.send("XA");
+            ws.send("XA"); // ESPixelStick v4.x
             ws.send("XJ");
+            ws.send('{"cmd":{"get":"device"}}'); // ESPixelStick v4.x
         };
 
         ws.onmessage = function(e) {
@@ -774,6 +786,9 @@ function getESPixelStickBridgeStatus(ip) {
                         break;
                     case "XJ":
                         parseESPixelStickStatus(ip, n);
+                        break;
+                    case '{"':
+                        parseESPixelStickCommandResponse(ip, e.data);
                         break;
                 }
             }
