@@ -561,7 +561,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
-                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
+                    "<td class='hostnameColumn'><span id='fpp_" + ip.replace(/\./g,'_') + "_hostname'>" + hostname + "</span><br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip' ip='" + data[i].address + "'>" + ipTxt + "</td>" +
                     "<td><span id='" + rowID + "_platform'>" + data[i].type + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
                         + "<span class='hidden version'>" + data[i].version + "</span></td>" +
@@ -570,7 +570,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     "<td id='" + rowID + "_elapsed'></td>";
 
                 var versionParts = data[i].version.split('.');
-                var majorVersion = parseInt(versionParts[0]);
+                var majorVersion = 0;
+                if (data[i].version != 'Unknown')
+                    majorVersion = parseInt(versionParts[0]);
 
                 if ((advancedView === true) &&
                     (isFPP(data[i].typeId))) {
@@ -607,7 +609,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     fppIpAddresses.push(ip);
                     getFPPSystemInfo(ip);
                 } else if (isESPixelStick(data[i].typeId)) {
-                    if (majorVersion == 3) {
+                    if ((majorVersion == 3) || (majorVersion == 0)) {
                         getESPixelStickBridgeStatus(ip);
                     } else {
                         fppIpAddresses.push(ip);
@@ -673,6 +675,11 @@ function parseESPixelStickStatus(ip, data) {
         s = s.status;
     }
 
+    if (s.hasOwnProperty('system')) {
+        if (s['system'].hasOwnProperty('hostname'))
+            $('#fpp_' + ips + '_hostname').html(s.system.hostname);
+    }
+
     var rssi = +s.system.rssi;
     var quality = 2 * (rssi + 100);
 
@@ -699,17 +706,40 @@ function parseESPixelStickStatus(ip, data) {
     var mode = $('#fpp_' + ips + '_mode').html();
 
     if (mode == 'Bridge') {
-        var st = "<table class='multiSyncVerboseTable'>";
-        st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
-        st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
-        st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
-        st += "</table>";
+        st = 'Bridging';
+        if (s.hasOwnProperty('e131')) {
+            st = "<table class='multiSyncVerboseTable'>";
+            st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
+            st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
+            st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
+            st += "</table>";
+        } else if (s.hasOwnProperty('input')) {
+            for (var i = 0; i < s.input.length; i++) {
+                if (s.input[i].hasOwnProperty('e131')) {
+                    st = "<table class='multiSyncVerboseTable'>";
+                    st += "<tr><td>Tot Pkts:</td><td>" + s.input[i].e131.num_packets + "</td></tr>";
+                    st += "<tr><td>Pkt Errs:</td><td>" + s.input[i].e131.packet_errors + "</td></tr>";
+                    st += "</table>";
+                }
+            }
+        }
 
         $('#fpp_' + ips + '_status').html(st);
     }
 
     if ($('#MultiSyncRefreshStatus').is(":checked")) {
         setTimeout(function() {ESPSockets[ips].send("XJ");}, 1000);
+    }
+}
+
+function parseESPixelStickVersion(ip, data) {
+    var s = JSON.parse(data);
+    var ips = ip.replace(/\./g, '_');
+
+    if (s.hasOwnProperty('version')) {
+        $('#fpp_' + ips + '_version').html(s.version);
+        $('#fpp_' + ips).find('.version').html(s.version);
+        var versionParts = s['version'].split('.');
     }
 }
 
@@ -725,6 +755,8 @@ function getESPixelStickBridgeStatus(ip) {
         ws.binaryType = "arraybuffer";
         ws.onopen = function() {
             ws.send("G1");
+            ws.send("G2");
+            ws.send("XA");
             ws.send("XJ");
         };
 
@@ -733,6 +765,10 @@ function getESPixelStickBridgeStatus(ip) {
                 var t = e.data.substr(0, 2)
                   , n = e.data.substr(2);
                 switch (t) {
+                    case "XA":
+                    case "G2":
+                        parseESPixelStickVersion(ip, n);
+                        break;
                     case "G1":
                         parseESPixelStickConfig(ip, n);
                         break;
