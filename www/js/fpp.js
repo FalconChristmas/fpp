@@ -48,6 +48,8 @@ $(function() {
             $('.header').addClass('swiped');
         });
         swipeHandler.run();
+    }else{
+        $('body').addClass('no-touch');
     }
     
     $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';

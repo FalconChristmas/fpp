@@ -52,7 +52,7 @@ function AddScheduleEntry(data = {}) {
         data.startTime = '00:00:00';
         data.endTime = '24:00:00';
         data.repeat = 1;
-        data.startDate = '' + MINYEAR + '-01-01';
+        data.startDate = '' + formatDate(new Date());
         data.endDate = '' + MAXYEAR + '-12-31';
         data.stopType = 0;
         data.endTimeOffset = 0;
@@ -166,7 +166,20 @@ function AddScheduleEntry(data = {}) {
 
     SetupDatePicker(row);
 }
+function formatDate(date) {
+    var d = new Date(date),
+        month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear();
 
+    if (month.length < 2) 
+        month = '0' + month;
+    if (day.length < 2) 
+        day = '0' + day;
+
+    return [year, month, day].join('-');
+}
+ 
 function getSchedule()
 {
     $('#tblScheduleBody').empty();
@@ -617,19 +630,35 @@ tr.rowScheduleDetails select.selPlaylist option {
           <div>
 
             <div class="row tablePageHeader tablePageHeader">
-                <div class="col-md">
-                    <div class="form-actions form-actions-secondary">    
-                        <div><button type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>View Schedule</button></div>
-                        <div><button class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button></div>
+                <div class="col">
+                    <div class="form-actions form-actions-secondary">
+
+                        <div class='smallonly'>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary" type="button" id="schedulerMobileActions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div class="dropdown-menu" aria-labelledby="schedulerMobileActions">
+                                    <button type='button' class='buttons' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button>
+                                    <button class='buttons' type="button" value = "Reload" onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button>
+                                    <button class='buttons' type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');">Clear Selection</button>
+                                    <button class="deleteSchButton disableButtons"  type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');">Delete</button>
+                                    <button class="cloneSchButton disableButtons" type="button" value="Clone" onClick="CloneSelectedEntry();">Clone</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class='largeonly'><button type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button></div>
+                        <div class='largeonly'><button class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button></div>
+                        <div class='largeonly'><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>
                     </div>
 
                 </div>
-                <div class="col-md-auto ml-lg-auto">
+                <div class="col-auto ml-auto">
                     <div class="form-actions form-actions-primary">
-                    <div><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>
 
-                        <div><input class="buttons disableButtons deleteSchButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
-                        <div><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
+                        <div class='largeonly'><input class="disableButtons deleteSchButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
+                        <div class='largeonly'><input class="disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
                         <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
                         <div><input class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveSchedule();' /></div>
                     </div>
@@ -746,17 +775,17 @@ tr.rowScheduleDetails select.selPlaylist option {
 
                         <thead id='tblScheduleHead'>
                             <tr>
-                                <th></th>
-                                <th>Active</th>
-                                <th>Start Date</th>
-                                <th>End Date</th>
-                                <th>Day(s)</th>
-                                <th>Start<br>Time</th>
-                                <th>Schedule<br>Type</th>
-                                <th>Playlist /<br> Command Args</th>
-                                <th>End Time</th>
-                                <th>Repeat</th>
-                                <th>Stop Type</th>
+                                <th class="tblScheduleHeadGrip"></th>
+                                <th class="tblScheduleHeadActive">Active</th>
+                                <th class="tblScheduleHeadStartDate">Start Date</th>
+                                <th class="tblScheduleHeadEndDate">End Date</th>
+                                <th class="tblScheduleHeadDays">Day(s)</th>
+                                <th class="tblScheduleHeadStartTime">Start<br>Time</th>
+                                <th class="tblScheduleHeadSchType">Schedule<br>Type</th>
+                                <th class="tblScheduleHeadPlaylist">Playlist /<br> Command Args</th>
+                                <th class="tblScheduleHeadEndTime">End Time</th>
+                                <th class="tblScheduleHeadRepeat">Repeat</th>
+                                <th class="tblScheduleHeadStopType">Stop Type</th>
                             </tr>
                         </thead>
                         <tbody id='tblScheduleBody'>

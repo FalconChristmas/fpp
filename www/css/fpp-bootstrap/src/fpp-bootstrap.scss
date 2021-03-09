@@ -181,7 +181,7 @@ input[type=date]{
 	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
 	background-position: right 11px center;
     background-size: 15px;
-    padding-right:3.5em;
+    padding-right:1.5em;
     cursor: pointer;
     vertical-align: middle;
     &.form-control-lg{
@@ -420,7 +420,7 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
     display: flex;
     margin-top: 1em;
     margin-bottom: 1em;
-    >*{
+    >*:not(:last-child){
         margin-right: 0.5rem;
     }
 }

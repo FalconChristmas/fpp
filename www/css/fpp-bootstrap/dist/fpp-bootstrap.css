@@ -8989,6 +8989,12 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   .playlistRow:hover .circularButton:hover, .playlistEditorHeaderTitleWrapper:hover .circularButton:hover {
     transform: scale(1.1); }
 
+.dropdown-menu .buttons, .dropdown-menu .ui-dialog-buttonset button, .ui-dialog-buttonset .dropdown-menu button, .dropdown-menu .disableButtons {
+  width: 100%;
+  margin-bottom: 0.2em; }
+  .dropdown-menu .buttons:last-child, .dropdown-menu .ui-dialog-buttonset button:last-child, .ui-dialog-buttonset .dropdown-menu button:last-child, .dropdown-menu .disableButtons:last-child {
+    margin-bottom: 0; }
+
 .ajax-file-upload-statusbar {
   background-color: #F5F5F5;
   border-radius: 12px;
@@ -9222,7 +9228,7 @@ input[type=date] {
   background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
   background-position: right 11px center;
   background-size: 15px;
-  padding-right: 3.5em;
+  padding-right: 1.5em;
   cursor: pointer;
   vertical-align: middle; }
   .pageContent select.form-control-lg, .ui-dialog select.form-control-lg, .modal select.form-control-lg {
@@ -9457,7 +9463,7 @@ input[type=checkbox]:checked {
   display: flex;
   margin-top: 1em;
   margin-bottom: 1em; }
-  .form-actions > *, .modal-actions > * {
+  .form-actions > *:not(:last-child), .modal-actions > *:not(:last-child) {
     margin-right: 0.5rem; }
 
 .form-actions, .modal-actions {

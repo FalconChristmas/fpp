@@ -130,4 +130,10 @@ margin-right: 0.2em;
       }
     }
   }
-  
+.dropdown-menu .buttons,.dropdown-menu .disableButtons{
+  width: 100%;
+  margin-bottom: 0.2em;
+  &:last-child{
+    margin-bottom: 0;
+  }
+}
