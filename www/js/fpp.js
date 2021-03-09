@@ -425,6 +425,96 @@ function CompareFPPVersions(a, b) {
 	return 0;
 }
 
+function Convert24HToUIFormat(tm) {
+    var newTime = tm;
+
+    if (tm.indexOf(':') == -1) // Sunrise/Sunset/Dusk/Dawn
+        return tm;
+
+    var fmt = '%I:%M %p'; // default format in settings.json
+
+    var showingSeconds = false;
+    if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+        showingSeconds = true;
+
+    if (settings.hasOwnProperty('TimeFormat'))
+        fmt = settings['TimeFormat'];
+
+    if (fmt == '%H:%M') { // if set to use 24H time then just exit
+        if (showingSeconds)
+            return tm;
+        else
+            return tm.substr(0, 5);
+    }
+
+    var parts = tm.split(':');
+    var h = parseInt(parts[0]);
+    var m = parseInt(parts[1]);
+    var s = parseInt(parts[2]);
+
+    var ampm = 'AM';
+    var h12 = h;
+    if (h >= 12) {
+        ampm = 'PM';
+        h12 -= 12;
+    }
+
+    if (fmt == '%I:%M %p') {
+        newTime = PadLeft(h12, '0', 2) + ':' + PadLeft(m, '0', 2);
+
+        if (showingSeconds)
+            newTime += ':' + PadLeft(s, '0', 2);
+
+        newTime += ' ' + ampm;
+    }
+
+    return newTime;
+}
+
+function Convert24HFromUIFormat(tm) {
+    var newTime = tm;
+
+    if (tm.indexOf(':') == -1) // Sunrise/Sunset/Dusk/Dawn
+        return tm;
+
+    var fmt = '%I:%M %p'; // default format in settings.json
+
+    var showingSeconds = false;
+    if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+        showingSeconds = true;
+
+    if (settings.hasOwnProperty('TimeFormat'))
+        fmt = settings['TimeFormat'];
+
+    if (fmt == '%H:%M') { // if set to use 24H time then just exit
+        if (showingSeconds)
+            return tm;
+        else
+            return tm + ':00';
+    }
+
+    var h = 0;
+    var m = 0;
+    var s = 0;
+
+    if (fmt == '%I:%M %p') {
+        var tmp = tm.split(/ /);
+        var parts = tmp[0].split(':');
+        h = parseInt(parts[0]);
+        m = parseInt(parts[1]);
+
+        if (showingSeconds)
+            s = parseInt(parts[2]);
+
+        if ((tmp[1] == 'PM') || (tmp[1] == 'pm'))
+            h += 12;
+    }
+
+    newTime = PadLeft(h, '0', 2) + ':' + PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
+
+    return newTime;
+}
+
 function InitializeTimeInputs(format = 'H:i:s') {
     $('.time').timepicker({
         'timeFormat': format,
@@ -4372,7 +4462,7 @@ function DisplayHelp()
 
 	$('#helpText').html("No help file exists for this page yet.  Check the <a href='https://falconchristmas.github.io/FPP_Manual(4.0).pdf' target='_blank'>FPP Manual</a> for more info.");
 	$('#helpText').load(tmpHelpPage);
-	$('#dialog-help').fppDialog({ height: 600, width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
+	$('#dialog-help').fppDialog({ width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
 	$('#dialog-help').fppDialog( "moveToTop" );
     helpOpen = 1;
 }

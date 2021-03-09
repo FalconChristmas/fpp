@@ -139,6 +139,7 @@
             "settings": [
                 "fppMode",
                 "DisableScheduler",
+                "ScheduleSeconds",
                 "Locale",
                 "screensaver",
                 "ForceHDMI",
@@ -1366,14 +1367,14 @@
             "step": 1,
             "suffix": "ms"
         },
-        "scheduling": {
-            "name": "scheduling",
-            "description": "Scheduler Enabled",
+        "ScheduleSeconds": {
+            "name": "ScheduleSeconds",
             "gatherStats" : true,
-            "tip": "Enable the FPP scheduler to start scheduled playlists.  Disabling the scheduler will leave any running scheduled playlist running and it will stop at its originally scheduled end time.  Reenabling the scheduler will trigger a reschedule to start any normally scheduled playlist running unless there is already another playlist running.",
-            "level": 0,
-            "default": 1,
-            "type": "checkbox"
+            "description": "Granular Scheduling",
+            "tip": "Allow scheduling down to the second instead of scheduling on minute boundaries.  Enabling this setting will show the seconds value in the Scheduler UI for the Start and End times on schedule entries.",
+            "type": "checkbox",
+            "level": 1,
+            "restart": 1
         },
         "screensaver": {
             "name": "screensaver",
@@ -1551,7 +1552,8 @@
             "options": {
                 "HH:MM (23:40)": "%H:%M",
                 "HH:MM AM/PM (11:40 PM)": "%I:%M %p"
-            }
+            },
+            "note": "Any addition of a new format in the options array here will need corresponding additions in js/fpp.js to the Convert24H*UIFormat functions"
         },
         "uiLevel": {
             "name": "uiLevel",

@@ -28,8 +28,8 @@ $command_array = Array(
 	//"getZip" => 'GetZip',
 	//"getUniverseReceivedBytes" => 'GetUniverseReceivedBytes',  // GET /api/channel/input/stats
 	// "deleteFile" => 'DeleteFile', // use DELETE /api/file/:DirName/:filename
-	"setUniverseCount" => 'SetUniverseCount',
-	"getUniverses" => 'GetUniverses',
+	//"setUniverseCount" => 'SetUniverseCount', 
+	//"getUniverses" => 'GetUniverses',
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
 	"deleteUniverse" => 'DeleteUniverse',
 	"cloneUniverse" => 'CloneUniverse',
@@ -529,69 +529,6 @@ function SavePixelnetDMXoutputsToFile()
 }
 
 
-function GetUniverses()
-{
-	$reload = $_GET['reload'];
-	check($reload, "reload", __FUNCTION__);
-	$input = $_GET['input'];
-	check($input, "input", __FUNCTION__);
-
-	if($reload == "TRUE")
-	{
-		LoadUniverseFile($input);
-	}
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('UniverseEntries');
-	$root = $doc->appendChild($root);
-	for($i=0;$i<count($_SESSION['UniverseEntries']);$i++)
-	{
-		$UniverseEntry = $doc->createElement('UniverseEntry');
-		$UniverseEntry = $root->appendChild($UniverseEntry);
-		// active
-		$active = $doc->createElement('active');
-		$active = $UniverseEntry->appendChild($active);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->active);
-		$value = $active->appendChild($value);
-		// description
-		$desc = $doc->createElement('desc');
-		$desc = $UniverseEntry->appendChild($desc);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->desc);
-		$value = $desc->appendChild($value);
-		// universe
-		$universe = $doc->createElement('universe');
-		$universe = $UniverseEntry->appendChild($universe);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->universe);
-		$value = $universe->appendChild($value);
-		// startAddress
-		$startAddress = $doc->createElement('startAddress');
-		$startAddress = $UniverseEntry->appendChild($startAddress);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->startAddress);
-		$value = $startAddress->appendChild($value);
-		// size
-		$size = $doc->createElement('size');
-		$size = $UniverseEntry->appendChild($size);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->size);
-		$value = $size->appendChild($value);
-		// type
-		$type = $doc->createElement('type');
-		$type = $UniverseEntry->appendChild($type);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->type);
-		$value = $type->appendChild($value);
-		// unicastAddress
-		$unicastAddress = $doc->createElement('unicastAddress');
-		$unicastAddress = $UniverseEntry->appendChild($unicastAddress);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->unicastAddress);
-		$value = $unicastAddress->appendChild($value);
-		// priority
-		$priority = $doc->createElement('priority');
-		$priority = $UniverseEntry->appendChild($priority);
-		$value = $doc->createTextNode($_SESSION['UniverseEntries'][$i]->priority);
-		$value = $priority->appendChild($value);
-
-	}
-	echo $doc->saveHTML();
-}
 
 function GetPixelnetDMXoutputs()
 {
@@ -627,63 +564,6 @@ function GetPixelnetDMXoutputs()
 		$value = $startAddress->appendChild($value);
 	}
 	echo $doc->saveHTML();
-}
-
-function SetUniverseCount()
-{
-	$count = $_GET['count'];
-	check($count, "count", __FUNCTION__);
-
-	if($count > 0 && $count <= 512)
-	{
-
-		$universeCount = count($_SESSION['UniverseEntries']);
-		if($universeCount < $count)
-		{
-			$active = 1;
-			$desc = "";
-				$universe = 1;
-				$startAddress = 1;
-				$size = 512;
-				$type = 0;	//Multicast
-				$unicastAddress = "";
-				$priority = 0;
-			if($universeCount == 0)
-			{
-				$universe = 1;
-				$startAddress = 1;
-				$size = 512;
-				$type = 0;	//Multicast
-				$unicastAddress = "";
-				$priority = 0;
-
-			}
-			else
-			{
-				$universe = $_SESSION['UniverseEntries'][$universeCount-1]->universe+1;
-				$size = $_SESSION['UniverseEntries'][$universeCount-1]->size;
-				$startAddress = $_SESSION['UniverseEntries'][$universeCount-1]->startAddress+$size;
-				$type = $_SESSION['UniverseEntries'][$universeCount-1]->type;
-				$unicastAddress = $_SESSION['UniverseEntries'][$universeCount-1]->unicastAddress;
-				$priority = $_SESSION['UniverseEntries'][$universeCount-1]->priority;
-			}
-
-			for($i=$universeCount;$i<$count;$i++,$universe++)
-			{
-				$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$desc,$universe,$startAddress,$size,$type,$unicastAddress,$priority,0);
-				$startAddress += $size;
-			}
-		}
-		else
-		{
-			for($i=$universeCount;$i>=$count;$i--)
-			{
-				unset($_SESSION['UniverseEntries'][$i]);
-			}
-		}
-	}
-
-	EchoStatusXML('Success');
 }
 
 
