@@ -250,7 +250,7 @@ $(function() {
 <?php	
 $activeParentMenuItem = 'content';
 include 'menu.inc'; ?>
-<div class="container">
+  <div class="mainContainer">
 <div class='title'>File Manager</div>
 <? if ($freespace > 95) { ?>
   <div class="alert alert-danger" role="alert">WARNING: storage device is almost full!</div>

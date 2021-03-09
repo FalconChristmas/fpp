@@ -184,7 +184,7 @@ $(document).ready(function(){
 		<?php 
 		$activeParentMenuItem = 'input-output';
 		include 'menu.inc'; ?>
-<div class="container">
+  <div class="mainContainer">
 	<h1 class="title">Channel Inputs</h1>
 	<div class="pageContent">
 		

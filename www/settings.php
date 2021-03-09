@@ -82,8 +82,7 @@ if (isset($_GET['tab'])) {
 <?php 
 $activeParentMenuItem = 'status';
 include 'menu.inc'; ?>
-
-<div class="container">
+  <div class="mainContainer">
 <h1 class="title">FPP Settings</h1>
     <div class="pageContent">
             <div class='fppTabs'>

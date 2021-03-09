@@ -19,7 +19,7 @@ DisableOutputBuffering();
   <?php 
   $activeParentMenuItem = 'help';  
   include 'menu.inc'; ?>
-  <div class="container">
+  <div class="mainContainer">
 	  <div class="title">Troubleshooting Commands</div>
 	  <div class="pageContent">
 	  	  

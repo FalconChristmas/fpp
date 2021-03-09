@@ -26,10 +26,8 @@ function StartHealthCheck() {
 <div id="bodyWrapper">
 <?php
 $activeParentMenuItem = 'help'; 
-include 'menu.inc';
-?>
-
-<div class="container">
+include 'menu.inc'; ?>
+  <div class="mainContainer">
     <h2 class="title d-none d-sm-block ">FPP Health Check</h2>
     <div class="pageContent">
         <div id="healthCheck" class="">

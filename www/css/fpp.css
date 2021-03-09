@@ -19,6 +19,10 @@ body .ui-tooltip{
 	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
 	border-radius: 5px;
 }
+.fppOuterContainer{
+	max-width: 1800px;
+	margin: auto;
+}
 .tab-content>.spinner-border{
 	display: block;
 	margin: auto;
@@ -1786,6 +1790,9 @@ input[type=search].tablesorter-filter:disabled{
 	font-size: 3em;
 	color: #D1D1D1;
 }
+#tblSchedule{
+	margin-top: 0;
+}
 #tblSchedule input[type=text], #tblSchedule select {
 	width: 100%;
 }
@@ -1824,6 +1831,12 @@ input[type=search].tablesorter-filter:disabled{
 		display: flex;
 	}
 }
+@media (max-width:1840px){
+	.fppOuterContainer{
+		max-width: 95%;
+		margin: auto;
+	}
+}
 
 @media (min-width:769px) and (max-width:1360px){
 	.statusDivTopRow {
@@ -1842,19 +1855,25 @@ input[type=search].tablesorter-filter:disabled{
 		content:none;  
 	}
 }
-@media (max-width:1360px){
+@media (max-width:1440px){
 	.pageContent{
-		padding: 2.0em 2.5em;
+		padding: 1.5em 1.5em;
 	}
+	.fppOuterContainer {
+		max-width: 97%;
+	}
+}
+@media (max-width:1360px){
+
 	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
 		display: inline-block;
 		margin-bottom: 0.65em;
 	}
 	.tblScheduleHeadRepeat{
-		max-width: 111px;
+		min-width: 111px;
 	}
 	.tblScheduleHeadStopType{
-		max-width: 132px;
+		min-width: 132px;
 	}
 	#tblSchedule tr td table.dayMaskTable td {
 		padding-right: 0;
@@ -1870,8 +1889,9 @@ input[type=search].tablesorter-filter:disabled{
 }
 @media (min-width:991px) and (max-width:1360px){
 	#tblSchedule input[type=text], #tblSchedule select {
-		letter-spacing: -0.03em;
+		
 		padding-left: 0.45rem;
+		font-size: 13.333px;
 	}
 }
 @media (max-width:1200px){

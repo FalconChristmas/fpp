@@ -22,10 +22,8 @@ function initialSetupChanged() {
 <body class="is-loading">
 <div id="bodyWrapper">
 <?php
-include 'menu.inc';
-?>
-
-<div class="container">
+include 'menu.inc'; ?>
+  <div class="mainContainer">
     <h2 class="title d-none d-sm-block ">FPP Initial Setup</h2>
     <div class="pageContent">
         <div id="initialSetup" class="">

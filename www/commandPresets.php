@@ -137,7 +137,7 @@ $(document).ready(function() {
 <?php 
 $activeParentMenuItem = 'status';
 include 'menu.inc'; ?>
-<div class="container">
+  <div class="mainContainer">
 	  <h2 class="title">Command Presets</h2>
 	  <div class="pageContent">
 <div id="commandPresets" class="settings">

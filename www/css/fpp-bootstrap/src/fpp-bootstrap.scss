@@ -160,6 +160,15 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
     body.has-touch &{
         font-size: 16px; //makes sure browser does not zoom into field on mobile
     }
+    .fppTableContents &{
+        font-family:Arial, Helvetica, sans-serif;
+        padding-top: $input-padding-y-sm;
+        padding-bottom: $input-padding-y-sm;
+        body.has-touch &{
+            padding-top: $input-padding-y;
+            padding-bottom: $input-padding-y;
+        }
+    }
     
 }
 input[type=date]{
@@ -204,11 +213,22 @@ input[type=checkbox], .form-inline input[type=checkbox]{
 	border:1px solid #D2D2D2;
     display: inline-block;
 	border-radius:3px;
-	width: 33px;
-	height: 33px;
+	width: $checkbox-size;
+	height: $checkbox-size;
     font-size: $font-size-base;
     vertical-align: middle;
-
+    .fppTableContents &{
+        width: $checkbox-size-sm;
+        height: $checkbox-size-sm;
+        &:checked{
+            background-size: $checkbox-size-sm * 0.75;
+        }
+        
+        body.has-touch &{
+            width: $checkbox-size;
+            height: $checkbox-size;
+        }
+    }
 }
 input[type=checkbox]:checked{
 
@@ -579,9 +599,10 @@ table.settingsTable div.th{
     outline: .1em solid rgba(0,0,0,0);
 }
 .rowGrip{
-	display: block;
-	padding-left: 0.4em;
-	padding-top: 0.4em;
+	display: flex;
+    align-items: center;
+	padding-left: 0.2em;
+	padding-top: 0.2em;
     cursor:grab;
     .rowGripIcon{
         color:$gray-500;

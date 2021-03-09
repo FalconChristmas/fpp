@@ -214,7 +214,7 @@ include 'common/menuHead.inc';
   ?>
 
 
-<div class="mainContainer container">
+<div class="mainContainer">
 <h1 class="title statusTitle">Status <span class="statusHostname"><?php echo(gethostname())?></span></h1>
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {

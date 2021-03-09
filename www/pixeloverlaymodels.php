@@ -203,8 +203,7 @@ $(document).tooltip();
 		<?php 
 		$activeParentMenuItem = 'input-output';
 		include 'menu.inc'; ?>
-
-<div class="container">
+  <div class="mainContainer">
 	<h1 class="title">Pixel Overlay Models</h1>
 	<div class="pageContent">
 		

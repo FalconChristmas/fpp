@@ -16,11 +16,8 @@ include 'common/menuHead.inc';
 <div id="bodyWrapper">
 <?php
 $activeParentMenuItem = 'help'; 
-	include 'menu.inc';
-  ?>
-<br/>
-
-<div class="container">
+	include 'menu.inc'; ?>
+  <div class="mainContainer">
     <h1 class="title">API Help</h1>
         <div class="pageContent">
 <?

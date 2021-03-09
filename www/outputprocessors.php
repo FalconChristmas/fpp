@@ -400,8 +400,7 @@ $(document).tooltip();
 		<?php 
         $activeParentMenuItem = 'input-output';
         include 'menu.inc'; ?>
-
-<div class="container">
+  <div class="mainContainer">
     <h1 class="title">Output Processors</h1>
     <div class="pageContent">
         

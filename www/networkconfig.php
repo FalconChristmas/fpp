@@ -581,7 +581,7 @@ function showHidePassword(id) {
 <?php 
 $activeParentMenuItem = 'status';
 include 'menu.inc'; ?>
-<div class="container">
+  <div class="mainContainer">
   <h1 class="title">Network Configuration</h1>
   <div class="pageContent">
   <ul class="nav nav-pills pageContent-tabs" role="tablist">

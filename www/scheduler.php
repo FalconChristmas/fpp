@@ -645,7 +645,7 @@ tr.rowScheduleDetails select.selPlaylist option {
   <?php	
   $activeParentMenuItem = 'content';
   include 'menu.inc'; ?>
-  <div class="container">
+  <div class="mainContainer">
       <h1 class="title">Scheduler</h1>
       <div class="pageContent"> 
           <div>

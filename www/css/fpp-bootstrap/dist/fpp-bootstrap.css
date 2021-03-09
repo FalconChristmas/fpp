@@ -3954,8 +3954,8 @@ select.form-control:focus::-ms-value {
   line-height: 2; }
 
 .col-form-label-sm {
-  padding-top: calc(0.25rem + 1px);
-  padding-bottom: calc(0.25rem + 1px);
+  padding-top: calc(0.1rem + 1px);
+  padding-bottom: calc(0.1rem + 1px);
   font-size: 0.83125rem;
   line-height: 1.25; }
 
@@ -3975,8 +3975,8 @@ select.form-control:focus::-ms-value {
     padding-left: 0; }
 
 .form-control-sm {
-  height: calc(1.25em + 0.5rem + 2px);
-  padding: 0.25rem 0.5rem;
+  height: calc(1.25em + 0.2rem + 2px);
+  padding: 0.1rem 0.5rem;
   font-size: 0.83125rem;
   line-height: 1.25;
   border-radius: 0.2rem; }
@@ -4402,9 +4402,9 @@ textarea.form-control {
     text-shadow: 0 0 0 #495057; }
 
 .custom-select-sm {
-  height: calc(1.25em + 0.5rem + 2px);
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
+  height: calc(1.25em + 0.2rem + 2px);
+  padding-top: 0.1rem;
+  padding-bottom: 0.1rem;
   padding-left: 0.5rem;
   font-size: 0.83125rem; }
 
@@ -5129,7 +5129,7 @@ fieldset:disabled .modal a.disableButtons,
   border-radius: 0.3rem; }
 
 .btn-sm, .btn-group-sm > .btn, .btn-group-sm > .buttons, .ui-dialog-buttonset .btn-group-sm > button, .btn-group-sm > .ajax-file-upload, .pageContent .btn-group-sm > .disableButtons, .ui-dialog .btn-group-sm > .disableButtons, .modal .btn-group-sm > .disableButtons {
-  padding: 0.25rem 0.5rem;
+  padding: 0.1rem 0.5rem;
   font-size: 0.83125rem;
   line-height: 1.25;
   border-radius: 0.2rem; }
@@ -7886,7 +7886,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
 
 .input-group-sm > .form-control:not(textarea), .tablesorter .input-group-sm > input:not(textarea), .input-group-sm > input:not(textarea)[type=checkbox], .form-inline .input-group-sm > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-sm > input:not(textarea)[type=text],
 .input-group-sm > .custom-select {
-  height: calc(1.25em + 0.5rem + 2px); }
+  height: calc(1.25em + 0.2rem + 2px); }
 
 .input-group-sm > .form-control, .tablesorter .input-group-sm > input, .input-group-sm > input[type=checkbox], .form-inline .input-group-sm > input[type=checkbox], #settingsManagerTabsContent .input-group-sm > input[type=text],
 .input-group-sm > .custom-select,
@@ -7906,7 +7906,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
 .pageContent .input-group-sm > .input-group-append > .disableButtons,
 .ui-dialog .input-group-sm > .input-group-append > .disableButtons,
 .modal .input-group-sm > .input-group-append > .disableButtons {
-  padding: 0.25rem 0.5rem;
+  padding: 0.1rem 0.5rem;
   font-size: 0.83125rem;
   line-height: 1.25;
   border-radius: 0.2rem; }
@@ -9211,6 +9211,13 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
     opacity: 1; }
   body.has-touch input[type=text], body.has-touch input[type=number], body.has-touch input[type=password], body.has-touch input[type=email], body.has-touch input[type=date], body.has-touch select, body.has-touch .tablesorter input {
     font-size: 16px; }
+  .fppTableContents input[type=text], .fppTableContents input[type=number], .fppTableContents input[type=password], .fppTableContents input[type=email], .fppTableContents input[type=date], .fppTableContents select, .fppTableContents .tablesorter input {
+    font-family: Arial, Helvetica, sans-serif;
+    padding-top: 0.1rem;
+    padding-bottom: 0.1rem; }
+    body.has-touch .fppTableContents input[type=text], body.has-touch .fppTableContents input[type=number], body.has-touch .fppTableContents input[type=password], body.has-touch .fppTableContents input[type=email], body.has-touch .fppTableContents input[type=date], body.has-touch .fppTableContents select, body.has-touch .fppTableContents .tablesorter input {
+      padding-top: 0.33rem;
+      padding-bottom: 0.33rem; }
 
 input[type=date] {
   position: relative; }
@@ -9251,6 +9258,14 @@ input[type=checkbox], .form-inline input[type=checkbox] {
   height: 33px;
   font-size: 0.95rem;
   vertical-align: middle; }
+  .fppTableContents input[type=checkbox], .fppTableContents .form-inline input[type=checkbox] {
+    width: 27px;
+    height: 27px; }
+    .fppTableContents input[type=checkbox]:checked, .fppTableContents .form-inline input[type=checkbox]:checked {
+      background-size: 20.25px; }
+    body.has-touch .fppTableContents input[type=checkbox], body.has-touch .fppTableContents .form-inline input[type=checkbox] {
+      width: 33px;
+      height: 33px; }
 
 input[type=checkbox]:checked {
   border: 1px solid #56B760;
@@ -9575,9 +9590,10 @@ table.settingsTable div.th {
   outline: 0.1em solid rgba(0, 0, 0, 0); }
 
 .rowGrip {
-  display: block;
-  padding-left: 0.4em;
-  padding-top: 0.4em;
+  display: flex;
+  align-items: center;
+  padding-left: 0.2em;
+  padding-top: 0.2em;
   cursor: -webkit-grab;
   cursor: grab; }
   .rowGrip .rowGripIcon {

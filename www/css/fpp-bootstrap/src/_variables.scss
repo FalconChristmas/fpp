@@ -343,7 +343,8 @@ $hr-margin-y:                 $spacer !default;
 // Buttons + Forms
 //
 // Shared variables that are reassigned to `$input-` and `$btn-` specific variables.
-
+$checkbox-size:33px;
+$checkbox-size-sm:27px;
 $input-btn-padding-y:         .33rem !default;
 $input-btn-padding-x:         0.65rem !default;
 $input-btn-font-family:       null !default;
@@ -355,7 +356,7 @@ $input-btn-focus-color-opacity: .25 !default;
 $input-btn-focus-color:         rgba($component-active-bg, $input-btn-focus-color-opacity) !default;
 $input-btn-focus-box-shadow:    0 0 0 $input-btn-focus-width $input-btn-focus-color !default;
 
-$input-btn-padding-y-sm:      .25rem !default;
+$input-btn-padding-y-sm:      .1rem !default;
 $input-btn-padding-x-sm:      .5rem !default;
 $input-btn-font-size-sm:      $font-size-sm !default;
 

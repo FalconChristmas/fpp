@@ -15,7 +15,7 @@ require_once('troubleshootingCommands.php');
   <?php 
   $activeParentMenuItem = 'help'; 
   include 'menu.inc'; ?>
-  <div class="container">
+  <div class="mainContainer">
 
     <h1 class="title">Troubleshooting</h1>
     <div class="pageContent">

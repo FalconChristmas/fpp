@@ -134,9 +134,8 @@ if (isset($_GET['playlist'])) {
 <div id="bodyWrapper">
 <?php
 $activeParentMenuItem = 'content';
-include 'menu.inc';
-?>
-    <div class="container">
+include 'menu.inc'; ?>
+  <div class="mainContainer">
         <h1 class="title">Playlists</h1>
         <div class='pageContent'>
 

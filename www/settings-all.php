@@ -35,8 +35,7 @@ $pages = array(
 <body>
 <div id="bodyWrapper">
 <?php include 'menu.inc'; ?>
-
-<div class="container">
+  <div class="mainContainer">
 <h1 class="title">FPP Settings</h1>
     <div class="pageContent">
 

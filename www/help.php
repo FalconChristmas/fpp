@@ -20,7 +20,7 @@ $helpPages = array(
   <?php 
   $activeParentMenuItem = 'help'; 
   include 'menu.inc'; ?>
-  <div class="container">
+  <div class="mainContainer">
 	  <h1 class="title">Help Index</h1>
 	  <div class="pageContent">
 	  	  
