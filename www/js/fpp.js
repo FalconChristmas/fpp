@@ -3685,7 +3685,7 @@ function SetSetting(key, value, restart, reboot) {
     console.log("api/settings/", key);
     $.ajax({
         url: "api/settings/" + key,
-        data: value,
+        data: "" + value,
         method: "PUT",
         timeout: 1000,
         async: false,
