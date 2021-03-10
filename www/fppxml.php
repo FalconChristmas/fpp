@@ -37,7 +37,7 @@ $command_array = Array(
 	// "viewRemoteScript" => 'ViewRemoteScript', // GET /api/scripts/viewRemote/:category/:filename
 	//"installRemoteScript" => 'InstallRemoteScript', //GET /api/script/install/:category/:filename
 	"moveFile" => 'MoveFile', // DEPRECATED. Saved for xLights uploads
-	"isFPPDrunning" => 'IsFPPDrunning',
+	//"isFPPDrunning" => 'IsFPPDrunning', // GET /api/system/status
 	// "getFPPstatus" => 'GetFPPstatus', use GET /api/fppd/status instead
 	// "stopGracefully" => 'StopGracefully', use api/playlists/stopgracefully or command API
 	// "stopGracefullyAfterLoop" => 'StopGracefullyAfterLoop', use api/playlists/stopgracefullyafterloop or Command API
@@ -211,15 +211,6 @@ function MoveFile()
 	}
 	EchoStatusXML('Success');
 }
-
-function IsFPPDrunning()
-{
-	$status=exec("if ps cax | grep -q fppd; then echo \"true\"; else echo \"false\"; fi");
-	if ($status == "false")
-		$status=exec("if ps cax | grep -q git_pull; then echo \"updating\"; else echo \"false\"; fi");
-	EchoStatusXML($status);
-}
-
 
 // This old method is for xLights and multisync
 function RestartFPPD()

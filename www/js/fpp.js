@@ -34,6 +34,7 @@ if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.ms
 
 $(function() {
     OnSystemStatusChange(RefreshHeaderBar);
+    OnSystemStatusChange(IsFPPDrunning);
     bindVisibilityListener();
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
@@ -57,7 +58,6 @@ $(function() {
     LoadSystemStatus();
     CheckBrowser();
 	CheckRestartRebootFlags();
-    IsFPPDrunning();
 });
 
 (function ( $ ) {
@@ -3046,45 +3046,36 @@ function moveFile(file) {
 
 	function IsFPPDrunning()
 	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=isFPPDrunning";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function ()
-			{
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-				{
-					var xmlDoc=xmlhttp.responseXML;
-					var status = xmlDoc.getElementsByTagName('Status')[0];
-					var retValue='false';
-					if(status.childNodes.length> 0)
-					{
-						$("#btnDaemonControl").show();
-						ret = status.childNodes[0].textContent;
-						if(ret == 'true')
-						{
-							SetButtonState('#btnDaemonControl','enable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD").attr('value', 'Stop FPPD');
-							$('#daemonStatus').html("FPPD is running.");
-						}
-						else if (ret == 'updating')
-						{
-							SetButtonState('#btnDaemonControl','disable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
-							$('#daemonStatus').html("FPP is currently updating.");
-						}
-						else
-						{
-							SetButtonState('#btnDaemonControl','enable');
-                            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
-							$('#daemonStatus').html("FPPD is stopped.");
-							$('.schedulerStartTime').hide();
-							$('.schedulerEndTime').hide();
-						}
-					}
-				}
-			};
-			xmlhttp.send();
+        var ret = 'false';
+        if (lastStatusJSON) {
+            if (("fppd" in lastStatusJSON) && (lastStatusJSON.fppd == 'running') ) {
+                ret = 'true';
+            }
+            if (("status_name" in lastStatusJSON) && (lastStatusJSON.status_name == 'updating') ) {
+                ret = 'updating';
+            }            
+        }
+
+        if(ret == 'true')
+        {
+            SetButtonState('#btnDaemonControl','enable');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD").attr('value', 'Stop FPPD');
+            $('#daemonStatus').html("FPPD is running.");
+        }
+        else if (ret == 'updating')
+        {
+            SetButtonState('#btnDaemonControl','disable');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
+            $('#daemonStatus').html("FPP is currently updating.");
+        }
+        else
+        {
+            SetButtonState('#btnDaemonControl','enable');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
+            $('#daemonStatus').html("FPPD is stopped.");
+            $('.schedulerStartTime').hide();
+            $('.schedulerEndTime').hide();
+        }
 	}
 
 	function SetupUIForMode(fppMode)
@@ -3684,7 +3675,7 @@ function GetUniverseBytesReceived() {
 	}
 
 function SetSetting(key, value, restart, reboot) {
-    console.log("api/settings/", key);
+    //console.log("api/settings/", key);
     $.ajax({
         url: "api/settings/" + key,
         data: "" + value,
@@ -3846,19 +3837,22 @@ function RestartFPPD() {
             retry_poll_interval_arr['restartFPPD'] = setInterval(function () {
                 poll_result = false;
                 if (retries < retries_max) {
-                    // console.log("Polling @ " + retries);
-                    //poll for FPPDRunning as it's the simplest command to run and doesn't put any extra processing load on the backend
+                    //console.log("Polling @ " + retries);
                     $.ajax({
-                            url: "fppxml.php?command=isFPPDrunning",
+                            url: "api/system/status",
                             timeout: 1000,
                             async: true,
-                            success: function () {
-                                poll_result = true;
-                                //FPP is up then
-                                clearInterval(retry_poll_interval_arr['restartFPPD']);
-                                //run original code for success
-                                $.jGrowl('FPPD Restarted',{themeState:'success'});
-                                ClearRestartFlag();
+                            success: function (data) {
+                                if (("fppd" in data) && data.fppd == 'running') {
+                                    poll_result = true;
+                                    //FPP is up then
+                                    clearInterval(retry_poll_interval_arr['restartFPPD']);
+                                    //run original code for success
+                                    $.jGrowl('FPPD Restarted',{themeState:'success'});
+                                    ClearRestartFlag();
+                                } else {
+                                    retries++;
+                                }
                             }
                     }).fail(
                         function () {
@@ -4578,7 +4572,7 @@ function ViewFile(dir, file){
 }
 function TailFile(dir, file, lines) {
     var url = "api/file/" + dir + "/" + encodeURIComponent(file) + "?tail=" + lines;
-    console.log(url);
+    //console.log(url);
 	ViewFileImpl(url, file);
 }
 function ViewFileImpl(url, file)
