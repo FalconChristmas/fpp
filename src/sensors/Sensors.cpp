@@ -216,7 +216,7 @@ public:
             //to avoid any buffering that ifstream does
             if (FileExists(path)) {
                 file = open(path, O_RDONLY);
-                errcount++;
+                errcount = errcount + 1;
             }
         }
 
