@@ -143,16 +143,38 @@ include 'menu.inc'; ?>
 <div id="commandPresets" class="settings">
 
 		<div>
-            <table>
-                <tr>
-                    <td width='70px'><input class="buttons btn-success" type='button' value="Save" onClick='SaveCommands();' /></td>
-                    <td width="70px"><input class="buttons" type="button" value = "Add" onClick="AddCommand();"/></td>
-                    <td width="40px">&nbsp;</td>
-                    <td width="70px"><input class="buttons disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();"/></td>
-                    <td width="70px"><input class="buttons disableButtons deleteCmdButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblCommandsBody'); DisableButtonClass('deleteCmdButton');"/></td>
-                    <td width="70px"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/></td><td>&nbsp;&nbsp;</td>
-                </tr>
-            </table>
+
+            <div class="row tablePageHeader tablePageHeader">
+                <div class="col">
+                    <div class="form-actions form-actions-secondary">
+
+                        <div class='smallonly'>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary" type="button" id="commandPresetsMobileActions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div class="dropdown-menu" aria-labelledby="commandPresetsMobileActions">
+                                    <input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/>
+                                    <button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteCmdButton');">Delete</button>
+                                    <button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class='largeonly'><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/></div>
+                    </div>
+
+                </div>
+                <div class="col-auto ml-auto">
+                    <div class="form-actions form-actions-primary">
+
+                        <div class='largeonly'><button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteCmdButton');">Delete</button></div>
+                        <div class='largeonly'><button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button></div>
+                        <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddCommand();"><i class="fas fa-plus"></i> Add</button></div>
+                        <div><button class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveCommands();' >Save</button></div>
+                    </div>
+                </div>
+            </div>
+            <hr>
             <div class='fppTableWrapper'>
                 <div class='fppTableContents' role="region" aria-labelledby="tblUniversesHead" tabindex="0">
                     <table class='fppTableRowTemplate template-tblCommandsBody'>

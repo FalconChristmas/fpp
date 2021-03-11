@@ -672,7 +672,7 @@ border-top-color: transparent;
 	display: flex;
 }
 #playerTime{
-	margin-top: 1.4em;
+	margin-top: 0.65em;
 }
 #playerTime .labelValue, #playerTime .labelHeading, .tblPlaylistHeaderDetails .labelValue, .tblPlaylistHeaderDetails .labelHeading{
 	padding:15px;
@@ -1840,6 +1840,13 @@ input[type=search].tablesorter-filter:disabled{
 	.pageContent{
 		padding: 1.5em 1.5em;
 	}
+
+	.tblScheduleHeadStopType{
+		width: 132px;
+	}
+	.tblScheduleHeadRepeat{
+		width: 120px;
+	}
 }
 
 @media (min-width:769px) and (max-width:1360px){
@@ -1864,6 +1871,7 @@ input[type=search].tablesorter-filter:disabled{
 		max-width: 97%;
 	}
 }
+
 @media (max-width:1360px){
 
 	#playerControls .buttons, #playerControls .disableButtons, #footer .buttons {
@@ -1878,9 +1886,6 @@ input[type=search].tablesorter-filter:disabled{
 	}
 	.tblScheduleHeadRepeat{
 		width: 108px;
-	}
-	.tblScheduleHeadStopType{
-		width: 132px;
 	}
 	.tblScheduleHeadSchType{
 		width: 82px;
