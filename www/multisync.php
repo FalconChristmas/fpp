@@ -1324,7 +1324,7 @@ function multiActionChanged() {
 	<?php 
     $activeParentMenuItem = 'status';
     include 'menu.inc'; ?>
-    <div class="container">
+    <div class="mainContainer">
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">
             
@@ -1364,26 +1364,30 @@ function multiActionChanged() {
         <?
         if ($advancedView) {
         ?>
-        <div class="form-actions multisyncAdvancedFormActions">
-            <div >
-                <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
+        <div class="multisyncAdvancedFormActions row">
+            <div class="form-actions col-md">
+            <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
+            <i class="fas fa-cog"></i> View Options</button><button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
+                
             </div>
-            <div  class="form-actions multisyncBulkActions">
-                <b>Action for selected systems:</b>
-                <select id='multiAction' onChange='multiActionChanged();'>
-                    <option value='noop'>---- Select an Action ----</option>
-                    <option value='upgradeFPP'>Upgrade FPP</option>
-                    <option value='restartFPPD'>Restart FPPD</option>
-                    <option value='reboot'>Reboot</option>
-                    <option value='shutdown'>Shutdown</option>
-                    <option value='copyFiles'>Copy Files</option>
-                    <option value='standaloneMode'>Set to Standalone</option>
-                    <option value='masterMode'>Set to Master</option>
-                    <option value='remoteMode'>Set to Remote</option>
-                    <option value='bridgeMode'>Set to Bridge</option>
-                </select>
-                <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
-                <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
+            <div class="col-md-auto">
+                <div class="form-actions multisyncBulkActions  ">
+                    <b>Action for selected systems:</b>
+                    <select id='multiAction' onChange='multiActionChanged();'>
+                        <option value='noop'>---- Select an Action ----</option>
+                        <option value='upgradeFPP'>Upgrade FPP</option>
+                        <option value='restartFPPD'>Restart FPPD</option>
+                        <option value='reboot'>Reboot</option>
+                        <option value='shutdown'>Shutdown</option>
+                        <option value='copyFiles'>Copy Files</option>
+                        <option value='standaloneMode'>Set to Standalone</option>
+                        <option value='masterMode'>Set to Master</option>
+                        <option value='remoteMode'>Set to Remote</option>
+                        <option value='bridgeMode'>Set to Bridge</option>
+                    </select>
+                    <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
+                    <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
+                </div>
             </div>
         </div>
         <div style='text-align: left;'>
@@ -1397,15 +1401,9 @@ function multiActionChanged() {
 
             <div id='exitWarning' class='alert alert danger' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b></div>
   
-  <hr>
         <? } ?>
-        <br>
-        <div>
-            <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
-            <i class="fas fa-cog"></i> View Options</button>
-        </div>
-  
-        <br>
+
+   
 
         <div id="fppSystemsUiSettingsDrawer" class="collapse">
             <div id="multisyncViewOptions" class="fppSystemsUiSettings card ">

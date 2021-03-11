@@ -133,7 +133,7 @@
     background: radial-gradient(circle, $blue 35%, rgba($blue,0) 35%);
 
 }
-input[type=text], input[type=number], input[type=password], input[type=email], input[type=date],select, .tablesorter input{
+input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], input[type=search],select, .tablesorter input{
     @include border-radius($input-border-radius, 0);
 
     @include box-shadow($input-box-shadow);
@@ -198,9 +198,6 @@ input[type=date]{
     }
 }
 
-.tablesorter input{
-    @extend .form-control;
-}
 textarea{
     resize: both;
 }
@@ -477,7 +474,7 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
 }
 .backdrop{
     @include backdrop;
-    padding:1.5em 2.1em;
+    padding:1.1em 1.25em;
 }
 .dropdown-menu.show{
     box-shadow: 0px 5px 10px rgba(0,0,0,0.4);
@@ -806,7 +803,12 @@ $fppTableExtraPadding:1.65em;
 .modal-dialog{
     margin-top:70px;
 }
-
+.modal-xxl{
+    max-width: 1800px;
+}
+.fppDialog .modal-body{
+    overflow: auto;
+}
 #settingsManagerTabsContent #ClockDate, #settingsManagerTabsContent #ClockTime {
     width: 8em;
 }

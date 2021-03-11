@@ -180,6 +180,9 @@ $(function() {
                     if(settings.width>800){
                         modalDialogSizeClass='modal-xl';
                     }
+                    if(settings.width>1100){
+                        modalDialogSizeClass='modal-xxl';
+                    }
                 }
 
                 var modalDialogClass = "modal-dialog "+modalDialogSizeClass;
@@ -204,7 +207,7 @@ $(function() {
                     settings.close.call(self);
                 })
             }
-            $(this).modal(modalOptions);
+            $(this).modal(modalOptions).addClass('fppDialog');
         });
         return this;
     };
@@ -3294,6 +3297,7 @@ function updateVolumeUI(Volume) {
 				$('#schedulerStatus').html("Idle");
 				$('.schedulerStartTime').hide();
 				$('.schedulerEndTime').hide();
+                $('body').removeClass('schedulderStatusPlaying');
 
 				// Enable Play
 				SetButtonState('#btnPlay','enable');
@@ -3377,7 +3381,7 @@ if (1) {
 					if (jsonStatus.scheduler.status == "playing") {
 						var pl = jsonStatus.scheduler.currentPlaylist;
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b>");
-
+                        $('body').addClass('schedulderStatusPlaying');
 						$('.schedulerStartTime').show();
 						$('#schedulerStartTime').html(pl.actualStartTimeStr.replace(' @ ', '<br>'));
 						$('.schedulerEndTime').show();
@@ -3394,15 +3398,18 @@ if (1) {
 					} else if (jsonStatus.scheduler.status == "manual") {
 						var pl = jsonStatus.scheduler.currentPlaylist;
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b> (manually started)");
+                        $('body').addClass('schedulderStatusPlaying');
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
 					} else {
 						$('#schedulerStatus').html("Idle");
+                        $('body').removeClass('schedulderStatusPlaying');
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
 					}
 				} else {
 					$('#schedulerStatus').html("Idle");
+                    $('body').removeClass('schedulderStatusPlaying');
 					$('#schedulerStartTime').html("N/A");
 					$('#schedulerEndTime').html("N/A");
 				}
@@ -4584,7 +4591,7 @@ function ViewFileImpl(url, file)
 			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 	});
 
-	$('#fileViewer').fppDialog({  width: 800, title: "File Viewer: " + file });
+	$('#fileViewer').fppDialog({  width: 1800, title: "File Viewer: " + file, height:'80vh' });
 	$('#fileViewer').fppDialog( "moveToTop" );
 }
 

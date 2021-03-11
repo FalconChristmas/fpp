@@ -3872,7 +3872,7 @@ template {
   .offset-xxxxxl-11 {
     margin-left: 91.66667%; } }
 
-.form-control, .tablesorter input, input[type=checkbox], .form-inline input[type=checkbox], #settingsManagerTabsContent input[type=text] {
+.form-control, input[type=checkbox], .form-inline input[type=checkbox], #settingsManagerTabsContent input[type=text] {
   display: block;
   width: 100%;
   height: calc(1.5em + 0.66rem + 2px);
@@ -3887,44 +3887,41 @@ template {
   border-radius: 0.25rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .form-control, .tablesorter input, input[type=checkbox], .form-inline input[type=checkbox], #settingsManagerTabsContent input[type=text] {
+    .form-control, input[type=checkbox], .form-inline input[type=checkbox], #settingsManagerTabsContent input[type=text] {
       transition: none; } }
-  .form-control::-ms-expand, .tablesorter input::-ms-expand, input[type=checkbox]::-ms-expand, .form-inline input[type=checkbox]::-ms-expand, #settingsManagerTabsContent input[type=text]::-ms-expand {
+  .form-control::-ms-expand, input[type=checkbox]::-ms-expand, .form-inline input[type=checkbox]::-ms-expand, #settingsManagerTabsContent input[type=text]::-ms-expand {
     background-color: transparent;
     border: 0; }
-  .form-control:-moz-focusring, .tablesorter input:-moz-focusring, input:-moz-focusring[type=checkbox], #settingsManagerTabsContent input:-moz-focusring[type=text] {
+  .form-control:-moz-focusring, input:-moz-focusring[type=checkbox], #settingsManagerTabsContent input:-moz-focusring[type=text] {
     color: transparent;
     text-shadow: 0 0 0 #495057; }
-  .form-control:focus, .tablesorter input:focus, input:focus[type=checkbox], #settingsManagerTabsContent input:focus[type=text] {
+  .form-control:focus, input:focus[type=checkbox], #settingsManagerTabsContent input:focus[type=text] {
     color: #495057;
     background-color: #fff;
     border-color: #4c4c6a;
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
-  .form-control::-moz-placeholder, .tablesorter input::-moz-placeholder, input[type=checkbox]::-moz-placeholder, .form-inline input[type=checkbox]::-moz-placeholder, #settingsManagerTabsContent input[type=text]::-moz-placeholder {
+  .form-control::-moz-placeholder, input[type=checkbox]::-moz-placeholder, .form-inline input[type=checkbox]::-moz-placeholder, #settingsManagerTabsContent input[type=text]::-moz-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder, .form-inline input[type=checkbox]:-ms-input-placeholder, #settingsManagerTabsContent input[type=text]:-ms-input-placeholder {
+  .form-control:-ms-input-placeholder, input[type=checkbox]:-ms-input-placeholder, .form-inline input[type=checkbox]:-ms-input-placeholder, #settingsManagerTabsContent input[type=text]:-ms-input-placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control::placeholder, .tablesorter input::placeholder, input[type=checkbox]::placeholder, .form-inline input[type=checkbox]::placeholder, #settingsManagerTabsContent input[type=text]::placeholder {
+  .form-control::placeholder, input[type=checkbox]::placeholder, .form-inline input[type=checkbox]::placeholder, #settingsManagerTabsContent input[type=text]::placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:disabled, .tablesorter input:disabled, input:disabled[type=checkbox], #settingsManagerTabsContent input:disabled[type=text], .form-control[readonly], .tablesorter input[readonly], input[readonly][type=checkbox], #settingsManagerTabsContent input[readonly][type=text] {
+  .form-control:disabled, input:disabled[type=checkbox], #settingsManagerTabsContent input:disabled[type=text], .form-control[readonly], input[readonly][type=checkbox], #settingsManagerTabsContent input[readonly][type=text] {
     background-color: #e3ebec;
     opacity: 1; }
 
-input[type="date"].form-control, .tablesorter input[type="date"], input[type="date"][type=checkbox], #settingsManagerTabsContent input[type="date"][type=text],
+input[type="date"].form-control, input[type="date"][type=checkbox], #settingsManagerTabsContent input[type="date"][type=text],
 input[type="time"].form-control,
-.tablesorter input[type="time"],
 input[type="time"][type=checkbox],
 #settingsManagerTabsContent input[type="time"][type=text],
 input[type="datetime-local"].form-control,
-.tablesorter input[type="datetime-local"],
 input[type="datetime-local"][type=checkbox],
 #settingsManagerTabsContent input[type="datetime-local"][type=text],
 input[type="month"].form-control,
-.tablesorter input[type="month"],
 input[type="month"][type=checkbox],
 #settingsManagerTabsContent input[type="month"][type=text] {
   -webkit-appearance: none;
@@ -4069,14 +4066,14 @@ textarea.form-control {
 .is-valid ~ .valid-tooltip {
   display: block; }
 
-.was-validated .form-control:valid, .was-validated .tablesorter input:valid, .tablesorter .was-validated input:valid, .was-validated input:valid[type=checkbox], .was-validated #settingsManagerTabsContent input:valid[type=text], #settingsManagerTabsContent .was-validated input:valid[type=text], .form-control.is-valid, .tablesorter input.is-valid, input.is-valid[type=checkbox], #settingsManagerTabsContent input.is-valid[type=text] {
+.was-validated .form-control:valid, .was-validated input:valid[type=checkbox], .was-validated #settingsManagerTabsContent input:valid[type=text], #settingsManagerTabsContent .was-validated input:valid[type=text], .form-control.is-valid, input.is-valid[type=checkbox], #settingsManagerTabsContent input.is-valid[type=text] {
   border-color: #56B760;
   padding-right: calc(1.5em + 0.66rem);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2356B760' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.165rem) center;
   background-size: calc(0.75em + 0.33rem) calc(0.75em + 0.33rem); }
-  .was-validated .form-control:valid:focus, .was-validated .tablesorter input:valid:focus, .tablesorter .was-validated input:valid:focus, .was-validated input:valid:focus[type=checkbox], .was-validated #settingsManagerTabsContent input:valid:focus[type=text], #settingsManagerTabsContent .was-validated input:valid:focus[type=text], .form-control.is-valid:focus, .tablesorter input.is-valid:focus, input.is-valid:focus[type=checkbox], #settingsManagerTabsContent input.is-valid:focus[type=text] {
+  .was-validated .form-control:valid:focus, .was-validated input:valid:focus[type=checkbox], .was-validated #settingsManagerTabsContent input:valid:focus[type=text], #settingsManagerTabsContent .was-validated input:valid:focus[type=text], .form-control.is-valid:focus, input.is-valid:focus[type=checkbox], #settingsManagerTabsContent input.is-valid:focus[type=text] {
     border-color: #56B760;
     box-shadow: 0 0 0 0.25rem rgba(86, 183, 96, 0.25); }
 
@@ -4153,14 +4150,14 @@ textarea.form-control {
 .is-invalid ~ .invalid-tooltip {
   display: block; }
 
-.was-validated .form-control:invalid, .was-validated .tablesorter input:invalid, .tablesorter .was-validated input:invalid, .was-validated input:invalid[type=checkbox], .was-validated #settingsManagerTabsContent input:invalid[type=text], #settingsManagerTabsContent .was-validated input:invalid[type=text], .form-control.is-invalid, .tablesorter input.is-invalid, input.is-invalid[type=checkbox], #settingsManagerTabsContent input.is-invalid[type=text] {
+.was-validated .form-control:invalid, .was-validated input:invalid[type=checkbox], .was-validated #settingsManagerTabsContent input:invalid[type=text], #settingsManagerTabsContent .was-validated input:invalid[type=text], .form-control.is-invalid, input.is-invalid[type=checkbox], #settingsManagerTabsContent input.is-invalid[type=text] {
   border-color: #F63939;
   padding-right: calc(1.5em + 0.66rem);
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23F63939' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23F63939' stroke='none'/%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.165rem) center;
   background-size: calc(0.75em + 0.33rem) calc(0.75em + 0.33rem); }
-  .was-validated .form-control:invalid:focus, .was-validated .tablesorter input:invalid:focus, .tablesorter .was-validated input:invalid:focus, .was-validated input:invalid:focus[type=checkbox], .was-validated #settingsManagerTabsContent input:invalid:focus[type=text], #settingsManagerTabsContent .was-validated input:invalid:focus[type=text], .form-control.is-invalid:focus, .tablesorter input.is-invalid:focus, input.is-invalid:focus[type=checkbox], #settingsManagerTabsContent input.is-invalid:focus[type=text] {
+  .was-validated .form-control:invalid:focus, .was-validated input:invalid:focus[type=checkbox], .was-validated #settingsManagerTabsContent input:invalid:focus[type=text], #settingsManagerTabsContent .was-validated input:invalid:focus[type=text], .form-control.is-invalid:focus, input.is-invalid:focus[type=checkbox], #settingsManagerTabsContent input.is-invalid:focus[type=text] {
     border-color: #F63939;
     box-shadow: 0 0 0 0.25rem rgba(246, 57, 57, 0.25); }
 
@@ -4224,7 +4221,7 @@ textarea.form-control {
       flex-flow: row wrap;
       align-items: center;
       margin-bottom: 0; }
-    .form-inline .form-control, .form-inline .tablesorter input, .tablesorter .form-inline input, .form-inline input[type=checkbox], .form-inline #settingsManagerTabsContent input[type=text], #settingsManagerTabsContent .form-inline input[type=text] {
+    .form-inline .form-control, .form-inline input[type=checkbox], .form-inline #settingsManagerTabsContent input[type=text], #settingsManagerTabsContent .form-inline input[type=text] {
       display: inline-block;
       width: auto;
       vertical-align: middle; }
@@ -7595,7 +7592,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   flex-wrap: wrap;
   align-items: stretch;
   width: 100%; }
-  .input-group > .form-control, .tablesorter .input-group > input, .input-group > input[type=checkbox], .form-inline .input-group > input[type=checkbox], #settingsManagerTabsContent .input-group > input[type=text],
+  .input-group > .form-control, .input-group > input[type=checkbox], .form-inline .input-group > input[type=checkbox], #settingsManagerTabsContent .input-group > input[type=text],
   .input-group > .form-control-plaintext,
   .input-group > .custom-select,
   .input-group > .custom-file {
@@ -7604,46 +7601,41 @@ a.text-pleasant:hover, a.text-pleasant:focus {
     width: 1%;
     min-width: 0;
     margin-bottom: 0; }
-    .input-group > .form-control + .form-control, .tablesorter .input-group > input + .form-control, .input-group > input[type=checkbox] + .form-control, .form-inline .input-group > input[type=checkbox] + .form-control, #settingsManagerTabsContent .input-group > input[type=text] + .form-control, .tablesorter .input-group > .form-control + input, .tablesorter .input-group > input + input, .tablesorter .input-group > input[type=checkbox] + input, .tablesorter .form-inline .input-group > input[type=checkbox] + input, #settingsManagerTabsContent .tablesorter .input-group > input[type=text] + input, .tablesorter #settingsManagerTabsContent .input-group > input[type=text] + input, .input-group > .form-control + input[type=checkbox], .tablesorter .input-group > input + input[type=checkbox], .input-group > input[type=checkbox] + input[type=checkbox], #settingsManagerTabsContent .input-group > input[type=text] + input[type=checkbox], .form-inline .input-group > .form-control + input[type=checkbox], .tablesorter .form-inline .input-group > input + input[type=checkbox], .form-inline .input-group > input[type=checkbox] + input[type=checkbox], #settingsManagerTabsContent .form-inline .input-group > input[type=text] + input[type=checkbox], #settingsManagerTabsContent .input-group > .form-control + input[type=text], .tablesorter #settingsManagerTabsContent .input-group > input + input[type=text], #settingsManagerTabsContent .tablesorter .input-group > input + input[type=text], #settingsManagerTabsContent .input-group > input[type=checkbox] + input[type=text], #settingsManagerTabsContent .form-inline .input-group > input[type=checkbox] + input[type=text], #settingsManagerTabsContent .input-group > input[type=text] + input[type=text],
+    .input-group > .form-control + .form-control, .input-group > input[type=checkbox] + .form-control, .form-inline .input-group > input[type=checkbox] + .form-control, #settingsManagerTabsContent .input-group > input[type=text] + .form-control, .input-group > .form-control + input[type=checkbox], .input-group > input[type=checkbox] + input[type=checkbox], #settingsManagerTabsContent .input-group > input[type=text] + input[type=checkbox], .form-inline .input-group > .form-control + input[type=checkbox], .form-inline .input-group > input[type=checkbox] + input[type=checkbox], #settingsManagerTabsContent .form-inline .input-group > input[type=text] + input[type=checkbox], #settingsManagerTabsContent .input-group > .form-control + input[type=text], #settingsManagerTabsContent .input-group > input[type=checkbox] + input[type=text], #settingsManagerTabsContent .form-inline .input-group > input[type=checkbox] + input[type=text], #settingsManagerTabsContent .input-group > input[type=text] + input[type=text],
     .input-group > .form-control + .custom-select,
-    .tablesorter .input-group > input + .custom-select,
     .input-group > input[type=checkbox] + .custom-select,
     .form-inline .input-group > input[type=checkbox] + .custom-select,
     #settingsManagerTabsContent .input-group > input[type=text] + .custom-select,
     .input-group > .form-control + .custom-file,
-    .tablesorter .input-group > input + .custom-file,
     .input-group > input[type=checkbox] + .custom-file,
     .form-inline .input-group > input[type=checkbox] + .custom-file,
     #settingsManagerTabsContent .input-group > input[type=text] + .custom-file,
     .input-group > .form-control-plaintext + .form-control,
-    .tablesorter .input-group > .form-control-plaintext + input,
     .input-group > .form-control-plaintext + input[type=checkbox],
     .form-inline .input-group > .form-control-plaintext + input[type=checkbox],
     #settingsManagerTabsContent .input-group > .form-control-plaintext + input[type=text],
     .input-group > .form-control-plaintext + .custom-select,
     .input-group > .form-control-plaintext + .custom-file,
     .input-group > .custom-select + .form-control,
-    .tablesorter .input-group > .custom-select + input,
     .input-group > .custom-select + input[type=checkbox],
     .form-inline .input-group > .custom-select + input[type=checkbox],
     #settingsManagerTabsContent .input-group > .custom-select + input[type=text],
     .input-group > .custom-select + .custom-select,
     .input-group > .custom-select + .custom-file,
     .input-group > .custom-file + .form-control,
-    .tablesorter .input-group > .custom-file + input,
     .input-group > .custom-file + input[type=checkbox],
     .form-inline .input-group > .custom-file + input[type=checkbox],
     #settingsManagerTabsContent .input-group > .custom-file + input[type=text],
     .input-group > .custom-file + .custom-select,
     .input-group > .custom-file + .custom-file {
       margin-left: -1px; }
-  .input-group > .form-control:focus, .tablesorter .input-group > input:focus, .input-group > input:focus[type=checkbox], .form-inline .input-group > input:focus[type=checkbox], #settingsManagerTabsContent .input-group > input:focus[type=text],
+  .input-group > .form-control:focus, .input-group > input:focus[type=checkbox], .form-inline .input-group > input:focus[type=checkbox], #settingsManagerTabsContent .input-group > input:focus[type=text],
   .input-group > .custom-select:focus,
   .input-group > .custom-file .custom-file-input:focus ~ .custom-file-label {
     z-index: 3; }
   .input-group > .custom-file .custom-file-input:focus {
     z-index: 4; }
-  .input-group > .form-control:not(:first-child), .tablesorter .input-group > input:not(:first-child), .input-group > input:not(:first-child)[type=checkbox], .form-inline .input-group > input:not(:first-child)[type=checkbox], #settingsManagerTabsContent .input-group > input:not(:first-child)[type=text],
+  .input-group > .form-control:not(:first-child), .input-group > input:not(:first-child)[type=checkbox], .form-inline .input-group > input:not(:first-child)[type=checkbox], #settingsManagerTabsContent .input-group > input:not(:first-child)[type=text],
   .input-group > .custom-select:not(:first-child) {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0; }
@@ -7654,12 +7646,12 @@ a.text-pleasant:hover, a.text-pleasant:focus {
     .input-group > .custom-file:not(:first-child) .custom-file-label {
       border-top-left-radius: 0;
       border-bottom-left-radius: 0; }
-  .input-group:not(.has-validation) > .form-control:not(:last-child), .tablesorter .input-group:not(.has-validation) > input:not(:last-child), .input-group:not(.has-validation) > input:not(:last-child)[type=checkbox], .form-inline .input-group:not(.has-validation) > input:not(:last-child)[type=checkbox], #settingsManagerTabsContent .input-group:not(.has-validation) > input:not(:last-child)[type=text],
+  .input-group:not(.has-validation) > .form-control:not(:last-child), .input-group:not(.has-validation) > input:not(:last-child)[type=checkbox], .form-inline .input-group:not(.has-validation) > input:not(:last-child)[type=checkbox], #settingsManagerTabsContent .input-group:not(.has-validation) > input:not(:last-child)[type=text],
   .input-group:not(.has-validation) > .custom-select:not(:last-child),
   .input-group:not(.has-validation) > .custom-file:not(:last-child) .custom-file-label::after {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0; }
-  .input-group.has-validation > .form-control:nth-last-child(n + 3), .tablesorter .input-group.has-validation > input:nth-last-child(n + 3), .input-group.has-validation > input:nth-last-child(n + 3)[type=checkbox], .form-inline .input-group.has-validation > input:nth-last-child(n + 3)[type=checkbox], #settingsManagerTabsContent .input-group.has-validation > input:nth-last-child(n + 3)[type=text],
+  .input-group.has-validation > .form-control:nth-last-child(n + 3), .input-group.has-validation > input:nth-last-child(n + 3)[type=checkbox], .form-inline .input-group.has-validation > input:nth-last-child(n + 3)[type=checkbox], #settingsManagerTabsContent .input-group.has-validation > input:nth-last-child(n + 3)[type=text],
   .input-group.has-validation > .custom-select:nth-last-child(n + 3),
   .input-group.has-validation > .custom-file:nth-last-child(n + 3) .custom-file-label::after {
     border-top-right-radius: 0;
@@ -7857,11 +7849,11 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   .input-group-text input[type="checkbox"] {
     margin-top: 0; }
 
-.input-group-lg > .form-control:not(textarea), .tablesorter .input-group-lg > input:not(textarea), .input-group-lg > input:not(textarea)[type=checkbox], .form-inline .input-group-lg > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-lg > input:not(textarea)[type=text],
+.input-group-lg > .form-control:not(textarea), .input-group-lg > input:not(textarea)[type=checkbox], .form-inline .input-group-lg > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-lg > input:not(textarea)[type=text],
 .input-group-lg > .custom-select {
   height: calc(2em + 0.7rem + 2px); }
 
-.input-group-lg > .form-control, .tablesorter .input-group-lg > input, .input-group-lg > input[type=checkbox], .form-inline .input-group-lg > input[type=checkbox], #settingsManagerTabsContent .input-group-lg > input[type=text],
+.input-group-lg > .form-control, .input-group-lg > input[type=checkbox], .form-inline .input-group-lg > input[type=checkbox], #settingsManagerTabsContent .input-group-lg > input[type=text],
 .input-group-lg > .custom-select,
 .input-group-lg > .input-group-prepend > .input-group-text,
 .input-group-lg > .input-group-append > .input-group-text,
@@ -7884,11 +7876,11 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   line-height: 2;
   border-radius: 0.3rem; }
 
-.input-group-sm > .form-control:not(textarea), .tablesorter .input-group-sm > input:not(textarea), .input-group-sm > input:not(textarea)[type=checkbox], .form-inline .input-group-sm > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-sm > input:not(textarea)[type=text],
+.input-group-sm > .form-control:not(textarea), .input-group-sm > input:not(textarea)[type=checkbox], .form-inline .input-group-sm > input:not(textarea)[type=checkbox], #settingsManagerTabsContent .input-group-sm > input:not(textarea)[type=text],
 .input-group-sm > .custom-select {
   height: calc(1.25em + 0.2rem + 2px); }
 
-.input-group-sm > .form-control, .tablesorter .input-group-sm > input, .input-group-sm > input[type=checkbox], .form-inline .input-group-sm > input[type=checkbox], #settingsManagerTabsContent .input-group-sm > input[type=text],
+.input-group-sm > .form-control, .input-group-sm > input[type=checkbox], .form-inline .input-group-sm > input[type=checkbox], #settingsManagerTabsContent .input-group-sm > input[type=text],
 .input-group-sm > .custom-select,
 .input-group-sm > .input-group-prepend > .input-group-text,
 .input-group-sm > .input-group-append > .input-group-text,
@@ -9177,7 +9169,7 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
 .custom-radio .custom-control-input:checked ~ .custom-control-label::after {
   background: radial-gradient(circle, #6B95EC 35%, rgba(107, 149, 236, 0) 35%); }
 
-input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input {
+input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], input[type=search], select, .tablesorter input {
   border-radius: 0.25rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
   border: 1px solid #D2D2D2;
@@ -9189,33 +9181,33 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
   font-size: 0.95rem;
   vertical-align: middle; }
   @media (prefers-reduced-motion: reduce) {
-    input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], select, .tablesorter input {
+    input[type=text], input[type=number], input[type=password], input[type=email], input[type=date], input[type=search], select, .tablesorter input {
       transition: none; } }
-  input[type=text]::-ms-expand, input[type=number]::-ms-expand, input[type=password]::-ms-expand, input[type=email]::-ms-expand, input[type=date]::-ms-expand, select::-ms-expand, .tablesorter input::-ms-expand {
+  input[type=text]::-ms-expand, input[type=number]::-ms-expand, input[type=password]::-ms-expand, input[type=email]::-ms-expand, input[type=date]::-ms-expand, input[type=search]::-ms-expand, select::-ms-expand, .tablesorter input::-ms-expand {
     background-color: transparent;
     border: 0; }
-  input[type=text]:focus, input[type=number]:focus, input[type=password]:focus, input[type=email]:focus, input[type=date]:focus, select:focus, .tablesorter input:focus {
+  input[type=text]:focus, input[type=number]:focus, input[type=password]:focus, input[type=email]:focus, input[type=date]:focus, input[type=search]:focus, select:focus, .tablesorter input:focus {
     color: #495057;
     background-color: #fff;
     border-color: #4c4c6a;
     outline: 0;
     box-shadow: 0 0 0 0.25rem rgba(23, 23, 32, 0.25); }
-  input[type=text]::-moz-placeholder, input[type=number]::-moz-placeholder, input[type=password]::-moz-placeholder, input[type=email]::-moz-placeholder, input[type=date]::-moz-placeholder, select::-moz-placeholder, .tablesorter input::-moz-placeholder {
+  input[type=text]::-moz-placeholder, input[type=number]::-moz-placeholder, input[type=password]::-moz-placeholder, input[type=email]::-moz-placeholder, input[type=date]::-moz-placeholder, input[type=search]::-moz-placeholder, select::-moz-placeholder, .tablesorter input::-moz-placeholder {
     color: #6c757d;
     opacity: 1; }
-  input[type=text]:-ms-input-placeholder, input[type=number]:-ms-input-placeholder, input[type=password]:-ms-input-placeholder, input[type=email]:-ms-input-placeholder, input[type=date]:-ms-input-placeholder, select:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder {
+  input[type=text]:-ms-input-placeholder, input[type=number]:-ms-input-placeholder, input[type=password]:-ms-input-placeholder, input[type=email]:-ms-input-placeholder, input[type=date]:-ms-input-placeholder, input[type=search]:-ms-input-placeholder, select:-ms-input-placeholder, .tablesorter input:-ms-input-placeholder {
     color: #6c757d;
     opacity: 1; }
-  input[type=text]::placeholder, input[type=number]::placeholder, input[type=password]::placeholder, input[type=email]::placeholder, input[type=date]::placeholder, select::placeholder, .tablesorter input::placeholder {
+  input[type=text]::placeholder, input[type=number]::placeholder, input[type=password]::placeholder, input[type=email]::placeholder, input[type=date]::placeholder, input[type=search]::placeholder, select::placeholder, .tablesorter input::placeholder {
     color: #6c757d;
     opacity: 1; }
-  body.has-touch input[type=text], body.has-touch input[type=number], body.has-touch input[type=password], body.has-touch input[type=email], body.has-touch input[type=date], body.has-touch select, body.has-touch .tablesorter input {
+  body.has-touch input[type=text], body.has-touch input[type=number], body.has-touch input[type=password], body.has-touch input[type=email], body.has-touch input[type=date], body.has-touch input[type=search], body.has-touch select, body.has-touch .tablesorter input {
     font-size: 16px; }
-  .fppTableContents input[type=text], .fppTableContents input[type=number], .fppTableContents input[type=password], .fppTableContents input[type=email], .fppTableContents input[type=date], .fppTableContents select, .fppTableContents .tablesorter input {
+  .fppTableContents input[type=text], .fppTableContents input[type=number], .fppTableContents input[type=password], .fppTableContents input[type=email], .fppTableContents input[type=date], .fppTableContents input[type=search], .fppTableContents select, .fppTableContents .tablesorter input {
     font-family: Arial, Helvetica, sans-serif;
     padding-top: 0.1rem;
     padding-bottom: 0.1rem; }
-    body.has-touch .fppTableContents input[type=text], body.has-touch .fppTableContents input[type=number], body.has-touch .fppTableContents input[type=password], body.has-touch .fppTableContents input[type=email], body.has-touch .fppTableContents input[type=date], body.has-touch .fppTableContents select, body.has-touch .fppTableContents .tablesorter input {
+    body.has-touch .fppTableContents input[type=text], body.has-touch .fppTableContents input[type=number], body.has-touch .fppTableContents input[type=password], body.has-touch .fppTableContents input[type=email], body.has-touch .fppTableContents input[type=date], body.has-touch .fppTableContents input[type=search], body.has-touch .fppTableContents select, body.has-touch .fppTableContents .tablesorter input {
       padding-top: 0.33rem;
       padding-bottom: 0.33rem; }
 
@@ -9259,10 +9251,10 @@ input[type=checkbox], .form-inline input[type=checkbox] {
   font-size: 0.95rem;
   vertical-align: middle; }
   .fppTableContents input[type=checkbox], .fppTableContents .form-inline input[type=checkbox] {
-    width: 27px;
-    height: 27px; }
+    width: 24px;
+    height: 24px; }
     .fppTableContents input[type=checkbox]:checked, .fppTableContents .form-inline input[type=checkbox]:checked {
-      background-size: 20.25px; }
+      background-size: 18px; }
     body.has-touch .fppTableContents input[type=checkbox], body.has-touch .fppTableContents .form-inline input[type=checkbox] {
       width: 33px;
       height: 33px; }
@@ -9470,7 +9462,7 @@ input[type=checkbox]:checked {
 .form-group.flow label {
   display: block; }
 
-.form-group.flow .form-control, .form-group.flow .tablesorter input, .tablesorter .form-group.flow input, .form-group.flow input[type=checkbox], .form-group.flow #settingsManagerTabsContent input[type=text], #settingsManagerTabsContent .form-group.flow input[type=text] {
+.form-group.flow .form-control, .form-group.flow input[type=checkbox], .form-group.flow #settingsManagerTabsContent input[type=text], #settingsManagerTabsContent .form-group.flow input[type=text] {
   display: inline-block;
   width: auto; }
 
@@ -9510,7 +9502,7 @@ input[type=checkbox]:checked {
 .backdrop, .backdrop-dark, .backdrop-success, .backdrop-disabled {
   background-color: #F5F5F5;
   border-radius: 12px;
-  padding: 1.5em 2.1em; }
+  padding: 1.1em 1.25em; }
   .backdrop .backdrop, .backdrop-dark .backdrop, .backdrop-success .backdrop, .backdrop-disabled .backdrop, .backdrop .backdrop-dark, .backdrop-dark .backdrop-dark, .backdrop-success .backdrop-dark, .backdrop-disabled .backdrop-dark, .backdrop .backdrop-success, .backdrop-dark .backdrop-success, .backdrop-success .backdrop-success, .backdrop-disabled .backdrop-success, .backdrop .backdrop-disabled, .backdrop-dark .backdrop-disabled, .backdrop-success .backdrop-disabled, .backdrop-disabled .backdrop-disabled {
     border-radius: 8px; }
 
@@ -9777,6 +9769,12 @@ table.settingsTable div.th {
 
 .modal-dialog {
   margin-top: 70px; }
+
+.modal-xxl {
+  max-width: 1800px; }
+
+.fppDialog .modal-body {
+  overflow: auto; }
 
 #settingsManagerTabsContent #ClockDate, #settingsManagerTabsContent #ClockTime {
   width: 8em; }
