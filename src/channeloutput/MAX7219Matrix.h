@@ -47,6 +47,7 @@ class MAX7219MatrixOutput : public ChannelOutputBase {
 	void WriteCommand(uint8_t cmd, uint8_t value);
 
 	int m_panels;
+	int m_channelsPerPixel;
 	int m_pinCS;
     
     const PinCapabilities *m_csPin;

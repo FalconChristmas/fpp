@@ -558,7 +558,7 @@ function MAX7219MatrixConfig(config) {
 	result += "Panels: <input type=text class='panels' size=2 maxlength=2 value='" + config.panels + "' onChange='MAX7219MatrixChanged(this);'> ";
 	result += "Channels Per Pixel: <select class='channelsPerPixel' onChange='MAX7219MatrixChanged(this);'>";
 	result += "<option value='1'>1</option>";
-//	result += "<option value='3'";
+	result += "<option value='3'";
 	if (config.channelsPerPixel == 3)
 		result += " selected";
 	result += ">3</option></select>";

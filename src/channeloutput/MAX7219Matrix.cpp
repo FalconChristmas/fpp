@@ -66,7 +66,11 @@ extern "C" {
  */
 MAX7219MatrixOutput::MAX7219MatrixOutput(unsigned int startChannel, unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
-    m_pinCS(8), m_csPin(nullptr), m_spi(nullptr)
+    m_panels(1),
+    m_channelsPerPixel(1),
+    m_pinCS(8),
+    m_csPin(nullptr),
+    m_spi(nullptr)
 {
 	LogDebug(VB_CHANNELOUT, "MAX7219MatrixOutput::MAX7219MatrixOutput(%u, %u)\n",
 		startChannel, channelCount);
@@ -101,6 +105,7 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 	}
 
 	m_panels = config["panels"].asInt();
+    m_channelsPerPixel = config["channelsPerPixel"].asInt();
 
     m_csPin->configPin("gpio", true);
 
@@ -116,7 +121,7 @@ int MAX7219MatrixOutput::Init(Json::Value config)
 }
 
 void MAX7219MatrixOutput::GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) {
-    addRange(m_startChannel, m_startChannel + (9 * m_panels) - 1);
+    addRange(m_startChannel, m_channelCount - 1);
 }
 
 /*
@@ -159,21 +164,38 @@ int MAX7219MatrixOutput::SendData(unsigned char *channelData)
 
 	uint8_t data[256];
 
-	int c = 0;
-	for (int i = 1; i < 9; i++) {
+    // Line by line, send data starting with the last panel first and
+    // left most pixel on a panel is MSB
+    int c = 0;
+    for (int i = 1; i < 9; i++) {
         int bytes = 0;
+        int offset = m_panels * 8 * m_channelsPerPixel;
 
-		c = (i * m_panels) - 1;
+        for (int p = 0; p < m_panels; p++) {
+            data[bytes++] = i;
 
-		for (int p = 0; p < m_panels; p++) {
-			data[bytes++] = i;
-			data[bytes++] = ReverseBitsInByte(channelData[c--]);
-		}
+            uint8_t ch = 0;
+            for (int j = 0; j < 8; j++) {
+                if (m_channelsPerPixel == 1) {
+                    if (channelData[c + offset - 1])
+                        ch |= 0x01 << j;
+                } else { // 3 channels per pixel
+                    if ((channelData[c + offset - 1]) ||
+                        (channelData[c + offset - 2]) ||
+                        (channelData[c + offset - 3]))
+                        ch |= 0x01 << j;
+                }
+                offset -= m_channelsPerPixel;
+            }
+            data[bytes++] = ch;
+        }
 
         m_csPin->setValue(0);
         m_spi->xfer(data, nullptr, bytes);
         m_csPin->setValue(1);
-	}
+
+        c += m_panels * 8 * m_channelsPerPixel;
+    }
 
 	return m_channelCount;
 }
