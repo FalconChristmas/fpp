@@ -155,19 +155,6 @@ $(function() {
 
             if(!$(this).hasClass('modal')){
                 var $dialogBody = $('<div class="modal-body"/>');
-                if(settings.height){
-                    $dialogBody.height(settings.height);
-                }
-                $(this).wrapInner( $dialogBody );
-                $(this).addClass('modal fade');
-                $(this).prepend($title);
-                $(this).append($buttons);
-                if(settings.closeText){
-                    if(!$(this).hasClass('has-closeText')){
-                        $(this).addClass('has-closeText');
-                        $title.append(settings.closeText);
-                    }
-                }
                 var modalDialogSizeClass = '';
 
                 if(settings.width){
@@ -187,7 +174,31 @@ $(function() {
 
                 var modalDialogClass = "modal-dialog "+modalDialogSizeClass;
                 var $dialogInner = $('<div class="'+modalDialogClass+'"/>');
-
+                if(settings.height){
+                    if(settings.height=='100%'){
+                        $dialogBody.css({
+                            height:'calc(100vh - 100px)'
+                        });
+                        $dialogInner.css({
+                            'margin-top':'10px'
+                        });
+                    }else{
+                        $dialogBody.height(settings.height);
+                    }
+                    
+                }
+          
+                $(this).wrapInner( $dialogBody );
+                $(this).addClass('modal fade');
+                $(this).prepend($title);
+                $(this).append($buttons);
+                if(settings.closeText){
+                    if(!$(this).hasClass('has-closeText')){
+                        $(this).addClass('has-closeText');
+                        $title.append(settings.closeText);
+                    }
+                }
+            
                 
                 var $dialogContent = $('<div class="modal-content"/>');
                 $(this).wrapInner($dialogInner.wrapInner($dialogContent));
@@ -1854,38 +1865,47 @@ function SavePlaylistAs(name, options, callback) {
     pl.version = 3;   // v1 == CSV, v2 == JSON, v3 == deprecated some things
     pl.repeat = 0;    // currently unused by player
     pl.loopCount = 0; // currently unused by player
+    pl.empty = false;
     pl.desc = $('#txtPlaylistDesc').val();
     pl.random = parseInt($('#randomizePlaylist').prop('value'));
-    if(typeof options === 'Object'){
+    console.log(options,typeof options)
+    if(typeof options === 'object'){
+        
         $.extend(pl,options)
     }
 
     var leadIn = [];
-    $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
-        leadIn.push(GetPlaylistEntry(this));
-    });
-    if (leadIn.length)
-        pl.leadIn = leadIn;
-
     var mainPlaylist = [];
-    $('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function() {
-        mainPlaylist.push(GetPlaylistEntry(this));
-    });
-    if (mainPlaylist.length)
-        pl.mainPlaylist = mainPlaylist;
-
     var leadOut = [];
-    $('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
-        leadOut.push(GetPlaylistEntry(this));
-    });
-    if (leadOut.length)
-        pl.leadOut = leadOut;
-
     var playlistInfo = {};
-    playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
-    playlistInfo.total_items = mainPlaylist.length;
+    
+
+    if(pl.empty==false){
+        $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
+            leadIn.push(GetPlaylistEntry(this));
+        });
+
+        $('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function() {
+            mainPlaylist.push(GetPlaylistEntry(this));
+        });          
+    
+        $('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
+            leadOut.push(GetPlaylistEntry(this));
+        });
+   
+        playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
+        playlistInfo.total_items = mainPlaylist.length;
+        
+    }else{
+        playlistInfo.total_duration = parseFloat(0);
+        playlistInfo.total_items = 0;   
+    }
+    pl.leadIn = leadIn;
+    pl.mainPlaylist = mainPlaylist;
+    pl.leadOut = leadOut;
     pl.playlistInfo = playlistInfo;
 
+    
     var str = JSON.stringify(pl, true);
     $.ajax({
         url: "api/playlist/" + name,
@@ -2076,13 +2096,13 @@ function RenamePlaylist()	{
     });
 }
 
-function DeletePlaylist() {
+function DeletePlaylist(options) {
     var name = $('#txtPlaylistName').val();
 
-    DeleteNamedPlaylist(name);
+    DeleteNamedPlaylist(name,options);
 }
 
-function DeleteNamedPlaylist(name) {
+function DeleteNamedPlaylist(name,options) {
     var postDataString = "";
     $.ajax({
         dataType: "json",
@@ -2090,7 +2110,7 @@ function DeleteNamedPlaylist(name) {
         type: "DELETE",
         async: false,
         success: function(data) {
-            PopulateLists();
+            PopulateLists(options);
             $.jGrowl("Playlist Deleted",{themeState:'success'});
         },
         error: function() {
@@ -4591,7 +4611,7 @@ function ViewFileImpl(url, file)
 			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 	});
 
-	$('#fileViewer').fppDialog({  width: 1800, title: "File Viewer: " + file, height:'80vh' });
+	$('#fileViewer').fppDialog({  width: 1800, title: "File Viewer: " + file, height:'100%', resizable:true,overflowX:'scroll' });
 	$('#fileViewer').fppDialog( "moveToTop" );
 }
 

@@ -1686,7 +1686,7 @@ GetBackupDevices();
     <?php
     $activeParentMenuItem = 'status';
     include 'menu.inc'; ?>
-    <div class="container">
+    <div class="mainContainer">
         <h1 class='title'>FPP Backups</h1>
         <div class="pageContent">
 

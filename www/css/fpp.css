@@ -1737,6 +1737,10 @@ input[type=search].tablesorter-filter:disabled{
 #fileText textarea{
 	width: 100%;
 }
+#fileText pre{
+	height: calc(100vh - 132px);
+	margin-bottom: 0;
+}
 #tab-jsonBackup td, #tab-fileCopy td{
 	padding-top: 0.8em;
 	padding-bottom: 0.8em;

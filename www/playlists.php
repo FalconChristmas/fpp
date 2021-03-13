@@ -24,13 +24,42 @@ if (isset($_GET['playlist'])) {
 <script>
     function LoadInitialPlaylist() {
         $('#playlistSelect').val(initialPlaylist).trigger('change');
+        
     }
+    function handleDeleteButtonClick(){
+            DeletePlaylist({
+                onPlaylistArrayLoaded: function(){
+                    $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
+                    onPlaylistArrayLoaded();
+                }
+            });
+        }
+        function onPlaylistArrayLoaded(){
+            $('.playlistSelectBody').html('');
+            $('.playlistSelectCount').html(playListArray.length);
+            $.each(playListArray,function(i,playListName){
+                var $playlistCol = $('<div class="col-md-4"/>');
+                var $playlistCard = $('<div class="card has-shadow playlistCard"/>');
+                var $playlistCardHeading = $('<h3>'+playListName+'</h3>');
+              //  var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularEditButton playlistCardEditButton">Edit</button>');
+                $playlistCol.append($playlistCard);
+                $playlistCard.append($playlistCardHeading);
+                //$playlistCard.append($playlistEditButton);
+                $playlistCard.click(function(){
+                    $('#playlistSelect').val(playListName).trigger('change');
+                })
+  
+                $('.playlistSelectBody').append($playlistCol)
+            })
+
+        }
     $(function(){
         $('#playlistSelect').on('change',function(){
             $('.playlistEditorHeaderTitle').html($(this).val());
         })
 
         $('.playlistAddNewBtn').click(function(){
+
             $('.playlistAdd').fppDialog({
                 title:'Add a New Playlist',
                 buttons:{
@@ -41,6 +70,7 @@ if (isset($_GET['playlist'])) {
                                 {
                                     desc:$("#txtAddPlaylistDesc").val(),
                                     random:$("#randomizeAddPlaylist").val(),
+                                    empty:true
                                 },
                                 function(){
                                     onPlaylistArrayLoaded();
@@ -75,6 +105,7 @@ if (isset($_GET['playlist'])) {
             RenamePlaylist();
         })
         $('.playlistEntriesAddNewBtn').click(function(){
+           
             $('#playlistEntryProperties').fppDialog({
                 title:'New Entry',
                 buttons:{
@@ -96,25 +127,7 @@ if (isset($_GET['playlist'])) {
         $('.playlistEditorBackButton').click(function(){
             $('#playlistEditor').removeClass('hasPlaylistDetailsLoaded');
         })
-        function onPlaylistArrayLoaded(){
-            $('.playlistSelectBody').html('');
-            $('.playlistSelectCount').html(playListArray.length);
-            $.each(playListArray,function(i,playListName){
-                var $playlistCol = $('<div class="col-md-4"/>');
-                var $playlistCard = $('<div class="card has-shadow playlistCard"/>');
-                var $playlistCardHeading = $('<h3>'+playListName+'</h3>');
-              //  var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularEditButton playlistCardEditButton">Edit</button>');
-                $playlistCol.append($playlistCard);
-                $playlistCard.append($playlistCardHeading);
-                //$playlistCard.append($playlistEditButton);
-                $playlistCard.click(function(){
-                    $('#playlistSelect').val(playListName).trigger('change');
-                })
-  
-                $('.playlistSelectBody').append($playlistCol)
-            })
 
-        }
         PopulateLists({
             onPlaylistArrayLoaded:onPlaylistArrayLoaded
         });
@@ -201,15 +214,15 @@ include 'menu.inc'; ?>
                             </button>
                             <div class="dropdown pr-2">
                                 <button class="buttons dropdown-toggle playlistEditButton" type="button" id="playlistEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    Actions
+                                    Playlist Actions
                                 </button>
                                 <div class="dropdown-menu playlistEditMoreButtonMenu" aria-labelledby="playlistEditMoreButton">
                                     
-                                    <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy</a>
-                                    <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename</a>
-                                    <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize</a>
-                                    <a href="#" value="Reset" onclick="EditPlaylist();"  class="dropdown-item ">Reset</a>
-                                    <a href="#" value="Delete" onclick="DeletePlaylist();"  class="dropdown-item ">Delete</a>
+                                    <a href="#" value="Copy" onclick="CopyPlaylist();"  class="dropdown-item">Copy Playlist</a>
+                                    <a href="#" value="Rename" onclick="RenamePlaylist();"  class="dropdown-item ">Rename Playlist</a>
+                                    <a href="#" value="Randomize" onclick="RandomizePlaylistEntries();"  class="dropdown-item ">Randomize Playlist</a>
+                                    <a href="#" value="Reset" onclick="EditPlaylist();"  class="dropdown-item ">Reset Playlist</a>
+                                    <a href="#" value="Delete" onclick="handleDeleteButtonClick();"  class="dropdown-item ">Delete Playlist</a>
                                 </div>
                             </div>
                             <button class="buttons btn-success savePlaylistBtn" >

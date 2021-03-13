@@ -123,7 +123,7 @@ function StartSelectedEffect() {
 
   ?>
 
-<div class="container">
+<div class="mainContainer">
 <h1 class="title">Effects</h1>
   <div class="pageContent">
 
