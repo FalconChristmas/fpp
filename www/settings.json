@@ -16,10 +16,20 @@
         "email": {
             "description": "Outbound Email Configuration",
             "settings": [
-                "emailguser",
-                "emailgpass",
+                "emailserver",
+                "emailport",
+                "emailuser",
+                "emailpass",
+                "emailfromuser",
                 "emailfromtext",
                 "emailtoemail"
+            ]
+        },
+        "host": {
+            "description": "Host Settings",
+            "settings": [
+                "HostName",
+                "HostDescription"
             ]
         },
         "log-levels": {
@@ -71,6 +81,19 @@
                 "remoteOffset"
             ]
         },
+        "initialSetup": {
+            "description": "Initial Setup",
+            "settings": [
+                "fppMode",
+                "HostName",
+                "HostDescription",
+                "statsPublish",
+                "Locale",
+                "TimeZone",
+                "Latitude",
+                "Longitude"
+            ]
+        },
         "input": {
             "description": "Input Control",
             "settings": [
@@ -114,14 +137,27 @@
         "system": {
             "description": "System Settings",
             "settings": [
+                "fppMode",
                 "DisableScheduler",
+                "ScheduleSeconds",
                 "Locale",
                 "screensaver",
                 "ForceHDMI",
                 "ForceHDMIResolution",
                 "ForceHDMIResolutionPort2",
                 "LEDDisplayType",
-                "bootDelay"
+                "bootDelay",
+                "statsPublish"
+            ]
+        },
+        "tethering": {
+            "description": "Tethering",
+            "settings": [
+                "EnableTethering",
+                "TetherInterface",
+                "TetherTechnology",
+                "TetherSSID",
+                "TetherPSK"
             ]
         },
         "time": {
@@ -140,7 +176,10 @@
             "settings": [
                 "uiLevel",
                 "showAllOptions",
-                "disableUIWarnings"
+                "disableUIWarnings",
+                "DateFormat",
+                "TimeFormat",
+                "temperatureInF"
             ]
         },
         "uiColors": {
@@ -224,15 +263,15 @@
         },
         "backgroundColor": {
             "name": "backgroundColor",
-            "description": "UI Border Color",
-            "tip": "The background border of the FPP User Interface can be changed to make it easier to distinguish visually between multiple installed FPP instances.",
+            "description": "Header Background Color",
+            "tip": "The header background color of the FPP User Interface can be changed to make it easier to distinguish visually between multiple installed FPP instances.",
             "reboot": 0,
             "restart": 0,
             "reloadUI": 1,
             "default": "",
             "type": "select",
             "options": {
-                "No Border": "",
+                "Default":   "",
                 "Red":       "FF0000",
                 "Green":     "008000",
                 "Blue":      "0000FF",
@@ -241,11 +280,10 @@
                 "Gray":      "808080",
                 "Lime":      "00FF00",
                 "Navy":      "000080",
-                "Oliva":     "808000",
+                "Olive":     "808000",
                 "Purple":    "800080",
                 "Silver":    "C0C0C0",
-                "Teal":      "008080",
-                "White":     "FFFFFF"
+                "Teal":      "008080"
             }
         },
         "BBBLedPWR": {
@@ -394,6 +432,22 @@
             "type": "checkbox",
             "textOnRight": 1
         },
+        "DateFormat": {
+            "name": "DateFormat",
+            "description": "Date Format",
+            "tip": "Format of displayed dates",
+            "type": "select",
+            "reloadUI": 1,
+            "default": "%a %b %e",
+            "gatherStats" : true,
+            "options": {
+                "YYYY-MM-DD (2021-12-25)": "%Y-%m-%d",
+                "MM/DD/YYYY (12/25/2021)": "%m/%d/%Y",
+                "DD/MM/YYYY (25/12/2021)": "%d/%m/%Y",
+                "Weekday Month Day (Sat Dec 25)": "%a %b %e",
+                "Month Day (Dec 25)": "%b %e"
+            }
+        },
         "DisableFakeNetworkBridges": {
             "name": "DisableFakeNetworkBridges",
             "description": "Disable Network Bridge Monitoring (E1.31/DDP/ArtNet)",
@@ -415,6 +469,7 @@
         "disableIPAnnouncement": {
             "name": "disableIPAnnouncement",
             "description": "Disable IP announcement",
+            "gatherStats" : true,
             "tip": "During boot, the current IP addresses will be announced over the audio output.  This setting allows disabling this announcement for production use when the Pi is connected to a FM transmitter or speakers.",
             "platforms": [
                 "Raspberry Pi"
@@ -426,6 +481,7 @@
             "description": "Disable restart/reboot UI Warnings",
             "tip": "Disable the 'restart required' and 'reboot required' warnings that appear at the top of the page when settings are changed.",
             "level": 3,
+            "gatherStats" : true,
             "reboot": 0,
             "restart": 0,
             "reloadUI": 0,
@@ -462,35 +518,111 @@
         },
         "emailfromtext": {
             "name": "emailfromtext",
-            "description": "Destination From Text",
+            "description": "From Name",
             "tip": "Text to use in From field of emails.",
             "type": "text",
             "size": 30,
             "maxlength": 64
         },
-        "emailgpass": {
-            "name": "emailgpass",
-            "description": "Gmail Password",
-            "tip": "Password to be used to authenticate with Gmail mail server.",
+        "emailfromuser": {
+            "name": "emailfromuser",
+            "description": "From Email Address",
+            "tip": "Email address to be used to send emails.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64
+        },
+        "emailpass": {
+            "name": "emailpass",
+            "description": "SMTP Server Password",
+            "tip": "Password to be used to authenticate with email server.",
             "type": "password",
             "size": 30,
             "maxlength": 64
         },
-        "emailguser": {
-            "name": "emailguser",
-            "description": "Gmail Account",
-            "tip": "Gmail email address to be used to send emails.",
+        "emailport": {
+            "name": "emailport",
+            "description": "SMTP Server Port",
+            "gatherStats" : true,
+            "tip": "TCP Port used on SMTP server.  Most server use 587 for encrypted traffic, some servers may still use 25 for non-encrypted SMTP traffic.",
+            "restart": 0,
+            "type": "select",
+            "options": {
+                "25": "25",
+                "465": "465",
+                "587": "587"
+            },
+            "default": "587"
+        },
+        "emailserver": {
+            "name": "emailserver",
+            "description": "SMTP Server Hostname",
+            "tip": "Server used to send outbound email.",
+            "type": "text",
+            "size": 30,
+            "maxlength": 64,
+            "children": [
+                "emailport",
+                "emailuser",
+                "emailpass",
+                "emailfromuser",
+                "emailtoemail",
+                "emailfromtext"
+            ]
+        },
+        "emailtoemail": {
+            "name": "emailtoemail",
+            "description": "Default TO Address",
+            "tip": "Default destination email address to send all emails.",
             "type": "text",
             "size": 30,
             "maxlength": 64
         },
-        "emailtoemail": {
-            "name": "emailtoemail",
-            "description": "Destination To Email",
-            "tip": "Destination email address to send all emails.",
+        "emailuser": {
+            "name": "emailuser",
+            "description": "SMTP Server Login",
+            "tip": "Login for SMTP server, may be the same as the from address.",
             "type": "text",
             "size": 30,
             "maxlength": 64
+        },
+        "EnableTethering": {
+            "name": "EnableTethering",
+            "description": "Tethering Mode",
+            "tip": "Enable or disable FPP WiFi tethering mode",
+            "gatherStats" : true,
+            "reboot": 1,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "If no connection": 0,
+                "Enabled": 1,
+                "Disabled": 2
+            }
+        },
+        "FPP_UUID": {
+            "name": "FPP_UUID",
+            "description": "UUID to use for stats collection",
+            "gatherStats" : true,
+            "tip": "FPP UUID to use for stats collection.  This will override using the serial number from /proc/cpuinfo or dmidecode.",
+            "level": 3,
+            "type": "text",
+            "size": 30,
+            "maxlength": 30
+        },
+        "fppMode": {
+            "name": "fppMode",
+            "description": "FPP Player Mode",
+            "tip": "FPP can run in one of several modes including Standalone mode where it operates independently of other FPP systems, Master where it can control other FPP systems, and Remote where it acts as a remote controlled by another Master FPP instance.  FPP can also be set to receive data over the network when running in Bridge mode.",
+            "gatherStats" : true,
+            "restart": 2,
+            "type": "select",
+            "options": {
+                "Standalone": "player",
+                "Master": "master",
+                "Remote": "remote",
+                "Bridge": "bridge"
+            }
         },
         "ForceHDMI": {
             "name": "ForceHDMI",
@@ -536,6 +668,27 @@
             "tip": "Switch code branches to test features outside the current release branch.  The 'master' branch is the main development branch for the next version of FPP.  There may also be a 'master-vY.x' branch were 'Y' is the major FPP version.  These master-v* branches are created to allow development on the next major release to continue in the master branch while bugfixes for the 'Y' release are applied only to the master-vY.x branch.",
             "level": 2
         },
+        "HostDescription": {
+            "name": "HostDescription",
+            "description": "Host description",
+            "tip": "Description of host",
+            "default": "FPP",
+            "type": "text",
+            "size": 30,
+            "maxlength": 48
+        },
+        "HostName": {
+            "name": "HostName",
+            "description": "Host Name",
+            "tip": "Host names must contain only letters, numbers, and hypens and must begin with a letter or a number",
+            "reboot": 1,
+            "default": "fpp",
+            "type": "text",
+            "size": 30,
+            "maxlength": 30,
+            "regex": "^\\([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])$",
+            "regexDesc": "Host names must contain only letters, numbers and hyphens"
+        },
         "Latitude": {
             "name": "Latitude",
             "description": "Latitude",
@@ -550,6 +703,7 @@
             "name": "LEDDisplayType",
             "description": "Status Display",
             "tip": "Status Display type.  There are serveral OLED/LCD displays which can be attached to the i2c bus on the Pi and BeagleBone.  This setting is used to configure the size and type of display installed.",
+            "gatherStats" : true,
             "reboot": 1,
             "checkFile": [
                 "/dev/i2c-1",
@@ -576,9 +730,10 @@
         "Locale": {
             "name": "Locale",
             "description": "Locale",
+            "gatherStats" : true,
             "tip": "The Locale is used to automatically configure some locale or region-specific functionality within FPP such as the list of Holidays included in the FPP Scheduler.",
             "restart": 2,
-            "default": "global",
+            "default": "Global",
             "type": "select",
             "optionsURL": "api/settings/Locale/options"
         },
@@ -1031,6 +1186,7 @@
         "MultiSyncExtraRemotes": {
             "name": "MultiSyncExtraRemotes",
             "description": "MultiSync Unicast Discovery IPs (CSV list)",
+            "gatherStats" : true,
             "tip": "FPP will send unicast MultiSync discovery messages to the IPs in this list to allow discovery of devices which are unable to be discovered via FPP's normal multicast discovery.  This may include systems on remote networks or connected to certain routers which do not pass multicast packets between wired and wireless interfaces.",
             "level": 1,
             "restart": 2,
@@ -1086,6 +1242,7 @@
         "ntp": {
             "name": "ntp",
             "description": "Enable NTP",
+            "gatherStats" : true,
             "tip": "Enable the NTP client to allow this system to sync time with a NTP server elsewhere.",
             "type": "checkbox",
             "reboot": 1,
@@ -1146,17 +1303,9 @@
             "children": {
                 "1": [
                     "password",
-                    "passwordVerify",
-                    "passwordShow"
+                    "passwordVerify"
                 ]
             }
-        },
-        "passwordShow": {
-            "name": "passwordShow",
-            "description": "Show password",
-            "tip": "Show the UI password instead of ********",
-            "type": "checkbox",
-            "onChange": "ShowHidePassword"
         },
         "passwordVerify": {
             "name": "passwordVerify",
@@ -1180,6 +1329,7 @@
             "name": "PresetControlChannel",
             "description": "Command Preset Control Channel",
             "tip": "The Command Preset Control Channel allows FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable.",
+            "gatherStats" : true,
             "level": 0,
             "restart": 2,
             "default": 0,
@@ -1217,14 +1367,14 @@
             "step": 1,
             "suffix": "ms"
         },
-        "scheduling": {
-            "name": "scheduling",
-            "description": "Scheduler Enabled",
+        "ScheduleSeconds": {
+            "name": "ScheduleSeconds",
             "gatherStats" : true,
-            "tip": "Enable the FPP scheduler to start scheduled playlists.  Disabling the scheduler will leave any running scheduled playlist running and it will stop at its originally scheduled end time.  Reenabling the scheduler will trigger a reschedule to start any normally scheduled playlist running unless there is already another playlist running.",
-            "level": 0,
-            "default": 1,
-            "type": "checkbox"
+            "description": "Granular Scheduling",
+            "tip": "Allow scheduling down to the second instead of scheduling on minute boundaries.  Enabling this setting will show the seconds value in the Scheduler UI for the Start and End times on schedule entries.",
+            "type": "checkbox",
+            "level": 1,
+            "restart": 1
         },
         "screensaver": {
             "name": "screensaver",
@@ -1250,6 +1400,22 @@
             "checkedValue": "1",
             "uncheckedValue": "0"
         },
+        "statsPublish": {
+            "name": "statsPublish",
+            "description": "Share Statistics",
+            "tip": "Configures if anonymous hardware and feature statistics are shared with the FPP Development team. (FPP must have intranet access.) A value of \"Banner\" will result in a prompt being displayed on the user's screen. Setting this to \"Enabled\" or \"Disabled\" removes the banner",
+            "level": 0,
+            "reboot": 0,
+            "restart": 2,
+            "reloadUI": 0,
+            "default": "Banner",
+            "type": "select",
+            "options": {
+                "Enabled": "Enabled",
+                "Disabled": "Disabled",
+                "Banner": "Banner"
+            }
+        },
         "tableColorPair1A": {
             "name": "tableColorPair1A",
             "description": "Color Pair 1-A",
@@ -1257,7 +1423,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "00FFFF"
+            "default": "b0efbc"
         },
         "tableColorPair1B": {
             "name": "tableColorPair1B",
@@ -1266,7 +1432,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "ADD8E6"
+            "default": "7be38f"
         },
         "tableColorPair2A": {
             "name": "tableColorPair2A",
@@ -1275,7 +1441,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "008000"
+            "default": "cae7fb"
         },
         "tableColorPair2B": {
             "name": "tableColorPair2B",
@@ -1284,7 +1450,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "808000"
+            "default": "a6d7f8"
         },
         "tableColorPair3A": {
             "name": "tableColorPair3A",
@@ -1293,7 +1459,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "808080"
+            "default": "e9beed"
         },
         "tableColorPair3B": {
             "name": "tableColorPair3B",
@@ -1302,7 +1468,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "C0C0C0"
+            "default": "da92e1"
         },
         "tableColorPair4A": {
             "name": "tableColorPair4A",
@@ -1311,7 +1477,7 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "A52A2A"
+            "default": "fcefbb"
         },
         "tableColorPair4B": {
             "name": "tableColorPair4B",
@@ -1320,7 +1486,74 @@
             "reboot": 0,
             "restart": 0,
             "type": "color",
-            "default": "FFFF00"
+            "default": "f9e077"
+        },
+        "temperatureInF": {
+            "name": "temperatureInF",
+            "description": "Temperature display units",
+            "tip": "Display temperatures in Fahrenheit or Celsius",
+            "reloadUI": 1,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "Celsius": 0,
+                "Fahrenheit": 1
+            }
+        },
+        "TetherInterface": {
+            "name": "TetherInterface",
+            "description": "Tethering Interface",
+            "tip": "WiFi interface to use for tethering.",
+            "reboot": 1,
+            "type": "select",
+            "optionsCommand": "/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep wlan | colrm 6"
+        },
+        "TetherPSK": {
+            "name": "TetherPSK",
+            "description": "Tethering Pre Shared Key (PSK)",
+            "tip": "Pre Shared Key to use to connect to FPP WiFi tethering.",
+            "type": "password",
+            "reboot": 1,
+            "size": 32,
+            "maxlength": 32,
+            "default": "Christmas"
+        },
+        "TetherSSID": {
+            "name": "TetherSSID",
+            "description": "Tethering SSID",
+            "tip": "SSID to use for FPP WiFi tethering.",
+            "type": "text",
+            "reboot": 1,
+            "size": 32,
+            "maxlength": 32,
+            "default": "FPP"
+        },
+        "TetherTechnology": {
+            "name": "TetherTechnology",
+            "description": "Tethering Technology",
+            "gatherStats" : true,
+            "tip": "FPP WiFi tethering technology to use.",
+            "reboot": 1,
+            "default": 0,
+            "type": "select",
+            "options": {
+                "Hostapd": 0,
+                "ConnMan": 1
+            }
+        },
+        "TimeFormat": {
+            "name": "TimeFormat",
+            "description": "Time Format",
+            "tip": "Format of displayed time",
+            "gatherStats" : true,
+            "reloadUI": 1,
+            "type": "select",
+            "default": "%I:%M %p",
+            "options": {
+                "HH:MM (23:40)": "%H:%M",
+                "HH:MM AM/PM (11:40 PM)": "%I:%M %p"
+            },
+            "note": "Any addition of a new format in the options array here will need corresponding additions in js/fpp.js to the Convert24H*UIFormat functions"
         },
         "uiLevel": {
             "name": "uiLevel",
@@ -1366,6 +1599,7 @@
         "TimeZone": {
             "name": "TimeZone",
             "description": "Time Zone",
+            "gatherStats" : true,
             "tip": "The Time Zone is used to set the local time zone of this FPP instance.",
             "restart": 2,
             "default": "Europe/London",

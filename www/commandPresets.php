@@ -92,7 +92,7 @@ function SaveCommands()
     if (!result.hasOwnProperty('Status') || (result['Status'] != 'OK')) {
         alert('Error saving commands!');
     } else {
-        $.jGrowl('Commands saved.');
+        $.jGrowl('Commands saved.',{themeState:'success'});
         SetRestartFlag(2);
     }
 }
@@ -134,31 +134,56 @@ $(document).ready(function() {
 </head>
 <body onLoad="LoadCommandList($('#newEventCommand')); LoadCommands();">
 <div id="bodyWrapper">
-<?php include 'menu.inc'; ?>
-<br/>
-<div id="programControl" class="settings">
-	<fieldset>
-		<legend>Command Presets</legend>
+<?php 
+$activeParentMenuItem = 'status';
+include 'menu.inc'; ?>
+  <div class="mainContainer">
+	  <h2 class="title">Command Presets</h2>
+	  <div class="pageContent">
+<div id="commandPresets" class="settings">
+
 		<div>
-            <table>
-                <tr>
-                    <td width='70px'><input class="buttons" type='button' value="Save" onClick='SaveCommands();' /></td>
-                    <td width="70px"><input class="buttons" type="button" value = "Add" onClick="AddCommand();"/></td>
-                    <td width="40px">&nbsp;</td>
-                    <td width="70px"><input class="buttons disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();"/></td>
-                    <td width="70px"><input class="buttons disableButtons deleteCmdButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblCommandsBody'); DisableButtonClass('deleteCmdButton');"/></td>
-                    <td width="70px"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/></td><td>&nbsp;&nbsp;</td>
-                </tr>
-            </table>
+
+            <div class="row tablePageHeader tablePageHeader">
+                <div class="col">
+                    <div class="form-actions form-actions-secondary">
+
+                        <div class='smallonly'>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary" type="button" id="commandPresetsMobileActions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div class="dropdown-menu" aria-labelledby="commandPresetsMobileActions">
+                                    <input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/>
+                                    <button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteCmdButton');">Delete</button>
+                                    <button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class='largeonly'><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/></div>
+                    </div>
+
+                </div>
+                <div class="col-auto ml-auto">
+                    <div class="form-actions form-actions-primary">
+
+                        <div class='largeonly'><button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteCmdButton');">Delete</button></div>
+                        <div class='largeonly'><button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button></div>
+                        <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddCommand();"><i class="fas fa-plus"></i> Add</button></div>
+                        <div><button class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveCommands();' >Save</button></div>
+                    </div>
+                </div>
+            </div>
+            <hr>
             <div class='fppTableWrapper'>
-                <div class='fppTableContents'>
+                <div class='fppTableContents' role="region" aria-labelledby="tblUniversesHead" tabindex="0">
                     <table class='fppTableRowTemplate template-tblCommandsBody'>
                         <tr>
                             <td><input type='text' size='32' maxlength='64' class='cmdTmplName' list='PresetTriggerNames'></td>
                             <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
                                 <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
-                                <img class='cmdTmplTooltipIcon' title='' src='images/questionmark.png'>
+                                <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
                                 <span class='cmdTmplMulticastInfo'></span>
                                 <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
                                 <span class='cmdTmplJSON' style='display: none;'></span>
@@ -167,12 +192,12 @@ $(document).ready(function() {
                         </tr>
                     </table>
 
-                    <table>
+                    <table class="fppSelectableRowTable">
                         <thead>
                             <tr>
                                 <th>Preset Name</th>
                                 <th>FPP Command</th>
-                                <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the Command Preset Control Channel to allow FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable." src='images/questionmark.png'></th>
+                                <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the Command Preset Control Channel to allow FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable."  width=22 height=22 src='images/redesign/help-icon.svg'></th>
                             </tr>
                         </thead>
                         <tbody id="tblCommandsBody" width="100%">
@@ -181,10 +206,19 @@ $(document).ready(function() {
                 </div>
             </div>
 		</div>
-        <br>
-        <b>*</b> The Command Preset Control Channel is defined on the 'Input/Output' tab of the settings page.<br>
-        <b>*</b> Predefined Preset Names are automatically triggered within FPP when the action described occurs.
-	</fieldset>
+  
+        <div class="backdrop">
+            <b>Notes:</b>
+            <ul>
+                <li>The Command Preset Control Channel is defined on the 'Input/Output' tab of the settings page.</li>
+                <li>Predefined Preset Names are automatically triggered within FPP when the action described occurs.</li>
+            </ul>
+
+        </div>
+
+
+  </div>
+  </div>
   </div>
   <?php	include 'common/footer.inc'; ?>
 </div>

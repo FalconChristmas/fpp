@@ -24,22 +24,6 @@ function ConfirmPasswordEnable()
     }
 }
 
-function UpdatePasswordFieldsType() {
-    if ($('#passwordShow').is(':checked')) {
-        $('#password').attr('type', 'text');
-        $('#passwordVerify').attr('type', 'text');
-    } else {
-        $('#password').attr('type', 'password');
-        $('#passwordVerify').attr('type', 'password');
-    }
-}
-
-function ShowHidePassword() {
-    UpdatePasswordFieldsType();
-
-    window["passwordShowChanged"]();
-}
-
 function ValidatePassword(password)
 {
     // Allow minimum of 6 so default 'falcon' password is valid
@@ -85,33 +69,20 @@ function CheckPasswordVerify()
 
 </script>
 
-<table class='settingsTableWrapper'>
-    <tr><td>
+
 <?
 PrintSettingGroup('ui');
 PrintSettingGroup('uiColors');
 ?>
 
-        </td>
-    </tr>
-    <tr>
-        <td>
+
             <b>UI Password</b><br>
-            <table class='settingsTable settingsGroupTable'>
+
 <?
 PrintSetting('passwordEnable');
 ?>
-                <tr class='passwordEnableChild'><th>Username:</th><td>admin</td></tr>
+                <div class='tr passwordEnableChild'><div class="th">Username:</div><div class='td'>admin</div></div>
 <?
 PrintSetting('password');
 PrintSetting('passwordVerify');
-PrintSetting('passwordShow');
 ?>
-            </table>
-        </td>
-    </tr>
-</table>
-
-<script>
-UpdatePasswordFieldsType();
-</script>

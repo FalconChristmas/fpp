@@ -32,8 +32,8 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 
 	function ViewRemoteScript(category, filename) {
 		$('#helpText').html("Retrieving Script");
-		$('#dialog-help').dialog({ height: 600, width: 800, title: "Script Viewer" });
-		$('#dialog-help').dialog( "moveToTop" );
+		$('#dialog-help').fppDialog({  width: 800, title: "Script Viewer" });
+		$('#dialog-help').fppDialog( "moveToTop" );
 
 		$.get("api/scripts/viewRemote/" + encodeURIComponent(category) + "/" + encodeURIComponent(filename)
 		).done(function(data) {
@@ -46,7 +46,7 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
   function InstallRemoteScript(category, filename) {
 		$.get("api/scripts/installRemote/" + encodeURIComponent(category) + "/" + encodeURIComponent(filename)
 		).done(function() {
-			$.jGrowl("Script installed.");
+			$.jGrowl("Script installed.",{themeState:'success'});
 		}).fail(function() {
 			DialogError("Install Script", "Install Failed");
 		});
@@ -56,58 +56,82 @@ $rfs_ver = normalize_version(getFPPVersionTriplet());
 </head>
 <body>
 <div id="bodyWrapper">
-	<?php include 'menu.inc'; ?>
-	<br/>
-	<div id="uiscripts" class="settings">
-		<fieldset>
-			<legend>Script Repository</legend>
-			<table id='fppScripts' cellspacing='5'>
-				<tbody>
-<?
-$indexCSV = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/index.csv");
-$lines = explode("\n", $indexCSV);
+	<?php 
+	$activeParentMenuItem = 'content';
+	include 'menu.inc'; ?>
+  <div class="mainContainer">
+		<h1 class="title">Script Repository</h1>
+		<div class="pageContent">
+			<div id="uiscripts" class="settings">
 
-$count = 0;
+					<div id='fppScripts'>
+		
+							<?
+							$indexCSV = file_get_contents("https://raw.githubusercontent.com/FalconChristmas/fpp-scripts/master/index.csv");
+							$lines = explode("\n", $indexCSV);
+							
+							$count = 0;
+							
+							foreach ($lines as $line)
+							{
+								if (preg_match("/^#/", $line))
+									continue;
+							
+								$parts = explode(',', $line);
+							
+								if (count($parts) < 4)
+									continue;
+							
+								if (normalize_version($parts[3]) > $rfs_ver)
+									continue;
+							
+								if (count($parts) > 4 && normalize_version($parts[4]) <= $rfs_ver)
+									continue;
+				
+							?>
+				
+								<div class="backdrop mb-2 fppScriptEntry">
+									<div class="row">
+										
+									
+										<div class="col-lg-3 fppScriptEntryCol">
+											<div class="labelHeading">Filename:</div>
+									
+												<h3><? echo $parts[1]; ?></h3>
 
-foreach ($lines as $line)
-{
-	if (preg_match("/^#/", $line))
-		continue;
+								
 
-	$parts = explode(',', $line);
+										</div>
+										<div class="col-lg-1  fppScriptEntryCol text-muted">
+													<div class="labelHeading">Category:</div>
+													<? echo $parts[0]; ?>
+												</div>
+												<div class="col-lg  fppScriptEntryCol text-muted ">
+													<div class="labelHeading">Description:</div>
+													<? echo $parts[2]; ?>
+												</div>
+										<div class="col-lg-auto fppScriptEntryCol ">
+											<input type='button' class='buttons' value='View' onClick='ViewRemoteScript("<? echo $parts[0]; ?>", "<? echo $parts[1]; ?>");'>
+											<input type='button' class='buttons btn-success' value='Install' onClick='InstallRemoteScript("<? echo $parts[0]; ?>", "<? echo $parts[1]; ?>");'>
+										</div>
+									</div>
+								
+								</div>
+							<?
+								$count++;
+							}
+							?>
+		
+					</div>
+				
+					<div class="callout">
+						<b>NOTE:</b> Some scripts such as the Remote Control scripts may require editting to configure variables
+						to be functional.  After installing a script from the Script Repository you can view and download
+						the script from the Scripts tab in the <a href='uploadfile.php'>File Manager</a> screen.
+					</div>
 
-	if (count($parts) < 4)
-		continue;
-
-	if (normalize_version($parts[3]) > $rfs_ver)
-		continue;
-
-   	if (count($parts) > 4 && normalize_version($parts[4]) <= $rfs_ver)
-		continue;
-
-	if ($count > 0)
-	{
-?>
-				<tr><td colspan='3'><hr></td></tr>
-<?
-	}
-?>
-				<tr><td rowspan='3' valign='top'><input type='button' class='buttons' value='Install' onClick='InstallRemoteScript("<? echo $parts[0]; ?>", "<? echo $parts[1]; ?>");'><br />
-						<input type='button' class='buttons' value='View' onClick='ViewRemoteScript("<? echo $parts[0]; ?>", "<? echo $parts[1]; ?>");'></td>
-						<td><b>Category:</b></td><td><? echo $parts[0]; ?></td>
-				<tr><td><b>Filename:</b></td><td><? echo $parts[1]; ?></td></tr>
-				<tr><td valign='top'><b>Description:</b></td><td><? echo $parts[2]; ?></td></tr>
-<?
-	$count++;
-}
-?>
-				</tbody>
-			</table>
-			<hr>
-			NOTE: Some scripts such as the Remote Control scripts may require editting to configure variables
-			to be functional.  After installing a script from the Script Repository you can view and download
-			the script from the Scripts tab in the <a href='uploadfile.php'>File Manager</a> screen.
-		</fieldset>
+			</div>
+		</div>
 	</div>
 	<?php include 'common/footer.inc'; ?>
 </div>

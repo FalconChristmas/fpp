@@ -29,6 +29,7 @@ function playlistEditorDocReady() {
 		});
 	});
 
+
 	//make table rows sortable
     if (window.innerWidth > 600) {
         $('.playlistEntriesBody').sortable({
@@ -42,15 +43,22 @@ function playlistEditorDocReady() {
                 if (this === ui.item.parent()[0]) {
                     var parent = $(ui.item).parent().attr('id');
                     $('#' + parent + 'PlaceHolder').remove();
+                    var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+                if (rowsLeft == 0)
+                    $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
 
-                    var rowsLeft = $('#' + start_parent + ' >tr').length;
-                    if (rowsLeft == 0)
-                        $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
 
                     RenumberPlaylistEditorEntries();
                     UpdatePlaylistDurations();
                 }
             },
+            over:function(){
+                var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+                if (rowsLeft == 1)
+                    $('#' + start_parent).append("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
+               // console.log(rowsLeft)
+            },
+
             beforeStop: function (event, ui) {
                 //undo the firefox fix.
                 if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
@@ -69,17 +77,39 @@ function playlistEditorDocReady() {
             scroll: true
         }).disableSelection();
     }
-
-	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
-		$('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
-		$(this).addClass('playlistSelectedEntry');
+    function selectPlaylistEntryRow($row){
+		$('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
+		$row.addClass('playlistSelectedEntry');
         EnableButtonClass('playlistDetailsEditButton');
+    }
+	$('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
+        selectPlaylistEntryRow($(this));
 	});
 
 	$('.playlistEntriesBody').on('dblclick','tr',function() {
         EditPlaylistEntry();
     });
-
+    $('.playlistEntriesBody').on('click','.playlistRowEditButton',function() {
+        selectPlaylistEntryRow($(this).closest('tr'));
+        EditPlaylistEntry();
+        $('#playlistEntryProperties').fppDialog({
+            title:'Edit Entry',
+            buttons:{
+                "Save":{
+                    click: function(){
+                        AddPlaylistEntry(1);
+                        $('#playlistEntryProperties').fppDialog('close');
+                        //CreateNewPlaylist();
+                    },
+                    class:'btn-success'
+                }
+            }
+        });
+    });
+    $('.playlistEntriesBody').on('click','.playlistRowDeleteButton',function() {
+        selectPlaylistEntryRow($(this).closest('tr'));
+        RemovePlaylistEntry();
+    });
 	$('#txtNewPlaylistName').on('focus',function() {
 		$(this).select();
 	});
@@ -186,7 +216,7 @@ function BranchTypeChanged() {
 
 $(document).ready(function() {
     allowMultisyncCommands = true;
-    SetupToolTips();
+    //SetupToolTips();
 	playlistEditorDocReady();
     LoadCommandList($('#commandSelect'));
     CommandSelectChanged('commandSelect', 'tblCommandBody');
@@ -194,29 +224,11 @@ $(document).ready(function() {
 
 simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
 </script>
-    <fieldset style="padding: 10px; border: 2px solid #000;">
-        <legend>Playlist Details</legend>
-        <div style="border-bottom:solid 1px #000; padding-bottom:10px;">
-            <div style="float:left; margin-right: 50px;">
-                <b>Playlist Name:</b><br>
-                <input type="text" id="txtPlaylistName" class="pl_title" disabled />
-                <br><b>Playlist Description:</b><br>
-                <input type="text" id="txtPlaylistDesc" class="pl_description" />
-                <br><b>Randomize:</b><br>
-                <select id='randomizePlaylist'>
-                    <option value='0'>Off</option>
-                    <option value='1'>Once per load</option>
-                    <option value='2'>Every iteration</option>
-                </select>
-                <br />
-                <input type="button" value="Save" onclick="<? if (isset($saveCallback)) echo $saveCallback; else echo "SavePlaylist('', '');"; ?>" class="buttons playlistEditButton" />
-                <input type="button" value="Delete" onclick="DeletePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-                <input type="button" value="Copy" onclick="CopyPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-                <input type="button" value="Rename" onclick="RenamePlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-                <input type="button" value="Randomize" onclick="RandomizePlaylistEntries();"  class="buttons playlistEditButton" />
-                <input type="button" value="Reset" onclick="EditPlaylist();"  class="buttons playlistEditButton playlistExistingButton" />
-            </div>
-            <div style="float:left;" class="playlistInfoText">
+    <div class="playlistEditContainer">
+        <div class="playlistEditForm ">
+            
+
+            <!-- <div style="float:left;" class="playlistInfoText">
                 <table>
                     <tr><th></th>
                         <th>Items</th>
@@ -237,18 +249,17 @@ simplifiedPlaylist = <? echo $simplifiedPlaylist; ?>;
                 </table>
                 <span style='display: none;' id='playlistDuration'>0</span>
             </div>
-            <div class="clear"></div>
+            <div class="clear"></div> -->
         </div>
-        <br />
 
-    <div id="playlistEntryProperties" style='float: left'>
+
+    <div id="playlistEntryProperties" class="hidden" >
         <table border='0'>
             <colgroup>
                 <col class='colPlaylistEditorLabel'></col>
                 <col class='colPlaylistEditorData'></col>
             </colgroup>
             <tbody>
-                <tr><td colspan='2'><b>Edit Playlist Entry</b></td></tr>
                 <tr><td>Type:</td>
                     <td><select id="pe_type" size="1" onchange="PlaylistTypeChanged();">
 <?
@@ -271,23 +282,42 @@ foreach ($playlistEntryTypes as $pet) {
             <tbody id='playlistEntryCommandOptions'>
             </tbody>
         </table>
+        <!-- <div class="form-actions">
+            <button onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" value="Add">Add</button>
+            <button onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" value="Replace">Replace</button>
+            <button onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" value="Remove">Remove</button>
+            <div class="dropdown">
+                <button class="buttons dropdown-toggle playlistDetailsEditButton" type="button" id="playlistDetailsEditMoreButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    More
+                </button>
+                <div class="dropdown-menu playlistDetailsEditMoreButtonMenu" aria-labelledby="playlistDetailsEditMoreButton">
+                    <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
+                    <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>
+                    <a href="#" onclick="EditPlaylistEntry();" class="dropdown-item" value="Edit">Edit</a>
+
+                </div>
+            </div>
+
+            
+        </div> -->
+
     </div>
-    <div class="clear"></div>
-    <div>
-        <input width="200px"  onclick="AddPlaylistEntry(0);" class="buttons playlistEditButton" type="button" value="Add" />
-        <input width="200px"  onclick="AddPlaylistEntry(2);" class="buttons playlistDetailsEditButton" type="button" value="Insert Before" />
-        <input width="200px"  onclick="AddPlaylistEntry(3);" class="buttons playlistDetailsEditButton" type="button" value="Insert After" />
-        <input width="200px"  onclick="EditPlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Edit" />
-        <input width="200px"  onclick="AddPlaylistEntry(1);" class="buttons playlistDetailsEditButton" type="button" value="Replace" />
-        <input width="200px"  onclick="RemovePlaylistEntry();" class="buttons playlistDetailsEditButton" type="button" value="Remove" />
-        <br>
-<? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+</div>
+<div class="playlistEditEntriesContainer">
+    <div class="playlistEditEntriesActions">
+        <button class="buttons btn-outline-success btn-lg btn-rounded playlistEntriesAddNewBtn ml-auto" >
+        <i class="fas fa-plus"></i> Add a Sequence/Entry
+        </button>
     </div>
+
+
 <?
 include "playlistDetails.php";
 ?>
-    <span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
-  </fieldset>
+</div>
+
+
+
 
 <div id="copyPlaylist_dialog" title="Copy Playlist" style="display: none">
     <span>Enter name for new playlist:</span>

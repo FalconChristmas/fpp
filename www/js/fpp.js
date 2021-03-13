@@ -13,14 +13,339 @@ gblCurrentPlaylistEntrySeq = '';
 gblCurrentPlaylistEntrySong = '';
 gblCurrentLoadedPlaylist  = '';
 gblCurrentLoadedPlaylistCount = 0;
+gblNavbarMenuVisible = 0;
+gblStatusRefreshSeconds = 5;
 
 var max_retries = 60;
 var retry_poll_interval_arr = [];
 
 var minimalUI = 0;
-
+var hasTouch = false;
 var statusTimeout = null;
 var lastStatus = '';
+var lastStatusJSON = null;
+var statusChangeFuncs = [];
+
+if(('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)){
+    hasTouch=true;
+}
+
+/* On Page Ready Functions */
+
+$(function() {
+    OnSystemStatusChange(RefreshHeaderBar);
+    OnSystemStatusChange(IsFPPDrunning);
+    bindVisibilityListener();
+    $(document).on('click', '.navbar-toggler', ToggleMenu);
+    $(document).on('keydown', handleKeypress);
+
+    if(hasTouch==true){
+        $('body').addClass('has-touch');
+        var swipeHandler = new SwipeHandler($('.header').get(0));
+        swipeHandler.onLeft(function() {
+            $('.header').addClass('swiped');
+        });
+        swipeHandler.onRight(function() {
+            $('.header').addClass('swiped');
+        });
+        swipeHandler.run();
+    }else{
+        $('body').addClass('no-touch');
+    }
+    
+    $.jGrowl.defaults.closerTemplate = '<div>Close Notifications</div>';
+    SetupToolTips();
+    LoadSystemStatus();
+    CheckBrowser();
+	CheckRestartRebootFlags();
+});
+
+(function ( $ ) {
+
+    /*  A custom jQuery plugin that uses jQueryUI.Dialog API
+        to create equivalent bootstrap modals. */
+    
+    $.fn.fppDialog = function( options ) {
+        if(options=='close'){
+          this.each(function() {
+              $(this).modal('hide');
+          });
+          return this;
+        }
+        if(options=='open'){
+          this.each(function() {
+              $(this).modal('show');
+          });
+          return this;
+        }
+        if(options=='enableClose'){
+            this.each(function() {
+                $(this).removeClass('no-close');
+            });
+            return this;
+        }
+        if(options=='moveToTop'){
+          return this;
+        }
+        if(options=='option'){
+          return this
+        }
+        var settings = $.extend({
+            title:'',
+            dialogClass:'',
+            width:null,
+            content:null,
+            footer:null,
+            closeText:'<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>'
+        }, options );
+
+        this.each(function() {
+            var $buttons= $(this).find('.modal-footer').html('');
+            var $title='';
+            var self = this;
+            var modalOptions ={}
+            if(settings.dialogClass.split(' ').includes('no-close')){
+                $.extend(modalOptions,{backdrop:'static'})
+            }
+            $(this).addClass(settings.dialogClass);
+            if(!$(this).hasClass('has-title')){
+                $(this).addClass('has-title');
+                var title = settings.title;
+                if(title!==''){
+                    title='<h3 class="modal-title">'+settings.title+'</h3>'
+                }
+                $title=$('<div class="modal-header">'+title+'</div>');
+            }else{
+                $(this).find('.modal-title').html(settings.title);
+            }
+
+            if(settings.buttons){
+              if(!$(this).hasClass('has-buttons')){
+                $(this).addClass('has-buttons');
+                $buttons=$('<div class="modal-footer"/>');
+              }
+              $.each(settings.buttons,function(buttonKey,buttonProps){
+                var buttonText=buttonKey;
+                var handleClick = buttonProps;
+                var buttonClass = 'buttons';
+                if(typeof buttonProps ==='object'){
+                  if(buttonProps.click){
+                    handleClick=buttonProps.click;
+                  }
+                  if(buttonProps.text){
+                    buttonText=buttonProps.text;
+                  }
+                  if(buttonProps.class){
+                      buttonClass+=' '+buttonProps.class
+                  }
+                }
+                $newButton=$('<button class="'+buttonClass+'">'+buttonText+'</button>');
+                $newButton.on('click',function(){
+                  handleClick.call(self);
+                })
+                $buttons.append($newButton);
+              });
+            }else if(settings.footer){
+                if(!$(this).hasClass('has-footer')){
+                    $(this).addClass('has-footer');
+                    $buttons=$('<div class="modal-footer"/>');
+                }
+                $buttons.append(settings.footer);
+            }
+
+            if(!$(this).hasClass('modal')){
+                var $dialogBody = $('<div class="modal-body"/>');
+                var modalDialogSizeClass = '';
+
+                if(settings.width){
+                    if(settings.width<400){
+                        modalDialogSizeClass='modal-sm';
+                    }
+                    if(settings.width>500){
+                        modalDialogSizeClass='modal-lg';
+                    }
+                    if(settings.width>800){
+                        modalDialogSizeClass='modal-xl';
+                    }
+                    if(settings.width>1100){
+                        modalDialogSizeClass='modal-xxl';
+                    }
+                }
+
+                var modalDialogClass = "modal-dialog "+modalDialogSizeClass;
+                var $dialogInner = $('<div class="'+modalDialogClass+'"/>');
+                if(settings.height){
+                    if(settings.height=='100%'){
+                        $dialogBody.css({
+                            height:'calc(100vh - 100px)'
+                        });
+                        $dialogInner.css({
+                            'margin-top':'10px'
+                        });
+                    }else{
+                        $dialogBody.height(settings.height);
+                    }
+                    
+                }
+          
+                $(this).wrapInner( $dialogBody );
+                $(this).addClass('modal fade');
+                $(this).prepend($title);
+                $(this).append($buttons);
+                if(settings.closeText){
+                    if(!$(this).hasClass('has-closeText')){
+                        $(this).addClass('has-closeText');
+                        $title.append(settings.closeText);
+                    }
+                }
+            
+                
+                var $dialogContent = $('<div class="modal-content"/>');
+                $(this).wrapInner($dialogInner.wrapInner($dialogContent));
+                if(settings.content){
+                    $dialogBody.html(settings.content);
+                }
+            }
+
+            if(settings.open && typeof settings.open==='function'){
+                $(this).on('show.bs.modal', function(){
+                    settings.open.call(self);
+                })
+            }
+
+            if(settings.close && typeof settings.close==='function'){
+                $(this).on('hide.bs.modal', function(){
+                    settings.close.call(self);
+                })
+            }
+            $(this).modal(modalOptions).addClass('fppDialog');
+        });
+        return this;
+    };
+}( jQuery ));
+
+function handleKeypress(e) {
+	if(e.keyCode == 112) {
+		e.preventDefault();
+		DisplayHelp();
+	}
+};
+class SwipeHandler {
+    constructor(element) {
+        this.xDown = null;
+        this.yDown = null;
+        this.element = typeof(element) === 'string' ? document.querySelector(element) : element;
+
+        this.element.addEventListener('touchstart', function(evt) {
+            this.xDown = evt.touches[0].clientX;
+            this.yDown = evt.touches[0].clientY;
+        }.bind(this), false);
+    }
+    onLeft(callback) {
+        this.onLeft = callback;
+        return this;
+    }
+
+    onRight(callback) {
+        this.onRight = callback;
+        return this;
+    }
+
+    onUp(callback) {
+        this.onUp = callback;
+        return this;
+    }
+
+    onDown(callback) {
+        this.onDown = callback;
+        return this;
+    }
+    handleTouchMove(evt) {
+        if ( ! this.xDown || ! this.yDown ) {
+            return;
+        }
+        var xUp = evt.touches[0].clientX;
+        var yUp = evt.touches[0].clientY;
+        this.xDiff = this.xDown - xUp;
+        this.yDiff = this.yDown - yUp;
+
+        if ( Math.abs( this.xDiff ) > Math.abs( this.yDiff ) ) { // Most significant.
+            if ( this.xDiff > 0 ) {
+                this.onLeft();
+            } else {
+                this.onRight();
+            }
+        } else {
+            if ( this.yDiff > 0 ) {
+                this.onUp();
+            } else {
+                this.onDown();
+            }
+        }
+        // Reset values.
+        this.xDown = null;
+        this.yDown = null;
+    }
+
+    run() {
+        this.element.addEventListener('touchmove', function(evt) {
+            this.handleTouchMove(evt).bind(this);
+        }.bind(this), false);
+    }
+}
+function CheckBrowser() {
+    var ua = window.navigator.userAgent;
+    var msie = ua.indexOf('MSIE '); // IE<11
+    var trident = ua.indexOf('Trident/'); // IE11
+    if (msie > 0 || trident > 0) {
+       // IE 10 or older => return version number
+        $('#unsupportedBrowser').show();
+    } else {
+        $('#unsupportedBrowser').hide();
+    }
+    if(navigator.userAgent.indexOf('Mac') > 0) {
+        $('body').addClass('mac-os');
+    }
+}
+
+
+/* jQuery helper method to allow for PUT (similar to standard GET/POST)*/
+$.put = function(url, data, callback, type){
+    if ( $.isFunction(data) ){
+        type = type || callback,
+        callback = data,
+        data = {}
+    }else if(data != undefined && typeof data != "object"){
+        data = JSON.stringify(data);
+    }
+
+    return $.ajax({
+        url: url,
+        type: 'PUT',
+        success: callback,
+        data: data,
+        contentType: type
+    });
+}
+
+/* jQuery helper method to allow for DELETE (similar to standard GET/POST)*/
+$.delete = function(url, data, callback, type){
+    if ( $.isFunction(data) ){
+        type = type || callback,
+        callback = data,
+        data = {}
+    }else if(data != undefined && typeof data != "object"){
+        data = JSON.stringify(data);
+    }
+
+    return $.ajax({
+        url: url,
+        type: 'DELETE',
+        success: callback,
+        data: data,
+        contentType: type
+    });
+}
 
 function PadLeft(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
@@ -47,7 +372,7 @@ function versionToNumber(version)
         version = version.substr(0, version.indexOf("-"));
     }
     var parts = version.split('.');
-    
+
     while (parts.length < 3) {
         parts.push("0");
     }
@@ -62,6 +387,27 @@ function versionToNumber(version)
         number = number * 100 + val;
     }
     return number;
+}
+
+function TogglePasswordHideShow(setting) {
+    if (setting.indexOf('Verify') > 0)
+        setting = setting.replace(/Verify$/, '');
+
+    if ($('#' + setting).attr('type') == 'text') {
+        $('#' + setting).attr('type', 'password');
+        $('#' + setting + 'Verify').attr('type', 'password');
+        $('#' + setting + 'HideShow').removeClass('fa-eye-slash');
+        $('#' + setting + 'VerifyHideShow').removeClass('fa-eye-slash');
+        $('#' + setting + 'HideShow').addClass('fa-eye');
+        $('#' + setting + 'VerifyHideShow').addClass('fa-eye');
+    } else {
+        $('#' + setting).attr('type', 'text');
+        $('#' + setting + 'Verify').attr('type', 'text');
+        $('#' + setting + 'HideShow').removeClass('fa-eye');
+        $('#' + setting + 'VerifyHideShow').removeClass('fa-eye');
+        $('#' + setting + 'HideShow').addClass('fa-eye-slash');
+        $('#' + setting + 'VerifyHideShow').addClass('fa-eye-slash');
+    }
 }
 
 function RegexCheckData(regexStr, value, desc, hideValue = false) {
@@ -93,6 +439,96 @@ function CompareFPPVersions(a, b) {
 	}
 
 	return 0;
+}
+
+function Convert24HToUIFormat(tm) {
+    var newTime = tm;
+
+    if (tm.indexOf(':') == -1) // Sunrise/Sunset/Dusk/Dawn
+        return tm;
+
+    var fmt = '%I:%M %p'; // default format in settings.json
+
+    var showingSeconds = false;
+    if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+        showingSeconds = true;
+
+    if (settings.hasOwnProperty('TimeFormat'))
+        fmt = settings['TimeFormat'];
+
+    if (fmt == '%H:%M') { // if set to use 24H time then just exit
+        if (showingSeconds)
+            return tm;
+        else
+            return tm.substr(0, 5);
+    }
+
+    var parts = tm.split(':');
+    var h = parseInt(parts[0]);
+    var m = parseInt(parts[1]);
+    var s = parseInt(parts[2]);
+
+    var ampm = 'AM';
+    var h12 = h;
+    if (h >= 12) {
+        ampm = 'PM';
+        h12 -= 12;
+    }
+
+    if (fmt == '%I:%M %p') {
+        newTime = PadLeft(h12, '0', 2) + ':' + PadLeft(m, '0', 2);
+
+        if (showingSeconds)
+            newTime += ':' + PadLeft(s, '0', 2);
+
+        newTime += ' ' + ampm;
+    }
+
+    return newTime;
+}
+
+function Convert24HFromUIFormat(tm) {
+    var newTime = tm;
+
+    if (tm.indexOf(':') == -1) // Sunrise/Sunset/Dusk/Dawn
+        return tm;
+
+    var fmt = '%I:%M %p'; // default format in settings.json
+
+    var showingSeconds = false;
+    if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+        showingSeconds = true;
+
+    if (settings.hasOwnProperty('TimeFormat'))
+        fmt = settings['TimeFormat'];
+
+    if (fmt == '%H:%M') { // if set to use 24H time then just exit
+        if (showingSeconds)
+            return tm;
+        else
+            return tm + ':00';
+    }
+
+    var h = 0;
+    var m = 0;
+    var s = 0;
+
+    if (fmt == '%I:%M %p') {
+        var tmp = tm.split(/ /);
+        var parts = tmp[0].split(':');
+        h = parseInt(parts[0]);
+        m = parseInt(parts[1]);
+
+        if (showingSeconds)
+            s = parseInt(parts[2]);
+
+        if ((tmp[1] == 'PM') || (tmp[1] == 'pm'))
+            h += 12;
+    }
+
+    newTime = PadLeft(h, '0', 2) + ':' + PadLeft(m, '0', 2) + ':' + PadLeft(s, '0', 2);
+
+    return newTime;
 }
 
 function InitializeTimeInputs(format = 'H:i:s') {
@@ -171,7 +607,39 @@ function HandleTableRowMouseClick(event, row) {
     }
 }
 
-function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null, postProcessData = true) {
+var StreamScriptStart = "<script class='streamScript'>";
+var StreamScriptEnd   = "</script>";
+var StreamScript = '';
+function ProcessStreamedScript(str, allowEmpty = false) {
+    if (str.length == 0)
+        return;
+
+    if ((StreamScript != '') || (allowEmpty == true)) {
+        var i = str.indexOf(StreamScriptEnd);
+        if (i >= 0) {
+            // this packet contains the end of the script
+            StreamScript += str.substr(0, i);
+            eval(StreamScript);
+            StreamScript = '';
+
+            var remaining = str.length - i - StreamScriptEnd.length;
+            if (remaining > 0)
+                ProcessStreamedScript(str.substr(i + 1, remaining));
+        } else {
+            // script is continued on in next data packet
+            StreamScript += str;
+        }
+    } else {
+        var i = str.indexOf(StreamScriptStart);
+        if (i >= 0) {
+            var remaining = str.length - i - StreamScriptStart.length;
+            if (remaining > 0)
+                ProcessStreamedScript(str.substr(i + StreamScriptStart.length, remaining), true);
+        }
+    }
+}
+
+function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GET', postData = null, postContentType = null, postProcessData = true, raw = false) {
     var last_response_len = false;
     var outputArea = document.getElementById(id);
     var reAddLF = false;
@@ -206,11 +674,13 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
                     reAddLF = true;
                 }
 
+                var orig_response = this_response;
+
                 if ((outputArea.nodeName == "DIV") ||
                     (outputArea.nodeName == "TD") ||
                     (outputArea.nodeName == "PRE") ||
                     (outputArea.nodeName == "SPAN")) {
-                    if (outputArea.nodename != "PRE") {
+                    if ((outputArea.nodename != "PRE") && (raw == false)) {
                         this_response = this_response.replace(/(?:\r\n|\r|\n)/g, '<br>');
                     }
 
@@ -218,6 +688,8 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
                 } else {
                     outputArea.value += this_response;
                 }
+
+                ProcessStreamedScript(orig_response);
 
                 outputArea.scrollTop = outputArea.scrollHeight;
                 outputArea.parentElement.scrollTop = outputArea.parentElement.scrollHeight;
@@ -234,12 +706,12 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
     });
 }
 
-function Post(url, async, data, silent = false) {
+function PostPutHelper(url, async, data, silent, type) {
     var result = {};
 
     $.ajax({
         url: url,
-        type: 'POST',
+        type: type,
         contentType: 'application/json',
         data: data,
         async: async,
@@ -249,12 +721,20 @@ function Post(url, async, data, silent = false) {
         },
         error: function() {
             if (!silent) {
-                $.jGrowl('Error posting to ' + url);
+                $.jGrowl('Error with ' + type + ' to ' + url,{themeState:'danger'});
             }
         }
     });
 
     return result;
+}
+
+function Post(url, async, data, silent = false) {
+    return PostPutHelper(url, async, data, silent, 'POST');
+}
+
+function Put(url, async, data, silent = false) {
+    return PostPutHelper(url, async, data, silent, 'PUT');
 }
 
 function Get(url, async, silent = false) {
@@ -270,7 +750,7 @@ function Get(url, async, silent = false) {
         },
         error: function() {
             if (!silent)
-                $.jGrowl('Error: Unable to get ' + url);
+                $.jGrowl('Error: Unable to get ' + url,{themeState:'danger'});
         }
     });
 
@@ -312,6 +792,26 @@ function GetItemCount(url, id, key = '') {
 }
 
 function SetupToolTips(delay = 100) {
+    $('[title]').each(function(){
+        if($(this).is('[data-tooltip-position-at]')||$(this).is('[data-tooltip-position-my]')){
+            var title = $(this).attr('title');
+            $(this).data('tooltip-title',title);
+            
+            $(this).removeAttr('title');
+            var pos = { my: "left top+15", at: "left bottom", collision: "flipfit" };
+            if($(this).is('[data-tooltip-position-at]')){
+                pos.at=$(this).data('tooltip-position-at');
+            }
+            if($(this).is('[data-tooltip-position-my]')){
+                pos.my=$(this).data('tooltip-position-my');
+            }
+            $(this).tooltip({
+                items: $(this).prop('nodeName'),
+                content:$(this).data('tooltip-title'),
+                position:pos,
+            });
+        }
+    });
     $(document).tooltip({
         content: function() {
             $('.ui-tooltip').hide();
@@ -326,13 +826,28 @@ function SetupToolTips(delay = 100) {
             if (typeof title != "undefined") {
                 return title;
             }
-
             return "";
         },
+
         hide: { delay: delay }
     });
-}
 
+
+}
+function SetHomepageStatusRowWidthForMobile(){
+    if($('.statusDivTopRow').length>0){
+        if($(window).width()<481){
+            var statusWidth=0;
+            $('.statusDivTopCol').each(function(){
+                statusWidth+=$(this).outerWidth(true);
+            });
+            $('.statusDivTopRow').css('width',statusWidth+40)
+        }else{
+            $('.statusDivTopRow').css('width','')
+        }
+
+    }
+}
 function ShowTableWrapper(tableName) {
     if ($('#' + tableName).parent().parent().hasClass('fppTableWrapperAsTable'))
         $('#' + tableName).parent().parent().attr('style', 'display: table');
@@ -356,10 +871,18 @@ function HidePlaylistDetails() {
 	$('#btnHidePlaylistDetails').hide();
 }
 
-function PopulateLists() {
+function PopulateLists(options) {
+    var onPlaylistArrayLoaded=function(){}
+    if(options){
+        if(typeof options.onPlaylistArrayLoaded==='function'){
+            onPlaylistArrayLoaded=options.onPlaylistArrayLoaded;
+        }
+    }
     DisableButtonClass('playlistEditButton');
 	PlaylistTypeChanged();
-    PopulatePlaylists(false);
+    PopulatePlaylists(false,{
+        onPlaylistArrayLoaded:onPlaylistArrayLoaded
+    });
 }
 
 function PlaylistEntryTypeToString(type)
@@ -510,7 +1033,7 @@ function psiDetailsForEntrySimple(entry, editMode) {
 
             if (partialResult != '') {
                 if (result != '')
-                    result += "&nbsp;&nbsp;&nbsp;<b>|</b>&nbsp;&nbsp;&nbsp;";
+                    result += " <b>|</b> ";
 
                 result += partialResult;
             }
@@ -796,7 +1319,15 @@ function GetPlaylistRowHTML(ID, entry, editMode)
     }
     HTML += "</div>";
 
-    HTML += GetPlaylistDurationDiv(entry) + "</div></td></tr>";
+    HTML += GetPlaylistDurationDiv(entry)
+    HTML += "</div></td>"
+    if (editMode) {
+        HTML += '<td class="playlistRowEditActionCell">'
+        HTML += '<button class="circularButton circularEditButton playlistRowEditButton">Edit</button>';
+        HTML += '<button class="circularButton circularDeleteButton playlistRowDeleteButton ml-2">Delete</button>';
+        HTML += '</td>'
+    }
+    HTML += "</tr>";
 
     return HTML;
 }
@@ -887,39 +1418,6 @@ function PlaylistNameOK(name) {
     return 1;
 }
 
-function LoadNetworkDetails(){
-    $.get('api/network/interface'
-    ).done(function(data) {
-       $.get('api/network/wifi/strength'
-       ).done(function(wifiData) {
-          var rc = [];
-          data.forEach(function(e) {
-	     if (e.ifname === "lo") { return 0; }
-	     if (e.ifname.startsWith("eth0:0")) { return 0; }
-	     if (e.ifname.startsWith("usb")) { return 0; }
-	     if (e.ifname.startsWith("SoftAp")) { return 0; }
-	     if (e.ifname.startsWith("can.")) { return 0; }
-	     e.addr_info.forEach(function(n) {
-                if (n.family === "inet") {
-                   var row =e.ifname + ":" + n.local;
-		   wifiData.forEach(function(w) {
-		      if (w.interface === e.ifname) {
-		         row = row + '<span title="' + w.level + 'dBm" class="wifi-' + w.desc + '"></span>';
-		      }
-		   });
-		   rc.push(row);
-	        }
-	     });
-          });
-          $("#header_IPs").html(rc.join(", "));
-       }).fail(function(){
-        DialogError('Error loading wifi info', 'Error loading wifi interface details.');
-       });
-    }).fail(function() {
-        DialogError('Error loading network info', 'Error loading network interface details.');
-    });
-}
-
 function LoadPlaylistDetails(name) {
     $.get('api/playlist/' + name
     ).done(function(data) {
@@ -927,7 +1425,7 @@ function LoadPlaylistDetails(name) {
         RenumberPlaylistEditorEntries();
         UpdatePlaylistDurations();
         VerbosePlaylistItemDetailsToggled();
-        $("#tblPlaylistLeadInHeader tr").get(0).scrollIntoView();
+        //$("#tblPlaylistLeadInHeader").get(0).scrollIntoView();
     }).fail(function() {
         DialogError('Error loading playlist', 'Error loading playlist details!');
     });
@@ -970,28 +1468,50 @@ function EditPlaylist() {
     DisableButtonClass('playlistDetailsEditButton');
 
     LoadPlaylistDetails(name);
+    $('#playlistEditor').addClass('hasPlaylistDetailsLoaded');
+}
+function SetButtonState(button,state)
+{
+        // Enable Button
+        if(state == 'enable')
+        {
+            $(button).addClass('buttons').addClass($(button).data('btn-enabled-class'));
+            $(button).removeClass('disableButtons');
+            $(button).removeAttr("disabled");
+        }
+        else
+        {
+            $(button).removeClass('buttons').removeClass($(button).data('btn-enabled-class'));
+            $(button).addClass('disableButtons');
+            $(button).attr("disabled", "disabled");
+        }
 }
 
 function EnableButtonClass(c) {
-    $('.' + c).addClass('buttons');
-    $('.' + c).removeClass('disableButtons');
-    $('.' + c).removeAttr("disabled");
+    $('.'+c).each(function(){
+        SetButtonState(this,'enable');
+    })
 }
 
 function DisableButtonClass(c) {
-    $('.' + c).removeClass('buttons');
-    $('.' + c).addClass('disableButtons');
-    $('.' + c).attr("disabled", "disabled");
+    $('.'+c).each(function(){
+        SetButtonState(this,'disable');
+    })
 }
 
 function RenumberPlaylistEditorEntries() {
     var id = 1;
     var sections = ['LeadIn', 'MainPlaylist', 'LeadOut'];
     for (var s = 0; s < sections.length; s++) {
-        $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function() {
-            $(this).find('.playlistRowNumber').html('' + id + '.');
-            id++;
-        });
+        var $sectionTable = $('#tblPlaylist' + sections[s]);
+        if(!$sectionTable.is(':empty')){
+            $('#tblPlaylist' + sections[s] + ' tr.playlistRow').each(function() {
+                $(this).find('.playlistRowNumber').html('' + id + '.');
+                id++;
+            });
+        }else{
+            $sectionTable.append("<tr id='tblPlaylist" + sections[s] + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");   
+        }
     }
 }
 
@@ -1230,7 +1750,7 @@ function AddPlaylistEntry(mode) {
     } else {
         $('#tblPlaylistMainPlaylist').append(html);
 
-        $('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
+        $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
 
         newRow = $('#tblPlaylistMainPlaylist > tr').last();
         $(newRow).addClass('playlistSelectedEntry');
@@ -1309,7 +1829,15 @@ function GetPlaylistEntry(row) {
 
     return e;
 }
+function AddPlaylist(filter, callback) {
+    var name = $('#txtAddPlaylistName').val();
+    if (name == "") {
+        alert("Playlist name cannot be empty");
+        return;
+    }
 
+    return SavePlaylistAs(name, filter, callback);
+}
 function SavePlaylist(filter, callback) {
     var name = $('#txtPlaylistName').val();
     if (name == "") {
@@ -1321,11 +1849,13 @@ function SavePlaylist(filter, callback) {
 }
 
 function SetPlaylistName(name) {
-    $('#txtPlaylistName').val(name);
-    $('#txtPlaylistName').prop('size', name.length);
+    if (name) { 
+        $('#txtPlaylistName').val(name);
+        $('#txtPlaylistName').prop('size', name.length);
+    }
 }
 
-function SavePlaylistAs(name, filter, callback) {
+function SavePlaylistAs(name, options, callback) {
     if (!PlaylistNameOK(name))
         return 0;
 
@@ -1335,35 +1865,47 @@ function SavePlaylistAs(name, filter, callback) {
     pl.version = 3;   // v1 == CSV, v2 == JSON, v3 == deprecated some things
     pl.repeat = 0;    // currently unused by player
     pl.loopCount = 0; // currently unused by player
+    pl.empty = false;
     pl.desc = $('#txtPlaylistDesc').val();
-    pl.random = parseInt($('#randomizePlaylist').val());
+    pl.random = parseInt($('#randomizePlaylist').prop('value'));
+    console.log(options,typeof options)
+    if(typeof options === 'object'){
+        
+        $.extend(pl,options)
+    }
 
     var leadIn = [];
-    $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
-        leadIn.push(GetPlaylistEntry(this));
-    });
-    if (leadIn.length)
-        pl.leadIn = leadIn;
-
     var mainPlaylist = [];
-    $('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function() {
-        mainPlaylist.push(GetPlaylistEntry(this));
-    });
-    if (mainPlaylist.length)
-        pl.mainPlaylist = mainPlaylist;
-
     var leadOut = [];
-    $('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
-        leadOut.push(GetPlaylistEntry(this));
-    });
-    if (leadOut.length)
-        pl.leadOut = leadOut;
-
     var playlistInfo = {};
-    playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
-    playlistInfo.total_items = mainPlaylist.length;
+    
+
+    if(pl.empty==false){
+        $('#tblPlaylistLeadIn > tr:not(.unselectable)').each(function() {
+            leadIn.push(GetPlaylistEntry(this));
+        });
+
+        $('#tblPlaylistMainPlaylist > tr:not(.unselectable)').each(function() {
+            mainPlaylist.push(GetPlaylistEntry(this));
+        });          
+    
+        $('#tblPlaylistLeadOut > tr:not(.unselectable)').each(function() {
+            leadOut.push(GetPlaylistEntry(this));
+        });
+   
+        playlistInfo.total_duration = parseFloat($('#playlistDuration').html());
+        playlistInfo.total_items = mainPlaylist.length;
+        
+    }else{
+        playlistInfo.total_duration = parseFloat(0);
+        playlistInfo.total_items = 0;   
+    }
+    pl.leadIn = leadIn;
+    pl.mainPlaylist = mainPlaylist;
+    pl.leadOut = leadOut;
     pl.playlistInfo = playlistInfo;
 
+    
     var str = JSON.stringify(pl, true);
     $.ajax({
         url: "api/playlist/" + name,
@@ -1389,7 +1931,10 @@ function SavePlaylistAs(name, filter, callback) {
             if ($('#tblPlaylistDetails').find('.playlistSelectedEntry').length)
                 EditPlaylistEntry();
 
-            $.jGrowl("Playlist Saved");
+            $.jGrowl("Playlist Saved",{themeState:'success'});
+            if(typeof callback==='function'){
+                callback();
+            }
         },
         error: function() {
             DialogError('Unable to save playlist', "Error: Unable to save playlist.");
@@ -1417,6 +1962,34 @@ function RandomizePlaylistEntries() {
     RenumberPlaylistEditorEntries();
 
 //    $('.playlistEntriesBody').sortable('refresh').sortable('refreshPositions');
+}
+
+function GetTimeZone() {
+    $.get('https://ipapi.co/json/'
+    ).done(function(data) {
+        $('#TimeZone').val(data.timezone).change();
+    }).fail(function() {
+        DialogError("Time Zone Lookup", "Time Zone lookup failed.");
+    });
+}
+
+function GetGeoLocation() {
+    $.get('https://ipapi.co/json/'
+    ).done(function(data) {
+        $('#Latitude').val(data.latitude).change();
+        $('#Longitude').val(data.longitude).change();
+    }).fail(function() {
+        DialogError("GeoLocation Lookup", "GeoLocation lookup failed.");
+    });
+}
+
+function ViewLatLon()
+{
+    var lat = $('#Latitude').val();
+    var lon = $('#Longitude').val();
+
+    var url = 'https://www.google.com/maps/@' + lat + ',' + lon + ',15z';
+    window.open(url, '_blank');
 }
 
 /**
@@ -1451,7 +2024,7 @@ function RemoveIllegalChars(name) {
 function CopyPlaylist()	{
     var name = $('#txtPlaylistName').val();
 
-    $("#copyPlaylist_dialog").dialog({
+    $("#copyPlaylist_dialog").fppDialog({
         width: 400,
         buttons: {
             "Copy": function() {
@@ -1467,10 +2040,11 @@ function CopyPlaylist()	{
 
                 PopulateLists();
                 SetPlaylistName(new_playlist_name);
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             },
             Cancel: function() {
-                $(this).dialog("close");
+
+                $(this).fppDialog("close");
             }
         },
         open: function (event, ui) {
@@ -1486,9 +2060,11 @@ function CopyPlaylist()	{
 function RenamePlaylist()	{
     var name = $('#txtPlaylistName').val();
 
-    $("#renamePlaylist_dialog").dialog({
+    $("#renamePlaylist_dialog").fppDialog({
         width: 400,
+        title:'Rename Playlist',
         buttons: {
+           
             "Rename": function() {
                 var new_playlist_name = $(this).find(".newPlaylistName").val();
 
@@ -1504,10 +2080,10 @@ function RenamePlaylist()	{
                 PopulateLists();
 
                 SetPlaylistName(new_playlist_name);
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             },
             Cancel: function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             }
         },
         open: function (event, ui) {
@@ -1520,13 +2096,13 @@ function RenamePlaylist()	{
     });
 }
 
-function DeletePlaylist() {
+function DeletePlaylist(options) {
     var name = $('#txtPlaylistName').val();
 
-    DeleteNamedPlaylist(name);
+    DeleteNamedPlaylist(name,options);
 }
 
-function DeleteNamedPlaylist(name) {
+function DeleteNamedPlaylist(name,options) {
     var postDataString = "";
     $.ajax({
         dataType: "json",
@@ -1534,8 +2110,8 @@ function DeleteNamedPlaylist(name) {
         type: "DELETE",
         async: false,
         success: function(data) {
-            PopulateLists();
-            $.jGrowl("Playlist Deleted");
+            PopulateLists(options);
+            $.jGrowl("Playlist Deleted",{themeState:'success'});
         },
         error: function() {
             DialogError('Error Deleting Playlist', "Error deleting '" + name + "' playlist");
@@ -1565,7 +2141,7 @@ function EditPlaylistEntry() {
         return;
     }
 
-    $("#playlistDetails").get(0).scrollIntoView();
+    //$("#playlistEntryProperties").get(0).scrollIntoView();
 
     var row = $('#tblPlaylistDetails').find('.playlistSelectedEntry');
     var type = $(row).find('.entryType').html();
@@ -1578,7 +2154,7 @@ function EditPlaylistEntry() {
     var keys = Object.keys(pet.args);
     for (var i = 0; i < keys.length; i++) {
         var a = pet.args[keys[i]];
-        
+
         if (a.hidden == true) {
             continue;
         }
@@ -1631,10 +2207,10 @@ function RemovePlaylistEntry()	{
 				return;
 
 				$('#helpText').html("Pinging " + ip + "<br><br>This will take a few seconds to load");
-				$('#dialog-help').dialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
+				$('#dialog-help').fppDialog({ height: 600, width: 800, position: { my: 'center', at: 'top', of: window}, title: "Ping " + ip });
 			        // Workaround for bug: https://bugs.jqueryui.com/ticket/8741
-				$('#dialog-help').dialog("option", "position", { my: 'center', of: window});
-//				$('#dialog-help').dialog( "moveToTop" );
+				$('#dialog-help').fppDialog("option", "position", { my: 'center', of: window});
+//				$('#dialog-help').fppDialog( "moveToTop" );
 
 				$.get("ping.php?ip=" + ip + "&count=" + count
 				).done(function(data) {
@@ -1653,8 +2229,8 @@ function RemovePlaylistEntry()	{
 
 		function ViewReleaseNotes(version) {
 				$('#helpText').html("Retrieving Release Notes");
-				$('#dialog-help').dialog({ height: 800, width: 800, title: "Release Notes for FPP v" + version });
-				$('#dialog-help').dialog( "moveToTop" );
+				$('#dialog-help').fppDialog({ width: 800, title: "Release Notes for FPP v" + version });
+				$('#dialog-help').fppDialog( "moveToTop" );
 
 				$.get("api/system/releaseNotes/" + version
 				).done(function(data) {
@@ -1676,8 +2252,8 @@ function RemovePlaylistEntry()	{
 		{
 			if (confirm('Do you wish to upgrade the Falcon Player?\n\nClick "OK" to continue.\n\nThe system will automatically reboot to complete the upgrade.\nThis can take a long time,  20-30 minutes on slower devices.'))
 			{
-                $('#upgradePopup').dialog({ height: 600, width: 900, title: "FPP Upgrade" });
-                $('#upgradePopup').dialog( "moveToTop" );
+                $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "FPP Upgrade" });
+                $('#upgradePopup').fppDialog( "moveToTop" );
                 $('#upgradeText').html('');
 
                 StreamURL('upgradefpp.php?version=v' + newVersion, 'upgradeText', 'VersionUpgradeDone');
@@ -1688,12 +2264,12 @@ function RemovePlaylistEntry()	{
 		{
             location.href="changebranch.php?branch=" + newBranch;
 		}
-		
+
 		function RebuildFPPSource()
 		{
             location.href="rebuildfpp.php";
 		}
-	
+
 		function SetUniverseCount(input)
 		{
 			var txtCount=document.getElementById("txtUniverseCount");
@@ -1701,7 +2277,7 @@ function RemovePlaylistEntry()	{
 			if(isNaN(count)) {
 				count = 8;
 			}
-            
+
             if (count < UniverseCount) {
                 while (count < UniverseCount) {
                     UniverseSelected = UniverseCount - 1;
@@ -1766,7 +2342,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[13].innerHTML = "<input type='button' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[13].innerHTML = "<input type='button' class='buttons' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     updateUniverseEndChannel( document.getElementById("tblUniversesBody").rows[UniverseCount]);
                     UniverseCount++;
@@ -1784,7 +2360,7 @@ function RemovePlaylistEntry()	{
                 univc.prop('disabled', true);
                 var sz = $(item).parent().parent().find("input.txtSize");
                 sz.prop('max', 512000);
-                
+
                 var monitor = $(item).parent().parent().find("input.txtMonitor");
                 monitor.prop('disabled', false);
 
@@ -1807,7 +2383,7 @@ function RemovePlaylistEntry()	{
                     sz.val(512);
                 }
                 sz.prop('max', 512);
-                
+
                 if (!input) {
                     if ((type == 0) || (type == 2)) {
                         $(item).parent().parent().find("input.txtIP").val('');
@@ -1861,7 +2437,7 @@ function updateUniverseEndChannel(row) {
             } else if ("channelOutputs" in data) {
                 channelData = data.channelOutputs[0];
             }
-        
+
             if (input) {
                 inputStr = 'Input';
                 inputStyle = "style='display: none;'";
@@ -1958,11 +2534,11 @@ function updateUniverseEndChannel(row) {
 
                 bodyHTML += "</select></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32' " + ipDisabled + "></td>";
-                bodyHTML += "<td><input class='txtStartAddress' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
+                bodyHTML += "<td><input class='txtStartAddress singleDigitInput' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
 
-                bodyHTML += "<td><input class='txtUniverse' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
+                bodyHTML += "<td><input class='txtUniverse singleDigitInput' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
-                bodyHTML += "<td><input class='numUniverseCount' type='number' min='1' max='999' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
+                bodyHTML += "<td><input class='numUniverseCount singleDigitInput' type='number' min='1' max='999' value='" + ucount.toString() + "'" + universeCountDisable + " onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td>";
 
                 bodyHTML += "<td><input class='txtSize' type='number'  min='1'  max='" + universeSize + "' value='" + size.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtPriority' type='number' min='0' max='9999' value='" + priority.toString() + "'";
@@ -1973,7 +2549,7 @@ function updateUniverseEndChannel(row) {
                 bodyHTML += "/></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtMonitor' id='txtMonitor' type='checkbox' size='4' maxlength='4' " + (monitor == 1 ? "checked" : "" ) + monitorDisabled + "/></td>" +
                             "<td " + inputStyle + "><input class='txtDeDuplicate' id='txtDeDuplicate' type='checkbox' size='4' maxlength='4' " + (deDuplicate == 1 ? "checked" : "" ) + "/></td>" +
-                            "<td " + inputStyle + "><input type=button onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
+                            "<td " + inputStyle + "><input type=button class='buttons' onClick='PingE131IP(" + i.toString() + ");' value='Ping'></td>" +
                             "</tr>";
             }
 
@@ -2016,9 +2592,9 @@ function updateUniverseEndChannel(row) {
 			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
  			var innerHTML="";
 			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
+				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
 				{
-					var xmlDoc=xmlhttp.responseXML; 
+					var xmlDoc=xmlhttp.responseXML;
 					var entries = xmlDoc.getElementsByTagName('PixelnetDMXentries')[0];
 					if(entries.childNodes.length> 0)
 					{
@@ -2039,13 +2615,13 @@ function updateUniverseEndChannel(row) {
 								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
 								var pixelnetChecked = type == 0 ? "selected" : "";
 								var dmxChecked = type == 1 ? "selected" : "";
-								
+
 								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
 								              "<td>" + (i+1).toString() + "</td>" +
 															"<td><input name=\"FPDchkActive[" + i.toString() + "]\" id=\"FPDchkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
 															"<td><select id=\"pixelnetDMXtype[" + i.toString() + "]\" name=\"pixelnetDMXtype[" + i.toString() + "]\" style=\"width:150px\">" +
 															      "<option value=\"0\" " + pixelnetChecked + ">Pixelnet</option>" +
-															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" + 
+															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" +
 															"<td><input name=\"FPDtxtStartAddress[" + i.toString() + "]\" id=\"FPDtxtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
 															"</tr>";
 
@@ -2053,14 +2629,14 @@ function updateUniverseEndChannel(row) {
 					}
 					else
 					{
-						innerHTML = "No Results Found";	
+						innerHTML = "No Results Found";
 					}
 					var results = document.getElementById("tblOutputs");
-					results.innerHTML = innerHTML;	
+					results.innerHTML = innerHTML;
 				}
 			};
-			
-			xmlhttp.send();			
+
+			xmlhttp.send();
 		}
 
         function SetUniverseRowInputNames(row, id) {
@@ -2068,7 +2644,7 @@ function updateUniverseEndChannel(row) {
                                'txtUniverse', 'numUniverseCount', 'txtSize', 'universeType', 'txtIP',
                                'txtPriority', 'txtMonitor', 'txtDeDuplicate');
             row.find('span.rowID').html((id + 1).toString());
-            
+
             for (var i = 0; i < fields.length; i++)
             {
                 row.find('input.' + fields[i]).attr('name', fields[i] + '[' + id + ']');
@@ -2091,13 +2667,13 @@ function updateUniverseEndChannel(row) {
 			UniverseSelected = -1;
 			UniverseCount = 0;
 		}
-		
+
 		function DeleteUniverse(input)
 		{
             if (UniverseSelected >= 0) {
                 var selectedIndex = UniverseSelected;
                 for(i = UniverseSelected + 1; i < UniverseCount; i++, selectedIndex++) {
-                    
+
                     document.getElementById("txtUniverse[" + selectedIndex + "]").value = document.getElementById("txtUniverse[" + i + "]").value
                     document.getElementById("txtDesc[" + selectedIndex + "]").value = document.getElementById("txtDesc[" + i + "]").value
                     document.getElementById("universeType[" + selectedIndex + "]").value = document.getElementById("universeType[" + i + "]").value;
@@ -2124,9 +2700,9 @@ function updateUniverseEndChannel(row) {
                 document.getElementById("txtUniverseCount").value = UniverseCount;
                 UniverseSelected = -1;
             }
-        
+
         }
-		
+
 		function CloneUniverses(cloneNumber)
 		{
 			var selectIndex = (UniverseSelected).toString();
@@ -2204,10 +2780,10 @@ function updateUniverseEndChannel(row) {
 						document.getElementById("FPDchkActive[" + i + "]").value = active;
 						startAddress+=size;
 					}
-					$.jGrowl("" + cloneNumber + " Outputs Cloned");
+					$.jGrowl("" + cloneNumber + " Outputs Cloned",{themeState:'success'});
 				}
 			} else {
-				DialogError("Clone Output", "Error, invalid number");
+				DialogError("Clone Output", "Error, invalid number",{themeState:'success'});
 			}
 		}
 
@@ -2264,7 +2840,7 @@ function postUniverseJSON(input) {
         $('#outputOffWarning').hide();
 
     $.post("api/channel/output/" + fileName, postDataString).done(function (data) {
-        $.jGrowl("E1.31 Universes Saved");
+        $.jGrowl("E1.31 Universes Saved",{themeState:'success'});
         SetRestartFlag(2);
         CheckRestartRebootFlags();
     }).fail(function () {
@@ -2308,7 +2884,7 @@ function postUniverseJSON(input) {
                     }
                 }
 				// start address
-				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");				
+				txtStartAddress=document.getElementById("txtStartAddress[" + i + "]");
 				if(!validateNumber(txtStartAddress,1,1048576))
 				{
 					returnValue = false;
@@ -2333,7 +2909,7 @@ function postUniverseJSON(input) {
 			}
 			return returnValue;
 		}
-		
+
 		function validateIPaddress(id)
 		{
 			var ipb = document.getElementById(id);
@@ -2348,47 +2924,47 @@ function postUniverseJSON(input) {
 
 			ipb.style.border = "#F00 2px solid";
 			return false;
-		}  
+		}
 
-		function validateNumber(textbox,minimum,maximum)   
-		{  
+		function validateNumber(textbox,minimum,maximum)
+		{
 			result = true;
 			value = Number(textbox.value);
 			if(isNaN(value))
 			{
 				textbox.style.border="red solid 1px";
-				textbox.value = ""; 
+				textbox.value = "";
 				result = false;
 			}
 			if(value >= minimum && value <= maximum)
 			{
-				return true;	
+				return true;
 			}
 			else
 			{
 				textbox.style.border="red solid 1px";
-				textbox.value = ""; 
+				textbox.value = "";
 				result = false;
 			alert(textbox.value + ' is not between ' + minimum + ' and ' + maximum);
 			}
 		}
-		
+
 		function ReloadPixelnetDMX()
 		{
 			getPixelnetDMXoutputs("TRUE");
-		} 
+		}
 
 		function ExtendSchedule(minutes)
 		{
 			var seconds = minutes * 60;
 			var url = "api/command/Extend Schedule/" + seconds;
 			$.get(url).done(function(data) {
-					$.jGrowl(data);
+					$.jGrowl(data,{themeState:'success'});
 					if (statusTimeout != null)
 						clearTimeout(statusTimeout);
 					GetFPPStatus();
 				}).fail(function() {
-					$.jGrowl("Failed to extend schedule.");
+					$.jGrowl("Failed to extend schedule.",{themeState:'danger'});
 				});
 		}
 
@@ -2396,7 +2972,7 @@ function postUniverseJSON(input) {
 		{
 			var minutes = prompt ("Extend running scheduled playlist by how many minutes?","1");
 			if (minutes === null) {
-				$.jGrowl("Extend cancelled");
+				$.jGrowl("Extend cancelled",{themeState:'danger'});
 				return;
 			}
 
@@ -2415,7 +2991,7 @@ function postUniverseJSON(input) {
 
 
 var playListArray = [];
-function GetPlaylistArray()
+function GetPlaylistArray(callback)
 {
     $.ajax({
         dataType: "json",
@@ -2423,6 +2999,9 @@ function GetPlaylistArray()
         async: false,
         success: function(data) {
             playListArray = data;
+            if(typeof callback === 'function'){
+                callback();
+            }
         },
         error: function() {
             DialogError('Load Playlists', 'Error loading list of playlists');
@@ -2487,54 +3066,46 @@ function moveFile(file) {
 	{
 		var status = GetFPPStatus();
 	}
-	
+
 	function IsFPPDrunning()
 	{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=isFPPDrunning";
-			xmlhttp.open("GET",url,true);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
-			xmlhttp.onreadystatechange = function () 
-			{
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200) 
-				{
-					var xmlDoc=xmlhttp.responseXML; 
-					var status = xmlDoc.getElementsByTagName('Status')[0];
-					var retValue='false';
-					if(status.childNodes.length> 0)
-					{
-						ret = status.childNodes[0].textContent;
-						if(ret == 'true')
-						{
-							SetButtonState('#btnDaemonControl','enable');
-							$("#btnDaemonControl").attr('value', 'Stop FPPD');
-							$('#daemonStatus').html("FPPD is running.");
-						}
-						else if (ret == 'updating')
-						{
-							SetButtonState('#btnDaemonControl','disable');
-							$("#btnDaemonControl").attr('value', 'Start FPPD');
-							$('#daemonStatus').html("FPP is currently updating.");
-						} 
-						else
-						{
-							SetButtonState('#btnDaemonControl','enable');
-							$("#btnDaemonControl").attr('value', 'Start FPPD');
-							$('#daemonStatus').html("FPPD is stopped.");
-							$('.schedulerStartTime').hide();
-							$('.schedulerEndTime').hide();
-						} 
-					}
-				}
-			};
-			xmlhttp.send();
+        var ret = 'false';
+        if (lastStatusJSON) {
+            if (("fppd" in lastStatusJSON) && (lastStatusJSON.fppd == 'running') ) {
+                ret = 'true';
+            }
+            if (("status_name" in lastStatusJSON) && (lastStatusJSON.status_name == 'updating') ) {
+                ret = 'updating';
+            }            
+        }
+
+        if(ret == 'true')
+        {
+            SetButtonState('#btnDaemonControl','enable');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD").attr('value', 'Stop FPPD');
+            $('#daemonStatus').html("FPPD is running.");
+        }
+        else if (ret == 'updating')
+        {
+            SetButtonState('#btnDaemonControl','disable');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
+            $('#daemonStatus').html("FPP is currently updating.");
+        }
+        else
+        {
+            SetButtonState('#btnDaemonControl','enable');
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD").attr('value', 'Start FPPD');
+            $('#daemonStatus').html("FPPD is stopped.");
+            $('.schedulerStartTime').hide();
+            $('.schedulerEndTime').hide();
+        }
 	}
 
 	function SetupUIForMode(fppMode)
 	{
 		if (fppMode == 1) // Bridge Mode
 		{
-			$("#playerModeInfo").hide();
+            $("#playerModeInfo").hide();
 			$("#remoteModeInfo").hide();
 			$("#bridgeModeInfo").show();
 		}
@@ -2550,6 +3121,7 @@ function moveFile(file) {
 			$("#remoteModeInfo").hide();
 			$("#bridgeModeInfo").hide();
 		}
+        $("body").removeClass('is-loading');
 	}
 
     var temperatureUnit = settings['temperatureInF'] == 1;
@@ -2563,15 +3135,16 @@ function moveFile(file) {
         }
     }
 	function GetFPPStatus()	{
-		$.ajax({
+		/* $.ajax({
 			url: 'api/system/status',
 			dataType: 'json',
-			success: function(response, reqStatus, xhr) {	
-				
+			success: function(response, reqStatus, xhr) {
+				 */
+                var response = lastStatusJSON;
 				if(response && typeof response === 'object') {
+					$("#btnDaemonControl").show();
 
-					if(response.status_name == 'stopped') {
-
+                    if (response.status_name == 'stopped') {
                         if ( ! ("warnings" in response)) {
                             response.warnings = [];
                         }
@@ -2583,10 +3156,9 @@ function moveFile(file) {
                         }).fail(function(){
                             DialogError('Volume Query Failed', "Failed to query Volume when FPPD stopped");
                         });
-						
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','enable');
-						$("#btnDaemonControl").attr('value', 'Start FPPD');
+                        $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
 						$('#daemonStatus').html("FPPD is stopped.");
 						$('#txtPlayerStatus').html(status);
 						$('#playerTime').hide();
@@ -2598,12 +3170,10 @@ function moveFile(file) {
                         $('#mqttRow').hide()
                         updateWarnings(response);
 
-					
-					} else if(response.status_name == 'updating') {
-
+                    } else if (response.status_name == 'updating') {
 						$('#fppTime').html('');
 						SetButtonState('#btnDaemonControl','disable');
-						$("#btnDaemonControl").attr('value', 'Start FPPD');
+                        $("#btnDaemonControl").html("<i class='fas fa-fw fa-play fa-nbsp'></i>Start FPPD");
 						$('#daemonStatus').html("FPP is currently updating.");
 						$('#txtPlayerStatus').html(status);
 						$('#playerTime').hide();
@@ -2614,32 +3184,32 @@ function moveFile(file) {
 						$('.schedulerEndTime').hide();
                         $('#mqttRow').hide()
 
-					} else {
-
-							SetButtonState('#btnDaemonControl','enable');
-							$("#btnDaemonControl").attr('value', 'Stop FPPD');
-							$('#daemonStatus').html("FPPD is running.");
-
-						parseStatus(response);
-
+                    } else {
+						SetButtonState('#btnDaemonControl','enable');
+                        $("#btnDaemonControl").attr("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
+                        $('#daemonStatus').html("FPPD is running.");
+                        parseStatus(response);
 					}
 
 					lastStatus = response.status;
 				}
-
+/*
 			},
 			complete: function() {
 				clearTimeout(statusTimeout);
 				statusTimeout = setTimeout(GetFPPStatus, 1000);
 			}
 		})
-	}
+ */
+}
 
 function updateWarnings(jsonStatus) {
     if (jsonStatus.hasOwnProperty('warnings')) {
-        var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
+        //var txt = "<hr><center><b>Abnormal Conditions - May Cause Poor Performance</b></center>";
+        var txt = "<b>Abnormal Conditions - May Cause Poor Performance</b>";
         for (var i = 0; i < jsonStatus.warnings.length; i++) {
-            txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+            //txt += "<font color='red'><center>" + jsonStatus.warnings[i] + "</center></font>";
+            txt += "<br/>" + jsonStatus.warnings[i];
         }
         document.getElementById('warningsDiv').innerHTML = txt;
         $('#warningsRow').show();
@@ -2663,13 +3233,13 @@ function updateWarnings(jsonStatus) {
 function updateVolumeUI(Volume) {
     $('#volume').html(Volume);
     $('#remoteVolume').html(Volume);
-    $('#slider').slider('value', Volume);
-    $('#remoteVolumeSlider').slider('value', Volume);
+    $('#slider').val( Volume);
+    $('#remoteVolumeSlider').val(Volume);
     SetSpeakerIndicator(Volume);
 }
 
     var firstStatusLoad = 1;
-    
+
 	function parseStatus(jsonStatus) {
 		var fppStatus = jsonStatus.status;
 		var fppMode = jsonStatus.mode;
@@ -2682,8 +3252,9 @@ function updateVolumeUI(Volume) {
             fppStatus == STATUS_PAUSED ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY ||
 			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
-		
-			$("#btnDaemonControl").attr('value', 'Stop FPPD');
+
+			$("#btnDaemonControl").show();
+            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
 			$('#daemonStatus').html("FPPD is running.");
 		}
 
@@ -2746,7 +3317,8 @@ function updateVolumeUI(Volume) {
 				$('#schedulerStatus').html("Idle");
 				$('.schedulerStartTime').hide();
 				$('.schedulerEndTime').hide();
-								
+                $('body').removeClass('schedulderStatusPlaying');
+
 				// Enable Play
 				SetButtonState('#btnPlay','enable');
                 SetButtonState('#btnStopNow','disable');
@@ -2809,12 +3381,12 @@ function updateVolumeUI(Volume) {
 				$('#txtSeqFilename').html(jsonStatus.current_sequence);
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 
-//				if(currentPlaylist.index != gblCurrentPlaylistIndex && 
+//				if(currentPlaylist.index != gblCurrentPlaylistIndex &&
 //					currentPlaylist.index <= gblCurrentLoadedPlaylistCount) {
 // FIXME, somehow this doesn't refresh on the first page load, so refresh
 // every time for now
 if (1) {
-							
+
 							UpdateCurrentEntryPlaying(currentPlaylist.index);
 							gblCurrentPlaylistIndex = currentPlaylist.index;
 					}
@@ -2829,11 +3401,11 @@ if (1) {
 					if (jsonStatus.scheduler.status == "playing") {
 						var pl = jsonStatus.scheduler.currentPlaylist;
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b>");
-
+                        $('body').addClass('schedulderStatusPlaying');
 						$('.schedulerStartTime').show();
-						$('#schedulerStartTime').html(pl.actualStartTimeStr);
+						$('#schedulerStartTime').html(pl.actualStartTimeStr.replace(' @ ', '<br>'));
 						$('.schedulerEndTime').show();
-						$('#schedulerEndTime').html(pl.actualEndTimeStr);
+						$('#schedulerEndTime').html(pl.actualEndTimeStr.replace(' @ ', '<br>'));
 						$('#schedulerStopType').html(pl.stopTypeStr);
 
 						if ((fppStatus == STATUS_STOPPING_GRACEFULLY) ||
@@ -2846,15 +3418,18 @@ if (1) {
 					} else if (jsonStatus.scheduler.status == "manual") {
 						var pl = jsonStatus.scheduler.currentPlaylist;
 						$('#schedulerStatus').html("Playing <b>'" + pl.playlistName + "'</b> (manually started)");
+                        $('body').addClass('schedulderStatusPlaying');
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
 					} else {
 						$('#schedulerStatus').html("Idle");
+                        $('body').removeClass('schedulderStatusPlaying');
 						$('.schedulerStartTime').hide();
 						$('.schedulerEndTime').hide();
 					}
 				} else {
 					$('#schedulerStatus').html("Idle");
+                    $('body').removeClass('schedulderStatusPlaying');
 					$('#schedulerStartTime').html("N/A");
 					$('#schedulerEndTime').html("N/A");
 				}
@@ -2871,7 +3446,7 @@ if (1) {
                 SetButtonState('#btnStopNow','enable');
                 SetButtonState('#btnStopGracefully','enable');
                 SetButtonState('#btnStopGracefullyAfterLoop','enable');
-                
+
                 $('#txtPlayerStatus').html(playerStatusText);
 				$('#playerTime').show();
                 $('#txtTimePlayed').html(jsonStatus.time_elapsed );
@@ -2880,7 +3455,10 @@ if (1) {
 				$('#txtMediaFilename').html(jsonStatus.current_song);
 
 			}
-
+            setTimeout(function(){
+                SetHomepageStatusRowWidthForMobile();
+            },100);
+            
 			$('#fppTime').html(jsonStatus.time);
 
 			var npl = jsonStatus.scheduler.nextPlaylist;
@@ -2916,7 +3494,7 @@ if (1) {
                     sensorText += jsonStatus.sensors[i].formatted;
                 }
                 sensorText += "</td>";
-                
+
                 if ((jsonStatus.sensors.length > 4) && ((i % 2) == 1)) {
                     sensorText += "<tr>";
                 }
@@ -2926,6 +3504,9 @@ if (1) {
             if (typeof sensorData != "undefined" && sensorData != null) {
                 sensorData.innerHTML = sensorText;
             }
+            $("#sensorData").show();
+        }else{
+            $("#sensorData").hide();
         }
 
 		firstStatusLoad = 0;
@@ -2995,8 +3576,8 @@ function GetUniverseBytesReceived() {
                 maxRows = 32;
             }
             if (data.universes.length > 0) {
-                html.push('<table>');
-                html.push("<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>");
+                html.push('<table class="fppBasicTable">');
+                html.push("<thead><tr id=\"rowReceivedBytesHeader\"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>");
             }
             for (i = 0; i < data.universes.length; i++) {
                 if (i == maxRows) {
@@ -3004,7 +3585,7 @@ function GetUniverseBytesReceived() {
                     html1 = html.join('');
                     html = [];
                     html.push('<table>');
-                    html.push("<tr id=\"rowReceivedBytesHeader\"><td>Universe</td><td>Start Address</td><td>Packets</td><td>Bytes</td><td>Errors</td></tr>");
+                    html.push("<thead><tr id=\"rowReceivedBytesHeader\"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>");
                 }
                 html.push('<tr><td>');
                 html.push(data.universes[i].id);
@@ -3018,7 +3599,7 @@ function GetUniverseBytesReceived() {
                 html.push(data.universes[i].errors);
                 html.push('</td></tr>');
             }
-            html.push('</table>');
+            html.push('</tbody></table>');
             if (data.universes.length > 32) {
                 $("#bridgeStatistics1").html(html1);
                 $("#bridgeStatistics2").html(html.join(''));
@@ -3038,11 +3619,11 @@ function GetUniverseBytesReceived() {
         $("#bridgeStatistics2").html('');
     });
 }
-	
+
 	function UpdateCurrentEntryPlaying(index,lastIndex)
 	{
-		$('#tblPlaylistDetails tbody tr').removeClass('PlaylistRowPlaying');
-		$('#tblPlaylistDetails tbody td').removeClass('PlaylistPlayingIcon');
+		$('#tblPlaylistDetails tr').removeClass('PlaylistRowPlaying');
+		$('#tblPlaylistDetails td').removeClass('PlaylistPlayingIcon');
 
 		if((index >= 0) && ($('#playlistRow' + index).length))
 		{
@@ -3050,29 +3631,12 @@ function GetUniverseBytesReceived() {
 			$("#playlistRow" + index).addClass("PlaylistRowPlaying");
 		}
 	}
-	
+
 	function SetIconForCurrentPlayingEntry(index)
 	{
 	}
-	
-	
-	function SetButtonState(button,state)
-	{
-			// Enable Button
-			if(state == 'enable')
-			{
-				$(button).addClass('buttons');
-				$(button).removeClass('disableButtons');
-				$(button).removeAttr("disabled");
-			}
-			else
-			{
-				$(button).removeClass('buttons');
-				$(button).addClass('disableButtons');
-				$(button).attr("disabled", "disabled");
-			}
-	}
-	
+
+
 	function StopGracefully()
 	{
         var url = 'api/playlists/stopgracefully';
@@ -3138,13 +3702,16 @@ function GetUniverseBytesReceived() {
 	}
 
 function SetSetting(key, value, restart, reboot) {
+    //console.log("api/settings/", key);
     $.ajax({
-        url: "fppjson.php?command=setSetting&key=" + key + "&value=" + encodeURIComponent(value),
+        url: "api/settings/" + key,
+        data: "" + value,
+        method: "PUT",
         timeout: 1000,
         async: false,
         success: function() {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.");
+                $.jGrowl(key + " setting saved.",{themeState:'success'});
 
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
@@ -3167,7 +3734,7 @@ function SetPluginSetting(plugin, key, value, restart, reboot) {
         async: false,
         success: function() {
             if ((key != 'restartFlag') && (key != 'rebootFlag'))
-                $.jGrowl(key + " setting saved.");
+                $.jGrowl(key + " setting saved.",{themeState:'success'});
 
             if (restart > 0 && restart != settings['restartFlag']) {
                 SetRestartFlag(restart);
@@ -3283,7 +3850,7 @@ function RestartFPPD() {
 		$.get("api/system/fppd/restart" + args
 		).done(function() {
 			$('html,body').css('cursor','auto');
-			$.jGrowl('FPPD Restarted');
+			$.jGrowl('FPPD Restarted',{themeState:'success'});
 			ClearRestartFlag();
 		}).fail(function() {
 			$('html,body').css('cursor','auto');
@@ -3297,19 +3864,22 @@ function RestartFPPD() {
             retry_poll_interval_arr['restartFPPD'] = setInterval(function () {
                 poll_result = false;
                 if (retries < retries_max) {
-                    // console.log("Polling @ " + retries);
-                    //poll for FPPDRunning as it's the simplest command to run and doesn't put any extra processing load on the backend
+                    //console.log("Polling @ " + retries);
                     $.ajax({
-                            url: "fppxml.php?command=isFPPDrunning",
+                            url: "api/system/status",
                             timeout: 1000,
                             async: true,
-                            success: function () {
-                                poll_result = true;
-                                //FPP is up then
-                                clearInterval(retry_poll_interval_arr['restartFPPD']);
-                                //run original code for success
-                                $.jGrowl('FPPD Restarted');
-                                ClearRestartFlag();
+                            success: function (data) {
+                                if (("fppd" in data) && data.fppd == 'running') {
+                                    poll_result = true;
+                                    //FPP is up then
+                                    clearInterval(retry_poll_interval_arr['restartFPPD']);
+                                    //run original code for success
+                                    $.jGrowl('FPPD Restarted',{themeState:'success'});
+                                    ClearRestartFlag();
+                                } else {
+                                    retries++;
+                                }
                             }
                     }).fail(
                         function () {
@@ -3318,7 +3888,7 @@ function RestartFPPD() {
                             //If on first try throw up a FPP is rebooting notification
                             if(retries === 1){
                                 //Show FPP is rebooting notification for 10 seconds
-                                $.jGrowl('FPP is rebooting..',{ life: 10000 });
+                                $.jGrowl('FPP is rebooting..',{ life: 10000 ,themeState:'detract'});
                             }
                         }
                     );
@@ -3337,7 +3907,7 @@ function zeroPad(num, places) {
 	var zero = places - num.toString().length + 1;
 	return Array(+(zero > 0 && zero)).join("0") + num;
 }
-	
+
 function ControlFPPD() {
     var url = "api/system/fppd/";
     var btnVal = $("#btnDaemonControl").attr('value');
@@ -3353,17 +3923,24 @@ function ControlFPPD() {
         url: url,
         data: "",
     }).done(function(data) {
-        $.jGrowl("Completed " + btnVal);
+        $.jGrowl("Completed " + btnVal,{themeState:'success'});
+        IsFPPDrunning();
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
     });
 
 }
 
-function PopulatePlaylists(sequencesAlso)
+function PopulatePlaylists(sequencesAlso,options)
 {
     var playlistOptionsText="";
-    GetPlaylistArray();
+    var onPlaylistArrayLoaded=function(){}
+    if(options){
+        if(typeof options.onPlaylistArrayLoaded==='function'){
+            onPlaylistArrayLoaded=options.onPlaylistArrayLoaded;
+        }
+    }
+    GetPlaylistArray(onPlaylistArrayLoaded);
 
     if (sequencesAlso)
         playlistOptionsText += "<option disabled>---------- Playlists ---------- </option>";
@@ -3392,7 +3969,7 @@ function PlayPlaylist(Playlist, goToStatus = 0)
         if (goToStatus)
 	        location.href="index.php";
         else
-            $.jGrowl("Playlist Started");
+            $.jGrowl("Playlist Started",{themeState:'success'});
     });
 }
 
@@ -3410,7 +3987,7 @@ function StartPlaylistNow() {
     }
     $.post("api/command", JSON.stringify(obj)
     ).done(function () {
-        $.jGrowl("Playlist Started");
+        $.jGrowl("Playlist Started", {themeState:'success'});
     }).fail(function () {
         DialogError('Command failed', 'Unable to start Playlist');
     });
@@ -3433,7 +4010,6 @@ function StopEffect() {
     }).done(function (data) {
         RunningEffectSelectedId = -1;
         RunningEffectSelectedName = "";
-        SetButtonState('#btnStopEffect', 'disable');
         GetRunningEffects();
     }).fail(function () {
         DialogError('Command failed', 'Call to Stop Effect Failed');
@@ -3441,19 +4017,33 @@ function StopEffect() {
     });
 }
 
-var gblLastRunningEffectsXML = "";
+var lastRunningEffectsData = null;
 
 function GetRunningEffects() {
     $.get("api/fppd/effects"
     ).done(function (data) {
-        $('#tblRunningEffectsBody').html('');
+
         if ("runningEffects" in data) {
-            data.runningEffects.forEach(function (e) {
-                if (e.name == RunningEffectSelectedName)
-                    $('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
-                else
-                    $('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="95%">' + e.name + '</td></tr>');
-            });
+            var isFreshData = !lastRunningEffectsData || JSON.stringify(lastRunningEffectsData)!=JSON.stringify(data.runningEffects);
+            if(data.runningEffects.length>0){
+                if(isFreshData){
+                    $('#tblRunningEffectsBody').html('');
+                    data.runningEffects.forEach(function (e) {
+                        if (e.name == RunningEffectSelectedName)
+                            {$('#tblRunningEffectsBody').append('<tr class="effectSelectedEntry"><td width="5%">' + e.id + '</td><td width="80%">' + e.name + '</td><td width="15%"><button class="buttons btn-danger">Stop</button></td></tr>');}
+                        else
+                            {$('#tblRunningEffectsBody').append('<tr><td width="5%">' + e.id + '</td><td width="80%">' + e.name + '</td><td width="15%"><button class="buttons btn-danger">Stop</button></td></tr>');}
+                        $('#divRunningEffects').removeClass('divRunningEffectsDisabled backdrop-disabled').addClass('divRunningEffectsRunning backdrop-success');
+                    });
+                    lastRunningEffectsData=data.runningEffects
+                }
+            }else{
+                lastRunningEffectsData = null;
+                $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
+            }            
+        } else {
+            lastRunningEffectsData = null;
+            $('#divRunningEffects').addClass('divRunningEffectsDisabled backdrop-disabled').removeClass('divRunningEffectsRunning backdrop-success');
         }
         setTimeout(GetRunningEffects, 1000);
     }).fail(function () {
@@ -3476,7 +4066,7 @@ function GetRunningEffects() {
                     data: "",
                     success: function(data) {
                         //Show FPP is rebooting notification for 60 seconds then reload the page
-                        $.jGrowl('FPP is rebooting..', {life: 60000});
+                        $.jGrowl('FPP is rebooting..', {life: 60000, themeState:'detract'});
                         setTimeout(function () {
                                 location.href="index.php";
                         }, 60000);
@@ -3484,10 +4074,10 @@ function GetRunningEffects() {
                     error: function() {
                         DialogError('Command failed', 'Command failed');
                     }
-            
-                });    
+
+                });
             }, 1000);
-		} 
+		}
 	}
 
 	function ShutdownPi()
@@ -3499,14 +4089,14 @@ function GetRunningEffects() {
                 data: "",
                 success: function(data) {
                     //Show FPP is rebooting notification for 60 seconds then reload the page
-                    $.jGrowl('FPP is shutting down..', {life: 60000});
+                    $.jGrowl('FPP is shutting down..', {life: 60000,themeState:'detract'});
                 },
                 error: function() {
                     DialogError('Command failed', 'Command failed');
                 }
-        
+
             });
-		} 
+		}
 	}
 
 function UpgradePlaylist(data, editMode)
@@ -3655,7 +4245,6 @@ function PopulatePlaylistDetails(data, editMode, name = "")
 {
     var innerHTML = "";
     var entries = 0;
-
     data = UpgradePlaylist(data, editMode);
 
     if (!editMode)
@@ -3674,7 +4263,7 @@ function PopulatePlaylistDetails(data, editMode, name = "")
                 entries++;
             }
             $('#tblPlaylist' + idPart).html(innerHTML);
-            $('#tblPlaylist' + idPart + 'Header').show();
+            $('#tblPlaylist' + idPart + 'Header').show().parent().addClass('tblPlaylistActive');
 
             if (!data[sections[s]].length)
                 $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
@@ -3687,10 +4276,10 @@ function PopulatePlaylistDetails(data, editMode, name = "")
         {
             $('#tblPlaylist' + idPart).html("");
             if (editMode) {
-                $('#tblPlaylist' + idPart + 'Header').show();
+                $('#tblPlaylist' + idPart + 'Header').show().parent().addClass('tblPlaylistActive');
                 $('#tblPlaylist' + idPart).html("<tr id='tblPlaylist" + idPart + "PlaceHolder' class='unselectable'><td>&nbsp;</td></tr>");
             } else {
-                $('#tblPlaylist' + idPart + 'Header').hide();
+                $('#tblPlaylist' + idPart + 'Header').hide().parent().removeClass('tblPlaylistActive');;
             }
         }
     }
@@ -3710,7 +4299,6 @@ function PopulatePlaylistDetails(data, editMode, name = "")
     } else {
         SetPlaylistName(name);
     }
-
     if (editMode) {
         if (typeof data.random === "undefined") {
             $('#randomizePlaylist').val(0);
@@ -3784,26 +4372,26 @@ function SetVolume(value) {
     })
 }
 
-function SetFPPDmode()
+function SetFPPDmode(modeText)
 {
-    var mode = $('#selFPPDmode').val();
-    var modeText = "unknown"; // 0
-    if (mode == 1) {
-        modeText = "bridge";
-    } else if (mode == 2) {
-        modeText = "player";
-    } else if (mode ==6) {
-        modeText = "master";
-    } else if (mode == 8) {
-        modeText = "remote";
-    }
+    //var mode = $('#selFPPDmode').val();
+    // var modeText = "unknown"; // 0
+    // if (mode == 1) {
+    //     modeText = "bridge";
+    // } else if (mode == 2) {
+    //     modeText = "player";
+    // } else if (mode ==6) {
+    //     modeText = "master";
+    // } else if (mode == 8) {
+    //     modeText = "remote";
+    // }
 
     $.ajax({
         url: "api/settings/fppMode",
         type: 'PUT',
         data: modeText
     }).done(function(data) {
-		$.jGrowl("fppMode Saved");
+		$.jGrowl("fppMode Saved",{themeState:'success'});
 		RestartFPPD();
     }).fail(function() {
         DialogError("ERROR", "Error Settng fppMode to " + modeText);
@@ -3882,7 +4470,7 @@ function DisplayHelp()
 {
     if (helpOpen) {
         helpOpen = 0;
-        $('#dialog-help').dialog('close');
+        $('#dialog-help').fppDialog('close');
         return;
     }
 
@@ -3895,18 +4483,18 @@ function DisplayHelp()
         }
 	}
 
-	$('#helpText').html("No help file exists for this page yet.  Check the <a href='https://falconchristmas.github.io/FPP_Manual(4.0).pdf' target='_blank'>FPP Manual</a> for more info.");
+	$('#helpText').html("No help file exists for this page yet.  Check the <a href='https://falconchristmas.github.io/FPP_Manual(4.6).pdf' target='_blank'>FPP Manual</a> for more info.");
 	$('#helpText').load(tmpHelpPage);
-	$('#dialog-help').dialog({ height: 600, width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
-	$('#dialog-help').dialog( "moveToTop" );
+	$('#dialog-help').fppDialog({ width: 1000, title: "Help - Hit F1 or ESC to close", close: HelpClosed });
+	$('#dialog-help').fppDialog( "moveToTop" );
     helpOpen = 1;
 }
 
 function GetGitOriginLog()
 {
     $('#logText').html('Loading list of changes from github. <div class="ajax-loading-60px"></div>');
-	$('#logViewer').dialog({ height: 600, width: 800, title: "Git Changes" });
-	$('#logViewer').dialog( "moveToTop" );
+	$('#logViewer').fppDialog({ height: 600, width: 800, title: "Git Changes" });
+	$('#logViewer').fppDialog( "moveToTop" );
     $.get({
         url: "api/git/originLog",
         data: "",
@@ -3936,8 +4524,8 @@ function GetVideoInfo(file)
 
     $.get("api/media/" + file + "/meta", function(data) {
         $('#fileText').html('<pre>' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</pre>');
-        $('#fileViewer').dialog({ height: 600, width: 800, title: "Video Info" });
-        $('#fileViewer').dialog( "moveToTop" );
+        $('#fileViewer').fppDialog({ height: 600, width: 800, title: "Video Info" });
+        $('#fileViewer').fppDialog( "moveToTop" );
     });
 }
 
@@ -4011,7 +4599,7 @@ function ViewFile(dir, file){
 }
 function TailFile(dir, file, lines) {
     var url = "api/file/" + dir + "/" + encodeURIComponent(file) + "?tail=" + lines;
-    console.log(url);
+    //console.log(url);
 	ViewFileImpl(url, file);
 }
 function ViewFileImpl(url, file)
@@ -4023,8 +4611,8 @@ function ViewFileImpl(url, file)
 			$('#fileText').html("<pre>" + text.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "</pre>");
 	});
 
-	$('#fileViewer').dialog({ height: 600, width: 800, title: "File Viewer: " + file });
-	$('#fileViewer').dialog( "moveToTop" );
+	$('#fileViewer').fppDialog({  width: 1800, title: "File Viewer: " + file, height:'100%', resizable:true,overflowX:'scroll' });
+	$('#fileViewer').fppDialog( "moveToTop" );
 }
 
 function DeleteFile(dir, row, file)
@@ -4080,22 +4668,21 @@ function SetupSelectableTableRow(info)
 
 function DialogOK(title, message)
 {
-	$('#dialog-popup').dialog({
-		mocal: true,
-		height: 'auto',
+	$('#dialog-popup').fppDialog({
+	
+        content:message,
+        title:title,
 		width: 400,
 		autoResize: true,
 		closeOnEscape: false,
 		buttons: {
 			Ok: function() {
-				$(this).dialog("close");
+				$(this).fppDialog("close");
 			}
 		}
 	});
-	$('#dialog-popup').dialog('option', 'title', title);
-	$('#dialog-popup').html("<center>" + message + "</center>");
-	$('#dialog-popup').show();
-	$('#dialog-popup').draggable();
+
+
 }
 
 // Simple wrapper for now, but we may highlight this somehow later
@@ -4107,13 +4694,13 @@ function DialogError(title, message)
 // page visibility prefixing
 function getHiddenProp(){
     var prefixes = ['webkit','moz','ms','o'];
-    
+
     // if 'hidden' is natively supported just return it
     if ('hidden' in document) return 'hidden';
-    
+
     // otherwise loop over all the known prefixes until we find one
     for (var i = 0; i < prefixes.length; i++){
-        if ((prefixes[i] + 'Hidden') in document) 
+        if ((prefixes[i] + 'Hidden') in document)
             return prefixes[i] + 'Hidden';
     }
 
@@ -4125,7 +4712,7 @@ function getHiddenProp(){
 function isHidden() {
     var prop = getHiddenProp();
     if (!prop) return false;
-    
+
     return document[prop];
 }
 
@@ -4142,7 +4729,8 @@ function handleVisibilityChange() {
         clearTimeout(statusTimeout);
         statusTimeout = null;
     } else {
-         GetFPPStatus();
+        LoadSystemStatus();
+        //GetFPPStatus();
     }
 }
 
@@ -4371,7 +4959,7 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
            line += "<option value='" + k + "'>" + v + "</option>\n";
            });
     line += "</datalist></td></tr>";
-    
+
     $('#' + tblCommand).append(line);
 
     argPrintFunc(tblCommand, configAdjustable, co['args']);
@@ -4389,7 +4977,7 @@ function SubCommandChanged(subCommandV, configAdjustable = false, argPrintFunc =
     }
     var count = subCommand.data("count");
     var tblCommand = subCommand.data('tblcommand');
-    
+
     for (var x = count+1; x < 25; x++) {
         $('#' + tblCommand + '_arg_' + x + '_row').remove();
     }
@@ -4415,7 +5003,7 @@ function PrintArgsInputsForEditable(tblCommand, configAdjustable, args, startCou
         if (val['type'] == 'args') {
             return;
         }
-        
+
         if ((val.hasOwnProperty('statusOnly')) &&
             (val.statusOnly == true)) {
             return;
@@ -4566,12 +5154,12 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
          var ID = tblCommand + "_arg_" + count;
          var line = "<tr id='" + ID + "_row' class='arg_row_" + val['name'] + "'><td>";
          var subCommandInitFunc = null;
-           
+
          if (children.includes(val['name']))
             line += "&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;";
 
          line += val["description"] + ":</td><td>";
-         
+
          var dv = "";
          if (typeof val['default'] != "undefined") {
             dv = val['default'];
@@ -4755,7 +5343,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
              });
              line += "</select>";
          }
-         
+
          line += "</td></tr>";
          $('#' + tblCommand).append(line);
          if (typeof val['contentListUrl'] != "undefined") {
@@ -4828,7 +5416,7 @@ function ReloadContentList(baseUrl, inp) {
                if (arg.find("options[0]").value == "") {
                    arg.innerHTML = "<option value=''></option>";
                }
-               
+
                if (Array.isArray(data)) {
                     $.each( data, function( key, v ) {
                       var line = '<option value="' + v + '"'
@@ -4853,7 +5441,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
         var baseUrl = "";
         if (allowMultisyncCommands) {
             var to = typeof json['multisyncCommand'] ;
-            
+
             if (typeof json['multisyncCommand'] != "undefined") {
                 var val = json['multisyncCommand'];
                 $("#" + tblCommand + "_multisync").prop("checked", val);
@@ -4868,8 +5456,8 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
             $("#" + tblCommand + "_multisync_row").hide();
             $("#" + tblCommand + "_multisyncHosts_row").hide();
         }
-        
-    
+
+
         if (typeof json['args'] != "undefined") {
             var count = 1;
             $.each( json['args'], function( key, v ) {
@@ -4877,7 +5465,7 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    if (inp.data('contentlisturl') != null && baseUrl != "") {
                        ReloadContentList(baseUrl, inp);
                    }
-                          
+
                    var multattr = inp.attr('multiple');
                    if (inp.attr('type') == 'checkbox') {
                        var checked = false;
@@ -4888,18 +5476,18 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                    } else if (typeof multattr !== typeof undefined && multattr !== false) {
                        var split = v.split(",");
                        console.log(inp.attr('type') + "  " + inp.attr('multiple') + "  " + v + "  " + split + " " + split.length + "\n");
-                       
+
                        $("#" + tblCommand + "_arg_" + count + " option").prop("selected", function () {
                            return ~$.inArray(this.text, split);
                        });
                    } else {
                        inp.val(v);
                    }
-                   
+
                    if (inp.data('url') != null) {
                       SubCommandChanged(tblCommand + "_arg_" + count, configAdjustable, argPrintFunc);
                    }
-                   
+
                    if (typeof json['adjustable'] != "undefined"
                        && typeof json['adjustable'][count] != "undefined") {
                        $("#" + tblCommand + "_arg_" + count + "_adjustable").prop("checked", true);
@@ -4917,13 +5505,13 @@ function FileChooser(dir, target)
         $(dialogHTML).appendTo('body');
     }
 
-    $('#fileChooserPopup').dialog({
+    $('#fileChooserPopup').fppDialog({
         height: 440,
         width: 600,
         title: "File Chooser",
         modal: true
     });
-    $('#fileChooserPopup').dialog( "moveToTop" );
+    $('#fileChooserPopup').fppDialog( "moveToTop" );
     $('#fileChooserDiv').load('fileChooser.php', function() {
         SetupFileChooser(dir, target);
     });
@@ -5091,7 +5679,7 @@ function RunCommandJSON(cmdJSON)
         data: cmdJSON,
         async: true,
         success: function(data) {
-            $.jGrowl('Command ran');
+            $.jGrowl('Command ran',{themeState:'success'});
         },
         error: function() {
             DialogError('Command failed', 'Command failed');
@@ -5154,7 +5742,7 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         $(dialogHTML).appendTo('body');
     }
 
-    $('#commandEditorPopup').dialog({
+    $('#commandEditorPopup').fppDialog({
         height: 'auto',
         width: 600,
         title: args.title,
@@ -5162,7 +5750,7 @@ function ShowCommandEditor(target, data, callback, cancelCallback = '', args = '
         open: function(event, ui) { $('#commandEditorPopup').parent().find(".ui-dialog-titlebar-close").hide(); },
         closeOnEscape: false
     });
-    $('#commandEditorPopup').dialog( "moveToTop" );
+    $('#commandEditorPopup').fppDialog( "moveToTop" );
     $('#commandEditorDiv').load('commandEditor.php', function() {
         CommandEditorSetup(target, data, callback, cancelCallback, args);
     });
@@ -5176,14 +5764,233 @@ function PreviewSchedule()
     }
 
     $('#schedulePreviewDiv').html('');
-    $('#schedulePreviewPopup').dialog({
-        height: 600,
+    $('#schedulePreviewPopup').fppDialog({
         width: 900,
         title: "Schedule Preview",
         modal: true
     });
-    $('#schedulePreviewPopup').dialog( "moveToTop" );
+    $('#schedulePreviewPopup').fppDialog( "moveToTop" );
     $('#schedulePreviewDiv').load('schedulePreview.php');
 }
 
+function ToggleMenu() {
+    if (gblNavbarMenuVisible == 1) {
+        $('html').removeClass('nav-open');
+        gblNavbarMenuVisible = 0;
+        $('#bodyClick').fadeOut("slow", function (){ $('#bodyClick').remove();});
+    } else {
+        div = '<div id="bodyClick"></div>';
+        $(div).appendTo("body").click(function() {
+            $('.navbar-toggler').trigger("click");
+            $('html').removeClass('nav-open');
+            gblNavbarMenuVisible = 0;
+        });
+        $('html').addClass('nav-open');
+        gblNavbarMenuVisible = 1;
+    }
+}
 
+/*
+* Simply Loads the current system status into a JSON variable.
+* Other functions can either call the variable as a on-off or subscribe to changes.
+*/
+function LoadSystemStatus(){
+    $.ajax({
+        url: 'api/system/status',
+        dataType: 'json',
+        success: function(response, reqStatus, xhr) {
+            if(response && typeof response === 'object') {
+                lastStatusJSON = response;
+                lastStatus = response.status;
+                //Call any "listeners"
+                statusChangeFuncs.forEach(func => {
+                    func();
+                });
+            }
+        },
+        complete: function() {
+            clearTimeout(statusTimeout);
+            statusTimeout = setTimeout(LoadSystemStatus, gblStatusRefreshSeconds*1000);
+        }
+    });
+}
+
+/*
+* How often should the page call api/system/status
+*/
+function SetStatusRefreshSeconds(seconds){
+    if(seconds == undefined) return;
+    if(!Number.isInteger(seconds) ) return;
+    if(seconds <1) return;
+    gblStatusRefreshSeconds = seconds;
+}
+
+/*
+* Pass your function to this and it will be executed when the system status API is called
+*/
+function OnSystemStatusChange(funcToCall){
+    statusChangeFuncs.push(funcToCall);
+}
+
+/*
+* Called each time the system status JSON is updated to refresh icons in the header bar.
+*/
+var headerCache = {}; //Used to cache what we've displayed on screen so we only update it if it has changed
+function RefreshHeaderBar(){
+    var data = lastStatusJSON;
+    if(data == undefined || data == null) return;
+    if(data.interfaces != undefined){
+        var rc = [];
+        
+        data.interfaces.forEach(function (e) {
+            if (e.ifname === "lo") { return 0; }
+            if (e.ifname.startsWith("eth0:0")) { return 0; }
+            if (e.ifname.startsWith("usb")) { return 0; }
+            if (e.ifname.startsWith("can.")) { return 0; }
+            e.addr_info.forEach(function (n) {
+                if (n.family === "inet" && (n.local == "192.168.8.1" || e.ifname.startsWith("SoftAp") || e.ifname.startsWith("tether"))) {
+                    var row = '<span title="Tether IP: ' + n.local + '"><i class="fas fa-broadcast-tower"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }else if (n.family === "inet" && "wifi" in e) {
+                    var row = '<span title="IP: ' + n.local + '<br/>Strength: ' + e.wifi.level + 'dBm" class="ip-wifi wifi-' + e.wifi.desc + '"><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }else if (n.family === "inet") {
+                    var icon = "text-success";
+                    if(n.local.startsWith("169.254.") && e.flags.includes("DYNAMIC")){
+                        icon = "text-warning";
+                    }else if(e.flags.includes("STATIC") && e.operstate != "UP"){
+                        icon = "text-danger";
+                    }
+                    var row = '<span title="IP: ' + n.local + '" ><i class="fas fa-network-wired ' + icon + '"></i><small>' + e.ifname + '</small></span>';
+                    rc.push(row);
+                }
+            });
+        });
+        if(headerCache.Interfaces != rc.join("")){
+            $("#header_IPs").html(rc.join(""));
+            headerCache.Interfaces = rc.join("");
+        }
+    }
+
+    if(data.sensors != undefined){
+        var sensors = [];
+        var tooltip = "";
+        data.sensors.forEach(function (e) {
+            var icon = "bolt";
+            var val = e.formatted;
+            if(e.valueType == "Temperature"){
+                var inF = settings['temperatureInF'] == 1;
+                icon = "thermometer-half";
+                if(inF) {
+                    val = (val*1.8)+32;
+                    val = parseFloat(val).toFixed(2);
+                    val += '&deg;F';
+                }else{
+                    val += '&deg;C';
+                }
+            }
+            tooltip += '<b>' + e.label +'</b>'+ val +'<br/>';
+            row = '<span onclick="RotateHeaderSensor('+(sensors.length+1)+')" data-sensorcount="'+sensors.length+'" style="display:none" title="TOOLTIP_DETAILS"><i class="fas fa-'+icon+'"></i><small>' + e.label + val + '</small></span>';
+            sensors.push(row);
+        });
+        var sensorsJoined = sensors.join("");
+        sensorsJoined = sensorsJoined.replace(/TOOLTIP_DETAILS/g,tooltip);
+        if(headerCache.Sensors != sensorsJoined){
+            $("#header_sensors").html(sensorsJoined);
+            headerCache.Sensors = sensorsJoined;
+            if(sensors.length > 1) $("#header_sensors").css("cursor","pointer");
+            if($("#header_sensors").data("defaultsensor") != undefined 
+                    && Number.isInteger($("#header_sensors").data("defaultsensor"))){
+                RotateHeaderSensor($("#header_sensors").data("defaultsensor"));
+            }else{
+                RotateHeaderSensor(0);
+            }
+        }
+        
+    }
+
+    if ((data.timeStr != undefined) && (data.dateStr != undefined)) {
+        var row = "";
+        if ((window.location.href.indexOf('index.php') >= 0) ||
+            (window.location.href.endsWith('/'))) {
+            row += "<span><small>" + data.dateStr + "</small><small>" + data.timeStrFull + "</small></span>";
+        } else {
+            row += "<span><small>" + data.dateStr + "</small><small>" + data.timeStr + "</small></span>";
+        }
+        row += "<!-- " + window.location.href + " -->";
+
+        if (headerCache.Time != row) {
+            $('#header_Time').html(row);
+            headerCache.Time = row;
+        }
+    } else {
+        $('#header_Time').hide();
+    }
+
+    if(data.status_name != undefined){
+        var row = "";
+        if(data.status_name == "playing"){
+            var title = "Playing";
+            if(data.current_sequence != undefined){
+                title += ': '+data.current_sequence;
+            }
+            row = '<span title="'+title+'"><i class="fas fa-play text-success"></i><small>Playing</small></span>';
+        }else if(data.status_name == "idle"){
+            row = '<span title="Idle"><i class="fas fa-pause"></i><small>Idle</small></span>';
+        }else if(data.status_name == "stopped"){
+            row = '<span title="FPPD Stopped"><i class="fas fa-stop text-danger"></i><small>FPPD Stopped</small></span>';
+        }
+        if(headerCache.Player != row){
+            $("#header_player").html(row);
+            headerCache.Player = row;
+        }
+    }
+    if(data.mode_name != undefined){
+        $("#fppModeDropdownButtonModeText").html( data.mode_name =="player"?"Standalone" : data.mode_name );
+    }
+
+    if(data.advancedView.HostDescription){
+        var hostDetails = "Host: "+data.advancedView.HostName+"<br/>Desc: "+data.advancedView.HostDescription;
+        if(headerCache.HostDetails != hostDetails){
+            $(".headerHostName>span").attr("title", hostDetails);
+            headerCache.HostDetails = hostDetails;
+        }
+    }
+
+}
+
+/*
+* Used to rotate through the sensors in the header bar
+*/
+function RotateHeaderSensor(goto){
+    var currentDefault = $("#header_sensors").data("defaultsensor");
+    var visible = $("#header_sensors span:visible").length;
+    if(currentDefault == goto && visible > 0) return;
+    
+    var current = $("#header_sensors").find("[data-sensorcount='" + (goto-1) + "']");
+    var next = $("#header_sensors").find("[data-sensorcount='" + goto + "']"); 
+    if(next.length == 0) next = $("#header_sensors").find("[data-sensorcount='0']"); 
+    current.hide();
+    next.show();
+
+    //Save setting
+    if(currentDefault == goto) return;
+    $.put("api/settings/currentHeaderSensor", goto);
+    $("#header_sensors").data("defaultsensor", goto);
+}
+
+function PreviewStatistics() {
+    if ($('#statsPreviewPopup').length == 0) {
+        var dialogHTML = "<div id='statsPreviewPopup'><pre><div id='statsPreviewDiv'></div></pre></div>";
+        $(dialogHTML).appendTo('body');
+    }
+
+    $('#statsPreviewDiv').html('Loading...');
+    $('#statsPreviewPopup').fppDialog({
+        width: 900,
+        title: "Statistics Preview",
+        modal: true
+    });
+    $('#statsPreviewPopup').fppDialog( "moveToTop" );
+    $('#statsPreviewDiv').load('api/statistics/usage');
+}

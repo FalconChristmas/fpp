@@ -4,33 +4,14 @@ require_once('common.php');
 ?>
 
 <script>
-function GetGeoLocation() {
-    $.get('https://ipapi.co/json/'
-    ).done(function(data) {
-        $('#Latitude').val(data.latitude).change();
-        $('#Longitude').val(data.longitude).change();
-    }).fail(function() {
-        DialogError("GeoLocation Lookup", "GeoLocation lookup failed.");
-    });
-}
-
-function ViewLatLon()
-{
-    var lat = $('#Latitude').val();
-    var lon = $('#Longitude').val();
-
-    var url = 'https://www.google.com/maps/@' + lat + ',' + lon + ',15z';
-    window.open(url, '_blank');
-}
-
 function KioskInstallDone() {
     SetRebootFlag();
     $('#kioskCloseDialogButton').show();
 }
 function DisableKiosk() {
     $('#kioskCloseDialogButton').hide();
-    $('#kioskPopup').dialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
-    $('#kioskPopup').dialog( "moveToTop" );
+    $('#kioskPopup').fppDialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
+    $('#kioskPopup').fppDialog( "moveToTop" );
     $('#kioskInstallText').html('');
 
     StreamURL('disableKiosk.php', 'kioskInstallText', 'KioskInstallDone');
@@ -39,8 +20,8 @@ function DisableKiosk() {
 function EnableKiosk() {
     if (confirm('Installing Kiosk components will take some time and consume around 400MB of space.')) {
         $('#kioskCloseDialogButton').hide();
-        $('#kioskPopup').dialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
-        $('#kioskPopup').dialog( "moveToTop" );
+        $('#kioskPopup').fppDialog({ height: 600, width: 900, title: "Kiosk Frontend", dialogClass: 'no-close' });
+        $('#kioskPopup').fppDialog( "moveToTop" );
         $('#kioskInstallText').html('');
 
         StreamURL('installKiosk.php', 'kioskInstallText', 'KioskInstallDone');
@@ -48,16 +29,17 @@ function EnableKiosk() {
 }
 
 function CloseKioskDialog() {
-    $('#kioskPopup').dialog('close');
+    $('#kioskPopup').fppDialog('close');
     SetRebootFlag();
 }
 
 </script>
 <?
-PrintSettingGroup('system');
+$extraData = "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
+PrintSettingGroup('system', $extraData);
 PrintSettingGroup('BBBLeds');
 
-$extraData = "<input type='button' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' value='Show On Map' onClick='ViewLatLon();'>";
+$extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
 PrintSettingGroup('geolocation', $extraData);
 
 if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
@@ -69,9 +51,9 @@ if (($settings['uiLevel'] >= 1) && ($settings['Platform'] == "Raspberry Pi")) {
     <br>
 <?
     if (file_exists("/etc/fpp/kiosk")) {
-        echo "<input type='button' value='Disable Kiosk' onClick='DisableKiosk();'>";
+        echo "<input type='button' class='buttons' value='Disable Kiosk' onClick='DisableKiosk();'>";
     } else {
-        echo "<input type='button' value='Enable Kiosk' onClick='EnableKiosk();'>";
+        echo "<input type='button' class='buttons' value='Enable Kiosk' onClick='EnableKiosk();'>";
     }
 }
 ?>

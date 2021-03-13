@@ -90,7 +90,7 @@ function addPixelOutput()
 	str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable' checked><br>";
 
     str += "<div class='fppTableWrapper'>" +
-        "<div class='fppTableContents'>";
+        "<div class='fppTableContents' role='region' aria-labelledby='" + type + "_Output_0' tabindex='0'>";
 	str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + portCount + "'>";
 	str += pixelOutputTableHeader();
 	str += "<tbody>";
@@ -167,7 +167,7 @@ function populatePixelStringOutputs(data)
 
             str += '<b>' + type + ' Output</b><br>';
             str += "<div class='fppTableWrapper'>" +
-                "<div class='fppTableContents'>";
+                "<div class='fppTableContents' role='region' aria-labelledby='" + type + "_Output_0' tabindex='0'>";
             str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "'>";
             str += pixelOutputTableHeader();
             str += "<tbody>";
@@ -224,7 +224,7 @@ function savePixelStringOutputs() {
     var postData = getPixelStringOutputJSON();
     
 	$.post("api/channel/output/co-pixelStrings", JSON.stringify(postData)).done(function(data) {
-		$.jGrowl("Pixel String Output Configuration Saved");
+		$.jGrowl("Pixel String Output Configuration Saved",{themeState:'success'});
 		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Pixel String Outputs", "Save Failed");

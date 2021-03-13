@@ -16,17 +16,10 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
 
-<link rel="stylesheet" href="jquery/jquery.tablesorter/css/theme.blue.css">
+
 <title><? echo $pageTitle; ?></title>
 <style>
-input.largeCheckbox {
-    -ms-transform: scale(2); /* IE */
-    -moz-transform: scale(2); /* FF */
-    -webkit-transform: scale(2); /* Safari and Chrome */
-    -o-transform: scale(2); /* Opera */
-    transform: scale(2);
-    padding: 10px;
-}
+
 
 .actionOptions {
     display: none;
@@ -71,19 +64,19 @@ input.largeCheckbox {
             alert('FPP will use multicast if no other sync methods are chosen.  To disable sync entirely, switch FPP to standalone player mode instead of Master mode.');
         }
         
-		$.get("fppjson.php?command=setSetting&key=MultiSyncRemotes&value=" + remotes
+		$.put("api/settings/MultiSyncRemotes", remotes
 		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
             if (verbose) {
                 if (remotes == "") {
-                    $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.");
+                    $.jGrowl("Remote List Cleared.  You must restart fppd for the changes to take effect.",{themeState:'success'});
                 } else {
-                    $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.");
+                    $.jGrowl("Remote List set to: '" + remotes + "'.  You must restart fppd for the changes to take effect.",{themeState:'success'});
                 }
             }
 
             //Mark FPPD as needing restart
-            $.get('fppjson.php?command=setSetting&key=restartFlag&value=2');
+            $.put('api/settings/restart', '2');
             settings['restartFlag'] = 2;
             //Get the resart banner showing
             CheckRestartRebootFlags();
@@ -306,6 +299,7 @@ input.largeCheckbox {
 
         $('#' + rowID + '_mode').html(modeToString(data.mode));
 
+        
 	    if (data.hasOwnProperty('wifi')) {
 		    var wifi_html = [];
 		    data.wifi.forEach(function(w) {
@@ -315,10 +309,10 @@ input.largeCheckbox {
 			    wifi_html.push(w.desc);
 			    wifi_html.push('"></span>');
 		    });
-
-                    if (wifi_html.length > 0) {
+            if (wifi_html.length > 0) {
 		    	$('#' + rowID + "_ip").find(".wifi-icon").remove();
-                $(wifi_html.join('')).insertAfter($('#' + rowID + "_ip > a[ip='" + ip + "']"));
+                //$(wifi_html.join('')).appendTo($('#' + rowID + "_ip > a[ip='" + ip + "']"));
+                $(wifi_html.join('')).appendTo('td[ip="' + ip + '"]');
 		    }
 	    }
 
@@ -529,7 +523,6 @@ input.largeCheckbox {
                     star += " onClick='updateMultiSyncRemotes(true);'>";
                 }
             }
-
             if (uniqueHosts.hasOwnProperty(hostKey)) {
                 rowID = uniqueHosts[hostKey];
                 hostRows[hostRowKey] = rowID;
@@ -568,7 +561,7 @@ input.largeCheckbox {
                     ipTxt = "<small class='hostDescriptionSM'>Select IPs for Unicast Sync</small><br>" + ipTxt + star;
 
                 var newRow = "<tr id='" + rowID + "' ip='" + data[i].address + "' ipList='" + data[i].address + "' class='systemRow'>" +
-                    "<td class='hostnameColumn'>" + hostname + "<br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
+                    "<td class='hostnameColumn'><span id='fpp_" + ip.replace(/\./g,'_') + "_hostname'>" + hostname + "</span><br><small class='hostDescriptionSM' id='fpp_" + ip.replace(/\./g,'_') + "_desc'>"+ hostDescription +"</small></td>" +
                     "<td id='" + rowID + "_ip' ip='" + data[i].address + "'>" + ipTxt + "</td>" +
                     "<td><span id='" + rowID + "_platform'>" + data[i].type + "</span><br><small class='hostDescriptionSM' id='" + rowID + "_variant'>" + data[i].model + "</small><span class='hidden typeId'>" + data[i].typeId + "</span>"
                         + "<span class='hidden version'>" + data[i].version + "</span></td>" +
@@ -577,7 +570,9 @@ input.largeCheckbox {
                     "<td id='" + rowID + "_elapsed'></td>";
 
                 var versionParts = data[i].version.split('.');
-                var majorVersion = parseInt(versionParts[0]);
+                var majorVersion = 0;
+                if (data[i].version != 'Unknown')
+                    majorVersion = parseInt(versionParts[0]);
 
                 if ((advancedView === true) &&
                     (isFPP(data[i].typeId))) {
@@ -594,7 +589,7 @@ input.largeCheckbox {
                     newRow += "<td class='centerCenter'>";
                     if ((isFPP(data[i].typeId)) &&
                         (majorVersion >= 4))
-                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox' name='" + data[i].address + "'>";
+                        newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
 
                     newRow += "</td>";
                 }
@@ -614,7 +609,7 @@ input.largeCheckbox {
                     fppIpAddresses.push(ip);
                     getFPPSystemInfo(ip);
                 } else if (isESPixelStick(data[i].typeId)) {
-                    if (majorVersion == 3) {
+                    if ((majorVersion == 3) || (majorVersion == 0)) {
                         getESPixelStickBridgeStatus(ip);
                     } else {
                         fppIpAddresses.push(ip);
@@ -680,6 +675,11 @@ function parseESPixelStickStatus(ip, data) {
         s = s.status;
     }
 
+    if (s.hasOwnProperty('system')) {
+        if (s['system'].hasOwnProperty('hostname'))
+            $('#fpp_' + ips + '_hostname').html(s.system.hostname);
+    }
+
     var rssi = +s.system.rssi;
     var quality = 2 * (rssi + 100);
 
@@ -706,17 +706,51 @@ function parseESPixelStickStatus(ip, data) {
     var mode = $('#fpp_' + ips + '_mode').html();
 
     if (mode == 'Bridge') {
-        var st = "<table class='multiSyncVerboseTable'>";
-        st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
-        st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
-        st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
-        st += "</table>";
+        st = 'Bridging';
+        if (s.hasOwnProperty('e131')) {
+            st = "<table class='multiSyncVerboseTable'>";
+            st += "<tr><td>Tot Pkts:</td><td>" + s.e131.num_packets + "</td></tr>";
+            st += "<tr><td>Seq Errs:</td><td>" + s.e131.seq_errors + "</td></tr>";
+            st += "<tr><td>Pkt Errs:</td><td>" + s.e131.packet_errors + "</td></tr>";
+            st += "</table>";
+        } else if (s.hasOwnProperty('input')) {
+            for (var i = 0; i < s.input.length; i++) {
+                if (s.input[i].hasOwnProperty('e131')) {
+                    st = "<table class='multiSyncVerboseTable'>";
+                    st += "<tr><td>Tot Pkts:</td><td>" + s.input[i].e131.num_packets + "</td></tr>";
+                    st += "<tr><td>Pkt Errs:</td><td>" + s.input[i].e131.packet_errors + "</td></tr>";
+                    st += "</table>";
+                }
+            }
+        }
 
         $('#fpp_' + ips + '_status').html(st);
     }
 
     if ($('#MultiSyncRefreshStatus').is(":checked")) {
         setTimeout(function() {ESPSockets[ips].send("XJ");}, 1000);
+    }
+}
+
+function parseESPixelStickVersion(ip, data) {
+    var s = JSON.parse(data);
+    var ips = ip.replace(/\./g, '_');
+
+    if (s.hasOwnProperty('version')) {
+        $('#fpp_' + ips + '_version').html(s.version);
+        $('#fpp_' + ips).find('.version').html(s.version);
+        var versionParts = s['version'].split('.');
+    }
+}
+
+function parseESPixelStickCommandResponse(ip, data) {
+    var s = JSON.parse(data);
+    var ips = ip.replace(/\./g, '_');
+
+    if ((s.hasOwnProperty('get')) &&
+        (s.get.hasOwnProperty('device')) &&
+        (s.get.device.hasOwnProperty('id'))) {
+        $('#fpp_' + ips + '_desc').html(s.get.device.id);
     }
 }
 
@@ -732,7 +766,10 @@ function getESPixelStickBridgeStatus(ip) {
         ws.binaryType = "arraybuffer";
         ws.onopen = function() {
             ws.send("G1");
+            ws.send("G2");
+            ws.send("XA"); // ESPixelStick v4.x
             ws.send("XJ");
+            ws.send('{"cmd":{"get":"device"}}'); // ESPixelStick v4.x
         };
 
         ws.onmessage = function(e) {
@@ -740,11 +777,18 @@ function getESPixelStickBridgeStatus(ip) {
                 var t = e.data.substr(0, 2)
                   , n = e.data.substr(2);
                 switch (t) {
+                    case "XA":
+                    case "G2":
+                        parseESPixelStickVersion(ip, n);
+                        break;
                     case "G1":
                         parseESPixelStickConfig(ip, n);
                         break;
                     case "XJ":
                         parseESPixelStickStatus(ip, n);
+                        break;
+                    case '{"':
+                        parseESPixelStickCommandResponse(ip, e.data);
                         break;
                 }
             }
@@ -1277,114 +1321,141 @@ function multiActionChanged() {
 </head>
 <body>
 <div id="bodyWrapper">
-	<?php include 'menu.inc'; ?>
-	<br/>
-	<div id="uifppsystems" class="settings">
-		<fieldset>
-			<legend>FPP MultiSync</legend>
-            <table style='width: 100%' class='statusTable'>
-                <tr>
-                    <td align='left'>&nbsp;</td>
-                    <td align='right'>
-<? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> Auto Refresh Status
-                    </td>
-                </tr>
-            </table>
+	<?php 
+    $activeParentMenuItem = 'status';
+    include 'menu.inc'; ?>
+    <div class="mainContainer">
+    <h1 class="title">FPP MultiSync</h1>
+        <div class="pageContent">
+            
+        	<div id="uifppsystems" class="settings">
+    
+        
+                    <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?> backdrop'>
+                        <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
+        			<table id='fppSystemsTable' cellpadding='3'>
+        				<thead>
+        					<tr>
+        						<th class="hostnameColumn" data-placeholder="Hostname">Hostname</th>
+        						<th data-placeholder="IP Address">IP Address</th>
+        						<th >Platform</th>
+        						<th >Mode</th>
+        						<th data-placeholder="Status">Status</th>
+        						<th data-sorter='false' data-filter='false'>Elapsed</th>
+        						<th data-placeholder="Version">Version</th>
+        						<?php
+                                //Only show expert view is requested
+        						if ($advancedView == true) {
+        							?>
+                                    <th data-sorter='false' data-filter='false'>Git Versions</th>
+                                    <th data-sorter='false' data-filter='false'>Utilization</th>
+                                    <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox multisyncRowCheckbox' onChange='selectAllChanged();' /></th>
+                                <?php
+                            }
+                            ?>
+                        </tr>
+                    </thead>
+                    <tbody id='fppSystems'>
+                        <tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?
+        if ($advancedView) {
+        ?>
+        <div class="multisyncAdvancedFormActions row">
+            <div class="form-actions col-md">
+            <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
+            <i class="fas fa-cog"></i> View Options</button><button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
+                
+            </div>
+            <div class="col-md-auto">
+                <div class="form-actions multisyncBulkActions  ">
+                    <b>Action for selected systems:</b>
+                    <select id='multiAction' onChange='multiActionChanged();'>
+                        <option value='noop'>---- Select an Action ----</option>
+                        <option value='upgradeFPP'>Upgrade FPP</option>
+                        <option value='restartFPPD'>Restart FPPD</option>
+                        <option value='reboot'>Reboot</option>
+                        <option value='shutdown'>Shutdown</option>
+                        <option value='copyFiles'>Copy Files</option>
+                        <option value='standaloneMode'>Set to Standalone</option>
+                        <option value='masterMode'>Set to Master</option>
+                        <option value='remoteMode'>Set to Remote</option>
+                        <option value='bridgeMode'>Set to Bridge</option>
+                    </select>
+                    <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
+                    <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
+                </div>
+            </div>
+        </div>
+        <div style='text-align: left;'>
+            <span class='actionOptions' id='copyOptions'>
+                <br>
+        <?php
+        PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
+        ?>
+            </span>
+        </div>
 
-            <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?>'>
-                <div class='fppTableContents'>
-			<table id='fppSystemsTable' cellpadding='3'>
-				<thead>
-					<tr>
-						<th class="hostnameColumn">Hostname</th>
-						<th>IP Address</th>
-						<th>Platform</th>
-						<th>Mode</th>
-						<th>Status</th>
-						<th data-sorter='false' data-filter='false'>Elapsed</th>
-						<th>Version</th>
-						<?php
-                        //Only show expert view is requested
-						if ($advancedView == true) {
-							?>
-                            <th data-sorter='false' data-filter='false'>Git Versions</th>
-                            <th data-sorter='false' data-filter='false'>Utilization</th>
-                            <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox' onChange='selectAllChanged();' /></th>
-                        <?php
-                    }
-                    ?>
-                </tr>
-            </thead>
-            <tbody id='fppSystems'>
-                <tr><td colspan=8 align='center'>Loading system list from fppd.</td></tr>
-            </tbody>
-        </table>
+            <div id='exitWarning' class='alert alert danger' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b></div>
+  
+        <? } ?>
+
+   
+
+        <div id="fppSystemsUiSettingsDrawer" class="collapse">
+            <div id="multisyncViewOptions" class="fppSystemsUiSettings card ">
+                <div class="container">
+                    <div class="row">
+                            <div class="col-2">
+                            <div class="labelHeading">
+                            Auto Refresh Status
+                            </div>
+                            
+                                <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
+
+                            </div>
+                            <div class="col">
+                            <div class='settingsTable'>
+                                <?
+                                PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
+                                PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+                                PrintSetting('MultiSyncExtraRemotes');
+                                PrintSetting('MultiSyncHTTPSubnets');
+                                PrintSetting('MultiSyncHide10', 'getFPPSystems');
+                                PrintSetting('MultiSyncHide172', 'getFPPSystems');
+                                PrintSetting('MultiSyncHide192', 'getFPPSystems');
+                                PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
+                                ?>
+                                            </div>
+                                    
+                                <?
+                                if ($uiLevel > 0) {
+                                    echo "<b>* - Advanced Level Setting</b>\n";
+                                }
+                                ?>
+                            </div>
+                        </div>
+                </div>
+                   
+     
+            </div>
+        </div>
+
+        
+
+        	</div>
+        </div>
     </div>
-</div>
-<?
-if ($advancedView) {
-?>
-<div style='text-align: right;'>
-    <div style='float: left;'>
-        <input id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'>
-    </div>
-    <div>
-        <b>Action for selected systems:</b>
-        <select id='multiAction' onChange='multiActionChanged();'>
-            <option value='noop'>---- Select an Action ----</option>
-            <option value='upgradeFPP'>Upgrade FPP</option>
-            <option value='restartFPPD'>Restart FPPD</option>
-            <option value='reboot'>Reboot</option>
-            <option value='shutdown'>Shutdown</option>
-            <option value='copyFiles'>Copy Files</option>
-            <option value='standaloneMode'>Set to Standalone</option>
-            <option value='masterMode'>Set to Master</option>
-            <option value='remoteMode'>Set to Remote</option>
-            <option value='bridgeMode'>Set to Bridge</option>
-        </select>
-        <input id='performActionButton' type='button' class='buttons' value='Run' onClick='performMultiAction();'>
-        <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
-    </div>
-</div>
-<div style='text-align: left;'>
-    <span class='actionOptions' id='copyOptions'>
-        <br>
-<?php
-PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
-?>
-    </span>
-</div>
-<div style='width: 100%; text-align: center;'>
-    <span id='exitWarning' class='warning' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b><br></span>
-</div>
-<hr>
-<? } ?>
-            <table class='settingsTable'>
-<?
-PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
-PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
-PrintSetting('MultiSyncExtraRemotes');
-PrintSetting('MultiSyncHTTPSubnets');
-PrintSetting('MultiSyncHide10', 'getFPPSystems');
-PrintSetting('MultiSyncHide172', 'getFPPSystems');
-PrintSetting('MultiSyncHide192', 'getFPPSystems');
-PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
-?>
-            </table>
-		</fieldset>
-<?
-if ($uiLevel > 0) {
-    echo "<b>* - Advanced Level Setting</b>\n";
-}
-?>
-	</div>
 	<?php include 'common/footer.inc'; ?>
 </div>
 
 <script>
 
 $(document).ready(function() {
-    SetupToolTips();
+    //SetupToolTips();
 	getFPPSystems();
 
     var $table = $('#fppSystemsTable');
@@ -1417,7 +1488,7 @@ $(document).ready(function() {
 <? } ?>
     .tablesorter({
         widthFixed: false,
-        theme: 'blue',
+        theme: 'fpp',
         cssInfoBlock: 'tablesorter-no-sort',
         widgets: ['zebra', 'filter', 'staticRow', 'saveSort'],
         headers: {

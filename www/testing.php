@@ -64,128 +64,7 @@ else
 <link rel="stylesheet" type="text/css" href="css/jquery.colpick.css">
 <script type="text/javascript" src="jquery/colpick/js/colpick.js"></script>
 <title><? echo $pageTitle; ?></title>
-<style>
 
-#testModeCycleMS {
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333 #333 #777 #333;
-  border-radius: 25px;
-  margin-left: 12px;
-  margin-right: 12px;
-  width: 300px;
-  position: relative;
-  height: 13px;
-  background-color: #8e8d8d;
-  background: url('../images/bg-track.png') repeat top left;
-  box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5),
-              0 1px 0 0px rgba(250, 250, 250, .5);
-  left: 0px;
-  top: 6px;
-  float: left;
-}
-
-#testModeColorS {
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333 #333 #777 #333;
-  border-radius: 25px;
-  margin-left: 12px;
-  margin-right: 12px;
-  width: 300px;
-  position: relative;
-  height: 13px;
-  background-color: #8e8d8d;
-  background: url('../images/bg-track.png') repeat top left;
-  box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5),
-              0 1px 0 0px rgba(250, 250, 250, .5);
-  left: 0px;
-  top: 6px;
-  float: left;
-}
-
-#testModeColorR {
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333 #333 #777 #333;
-  border-radius: 25px;
-  margin-left: 12px;
-  margin-right: 12px;
-  width: 300px;
-  position: relative;
-  height: 13px;
-  background-color: #8e8d8d;
-  background: url('../images/bg-track.png') repeat top left;
-  box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5),
-              0 1px 0 0px rgba(250, 250, 250, .5);
-  left: 0px;
-  top: 6px;
-  float: left;
-}
-
-#testModeColorG {
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333 #333 #777 #333;
-  border-radius: 25px;
-  margin-left: 12px;
-  margin-right: 12px;
-  width: 300px;
-  position: relative;
-  height: 13px;
-  background-color: #8e8d8d;
-  background: url('../images/bg-track.png') repeat top left;
-  box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5),
-              0 1px 0 0px rgba(250, 250, 250, .5);
-  left: 0px;
-  top: 6px;
-  float: left;
-}
-
-#testModeColorB {
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333 #333 #777 #333;
-  border-radius: 25px;
-  margin-left: 12px;
-  margin-right: 12px;
-  width: 300px;
-  position: relative;
-  height: 13px;
-  background-color: #8e8d8d;
-  background: url('../images/bg-track.png') repeat top left;
-  box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5),
-              0 1px 0 0px rgba(250, 250, 250, .5);
-  left: 0px;
-  top: 6px;
-  float: left;
-}
-
-.rgbCustomColor {
-  border-width: 1px;
-  border-style: solid;
-  border-color: #333 #333 #777 #333;
-  border-radius: 25px;
-  margin-left: 12px;
-  margin-right: 12px;
-  width: 300px;
-  position: relative;
-  height: 13px;
-  background-color: #8e8d8d;
-  background: url('../images/bg-track.png') repeat top left;
-  box-shadow: inset 0 1px 5px 0px rgba(0, 0, 0, .5),
-              0 1px 0 0px rgba(250, 250, 250, .5);
-  left: 0px;
-  top: 6px;
-  float: left;
-}
-
-.container div {
-  float: left;
-  height: 10px;
-}
-
-</style>
 </head>
 <body onunload='DisableTestMode();'>
 
@@ -234,17 +113,17 @@ function GetTestMode()
 
                 if (data.hasOwnProperty('cycleMS')) {
                     $("#testModeCycleMSText").html(data.cycleMS);
-                    $("#testModeCycleMS").slider("value", data.cycleMS);
+                    $("#testModeCycleMS").val(data.cycleMS);
                 } else {
                     $("#testModeCycleMSText").html(1000);
-                    $("#testModeCycleMS").slider("value", 1000);
+                    $("#testModeCycleMS").val(1000);
                 }
 				if (data.mode == "SingleChase")
 				{
 					$("input[name=testModeMode][value=SingleChase]").prop('checked', true);
 					$('#testModeChaseSize').val(data.chaseSize);
 					$('#testModeColorSText').html(data.chaseValue);
-					$("#testModeColorS").slider("value", data.chaseValue);
+					$("#testModeColorS").val(data.chaseValue);
 				}
 				else if (data.mode == "RGBChase")
 				{
@@ -264,9 +143,15 @@ function GetTestMode()
 					$("#testModeColorRText").html(data.color1);
 					$("#testModeColorGText").html(data.color2);
 					$("#testModeColorBText").html(data.color3);
-					$("#testModeColorR").slider("value", data.color1);
-					$("#testModeColorG").slider("value", data.color2);
-					$("#testModeColorB").slider("value", data.color3);
+					$("#testModeColorR").val(data.color1);
+					$("#testModeColorG").val(data.color2);
+					$("#testModeColorB").val(data.color3);
+					var rgb = {
+						r:data.color1,
+						g:data.color2,
+						b:data.color3
+					};
+					$('.color-box').colpickSetColor(rgb).css('background-color', $.colpick.rgbToHex(rgb));	
 				}
 			}
 			else
@@ -355,7 +240,7 @@ function SetTestMode()
 	if (endChannel < startChannel)
 		endChannel = startChannel;
 
-	var selected = $("#testModeModeDiv input[type='radio']:checked");
+	var selected = $("#tab-channels input[type='radio']:checked");
 	if (selected.length > 0) {
 		mode = selected.val();
 	}
@@ -439,9 +324,10 @@ function SetTestMode()
 		data.channelSetType = channelSetType;
 
 		var postData = "command=setTestMode&data=" + JSON.stringify(data);
-
+		console.log(postData);
 		$.post("fppjson.php", postData).done(function(data) {
-//			$.jGrowl("Test Mode Set");
+			//$.jGrowl("Test Mode Set");
+			//console.log(data);
 		}).fail(function(data) {
 			DialogError("Failed to set Test Mode", "Setup failed");
 		});
@@ -509,7 +395,7 @@ function PlaySequence()
 
 	$.get("fppjson.php?command=startSequence&sequence=" + sequence + "&startSecond=" + startSecond
 	).done(function() {
-		$.jGrowl("Started sequence " + sequence);
+		$.jGrowl("Started sequence " + sequence,{themeState:'success'});
 		//$('#playSequence').hide();
 		//$('#stopSequence').show();
 	}).fail(function() {
@@ -521,119 +407,142 @@ function StopSequence()
 {
 	$.get("fppjson.php?command=stopSequence"
 	).done(function() {
-		$.jGrowl("Stopped sequence");
+		$.jGrowl("Stopped sequence",{themeState:'danger'});
 		//$('#stopSequence').hide();
 		//$('#playSequence').show();
 	}).fail(function() {
 		DialogError("Failed to stop sequence", "Stop failed");
 	});
 }
-
+function UpdateTestModeFillColors(){
+	var rgb = {
+		r:parseInt($('#testModeColorR').val()), 
+		g:parseInt($('#testModeColorG').val()), 
+		b:parseInt($('#testModeColorB').val())
+	}
+	$('#testModeColorRText').html(rgb.r);
+	$('#testModeColorGText').html(rgb.g);
+	$('#testModeColorBText').html(rgb.b);
+	$('.color-box').colpickSetColor($.colpick.rgbToHex(rgb));
+}
 $(document).ready(function(){
-	$("#tabs").tabs({cache: true, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 
-	$('#testModeCycleMS').slider({
-		min: 100,
-		max: 5000,
-		value: 1000,
-		step: 100,
-		slide: function( event, ui ) {
-			testModeTimerInterval = ui.value;
-			$('#testModeCycleMSText').html(testModeTimerInterval);
-		},
-		stop: function( event, ui ) {
-			testModeTimerInterval = $('#testModeCycleMS').slider('value');
-			$('#testModeCycleMSText').html(testModeTimerInterval);
-			SetTestMode();
-		}
-		});
-
-	$('#testModeColorS').slider({
-		min: 0,
-		max: 255,
-		value: 255,
-		step: 1,
-		slide: function( event, ui ) {
-			testModeColorS = ui.value;
+	$('#testModeCycleMS').on('input',function(){
+		testModeTimerInterval = $('#testModeCycleMS').val();
+		$('#testModeCycleMSText').html(testModeTimerInterval);
+	}).on('change',function(){
+		testModeTimerInterval = $('#testModeCycleMS').val();
+		$('#testModeCycleMSText').html(testModeTimerInterval);
+		SetTestMode();
+	})
+	// $('#testModeCycleMS').slider({
+	// 	min: 100,
+	// 	max: 5000,
+	// 	value: 1000,
+	// 	step: 100,
+	// 	slide: function( event, ui ) {
+	// 		testModeTimerInterval = $('#testModeCycleMS').val();
+	// 		$('#testModeCycleMSText').html(testModeTimerInterval);
+	// 	},
+	// 	stop: function( event, ui ) {
+	// 		testModeTimerInterval = $('#testModeCycleMS').val();
+	// 		$('#testModeCycleMSText').html(testModeTimerInterval);
+	// 		SetTestMode();
+	// 	}
+	// 	});
+	$('#testModeColorS').on('input',function(){
+		testModeColorS =$('#testModeColorS').val();
 			$('#testModeColorSText').html(testModeColorS);
-		},
-		stop: function( event, ui ) {
-			testModeColorS = $('#testModeColorS').slider('value');
+	}).on('change',function(){
+			testModeColorS = $('#testModeColorS').val();
 			$('#testModeColorSText').html(testModeColorS);
 			SetTestMode();
-		}
-		});
+	})
+	// $('#testModeColorS').slider({
+	// 	min: 0,
+	// 	max: 255,
+	// 	value: 255,
+	// 	step: 1,
+	// 	slide: function( event, ui ) {
+	// 		testModeColorS = ui.value;
+	// 		$('#testModeColorSText').html(testModeColorS);
+	// 	},
+	// 	stop: function( event, ui ) {
+	// 		testModeColorS = $('#testModeColorS').slider('value');
+	// 		$('#testModeColorSText').html(testModeColorS);
+	// 		SetTestMode();
+	// 	}
+	// 	});
+	$('#testModeColorR').on('input',function(){
+		UpdateTestModeFillColors();
+	}).on('change',function(){
+		UpdateTestModeFillColors();
+		SetTestMode();
+	})
 
-	$('#testModeColorR').slider({
-		min: 0,
-		max: 255,
-		value: 255,
-		step: 1,
-		slide: function( event, ui ) {
-			testModeColorR = ui.value;
-			$('#testModeColorRText').html(testModeColorR);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').slider('value'), b:$('#testModeColorB').slider('value')}));
-		},
-		stop: function( event, ui ) {
-			testModeColorR = $('#testModeColorR').slider('value');
-			$('#testModeColorRText').html(testModeColorR);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').slider('value'), b:$('#testModeColorB').slider('value')}));
-			SetTestMode();
-		}
-		});
+	// $('#testModeColorR').slider({
+	// 	min: 0,
+	// 	max: 255,
+	// 	value: 255,
+	// 	step: 1,
+	// 	slide: function( event, ui ) {
+	// 		testModeColorR = ui.value;
+	// 		$('#testModeColorRText').html(testModeColorR);
+	// 	},
+	// 	stop: function( event, ui ) {
+	// 		testModeColorR = $('#testModeColorR').slider('value');
+	// 		$('#testModeColorRText').html(testModeColorR);
+	// 		$('.color-box').colpickSetColor($.colpick.rgbToHex({r:testModeColorR, g:$('#testModeColorG').slider('value'), b:$('#testModeColorB').slider('value')}));
+	// 		SetTestMode();
+	// 	}
+	// 	});
 
-	$('#testModeColorG').slider({
-		min: 0,
-		max: 255,
-		value: 255,
-		step: 1,
-		slide: function( event, ui ) {
-			testModeColorG = ui.value;
-			$('#testModeColorGText').html(testModeColorG);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:testModeColorG, b:$('#testModeColorB').slider('value')}));
-		},
-		stop: function( event, ui ) {
-			testModeColorG = $('#testModeColorG').slider('value');
-			$('#testModeColorGText').html(testModeColorG);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:testModeColorG, b:$('#testModeColorB').slider('value')}));
-			SetTestMode();
-		}
-		});
-
-	$('#testModeColorB').slider({
-		min: 0,
-		max: 255,
-		value: 255,
-		step: 1,
-		slide: function( event, ui ) {
-			testModeColorB = ui.value;
-			$('#testModeColorBText').html(testModeColorB);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:$('#testModeColorG').slider('value'), b:testModeColorB}));
-		},
-		stop: function( event, ui ) {
-			testModeColorB = $('#testModeColorB').slider('value');
-			$('#testModeColorBText').html(testModeColorB);
-			$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:$('#testModeColorG').slider('value'), b:testModeColorB}));
-			SetTestMode();
-		}
-		});
-
+	$('#testModeColorG').on('input',function(){
+		UpdateTestModeFillColors();
+	}).on('change',function(){
+		UpdateTestModeFillColors();
+		SetTestMode();
+	})
+	// $('#testModeColorG').slider({
+	// 	min: 0,
+	// 	max: 255,
+	// 	value: 255,
+	// 	step: 1,
+	// 	slide: function( event, ui ) {
+	// 		testModeColorG = ui.value;
+	// 		$('#testModeColorGText').html(testModeColorG);
+	// 		$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:testModeColorG, b:$('#testModeColorB').slider('value')}));
+	// 	},
+	// 	stop: function( event, ui ) {
+	// 		testModeColorG = $('#testModeColorG').slider('value');
+	// 		$('#testModeColorGText').html(testModeColorG);
+	// 		$('.color-box').colpickSetColor($.colpick.rgbToHex({r:$('#testModeColorR').slider('value'), g:testModeColorG, b:$('#testModeColorB').slider('value')}));
+	// 		SetTestMode();
+	// 	}
+	// 	});
+	$('#testModeColorB').on('input',function(){
+		UpdateTestModeFillColors();
+	}).on('change',function(){
+		UpdateTestModeFillColors();
+		SetTestMode();
+	});
+	
 	$('.color-box').colpick({
 		layout:'rgbhex',
-		color:'ffffff',
+		color:'ff00ff',
 		submit:false,
 		onChange:function(hsb,hex,rgb,el,bySetColor) {
 			$(el).css('background-color', '#'+hex);
 			if(!bySetColor) {
 				// Set each of the sliders and text to the new value
 				testModeColorR = rgb.r;
-				$('#testModeColorR').slider('value', testModeColorR);
+				$('#testModeColorR').val(testModeColorR);
 				$('#testModeColorRText').html(testModeColorR);
 				testModeColorG = rgb.g;
-				$('#testModeColorG').slider('value', testModeColorG);
+				$('#testModeColorG').val(testModeColorG);
 				$('#testModeColorGText').html(testModeColorG);
 				testModeColorB = rgb.b;
-				$('#testModeColorB').slider('value', testModeColorB);
+				$('#testModeColorB').val(testModeColorB);
 				$('#testModeColorBText').html(testModeColorB);
 				SetTestMode();
 			}
@@ -641,7 +550,7 @@ $(document).ready(function(){
 	}).keyup(function(){
 		$(this).colpickSetColor(this.value);
 	})
-	.css('background-color', '#ffffff');	
+	.css('background-color', '#ff00ff');	
 
 	GetTestMode();
 });
@@ -681,142 +590,262 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 
 
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
-  <div id='channelTester'>
-		<br>
-		<div class='title'>Display Testing</div>
+  <?php 
+  $activeParentMenuItem = 'status'; 
+  include 'menu.inc'; ?>
+  <div class="mainContainer">
+	  <h2 class="title">Display Testing</h2>
+	  <div class="pageContent">
+			<div id='channelTester'>
+
 		<div id="tabs">
-			<ul>
-				<li><a href='#tab-channels'>Channel Testing</a></li>
-				<li><a href='#tab-sequence'>Sequence</a></li>
-			</ul>
-		<div id='tab-channels'>
-		<div>
-			<fieldset class='fs'>
-      <legend>Channel Output Testing</legend>
-      <div>
-				Enable Test Mode: <input type='checkbox' id='testModeEnabled' onClick='SetTestMode();'><br>
-				<hr>
-				<b>Channel Range to Test</b><br>
-				<table border=0 cellspacing='2' cellpadding='2'>
-				<tr><td>Start Channel:</td>
-						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
-						<td width=40>&nbsp;</td>
-						<td>Model Name:</td>
-						<td>
-							<select onChange='UpdateStartEndFromModel();' id='modelName'>
-								<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
-<?
 
-if (file_exists($settings['model-overlays'])) {
-    $json = json_decode(file_get_contents($settings['model-overlays']));
-    foreach ($json->models as $entry) {
-        printf( "<option value='%d,%d'>%s</option>\n",
-               intval($entry->StartChannel),
-               intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
-    }
-}
+		<ul class="nav nav-pills pageContent-tabs" role="tablist">
+			<li class="nav-item">
+				<a class="nav-link active" id="tab-channels-tab" data-toggle="tab" href="#tab-channels" role="tab" aria-controls="tab-channels" aria-selected="true">
+					Channel Testing
+				</a>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link" id="tab-sequence-tab" data-toggle="tab" href="#tab-sequence" role="tab" aria-controls="tab-sequence" aria-selected="true">
+				Sequence
+				</a>
+			</li>
+		</ul>
 
-?>
+	<div class="tab-content">
+		<div id='tab-channels' class="tab-pane fade show active" role="tabpanel" aria-labelledby="interface-settings-tab">
+
+							
+				<div class="row">
+					<div class="col-md-3">
+						<div class="backdrop-dark">
+							<label for="testModeEnabled" class="mb-0 d-block">
+								<b>Enable Test Mode:</b>
+								<input type='checkbox' class="ml-1" id='testModeEnabled' onClick='SetTestMode();'>
+							</label> 
+						</div>
+						<div class="backdrop-dark mt-3">
+
+							<div class="form-group">
+								<div><b>Model Name:</b></div>
+								<div>
+									<select onChange='UpdateStartEndFromModel();' id='modelName'>
+													<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
+
+							<?
+							
+							if (file_exists($settings['model-overlays'])) {
+								$json = json_decode(file_get_contents($settings['model-overlays']));
+								foreach ($json->models as $entry) {
+									printf( "<option value='%d,%d'>%s</option>\n",
+											intval($entry->StartChannel),
+											intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
+								}
+							}
+							
+							?>
 							</select>
-							</td>
-						</tr>
-				<tr><td>End Channel:</td>
-						<td><input type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (1-<? echo FPPD_MAX_CHANNELS; ?>)</td>
-                        <td colspan='3'>
-                            &nbsp;&nbsp;
-                            <input type='button' class='buttons reallySmallButton' value='+3' onClick='incrementEndChannel(3);'>
-                            &nbsp;&nbsp;
-                            <input type='button' class='buttons reallySmallButton' value='-3' onClick='incrementEndChannel(-3);'>
-                            </td>
-						</tr>
-				</table>
-				<br>
-				<span style='float: left'>Update Interval: </span><span id="testModeCycleMS"></span> <span style='float: left' id='testModeCycleMSText'>1000</span><span style='float: left'> ms</span></br>
-				<hr>
-				<div id='testModeModeDiv'>
-<b>Test Patterns:</b><br><small>Note: RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</small><br>
-				<table border=0 cellpadding=0 cellspacing=0>
-				<tr><td colspan=3><b>RGB Patterns:</b></td></tr>
-				<tr><td colspan=3>&nbsp;<b>Color Order:</b>
-					<select id='colorOrder' onChange='SetTestMode();'>
-						<option>RGB</option>
-						<option>RBG</option>
-						<option>GRB</option>
-						<option>GBR</option>
-						<option>BRG</option>
-						<option>BGR</option>
-					</select>
-					</td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGB' checked onChange='SetTestMode();'></td><td><b>Chase: R-G-B</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBA' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBAN' onChange='SetTestMode();'></td><td><b>Chase: R-G-B-All-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBChase-RGBCustom' onChange='SetTestMode();'></td><td><b>Chase: Custom Pattern: </b> <input id='testModeRGBCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
-                <tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGB' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBA' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-All</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBN' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBAN' onChange='SetTestMode();'></td><td><b>Cycle: R-G-B-All-None</b></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBCycle-RGBCustom' onChange='SetTestMode();'></td><td><b>Cycle: Custom Pattern: </b> <input id='testModeRGBCycleCustomPattern' size='36' maxlength='72' value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> (6 hex digits per RGB triplet)</td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='RGBFill' onChange='SetTestMode();'></td><td><div class="container"><div><b>Fill:</b></div><div class="color-box"></div></div><div style='clear: both'></div></td></tr>
-				<tr><td>&nbsp;</td><td>
-					<table border=0 cellspacing=10 cellpadding=0>
-						<tr><td><span style='float: left'>R: </span><span id="testModeColorR"></span> <span style='float: left' id='testModeColorRText'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>G: </span><span id="testModeColorG"></span> <span style='float: left' id='testModeColorGText'>255</span><span style='float: left'></span></td></tr>
-						<tr><td><span style='float: left'>B: </span><span id="testModeColorB"></span> <span style='float: left' id='testModeColorBText'>255</span><span style='float: left'></span></td></tr>
-					</table>
-					<input type=button onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
-					</td></tr>
-				<tr><td>&nbsp;</td></tr>
-				<tr><td colspan=3><b>Single Channel Patterns:</b></td></tr>
-				<tr><td colspan=3><span style='float: left'><b>&nbsp;Channel Data Value: </b></span><span id="testModeColorS"></span> <span style='float: left' id='testModeColorSText'>255</span><span style='float: left'></span></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleChase' onChange='SetTestMode();'></td><td><b>Chase:</b></td></tr>
-				<tr><td></td><td>Chase Size: <select id='testModeChaseSize' onChange='SetTestMode();'>
-						<option value='2'>2</option>
-						<option value='3'>3</option>
-						<option value='4'>4</option>
-						<option value='5'>5</option>
-						<option value='6'>6</option>
-					</select></td></tr>
-				<tr><td><input type='radio' name='testModeMode' value='SingleFill' onChange='SetTestMode();'></td><td><b>Fill</b></td></tr>
-				</table>
-				</div>
-			</div>
-			</fieldset>
-		</div>
-		</div>
-			<div id='tab-sequence'>
-			<div>
-    <fieldset class='fs'>
-			<legend> Sequence Testing </legend>
-      <div>
-				<table border='0' cellspacing='3'>
-					<tr><td>Sequence:</td>
-							<td><?php PrintSequenceOptions();?></td></tr>
-					<tr><td>Start Time:</td>
-							<td><input type='text' size='4' maxlength='4' value='0' id='startSecond'> (Seconds from beginning of sequence)</td></tr>
+							</div>
+							</div>
+							<div class="mb-1"><b>Channel Range to Test</b></div>
+							
+							<div class="row">
+								<div class="col-6 form-group">
+									<label for="testModeStartChannel">Start Channel:</label>
+									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testStartChannel ?>' id='testModeStartChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+									<small  class="form-text text-muted">(1-<? echo FPPD_MAX_CHANNELS; ?>)	</small>
+								</div>
+								<div class="col-6 form-group">
+									<label for="testModeEndChannel">End Channel:</label>
+									<input class="form-control" type='number' min='1' max='<? echo FPPD_MAX_CHANNELS; ?>' value='<?=$testEndChannel ?>' id='testModeEndChannel' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'>
+									<small  class="form-text text-muted">(1-<? echo FPPD_MAX_CHANNELS; ?>)	</small>
+								</div>
+							</div>
+					
+							<div class="btn-group btn-group-full-width" role="group" aria-label="Increment Channel">
+								<input type='button' class='buttons' value='+3' onClick='incrementEndChannel(3);'>
+								<input type='button' class='buttons' value='-3' onClick='incrementEndChannel(-3);'>
+							</div>
+							<div class="mt-2 mb-1">
+								<b >Update Interval: </b> 
+								<input id="testModeCycleMS" type="range"  min="100" max="5000" value="1000" step="100"/> 
+								<small  class="form-text text-muted">
+									<span id='testModeCycleMSText'>1000</span><span> ms</span>
+								</small>
+								
+							</div>
+							<div>
 
-					<tr><td><input type='button' value='Play' onClick='PlaySequence();' id='playSequence'><input type='button' value='Stop' onClick='StopSequence();' id='stopSequence'></td>
-							<td>Play/stop the selected sequence</td></tr>
-					<tr><td><input type='button' value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
-							<td>Pause a running sequence or UnPause a paused sequence</td></tr>
-					<tr><td><input type='button' value='Step' onClick='SingleStepSequence();'></td>
-							<td>Single-step a paused sequence one frame</td></tr>
-					<tr><td><input type='button' value='Step Back' onClick='SingleStepSequenceBack();'></td>
-							<td>Single-step a paused sequence backwards one frame</td></tr>
-				</table>
-				<br>
-				<b>Sequence Testing Limitations:</b>
-				<ol>
-					<li>This page is for testing sequences, it does not test audio or video or synchronization of a sequence with any media file.  It does test Master/Remote sequence synchronization.</li>
-					<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
-				</ol>
-      </div>
-			</fieldset>
+								Color Order:
+								<select id='colorOrder' onChange='SetTestMode();'>
+									<option>RGB</option>
+									<option>RBG</option>
+									<option>GRB</option>
+									<option>GBR</option>
+									<option>BRG</option>
+									<option>BGR</option>
+								</select>
+							</div>
+						</div>
+
+					</div>
+					<div class="col-md-9">
+
+						<h2>RGB Test Patterns</h2>
+
+						<div class="row">
+							<div class="col-md-6">
+								<div class="backdrop">
+									<h3>Chase Patterns</h3>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGB' id='RGBChase-RGB' checked onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGB'>Chase: R-G-B</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBA' id='RGBChase-RGBA' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBA'>Chase: R-G-B-All</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBN' id='RGBChase-RGBN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBN'>Chase: R-G-B-None</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBAN' id='RGBChase-RGBAN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBAN'>Chase: R-G-B-All-None</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBChase-RGBCustom' id='RGBChase-RGBCustom' onChange='SetTestMode();'><label class="custom-control-label" for='RGBChase-RGBCustom'>Chase: Custom Pattern: </label></div>
+									<div class="form-group">
+				
+										<input id='testModeRGBCustomPattern' size='36' maxlength='72' type="text" value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> 
+										<small  class="form-text text-muted">(6 hex digits per RGB triplet)</small>
+									</div>	
+
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="backdrop ">
+									<h3>Cycle Patterns</h3>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGB' id='RGBCycle-RGB' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGB'>Cycle: R-G-B</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBA' id='RGBCycle-RGBA' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBA'>Cycle: R-G-B-All</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBN' id='RGBCycle-RGBN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBN' >Cycle: R-G-B-None</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBAN' id='RGBCycle-RGBAN' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBAN'>Cycle: R-G-B-All-None</label></div>
+									<div class="testPatternOptionRow custom-control custom-radio"><input type='radio' class="custom-control-input" name='testModeMode' value='RGBCycle-RGBCustom' id='RGBCycle-RGBCustom' onChange='SetTestMode();'><label class="custom-control-label" for='RGBCycle-RGBCustom'>Cycle: Custom Pattern: </label> </div>
+									
+									<div class="form-group">
+								
+										<input id='testModeRGBCycleCustomPattern' size='36' maxlength='72' type="text" value='FF000000FF000000FF' onChange='SetTestMode();' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'> 
+										<small  class="form-text text-muted">(6 hex digits per RGB triplet)	</small>
+									</div>			
+									
+								</div>
+							</div>
+						</div>
+
+
+
+						<div class="backdrop mt-3">
+						<div class="row">
+							<div class="col-auto displayTestingFillOptionBoxHeader">
+								<div class="testPatternOptionRow custom-control custom-radio">
+									<input  class="custom-control-input" type='radio' name='testModeMode' value='RGBFill' id="RGBFill" onChange='SetTestMode();'>
+									<label for="RGBFill" class="custom-control-label"><h3>Fill Color:</h3></label>
+								</div>
+								<div class="color-box"></div>
+							</div>
+							<div class="col-auto ml-auto">
+								<input type=button class="buttons" onClick='AppendFillToCustom();' value='Append Color To Custom Pattern'>
+
+							</div>
+						</div>
+							<div class="row">
+								
+								<div class="col-sm-4 testModeColorRange"><span>R: </span><input id="testModeColorR" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorRText'>255</span><span></span></div>
+								<div class="col-sm-4 testModeColorRange"><span>G: </span><input id="testModeColorG" type="range"  min="0" max="255" value="0" step="1"/> </span> <span id='testModeColorGText'>0</span><span></span></div>
+								<div class="col-sm-4 testModeColorRange"><span>B: </span><input id="testModeColorB" type="range"  min="0" max="255" value="255" step="1"/>  <span id='testModeColorBText'>255</span><span></span></div>
+	
+							</div>
+						</div>
+						<div class="callout callout-primary">
+								<p><b>Note:</b> RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</p>
+							</div>
+						<hr class="mt-4 mb-4">
+						<h2>Single Channel Patterns:</h2>
+							<div class="backdrop">
+														
+				
+							<span ><b>&nbsp;Channel Data Value: </b></span>
+	
+							<div><input id="testModeColorS" type="range"  min="0" max="255" value="255" step="1"/> </div>
+							
+							<div><span  id='testModeColorSText'>255</span></div>
+
+
+									<div class="row">
+										<div class="col-auto">
+											<div class="form-row">
+												<div class="testChannelOptionRow custom-control custom-radio">
+													<input  class="custom-control-input" type='radio' name='testModeMode' value='SingleChase' id='SingleChase' onChange='SetTestMode();'>
+													<label for="SingleChase" class="custom-control-label"><b>Chase</b></label>
+												</div>
+												<div class="form-col ml-2 pt-1">
+						
+						Chase Size:
+						<select id='testModeChaseSize' onChange='SetTestMode();'>
+							<option value='2'>2</option>
+							<option value='3'>3</option>
+							<option value='4'>4</option>
+							<option value='5'>5</option>
+							<option value='6'>6</option>
+						</select>
+</div>
+											</div>
+										
+
+										</div>
+										<div class="col-auto">
+											<div class="testChannelOptionRow custom-control custom-radio">
+												<input  class="custom-control-input" type='radio' name='testModeMode' value='SingleFill' id='SingleFill' onChange='SetTestMode();'>
+												<label for="SingleFill" class="custom-control-label"><b>Fill</b></label>
+											</div>
+										</div>
+									</div>	
+
+						
+					
+							</div>
+					</div>
+				</div>
+							
+
+
+				
 		</div>
-		</div>
+					<div id='tab-sequence' class="tab-pane fade" role="tabpanel" aria-labelledby="interface-settings-tab">
+						<div>
+								<div>
+									<table border='0' cellspacing='3'>
+										<tr><td>Sequence:</td>
+												<td><?php PrintSequenceOptions();?></td></tr>
+										<tr><td>Start Time:</td>
+												<td><input type='text' size='4' maxlength='4' value='0' id='startSecond'> (Seconds from beginning of sequence)</td></tr>
+
+										<tr><td><input type='button' class="buttons" value='Play' onClick='PlaySequence();' id='playSequence'><input type='button' class="buttons" value='Stop' onClick='StopSequence();' id='stopSequence'></td>
+												<td>Play/stop the selected sequence</td></tr>
+										<tr><td><input type='button' class="buttons" value='Pause/UnPause' onClick='ToggleSequencePause();'></td>
+												<td>Pause a running sequence or UnPause a paused sequence</td></tr>
+										<tr><td><input type='button' class="buttons" value='Step' onClick='SingleStepSequence();'></td>
+												<td>Single-step a paused sequence one frame</td></tr>
+										<tr><td><input type='button' class="buttons" value='Step Back' onClick='SingleStepSequenceBack();'></td>
+												<td>Single-step a paused sequence backwards one frame</td></tr>
+									</table>
+									<br>
+									<div class="callout">
+									<h4>Sequence Testing Limitations:</h4>
+									<ol>
+										<li>This page is for testing sequences, it does not test audio or video or synchronization of a sequence with any media file.  It does test Master/Remote sequence synchronization.</li>
+										<li>The Sequence Testing functionality currently only works when FPP is in an idle state and no playlists are playing.  If a playlist starts while testing a sequence, the sequence being tested will be stopped automatically.</li>
+									</ol>
+									</div>
+									
+
+								</div>
+						</div>
+					</div>
+				</div>
+				</div>
+			</div>	  	  
+	    </div>
   </div>
-  </div>
+
 
   <?php include 'common/footer.inc'; ?>
 </div>

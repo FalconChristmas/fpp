@@ -38,7 +38,7 @@ this.value = default_value;
 });
 });
 
-    $(document).tooltip();
+    $('img[src="images/redesign/help-icon.svg"]').tooltip();
 });
 </script>
 <script>
@@ -52,7 +52,7 @@ function AddScheduleEntry(data = {}) {
         data.startTime = '00:00:00';
         data.endTime = '24:00:00';
         data.repeat = 1;
-        data.startDate = '' + MINYEAR + '-01-01';
+        data.startDate = '' + formatDate(new Date());
         data.endDate = '' + MAXYEAR + '-12-31';
         data.stopType = 0;
         data.endTimeOffset = 0;
@@ -100,20 +100,37 @@ function AddScheduleEntry(data = {}) {
     }
 
     if ((data.playlist != '') || (data.type == 'playlist')) {
-        // Run a Playlist
-        row.find('.schOptionsPlaylist').show();
+        // Playlist or .fseq Sequence
         row.find('.schOptionsCommand').hide();
-        row.find('.schPlaylist').val(data.playlist);
-        row.find('.schType').val('playlist');
 
-        row.find('.schPlaylist').tooltip({
-            content: function() {
-                return $(this).val();
-            }
-        });
+        if (data.hasOwnProperty('sequence') && data.sequence == 1) {
+            row.find('.schOptionsPlaylist').hide();
+            row.find('.schOptionsSequence').show();
+            row.find('.schSequence').val(data.playlist);
+            row.find('.schType').val('sequence');
+
+            row.find('.schSequence').tooltip({
+                content: function() {
+                    return $(this).val().replace(/.fseq$/,'');
+                }
+            });
+        } else {
+            row.find('.schOptionsSequence').hide();
+            row.find('.schOptionsPlaylist').show();
+            row.find('.schPlaylist').val(data.playlist);
+            row.find('.schType').val('playlist');
+
+            row.find('.schPlaylist').tooltip({
+                content: function() {
+                    return $(this).val();
+                }
+            });
+        }
+
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
+        row.find('.schOptionsSequence').hide();
         row.find('.schOptionsCommand').show();
         row.find('.schType').val('command');
 
@@ -125,7 +142,7 @@ function AddScheduleEntry(data = {}) {
     else if (data.startTime == '26:00:00')
         row.find('.schStartTime').val('SunSet');
     else
-        row.find('.schStartTime').val(data.startTime);
+        row.find('.schStartTime').val(Convert24HToUIFormat(data.startTime));
     row.find('.schStartTime').trigger('change');
 
     if (data.endTime == '25:00:00')
@@ -133,7 +150,7 @@ function AddScheduleEntry(data = {}) {
     else if (data.endTime == '26:00:00')
         row.find('.schEndTime').val('SunSet');
     else
-        row.find('.schEndTime').val(data.endTime);
+        row.find('.schEndTime').val(Convert24HToUIFormat(data.endTime));
     row.find('.schEndTime').trigger('change');
     
     if (data.endTimeOffset != null) row.find('.schEndTimeOffset').val(data.endTimeOffset);
@@ -149,7 +166,20 @@ function AddScheduleEntry(data = {}) {
 
     SetupDatePicker(row);
 }
+function formatDate(date) {
+    var d = new Date(date),
+        month = '' + (d.getMonth() + 1),
+        day = '' + d.getDate(),
+        year = d.getFullYear();
 
+    if (month.length < 2) 
+        month = '0' + month;
+    if (day.length < 2) 
+        day = '0' + day;
+
+    return [year, month, day].join('-');
+}
+ 
 function getSchedule()
 {
     $('#tblScheduleBody').empty();
@@ -164,9 +194,38 @@ function getSchedule()
         }
         $('.fppTableRowTemplate').find('.schPlaylist').html(options);
 
+        GetSequenceArray();
+        options = "";
+        for(j = 0; j < sequenceArray.length; j++)
+        {
+            options +=  "<option value=\"" + sequenceArray[j] + ".fseq\">" + sequenceArray[j] + "</option>";
+        }
+        $('.fppTableRowTemplate').find('.schSequence').html(options);
+
+        var ScheduleSeconds = 0;
+        var checkTimes = false;
+        if ((!settings.hasOwnProperty('ScheduleSeconds')) ||
+            ((settings['ScheduleSeconds'] != '1') &&
+             (settings['ScheduleSeconds'] != '0'))) {
+            checkTimes = true;
+        }
+
         for (var i = 0; i < data.length; i++) {
+            if (checkTimes) {
+                if (((data[i].startTime.indexOf(':') != -1) &&
+                     (!data[i].startTime.endsWith(':00'))) ||
+                    ((data[i].endTime.indexOf(':') != -1) &&
+                     (!data[i].endTime.endsWith(':00')))) {
+                    ScheduleSeconds = 1;
+                    settings['ScheduleSeconds'] = 1;
+                }
+            }
+
             AddScheduleEntry(data[i]);
         }
+
+        if (checkTimes)
+            SetSetting('ScheduleSeconds', ScheduleSeconds, 0, 0);
 
         SetScheduleInputNames();
     }).fail(function() {
@@ -199,7 +258,7 @@ function SetRowDateTimeFieldVisibility(row) {
         row.find('.holEndDate').show();
     }
     
-    var re = new RegExp(/^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/);
+    var re = new RegExp(/[0-9]:[0-9]/);
     var startTime = row.find('.schStartTime').val();
     if (startTime.match(re)) {
         row.find('.startOffset').hide();
@@ -215,12 +274,25 @@ function SetRowDateTimeFieldVisibility(row) {
 }
 
 function SetScheduleInputNames() {
-	$('#tblScheduleBody > tr').each(function() {
+	$('#tblScheduleBody > tr').each(function(i) {
 		SetRowDateTimeFieldVisibility($(this));
 	});
 
+    var seconds = '';
+    if ((settings.hasOwnProperty('ScheduleSeconds')) && (settings['ScheduleSeconds'] == 1))
+        seconds = ':s';
+
+    var timeFormat = 'H:i' + seconds;
+    if (settings.hasOwnProperty('TimeFormat')) {
+        var fmt = settings['TimeFormat'];
+        if (fmt == '%I:%M %p')
+            timeFormat = 'h:i' + seconds + ' A';
+        else
+            timeFormat = 'H:i' + seconds;
+    }
+
 	$('.time').timepicker({
-		'timeFormat': 'H:i:s',
+		'timeFormat': timeFormat,
 		'typeaheadHighlight': false,
 		'show2400': true,
 		'noneOption': [
@@ -248,36 +320,42 @@ function SetScheduleInputNames() {
 
 function SetupDatePicker(item)
 {
-	$(item).datepicker({
-		'changeMonth': true,
-		'changeYear': true,
-		'dateFormat': 'yy-mm-dd',
-		'minDate': new Date(MINYEAR-1, 1 - 1, 1),
-		'maxDate': new Date(MAXYEAR, 12 - 1, 31),
-		'showButtonPanel': true,
-		'selectOtherMonths': true,
-		'showOtherMonths': true,
-		'yearRange': "" + MINYEAR +":" + MAXYEAR,
-		'autoclose': true,
-		'beforeShow': function( input ) {
-            setTimeout(function() {
-                var buttonPane = $( input )
-                    .datepicker( "widget" )
-                    .find( ".ui-datepicker-buttonpane" );
+    if(hasTouch && window.innerWidth < 601){
+        //use native date picker for small touchscreens (datepicker widget is bad experience on mobile)
+        $(item).attr('type','date');
+    }else{
+        $(item).datepicker({
+            'changeMonth': true,
+            'changeYear': true,
+            'dateFormat': 'yy-mm-dd',
+            'minDate': new Date(MINYEAR-1, 1 - 1, 1),
+            'maxDate': new Date(MAXYEAR, 12 - 1, 31),
+            'showButtonPanel': true,
+            'selectOtherMonths': true,
+            'showOtherMonths': true,
+            'yearRange': "" + MINYEAR +":" + MAXYEAR,
+            'autoclose': true,
+            'beforeShow': function( input ) {
+                setTimeout(function() {
+                    var buttonPane = $( input )
+                        .datepicker( "widget" )
+                        .find( ".ui-datepicker-buttonpane" );
 
-                $( "<button>", {
-                    text: "Select from Holidays",
-                    click: function() {
-                        $('.ui-datepicker').hide();
-                        $(input).hide();
-                        $(input).val('Christmas');
-                        $(input).parent().find('.holidays').val('Christmas');
-                        $(input).parent().find('.holidays').show();
-                    }
-                }).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
-            }, 1 );
-        }
-    });
+                    $( "<button>", {
+                        text: "Select from Holidays",
+                        click: function() {
+                            $('.ui-datepicker').hide();
+                            $(input).hide();
+                            $(input).val('Christmas');
+                            $(input).parent().find('.holidays').val('Christmas');
+                            $(input).parent().find('.holidays').show();
+                        }
+                    }).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
+                }, 1 );
+            }
+        });
+    }
+
 }
 
 function ScheduleEntryTypeChanged(item)
@@ -285,12 +363,19 @@ function ScheduleEntryTypeChanged(item)
     var row = $(item).parent().parent();
 
     if ($(item).val() == 'playlist') {
-        // Run a Playlist
-        row.find('.schOptionsPlaylist').show();
+        // Playlist
         row.find('.schOptionsCommand').hide();
+        row.find('.schOptionsSequence').hide();
+        row.find('.schOptionsPlaylist').show();
+    } else if ($(item).val() == 'sequence') {
+        // Sequence
+        row.find('.schOptionsCommand').hide();
+        row.find('.schOptionsPlaylist').hide();
+        row.find('.schOptionsSequence').show();
     } else {
         // FPP Command
         row.find('.schOptionsPlaylist').hide();
+        row.find('.schOptionsSequence').hide();
         row.find('.schOptionsCommand').show();
 
         if (row.find('.cmdTmplArgs').val() == '')
@@ -360,12 +445,27 @@ function GetScheduleEntryRowData(item) {
     var schType = $(item).find('.schType').val();
     e = {};
     e.enabled = $(item).find('.schEnable').is(':checked') ? 1 : 0;
-    e.playlist = $(item).find('.schPlaylist').val();
+    e.sequence = 0;
+
+    if (schType == 'playlist') {
+        e.playlist = $(item).find('.schPlaylist').val();
+    } else if (schType == 'sequence') {
+        e.playlist = $(item).find('.schSequence').val();
+        e.sequence = 1;
+    }
+
     e.day = parseInt($(item).find('.schDay').val());
-    e.startTime = $(item).find('.schStartTime').val();
+    e.startTime = Convert24HFromUIFormat($(item).find('.schStartTime').val());
     e.startTimeOffset = parseInt($(item).find('.schStartTimeOffset').val());
-    e.endTime = $(item).find('.schEndTime').val();
-    e.endTimeOffset = parseInt($(item).find('.schEndTimeOffset').val());
+
+    if (schType == 'command') {
+        e.endTime = e.startTime;
+        e.endTimeOffset = e.startTimeOffset;
+    } else {
+        e.endTime = Convert24HFromUIFormat($(item).find('.schEndTime').val());
+        e.endTimeOffset = parseInt($(item).find('.schEndTimeOffset').val());
+    }
+
     e.repeat = parseInt($(item).find('.schRepeat').val());
     e.startDate = $(item).find('.schStartDate').val();
     e.endDate = $(item).find('.schEndDate').val();
@@ -430,13 +530,13 @@ function SaveSchedule() {
         contentType: 'application/json',
         data: dataStr,
         success: function (response) {
-            $.jGrowl('Schedule saved');
+            $.jGrowl('Schedule saved',{themeState:'success'});
             $.ajax({
                 url: 'api/schedule/reload',
                 type: 'post',
                 contentType: 'application/json',
                 success: function(response) {
-                    $.jGrowl('Schedule reloaded');
+                    $.jGrowl('Schedule reloaded',{themeState:'success'});
                 }
             });
         },
@@ -463,8 +563,7 @@ $(function() {
 </script>
 <script>
 $(document).ready(function(){
-    if (window.innerWidth > 600) {
-        $('#tblScheduleBody').sortable({
+        var sortableOptions = {
             start: function (event, ui) {
                 start_pos = ui.item.index();
             },
@@ -486,8 +585,11 @@ $(document).ready(function(){
                 return ui;
             },
             scroll: true
-        }).disableSelection();
-    }
+        };
+        if(hasTouch){
+            $.extend(sortableOptions,{handle:'.rowGrip'});
+        }
+        $('#tblScheduleBody').sortable(sortableOptions).disableSelection();
 });
 </script>
 <title><? echo $pageTitle; ?></title>
@@ -532,12 +634,6 @@ tr.rowScheduleDetails select.selPlaylist option {
     white-space: no-wrap;
     text-overflow: ellipsis;
 }
-a:active {
-	color: none;
-}
-a:visited {
-	color: blue;
-}
 .center {
 	text-align: center;
 }
@@ -546,152 +642,199 @@ a:visited {
 
 <body onload="PopulateCommandListCache(); getSchedule();">
 <div id="bodyWrapper">
-  <?php	include 'menu.inc'; ?>
-  <div style="width:100%;margin:0 auto;"> <br />
-    <fieldset style="padding: 10px; border: 2px solid #000;">
-      <legend>Schedule</legend>
-      <div style="overflow: hidden; padding: 10px;">
-        <table>
-          <tr>
-            <td width='70px'><input class="buttons" type='button' value="Save" onClick='SaveSchedule();' /></td>
-            <td width = "70 px"><input class="buttons" type="button" value = "Add" onClick="AddScheduleEntry();"/></td>
-            <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input class="buttons disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></td>
-            <td width = "70 px"><input class="buttons disableButtons deleteSchButton" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></td>
-            <td width = "70 px"><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></td>
-            <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"/></td>
-            <td width = "40 px">&nbsp;</td>
-            <td width = "70 px"><input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></td>
-          </tr>
-        </table>
-        <div class='fppTableWrapper'>
-            <div class='fppTableContents'>
-                <table class='fppTableRowTemplate template-tblScheduleBody'>
-                    <tr class='rowScheduleDetails'>
-                        <td class='center' ><input class='schEnable' type='checkbox' /></td>
-                        <td><input class='date center schStartDate' type='text' size='10'  /></td>
-                        <td><input class='date center schEndDate' type='text' size='10' /></td>
-                        <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
-                                <option value='7'>Everyday</option>
-                                <option value='0'>Sunday</option>
-                                <option value='1'>Monday</option>
-                                <option value='2'>Tuesday</option>
-                                <option value='3'>Wednesday</option>
-                                <option value='4'>Thursday</option>
-                                <option value='5'>Friday</option>
-                                <option value='6'>Saturday</option>
-                                <option value='8'>Mon-Fri</option>
-                                <option value='9'>Sat/Sun</option>
-                                <option value='10'>Mon/Wed/Fri</option>
-                                <option value='11'>Tues/Thurs</option>
-                                <option value='12'>Sun-Thurs</option>
-                                <option value='13'>Fri/Sat</option>
-                                <option value='14'>Odd</option>
-                                <option value='15'>Even</option>
-                                <option value='65536'>Day Mask</option>
-                                </select>
-                            <br>
-                            <span class='dayMask'>
-                                <table border=0 cellpadding=0 cellspacing=0>
-                                    <tr><th>S</th>
-                                        <th>M</th>
-                                        <th>T</th>
-                                        <th>W</th>
-                                        <th>T</th>
-                                        <th>F</th>
-                                        <th>S</th>
-                                        </tr>
-                                    <tr><td><input class='maskSunday' type='checkbox' /></td>
-                                        <td><input class='maskMonday' type='checkbox' /></td>
-                                        <td><input class='maskTuesday' type='checkbox' /></td>
-                                        <td><input class='maskWednesday' type='checkbox' /></td>
-                                        <td><input class='maskThursday' type='checkbox' /></td>
-                                        <td><input class='maskFriday' type='checkbox' /></td>
-                                        <td><input class='maskSaturday' type='checkbox' /></td>
-                                    </tr>
-                                </table>
-                            </span>
-                        </td>
-                        <td><input class='time center schStartTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset startOffset'><br>+<input class='center schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
-                        <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
-                                <option value='playlist'>Playlist</option>
-                                <option value='command'>Command</option>
-                            </select></td>
-                        <!-- start 'Playlist' options -->
-                        <td class='schOptionsPlaylist'><select class='schPlaylist' style='max-width: 200px;' title=''>
-                            </select></td>
-                        <td class='schOptionsPlaylist'><input class='time center schEndTime' type='text' size='10' onChange='TimeChanged(this);' />
-<span class='offset endOffset'><br>+<input class='center schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
-                        <td class='schOptionsPlaylist' class='center' >
-                            <select class='schRepeat'>
-                                <option value='0'>None</option>
-                                <option value='1'>Immediate</option>
-                                <option value='500'>5 Min.</option>
-                                <option value='1000'>10 Min.</option>
-                                <option value='1500'>15 Min.</option>
-                                <option value='2000'>20 Min.</option>
-                                <option value='3000'>30 Min.</option>
-                                <option value='6000'>60 Min.</option>
-                            </select>
-                        </td>
-                        <td class='schOptionsPlaylist' class='center' >
-                            <select class='schStopType'>
-                                <option value='0'>Graceful</option>
-                                <option value='2'>Graceful Loop</option>
-                                <option value='1'>Hard Stop</option>
-                            </select>
-                        </td>
-                        <!-- end 'Playlist' options -->
-                        <!-- start 'FPP Command' options -->
-                        <td class='schOptionsCommand' colspan='4'><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
-                            <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
-                            <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
-                            <img class='cmdTmplTooltipIcon' title='' src='images/questionmark.png'>
-                            <span class='cmdTmplMulticastInfo'></span>
-                            <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
-                            <span class='cmdTmplJSON' style='display: none;'></span>
-                        </td>
-                        <!-- end 'FPP Command' options -->
-                    </tr>
-                </table>
-                <table id='tblSchedule'>
-                    <thead id='tblScheduleHead'>
-                        <tr>
-                            <th rowspan='2' title='Schedule enabled/disabled'>Act<br>ive</th>
-                            <th colspan='2' title='Date Range'>Date Range</th>
-                            <th rowspan='2' title='Day(s) of the week'>Day(s)</th>
-                            <th rowspan='2' title='Start Time'>Start<br>Time</th>
-                            <th rowspan='2' title='Schedule Type'>Schedule<br>Type</th>
-                            <th title='Playlist'>Playlist</th>
-                            <th title='End Time'>End Time</th>
-                            <th title='Repeat playlist'>Repeat</th>
-                            <th title='Playlist Stop Type'>Stop Type</th>
-                        </tr>
-                        <tr>
-                            <th title='Start Date'>Start Date</th>
-                            <th title='End Date'>End Date</th>
-                            <th colspan='4' title='FPP Command'>Command Args</th>
-                        </tr>
-                    </thead>
-                    <tbody id='tblScheduleBody'>
-                    </tbody>
-                </table>
+  <?php	
+  $activeParentMenuItem = 'content';
+  include 'menu.inc'; ?>
+  <div class="mainContainer">
+      <h1 class="title">Scheduler</h1>
+      <div class="pageContent"> 
+          <div>
+
+            <div class="row tablePageHeader tablePageHeader">
+                <div class="col">
+                    <div class="form-actions form-actions-secondary">
+
+                        <div class='smallonly'>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-primary" type="button" id="schedulerMobileActions" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <div class="dropdown-menu" aria-labelledby="schedulerMobileActions">
+                                    <button type='button' class='buttons' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button>
+                                    <button class='buttons' type="button" value = "Reload" onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button>
+                                    <button class='buttons' type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');">Clear Selection</button>
+                                    <button class="deleteSchButton disableButtons"  type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');">Delete</button>
+                                    <button class="cloneSchButton disableButtons" type="button" value="Clone" onClick="CloneSelectedEntry();">Clone</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class='largeonly'><button type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button></div>
+                        <div class='largeonly'><button class="buttons" type="button" value = "Reload" onClick="ReloadSchedule();"><i class="fas fa-redo"></i> Reload</button></div>
+                        <div class='largeonly'><input class="buttons" type="button" value="Clear Selection" onClick="$('#tblScheduleBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteSchButton'); DisableButtonClass('cloneSchButton');"/></div>
+                    </div>
+
+                </div>
+                <div class="col-auto ml-auto">
+                    <div class="form-actions form-actions-primary">
+
+                        <div class='largeonly'><input class="disableButtons deleteSchButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteSchButton');"/></div>
+                        <div class='largeonly'><input class="disableButtons cloneSchButton" type="button" value="Clone" onClick="CloneSelectedEntry();"/></div>
+                        <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddScheduleEntry();"><i class="fas fa-plus"></i> Add</button></div>
+                        <div><input class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveSchedule();' /></div>
+                    </div>
+                </div>
             </div>
-	</div>
-	<div>
-           <font size = -1>
-	      <b>Notes</b>:
-              <ul style="margin-top:0px;">
-		 <li>If playlist times overlap, items higher in the list have priority.</li>
-		 <li>Drag/Drop to change order</li>
-		 <li>CTRL+Click to select multiple items</li>
-                 <li>Odd/Even for Days is used to alternate playlist over 2 days <img style="vertical-align:middle" src="images/questionmark.png" title="This is not based on the day of the week or month or year. It is odd/even starting at July 15, 2013, the day of the first commit to the FPP code repository. This was done so that it did not have two odd days in a row on the 7th and first days of the week or on months that have 31 days going into the next month, etc."></li>
-              </ul>
-           </font>
-        </div>
-    </fieldset>
+
+            <div class='fppTableWrapper'>
+                <div class='fppTableContents'  role="region" aria-labelledby="tblSchedule" tabindex="0">
+                    
+                    <table class='fppTableRowTemplate template-tblScheduleBody'>
+                        <tr class='rowScheduleDetails'>
+                            <td class='center' valign="middle">
+                                <div class="rowGrip">
+                                    <i class="rowGripIcon fpp-icon-grip"></i>
+                                </div>
+                            </td>
+                            <td class='center' ><input class='schEnable' type='checkbox' /></td>
+                            <td><input class='date schStartDate' type='text' size='9'  /></td>
+                            <td><input class='date schEndDate' type='text' size='9' /></td>
+                            <td><select class='schDay' onChange='ScheduleDaysSelectChanged(this);'>
+                                    <option value='7'>Everyday</option>
+                                    <option value='0'>Sunday</option>
+                                    <option value='1'>Monday</option>
+                                    <option value='2'>Tuesday</option>
+                                    <option value='3'>Wednesday</option>
+                                    <option value='4'>Thursday</option>
+                                    <option value='5'>Friday</option>
+                                    <option value='6'>Saturday</option>
+                                    <option value='8'>Mon-Fri</option>
+                                    <option value='9'>Sat/Sun</option>
+                                    <option value='10'>Mon/Wed/Fri</option>
+                                    <option value='11'>Tues/Thurs</option>
+                                    <option value='12'>Sun-Thurs</option>
+                                    <option value='13'>Fri/Sat</option>
+                                    <option value='14'>Odd</option>
+                                    <option value='15'>Even</option>
+                                    <option value='65536'>Day Mask</option>
+                                    </select>
+                                <br>
+                                <span class='dayMask'>
+                                    <table  class='dayMaskTable' border=0 cellpadding=0 cellspacing=0>
+                                        <tr><th>S</th>
+                                            <th>M</th>
+                                            <th>T</th>
+                                            <th>W</th>
+                                            <th>T</th>
+                                            <th>F</th>
+                                            <th>S</th>
+                                            </tr>
+                                        <tr><td><input class='maskSunday' type='checkbox' /></td>
+                                            <td><input class='maskMonday' type='checkbox' /></td>
+                                            <td><input class='maskTuesday' type='checkbox' /></td>
+                                            <td><input class='maskWednesday' type='checkbox' /></td>
+                                            <td><input class='maskThursday' type='checkbox' /></td>
+                                            <td><input class='maskFriday' type='checkbox' /></td>
+                                            <td><input class='maskSaturday' type='checkbox' /></td>
+                                        </tr>
+                                    </table>
+                                </span>
+                            </td>
+                            <td><input class='time schStartTime' type='text' size='6' onChange='TimeChanged(this);' />
+<span class='offset startOffset'><br>+<input class='schStartTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span></td>
+                            <td><select class='schType' onChange='ScheduleEntryTypeChanged(this);'>
+                                <option value='playlist'>Playlist</option>
+                                <option value='sequence'>Sequence</option>
+                                <option value='command'>Command</option>
+                                 </select>
+                            </td>
+                        <!-- start Playlist and Sequence options -->
+                             <td class='schOptionsPlaylist'>
+                                 <select class='schPlaylist' title=''>
+                                </select>
+                            </td>
+                             <td class='schOptionsSequence'>
+                                 <select class='schSequence' title=''>
+                                </select>
+                            </td>
+                            <td class='schOptionsPlaylist schOptionsSequence'><input class='time schEndTime' type='text' size='6' onChange='TimeChanged(this);' />
+                                <span class='offset endOffset'><br>+<input class='schEndTimeOffset' type='number' size='4' value='0' min='-120' max='120'>min</span>
+                            </td>
+                            <td class='schOptionsPlaylist schOptionsSequence' class='' >
+                                <select class='schRepeat'>
+                                    <option value='0'>None</option>
+                                    <option value='1'>Immediate</option>
+                                    <option value='500'>5 Min.</option>
+                                    <option value='1000'>10 Min.</option>
+                                    <option value='1500'>15 Min.</option>
+                                    <option value='2000'>20 Min.</option>
+                                    <option value='3000'>30 Min.</option>
+                                    <option value='6000'>60 Min.</option>
+                                </select>
+                            </td>
+                            <td class='schOptionsPlaylist schOptionsSequence' class='' >
+                                <select class='schStopType'>
+                                    <option value='0'>Graceful</option>
+                                    <option value='2'>Graceful Loop</option>
+                                    <option value='1'>Hard Stop</option>
+                                </select>
+                            </td>
+                            <!-- end 'Playlist' options -->
+                            <!-- start 'FPP Command' options -->
+                            <td class='schOptionsCommand' colspan='4'><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
+                                <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
+                                <input type='button' class='buttons smallButton' value='Run Now' onClick='RunCommandJSON($(this).parent().find(".cmdTmplJSON").text());'>
+                                <img class='cmdTmplTooltipIcon' title='' src='images/redesign/help-icon.svg' width=22 height=22>
+                                <span class='cmdTmplMulticastInfo'></span>
+                                <table class='cmdTmplArgsTable'><tr><th class='left'>Args:</th><td><span class='cmdTmplArgs'></span></td></tr></table>
+                                <span class='cmdTmplJSON' style='display: none;'></span>
+                            </td>
+                            <!-- end 'FPP Command' options -->
+                        </tr>
+                    </table>
+                    <table id='tblSchedule' class="fppSelectableRowTable">
+
+                        <thead id='tblScheduleHead'>
+                            <tr>
+                                <th class="tblScheduleHeadGrip"></th>
+                                <th class="tblScheduleHeadActive">Active</th>
+                                <th class="tblScheduleHeadStartDate">Start Date</th>
+                                <th class="tblScheduleHeadEndDate">End Date</th>
+                                <th class="tblScheduleHeadDays">Day(s)</th>
+                                <th class="tblScheduleHeadStartTime">Start<br>Time</th>
+                                <th class="tblScheduleHeadSchType">Schedule<br>Type</th>
+                                <th class="tblScheduleHeadPlaylist">Playlist /<br> Command Args</th>
+                                <th class="tblScheduleHeadEndTime">End Time</th>
+                                <th class="tblScheduleHeadRepeat">Repeat</th>
+                                <th class="tblScheduleHeadStopType">Stop Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id='tblScheduleBody'>
+                        </tbody>
+                    </table>
+                </div>
+    	    </div>
+    	<div>
+     
+
+            <div class="backdrop">
+                <b>Notes</b>:
+                <ul style="margin-top:0px;">
+                    <li>If playlist times overlap, items higher in the list have priority.</li>
+                    <li>Drag/Drop to change order</li>
+                    <li>CTRL+Click to select multiple items</li>
+                    <li>Odd/Even for Days is used to alternate playlist over 2 days <img style="vertical-align:middle" width=22 height=22 src="images/redesign/help-icon.svg" title="This is not based on the day of the week or month or year. It is odd/even starting at July 15, 2013, the day of the first commit to the FPP code repository. This was done so that it did not have two odd days in a row on the 7th and first days of the week or on months that have 31 days going into the next month, etc."></li>
+                </ul>
+            </div>
+
+ 
+
+
+
+            </div>
+
+      </div>
+      
   </div>
   <?php	include 'common/footer.inc'; ?>
 </div>

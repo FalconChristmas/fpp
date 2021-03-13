@@ -106,60 +106,86 @@ function PopulateInterfaces()
 
 <div id='tab-e131'>
 	<div id='divE131'>
-		<fieldset class="fs">
-			<legend> E1.31 / ArtNet / DDP / KiNet</legend>
+
+
 			<div id='divE131Data'>
 
-				<div style="overflow: hidden; padding: 10px;">
-					<b>Enable E1.31 / ArtNet / DDP / KiNet Output:</b> <input type="checkbox" id="E131Enabled"/><span id='outputOffWarning' style='display: none;' class='warning'> - WARNING, universe outputs are active, but the primary channel output is disabled.  No data will be sent.</span><br><br>
-					Source Interface: <select id="selE131interfaces"><? PopulateInterfaces(); ?></select>
-    <span
-    <? if ($uiLevel < 1) { ?>
-        style="display:none;"
-    <? } ?>
-    ><br>Multi-Threaded:&nbsp;<input id="E131ThreadedOutput" type="checkbox" checked /><b>*</b></span>
-					<br><br>
+				<div>
+		
+						
 
-					<div>
-						<form>
-							Outputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(0);" type="button"  class="buttons" value="Set" />
-						</form>
-					</div>
 					<form id="frmUniverses">
-						<input name="command" type="hidden" value="setUniverses" />
-						<input name="input" type="hidden" value="0" />
-						<table>
-							<tr>
-								<td width = "70 px"><input id="btnSaveUniverses" class="buttons" type="submit" value = "Save" /></td>
-								<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
-								<td width = "40 px">&nbsp;</td>
-								<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(0);" /></td>
-							</tr>
-						</table>
+
+
+
+						<div class="row tablePageHeader">
+							<div class="col-md"><h2>E1.31 / ArtNet / DDP / KiNet</h2></div>
+							<div class="col-md-auto ml-lg-auto">
+								<div class="form-actions">
+										<input name="input" type="hidden" value="0" />
+										<input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(0);" />
+										<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
+							
+										
+										<input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
+
+								</div>
+							</div>
+						</div>
+						<div id='outputOffWarning' style='display: none;' class='callout callout-warning'>
+							<b>WARNING </b>universe outputs are active, but the primary channel output is disabled.  No data will be sent. Check "Enable Output" below if if you wish to enable.
+						</div>
+						<div class="backdrop tableOptionsForm">
+							<div class="row">
+								<div class="col-md-auto">
+									<div class="backdrop-dark form-inline enableCheckboxWrapper">
+
+									<div><b>Enable Output:</b></div>
+										<div> <input type="checkbox" id="E131Enabled"/></div>
+										
+									</div>
+								</div>
+								<div class="col-md-auto form-inline">
+									<div><b>Source Interface:</b></div>
+									<div ><select id="selE131interfaces"><? PopulateInterfaces(); ?></select></div>
+
+								</div>
+								<div class="col-md-auto form-inline" <? if ($uiLevel < 1) { ?> style="display:none;" <? } ?>>
+									<div><b>Multi-Threaded:</b><b>*</b></div>
+									<div>
+										<input id="E131ThreadedOutput" type="checkbox" checked />
+									</div>
+								</div>
+								<div class="col-md-auto form-inline">
+									<div><b>Outputs Count: </b></div>
+									<div ><input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /></div>
+									<div><input id="btnUniverseCount" onclick="SetUniverseCount(0);" type="button"  class="buttons" value="Set" /></div>
+								</div>
+							</div>
+						</div>
+
+
 
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents'>
-						<table id="tblUniverses" class='universeTable fullWidth'>
+                            <div class='fppTableContents' class='universeTable fullWidth' role="region" aria-labelledby="tblUniverses" tabindex="0">
+						<table id="tblUniverses" class="fppSelectableRowTable">
 							<thead id='tblUniversesHead'>
                                 <tr>
-                                    <th rowspan=2 title='Output Number'>Out<br>put</th>
-                                    <th rowspan=2 title='Output Enabled/Disabled status'>Act<br>ive</th>
-                                    <th rowspan=2 title='User Description'>Description</th>
-                                    <th rowspan=2 title='Output Type'>Output<br>Type</th>
-                                    <th rowspan=2 title='Unicast IP Address'>Unicast<br>Address</th>
-                                    <th colspan=2>FPP Channel</th>
-                                    <th colspan=4>Universe</th>
-                                    <th rowspan=2 title='Monitor controller'>Mon<br>itor</th>
-                                    <th rowspan=2 title='Suppress Duplicate network packets'>De<br>Dup</th>
-                                    <th rowspan=2 title='Test ping controller'>Ping</th>
-                                </tr>
-                                <tr>
-                                    <th title='FPP Start Channel'>Start</th>
-                                    <th title='FPP End Channel'>End</th>
-                                    <th title='Universe Number'>#</th>
-                                    <th title='Universe Count for this controller'>Count</th>
-                                    <th title='Universe size'>Size</th>
-                                    <th title='Universe Priority'>Priority</th>
+                                    <th title='Output Number'>Output</th>
+                                    <th title='Output Enabled/Disabled status'>Active</th>
+                                    <th title='User Description'>Description</th>
+                                    <th title='Output Type'>Output <br>Type</th>
+                                    <th title='Unicast IP Address'>Unicast <br>Address</th>
+   
+                                    <th title='FPP Start Channel'>FPP Start <br>Channel</th>
+                                    <th title='FPP End Channel'>FPP End <br>Channel</th>
+                                    <th title='Universe Number'>Universe #</th>
+                                    <th title='Universe Count for this controller'>Universe <br>Count</th>
+                                    <th title='Universe size'>Universe <br>Size</th>
+                                    <th title='Universe Priority'>Universe <br>Priority</th>
+									<th title='Monitor controller'>Monitor</th>
+                                    <th title='Suppress Duplicate network packets'>DeDup</th>
+                                    <th title='Test ping controller'>Ping</th>
                                 </tr>
 							</thead>
 							<tbody id='tblUniversesBody'>
@@ -167,10 +193,10 @@ function PopulateInterfaces()
 						</table>
                             </div>
                         </div>
-						<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
+						<small class="text-muted">(Drag entry to reposition) </small>
 					</form>
 				</div>
 			</div>
-		</fieldset>
+
 	</div>
 </div>

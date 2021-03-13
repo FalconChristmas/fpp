@@ -21,7 +21,7 @@ $(document).ready(function(){
 			data: dataString
 		}).done(function() {
 			getPixelnetDMXoutputs('TRUE');
-			$.jGrowl("FPD Config Saved");
+			$.jGrowl("FPD Config Saved",{themeState:'success'});
 			SetRestartFlag(2);
 		}).fail(function() {
 			DialogError("Save FPD Config", "Save Failed");
@@ -52,7 +52,7 @@ $(document).ready(function(){
 							</tr>
 						</table>
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents'>
+                            <div class='fppTableContents' role="region" aria-labelledby="BBBSerial_Output" tabindex="0">
                                 <table id="tblOutputs">
                                 </table>
                             </div>

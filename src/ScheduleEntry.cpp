@@ -28,10 +28,27 @@
 #include <math.h>
 #include "FPPLocale.h"
 #include "ScheduleEntry.h"
+#include "sunset.h"
+
+static time_t GetTimeOnDOW(int day, int hour, int minute, int second)
+{
+    time_t currTime = time(NULL);
+    struct tm now;
+    localtime_r(&currTime, &now);
+
+    int weekSecond = (now.tm_wday * SECONDS_PER_DAY) + (now.tm_hour * SECONDS_PER_HOUR) + (now.tm_min * SECONDS_PER_MINUTE) + now.tm_sec;
+    time_t result = currTime - weekSecond + (day * SECONDS_PER_DAY) + (hour * SECONDS_PER_HOUR) + (minute * SECONDS_PER_MINUTE) + second;
+
+    if (day < now.tm_wday)
+        result += SECONDS_PER_WEEK;
+
+    return result;
+}
 
 ScheduleEntry::ScheduleEntry()
   : enabled(false),
 	playlist(""),
+    sequence(false),
 	repeat(false),
 	dayIndex(0),
 	startHour(0),
@@ -270,37 +287,39 @@ static void mapTimeString(const std::string &tm, int &h, int &m, int &s) {
     s = atoi(sparts[2].c_str());
 }
 
-void ScheduleEntry::pushStartEndTimes(int start, int end) {
-    
-    if (end < start) {
-        // End is less than start, likely means crossing to next day, add 24hours.
-        // If Saturday, roll end around to Sunday morning.
-        if (end < (24*60*60*6)) {
-            //if start is not saturday, add 24 hours, otherwise it's already on Sunday
-            if (start < (24*60*60*6)) {
-                end += 24*60*60;
-            }
-        } else {
-            end -= 24*60*60*6;
-        }
+void ScheduleEntry::pushStartEndTimes(int dow) {
+    time_t startTime = GetTimeOnDOW(dow, startHour, startMinute, startSecond);
+    time_t endTime = GetTimeOnDOW(dow, endHour, endMinute, endSecond);
+
+    if (!DateInRange(startTime, startDate, endDate))
+        return;
+
+    if (endTime < startTime) {
+        endTime += 24*60*60;
     }
+
     if (repeatInterval) {
-        int newEnd = start + repeatInterval - 1;
+        time_t newEnd = startTime + repeatInterval - 1;
         if (newEnd > (24*60*60*7)) {
             newEnd -= 24*60*60*7;
         }
-        while (end < start) {
+        while (endTime < startTime) {
             // case where we eventually wrap around on sat->sunday...
             // this handles all the intervals on Saturday until start
             // wraps to Sunday, then the normal start<end can work
-            startEndSeconds.push_back(std::pair<int, int>(start, newEnd));
+            if (startTimeStr.find(":") == std::string::npos)
+                GetTimeFromSun(startTime, true);
+            if (endTimeStr.find(":") == std::string::npos)
+                GetTimeFromSun(newEnd, false);
+
+            startEndTimes.push_back(std::pair<int, int>(startTime, newEnd));
             newEnd += repeatInterval;
-            start += repeatInterval;
+            startTime += repeatInterval;
             if (newEnd >= (24*60*60*7)) {
                 newEnd -= 24*60*60*7;
             }
-            if (start >= (24*60*60*7)) {
-                start -= 24*60*60*7;
+            if (startTime >= (24*60*60*7)) {
+                startTime -= 24*60*60*7;
                 // Break out of while loop if start loops around and let
                 // normal start<end code handle the rest.  The end<start
                 // above may be true forever depending on the relative
@@ -308,10 +327,15 @@ void ScheduleEntry::pushStartEndTimes(int start, int end) {
                 break;
             }
         }
-        while (start < end) {
-            startEndSeconds.push_back(std::pair<int, int>(start, newEnd));
+        while (startTime < endTime) {
+            if (startTimeStr.find(":") == std::string::npos)
+                GetTimeFromSun(startTime, true);
+            if (endTimeStr.find(":") == std::string::npos)
+                GetTimeFromSun(newEnd, false);
+
+            startEndTimes.push_back(std::pair<int, int>(startTime, newEnd));
             newEnd += repeatInterval;
-            start += repeatInterval;
+            startTime += repeatInterval;
 
             // allow for starting on Saturday night and ending on Sunday morning
             if (newEnd >= (24*60*60*7)) {
@@ -319,7 +343,108 @@ void ScheduleEntry::pushStartEndTimes(int start, int end) {
             }
         }
     } else {
-        startEndSeconds.push_back(std::pair<int, int>(start, end));
+        if (startTimeStr.find(":") == std::string::npos)
+            GetTimeFromSun(startTime, true);
+        if (endTimeStr.find(":") == std::string::npos)
+            GetTimeFromSun(endTime, false);
+
+        startEndTimes.push_back(std::pair<int, int>(startTime, endTime));
+    }
+}
+
+void ScheduleEntry::GetTimeFromSun(time_t &when, bool setStart)
+{
+    time_t origWhen = when;
+    std::string latStr = getSetting("Latitude");
+    std::string lonStr = getSetting("Longitude");
+
+    if ((latStr == "") || (lonStr == ""))
+    {
+        latStr = "38.938524";
+        lonStr = "-104.600945";
+
+        LogErr(VB_SCHEDULE, "Error, Latitude/Longitude not filled in, using Falcon, Colorado coordinates!\n");
+    }
+
+    std::string::size_type sz;
+    double lat = std::stod(latStr, &sz);
+    double lon = std::stod(lonStr, &sz);
+    double sunOffset = 0;
+    time_t currTime = when;
+    struct tm utc;
+    struct tm local;
+    std::string info = setStart ? startTimeStr : endTimeStr;
+
+    gmtime_r(&currTime, &utc);
+    localtime_r(&currTime, &local);
+
+    LogExcess(VB_SCHEDULE, "Lat/Lon: %.6f, %.6f\n", lat, lon);
+    LogExcess(VB_SCHEDULE, "Today (UTC) is %02d/%02d/%04d, UTC offset is %d hours\n",
+        utc.tm_mon + 1, utc.tm_mday, utc.tm_year + 1900, local.tm_gmtoff / 3600);
+
+    SunSet sun(lat, lon, (int)(local.tm_gmtoff / 3600));
+    sun.setCurrentDate(utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday);
+
+    if (info == "SunRise")
+        sunOffset = sun.calcSunrise();
+    else if (info == "SunSet")
+        sunOffset = sun.calcSunset();
+    else if (info == "Dawn")
+        sunOffset = sun.calcCivilSunrise();
+    else if (info == "Dusk")
+        sunOffset = sun.calcCivilSunset();
+    else
+        sunOffset = 0;
+
+    sunOffset += startTimeOffset;
+
+    int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
+
+    if (sunOffset < 0) {
+        LogWarn(VB_SCHEDULE, "Sunrise calculated as before midnight last night, using 8AM.  Check your time zone to make sure it is valid.\n");
+        if (setStart) {
+            startHour = 8;
+            startMinute = 0;
+            startSecond = 0;
+        } else {
+            endHour = 8;
+            endMinute = 0;
+            endSecond = 0;
+        }
+        when = when - daySecond + (8 * SECONDS_PER_HOUR);
+        return;
+    } else if (sunOffset >= (24 * 60 * 60)) {
+        LogWarn(VB_SCHEDULE, "Sunrise calculated as after midnight tomorrow, using 8PM.  Check your time zone to make sure it is valid.\n");
+        if (setStart) {
+            startHour = 20;
+            startMinute = 0;
+            startSecond = 0;
+        } else {
+            endHour = 20;
+            endMinute = 0;
+            endSecond = 0;
+        }
+        when = when - daySecond + (20 * SECONDS_PER_HOUR);
+        return;
+    }
+
+    LogExcess(VB_SCHEDULE, "%s Time Offset: %.2f minutes\n", info.c_str(), sunOffset);
+    int hour = (int)sunOffset / 60;
+    int minute = (int)sunOffset % 60;
+    int second = (int)(((int)(sunOffset * 100) % 100) * 0.01 * 60);
+
+    when = when - daySecond + (hour * SECONDS_PER_HOUR) + (minute * SECONDS_PER_MINUTE) + second;
+
+    LogExcess(VB_SCHEDULE, "%s is at %02d:%02d:%02d\n", info.c_str(), hour, minute, second);
+
+    if (setStart) {
+        startHour = hour;
+        startMinute = minute;
+        startSecond = second;
+    } else {
+        endHour = hour;
+        endMinute = minute;
+        endSecond = second;
     }
 }
 
@@ -330,6 +455,9 @@ int ScheduleEntry::LoadFromJson(Json::Value &entry)
     dayIndex           = entry["day"].asInt();
     repeatInterval     = entry["repeat"].asInt();
     repeat             = repeatInterval == 1;
+
+    if (entry.isMember("sequence"))
+        sequence = entry["sequence"].asBool();
 
     if (entry.isMember("command"))
         command = entry["command"].asString();

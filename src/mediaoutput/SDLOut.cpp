@@ -1114,7 +1114,7 @@ int SDLOutput::Stop(void)
 	LogDebug(VB_MEDIAOUT, "SDLOutput::Stop()\n");
     sdlManager.Stop();
     if (data) {
-        data->stopped++;
+        data->stopped = data->stopped + 1;
         if (data->video_stream_idx >= 0 && data->videoOverlayModel) {
             data->videoOverlayModel->setState(PixelOverlayState::Disabled);
         }

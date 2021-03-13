@@ -583,14 +583,14 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
         $overlays_json_filepath = $system_config_areas['model-overlays']['file'];
         //PrettyPrint the JSON data and save it
         $outputProcessors_data = prettyPrintJSON(json_encode($restore_area_data));
-        
+
         if (file_put_contents($overlays_json_filepath, $outputProcessors_data) === FALSE) {
             $save_result = false;
         } else {
             $save_result = true;
         }
         $settings_restored[$restore_area_key]['SUCCESS'] = $save_result;
-        
+
         //Set FPPD restart flag
         WriteSettingToFile('restartFlag', 1);
     }
@@ -861,7 +861,14 @@ function process_restore_data($restore_area, $restore_area_data, $backup_version
                         if ($uploadDataProtected == false && $emailgpass != "") {
                             WriteSettingToFile('emailgpass', $emailgpass);
                             //Update the email config (writes out exim config)
-                            SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail);
+                            $settings['emailserver'] = $restore_data['emailserver'];
+                            $settings['emailport'] = $restore_data['emailport'];
+                            $settings['emailuser'] = $restore_data['emailuser'];
+                            $settings['emailpass'] = $restore_data['emailpass'];
+                            $settings['emailfromuser'] = $restore_data['emailfromuser'];
+                            $settings['emailfromtext'] = $restore_data['emailfromtext'];
+                            $settings['emailtoemail'] = $restore_data['emailtoemail'];
+                            ApplyEmailConfig();
                             $save_result = true;
                         }
                         $save_result = true;
@@ -1105,8 +1112,8 @@ function LoadPixelnetDMXFile_FPDv1()
     require_once './pixelnetdmxentry.php';
     //Store data in an array instead of session
     $return_data = array();
-    
-    
+
+
     if (filesize($settings['configDirectory'] . "/Falcon.FPDV1") < 1024) {
         return $return_data;
     }
@@ -1376,7 +1383,7 @@ function is_array_empty($InputVariable)
 
 //Move backup files
 moveBackupFiles_ToBackupDirectory();
-    
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -1424,7 +1431,7 @@ $backupHosts = getKnownFPPSystems();
 
 function GetCopyFlags() {
     var flags = "";
-    
+
     if (document.getElementById("backup.Configuration").checked) {
         flags += " Configuration";
     }
@@ -1522,7 +1529,7 @@ function PerformCopy() {
     if (direction.substring(0,4) == 'FROM')
     {
         if (!confirm(warningMsg)) {
-            $.jGrowl("Restore canceled.");
+            $.jGrowl("Restore canceled.",{themeState:'success'});
             return;
         }
     }
@@ -1546,7 +1553,7 @@ function GetBackupDevices() {
                         desc += ' ';
                     else
                         desc += ' - ';
-                    
+
                     desc += data[i].model;
                 }
 
@@ -1676,254 +1683,281 @@ GetBackupDevices();
 }
 </style>
 <div id="bodyWrapper">
-    <?php include 'menu.inc'; ?>
-    <br/>
-        <div id="global" class="settings">
-            <div class='title'>FPP Backups</div>
-            <div id='tabs'>
-                <ul>
-                    <li><a href='#tab-jsonBackup'>JSON Configuration Backup</a></li>
-                    <li><a href='#tab-fileCopy'>File Copy Backup</a></li>
-                </ul>
-            <div id='tab-jsonBackup'>
-                <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
-                    <?php
-                    //Spit out the backup errors if the backup_errors array isn't empty
-					if (!is_array_empty($backup_errors)) {
-						?>
-                        <div id="rebootFlag" style="display: block; margin-right: auto; margin-left: auto; width: 60%;">Backup failed: <br>
-                            <ul>
-								<?php
-								foreach ($backup_errors as $backup_error) {
-									echo "<li>$backup_error</li>";
-								}
-								?>
-                            </ul>
-                        </div>
-						<?php
-					}
-                    ?>
-                <?php if ($restore_done == true) {
-                    ?>
-                    <div id="rebootFlag" style="display: block;">Backup Restored, FPPD Restart or Reboot may be required.
-                    </div>
-                    <div id="restoreSuccessFlag">What was restored: <br>
-                        <?php
-						foreach ($settings_restored as $area_restored => $success) {
-                            $success_str = "";
-							if (is_array($success)) {
-								$success_area_data = false;
-								$success_messages = "";
+    <?php
+    $activeParentMenuItem = 'status';
+    include 'menu.inc'; ?>
+    <div class="mainContainer">
+        <h1 class='title'>FPP Backups</h1>
+        <div class="pageContent">
 
-								//If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
-								if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
-									//process internal array for areas with sub areas
-									foreach ($success as $success_area_idx => $success_area_data) {
-										if (array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
-											$success_area_attempt = $success_area_data['ATTEMPT'];
-											$success_area_success = $success_area_data['SUCCESS'];
+                <div id="global" class="settings">
+                <div id='tabs'>
+                    <ul class="nav nav-pills pageContent-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="tab-jsonBackup-tab" data-toggle="tab" href="#tab-jsonBackup" role="tab" aria-controls="tab-jsonBackup" aria-selected="true">
+                            JSON Configuration Backup
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link " id="tab-fileCopy-tab" data-toggle="tab" href="#tab-fileCopy" role="tab" aria-controls="tab-fileCopy" aria-selected="true">
+                            File Copy Backup
+                            </a>
+                        </li>
+                    </ul>
 
-											if ($success_area_attempt == true && $success_area_success == true) {
-												$success_str = "Success";
-											} else {
-												$success_str = "Failed";
-											}
+                    <div class="tab-content">
+                    <div id='tab-jsonBackup' class="tab-pane fade show active" role="tabpanel" aria-labelledby="tab-jsonBackup-tab">
+                        <form action="backup.php" method="post" name="frmBackup" enctype="multipart/form-data">
+                            <?php
+                            //Spit out the backup errors if the backup_errors array isn't empty
+        					if (!is_array_empty($backup_errors)) {
+        						?>
+                                <div id="rebootFlag" style="display: block; margin-right: auto; margin-left: auto; width: 60%;">Backup failed: <br>
+                                    <ul>
+        								<?php
+        								foreach ($backup_errors as $backup_error) {
+        									echo "<li>$backup_error</li>";
+        								}
+        								?>
+                                    </ul>
+                                </div>
+        						<?php
+        					}
+                            ?>
+                        <?php if ($restore_done == true) {
+                            ?>
+                            <div id="rebootFlag" style="display: block;">Backup Restored, FPPD Restart or Reboot may be required.
+                            </div>
+                            <div id="restoreSuccessFlag">What was restored: <br>
+                                <?php
+        						foreach ($settings_restored as $area_restored => $success) {
+                                    $success_str = "";
+        							if (is_array($success)) {
+        								$success_area_data = false;
+        								$success_messages = "";
 
-											$success_messages .= ucwords(str_replace("_", " ", $success_area_idx)) . " - " . $success_str . "<br/>";
-										}
-									}
-								} //There is an ATTEMPT and SUCCESS key, check values of both
-								else if (array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
-									$success_area_attempt = $success['ATTEMPT'];
-									$success_area_success = $success['SUCCESS'];
+        								//If the ATTEMPT and SUCCESS keys don't exist in the array, then try to process the internals which will be a sub areas and possibly have them.
+        								if (!array_key_exists('ATTEMPT', $success) && !array_key_exists('SUCCESS', $success) && !empty($success)) {
+        									//process internal array for areas with sub areas
+        									foreach ($success as $success_area_idx => $success_area_data) {
+        										if (array_key_exists('ATTEMPT', $success_area_data) && array_key_exists('SUCCESS', $success_area_data)) {
+        											$success_area_attempt = $success_area_data['ATTEMPT'];
+        											$success_area_success = $success_area_data['SUCCESS'];
 
-									if ($success_area_attempt == true && $success_area_success == true) {
-										$success_str = "Success";
-									} else {
-										$success_str = "Failed";
-									}
+        											if ($success_area_attempt == true && $success_area_success == true) {
+        												$success_str = "Success";
+        											} else {
+        												$success_str = "Failed";
+        											}
 
-									$success_messages .= ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
-								} // No Attempt key, then we shouldn't print the success
-								else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
-									//Ignore
-								}
-                                //Print out the restore successes
-								echo $success_messages;
-							} else {
-                                //normal area
-                                if ($success == true) {
-                                    $success_str = "Success";
-                                } else {
-                                    $success_str = "Failed";
+        											$success_messages .= ucwords(str_replace("_", " ", $success_area_idx)) . " - " . $success_str . "<br/>";
+        										}
+        									}
+        								} //There is an ATTEMPT and SUCCESS key, check values of both
+        								else if (array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
+        									$success_area_attempt = $success['ATTEMPT'];
+        									$success_area_success = $success['SUCCESS'];
+
+        									if ($success_area_attempt == true && $success_area_success == true) {
+        										$success_str = "Success";
+        									} else {
+        										$success_str = "Failed";
+        									}
+
+        									$success_messages .= ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
+        								} // No Attempt key, then we shouldn't print the success
+        								else if (!array_key_exists('ATTEMPT', $success) && array_key_exists('SUCCESS', $success)) {
+        									//Ignore
+        								}
+                                        //Print out the restore successes
+        								echo $success_messages;
+        							} else {
+                                        //normal area
+                                        if ($success == true) {
+                                            $success_str = "Success";
+                                        } else {
+                                            $success_str = "Failed";
+                                        }
+                                        echo ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
+                                    }
                                 }
-                                echo ucwords(str_replace("_", " ", $area_restored)) . " - " . $success_str . "<br/>";
-                            }
-                        }
-						//If network settings have been restored, print out the IP addresses that should come info effect
-						if ($network_settings_restored) {
-							//Print the IP addresses out
-							foreach ($network_settings_restored_applied_ips as $idx => $network_ip_address) {
-								if (!empty($network_ip_address)) {
-									echo ucwords(str_replace("_", " ", $idx)) . " - Network Settings" . "<br/>";
-									//If there is a SSID, print it also
-									if (array_key_exists('SSID', $network_ip_address)) {
-										echo "SSID: " . ($network_ip_address['SSID']) . "<br/>";
-									}
-									//Print out details for static addresses
-									echo "Type: " . ($network_ip_address['PROTO']) . "<br/>";
-									if (strtolower($network_ip_address['PROTO']) == 'static') {
-										echo "IP: " . "<a href='http://" . $network_ip_address['ADDRESS'] . "'>" . $network_ip_address['ADDRESS'] . "</a>" . "<br/>";
-										echo "Netmask: " . ($network_ip_address['NETMASK']) . "<br/>";
-										echo "GW: " . ($network_ip_address['GATEWAY']) . "<br/>";
-									}
-									echo "<br/>";
-								}
-							}
+        						//If network settings have been restored, print out the IP addresses that should come info effect
+        						if ($network_settings_restored) {
+        							//Print the IP addresses out
+        							foreach ($network_settings_restored_applied_ips as $idx => $network_ip_address) {
+        								if (!empty($network_ip_address)) {
+        									echo ucwords(str_replace("_", " ", $idx)) . " - Network Settings" . "<br/>";
+        									//If there is a SSID, print it also
+        									if (array_key_exists('SSID', $network_ip_address)) {
+        										echo "SSID: " . ($network_ip_address['SSID']) . "<br/>";
+        									}
+        									//Print out details for static addresses
+        									echo "Type: " . ($network_ip_address['PROTO']) . "<br/>";
+        									if (strtolower($network_ip_address['PROTO']) == 'static') {
+        										echo "IP: " . "<a href='http://" . $network_ip_address['ADDRESS'] . "'>" . $network_ip_address['ADDRESS'] . "</a>" . "<br/>";
+        										echo "Netmask: " . ($network_ip_address['NETMASK']) . "<br/>";
+        										echo "GW: " . ($network_ip_address['GATEWAY']) . "<br/>";
+        									}
+        									echo "<br/>";
+        								}
+        							}
 
-							echo "REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting.";
-						}
+        							echo "REBOOT REQUIRED: Please VERIFY the above settings, if they seem incorrect please adjust them in <a href='./networkconfig.php'>Network Settings</a> BEFORE rebooting.";
+        						}
+                                ?>
+                            </div>
+                            <?php
+                        }
                         ?>
+                        <div class="backdrop">
+                            <h2>Backup Configuration</h2>
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        <span>Protect sensitive data?</span>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <input id="dataProtect" name="protectSensitive"
+                                                   type="checkbox"
+                                                   checked="true">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5"><span>Backup Area</span></div>
+                                    <div class="col-md-7"><?php echo genSelectList('backuparea'); ?></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5"></div>
+                                    <div class="col-md-7"><button name="btnDownloadConfig" type="Submit" class="buttons"
+                                               value="Download Configuration"><i class="fas fa-fw fa-nbsp fa-download"></i>Download Configuration</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <br/>
+                        <div class="backdrop">
+                            <h2>Restore Configuration</h2>
+                            <div class="callout callout-danger">
+                                <b class="text-danger">JSON Backups made from FPP v1.x are not compatible with FPP 3.x and higher.</b>
+                            </div>
+                            <div class="container">
+                                <div class="row">
+                                    <div class="col-md-5">Keep Existing Network Settings</div>
+                                    <div class="col-md-7">
+                                        <input name="keepExitingNetwork"
+                                               type="checkbox"
+                                               checked="true">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5">Keep Existing Master/Slave Settings</div>
+                                    <div class="col-md-7">
+                                        <input name="keepMasterSlave"
+                                               type="checkbox"
+                                               checked="true">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5">Restore Area</div>
+                                    <div class="col-md-7">
+                                        <?php echo genSelectList('restorearea'); ?></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-5"></div>
+                                    <div class="col-md-7">
+                                        <i class="fas fa-fw fa-nbsp fa-upload"></i>
+                                        <input id="btnUploadConfig" name="conffile" type="file" accept=".json" id="conffile" autocomplete="off">
+                                        <script>
+                                            $('#btnUploadConfig').change(function(e){
+                                                if (e.target.files[0].name.length > 4) {
+                                                    $('#btnRestoreConfig').show();
+                                                }
+                                            });
+                                        </script>
+                                    </div>
+                                </div>
+                                <div class='row'>
+                                    <div class="col-md-5"></div>
+                                    <div class="col-md-7">
+                                        <button id="btnRestoreConfig" name="btnRestoreConfig" type="Submit" class="buttons hidden">
+                                            <i class="fas fa-fw fa-nbsp fa-file-import"></i>Restore Configuration</button>
+                                    </div>
+                                </div>
+                            </div>
                     </div>
-                    <?php
-                }
-                ?>
-                <fieldset>
-                    <legend>Backup Configuration</legend>
-                    Select settings to backup, then download the selected system configuration in JSON format.
-                    <br/>
-                    <table width="100%">
-                        <tr>
-                            <td width="35%"><b>Protect sensitive data?</b></td>
-                            <td width="65%">
-                                <input id="dataProtect" name="protectSensitive"
-                                       type="checkbox"
-                                       checked="true">
-                            </td>
-                        </tr>
-                        <tr>
-                            <td width="25%">Backup Area</td>
-                            <td width="75%"><?php echo genSelectList('backuparea'); ?></td>
-                        </tr>
-                        <tr>
-                            <td width="25%"></td>
-                            <td width="75%">
-                                <input name="btnDownloadConfig" type="Submit" style="width:30%" class="buttons"
-                                       value="Download Configuration">
-                            </td>
-                        </tr>
-                    </table>
-                </fieldset>
-                <br/>
-                <fieldset>
-                    <legend>Restore Configuration</legend>
-                    <center>
-                        <span style="color: #AA0000"><b>JSON Backups made from FPP v1.x are incompatible with the FPP 3.x and higher system.</b><br><br></span>
-                    </center>
-                    Select settings to restore and then choose backup file containing backup data.
-                    <br/>
-                    <table width="100%">
-                        <tr>
-                            <td width="35%"><b>Keep Existing Network Settings</b></td>
-                            <td width="65%">
-                                <input name="keepExitingNetwork"
-                                       type="checkbox"
-                                       checked="true">
-                            </td>
-                        </tr>
-                        <tr>
-                            <td width="35%"><b>Keep Existing Master/Slave Settings</b></td>
-                            <td width="65%">
-                                <input name="keepMasterSlave"
-                                       type="checkbox"
-                                       checked="true">
-                            </td>
-                        </tr>
-                        <tr>
-                            <td width="25%">Restore Area</td>
-                            <td width="75%">
-                                <?php echo genSelectList('restorearea'); ?></td>
-                        </tr>
-                        <tr>
-                            <td width="25%"></td>
-                            <td width="75%">
-                                <input name="conffile" type="file" accept=".json" class="formbtn" id="conffile"
-                                       size="50"
-                                       autocomplete="off"></td>
-                        </tr>
-                        <tr>
-                            <td width="25%"></td>
-                            <td width="75%">
-                                <input name="btnRestoreConfig" type="Submit" style="width:30%" class="buttons"
-                                       value="Restore Configuration">
-                            </td>
-                        </tr>
-                    </table>
-                </fieldset>
-                </form>
+                        </form>
+                    </div>
+                        <div id='tab-fileCopy' class="tab-pane fade" role="tabpanel" aria-labelledby="tab-fileCopy-tab">
+                        <div class="backdrop"><h2>File Copy Backup/Restore</h2>
+                                Copy configuration, sequences, etc... to/from a backup device.
+                                <table>
+        <tr><td>Copy Type:</td><td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
+        <option value="TOUSB" selected>Backup To USB</option>
+        <option value="FROMUSB">Restore From USB</option>
+        <option value="TOLOCAL">Backup To Local FPP Backups Directory</option>
+        <option value="FROMLOCAL">Restore From Local FPP Backups Directory</option>
+        <option value="TOREMOTE">Backup To Remote FPP Backups Directory</option>
+        <option value="FROMREMOTE">Restore From Remote FPP Backups Directory</option>
+        </select></td></tr>
+        <tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
+        <tr class='copyHost'><td>Remote Host:</td><td><? PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?></td></tr>
+        <tr class='copyPath'><td>Backup Path:</td><td><? PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
+        <tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
+        <tr><td>What to copy:</td><td>
+        <table id="CopyFlagsTable">
+        <tr><td>
+            <? PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration'); ?><br>
+            <? PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists'); ?><br>
+            </td><td width='10px'></td><td>
+            <? PrintSettingCheckbox('Backup Events', 'backup.Events', 0, 0, 1, 0, "", "", 1, 'Events'); ?><br>
+            <? PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins'); ?><br>
+            </td><td width='10px'></td><td>
+            <? PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences'); ?><span style="color: #AA0000">*</span><br>
+            <? PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images'); ?><br>
+            </td><td width='10px'></td><td>
+            <? PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts'); ?><br>
+            <? PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects'); ?><br>
+            </td><td width='10px'></td><td>
+            <? PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
+            <? PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
+            </td><td width='10px'></td><td valign='top' class='copyBackups'>
+            <input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span><br>
+        </td></tr></table>
+        </td></tr>
+        <tr><td>Delete extras:</td><td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on destination that do not exist on the source)</td></tr>
+                                <tr><td></td><td>
+                                        <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
+                                </table>
+
+                                <div class="callout callout-danger">
+                                    <h4>Notes:</h4>
+                                    <ul>
+                                        <li>Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</li>
+                                        <li class='copyBackups'>*Backing up Backups will copy all local backups to the USB device.</li>
+                                    </ul>
+
+                                </div>
+                          </div>
+                        </div>
+                        </div>
+                    </div>
                 </div>
-                <div id='tab-fileCopy'>
-                <fieldset><legend>File Copy Backup/Restore</legend>
-                        Copy configuration, sequences, etc... to/from a backup device.
-                        <table>
-<tr><td>Copy Type:</td><td><select id="backup.Direction" onChange='BackupDirectionChanged();'>
-<option value="TOUSB" selected>Backup To USB</option>
-<option value="FROMUSB">Restore From USB</option>
-<option value="TOLOCAL">Backup To Local FPP Backups Directory</option>
-<option value="FROMLOCAL">Restore From Local FPP Backups Directory</option>
-<option value="TOREMOTE">Backup To Remote FPP Backups Directory</option>
-<option value="FROMREMOTE">Restore From Remote FPP Backups Directory</option>
-</select></td></tr>
-<tr class='copyUSB'><td>USB Device:</td><td><select name='backup.USBDevice' id='backup.USBDevice' onChange='USBDeviceChanged();'></select> <input type='button' class='buttons' onClick='GetBackupDevices();' value='Refresh List'></td></tr>
-<tr class='copyHost'><td>Remote Host:</td><td><? PrintSettingSelect('Backup Host', 'backup.Host', 0, 0, '', $backupHosts, '', 'GetBackupHostBackupDirs'); ?></td></tr>
-<tr class='copyPath'><td>Backup Path:</td><td><? PrintSettingTextSaved('backup.Path', 0, 0, 128, 64, '', gethostname()); ?></td></tr>
-<tr class='copyPathSelect'><td>Backup Path:</td><td><select name='backup.PathSelect' id='backup.PathSelect'></select></td></tr>
-<tr><td>What to copy:</td><td>
-<table id="CopyFlagsTable">
-<tr><td>
-    <? PrintSettingCheckbox('Backup Configuration', 'backup.Configuration', 0, 0, 1, 0, "", "", 1, 'Configuration'); ?><br>
-    <? PrintSettingCheckbox('Backup Playlists', 'backup.Playlists', 0, 0, 1, 0, "", "", 1, 'Playlists'); ?><br>
-    </td><td width='10px'></td><td>
-    <? PrintSettingCheckbox('Backup Events', 'backup.Events', 0, 0, 1, 0, "", "", 1, 'Events'); ?><br>
-    <? PrintSettingCheckbox('Backup Plugins', 'backup.Plugins', 0, 0, 1, 0, "", "", 1, 'Plugins'); ?><br>
-    </td><td width='10px'></td><td>
-    <? PrintSettingCheckbox('Backup Sequences', 'backup.Sequences', 0, 0, 1, 0, "", "", 1, 'Sequences'); ?><span style="color: #AA0000">*</span><br>
-    <? PrintSettingCheckbox('Backup Images', 'backup.Images', 0, 0, 1, 0, "", "", 1, 'Images'); ?><br>
-    </td><td width='10px'></td><td>
-    <? PrintSettingCheckbox('Backup Scripts', 'backup.Scripts', 0, 0, 1, 0, "", "", 1, 'Scripts'); ?><br>
-    <? PrintSettingCheckbox('Backup Effects', 'backup.Effects', 0, 0, 1, 0, "", "", 1, 'Effects'); ?><br>
-    </td><td width='10px'></td><td>
-    <? PrintSettingCheckbox('Backup Music', 'backup.Music', 0, 0, 1, 0, "", "", 1, 'Music'); ?><br>
-    <? PrintSettingCheckbox('Backup Videos', 'backup.Videos', 0, 0, 1, 0, "", "", 1, 'Videos'); ?><br>
-    </td><td width='10px'></td><td valign='top' class='copyBackups'>
-    <input type='checkbox' id='backup.Backups'>Backups <span style="color: #AA0000">*</span><br>
-</td></tr></table>
-</td></tr>
-<tr><td>Delete extras:</td><td><input type='checkbox' id='backup.DeleteExtra'> (Delete extra files on destination that do not exist on the source)</td></tr>
-                        <tr><td></td><td>
-                                <input type='button' class="buttons" value="Copy" onClick="PerformCopy();"></input>
-                        </table>
-                        <br>
-                        <span style="color: #AA0000"><b>* Sequence backups may not work correctly when restored on other FPP systems if the sequences are FSEQ v2 files and the Channel Output configurations of the two systems do not match.</b></span><br>
-                        <span style="color: #AA0000" class='copyBackups'><b>* Backing up Backups will copy all local backups to the USB device.</b></span><br>
-                </fieldset>
-                </div>
+            <div id="dialog" title="Warning!" style="display:none">
+                <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
+                    <br/> <br/>
+                    <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
+                    <br/> <br/>
+                    <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this
+                    file.
+                </p>
             </div>
         </div>
-    <div id="dialog" title="Warning!" style="display:none">
-        <p>Un-checking this box will disable protection (automatic removal) of sensitive data like passwords.
-            <br/> <br/>
-            <b>ONLY</b> Un-check this if you want to be able make an exact clone of settings to another FPP.
-            <br/> <br/>
-            <b>NOTE:</b> The backup will include passwords in plaintext, you assume full responsibility for this
-            file.
-        </p>
     </div>
     <script>
         $('#dataProtect').click(function () {
             var checked = $(this).is(':checked');
             if (!checked) {
-                $("#dialog").dialog({
+                $("#dialog").fppDialog({
                     width: 580,
                     height: 280
                 });
@@ -1938,7 +1972,7 @@ GetBackupDevices();
         print "0";
 ?>;
 
-        $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
+       // $("#tabs").tabs({cache: true, active: activeTabNumber, spinner: "", fx: { opacity: 'toggle', height: 'toggle' } });
 
     </script>
     <?php include 'common/footer.inc'; ?>

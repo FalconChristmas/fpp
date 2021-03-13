@@ -43,20 +43,21 @@ if ($uiLevel >= 1) {
 
     if ( $return_val == 0 ) {
         foreach ($output as $line) {
+            $line = htmlspecialchars($line);
             $thisVersion = preg_replace('/^([a-zA-Z0-9-]+).*/', '$1', $line);
             $line = preg_replace('/^([a-zA-Z0-9-]+)/', "<a href='#' onClick='GitCheckoutVersion(\"$1\"); return false;'>$1</a>", $line);
 
             if (startsWith($currentVersion, $thisVersion)) {
-                $git_log .= "--> " . $line . '<br>';
+                $git_log .= "--> " . $line . '<br/>';
             } else {
-                $git_log .= "    " . $line . '<br>';
+                $git_log .= "    " . $line . '<br/>';
             }
         }
     }
     unset($output);
 } else {
     exec($logCmd, $output, $return_val);
-    $git_log = implode('<br>', $output);
+    $git_log = implode('<br/>', $output);
 }
 unset($output);
 
@@ -68,7 +69,7 @@ unset($output);
 <title>FPP - ChangeLog</title>
 <script>
 function CloseUpgradeDialog() {
-    $('#upgradePopup').dialog('close');
+    $('#upgradePopup').fppDialog('close');
     location.reload();
 }
 
@@ -77,8 +78,8 @@ function UpgradeDone() {
 }
 
 function GitCheckoutVersion(version) {
-    $('#upgradePopup').dialog({ height: 600, width: 900, title: "Switching to version: " + version, dialogClass: 'no-close' });
-    $('#upgradePopup').dialog( "moveToTop" );
+    $('#upgradePopup').fppDialog({ height: 600, width: 900, title: "Switching to version: " + version, dialogClass: 'no-close' });
+    $('#upgradePopup').fppDialog( "moveToTop" );
     $('#upgradeText').html('');
 
     StreamURL('gitCheckoutVersion.php?wrapped=1&version=' + version, 'upgradeText', 'UpgradeDone');
@@ -89,10 +90,12 @@ function GitCheckoutVersion(version) {
 
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
-  <div style="margin:0 auto;"> <br />
-    <fieldset style="padding: 10px; border: 2px solid #000;">
-      <legend>ChangeLog</legend>
+  <?php 
+  $activeParentMenuItem = 'help'; 
+  include 'menu.inc'; ?>
+  <div class="mainContainer container">
+  <h1 class="title">ChangeLog</h1>
+  <div class="pageContent">
 <?
 if ($uiLevel >= 1) {
     echo "<b>Click a SHA1 hash to jump to that previous version of code</b><br>";
@@ -103,7 +106,7 @@ if ($uiLevel >= 1) {
     echo "    <a href='#' onClick='GitCheckoutVersion(\"HEAD\"); return false;'>HEAD</a>     - (Pull in changes and switch to latest version in this branch)\n";
 }
 ?><? echo $git_log; ?></pre>
-    </fieldset>
+    </div>
   </div>
   <?php include 'common/footer.inc'; ?>
 </div>

@@ -2,19 +2,29 @@
 
 
 #
-# First try and use CPUInfo -- works on PI and BBB
+# Check for an developer-only FPP_UUID setting
+#
+
+UUID=$(grep "^FPP_UUID" /home/fpp/media/settings | cut -f2 -d= | sed -e "s/[^-A-Z0-9]//g")
+if [ "$UUID" != "" ]; then
+    echo "$UUID"
+    exit 0
+fi
+
+#
+# Try and use CPUInfo -- works on PI and BBB
 #
 UUID=$(grep -i serial /proc/cpuinfo | awk '{ print $3}')
-if [ "$UUID" != "" ]; then
+if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
     echo "M1-$UUID"
     exit 0
 fi
 
 #
-# Second try dmidecode 
+# Try dmidecode
 #
 UUID=$(sudo dmidecode | grep -i 'serial number' | head -1 | awk '{print $3}')
-if [ "$UUID" != "" ]; then
+if [ "$UUID" != "" ] && [ "$UUID" != "0" ]; then
     echo "M2-$UUID"
     exit 0
 fi

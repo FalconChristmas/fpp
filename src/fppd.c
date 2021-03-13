@@ -74,6 +74,8 @@ volatile bool restartFPPD = 0;
 
 /* Prototypes for functions below */
 void MainLoop(void);
+void PublishStatsBackground(std::string reason);
+void PublishStatsForce(std::string reason);
 
 
 static int IsDebuggerPresent() {
@@ -624,6 +626,9 @@ int main(int argc, char *argv[])
     CommandManager::INSTANCE.TriggerPreset("FPPD_STARTED");
 
 	MainLoop();
+    // DISABLED: Stats collected while fppd is shutting down 
+    // incomplete and cause problems with summary
+    //PublishStatsForce("Shutdown"); // not background
 
     CommandManager::INSTANCE.TriggerPreset("FPPD_STOPPED");
 
@@ -684,6 +689,8 @@ void MainLoop(void)
 {
 	PlaylistStatus prevFPPstatus = FPP_STATUS_IDLE;
 	int            sleepms = 50;
+    int            publishCounter = 200; // about 40 seconds after boot
+    std::string    publishReason("Startup");
     std::map<int, std::function<bool(int)>> callbacks;
 
 	LogDebug(VB_GENERAL, "MainLoop()\n");
@@ -856,15 +863,22 @@ void MainLoop(void)
         if (doPing) {
             idleCount = 0;
             multiSync->PeriodicPing();
-	    if (getFPPmode() == BRIDGE_MODE) {
-	       int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
-	       if (maxInputDelay) {
-                  double inputDelay = GetSecondsFromInputPacket();
-	          if (inputDelay > 2.0) {
-		     sequence->BlankSequenceData();
-	          }
-	       }
-	    }
+            if (--publishCounter < 0) {
+                PublishStatsBackground(publishReason);
+                // counting down is less CPU then the time check every cycle
+                publishCounter = 60480; 
+                publishReason = "normal";
+            }
+            
+            if (getFPPmode() == BRIDGE_MODE) {
+                int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
+                if (maxInputDelay) {
+                        double inputDelay = GetSecondsFromInputPacket();
+                    if (inputDelay > 2.0) {
+                    sequence->BlankSequenceData();
+                    }
+                }
+            }
         }
         GPIOManager::INSTANCE.CheckGPIOInputs();
 	}
@@ -918,4 +932,33 @@ void CreateDaemon(void)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
+}
+
+void PublishStatsForce(std::string reason) {
+    std::string result("");
+    urlPost("http://localhost/api/statistics/usage?reason=" + reason, "", result);
+    LogInfo(VB_GENERAL, "Publishing statistics because of \"%s\" = %s\n", reason.c_str(), result.c_str());
+
+}
+
+void PublishStatsBackground(std::string reason)
+{
+    // No need to publish more than once every 10 days if fppd is up that long
+    static auto lastPublish = std::chrono::system_clock::now() - std::chrono::hours(10 * 24) ;
+    auto now_ts = std::chrono::system_clock::now();
+    auto hours = std::chrono::duration_cast<std::chrono::hours>(now_ts-lastPublish);
+
+    // Check 10 days
+    if (hours.count() >= (10*24)) {
+        const char *settingsValue = getSetting("statsPublish");
+        lastPublish = now_ts;
+        if (strcmp("Enabled", settingsValue) == 0 ) {
+            std::thread t(PublishStatsForce, reason);
+            t.detach();
+        } else {
+            LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", settingsValue);
+        }
+    } else {
+        LogDebug(VB_GENERAL, "PublishStats called, but not been 10 days yet.\n");
+    }
 }

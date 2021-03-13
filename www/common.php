@@ -42,7 +42,7 @@ function getFileList($dir, $ext)
 }
 
 
-function ScrubFile($filename, $taboo = Array("emailgpass"))
+function ScrubFile($filename, $taboo = Array("emailpass", "emailgpass", "MQTTPassword", "password", "passwordVerify"))
 {
 	if ( !file_exists($filename) )
 		return "";
@@ -127,7 +127,7 @@ function WriteSettingToFile($settingName, $setting, $plugin = "")
 	}
 	file_put_contents($filename, $settingsStr);
 }
-    
+
 function DeleteSettingFromFile($settingName, $plugin = "")
 {
 	global $settingsFile;
@@ -211,6 +211,17 @@ function PrintPluginSetting($plugin, $setting, $callback = '', $options = Array(
     PrintSetting($setting, $callback, $options, $plugin);
 }
 
+function PrintIcon($level) {
+	if ($level == 1)
+		echo " <i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i>";
+	else if ($level == 2)
+		echo " <i class='fas fa-fw fa-flask fa-nbsp ui-level-2' title='Experimental Level Setting'></i>";
+	else if ($level == 3)
+		echo " <i class='fas fa-fw fa-code fa-nbsp ui-level-3' title='Developer Level Setting'></i>";
+	else
+		echo " <i class='fas fa-fw fa-nbsp ui-level-0'></i>";
+}
+
 function PrintSetting($setting, $callback = '', $options = Array(), $plugin = '') {
     global $settings;
     global $settingInfos;
@@ -221,7 +232,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         LoadPluginSettingInfos($plugin);
 
     if (!isset($settingInfos[$setting])) {
-        echo "<tr><td colspan='2'><b>Invalid Setting: $setting</b></td></tr>\n";
+        echo "<div class='row'><div class='td td-colspan-2' colspan='2'><b>Invalid Setting: $setting</b></div></div>\n";
         return;
     }
 
@@ -257,9 +268,12 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
         if ($textOnRight)
-            echo "<tr id='" . $setting . "Row'><td>";
-        else
-            echo "<tr id='" . $setting . "Row'><th>" . $s['description'] . ":</th><td>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-md-5'>";
+        else {
+            echo "<div class='row' id='" . $setting . "Row'><div class='col-md-5'><div class='description'>";
+			PrintIcon($level);
+			echo $s['description']."</div></div><div class='col-md-7'>";
+		}
 
         switch ($s['type']) {
             case 'select':
@@ -282,6 +296,15 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
                                     $options[$item] = $item;
                                 }
                             }
+                        }
+                    } else if (isset($s['optionsCommand'])) {
+                        $optionsRaw = explode("\n",trim(shell_exec($s['optionsCommand'])));
+                        foreach ($optionsRaw as $line) {
+                            $parts = preg_split("/,/", trim($line));
+                            if (count($parts) > 1)
+                                $options[$parts[0]] = $parts[1];
+                            else
+                                $options[$parts[0]] = $parts[0];
                         }
                     } else if (isset($s['options'])) {
                         $options = $s['options'];
@@ -332,6 +355,8 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
                 $default = isset($s['default']) ? $s['default'] : "";
 
                 PrintSettingTextSaved($setting, $restart, $reboot, $maxlength, $size, $plugin, $default, $callback, '', "password", $s);
+
+                echo "<i class='fas fa-eye' id='$setting" . "HideShow' onClick='TogglePasswordHideShow(\"" . $setting . "\");'></i>";
                 break;
             case 'number':
                 $min = isset($s['min']) ? $s['min'] : 0;
@@ -349,22 +374,17 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         if ($suffix != '')
             echo $suffix . ' ';
 
-        if ($textOnRight)
-            echo "</td><th>" . $s['description'] . " ";
+        if ($textOnRight) {
+            echo "</div><div class='th'><span>" . $s['description'] . "</span> ";
+			PrintIcon($level);
+		}
 
         PrintToolTip($setting);
 
-        if ($level == 1)
-            echo " <b>*</b>";
-        else if ($level == 2)
-            echo " <b>**</b>";
-        else if ($level == 3)
-            echo " <b>***</b>";
-
         if ($textOnRight)
-            echo "</th></tr>\n";
+            echo "</div></div>\n";
         else
-            echo "</td></tr>\n";
+            echo "</div></div>\n";
     }
 }
 
@@ -372,7 +392,7 @@ function PrintPluginSettingGroup($plugin, $group, $appendData = "", $prependData
     PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
 }
 
-function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
+function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "", $callback = "") {
     global $settings;
     global $settingGroups;
 
@@ -396,8 +416,8 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
         ((!isset($g['platforms'])) ||
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
-        echo "<b>" . $g['description'] . "</b>\n";
-        echo "<table class='settingsTable ";
+        echo "<h2>" . $g['description'] . "</h2>\n";
+        echo "<div class='container settingsTable ";
 
         if ($indent)
             echo "settingsGroupTable'>\n";
@@ -405,27 +425,27 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
             echo "'>\n";
 
         if ($prependData != "") {
-            if (preg_match("/<tr>/", $prependData))
+            if (preg_match("/<div class=row>/", $prependData))
                 echo $prependData;
             else
-                echo "<tr><th colspan=2>$prependData</td></tr>\n";
+                echo "<div class=row><div class='col-md' colspan=2>$prependData</div></div>\n";
         }
 
         foreach ($g['settings'] as $setting) {
             if ($plugin != "")
-                PrintPluginSetting($plugin, $setting);
+                PrintPluginSetting($plugin, $setting, $callback);
             else
-                PrintSetting($setting);
+                PrintSetting($setting, $callback);
         }
 
         if ($appendData != "") {
-            if (preg_match("/<tr>/", $appendData))
+            if (preg_match("/<div class=row>/", $appendData))
                 echo $appendData;
             else
-                echo "<tr><th colspan=2>$appendData</td></tr>\n";
+                echo "<div class=row><div class='col-md' colspan=2>$appendData</div></div>\n";
         }
 
-        echo "</table><br>\n";
+        echo "</div><br>\n";
     }
 }
 
@@ -434,9 +454,9 @@ function PrintPluginSettingGroupTable($plugin, $group, $appendData = "", $prepen
 }
 
 function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
-    echo "<table class='settingsTable'>\n";
+    echo "<div class='settingsTable'>\n";
     PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
-    echo "</table>\n";
+    echo "</div>\n";
 }
 
 function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $checkedValue, $uncheckedValue, $pluginName = "", $callbackName = "", $defaultValue = 0, $desc = "", $sData = Array())
@@ -508,9 +528,9 @@ function " . $changedFunction . "() {
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
 			if (checked)
-				$.jGrowl('$title Enabled');
+				$.jGrowl('$title Enabled',{themeState:'success'});
 			else
-				$.jGrowl('$title Disabled');
+				$.jGrowl('$title Disabled',{themeState:'detract'});
 			$settingsName" . "['$setting'] = value;
 ";
 
@@ -627,7 +647,7 @@ function " . $changedFunction . "() {
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
-			$.jGrowl('$title saved');
+			$.jGrowl('$title saved',{themeState:'success'});
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
@@ -669,7 +689,7 @@ echo "
 	{
 		echo "<option value='$value'";
 
-		
+
 		if (isset($pluginSettings[$setting]) || isset($settings[$setting]))
 			IfSettingEqualPrint($setting, $value, " selected", $pluginName);
         else if ($value == $defaultValue)
@@ -707,7 +727,7 @@ function PrintSettingText($setting, $restart = 1, $reboot = 0, $maxlength = 32, 
 }
 
 function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength = 32, $size = 32, $pluginName = "", $defaultValue = "", $callbackName = "", $changedFunction = "", $inputType = "text", $sData = Array())
-{ 
+{
 	global $settings;
 	global $pluginSettings;
 
@@ -725,7 +745,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 		$settingsName = "pluginSettings";
 	}
 
-    
+
     if ($callbackName != "")
         $callbackName = $callbackName . "();";
     if ($changedFunction == "")
@@ -771,7 +791,7 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
 
     if (isset($sData['regex']) && isset($sData['regexDesc'])) {
         echo "
-        if (!RegexCheckData('" . $sData['regex'] . "', value, '" . $sData['regexDesc'] . ", '$inputType' == 'password')) {
+        if (!RegexCheckData(\"" . $sData['regex'] . "\", value, \"" . $sData['regexDesc'] . "\", '$inputType' == 'password')) {
             $('#" . $escSetting . "').focus();
             return;
         }
@@ -781,15 +801,15 @@ function PrintSettingTextSaved($setting, $restart = 1, $reboot = 0, $maxlength =
     echo "
         $.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + encodeURIComponent(value))
         .done(function() {
-              $.jGrowl('$setting Saved');
+              $.jGrowl('$setting Saved',{themeState:'success'});
               $settingsName" . "['$setting'] = value;
               ";
-              
+
               if ($restart)
                 echo "SetRestartFlag($restart);\n";
               if ($reboot)
                 echo "SetRebootFlag();\n";
-              
+
               if (isset($sData['children'])) {
                 echo "Update$setting" . "Children(0);\n";
               }
@@ -898,7 +918,7 @@ function " . $saveFunction . "() {
 
 	$.get('fppjson.php?command=set" . $plugin . "Setting&plugin=$pluginName&key=$setting&value=' + value)
 		.done(function() {
-			$.jGrowl('$title saved');
+			$.jGrowl('$title saved',{themeState:'success'});
 			$settingsName" . "['$setting'] = value;
 			$callbackName
 ";
@@ -1261,7 +1281,7 @@ function get_kernel_version(){
 	return $kernel_version;
 }
 
-    
+
 function get_cpu_stats() {
     $stats = @file_get_contents("/proc/stat");
     if ($stats !== false) {
@@ -1290,7 +1310,7 @@ function get_cpu_stats() {
     }
     return array(0, 0, 0 ,0);
 }
-    
+
 /**
  * Returns average CPU usage
  * @return mixed
@@ -1308,7 +1328,7 @@ function get_server_cpu_usage(){
     $stats = get_cpu_stats();
     $vs = sprintf("%d %d %d %d %d %d %d", $stats[0], $stats[1], $stats[2], $stats[3], $stats[4], $stats[5], $stats[6]);
     @file_put_contents("/tmp/cpustats.txt", $vs);
-    
+
     $user = $stats[0] - $ostats[0];
     $nice = $stats[1] - $ostats[1];
     $system = $stats[2] - $ostats[2];
@@ -1323,7 +1343,7 @@ function get_server_cpu_usage(){
     if ($total > 0) {
 	    $val = 100.0 - ($val / $total);
     }
-    
+
 	return $val;
 }
 
@@ -1513,31 +1533,111 @@ function ReplaceIllegalCharacters($input_string)
 
 /**
  * Generates appropriate files and settings for exim4
- * @param $emailguser String Gmail Username
- * @param $emailgpass String Gmail Password
- * @param $emailfromtext String Mail From address (eg. fpp01@example.com)
- * @param $emailtoemail String Destination email address
  */
-function SaveEmailConfig($emailguser, $emailgpass, $emailfromtext, $emailtoemail){
+function ApplyEmailConfig() {
     global $exim4Directory;
+    global $settings;
+
+    if (isset($settings['HostName']))
+        $hostname = $settings['HostName'];
+    else
+        $hostname = 'FPP';
+
+    if (isset($settings['emailserver']))
+        $emailserver = $settings['emailserver'];
+    else
+        $emailserver = 'smtp.gmail.com';
+
+    if (isset($settings['emailport']))
+        $emailport = $settings['emailport'];
+    else
+        $emailport = 587;
+
+    if (isset($settings['emailuser']))
+        $emailuser = $settings['emailuser'];
+    else
+        $emailuser = '';
+
+    if (isset($settings['emailpass']))
+        $emailpass = $settings['emailpass'];
+    else
+        $emailpass = '';
+
+    if (isset($settings['emailfromuser']))
+        $emailfromuser = $settings['emailfromuser'];
+    else
+        $emailfromuser = $emailuser;
+
+    if (isset($settings['emailfromtext']))
+        $emailfromtext = $settings['emailfromtext'];
+    else
+        $emailfromtext = 'FPP - ' . $hostname;
+
+    if (isset($settings['emailtoemail']))
+        $emailtoemail = $settings['emailtoemail'];
+    else
+        $emailtoemail = '';
+
+    if (($emailuser == '') ||
+        ($emailpass == '') ||
+        ($emailtoemail == ''))
+        return;
+
+    $exim4Conf = sprintf(
+        "dc_eximconfig_configtype='smarthost'\n" .
+            "dc_other_hostnames='%s'\n" .
+            "dc_local_interfaces='127.0.0.1'\n" .
+            "dc_readhost=''\n" .
+            "dc_relay_domains=''\n" .
+            "dc_minimaldns='false'\n" .
+            "dc_relay_nets=''\n" .
+            "dc_smarthost='%s::%d'\n" .
+            "CFILEMODE='644'\n" .
+            "dc_use_split_config='true'\n" .
+            "dc_hide_mailname='false'\n" .
+            "dc_mailname_in_oh='true'\n" .
+            "dc_localdelivery='mail_spool'\n",
+        $hostname, $emailserver, $emailport);
+
+    $fp = fopen($exim4Directory . '/update-exim4.conf.conf', 'w');
+    fwrite($fp, $exim4Conf);
+    fclose($fp);
 
     $fp = fopen($exim4Directory . '/passwd.client', 'w');
     fwrite($fp, "# password file used when the local exim is authenticating to a remote host as a client.\n");
     fwrite($fp, "#\n");
-    fwrite($fp, "*.google.com:" . $emailguser . ":" . $emailgpass . "\n");
-    fwrite($fp, "smtp.gmail.com:" . $emailguser . ":" . $emailgpass . "\n");
+    fwrite($fp, $emailserver . ":" . $emailuser . ":" . $emailpass . "\n");
     fclose($fp);
+
+    $fp = fopen($exim4Directory . '/aliases', 'w');
+    fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: fpp\n");
+    fwrite($fp, "pi: " . $emailtoemail . "\n");
+    fwrite($fp, "fpp: " . $emailtoemail . "\n");
+    fclose($fp);
+
+    $fp = fopen($exim4Directory . '/email-addresses', 'w');
+    fwrite($fp, "fpp: " . $emailfromuser . "\n");
+    fwrite($fp, "root: " . $emailfromuser . "\n");
+    fclose($fp);
+
+    # copy our conf files into place
+    exec("sudo cp " . $exim4Directory . "/update-exim4.conf.conf /etc/exim4/");
     exec("sudo cp " . $exim4Directory . "/passwd.client /etc/exim4/");
+    exec("sudo cp " . $exim4Directory . "/aliases /etc/");
+    exec("sudo cp " . $exim4Directory . "/email-addresses /etc/");
+
+    # update exim4 config using our generated conf files
     exec("sudo update-exim4.conf");
-    exec ("sudo /etc/init.d/exim4 restart");
-    exec ("sudo systemctl restart exim4.service");
+
+    # set the fpp user GECOS field
     $cmd="sudo chfn -f \"" . $emailfromtext . "\" fpp";
     exec($cmd);
-    $fp = fopen($exim4Directory . '/aliases', 'w');
-    fwrite($fp, "mailer-daemon: postmaster\npostmaster: root\nnobody: root\nhostmaster: root\nusenet: root\nnews: root\nwebmaster: root\nwww: root\nftp: root\nabuse: root\nnoc: root\nsecurity: root\nroot: pi\n");
-    fwrite($fp, "pi: " . $emailtoemail . "\n");
-    fclose($fp);
-    exec("sudo cp " . $exim4Directory . "/aliases /etc/");
+
+    if (file_exists("/.dockerenv")) {
+        exec("sudo /etc/init.d/exim4 restart");
+    } else {
+        exec("sudo systemctl restart exim4.service");
+    }
 }
 
 
@@ -1642,7 +1742,7 @@ function PrintToolTip($setting) {
 
     if ((isset($settingInfos[$setting])) &&
         (isset($settingInfos[$setting]['tip']))) {
-        echo "<img id='$setting" . "_img' title='$setting' src='images/questionmark.png'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $settingInfos[$setting]['tip'] . "</span>\n";
+        echo "<img id='$setting" . "_img' title='$setting' src='images/redesign/help-icon.svg' class='icon-help'><span id='$setting" . "_tip' class='tooltip' style='display: none'>" . $settingInfos[$setting]['tip'] . "</span>\n";
     }
 }
 
@@ -1664,7 +1764,7 @@ function network_wifi_strength_obj()
 	$lines = file("/proc/net/wireless");
 	#
 	# Expected format
-	# 
+	#
 	# face | tus | link level noise |  nwid  crypt   frag  retry   misc | beacon | 22
 	# wlan0: 0000   41.  -69.  -256        0      0      0   2042      0        0
 	#
@@ -1695,14 +1795,23 @@ function network_wifi_strength_obj()
 function network_list_interfaces_obj()
 {
 	$output = array();
-	$cmd = "ip --json -4 address show";
+	$cmd = "ip --json address show";
 	exec($cmd, $output);
 	$rc = json_decode(join(" ", $output), true);
 	$wifiObj = network_wifi_strength_obj();
 
-	// Merge two objects
-	foreach ($wifiObj as $wifi) {
-		foreach ($rc as &$rec) {
+	foreach ($rc as &$rec) {
+		// Filter only ipv4 addresses
+		$addrInfo = $rec['addr_info'];
+		$newAddrInfo = array();
+		foreach ($addrInfo as $ai) {
+			if ($ai['family'] == 'inet')
+				array_push($newAddrInfo, $ai);
+		}
+		$rec['addr_info'] = $newAddrInfo;
+
+		// Merge two objects
+		foreach ($wifiObj as $wifi) {
 			if ($rec["ifname"] == $wifi->interface) {
 				$rec["wifi"] = $wifi;
 			}

@@ -254,7 +254,7 @@ function SetOutputProcessors() {
         url:"api/channel/output/processors",
         data: JSON.stringify(data)}
         ).done(function(data) {
-		    $.jGrowl("Output Processors Table saved");
+		    $.jGrowl("Output Processors Table saved",{themeState:'success'});
 		    PopulateOutputProcessorTable(data);
 		    SetRestartFlag(2);
 	    }).fail(function() {
@@ -397,39 +397,52 @@ $(document).tooltip();
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php include 'menu.inc';?>
-		<br/>
+		<?php 
+        $activeParentMenuItem = 'input-output';
+        include 'menu.inc'; ?>
+  <div class="mainContainer">
+    <h1 class="title">Output Processors</h1>
+    <div class="pageContent">
+        
+        		<div id="time" class="settings">
+        		
+                        <div class="row tablePageHeader">
+                            <div class="col-md">
+                              <h2>Output Processors</h2>
+                            </div>
+							<div class="col-md-auto ml-lg-auto">
+								<div class="form-actions">
+					
+                                        <input type=button value='Delete' data-btn-enabled-class="btn-outline-danger" onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'>
+                                        <button type=button value='Add' onClick='AddNewProcessorRow();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
+                                        <input type=button value='Save' onClick='SetOutputProcessors();' class='buttons btn-success ml-1'>
 
-		<div id="time" class="settings">
-			<fieldset>
-				<legend>Output Processors</legend>
-				<table>
-					<tr>
-						<td width='70px'><input type=button value='Save' onClick='SetOutputProcessors();' class='buttons'></td>
-						<td width='70px'><input type=button value='Add' onClick='AddNewProcessorRow();' class='buttons'></td>
-						<td width='40px'>&nbsp;</td>
-						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProcessor();' id='btnDelete' class='disableButtons'></td>
-					</tr>
-				</table>
-				<div class='fppTableWrapper fppTableWrapperAsTable'>
-                    <div class='fppTableContents'>
-                        <table id="outputProcessors">
-                            <thead>
-                                <tr>
-                                    <th>#</td>
-                                    <th>Active</td>
-                                    <th>Type</th>
-                                    <th>Description</th>
-                                    <th>Configuration</th>
-                                </tr>
-                            </thead>
-                            <tbody id='outputProcessorsBody'>
-                            </tbody>
-                        </table>
-                    </div>
-				</div>
-			</fieldset>
-		</div>
+								</div>
+							</div>
+						</div>
+                        <hr>
+
+        				<div class='fppTableWrapper fppTableWrapperAsTablefpp'>
+                            <div class='fppTableContents' role="region" aria-labelledby="outputProcessors" tabindex="0">
+                                <table id="outputProcessors" class="fppSelectableRowTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</td>
+                                            <th>Active</td>
+                                            <th>Type</th>
+                                            <th>Description</th>
+                                            <th>Configuration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id='outputProcessorsBody'>
+                                    </tbody>
+                                </table>
+                            </div>
+        				</div>
+        
+        		</div>
+    </div>
+</div>
 
 	<?php	include 'common/footer.inc';?>
 	</div>

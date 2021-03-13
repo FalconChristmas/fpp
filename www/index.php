@@ -4,6 +4,12 @@
 <?php
 require_once('config.php');
 require_once('common.php');
+
+if (!isset($settings['initialSetup'])) {
+    echo "<meta http-equiv='refresh' content='0;url=initialSetup.php' />\n";
+    exit(0);
+}
+
 include 'playlistEntryTypes.php';
 include 'common/menuHead.inc';
 ?>
@@ -14,12 +20,13 @@ include 'common/menuHead.inc';
 <link rel="stylesheet" href="/jquery/jquery.tablesorter/css/theme.blue.css">
 
 <script>
+    SetStatusRefreshSeconds(1);
     PlayEntrySelected = 0;
     PlaySectionSelected = '';
 
     $(function() {
         $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
-            $('#tblPlaylistDetails tbody tr').removeClass('playlistSelectedEntry');
+            $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
             $(this).addClass('playlistSelectedEntry');
             PlayEntrySelected = parseInt($(this).attr('id').substr(11)) - 1;
             PlaySectionSelected = $(this).parent().attr('id').substr(11);
@@ -34,7 +41,7 @@ include 'common/menuHead.inc';
                 1: { sorter: 'ipAddress' }
             },
             widthFixed: false,
-            theme: 'blue',
+            theme: 'fpp',
             widgets: ['zebra', 'filter', 'staticRow'],
             widgetOptions: {
                 filter_hideFilters : true
@@ -52,12 +59,12 @@ include 'common/menuHead.inc';
 			var slider  = $('#slider');
             var rslider  = $('#remoteVolumeSlider');
 			//Call the Slider
-			slider.slider({
-				//Config
-				range: "min",
-				min: 1,
-				//value: 35,
-			});
+			// slider.slider({
+			// 	//Config
+			// 	range: "min",
+			// 	min: 1,
+			// 	//value: 35,
+			// });
 			rslider.slider({
 				//Config
 				range: "min",
@@ -66,41 +73,71 @@ include 'common/menuHead.inc';
 			});
 
 
-			slider.slider({
-				stop: function( event, ui ) {
-					var value = slider.slider('value');
+			// slider.slider({
+			// 	stop: function( event, ui ) {
+			// 		var value = slider.slider('value');
 
-					SetSpeakerIndicator(value);
-					$('#volume').html(value);
-                    $('#remoteVolume').html(value);
-					SetVolume(value);
-				}
-			});
+			// 		SetSpeakerIndicator(value);
+			// 		$('#volume').html(value);
+            //         $('#remoteVolume').html(value);
+			// 		SetVolume(value);
+			// 	}
+            // });
+            slider.on('change',function(e){
+                var value = slider.val();
+
+                SetSpeakerIndicator(value);
+                $('#volume').html(value);
+                $('#remoteVolume').html(value);
+                SetVolume(value);
+            });
             rslider.slider({
               stop: function( event, ui ) {
-                  var value = rslider.slider('value');
 
+                  var value = rslider.val();
                   SetSpeakerIndicator(value);
                   $('#volume').html(value);
                   $('#remoteVolume').html(value);
                   SetVolume(value);
               }
             });
-            $(document).tooltip({
-                content: function() {
-                    $('.ui-tooltip').hide();
-                    var id = $(this).attr('id');
-                    if (typeof id != 'undefined') {
-                        id = id.replace('_img', '_tip');
-                        return $('#' + id).html();
-                    } else {
-                        return '';
-                    }
-                },
-                hide: { delay: 1000 }
-            });
+            // $(document).tooltip({
+            //     content: function() {
+            //         $('.ui-tooltip').hide();
+            //         var id = $(this).attr('id');
+            //         if (typeof id != 'undefined') {
+            //             id = id.replace('_img', '_tip');
+            //             return $('#' + id).html();
+            //         } else {
+            //             return '';
+            //         }
+            //     },
+            //     hide: { delay: 1000 }
+            // });
 
+            SetupBanner();
 		};
+
+    function EnabledStats() {
+        SetSetting("statsPublish", "Enabled", 2);
+        $("#bannerRow").hide();
+    }
+
+    function SetupBanner() {
+       let showIt = true;
+       if (settings.hasOwnProperty('statsPublish') && settings.statsPublish != "Banner") {
+          showIt = false;
+       }
+
+       if (showIt) {
+          var html = [];
+          html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
+          html.push("help us improve FPP in the future. You may preview the data  ");
+          html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>. ");
+          html.push("<div style='margin-top:1em'><button class='buttons wideButton btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>")
+          $("#bannerRow").html(html.join(' ')).show();
+       }
+    }
 
 	function SetSpeakerIndicator(value) {
 		var speaker = $('#speaker');
@@ -134,11 +171,8 @@ include 'common/menuHead.inc';
 		volume += 1;
 		if (volume > 100)
 			volume = 100;
-		$('#volume').html(volume);
-        $('#remoteVolume').html(volume);
-		$('#slider').slider('value', volume);
-        $('#remoteVolumeSlider').slider('value', volume);
-		SetSpeakerIndicator(volume);
+
+        updateVolumeUI(volume);
 		SetVolume(volume);
 	}
 
@@ -148,11 +182,8 @@ include 'common/menuHead.inc';
 		volume -= 1;
 		if (volume < 0)
 			volume = 0;
-		$('#volume').html(volume);
-        $('#remoteVolume').html(volume);
-		$('#slider').slider('value', volume);
-        $('#remoteVolumeSlider').slider('value', volume);
-		SetSpeakerIndicator(volume);
+
+        updateVolumeUI(volume);
 		SetVolume(volume);
 	}
 
@@ -175,253 +206,268 @@ include 'common/menuHead.inc';
 
 
 </head>
-<body onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);GetFPPStatus();bindVisibilityListener();">
+<body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
 <div id="bodyWrapper">
 <?php
+    $activeParentMenuItem = 'status';
 	include 'menu.inc';
   ?>
-<br/>
+
+
+<div class="mainContainer">
+<h1 class="title statusTitle">Status <span class="statusHostname"><?php echo(gethostname())?></span></h1>
 <?php
     if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
-<div id='upgradeFlag' style='background-color:red'>SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the file system or create a new storage partition.</div>
-<br>
+<div id='upgradeFlag' class="alert alert-danger" role="alert">
+     SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
+     file system or create a new storage partition.
+</div>
+
 <?php
     }
 ?>
-<div id="programControl" class="settings">
-    <fieldset>
-        <legend>Program Control</legend>
-        <!-- Main FPP Mode/status/time header w/ sensor info -->
-        <div id='daemonControl' class='statusDiv'>
-            <div class='statusBoxLeft'>
-                <table class='statusTable'>
+<div class="statusDivTopWrap">
+    <div id="schedulerInfo" class="statusDiv statusDivTop">
+        <div class="statusTable statusDivTopRow">
+
+            <div class="statusDivTopCol">
+                <div class="labelHeading">Scheduler Status:</div>
+                <div class="labelValue"><span id='schedulerStatus'></span></div>
+            </div>
+            <div class="schedulerExtend schedulerEndTime statusDivTopCol ">
+                <div class="labelHeading">Extend Current Playlist:</div>
+                <div class='labelValue' colspan='2'>
+                    <div class="btn-group">
+                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedulePopup();'><i class="fas fa-fw fa-calendar-plus"></i>Extend</button>
+                    <button type='button' class="buttons btn-outline-light" onClick='ExtendSchedule(5);'><i class="fas fa-fw fa-clock"></i>+5min</button>
+                    </div>
+                </div>
+            </div>
+            <div class="statusDivTopCol schedulerStartTime">
+                <div class='labelHeading'>Playlist Started at:</div>
+                <div class='labelValue' id='schedulerStartTime'></div>
+            </div>
+            <div class="statusDivTopCol schedulerEndTime">
+                <div class='labelHeading'><span id='schedulerStopType'></span> Stop at:</div>
+                <div class='labelValue' id='schedulerEndTime'></div>
+            </div>
+            <div class="statusDivTopCol">
+                <div class="schedulerStatusCol">
+                    <div>
+                        <div class="labelHeading">Next Playlist: </div>
+                        <div id='nextPlaylist' class="labelValue"></div>
+                    </div>
+                    <div>
+                        <div class="labelAction">
+                            <button class='buttons wideButton btn-outline-light' onClick='PreviewSchedule();'><i class="fas fa-fw fa-calendar-alt"></i>Preview</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                
+        </div>
+    </div>
+</div>
+<div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
+<div id="bannerRow" class="alert alert-info">Banner Messages go here.</div>
+    <div id="programControl" class="settings">
+
+            <div class="statusPageLoading pageContent">
+                <div class="skeleton-loader">
+                    <div ></div>
+                    <div class="sk-block sk-lg sk-rounded"></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                    <br><br>
+                    <hr>
+
+                    <div class="sk-btn" ></div>
+                    <div></div>
+                </div>
+            </div>
+            <!-- Bridge Mode stats -->
+            <div id="bridgeModeInfo" class="pageContent">
+                <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
+                <table style='width: 100%' class='statusTable'>
                     <tr>
-                        <th>FPPD Mode:</th>
-                        <td>
-                            <select id="selFPPDmode" onChange="SetFPPDmode();">
-                                <option id="optFPPDmode_Player" value="2">Player (Standalone)</option>
-                                <option id="optFPPDmode_Master" value="6">Player (Master)</option>
-                                <option id="optFPPDmode_Remote" value="8">Player (Remote)</option>
-                                <option id="optFPPDmode_Bridge" value="1">Bridge</option>
-                            </select>
-                            <input type="button" id="btnDaemonControl" class ="buttons" value="" onClick="ControlFPPD();">
-                            </td>
-                    </tr>
-                    <tr>
-                        <th>FPPD Status:</th>
-                        <td id = "daemonStatus"></td>
-                    </tr>
-                    <tr>
-                        <th>FPP Time:</th>
-                        <td id="fppTime"></td>
-                    </tr>
-                    <tr id="mqttRow">
-                        <th>MQTT:</th>
-                        <td id="mqttStatus"></td>
-                    </tr>
-                    <tr id="warningsRow"><td colspan="4" id="warningsTd"><div id="warningsDiv"></div></td>
+                        <td align='left'>
+                            <input type='button' class="buttons" onClick='GetUniverseBytesReceived();' value='Update'>
+                        </td>
+                        <td align='right'>
+    <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+                        </td>
                     </tr>
                 </table>
+                <hr>
+                <div id="bridgeStatistics1"></div>
+                <div id="bridgeStatistics2"></div>
+                <div class="clear"></div>
             </div>
-            <div class='statusBoxRight'>
-                <div id="sensorData">
+
+            <!-- Remote Mode info -->
+            <div id="remoteModeInfo" class='statusDiv pageContent'>
+
+                <div class='statusTable'>
+                    <div class="row">
+                    <div class="col-md-3">
+                            <div class="playerStatusLabel">Remote Status:</div>
+                            <div id="txtRemoteStatus" class="labelValue txtRemoteStatusLabelValue"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="playerStatusLabel">Master System:</div>
+                            <div id="syncMaster" class="labelValue syncMasterLabelValue"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="playerStatusLabel">Sequence Filename:</div>
+                            <div id="txtRemoteSeqFilename" class="labelValue txtRemoteSeqFilenameLabelValue"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="playerStatusLabel">Media Filename:</div>
+                            <div id="txtRemoteMediaFilename" class="labelValue txtRemoteMediaFilenameLabelValue"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class='clear'></div>
-            <hr>
-        </div>
 
-        <!-- Bridge Mode stats -->
-        <div id="bridgeModeInfo">
-            <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
-            <table style='width: 100%' class='statusTable'>
-                <tr>
-                    <td align='left'>
-                        <input type='button' onClick='GetUniverseBytesReceived();' value='Update'>
-                    </td>
-                    <td align='right'>
-<? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
-                    </td>
-                </tr>
-            </table>
-            <hr>
-            <div id="bridgeStatistics1"></div>
-            <div id="bridgeStatistics2"></div>
-            <div class="clear"></div>
-        </div>
+                <div class="volumeControlsContainer d-flex">
+                    <div class="ml-auto">
+                        <div class="labelHeading">Volume</div> <span id='remoteVolume' class='volume'></span></div>
+                        <div class="volumeControls">
+                            <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
+                            <input type="range" min="0" max="100" class="slider" id="remoteVolumeSlider">
+                            <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
+                        <span id='speaker'></span> <!-- Volume -->
+                    </div>
+                </div>
+                <hr>
+                <br>
+                <h2>MultiSync Packet Counts</h2>
 
-        <!-- Remote Mode info -->
-        <div id="remoteModeInfo" class='statusDiv'>
-            <table class='statusTable'>
-                <tr><th>Master System:</th>
-                    <td id='syncMaster'></td></tr>
-                <tr><th>Remote Status:</th>
-                    <td id='txtRemoteStatus'></td></tr>
-                <tr><th>Sequence Filename:</th>
-                    <td id='txtRemoteSeqFilename'></td></tr>
-                <tr><th>Media Filename:</th>
-                    <td id='txtRemoteMediaFilename'></td></tr>
-                <tr>
-                    <th>Volume [<span id='remoteVolume' class='volume'></span>]:</th>
-                    <td>
-                        <input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                        <span id="remoteVolumeSlider"></span> <!-- the Slider -->
-                        <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
-                        <span id='remoteSpeaker'></span> <!-- Volume -->
-                    </td>
-                </tr>
-            </table>
-            <hr>
-
-            <span class='title'>MultiSync Packet Counts</span><br>
-            <table style='width: 100%' class='statusTable'>
-                <tr>
-                    <td align='left'>
+                <div class="row pb-1">
+                    <div class="col-auto">
                         <input type='button' onClick='GetMultiSyncStats();' value='Update' class='buttons'>
                         <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
-                    </td>
-                    <td align='right'>
-<? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
-                    </td>
-                </tr>
-            </table>
-            <div class='fppTableWrapper'>
-                <div class='fppTableContents'>
-                    <table id='syncStatsTable'>
-                        <thead>
-                            <tr><th rowspan=2>Host</th>
-                                <th rowspan=2>Last Received</th>
-                                <th colspan=4 class="sorter-false">Sequence Sync</th>
-                                <th colspan=4 class="sorter-false">Media Sync</th>
-                                <th rowspan=2>Blank<br>Data</th>
-                                <th rowspan=2>Ping</th>
-                                <th rowspan=2>Plugin</th>
-                                <th rowspan=2>FPP<br>Command</th>
-                                <th rowspan=2>Errors</th>
-                                </tr>
-                            <tr><th>Open</th>
-                                <th>Start</th>
-                                <th>Stop</th>
-                                <th>Sync</th>
-                                <th>Open</th>
-                                <th>Start</th>
-                                <th>Stop</th>
-                                <th>Sync</th>
-                                </tr>
-                        </thead>
-                        <tbody id='syncStats'>
-                        </tbody>
-                    </table>
+                    </div>
+                    <div class="col-auto ml-auto">
+                    <? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+
+                    </div>
+                </div>
+
+                <div class='fppTableWrapper backdrop'>
+                    <div class='fppTableContents' role="region" aria-labelledby="syncStatsTable" tabindex="0">
+                        <table id='syncStatsTable'>
+                            <thead>
+                                <tr><th rowspan=2>Host</th>
+                                    <th rowspan=2>Last<br>Rcvd</th>
+                                    <th colspan=4 class="sorter-false">Sequence Sync</th>
+                                    <th colspan=4 class="sorter-false">Media Sync</th>
+                                    <th rowspan=2>Blank<br>Data</th>
+                                    <th rowspan=2>Ping</th>
+                                    <th rowspan=2>Plugin</th>
+                                    <th rowspan=2>FPP<br>Cmd</th>
+                                    <th rowspan=2>Errors</th>
+                                    </tr>
+                                <tr><th>Open</th>
+                                    <th>Start</th>
+                                    <th>Stop</th>
+                                    <th>Sync</th>
+                                    <th>Open</th>
+                                    <th>Start</th>
+                                    <th>Stop</th>
+                                    <th>Sync</th>
+                                    </tr>
+                            </thead>
+                            <tbody id='syncStats'>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+            <!-- Player/Master Mode Info -->
+            <div id="playerModeInfo" class='statusDiv pageContent'>
 
-        <!-- Player/Master Mode Info -->
-        <div id="playerModeInfo" class='statusDiv'>
-            <div id='schedulerInfo'>
-                <div class='statusBoxLeft'>
-                    <table class='statusTable'>
-                        <tr><th>Scheduler Status:</th>
-                            <td><span id='schedulerStatus'></span>
-                                &nbsp;&nbsp;<input type='button' class='buttons wideButton' onClick='PreviewSchedule();' value='View Schedule'></td>
-                        </tr>
-                        <tr>
-                            <th>Next Playlist: </th>
-                            <td id='nextPlaylist'></td>
-                        </tr>
-                    </table>
+                <div id="playerStatusTop">
+                    <div class='statusBoxLeft'>
+                        <div class='statusTable container-fluid'>
+                            <div class="row playerStatusRow">
+                                <div class="playerStatusLabel">Player Status:</div>
+                                <div id="txtPlayerStatus" class="labelValue playerStatusLabelValue"></div>
+                            </div>
+                            <div class="row playlistSelectRow">
+
+                                <div class="playlistSelectCol"><select id="playlistSelect" name="playlistSelect" class="form-control form-control-lg form-control-rounded has-shadow" size="1" onClick="SelectPlaylistDetailsEntryRow();PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select></div>
+                                <div class="playlistRepeatCol"><span class="settingLabelHeading">Repeat:</span> <input type="checkbox" id="chkRepeat"></input></div>
+
+                            </div>
+
+                        </div>
+                        <div class="row statusPageControlsRow">
+                            <div id="playerControls" class="col-md" >
+                                <button id= "btnPlay" class ="buttons btn-rounded btn-success disableButtons" onClick="StartPlaylistNow();"><i class='fas fa-fw fa-play'></i>Play</button>
+                                <button id= "btnPrev" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="PreviousPlaylistEntry();"><i class='fas fa-fw fa-step-backward'></i>Previous</button>
+                                <button id= "btnNext" class ="buttons btn-rounded btn-pleasant disableButtons" onClick="NextPlaylistEntry();"><i class='fas fa-fw fa-step-forward'></i>Next</button>
+                                <button id= "btnStopGracefully" class ="buttons btn-rounded btn-graceful disableButtons" onClick="StopGracefully();"><i class='fas fa-fw fa-stop'></i>Stop Gracefully</button>
+                                <button id= "btnStopGracefullyAfterLoop" class ="buttons btn-rounded btn-detract disableButtons" onClick="StopGracefullyAfterLoop();"><i class='fas fa-fw fa-hourglass-half'></i>Stop After Loop</button>
+                                <button id= "btnStopNow" class ="buttons btn-rounded btn-danger disableButtons"  onClick="StopNow();"><i class='fas fa-fw fa-hand-paper'></i>Stop Now</button>
+                            </div>
+
+                            <div class="volumeControlsContainer col-md-auto">
+                                <div><div class="labelHeading">Volume</div> <span id='volume' class='volume'></span></div>
+                                <div class="volumeControls">
+                                        <button class='volumeButton buttons' onClick="DecrementVolume();"><i class='fas fa-fw fa-volume-down'></i></button>
+                                        <input type="range" min="0" max="100" class="slider" id="slider">
+                                        <button class='volumeButton buttons' onClick="IncrementVolume();"><i class='fas fa-fw fa-volume-up'></i></button>
+                                    <span id='speaker'></span> <!-- Volume -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <hr>
                 </div>
                 <div class='statusBoxRight'>
-                    <table class='statusTable'>
-                        <tr>
-                            <th class='schedulerStartTime'>Started at:</th>
-                            <td class='schedulerStartTime' id='schedulerStartTime'></td>
-                        </tr>
-                        <tr>
-                            <th class='schedulerEndTime'><span id='schedulerStopType'></span> Stop at:</th>
-                            <td class='schedulerEndTime' id='schedulerEndTime'></td>
-                        </tr>
-                        <tr>
-                            <td class='schedulerEndTime schedulerExtend' colspan='2'>
-                                <input type='button' value='Extend' onClick='ExtendSchedulePopup();'>
-                                <input type='button' value='+5m' onClick='ExtendSchedule(5);'>
-                            </td>
-                        </tr>
-                    </table>
+                    <div id='playerTime' class='statusTable'>
+                        <div>
+                            <div class="labelHeading">Elapsed:</div>
+                            <div id="txtTimePlayed" class="labelValue"></div>
+                        </div>
+                        <div>
+                            <div class="labelHeading">Remaining:</div>
+                            <div id="txtTimeRemaining" class="labelValue"></div>
+                        </div>
+                        <div>
+                            <div class="labelHeading">Randomize:</div>
+                            <div id="txtRandomize" class="labelValue"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="clear"></div>
-                <hr>
+                <div id="playerStatusBottom">
+                    <?
+                    include "playlistDetails.php";
+                    ?>
+
+
+                    <div id='deprecationWarning' class="hidden callout callout-danger">
+                    <b>* - Playlist items marked with an asterisk have been deprecated
+                        and will be auto-upgraded the next time you edit the playlist.</b>
+                    </div>
+                </div>
+
+                <div class="verbosePlaylistItemSetting">
+                    <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+        
+
+
+                </div>
             </div>
 
-            <div id="playerStatusTop">
-                <div class='statusBoxLeft'>
-                    <table class='statusTable'>
-                        <tr>
-                            <th>Player Status:</th>
-                            <td id="txtPlayerStatus" style="text-align:left; width=80%"></td>
-                        </tr>
-                        <tr>
-                            <th>Playlist:</th>
-                            <td><select id="playlistSelect" name="playlistSelect" size="1" onClick="SelectPlaylistDetailsEntryRow();PopulatePlaylistDetailsEntries(true,'');" onChange="PopulatePlaylistDetailsEntries(true,'');"></select>
-                                &nbsp;&nbsp;&nbsp;
-                                <b>Repeat:</b> <input type="checkbox" id="chkRepeat"></input></td>
-                        </tr>
-                        <tr>
-                            <th>Volume [<span id='volume' class='volume'></span>]:</th>
-                            <td>
-                                <input type="button" class='volumeButton' value="-" onClick="DecrementVolume();">
-                                <span id="slider"></span> <!-- the Slider -->
-                                <input type="button" class='volumeButton' value="+" onClick="IncrementVolume();">
-                                <span id='speaker'></span> <!-- Volume -->
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Playlist Details:</th>
-                        </tr>
-                    </table>
-                    <table>
-                        <tr>
-                            <td><? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?></td>
-                        </tr>
-                    </table>
-                </div>
-                <div class='statusBoxRight'>
-                    <table id='playerTime' class='statusTable'>
-                        <tr>
-                            <th>Elapsed:</th>
-                            <td id="txtTimePlayed"></td>
-                        </tr>
-                        <tr>
-                            <th>Remaining:</th>
-                            <td id="txtTimeRemaining"></td>
-                        </tr>
-                        <tr>
-                            <th>Randomize:</th>
-                            <td id="txtRandomize"></td>
-                        </tr>
-                    </table>
-                </div>
-                <div class="clear"></div>
-            </div>
-
-            <div id="playerStatusBottom">
-<?
-include "playlistDetails.php";
-?>
-
-                <div id="playerControls" style="margin-top:5px">
-                    <input id= "btnPlay" type="button"  class ="buttons"value="Play" onClick="StartPlaylistNow();">
-                    <input id= "btnPrev" type="button"  class ="buttons"value="Previous" onClick="PreviousPlaylistEntry();">
-                    <input id= "btnNext" type="button"  class ="buttons"value="Next" onClick="NextPlaylistEntry();">
-                    <input id= "btnStopGracefully" type="button"  class ="buttons" value="Stop Gracefully" onClick="StopGracefully();">
-                    <input id= "btnStopGracefullyAfterLoop" type="button"  class ="buttons" value="Stop After Loop" onClick="StopGracefullyAfterLoop();">
-                    <input id= "btnStopNow" type="button" class ="buttons" value="Stop Now" onClick="StopNow();">
-                </div>
-                <div id='deprecationWarning' style='display:none'><font color='red'><b>* - Playlist items marked with an asterisk have been deprecated and will be auto-upgraded the next time you edit the playlist.</b></font></div>
-            </div>
-        </div>
-    </fieldset>
+    </div>
 </div>
 <?php	include 'common/footer.inc'; ?>
 </div>

@@ -1,0 +1,312 @@
+#!/bin/bash
+
+. /opt/fpp/scripts/common
+
+PHPOUT="n"
+
+HTML_HEAD="<div class='row'>";
+HTML_FOOT="</div>"
+HTML_LABEL="<div class='col-md'><div class='description'>%s</div></div>"
+HTML_STATUS="<div class='col-sm' id='checkNumber%d'>%s</div>"
+HTML_GOOD="<i class='fas fa-check-circle text-success' title='%s'></i>"
+HTML_BAD="<i class='fas fa-times-circle text-danger'></i>&nbsp;%s"
+HTML_WARN="<i class='fas fa-check-circle text-warning'></i>&nbsp;%s"
+HTML_RUNNING="Running..."
+
+if [ "x$1" = "x-p" -o "x$1" = "x--php" ]
+then
+    PHPOUT="y"
+fi
+
+ID=0
+
+#############################################################################
+# Each Health Check function needs to do 3 things:
+# 1) Call PrintItemHead with the description of the test being run
+# 2) Set the numeric STATUS and string STATUSSTR variables
+#    - STATUS=0 - Fail
+#    - STATUS=1 - Pass
+#    - STATUS=2 - Warning
+# 3) Call PrintItemFoot to display the result of the test
+
+#############################################################################
+# Helpers
+
+# Usage: PrintItemHead DESCRIPTION
+PrintItemHead() {
+    DESC="$1"
+
+    ID=$(expr ${ID} + 1)
+
+    if [ "${PHPOUT}" = "y" ]
+    then
+        /bin/echo -n "${HTML_HEAD}"
+        printf "${HTML_LABEL}" "${DESC}"
+        printf "${HTML_STATUS}" "${ID}" "${HTML_RUNNING}"
+        echo "${HTML_FOOT}"
+    else
+        printf "%-40.40s: " "${DESC}.................................................................."
+    fi
+}
+
+# Usage: PrintItemFoot NUMERICAL_STATUS STRING_STATUS TOOLTIP_TEXT
+PrintItemFoot() {
+    if [ "${PHPOUT}" = "y" ]
+    then
+        STATUSHTML="${HTML_GOOD}"
+        if [ ${STATUS} -eq 0 ]
+        then
+            STATUSHTML="${HTML_BAD}"
+        else
+            if [ ${STATUS} -eq 2 ]
+            then
+                STATUSHTML="${HTML_WARN}"
+            fi
+        fi
+
+        STATUSHTML=$(printf "${STATUSHTML}" "${STATUSSTR}")
+        printf "<script class='streamScript'>\$('#checkNumber%d').html(\"%s\");</script>\n" ${ID} "${STATUSHTML}"
+    else
+        STATUSTEXT="Pass"
+        if [ ${STATUS} -eq 0 ]
+        then
+            STATUSTEXT="Fail"
+            if [ ${STATUS} -eq 2 ]
+            then
+                STATUSTEXT="Warning"
+            fi
+        fi
+
+        printf "%s - %s\n" "${STATUSTEXT}" "${STATUSSTR}"
+    fi
+}
+
+#############################################################################
+# Health Check Functions
+
+HC_FPPD() {
+    PrintItemHead "FPPD is running"
+
+    PID=$(pgrep fppd)
+    if [ "x${PID}" != "x" ]
+    then
+        STATUS=1
+        STATUSSTR="FPPD is running at PID ${PID}"
+    else
+        STATUS=0
+        STATUSSTR="FPPD is not running"
+    fi
+
+    PrintItemFoot
+}
+
+HC_Scheduler() {
+    PrintItemHead "Scheduler is enabled"
+
+    DISABLED=$(getSetting DisableScheduler)
+
+    if [ "x${DISABLED}" != "x1" ]
+    then
+        STATUS=1
+        STATUSSTR="Scheduler is enabled"
+    else
+        STATUS=2
+        STATUSSTR="Scheduler is disabled"
+    fi
+
+    PrintItemFoot
+}
+
+HC_HostName() {
+    PrintItemHead "HostName is unique"
+
+    FPPHOSTNAMES=$(curl -s http://127.0.0.1/api/fppd/multiSyncSystems | sed -e "s/},/}\n/g" | grep fppMode | sed -e 's/\(.*\)"hostname":"\([^"]*\)"\(.*\)/\2/' | grep -i "^fpp$" | wc -l)
+    HOSTNAME=$(getSetting HostName)
+
+    if [ ${FPPHOSTNAMES} -gt 1 ]
+    then
+        STATUS=2
+        STATUSSTR="There may be more than one host on the network with the 'FPP' hostname.  Consider changing the hostname of this system"
+    else
+        if [ "x${HOSTNAME}" = "x" ]
+        then
+            STATUS=2
+            STATUSSTR="Hostname is not set, consider setting the hostname of this system if you intend to have more than one FPP instance on the same network"
+        elif [ "x${HOSTNAME}" != "xFPP" -a "x${HOSTNAME}" != "xfpp" ] ; then
+            STATUS=1
+            STATUSSTR="Hostname is set to other than the default of FPP"
+        else
+            STATUS=2
+            STATUSSTR="Hostname is set to the default of 'FPP'.  Consider setting the hostname of this system if you intend to have more than one FPP instance on the same network"
+        fi
+    fi
+
+    PrintItemFoot
+}
+
+HC_CheckGateways() {
+    GW=$(netstat -rn | grep "^0\.0\.0\.0" | uniq | wc -l)
+
+    PrintItemHead "Gateway Check"
+
+    if [ "${GW}" == "1" ]; then
+        STATUS=1
+        STATUSSTR="A single gateway was found."
+    else
+        STATUS=0
+        STATUSSTR="Multiple default gateways were found!"
+    fi
+
+    PrintItemFoot
+}
+
+
+HC_PingGateway() {
+    GW=$(netstat -rn | grep "^0\.0\.0\.0" | head -1 | awk '{print $2}')
+
+    PrintItemHead "Default Gateway (${GW})"
+
+    if [ "x${GW}" != "x" ]
+    then
+        ping -c 1 -q -W 2 ${GW} > /dev/null 2>&1
+        if [ $? -eq 0 ]
+        then
+            STATUS=1
+            STATUSSTR="Ping default gateway (${GW}) was successful"
+        else
+            STATUS=0
+            STATUSSTR="Unable to ping default gateway ${GW}"
+        fi
+    else
+        STATUS=0
+        STATUSSTR="No default gateway found"
+    fi
+
+    PrintItemFoot
+}
+
+HC_Internet() {
+    PrintItemHead "Internet Access"
+
+    curl http://1.1.1.1/cdn-cgi/trace --max-time 2 > /dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+        STATUS=1
+        STATUSSTR="Internet connectivity confirmed."
+    else
+        STATUS=0
+        STATUSSTR="Internet connectivity check unsuccessful."
+    fi
+
+    PrintItemFoot
+}
+
+HC_DNS() {
+    PrintItemHead "External DNS"
+
+    OUT=$(getent hosts github.com 2>&1)
+    if [ "x${OUT}" = "x" ]
+    then
+        STATUS=0
+        STATUSSTR="Unable to query github.com via DNS"
+    else
+        STATUS=1
+        STATUSSTR="DNS lookup of github.com was successful"
+    fi
+
+    PrintItemFoot
+}
+
+HC_NTPOffset() {
+    PrintItemHead "Time Offset"
+
+    # ntpq is not fully reliable, additional verification may be required
+    offsets=$(ntpq -nc peers | tail -n +3 | cut -c 62-66 | tr -d '-')
+
+    STATUS=1
+    STATUSSTR="Your time is accurate"
+
+    for offset in ${offsets}; do
+        if [ ${offset:-0} -ge ${limit:-100} ]; then
+            STATUS=0
+            STATUSSTR="Your time may be incorrect, please verify"
+        fi
+    done
+
+    PrintItemFoot
+}
+
+HC_RootDisk() {
+    PrintItemHead "Root filesystem free space"
+
+    USED=$(df -k / | grep -v Filesystem | awk '{print $5}' | sed -e "s/%//")
+    if [ ${USED} -lt 95 ]
+    then
+        STATUS=1
+        STATUSSTR="Root filesystem is only ${USED}% used"
+    else
+        STATUS=0
+        STATUSSTR="Root filesystem is ${USED}% used"
+    fi
+
+    PrintItemFoot
+}
+
+HC_MediaDisk() {
+    FSTAB=$(mount | grep "/home/fpp/media")
+    if [ "x${FSTAB}" = "x" ]
+    then
+        return
+    fi
+
+    PrintItemHead "/home/fpp/media free space"
+
+    USED=$(df -k /home/fpp/media | grep -v Filesystem | awk '{print $5}' | sed -e "s/%//")
+    if [ ${USED} -lt 95 ]
+    then
+        STATUS=1
+        STATUSSTR="/home/fpp/media filesystem is only ${USED}% used"
+    else
+        STATUS=0
+        STATUSSTR="/home/fpp/media filesystem is ${USED}% used"
+    fi
+
+    PrintItemFoot
+}
+
+#############################################################################
+# Main Health Check routines here.  Some call others due to dependencies but
+# some stand alon on their own.
+
+#############################
+# FPP
+HC_FPPD
+
+MODE=$(getSetting fppMode)
+if [ "x${MODE}" = "xplayer" -o "x${MODE}" = "xmaster" ]
+then
+    HC_Scheduler
+fi
+
+HC_HostName
+
+#############################
+# Network
+HC_CheckGateways
+HC_PingGateway
+if [ ${STATUS} -eq 1 ]
+then
+    HC_Internet
+    if [ ${STATUS} -eq 1 ]
+    then
+        HC_DNS
+        if [ ${STATUS} -eq 1 ]; then
+            HC_NTPOffset
+        fi
+    fi
+fi
+
+#############################
+# System Resources
+HC_RootDisk
+HC_MediaDisk

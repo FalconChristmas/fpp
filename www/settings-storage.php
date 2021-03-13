@@ -11,47 +11,46 @@ function StorageDialogDone() {
     $('#closeDialogButton').show();
 }
 function CloseExpandStorageDialog() {
-    $('#storageSettingsProgressPopup').dialog('close');
+    $('#storageSettingsProgressPopup').fppDialog('close');
     SetSetting("LastBlock", "0", 0, 1);
 }
 function growSDCardFS() {
     $('#dialog-confirm')
-        .dialog({
+        .fppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-                $(this).dialog("close");
-                $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
-                $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                $(this).fppDialog("close");
+                $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "Storage Expand", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('growsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
             },
             "No" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
              }
         }
     });
 }
 function newSDCardPartition() {
     $('#dialog-confirm-newpartition')
-    .dialog({
+    .fppDialog({
             resizeable: false,
-            height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-                $(this).dialog("close");
-                $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "New Partition", dialogClass: 'no-close' });
-                $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                $(this).fppDialog("close");
+                $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "New Partition", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('newpartitionsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
             },
             "No" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             }
             }
         });
@@ -65,8 +64,8 @@ function checkForStorageCopy() {
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
                  if (result == "Yes") {
-                    $('#storageSettingsProgressPopup').dialog({ height: 600, width: 900, title: "Copy Settings", dialogClass: 'no-close' });
-                    $('#storageSettingsProgressPopup').dialog( "moveToTop" );
+                    $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
+                    $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                     document.getElementById('storageText').value = '';
                     StreamURL("copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
                  }
@@ -116,36 +115,36 @@ if ($settings['Platform'] == "BeagleBone Black") {
 ?>
 function flashEMMC() {
     $('#dialog-confirm-emmc')
-        .dialog({
+        .fppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
                 "Yes" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
                 window.location.href="flashbbbemmc.php";
             },
             "No" : function() {
-                $(this).dialog("close");
+                $(this).fppDialog("close");
             }
         }
     });
 }
 function flashEMMCBtrfs() {
     $('#dialog-confirm-emmc')
-    .dialog({
+    .dppDialog({
             resizeable: false,
             height: 300,
             width: 500,
             modal: true,
             buttons: {
             "Yes" : function() {
-            $(this).dialog("close");
+            $(this).dppDialog("close");
             window.location.href="flashbbbemmc-btrfs.php";
             },
             "No" : function() {
-            $(this).dialog("close");
+            $(this).dppDialog("close");
             }
             }
             });
@@ -266,12 +265,15 @@ function PrintStorageDeviceSelect($platform)
     
 <?php
 if ($settings['SubPlatform'] != "Docker" ) { ?>
-    <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?><br>
-Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
-<p>
-In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
+    <b>Storage Device:</b> &nbsp;<? PrintStorageDeviceSelect($settings['Platform']); ?>
     
-<br>
+    <div class="callout callout-warning">
+    Changing the storage device to anything other than the SD card is strongly discouraged.   There are all kinds of problems that using USB storage introduce into the system which can easily result in various problems include network lag, packet drops, audio clicks/pops, high CPU usage, etc...  Using USB storage also results in longer bootup time.   In addition, many advanced features and various capes/hats are known to NOT work when using USB storage.
+<br><br>
+In addition to the above, since it is not recommended, using USB storage is not tested nearly as extensively by the FPP developers.   Thus, upgrades (even "patch" upgrades) have a higher risk of unexpected problems.   By selecting a USB storage device, you assume much higher risk of problems and issues than when selecting an SD partition.
+   
+    </div>
+
 <?
 }
 
@@ -291,24 +293,38 @@ if ($rootDevice == 'mmcblk0p1' || $rootDevice == 'mmcblk0p2') {
 }
 if ($addnewfsbutton) {
 ?>
-<br><br>
-<b>SD Card Actions:</b><br>
-    <input style='width:13em;' type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'>&nbsp;This will grow the file system on the SD card to use the entire size of the SD card.<br>
+<br>
+<h3>SD Card Actions:</h3>
+<div class="row">
+    <div class="col-md-2"><input style='width:13em;' type='button' class='buttons' value='Grow Filesystem' onClick='growSDCardFS();'></div>
+    <div class="col-md-10">This will grow the file system on the SD card to use the entire size of the SD card.</div>
+</div>
+
 <? if ($uiLevel >= 1) { ?>
-    <input style='width:13em;' type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'><b>*</b>&nbsp;This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.<br>
+    <div class="row mt-2">
+        <div class="col-md-2"><input style='width:13em;' type='button' class='buttons' value='New Partition' onClick='newSDCardPartition();'></div>
+        <div class="col-md-10"><b>*</b>&nbsp;This will create a new partition in the unused aread of the SD card.  The new partition can be selected as a storage location and formatted to BTRFS or ext4 after a reboot.
+</div>
+    </div>
 <? } ?>
 
-    
+    <hr class="mt-2 mb-2">
 <?php
 }
 if ($addflashbutton) {
 ?>
-<br><br>
-<b>eMMC Actions:</b><br>
 
-    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'><b>*</b>&nbsp;This will copy FPP to the internal eMMC.<br>
+<h3>eMMC Actions:</h3>
+
+    <div class="row">
+        <div class="col-md-2"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMC();'></div>
+        <div class="col-md-10"><b>*</b>&nbsp;This will copy FPP to the internal eMMC.</div>
+    </div>
 <? if ($uiLevel >= 1) { ?>
-    <input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'><b>*</b>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.<br>
+    <div class="row mt-2">
+        <div class="col-md-2"><input style='width:13em;' type='button' class='buttons' value='Flash to eMMC' onClick='flashEMMCBtrfs();'></div>
+        <div class="col-md-10"><b>*</b>&nbsp;This will copy FPP to the internal eMMC, but use BTRFS for the root filesystem.  BTRFS uses compression to save a lot of space on the eMMC, but at the expense of extra CPU usage.</div>
+    </div>
 <?php
    }
 }

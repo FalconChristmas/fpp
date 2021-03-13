@@ -64,7 +64,7 @@ $(document).ready(function() {
 	      method: "PUT",
 	      dataType: "text",
 	      success: function (data) {
-		      $.jGrowl("Input Delay Saved");
+		      $.jGrowl("Input Delay Saved",{themeState:'success'});
 		      SetRestartFlag(2);
 		      CheckRestartRebootFlags();
 	      }
@@ -101,7 +101,7 @@ $(document).ready(function() {
 	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
 		$('#tblUniverses tr').removeClass('selectedEntry');
 		$(this).addClass('selectedEntry');
-		var items = $('#tblUniverses tr');
+		var items = $('#tblUniverses tbody tr');
 		UniverseSelected  = items.index(this);
 	});
 
@@ -181,98 +181,121 @@ $(document).ready(function(){
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php include 'menu.inc'; ?>
-		<br/>
+		<?php 
+		$activeParentMenuItem = 'input-output';
+		include 'menu.inc'; ?>
+  <div class="mainContainer">
+	<h1 class="title">Channel Inputs</h1>
+	<div class="pageContent">
+		
+		<div id='channelInputManager'>
 
-<div id='channelInputManager'>
-		<div class='title'>Channel Inputs</div>
-		<div id="tabs">
-			<ul>
-				<li><a href="#tab-e131">E1.31/ArtNet Bridge</a></li>
-			</ul>
 
-<!-- --------------------------------------------------------------------- -->
 
-			<div id='tab-e131'>
-				<div id='divE131'>
-					<fieldset class="fs">
-						<legend> E1.31/ArtNet Bridge Mode Universes </legend>
-						<div id='divE131Data'>
+		<ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
+				E1.31/ArtNet Bridge
+				</a>
+              </li>
+		</ul>
 
-  <div style="overflow: hidden; padding: 10px;">
-	<br>
+		<!-- --------------------------------------------------------------------- -->
+		
 
-    <div>
-      <form>
-        <span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
-        <table width="100%">
-        <tr>
-        <td>
-	   Inputs Count: <input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
-        </td><td>
-	   Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
-           <img id="timeout_img" title="Blank Timeout" src="images/questionmark.png">
-        </td>
-        </tr>
-        </table>
-      </form>
-    </div>
-    <form id="frmUniverses">
-    <input name="command" type="hidden" value="setUniverses" />
-    <input name="input" type="hidden" value="1" />
-    <table>
-    	<tr>
-      	<td width = "70 px"><input id="btnSaveUniverses" class="buttons" type="submit" value = "Save" /></td>
-      	<td width = "70 px"><input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" /></td>
-      	<td width = "40 px">&nbsp;</td>
-      	<td width = "70 px"><input id="btnDeleteUniverses" class="buttons" type="button" value = "Delete" onClick="DeleteUniverse(1);" /></td>
-      </tr>
-    </table>
+		
+		<div class="tab-content" id="channelOutputTabsContent">
+			<div class="tab-pane fade show active" id="tab-e131" role="tabpanel" aria-labelledby="tab-e131-tab">
 
-    <div class='fppTableWrapper'>
-        <div class='fppTableContents'>
-            <table id="tblUniverses" class='universeTable fullWidth'>
-                <thead id='tblUniversesHead'>
-                    <th rowspan=2 title='Input Number'>Input</th>
-                        <th rowspan=2 title='Input Enabled/Disabled status'>Active</th>
-                        <th rowspan=2 title='User Description'>Description</th>
-                        <th rowspan=2 title='Input Type'>Input<br>Type</th>
-                        <th colspan=2>FPP Channel</th>
-                        <th colspan=3>Universe</th>
-                    </tr>
-                    <tr>
-                        <th title='FPP Start Channel'>Start</th>
-                        <th title='FPP End Channel'>End</th>
-                        <th title='Universe Number'>#</th>
-                        <th title='Universe Count for this controller'>Count</th>
-                        <th title='Universe size'>Size</th>
-                    </tr>
-                </thead>
-                <tbody id='tblUniversesBody'>
-                </tbody>
-            </table>
-        </div>
-    </div>
-		<span style="font-size:12px; font-family:Arial; margin-left:15px;">(Drag entry to reposition) </span>
-		</form>
-	</div>
 
+						<div id='divE131'>
+
+
+		    <form id="frmUniverses">
+
+	
+	
+				<div class="row tablePageHeader">
+					<div class="col-lg">
+
+						<div class="backdrop d-inline-flex">
+	
+								<div class="row">
+									<div class="col-lg-auto">
+										Inputs Count:
+										<input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" />
+										<input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
+									</div>
+									<div class="col-lg-auto">
+										Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
+										<img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
+										<span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
+									</div>
+								</div>
+	
 						</div>
-					</fieldset>
+	
+	
+	
+					</div>
+					<div class="col-lg-auto ml-lg-auto">
+						<div class="form-actions">
+						<input name="input" type="hidden" value="1" />
+	
+	
+	
+						<input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
+						<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
+						<input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
+						</div>
+					</div>
 				</div>
+
+
+
+		
+		    <div class='fppTableWrapper'>
+		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
+		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
+		                <thead id='tblUniversesHead'>
+		                    <th title='Input Number'>Input</th>
+		                        <th title='Input Enabled/Disabled status'>Active</th>
+		                        <th title='User Description'>Description</th>
+		                        <th title='Input Type'>Input Type</th>
+		                        <th title='FPP Start Channel'>FPP Channel Start</th>
+		                        <th title='FPP End Channel'>FPP Channel End</th>
+		                        <th title='Universe Number'>Universe #</th>
+		                        <th title='Universe Count for this controller'>Universe Count</th>
+		                        <th title='Universe size'>Universe Size</th>
+		                    </tr>
+		                </thead>
+		                <tbody id='tblUniversesBody'>
+		                </tbody>
+		            </table>
+		        </div>
+		    </div>
+				<small class="text-muted">(Drag entry to reposition) </small>
+				</form>
 			</div>
-
-<!-- --------------------------------------------------------------------- -->
-
-</div>
-</div>
-
-<div id='debugOutput'>
-</div>
-
-<div id="dialog-panelLayout" title="panelLayout" style="display: none">
-  <div id="layoutText">
-  </div>
+		
+								</div>
+								
+						</div>
+			
+		
+		<!-- --------------------------------------------------------------------- -->
+		
+		</div>
+		</div>
+		
+		<div id='debugOutput'>
+		</div>
+		
+		<div id="dialog-panelLayout" title="panelLayout" style="display: none">
+		  <div id="layoutText">
+		  </div>
+		</div>
+	</div>
 </div>
 
 	<?php	include 'common/footer.inc'; ?>

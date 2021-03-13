@@ -16,10 +16,11 @@ function stats_genereate($statsFile)
         "settings" => 'stats_getSettings',
         "universe_input" => 'stats_universe_in',
         "output_e131" => 'stats_universe_out',
-        "output_pannel" => 'stats_pannel_out',
+        "output_panel" => 'stats_panel_out',
         "output_other" => 'stats_other_out',
         "output_pixel_pi" => 'stats_pixel_pi_out',
         "output_pixel_bbb" => 'stats_pixel_bbb_out',
+        "timezone" => 'stats_timezone',
     );
 
     foreach ($tasks as $key => $fun) {
@@ -42,6 +43,10 @@ function stats_get_last_file()
 {
     global $_GET;
     $statsFile = stats_get_filename();
+    $reason = "unknown";
+    if (isset($_GET["reason"])) {
+        $reason = $_GET["reason"];
+    }
 
     if (file_exists($statsFile)) {
         // No reason to regenereate if less than 2 hours old
@@ -54,7 +59,9 @@ function stats_get_last_file()
         stats_genereate($statsFile);
     }
 
-    return json(json_decode(file_get_contents($statsFile)));
+    $obj = json_decode(file_get_contents($statsFile), true);
+    $obj["statsReason"] = $reason;
+    return json($obj, JSON_PRETTY_PRINT);
 }
 
 function stats_publish_stats_file()
@@ -64,9 +71,10 @@ function stats_publish_stats_file()
 
     $ch = curl_init($settings['statsPublishUrl']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
     curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonString);
-
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
+    curl_setopt($ch, CURLOPT_TIMEOUT_MS, 3000);
 // execute!
     $response = json_decode(curl_exec($ch));
 
@@ -87,7 +95,9 @@ function stats_delete_last_file()
 
 function stats_get_filename()
 {
-    return "/tmp/fpp_stats.json";
+    global $settings;
+    
+    return $settings['statsFile'];
 }
 
 function validateAndAdd(&$obj, &$input, &$mapping)
@@ -326,13 +336,14 @@ function stats_getUUID()
 
 function stats_getCapeInfo()
 {
-    $rc = array("type" => "None");
+    $rc = array("name" => "None");
     $mapping = array(
         "type" => "type",
         "cs" => "cs",
         "id" => "id",
         "name" => "name",
         "serialNumber" => "serialNumber",
+        "designer" => "designer"
     );
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
@@ -462,7 +473,7 @@ function stats_universe_out()
     return $rc;
 }
 
-function stats_pannel_out()
+function stats_panel_out()
 {
     global $settings;
     $rc = array("file" => $settings['channelOutputsJSON']);
@@ -488,6 +499,10 @@ function stats_pannel_out()
         "channelCount" => "channelCount",
     );
     validateAndAdd($rc, $data, $mapping);
+
+    if (isset($data["panels"])) {
+        $rc["panelCount"] = count($data["panels"]);
+    }
 
     return $rc;
 }
@@ -579,4 +594,11 @@ function stats_pixel_bbb_out()
 {
     global $settings;
     return stats_pixel_or_pi($settings['co-bbbStrings']);
+}
+
+function stats_timezone()
+{
+    $output = [];
+    exec("date '+%z %Z'", $output);
+    return $output[0];
 }

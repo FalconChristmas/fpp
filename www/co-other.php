@@ -1072,7 +1072,7 @@ function SaveOtherChannelOutputs() {
 
 	$.post("api/channel/output/co-other", JSON.stringify(postData)).done(function(data) {
 		PopulateChannelOutputTable(data);
-		$.jGrowl("Channel Output Configuration Saved");
+		$.jGrowl("Channel Output Configuration Saved",{themeState:'success'});
 		SetRestartFlag(1);
 	}).fail(function() {
 		DialogError("Save Channel Outputs", "Save Failed");
@@ -1257,22 +1257,31 @@ $(document).ready(function(){
 
 <div id='tab-other'>
 	<div id='divOther'>
-		<fieldset class="fs">
-			<legend> Other Outputs </legend>
+		<div class="row tablePageHeader">
+				
+				<div class="col-md">
+					<h2> Other Outputs </h2>
+				</div>
+				<div class="col-md-auto ml-lg-auto">
+					<input name="command" type="hidden" value="saveOtherOutputs" />
+					<div class="form-actions">
+							
+							<input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();">
+							<button id="btnAddOther" class="buttons btn-outline-success" type="button" value = "Add" onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
+							<input id="btnSaveOther" class="buttons btn-success ml-1" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' />
+
+						</div>
+				</div>
+        </div>
+			
 			<div id='divOtherData'>
 				<div style="overflow: hidden; padding: 5px;">
 					<form id="frmOtherOutputs">
-						<input name="command" type="hidden" value="saveOtherOutputs" />
-						<table>
-							<tr><td width = "70 px"><input id="btnSaveOther" class="buttons" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' /></td>
-								<td width = "70 px"><input id="btnAddOther" class="buttons" type="button" value = "Add" onClick="AddOtherOutput();"/></td>
-								<td width = "40 px">&nbsp;</td>
-								<td width = "70 px"><input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();"></td>
-							</tr>
-						</table>
+						
+
                         <div class='fppTableWrapper'>
-                            <div class='fppTableContents'>
-                                <table id="tblOtherOutputs">
+                            <div class='fppTableContents' role="region" aria-labelledby="tblOtherOutputs" tabindex="0">
+                                <table id="tblOtherOutputs" class="fppSelectableRowTable">
                                     <thead>
                                         <tr class='tblheader'>
                                             <th>#</th>
@@ -1291,6 +1300,6 @@ $(document).ready(function(){
 					</form>
 				</div>
 			</div>
-		</fieldset>
+	
 	</div>
 </div>

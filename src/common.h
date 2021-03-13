@@ -66,6 +66,9 @@
 
 long long GetTime(void);
 long long GetTimeMS(void);
+std::string GetTimeStr(const char *fmt);
+std::string GetDateStr(const char *fmt);
+
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);
 int       FileExists(const std::string &File);
@@ -78,6 +81,7 @@ int       CheckForHostSpecificFile(const std::string &hostname, std::string &fil
 int       DateStrToInt(const char *str);
 int       GetCurrentDateInt(int daysOffset = 0);
 int       CurrentDateInRange(int startDate, int endDate);
+int       DateInRange(time_t when, int startDate, int endDate);
 int       DateInRange(int currentDate, int startDate, int endDate);
 void      CloseOpenFiles(void);
 

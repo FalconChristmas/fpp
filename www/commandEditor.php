@@ -32,7 +32,7 @@ function CommandEditorSave()
     var data = {};
     data = CommandToJSON('editorCommand', 'tblCommandEditor', data);
 
-    $('#commandEditorPopup').dialog("close");
+    $('#commandEditorPopup').fppDialog("close");
 
     if (commandEditorCallback != '') {
         window[commandEditorCallback](commandEditorTarget, data);
@@ -41,7 +41,7 @@ function CommandEditorSave()
 
 function CommandEditorCancel()
 {
-    $('#commandEditorPopup').dialog("close");
+    $('#commandEditorPopup').fppDialog("close");
 
     if (commandEditorCancelCallback != '') {
         window[commandEditorCancelCallback](commandEditorTarget);

@@ -29,7 +29,7 @@ function PluginProgressDialogDone() {
     $('#closeDialogButton').show();
 }
 function ClosePluginProgressDialog() {
-    $('#pluginsProgressPopup').dialog('close');
+    $('#pluginsProgressPopup').fppDialog('close');
     location.reload(true);
 }
 
@@ -79,7 +79,7 @@ function CheckPluginForUpdates(plugin) {
 				if (data.updatesAvailable)
 					$('#row-' + plugin).find('.updatesAvailable').show();
 				else
-					$.jGrowl('No updates available for ' + plugin);
+					$.jGrowl('No updates available for ' + plugin,{themeState:'detract'});
 			}
 			else
 				alert('ERROR: ' + data.Message);
@@ -95,8 +95,8 @@ function CheckPluginForUpdates(plugin) {
 function UpgradePlugin(plugin) {
 	var url = 'api/plugin/' + plugin + '/upgrade?stream=true';
     
-    $('#pluginsProgressPopup').dialog({ height: 600, width: 900, title: "Upgrade Plugin", dialogClass: 'no-close' });
-    $('#pluginsProgressPopup').dialog( "moveToTop" );
+    $('#pluginsProgressPopup').fppDialog({  width: 900, title: "Upgrade Plugin", dialogClass: 'no-close' });
+    $('#pluginsProgressPopup').fppDialog( "moveToTop" );
     document.getElementById('pluginsText').value = '';
     StreamURL(url, 'pluginsText', 'PluginProgressDialogDone', 'PluginProgressDialogDone');
 }
@@ -117,8 +117,8 @@ function InstallPlugin(plugin, branch, sha) {
 
 	var postData = JSON.stringify(pluginInfo);
     
-    $('#pluginsProgressPopup').dialog({ height: 600, width: 900, title: "Install Plugin", dialogClass: 'no-close' });
-    $('#pluginsProgressPopup').dialog( "moveToTop" );
+    $('#pluginsProgressPopup').fppDialog({  width: 900, title: "Install Plugin", dialogClass: 'no-close' });
+    $('#pluginsProgressPopup').fppDialog( "moveToTop" );
     document.getElementById('pluginsText').value = '';
     StreamURL(url, 'pluginsText', 'PluginProgressDialogDone', 'PluginProgressDialogDone', 'POST', postData, 'application/json');
 }
@@ -414,53 +414,66 @@ $(document).ready(function() {
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
-  <br/>
+  <?php
+  $activeParentMenuItem = 'content';
+  include 'menu.inc'; ?>
+  <div class="mainContainer">
+	<h1 class="title">Plugins</h1>
+	<div class="pageContent">
+		
+		<div id="plugins" class="settings">
 
-<div id=plugins" class="settings">
-<fieldset>
-<legend>Plugins</legend>
+		<div class="backdrop" id='pluginTableHead'>
 
-<table class='pluginTable' border=0 cellpadding=0>
-<tbody id='pluginTableHead'>
-	<tr><td colspan=7>If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
-pluginInfo.json URL: <input id='pluginInfoURL' size=90 maxlength=255><br>
-		<input type='button' onClick='ManualLoadInfo();' value='Retrieve Plugin Info'>
-		</td></tr>
-</tbody>
-<tbody id='installedPlugins' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgBlue'>Installed Plugins</td></tr>
-</tbody>
-<tbody id='pluginTable'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgGreen'>Available Plugins</td></tr>
-</tbody>
-<tbody id='untestedPlugins' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgGreen'>Plugins not tested with this FPP version</td></tr>
-</tbody>
-<tbody id='templatePlugin' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgDarkOrange'>Template Plugin</td></tr>
-</tbody>
-<tbody id='incompatiblePlugins' style='display: none;'>
-	<tr><td colspan=7>&nbsp;</td></tr>
-	<tr><td colspan=7 class='pluginsHeader bgRed'>Incompatible Plugins</td></tr>
-</tbody>
-</table>
+			If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
+		
+		
+		<div class="form-row align-items-center">
+			<div class="col-auto"><label for="pluginInfoURL">pluginInfo.json URL:</label></div>
+			<div class="col-auto"><input id='pluginInfoURL' type="text" size=90 maxlength=255></div>
+			<div class="col-auto"><input type='button' class="buttons" onClick='ManualLoadInfo();' value='Retrieve Plugin Info'></div>
+		</div>
 
-<div id="overlay">
+
+		</div>
+		<table class='pluginTable' border=0 cellpadding=0>
+
+		<tbody id='installedPlugins' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgBlue'><h2>Installed Plugins</h2></td></tr>
+		</tbody>
+		<tbody id='pluginTable'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgGreen'><h2>Available Plugins</h2></td></tr>
+		</tbody>
+		<tbody id='untestedPlugins' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgGreen'><h2>Plugins not tested with this FPP version</h2></td></tr>
+		</tbody>
+		<tbody id='templatePlugin' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgDarkOrange'><h2>Template Plugin</h2></td></tr>
+		</tbody>
+		<tbody id='incompatiblePlugins' style='display: none;'>
+			<tr><td colspan=7>&nbsp;</td></tr>
+			<tr><td colspan=7 class='pluginsHeader bgRed'><h2>Incompatible Plugins</h2></td></tr>
+		</tbody>
+		</table>
+		
+		<div id="overlay">
+		</div>
+		
+		</div>
+	</div>
 </div>
 
-</div>
 
 <?php	include 'common/footer.inc'; ?>
 </div>
 
 
 <div id='pluginsProgressPopup' title='FPP Plugins' style="display: none">
-    <textarea style='width: 99%; height: 94%;' disabled id='pluginsText'>
+    <textarea style='width: 100%;' rows="25"  disabled id='pluginsText'>
     </textarea>
     <input id='closeDialogButton' type='button' class='buttons' value='Close' onClick='ClosePluginProgressDialog();' style='display: none;'>
 </div>

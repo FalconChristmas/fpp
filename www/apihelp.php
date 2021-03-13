@@ -15,14 +15,17 @@ include 'common/menuHead.inc';
 <body>
 <div id="bodyWrapper">
 <?php
-	include 'menu.inc';
-  ?>
-<br/>
-
+$activeParentMenuItem = 'help'; 
+	include 'menu.inc'; ?>
+  <div class="mainContainer">
+    <h1 class="title">API Help</h1>
+        <div class="pageContent">
 <?
 $apiDir = "api/";
 include 'api/help.php';
 ?>
+</div>
+</div>
 
 <?php	include 'common/footer.inc'; ?>
 </div>

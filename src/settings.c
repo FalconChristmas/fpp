@@ -493,19 +493,21 @@ int loadSettings(const char *filename)
 	return 0;
 }
 
-const char *getSetting(const char *setting)
+const char *getSetting(const char *setting, const char *defaultval)
 {
 	if (!setting) {
 		LogErr(VB_SETTING, "getSetting() called with NULL value\n");
-		return "";
+		return defaultval;
 	}
 
     if (settings.keyVal[setting] != nullptr) {
         return settings.keyVal[setting];
 	}
 
-	LogExcess(VB_SETTING, "getSetting(%s) returned setting not found\n", setting);
-	return "";
+	if (defaultval[0] == 0x0)
+		LogExcess(VB_SETTING, "getSetting(%s) returned setting not found and no default supplied\n", setting);
+
+	return defaultval;
 }
 
 int getSettingInt(const char *setting, int defaultVal)

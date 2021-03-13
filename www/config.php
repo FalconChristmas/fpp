@@ -50,7 +50,7 @@ function LoadLocale()
     if (!isset($settings['Locale']))
         $settings['Locale'] = 'Global';
 
-    $localeFile = $settings['fppDir'] . '/etc/locale/global.json';
+    $localeFile = $settings['fppDir'] . '/etc/locale/Global.json';
     if (file_exists($localeFile)) {
         $localeStr = file_get_contents($localeFile);
         $locale = json_decode($localeStr, true);
@@ -162,7 +162,8 @@ if (file_exists($mediaDirectory . "/tmp/cape-info.json")) {
     $settings['cape-info'] = $cape_info;
 }
 
-$settings['statsPublishUrl'] = "https://fppstats.thehormanns.net/api/upload";
+$settings['statsPublishUrl'] = "https://fppstats.falconchristmas.com/api/upload";
+$settings['statsFile'] = "/tmp/fpp_stats.json";
 $settings['Variant'] = $settings['Platform'];
 $settings['SubPlatform'] = "";
 $settings['OSImagePrefix'] = "";
@@ -264,10 +265,13 @@ if ($settings['Platform'] == "Raspberry Pi") {
 } else if ($settings['Platform'] == "CHIP") {
 	$settings['Logo'] = "chip_logo.png";
 	$settings['LogoLink'] = "http://www.getchip.com/";
+} else if (file_exists("/.dockerenv")) {
+        $settings['SubPlatform'] = $settings['Platform'];
+        $settings['Variant'] = $settings['Platform'];
+        $settings['Platform'] = "Docker";
+	$settings['Logo'] = "debian_logo.png";
+	$settings['LogoLink'] = "https://www.debian.org/";
 } else if ($settings['Platform'] == "Debian") {
-    if (file_exists("/.dockerenv")) {
-        $settings['SubPlatform'] = "Docker";
-    }
 	$settings['Logo'] = "debian_logo.png";
 	$settings['LogoLink'] = "https://www.debian.org/";
 } else if ($settings['Platform'] == "Ubuntu") {
@@ -560,6 +564,6 @@ if (!isset($skipJSsettings)) {
 }
 
 // Put variables here that we don't want in the JavaScript settings array
-$settings['htaccessContents'] = "php_value max_input_vars 5000\nphp_value upload_max_filesize 4G\nphp_value post_max_size 4G\n";
+// $settings['key'] = "value";
 
 ?>

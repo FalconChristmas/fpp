@@ -1620,6 +1620,26 @@
             }
         },
         {
+            "endpoint": "plugin/:RepoName/settings/:SettingName",
+            "methods": {
+                "GET": {
+                    "desc": "Returns the value of a given setting fromt the Plugin specified as :RepoName",
+                    "output": {
+                        "status": "OK",
+                        "SettingName": "SettingValue"
+                    }
+                },
+                "POST": {
+                    "desc": "Sets the Speciffied Setting for the plugin identified by RepoName and returns that same setting value",
+                    "input": "SettingValue",
+                    "output": {
+                        "status": "OK",
+                        "SettingName": "SettingValue"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "plugin/:PluginRepoName/updates",
             "methods": {
                 "POST": {

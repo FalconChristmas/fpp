@@ -1,0 +1,39 @@
+version: "3.8"
+
+# The `context` and 'volumes' directives are relative to THIS directory, while
+# the `dockerfile` directive is relative to the `context` directory.  For best
+# results, run the `docker-compose` command in the fpp/ root directory.
+#
+# Additionally, you should NOT have a node_modules folder under www/ as the
+# node_nodules binaries need to be from the container.
+#
+# fpp> docker-compose -f Docker/docker-compose.yml up
+
+services:
+  fpp:
+    build:
+      args:
+        - "EXTRA_INSTALL_FLAG=--skip-clone"
+      context: ../
+      dockerfile: ./Docker/Dockerfile
+    hostname: fpp-docker
+    volumes:
+      - ../:/opt/fpp
+    restart: always
+    ports:
+      - "80:80/tcp"
+      - "4048:4048/udp"
+      - "5568:5568/udp"
+      - "32320:32320/udp"
+
+  node:
+    build:
+      context: ../
+      dockerfile: ./Docker/Dockerfile.node
+    command: /bin/sh -c "(
+      /bin/ln -s /opt/node_modules /opt/fpp/www/;
+      /opt/node_modules/.bin/gulp -f /opt/fpp/www/gulpfile.js watch-bs;
+      )"
+    restart: always
+    volumes:
+      - ../:/opt/fpp

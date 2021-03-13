@@ -78,17 +78,21 @@ $( document ).ready(function() {
 <table class='settingsTable'>
     <tr><th valign='top'>Git Branch:</th>
         <td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? PrintToolTip('gitBranch'); ?>
-            <br><b>Note: Changing branches may take a couple minutes to recompile and may not work if you have any modified source files.</b>
-            <br><font color='red'><b>WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing development, you may want to backup the source directory before switching branches using this page.</b></font></td>
-    </tr>
+            <div class="callout callout-danger">
+            <b>Note: </b>Changing branches may take a couple minutes to recompile and may not work if you have any modified source files.
+            <br class="mt-1"><b class="txt-danger">WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing development, you may want to backup the source directory before switching branches using this page.</b></td>
+ 
+            </div>
+        </tr>
     <tr><th valign='top'>Git Status:</th>
-        <td><input type='button' value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes<br></td>
+        <td><input type='button' class="buttons btn-outline-danger" value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes<br></td>
     </tr>
     <tr><th colspan='2'><pre id='gitStatusPre'>Loading</pre></th>
     <tr><th valign='top'>FPP Rebuild:</th>
-        <td><input type='button' value='Rebuild FPP' onClick='RebuildFPPSource();'> <b>WARNING:</b> This recompiles the local source code<br></td>
+        <td><input type='button' class="buttons btn-outline-danger" value='Rebuild FPP' onClick='RebuildFPPSource();'> <b>WARNING:</b> This recompiles the local source code<br></td>
     </tr>
 <?
 PrintSetting('masqUIPlatform');
+PrintSetting("FPP_UUID");
 ?>
 </table>

@@ -1,0 +1,17 @@
+{
+  "name": "fpp-bootstrap",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "gulp": "^4.0.2",
+    "gulp-plumber": "^1.2.1",
+    "gulp-sass": "^4.0.2",
+    "gulp-postcss": "^8.0.0",
+    "gulp-touch-fd": "^2.0.0",
+    "browser-sync": "^2.26.7",
+    "autoprefixer": "^9.7.4",
+    "gulp-sourcemaps": "^2.6.5",
+    "bootstrap": "^4.6.0"
+  }
+}

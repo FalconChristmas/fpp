@@ -3,25 +3,24 @@ $skipJSsettings = 1;
 require_once('common.php');
 ?>
 
-<script>
-function GetTimeZone() {
-    $.get('https://ipapi.co/json/'
-    ).done(function(data) {
-        $('#TimeZone').val(data.timezone).change();
-    }).fail(function() {
-        DialogError("Time Zone Lookup", "Time Zone lookup failed.");
-    });
-}
-
-</script>
-
-<b>FPP Time:</b> <span id='currentTime'></span><br>
-<br>
-<?
-$extraData = "<input type='button' value='Lookup Time Zone' onClick='GetTimeZone();'>";
-PrintSettingGroup('time', $extraData);
-?>
+<div class="settingsManagerTimeContent">
+        <?
+        $extraData = "<input type='button' class='buttons' value='Lookup Time Zone' onClick='GetTimeZone();'>";
+        $prependData = "<div class='row'><div class='col-md-5'><div class='description'><i class='fas fa-fw ui-level-0'></i>&nbsp;Current System Time</div></div><div id='currentTime' class='col-md-7 labelValue disabled'></div></div>";
+        PrintSettingGroup('time', $extraData, $prependData);
+        ?>
+</div>
 
 <script>
-UpdateCurrentTime(true);
+$( document ).ready(function() {
+    var statusTimeout = null;
+    function UpdateCurrentTime() {
+        if ($('#settings-time-tab').hasClass('active')) {
+            $.get('api/time', function(data) {
+                $('#currentTime').html(data.time);
+            });
+        }
+    }
+    statusTimeout = setInterval(UpdateCurrentTime, 1000);
+});
 </script>

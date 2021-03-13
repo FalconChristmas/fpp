@@ -1,0 +1,105 @@
+.ajax-file-upload-statusbar {
+    @include backdrop;
+    margin: 1em 0;
+    padding: 1em;
+}
+.ajax-file-upload-filename {
+    width: 100%;
+    height: auto;
+    margin: 0 5px 5px 10px;
+    color: $black;
+}
+.ajax-file-upload-progress {
+margin: 0 10px 5px 10px;
+position: relative;
+width: 250px;
+background: $gray-300;
+border-radius: 3px;
+display: inline-block
+}
+.ajax-file-upload-bar {
+    background-color: $green;
+    width: 0;
+    height: 20px;
+    border-radius: 3px;
+    color:#FFFFFF;
+}
+.ajax-file-upload-percent {
+    position: absolute;
+    display: inline-block;
+    top: 3px;
+    left: 48%
+}
+.ajax-file-upload-red {
+
+    background-color: $red;
+    border-radius: 4px;
+    display: inline-block;
+    color: #fff;
+    font-family: arial;
+    font-size: 13px;
+    font-weight: normal;
+    padding: 4px 15px;
+    text-decoration: none;
+    cursor: pointer;
+    vertical-align: top;
+    margin-right:5px;
+}
+.ajax-file-upload-green {
+    background-color: $green;
+    border-radius: 4px;
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    color: #fff;
+    font-family: arial;
+    font-size: 13px;
+    font-weight: normal;
+    padding: 4px 15px;
+    text-decoration: none;
+    cursor: pointer;
+    vertical-align: top;
+    margin-right:5px;
+}
+.ajax-file-upload {
+    @extend .btn;
+    @extend .btn-dark; 
+    max-width: 250px;
+}
+    
+.ajax-file-upload:hover {
+
+}
+.fileUploaderPlaceholder{
+    display: block;
+    margin-bottom: 1em;
+    font-size: 1.4em;
+}
+.ajax-upload-dragdrop
+{
+
+    border:2px dashed $gray-400;
+    border-radius: 10px;
+    text-align:center;
+    vertical-align:middle;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    padding: 2em;
+    transition: 0.3s all $ease-out;
+    &.state-hover{
+        background-color: $gray-lighter;
+        border:2px dashed $black;
+        transform: scale(1.03);
+    }
+}
+.btn-ajax-file-upload-done {
+    border:1px solid $black;
+    background-color: transparent;
+    color:$black;
+    font-weight: bold;
+    &:hover{
+        background-color: $black;
+        color:$white;
+    }
+}

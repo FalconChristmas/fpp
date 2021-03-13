@@ -107,38 +107,48 @@ foreach ($hta as $line) {
 </head>
 <body>
 <div id="bodyWrapper">
-  <?php include 'menu.inc'; ?>
-  <br/>
-  <div id="proxies" class="settings">
-    <fieldset>
-        <legend>Proxied Hosts</legend>
-This is a list of ip/hostnames for which we can reach their HTTP configuration pages via proxy through this FPP instance. <p>
-For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapater, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
-        <table>
-            <tr>
-                <td width='70px'><input type=button value='Save' onClick='SetProxies();' class='buttons'></td>
-                <td width='70px'><input type=button value='Add' onClick='AddNewProxy();' class='buttons'></td>
-                <td width='40px'>&nbsp;</td>
-                <td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProxy();' id='btnDelete' class='disableButtons'></td>
-            </tr>
-        </table>
-        <div class="fppTableWrapper fppTableWrapperAsTable">
-            <div class='fppTableContents'>
-                <table id="proxyTable">
-                    <thead>
-                        <tr>
-                            <th>#</td>
-                            <th>IP/HostName</td>
-                            <th>Link</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
+  <?php 
+  $activeParentMenuItem = 'status';
+  include 'menu.inc'; ?>
+  <div class="mainContainer">
+    <div class="title">Proxied Hosts</div>
+    <div class="pageContent">
+        
+          <div id="proxies" class="settings">
+            
+                 <table>
+                    <tr>
+                        <td width='70px'><input type=button value='Save' onClick='SetProxies();' class='buttons'></td>
+                        <td width='70px'><input type=button value='Add' onClick='AddNewProxy();' class='buttons'></td>
+                        <td width='40px'>&nbsp;</td>
+                        <td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProxy();' id='btnDelete' class='disableButtons'></td>
+                    </tr>
                 </table>
-            </div>
-        </div>
-    </fieldset>
-  </div>
+                <div class="fppTableWrapper fppTableWrapperAsTable">
+                    <div class='fppTableContents' role="region" aria-labelledby="proxyTable" tabindex="0">
+                        <table id="proxyTable" class="fppSelectableRowTable">
+                            <thead>
+                                <tr>
+                                    <th>#</td>
+                                    <th>IP/HostName</td>
+                                    <th>Link</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="backdrop">
+                        <b>Notes:</b>    
+                        <p>This is a list of ip/hostnames for which we can reach their HTTP configuration pages via proxy through this FPP instance. <p>
+                         <p>For example, if this FPP instance is used as a wireless proxy to another e1.31 controller where FPP communicates to the "show network" via the WIFI adapter and to the controller via the ethernet adapater, you can put the IP address of the e1.31 controller here and access the configuration pages by proxy without having to setup complex routing tables.
+                        </p>
+                </div> 
+          </div>
+          
+    </div>
+</div>
   <?php  include 'common/footer.inc'; ?>
 </div>
 

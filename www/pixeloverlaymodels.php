@@ -147,7 +147,7 @@ function SetChannelMemMaps() {
 	postData = JSON.stringify(data, null, 2);
 
 	$.post("api/models", postData).done(function(data) {
-		$.jGrowl("Pixel Overlay Models saved.");
+		$.jGrowl("Pixel Overlay Models saved.",{themeState:'success'});
 		SetRestartFlag(2);
 	}).fail(function() {
 		DialogError("Save Pixel Overlay Models", "Save Failed, is fppd running?");
@@ -200,23 +200,34 @@ $(document).tooltip();
 </head>
 <body>
 	<div id="bodyWrapper">
-		<?php include 'menu.inc'; ?>
-		<br/>
+		<?php 
+		$activeParentMenuItem = 'input-output';
+		include 'menu.inc'; ?>
+  <div class="mainContainer">
+	<h1 class="title">Pixel Overlay Models</h1>
+	<div class="pageContent">
+		
 
 		<div id="time" class="settings">
-			<fieldset>
-				<legend>Pixel Overlay Models</legend>
-				<table>
-					<tr>
-						<td width='70px'><input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons'></td>
-						<td width='70px'><input type=button value='Add' onClick='AddNewMemMap();' class='buttons'></td>
-						<td width='40px'>&nbsp;</td>
-						<td width='70px'><input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'></td>
-					</tr>
-				</table>
+
+				<div class="row tablePageHeader">
+					<div class="col-md">
+						<h2>Pixel Overlay Models</h2>
+					</div>
+					<div class="col-md-auto ml-lg-auto">
+						<div class="form-actions">
+			
+								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'>
+								<button type=button value='Add' onClick='AddNewMemMap();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
+								<input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success ml-1'>
+
+						</div>
+					</div>
+				</div>
+				<hr>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
-                    <div class='fppTableContents'>
-                        <table id="channelMemMaps">
+                    <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
+                        <table id="channelMemMaps" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
                                     <th title='Name of Model'>Model Name</th>
@@ -235,8 +246,8 @@ $(document).tooltip();
                         </table>
                     </div>
 				</div>
-			</fieldset>
-		</div>
+	</div>
+</div>
 
 		<?php	include 'common/footer.inc'; ?>
 	</div>

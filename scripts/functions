@@ -396,13 +396,13 @@ populateCCACHE() {
     if [[ ${MAJVER} -gt 3 || ${MAJVER} -eq 3 && ${MINVER} -ge 3 ]]; then
         #at least v3.3
         BRANCH=$(git branch --list | grep \* | colrm 1 2)
-        
+
         FILETOGET="ccache-${PLAT}-${MAJVER}.x-${BRANCH}.tar.gz"
         FULLURL="https://falconchristmas.github.io/ccache/${FILETOGET}"
         ETAG_GIT="/tmp/etag.$$"
         ETAG_LOCAL="/root/.ccache/etag"
         NEEDS_UPDATED=0
-        
+
         echo "Checking CCACHE -  $FILETOGET - $FULLURL"
 
         sudo test -f "$ETAG_LOCAL"
@@ -418,13 +418,13 @@ populateCCACHE() {
         elif [ "$ETAG_LOCAL_NOTFOUND" == "1" ] ; then
             echo "Updating CCache -- not cached"
             NEEDS_UPDATED=1
-        else 
+        else
             sudo diff -q $ETAG_LOCAL $ETAG_GIT
             rc=$?
             if [ $rc -ne "0" ]; then
                 echo "Updating CCache - eTag has changed"
                 NEEDS_UPDATED=1
-            fi 
+            fi
         fi
 
         if [ $NEEDS_UPDATED -eq "0" ]; then
@@ -435,7 +435,7 @@ populateCCACHE() {
 
 
         curl  -f --fail-early $FULLURL --output "/tmp/$FILETOGET"
-        
+
         if [ -f "/tmp/$FILETOGET" ]; then
             sudo tar -x -z -C /root -f "/tmp/$FILETOGET"
             rm -f "/tmp/$FILETOGET"
@@ -443,7 +443,7 @@ populateCCACHE() {
             sudo chmod 644 $ETAG_LOCAL
         fi
     fi
-    
+
     # set the CCache sizes/flags that we need to be able to successfully compile
     sudo ccache -M 250M
     sudo ccache --set-config=temporary_dir=/tmp
@@ -626,7 +626,7 @@ checkTimeAgainstUSNO() {
 
 		# allow clocks to differ by 24 hours to handle time zone differences
 		THRESHOLD=86400
-		USNOSECS=$(curl -m 10 -s http://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//" -e "s/[^0-9]//g")
+		USNOSECS=$(curl -m 10 -s -k https://www.usno.navy.mil/cgi-bin/time.pl | sed -e "s/.*\">//" -e "s/<\/t.*//" -e "s/...$//" -e "s/[^0-9]//g")
 
 		if [ "x${USNOSECS}" != "x" ]
 		then
@@ -710,4 +710,3 @@ fi
 }
 
 #############################################################################
-

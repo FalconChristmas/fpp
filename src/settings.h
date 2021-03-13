@@ -29,6 +29,8 @@
 #include <string>
 
 #define MAXBUF 1024
+#define DEF_TIME_FORMAT "%I:%M %p"
+#define DEF_DATE_FORMAT "%a %b %e"
 
 typedef enum fppMode {
 	UNKNOWN_MODE = 0x00,
@@ -86,7 +88,7 @@ void CheckExistanceOfDirectoriesAndFiles(void);
 int parseSetting(char *key, char *value);
 
 // Getters
-const char *getSetting(const char *setting);
+const char *getSetting(const char *setting, const char *defaultval = "");
 int   getSettingInt(const char *setting, int defaultVal = 0);
 
 int getDaemonize(void);

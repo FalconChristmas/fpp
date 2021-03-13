@@ -21,7 +21,7 @@ $command_array = Array(
 	//"setOutputProcessors" => 'SetOutputProcessors', // replaced by POST /api/channel/output/processors
 	"getChannelOutputs"   => 'GetChannelOutputs', // Kept for xLights
 	"setChannelOutputs"   => 'SetChannelOutputs', // Kept for xLights
-	"setUniverses"        => 'SetUniverses',
+	//"setUniverses"        => 'SetUniverses', // Deprecated, moved to UI.
 	// "getDNSInfo"          => 'GetDNSInfo', // Replaced by GET /api/network/dns
 	// "setDNSInfo"          => 'SetDNSInfo', // Replaced by POST /api/network/dns
 	//"getFPPDUptime"       => 'GetFPPDUptime', // replaced by  /api/fppd/status
@@ -30,8 +30,8 @@ $command_array = Array(
 	//"setInterfaceInfo"    => 'SetInterfaceInfo', // replaced by POST /api/network/interface/:interface
 	"getFPPSystems"       => 'GetFPPSystems', // NOT USED in UI. - Kept for Multisync 3.x,4.x but replacement is /api/system/status
 	"getFPPstatus"		  => 'GetFPPStatusJson', // Kept for Multisync but replacement is /api/system/status
-	"getSetting"          => 'GetSetting',
-	"setSetting"          => 'SetSetting',
+	"getSetting"          => 'GetSetting', // GET /api/settings:settingKey -- Restored. Somethings still use this
+	"setSetting"          => 'SetSetting', // PUT /api/settings:settingKey -- Restored. Somethings still use this 
 	"startSequence"       => 'StartSequence',
 	"stopSequence"        => 'StopSequence',
 	"toggleSequencePause" => 'ToggleSequencePause',
@@ -99,127 +99,6 @@ function returnJSONStr($str) {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-
-function GetSetting()
-{
-	global $args;
-
-	$setting = $args['key'];
-	check($setting, "setting", __FUNCTION__);
-
-	$value = ReadSettingFromFile($setting);
-
-	$result = Array();
-	$result[$setting] = $value;
-
-	returnJSON($result);
-}
-
-function SetSetting()
-{
-	global $args, $SUDO;
-
-	$setting = $args['key'];
-	$value   = $args['value'];
-
-	check($setting, "setting", __FUNCTION__);
-	check($value, "value", __FUNCTION__);
-
-	WriteSettingToFile($setting, $value);
-
-	if (startsWith($setting, "LogLevel")) {
-		SendCommand("LogLevel,$setting,$value,");
-	} else if ($setting == "HostName") {
-		$value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
-		exec(	$SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
-			$SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
-			$SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
-			$SUDO . " hostname $value ; " .
-			$SUDO . " /etc/init.d/avahi-daemon restart ;" .
-			$SUDO . " systemctl restart avahi-daemon.service",
-			$output, $return_val);
-		sleep(1); // Give Avahi time to restart before we return
-	} else if ($setting == "EnableRouting") {
-		if ($value != "1")
-		{
-			$value = "0";
-		}
-		exec(	$SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
-			$SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
-			$SUDO . " sysctl --system",
-			$output, $return_val);
-	} else if ($setting == "storageDevice") {
-        if ($settings['Platform'] == "BeagleBone Black") {
-            exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
-            $rootDevice = $output[0];
-            unset($output);
-        } else {
-            exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
-            $rootDevice = $output[0];
-            unset($output);
-        }
-        if ($value == "--none--") {
-            $value = $rootDevice;
-        } else {
-            $fsckOrder = "0";
-            exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
-            if ($output[0] == "") {
-                unset($output);
-                exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
-
-                if ($output[0] == "") {
-                    unset($output);
-                    exec( $SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val );
-                    if ($output[0] == "") {
-                        # probably ext4
-                        $options = "defaults,noatime,nodiratime,nofail";
-                        $fsckOrder = "2";
-                    } else {
-                        # exFAT probably
-                        $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500,nonempty";
-                        $fsckOrder = "2";
-                    }
-                } else {
-                    # BTRFS, turn on compression since fseq files are very compressible
-                    $options = "defaults,noatime,nodiratime,compress=zstd,nofail";
-                    $fsckOrder = "0";
-                }
-            } else {
-                # FAT filesystem
-                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
-                $fsckOrder = "2";
-            }
-        }
-        if (preg_match("/$rootDevice/", $value)) {
-            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
-        } else {
-            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val );
-        }
-        unset($output);
-	} else if ($setting == "AudioOutput") {
-		SetAudioOutput($value);
-    } else if ($setting == "EnableTethering") {
-        $ssid = ReadSettingFromFile("TetherSSID");
-        $psk = ReadSettingFromFile("TetherPSK");
-        if ($ssid == "") {
-            $ssid = "FPP";
-            WriteSettingToFile("TetherSSID", $ssid);
-        }
-        if ($psk == "") {
-            $psk = "Christmas";
-            WriteSettingToFile("TetherPSK", $psk);
-        }
-    } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
-        SetBBBLeds();
-	} else if ($setting == "scheduling") {
-		SendCommand("EnableScheduling,$value,");
-	} else {
-        ApplySetting($setting, $value);
-		SendCommand("SetSetting,$setting,$value,");
-	}
-
-	GetSetting();
-}
 
 // This is now just a redirect to new API.
 function GetFPPStatusJson()
@@ -799,48 +678,6 @@ function SaveUniversesToFile($enabled, $input)
 	return $universeJSON;
 }
 
-function SetUniverses()
-{
-	$enabled = $_POST['E131Enabled'];
-	check($enabled);
-	$input = $_POST['input'];
-	check($input);
-    
-    $count = count($_SESSION['UniverseEntries']);
-    if ( isset($_POST['UniverseCount']) ) {
-        $count = intval($_POST['UniverseCount']);
-        $_SESSION['UniverseEntries'] = NULL;
-        for ($i = 0; $i < $count; $i++) {
-            $_SESSION['UniverseEntries'][$i] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
-        }
-    }
-
-	for($i=0;$i<$count;$i++)
-	{
-		if( isset($_POST['chkActive'][$i]))
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 1;
-		}
-		else
-		{
-			$_SESSION['UniverseEntries'][$i]->active = 0;
-		}
-		$_SESSION['UniverseEntries'][$i]->desc = 	$_POST['txtDesc'][$i];
-        
-        if ( isset($_POST['txtUniverse']) && isset($_POST['txtUniverse'][$i])) {
-            $_SESSION['UniverseEntries'][$i]->universe = intval($_POST['txtUniverse'][$i]);
-        } else {
-            $_SESSION['UniverseEntries'][$i]->universe = 1;
-        }
-		$_SESSION['UniverseEntries'][$i]->size = 	intval($_POST['txtSize'][$i]);
-		$_SESSION['UniverseEntries'][$i]->startAddress = 	intval($_POST['txtStartAddress'][$i]);
-		$_SESSION['UniverseEntries'][$i]->type = 	intval($_POST['universeType'][$i]);
-		$_SESSION['UniverseEntries'][$i]->unicastAddress = 	trim($_POST['txtIP'][$i]);
-		$_SESSION['UniverseEntries'][$i]->priority = 	intval($_POST['txtPriority'][$i]);
-	}
-
-	return(SaveUniversesToFile($enabled, $input));
-}
 /////////////////////////////////////////////////////////////////////////////
 function GetChannelOutputs()
 {
@@ -1141,4 +978,126 @@ function CreatePersistentNetNames()
     }
     
 }
+
+function GetSetting()
+{
+	global $args;
+
+	$setting = $args['key'];
+	check($setting, "setting", __FUNCTION__);
+
+	$value = ReadSettingFromFile($setting);
+
+	$result = Array();
+	$result[$setting] = $value;
+
+	returnJSON($result);
+}
+
+function SetSetting()
+{
+	global $args, $SUDO;
+
+	$setting = $args['key'];
+	$value   = $args['value'];
+
+	check($setting, "setting", __FUNCTION__);
+	check($value, "value", __FUNCTION__);
+
+	WriteSettingToFile($setting, $value);
+
+	if (startsWith($setting, "LogLevel")) {
+		SendCommand("LogLevel,$setting,$value,");
+	} else if ($setting == "HostName") {
+		$value = preg_replace("/[^-a-zA-Z0-9]/", "", $value);
+		exec(	$SUDO . " sed -i 's/^.*\$/$value/' /etc/hostname ; " .
+			$SUDO . " sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts ; " .
+			$SUDO . " sed -i '\$a127.0.1.1 $value' /etc/hosts ; " .
+			$SUDO . " hostname $value ; " .
+			$SUDO . " /etc/init.d/avahi-daemon restart ;" .
+			$SUDO . " systemctl restart avahi-daemon.service",
+			$output, $return_val);
+		sleep(1); // Give Avahi time to restart before we return
+	} else if ($setting == "EnableRouting") {
+		if ($value != "1")
+		{
+			$value = "0";
+		}
+		exec(	$SUDO . " sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf; " .
+			$SUDO . " sed -i '\$anet.ipv4.ip_forward = $value' /etc/sysctl.conf ; " .
+			$SUDO . " sysctl --system",
+			$output, $return_val);
+	} else if ($setting == "storageDevice") {
+        if ($settings['Platform'] == "BeagleBone Black") {
+            exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+            $rootDevice = $output[0];
+            unset($output);
+        } else {
+            exec('lsblk -l | grep " /$" | cut -f1 -d" "', $output, $return_val);
+            $rootDevice = $output[0];
+            unset($output);
+        }
+        if ($value == "--none--") {
+            $value = $rootDevice;
+        } else {
+            $fsckOrder = "0";
+            exec( $SUDO . " file -sL /dev/$value | grep FAT", $output, $return_val );
+            if ($output[0] == "") {
+                unset($output);
+                exec( $SUDO . " file -sL /dev/$value | grep BTRFS", $output, $return_val );
+
+                if ($output[0] == "") {
+                    unset($output);
+                    exec( $SUDO . " file -sL /dev/$value | grep DOS", $output, $return_val );
+                    if ($output[0] == "") {
+                        # probably ext4
+                        $options = "defaults,noatime,nodiratime,nofail";
+                        $fsckOrder = "2";
+                    } else {
+                        # exFAT probably
+                        $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500,nonempty";
+                        $fsckOrder = "2";
+                    }
+                } else {
+                    # BTRFS, turn on compression since fseq files are very compressible
+                    $options = "defaults,noatime,nodiratime,compress=zstd,nofail";
+                    $fsckOrder = "0";
+                }
+            } else {
+                # FAT filesystem
+                $options = "defaults,noatime,nodiratime,exec,nofail,flush,uid=500,gid=500";
+                $fsckOrder = "2";
+            }
+        }
+        if (preg_match("/$rootDevice/", $value)) {
+            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media/#\/dev\/sda1    \/home\/fpp\/media/' /etc/fstab", $output, $return_val );
+        } else {
+            exec(   $SUDO . " sed -i 's/.*home\/fpp\/media.*/\/dev\/$value	\/home\/fpp\/media	auto	$options	0	$fsckOrder /' /etc/fstab", $output, $return_val );
+        }
+        unset($output);
+	} else if ($setting == "AudioOutput") {
+		SetAudioOutput($value);
+    } else if ($setting == "EnableTethering") {
+        $ssid = ReadSettingFromFile("TetherSSID");
+        $psk = ReadSettingFromFile("TetherPSK");
+        if ($ssid == "") {
+            $ssid = "FPP";
+            WriteSettingToFile("TetherSSID", $ssid);
+        }
+        if ($psk == "") {
+            $psk = "Christmas";
+            WriteSettingToFile("TetherPSK", $psk);
+        }
+    } else if ($setting == "BBBLeds0" || $setting == "BBBLeds1" || $setting == "BBBLeds2" || $setting == "BBBLeds3" || $setting == "BBBLedPWR") {
+        SetBBBLeds();
+	} else if ($setting == "scheduling") {
+		SendCommand("EnableScheduling,$value,");
+	} else {
+        ApplySetting($setting, $value);
+		SendCommand("SetSetting,$setting,$value,");
+	}
+
+	GetSetting();
+}
+
 ?>
