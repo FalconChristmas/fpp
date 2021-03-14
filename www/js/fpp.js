@@ -2342,7 +2342,7 @@ function RemovePlaylistEntry()	{
                     document.getElementById("txtStartAddress[" + UniverseCount + "]").value = startAddress;
 
                     if (!input) {
-                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[13].innerHTML = "<input type='button' class='buttons' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
+                        document.getElementById("tblUniversesBody").rows[UniverseCount].cells[14].innerHTML = "<input type='button' class='buttons' value='Ping' onClick='PingE131IP(" + UniverseCount + ");'/>";
                     }
                     updateUniverseEndChannel( document.getElementById("tblUniversesBody").rows[UniverseCount]);
                     UniverseCount++;
@@ -2510,6 +2510,7 @@ function updateUniverseEndChannel(row) {
                 anyEnabled |= active == 1;
 
                 bodyHTML += "<tr>" +
+                            '<td valign="middle">  <div class="rowGrip"> <i class="rowGripIcon fpp-icon-grip"></i> </div> </td>'+
                             "<td><span class='rowID' id='rowID'>" + (i+1).toString() + "</span></td>" +
                             "<td><input class='chkActive' type='checkbox' " + activeChecked +"/></td>" +
                             "<td><input class='txtDesc' type='text' size='24' maxlength='64' value='" + desc + "'/></td>";
@@ -2640,7 +2641,7 @@ function updateUniverseEndChannel(row) {
 		}
 
         function SetUniverseRowInputNames(row, id) {
-            var fields = Array('chkActive', 'txtDesc', 'txtStartAddress',
+            var fields = Array('rowGrip','chkActive', 'txtDesc', 'txtStartAddress',
                                'txtUniverse', 'numUniverseCount', 'txtSize', 'universeType', 'txtIP',
                                'txtPriority', 'txtMonitor', 'txtDeDuplicate');
             row.find('span.rowID').html((id + 1).toString());

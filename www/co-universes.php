@@ -20,31 +20,34 @@ $(document).ready(function() {
 		$(this).select();
 	});
 
-    if (window.innerWidth > 600) {
-        $('#tblUniversesBody').sortable({
-            start: function (event, ui) {
-                start_pos = ui.item.index();
-            },
-            update: function(event, ui) {
-                SetUniverseInputNames();
-            },
-            beforeStop: function (event, ui) {
-                //undo the firefox fix.
-                // Not sure what this is, but copied from playlists.php to here
-                if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-                    $(window).unbind('scroll.sortableplaylist');
-                    ui.helper.css('margin-top', 0);
-                }
-            },
-            helper: function (e, ui) {
-                ui.children().each(function () {
-                    $(this).width($(this).width());
-                });
-                return ui;
-            },
-            scroll: true
-        }).disableSelection();
-    }
+	var sortableOptions = {
+		start: function (event, ui) {
+			start_pos = ui.item.index();
+		},
+		update: function(event, ui) {
+			SetUniverseInputNames();
+		},
+		beforeStop: function (event, ui) {
+			//undo the firefox fix.
+			// Not sure what this is, but copied from playlists.php to here
+			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+				$(window).unbind('scroll.sortableplaylist');
+				ui.helper.css('margin-top', 0);
+			}
+		},
+		helper: function (e, ui) {
+			ui.children().each(function () {
+				$(this).width($(this).width());
+			});
+			return ui;
+		},
+		scroll: true
+	}
+	if(hasTouch){
+		$.extend(sortableOptions,{handle:'.rowGrip'});
+	}
+	$('#tblUniversesBody').sortable(sortableOptions).disableSelection();
+
 
 	$('#tblUniversesBody').on('mousedown', 'tr', function(event,ui){
 		$('#tblUniversesBody tr').removeClass('selectedEntry');
@@ -171,21 +174,22 @@ function PopulateInterfaces()
 						<table id="tblUniverses" class="fppSelectableRowTable">
 							<thead id='tblUniversesHead'>
                                 <tr>
-                                    <th title='Output Number'>Output</th>
-                                    <th title='Output Enabled/Disabled status'>Active</th>
-                                    <th title='User Description'>Description</th>
-                                    <th title='Output Type'>Output <br>Type</th>
-                                    <th title='Unicast IP Address'>Unicast <br>Address</th>
+									<th class="tblScheduleHeadGrip"></th>
+                                    <th aria-label='Output Number'>Output</th>
+                                    <th aria-label='Output Enabled/Disabled status'>Active</th>
+                                    <th aria-label='User Description'>Description</th>
+                                    <th aria-label='Output Type'>Output <br>Type</th>
+                                    <th aria-label='Unicast IP Address'>Unicast <br>Address</th>
    
-                                    <th title='FPP Start Channel'>FPP Start <br>Channel</th>
-                                    <th title='FPP End Channel'>FPP End <br>Channel</th>
-                                    <th title='Universe Number'>Universe #</th>
-                                    <th title='Universe Count for this controller'>Universe <br>Count</th>
-                                    <th title='Universe size'>Universe <br>Size</th>
-                                    <th title='Universe Priority'>Universe <br>Priority</th>
-									<th title='Monitor controller'>Monitor</th>
-                                    <th title='Suppress Duplicate network packets'>DeDup</th>
-                                    <th title='Test ping controller'>Ping</th>
+                                    <th aria-label='FPP Start Channel'>FPP Start <br>Channel</th>
+                                    <th aria-label='FPP End Channel'>FPP End <br>Channel</th>
+                                    <th aria-label='Universe Number'>Universe #</th>
+                                    <th aria-label='Universe Count for this controller'>Universe <br>Count</th>
+                                    <th aria-label='Universe size'>Universe <br>Size</th>
+                                    <th aria-label='Universe Priority'>Universe <br>Priority</th>
+									<th aria-label='Monitor controller'>Monitor</th>
+                                    <th aria-label='Suppress Duplicate network packets'>DeDup</th>
+                                    <th aria-label='Test ping controller'>Ping</th>
                                 </tr>
 							</thead>
 							<tbody id='tblUniversesBody'>

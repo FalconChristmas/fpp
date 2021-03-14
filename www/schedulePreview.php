@@ -110,7 +110,7 @@ if (count($data["schedule"]["items"]) == 0) {
 	exit;
 }
 
-echo "<table class='fppDataTable schedulePreviewTable' border=0 cellpadding=0 cellspacing=0 style='color: #000000;'>\n";
+echo "<table class='fppSelectableRowTable schedulePreviewTable' border=0 cellpadding=0 cellspacing=0 style='color: #000000;'>\n";
 echo "<thead><tr>";
 for ($j = -1; $j < $maxDepth; $j++) {
     echo "<td>&nbsp;</td>";

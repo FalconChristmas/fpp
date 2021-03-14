@@ -160,10 +160,12 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
     body.has-touch &{
         font-size: 16px; //makes sure browser does not zoom into field on mobile
     }
-    .fppTableContents &{
+    .pageContent .fppTableContents &{
         font-family:Arial, Helvetica, sans-serif;
         padding-top: $input-padding-y-sm;
         padding-bottom: $input-padding-y-sm;
+        background-position: right 7px center;
+     
         body.has-touch &{
             padding-top: $input-padding-y;
             padding-bottom: $input-padding-y;
@@ -188,9 +190,9 @@ input[type=date]{
 }   
 .pageContent select, .ui-dialog select, .modal select{
 	background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
-	background-position: right 11px center;
+	background-position: right 9px center;
     background-size: 15px;
-    padding-right:1.5em;
+    padding-right:1.8em;
     cursor: pointer;
     vertical-align: middle;
     &.form-control-lg{
@@ -217,6 +219,7 @@ input[type=checkbox], .form-inline input[type=checkbox]{
     .fppTableContents &{
         width: $checkbox-size-sm;
         height: $checkbox-size-sm;
+        
         &:checked{
             background-size: $checkbox-size-sm * 0.75;
         }
@@ -314,6 +317,7 @@ input[type=checkbox]:checked{
     font-size: inherit;
 }
 .jGrowl-notification{
+    opacity: 1;
     &.ui-state-success{
         background-color: $success;
         color:#fff;
@@ -330,6 +334,7 @@ input[type=checkbox]:checked{
 .jGrowl-closer{
     background-color: $gray-300;
     color:$black;
+    opacity: 1;
 }
 
 .skeleton-loader div {
@@ -613,116 +618,60 @@ table.settingsTable div.th{
 
 	width: 100%;
 	margin-bottom: 2em;
-	margin-top: 2em;
+	margin-top: 1em;
 }
 
-.fppSelectableRowTable tr td{
+.fppSelectableRowTable>tbody>tr>td{
 	padding-top: 0.65em;
 	padding-bottom: 0.5em;
 	background-color: #F5F5F5;
 	border-bottom: 1px solid #dee2e6;
 }
-.fppSelectableRowTable tr:first-child td{
+.fppSelectableRowTable>tbody>tr:first-child>td{
 	padding-top: 0.85em;
 }
-.fppSelectableRowTable tr:last-child td{
+.fppSelectableRowTable>tbody>tr:last-child>td{
 	padding-bottom: 0.85em;
 }
-.fppSelectableRowTable tbody tr>td:first-child{
+.fppSelectableRowTable>tbody>tr>td:first-child{
     padding-left: 0.5em;
     padding-right: 0.1em;
 }
-.fppSelectableRowTable tbody tr>td:last-child,#tblSchedule tbody tr>td:nth-last-child(2){
+.fppSelectableRowTable>tbody>tr>td:last-child,#tblSchedule>tbody>tr>td:nth-last-child(2){
 	padding-right: 0.5em;
 }
-.fppSelectableRowTable tbody tr:first-child>td:first-child{
+.fppSelectableRowTable>tbody>tr:first-child>td:first-child{
 	border-top-left-radius: 8px;
 }
-.fppSelectableRowTable tbody tr:first-child>td:last-child, #tblSchedule tbody tr:first-child>td:nth-last-child(2) {
+.fppSelectableRowTable>tbody>tr:first-child>td:last-child, #tblSchedule>tbody>tr:first-child>td:nth-last-child(2) {
 	border-top-right-radius: 8px;
 }
-.fppSelectableRowTable tbody tr:last-child>td{
+.fppSelectableRowTable>tbody>tr:last-child>td{
 	border-bottom: none;
 }
-.fppSelectableRowTable tbody tr:last-child>td:first-child{
+.fppSelectableRowTable>tbody>tr:last-child>td:first-child{
 	border-bottom-left-radius: 8px;
 }
-.fppSelectableRowTable tbody tr:last-child>td:last-child, #tblSchedule tbody tr:last-child>td:nth-last-child(2) {
+.fppSelectableRowTable>tbody>tr:last-child>td:last-child, #tblSchedule>tbody>tr:last-child>td:nth-last-child(2) {
 	border-bottom-right-radius: 8px;
 }
-.fppSelectableRowTable tr th{
+.fppSelectableRowTable tr>th{
 	font-size: 0.75rem;
 	text-transform: uppercase;
 	margin-bottom: 0.8em;
 	font-weight: normal;
 	padding-bottom:1em;
 }
-.fppSelectableRowTable tr.selectedEntry td,
-.fppSelectableRowTable tr.fppTableSelectedEntry td
+.fppSelectableRowTable>tbody>tr>th{
+    border-bottom: 1px solid #dee2e6;
+}
+.fppSelectableRowTable>tbody>tr.selectedEntry>td,
+.fppSelectableRowTable>tbody>tr.fppTableSelectedEntry>td
 {
 	background-color: $highlight;
 }
-#tblSchedule.fppSelectableRowTable tr td {
+#tblSchedule.fppSelectableRowTable>tbody>tr>td {
 	vertical-align: top;
-}
-
-
-$fppTableDefaultPadding:1.1em;
-$fppTableExtraPadding:1.1em;
-.fppBasicTable{
-	width: 100%;
-	margin-bottom: 2em;
-	margin-top: 2em;
-}
-
-.fppBasicTable>tbody>tr>td{
-	padding-top: $fppTableDefaultPadding;
-	padding-bottom: $fppTableDefaultPadding;
-	background-color: #F5F5F5;
-	border-bottom: 1px solid #dee2e6;
-}
-
-.fppBasicTable>tbody>tr:last-child td{
-	padding-bottom: $fppTableExtraPadding;
-}
-.fppBasicTable>tbody>tr>td:first-child{
-	padding-left: $fppTableExtraPadding;
-	padding-right:0.4em;
-}
-.fppBasicTable>tbody>tr>td:last-child{
-	padding-right: $fppTableDefaultPadding;
-}
-.fppBasicTable>tbody>tr:first-child>td:first-child{
-	border-top-left-radius: 8px;
-}
-.fppBasicTable>tbody>tr:first-child>td:last-child {
-	border-top-right-radius: 8px;
-}
-.fppBasicTable>tbody>tr:last-child>td{
-	border-bottom: none;
-}
-.fppBasicTable>tbody>tr:last-child>td:first-child{
-	border-bottom-left-radius: 8px;
-}
-.fppBasicTable>tbody>tr:last-child>td:last-child {
-	border-bottom-right-radius: 8px;
-}
-.fppBasicTable>thead>tr>th{
-	font-size: 0.75rem;
-	text-transform: uppercase;
-	margin-bottom: 0.8em;
-	font-weight: normal;
-	padding-bottom:1em;
-}
-
-.fppDataTable {
-    @extend .fppBasicTable;
-    >tbody>tr>td,>tbody>tr>th {
-        background-color: transparent;
-        border-bottom: 1px solid #dee2e6;
-        padding-top: 0.2em;
-        padding-bottom: 0.2em;
-    }
 }
 
 

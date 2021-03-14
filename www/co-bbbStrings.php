@@ -899,7 +899,7 @@ $(document).ready(function(){
                     </table>
                         <div class='fppTableWrapper fppTableWrapperAsTable hidden'>
                             <div class='fppTableContents serialOutputContents' role="region" aria-labelledby="BBBSerial_Output" tabindex="0">
-						<table ports='8' id='BBBSerial_Output' class="fppBasicTable">
+						<table ports='8' id='BBBSerial_Output' class="fppSelectableRowTable">
 							<thead>
 								<tr>
 									<th width='30px'>#</th>

@@ -3,7 +3,16 @@
 .buttons {
   @extend .btn;
   @include fpp-btn-outline-variant($black);
+  .fppTableContents &{
+    padding-top: $btn-padding-y-sm;
+    padding-bottom: $btn-padding-y-sm;
+    body.has-touch &{
+        padding-top: $btn-padding-y;
+        padding-bottom: $btn-padding-y;
+    }
+  }
 }
+
 .btn-lg {
   font-size: $font-size-lg * 0.9;
 }

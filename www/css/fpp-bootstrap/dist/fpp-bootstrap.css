@@ -7475,7 +7475,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
 
 .alert {
   position: relative;
-  padding: 1.35rem 1.8rem;
+  padding: 1.05rem 1.35rem;
   margin-bottom: 1rem;
   border: 1px solid transparent;
   border-radius: 8px; }
@@ -7487,13 +7487,13 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   font-weight: 700; }
 
 .alert-dismissible {
-  padding-right: 5.025rem; }
+  padding-right: 4.125rem; }
   .alert-dismissible .close {
     position: absolute;
     top: 0;
     right: 0;
     z-index: 2;
-    padding: 1.35rem 1.8rem;
+    padding: 1.05rem 1.35rem;
     color: inherit; }
 
 .alert-primary {
@@ -8660,6 +8660,12 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   .buttons.disabled, .pageContent .buttons.disableButtons, .pageContent .ui-dialog-buttonset button.disableButtons, .ui-dialog-buttonset .pageContent button.disableButtons, .ui-dialog .buttons.disableButtons, .ui-dialog .ui-dialog-buttonset button.disableButtons, .ui-dialog-buttonset .ui-dialog button.disableButtons, .modal .buttons.disableButtons, .modal .ui-dialog-buttonset button.disableButtons, .ui-dialog-buttonset .modal button.disableButtons, .ui-dialog-buttonset button.disabled, .buttons:disabled, .ui-dialog-buttonset button:disabled {
     color: #171720;
     background-color: transparent; }
+  .fppTableContents .buttons, .fppTableContents .ui-dialog-buttonset button, .ui-dialog-buttonset .fppTableContents button {
+    padding-top: 0.1rem;
+    padding-bottom: 0.1rem; }
+    body.has-touch .fppTableContents .buttons, body.has-touch .fppTableContents .ui-dialog-buttonset button, .ui-dialog-buttonset body.has-touch .fppTableContents button {
+      padding-top: 0.33rem;
+      padding-bottom: 0.33rem; }
 
 .btn-lg, .btn-group-lg > .btn, .btn-group-lg > .buttons, .ui-dialog-buttonset .btn-group-lg > button, .btn-group-lg > .ajax-file-upload, .pageContent .btn-group-lg > .disableButtons, .ui-dialog .btn-group-lg > .disableButtons, .modal .btn-group-lg > .disableButtons {
   font-size: 1.06875rem; }
@@ -9203,11 +9209,12 @@ input[type=text], input[type=number], input[type=password], input[type=email], i
     opacity: 1; }
   body.has-touch input[type=text], body.has-touch input[type=number], body.has-touch input[type=password], body.has-touch input[type=email], body.has-touch input[type=date], body.has-touch input[type=search], body.has-touch select, body.has-touch .tablesorter input {
     font-size: 16px; }
-  .fppTableContents input[type=text], .fppTableContents input[type=number], .fppTableContents input[type=password], .fppTableContents input[type=email], .fppTableContents input[type=date], .fppTableContents input[type=search], .fppTableContents select, .fppTableContents .tablesorter input {
+  .pageContent .fppTableContents input[type=text], .pageContent .fppTableContents input[type=number], .pageContent .fppTableContents input[type=password], .pageContent .fppTableContents input[type=email], .pageContent .fppTableContents input[type=date], .pageContent .fppTableContents input[type=search], .pageContent .fppTableContents select, .pageContent .fppTableContents .tablesorter input {
     font-family: Arial, Helvetica, sans-serif;
     padding-top: 0.1rem;
-    padding-bottom: 0.1rem; }
-    body.has-touch .fppTableContents input[type=text], body.has-touch .fppTableContents input[type=number], body.has-touch .fppTableContents input[type=password], body.has-touch .fppTableContents input[type=email], body.has-touch .fppTableContents input[type=date], body.has-touch .fppTableContents input[type=search], body.has-touch .fppTableContents select, body.has-touch .fppTableContents .tablesorter input {
+    padding-bottom: 0.1rem;
+    background-position: right 7px center; }
+    body.has-touch .pageContent .fppTableContents input[type=text], body.has-touch .pageContent .fppTableContents input[type=number], body.has-touch .pageContent .fppTableContents input[type=password], body.has-touch .pageContent .fppTableContents input[type=email], body.has-touch .pageContent .fppTableContents input[type=date], body.has-touch .pageContent .fppTableContents input[type=search], body.has-touch .pageContent .fppTableContents select, body.has-touch .pageContent .fppTableContents .tablesorter input {
       padding-top: 0.33rem;
       padding-bottom: 0.33rem; }
 
@@ -9225,9 +9232,9 @@ input[type=date] {
 
 .pageContent select, .ui-dialog select, .modal select {
   background: #fff url(/images/redesign/chevron-down-grey.svg) no-repeat;
-  background-position: right 11px center;
+  background-position: right 9px center;
   background-size: 15px;
-  padding-right: 1.5em;
+  padding-right: 1.8em;
   cursor: pointer;
   vertical-align: middle; }
   .pageContent select.form-control-lg, .ui-dialog select.form-control-lg, .modal select.form-control-lg {
@@ -9327,21 +9334,22 @@ input[type=checkbox]:checked {
 .jGrowl {
   font-size: inherit; }
 
-.jGrowl-notification.ui-state-success {
-  background-color: #56B760;
-  color: #fff; }
-
-.jGrowl-notification.ui-state-danger {
-  background-color: #F63939;
-  color: #fff; }
-
-.jGrowl-notification.ui-state-detract {
-  background-color: #F2BC5F;
-  color: #fff; }
+.jGrowl-notification {
+  opacity: 1; }
+  .jGrowl-notification.ui-state-success {
+    background-color: #56B760;
+    color: #fff; }
+  .jGrowl-notification.ui-state-danger {
+    background-color: #F63939;
+    color: #fff; }
+  .jGrowl-notification.ui-state-detract {
+    background-color: #F2BC5F;
+    color: #fff; }
 
 .jGrowl-closer {
   background-color: #dee2e6;
-  color: #171720; }
+  color: #171720;
+  opacity: 1; }
 
 .skeleton-loader div {
   -webkit-animation-duration: 0.5s;
@@ -9596,104 +9604,58 @@ table.settingsTable div.th {
 .fppSelectableRowTable {
   width: 100%;
   margin-bottom: 2em;
-  margin-top: 2em; }
+  margin-top: 1em; }
 
-.fppSelectableRowTable tr td {
+.fppSelectableRowTable > tbody > tr > td {
   padding-top: 0.65em;
   padding-bottom: 0.5em;
   background-color: #F5F5F5;
   border-bottom: 1px solid #dee2e6; }
 
-.fppSelectableRowTable tr:first-child td {
+.fppSelectableRowTable > tbody > tr:first-child > td {
   padding-top: 0.85em; }
 
-.fppSelectableRowTable tr:last-child td {
+.fppSelectableRowTable > tbody > tr:last-child > td {
   padding-bottom: 0.85em; }
 
-.fppSelectableRowTable tbody tr > td:first-child {
+.fppSelectableRowTable > tbody > tr > td:first-child {
   padding-left: 0.5em;
   padding-right: 0.1em; }
 
-.fppSelectableRowTable tbody tr > td:last-child, #tblSchedule tbody tr > td:nth-last-child(2) {
+.fppSelectableRowTable > tbody > tr > td:last-child, #tblSchedule > tbody > tr > td:nth-last-child(2) {
   padding-right: 0.5em; }
 
-.fppSelectableRowTable tbody tr:first-child > td:first-child {
+.fppSelectableRowTable > tbody > tr:first-child > td:first-child {
   border-top-left-radius: 8px; }
 
-.fppSelectableRowTable tbody tr:first-child > td:last-child, #tblSchedule tbody tr:first-child > td:nth-last-child(2) {
+.fppSelectableRowTable > tbody > tr:first-child > td:last-child, #tblSchedule > tbody > tr:first-child > td:nth-last-child(2) {
   border-top-right-radius: 8px; }
 
-.fppSelectableRowTable tbody tr:last-child > td {
+.fppSelectableRowTable > tbody > tr:last-child > td {
   border-bottom: none; }
 
-.fppSelectableRowTable tbody tr:last-child > td:first-child {
+.fppSelectableRowTable > tbody > tr:last-child > td:first-child {
   border-bottom-left-radius: 8px; }
 
-.fppSelectableRowTable tbody tr:last-child > td:last-child, #tblSchedule tbody tr:last-child > td:nth-last-child(2) {
+.fppSelectableRowTable > tbody > tr:last-child > td:last-child, #tblSchedule > tbody > tr:last-child > td:nth-last-child(2) {
   border-bottom-right-radius: 8px; }
 
-.fppSelectableRowTable tr th {
+.fppSelectableRowTable tr > th {
   font-size: 0.75rem;
   text-transform: uppercase;
   margin-bottom: 0.8em;
   font-weight: normal;
   padding-bottom: 1em; }
 
-.fppSelectableRowTable tr.selectedEntry td,
-.fppSelectableRowTable tr.fppTableSelectedEntry td {
-  background-color: #DEE8FF; }
-
-#tblSchedule.fppSelectableRowTable tr td {
-  vertical-align: top; }
-
-.fppBasicTable, .fppDataTable {
-  width: 100%;
-  margin-bottom: 2em;
-  margin-top: 2em; }
-
-.fppBasicTable > tbody > tr > td, .fppDataTable > tbody > tr > td {
-  padding-top: 1.1em;
-  padding-bottom: 1.1em;
-  background-color: #F5F5F5;
+.fppSelectableRowTable > tbody > tr > th {
   border-bottom: 1px solid #dee2e6; }
 
-.fppBasicTable > tbody > tr:last-child td, .fppDataTable > tbody > tr:last-child td {
-  padding-bottom: 1.1em; }
+.fppSelectableRowTable > tbody > tr.selectedEntry > td,
+.fppSelectableRowTable > tbody > tr.fppTableSelectedEntry > td {
+  background-color: #DEE8FF; }
 
-.fppBasicTable > tbody > tr > td:first-child, .fppDataTable > tbody > tr > td:first-child {
-  padding-left: 1.1em;
-  padding-right: 0.4em; }
-
-.fppBasicTable > tbody > tr > td:last-child, .fppDataTable > tbody > tr > td:last-child {
-  padding-right: 1.1em; }
-
-.fppBasicTable > tbody > tr:first-child > td:first-child, .fppDataTable > tbody > tr:first-child > td:first-child {
-  border-top-left-radius: 8px; }
-
-.fppBasicTable > tbody > tr:first-child > td:last-child, .fppDataTable > tbody > tr:first-child > td:last-child {
-  border-top-right-radius: 8px; }
-
-.fppBasicTable > tbody > tr:last-child > td, .fppDataTable > tbody > tr:last-child > td {
-  border-bottom: none; }
-
-.fppBasicTable > tbody > tr:last-child > td:first-child, .fppDataTable > tbody > tr:last-child > td:first-child {
-  border-bottom-left-radius: 8px; }
-
-.fppBasicTable > tbody > tr:last-child > td:last-child, .fppDataTable > tbody > tr:last-child > td:last-child {
-  border-bottom-right-radius: 8px; }
-
-.fppBasicTable > thead > tr > th, .fppDataTable > thead > tr > th {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  margin-bottom: 0.8em;
-  font-weight: normal;
-  padding-bottom: 1em; }
-
-.fppDataTable > tbody > tr > td, .fppDataTable > tbody > tr > th {
-  background-color: transparent;
-  border-bottom: 1px solid #dee2e6;
-  padding-top: 0.2em;
-  padding-bottom: 0.2em; }
+#tblSchedule.fppSelectableRowTable > tbody > tr > td {
+  vertical-align: top; }
 
 .fppActionTable {
   width: 100%;

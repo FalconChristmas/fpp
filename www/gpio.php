@@ -141,7 +141,7 @@ extraCommands = [
             <hr>
             <div class='fppTableWrapper'>
             <div class='fppTableContents fullWidth' role="region" aria-labelledby="GPIOInputs" tabindex="0">
-            <table id='GPIOInputs' class="fppBasicTable">
+            <table id='GPIOInputs' class="fppSelectableRowTable">
                 <thead>
                     <tr>
                         <th >En.</th>

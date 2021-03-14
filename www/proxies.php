@@ -115,15 +115,23 @@ foreach ($hta as $line) {
     <div class="pageContent">
         
           <div id="proxies" class="settings">
-            
-                 <table>
-                    <tr>
-                        <td width='70px'><input type=button value='Save' onClick='SetProxies();' class='buttons'></td>
-                        <td width='70px'><input type=button value='Add' onClick='AddNewProxy();' class='buttons'></td>
-                        <td width='40px'>&nbsp;</td>
-                        <td width='70px'><input type=button value='Delete' onClick='DeleteSelectedProxy();' id='btnDelete' class='disableButtons'></td>
-                    </tr>
-                </table>
+
+                <div class="row tablePageHeader">
+					<div class="col-md">
+						<h2>Proxied Hosts</h2>
+					</div>
+					<div class="col-md-auto ml-lg-auto">
+						<div class="form-actions">
+			
+								<input type=button value='Delete' onClick='DeleteSelectedProxy();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
+								<button type=button value='Add' onClick='AddNewProxy();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
+								<input type=button value='Save' onClick='SetProxies();' class='buttons btn-success ml-1'>
+
+						</div>
+					</div>
+				</div>
+				<hr>
+  
                 <div class="fppTableWrapper fppTableWrapperAsTable">
                     <div class='fppTableContents' role="region" aria-labelledby="proxyTable" tabindex="0">
                         <table id="proxyTable" class="fppSelectableRowTable">
