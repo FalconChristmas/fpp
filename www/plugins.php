@@ -8,9 +8,6 @@ writeFPPVersionJavascriptFunctions();
     
 include 'common/menuHead.inc';
 ?>
-<script type="text/javascript" src="js/fpp.js?ref=<?php echo filemtime('js/fpp.js'); ?>"></script>
-<script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
-<script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
 <script>
 var installedPlugins = [];
 var pluginInfos = [];
@@ -165,20 +162,16 @@ function LoadPlugin(data, insert = false) {
 	if ($('#row-' + data.repoName).length)
 	{
 		// Delete the original entry so we can re-add with the latest info
-		$('#row-' + data.repoName).next('tr').remove();
-		if ($('#row-' + data.repoName).next('tr').html() == '<td colspan="7"><hr></td>')
-			$('#row-' + data.repoName).next('tr').remove();
+		$('#row-' + data.repoName).next('.row').remove();
+		if ($('#row-' + data.repoName).next('.row').html() == '<div class="col"><hr></div>')
+			$('#row-' + data.repoName).next('.row').remove();
 		else
-			$('#row-' + data.repoName).prev('tr').remove();
+			$('#row-' + data.repoName).prev('.row').remove();
 
 		$('#row-' + data.repoName).remove();
 	}
 	else
 		pluginInfos.push(data);
-
-	html += '<tr id="row-' + data.repoName + '">';
-	html += '<td><span class="pluginTitle">' + data.name + '</span></td>';
-	html += '<td align="right">';
 
 	var installed = PluginIsInstalled(data.repoName);
 	var compatibleVersion = -1;
@@ -193,54 +186,78 @@ function LoadPlugin(data, insert = false) {
 			compatibleVersion = i;
 		}
 	}
+	var compatibleVersionClass= (compatibleVersion == -1) ? " has-previous-compatible-version":'';
+	html += '<div id="row-' + data.repoName + '" class="backdrop fppPluginEntry'+compatibleVersionClass+'"><div class="row">';
+	html += '<div class="col-lg-3"><h3 class="pluginTitle">' + data.name + '</h3>';
+	
+	if (installed){
+		html += '<div class="text-success fppPluginEntryInstallStatus"><i class="far fa-check-circle"></i> <b>Installed</b></div>';
+	}
+
+	html += '</div>';
+	html += '<div class="col-lg-2 text-muted"><div class="labelHeading">Author:</div>' + data.author + '</div>';
+	html += '<div class="col-lg text-muted"><div class="labelHeading">Description:</div>' + data.description ;
+	
+	html += '</div>';
+	html += '<div class="col-lg-auto fppPluginEntryActions">';
+	
+	html += '<div align="right">';
+
+	
+
 
 	if (installed)
 	{
 		if (!data.hasOwnProperty('allowUpdates') || data.allowUpdates)
 		{
-			html += "<span class='pendingSpan updatesAvailable'";
+			html += "<div class='pendingSpan updatesAvailable'";
 			if (!data.updatesAvailable)
 				html += " style='display: none;'";
 
-			html += "><table border=0 cellspacing=0 class='updateTable'><tr><td>Updates<br>Available</td><td>&nbsp;&nbsp;</td><td><img src=\"images/update.png\" class=\"button\" title=\"Update Plugin\" onClick='UpgradePlugin(\"" + data.repoName + "\");'></td></tr></table>";
+			html += "><div class='updateTable text-success fppPluginEntryUpdateStatus'><i class='fas fa-exclamation-circle'></i> <b>Updates Available</b></div>";
+			html += "<button class='buttons btn-success' onClick='UpgradePlugin(\"" + data.repoName + "\");'><i class='far fa-arrow-alt-circle-down'></i> Update Now</button>";
 
-			html += '</span>';
-			html += '</td><td align="right">';
+			html += '</div>';
+			html += '</div><div align="right">';
 
-			html += "<img src=\"images/checkmark.png\" class=\"button\" title=\"Check for Updates\" onClick='CheckPluginForUpdates(\"" + data.repoName + "\");'>";
+			html += "<button class='buttons btn-outline-success' onClick='CheckPluginForUpdates(\"" + data.repoName + "\");'><i class='fas fa-sync-alt'></i> Check for Updates</button>";
+
 		}
 		else
 		{
-			html += '</td><td align="right">';
+			html += '</div><div align="right">';
 		}
 
-		html += '</td><td align="right">';
-		html += "<img src=\"images/uninstall.png\" class=\"button\" title=\"Uninstall Plugin\" onClick='UninstallPlugin(\"" + data.repoName + "\");'>";
+		html += '</div><div align="right">';
+		html += "<button class='buttons btn-outline-danger'  onClick='UninstallPlugin(\"" + data.repoName + "\");'><i class='fas fa-trash-alt'></i> Uninstall</button>";
 	}
 	else
 	{
-		html += '</td><td align="right">';
-		html += '</td><td align="right">';
+		html += '</div><div align="right">';
+		html += '</div><div align="right">';
 		if (compatibleVersion >= 0)
 		{
-			html += "<img src=\"images/install.png\" class=\"button\" title=\"Install Plugin\" onClick='InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[compatibleVersion].branch + "\", \"" + data.versions[compatibleVersion].sha + "\");'>";
+			html += "<button class='buttons btn-success' onClick=' InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[compatibleVersion].branch + "\", \"" + data.versions[compatibleVersion].sha + "\");'><i class='far fa-arrow-alt-circle-down'></i> Install</button>";
+			//html += "<img src=\"images/install.png\" class=\"button\" title=\"Install Plugin\" onClick='InstallPlugin(\"" + data.repoName + "\", \"" + data.versions[compatibleVersion].branch + "\", \"" + data.versions[compatibleVersion].sha + "\");'>";
 		}
 	}
 
-	html += '</td><td align="right">';
-	html += '<a href="' + data.homeURL + '" target="_blank"><img src="images/home.png" title="Home Page" class="button"></a>';
-	html += '</td><td align="right">';
-	html += '<a href="' + data.srcURL + '" target="_blank"><img src="images/source.png" title="Source" class="button"></a>';
-	html += '</td><td align="right">';
-	html += '<a href="' + data.bugURL + '" target="_blank"><img src="images/bug.png" title="Report Bug" class="button"></a>';
-	html += '</td></tr>';
-	html += '<tr><td colspan="7">' + data.description;
-	html += '<br><b>By:</b> ' + data.author;
-	html += '<br><b>Repo:</b> ' + data.homeURL;
+	html += '</div>';
+
+	html += '</div></div>';
+	html += '<div class="row fppPluginEntryFooter"><div class="col-lg"><a href="' + data.homeURL + '" target="_blank"><i class="fas fa-home"></i> ' + data.homeURL + '</a></div>';
+	html += '<div class="col-lg-auto"><a href="' + data.srcURL + '" target="_blank"><i class="fas fa-code"></i> View Source</a>';
+	html += ' <a href="' + data.bugURL + '" target="_blank" class="pl-2"><i class="fas fa-bug"></i> Report a Bug</a></div>';
+	html += '</div>';
+	html += '</div>';
+	
+
+
 
 	if (compatibleVersion == -1)
 	{
-		html += '<br><br>Plugin has compatible versions for FPP Versions:<br>';
+		html += '<div class="text-muted fppPluginEntryCompatibilityStatus">';
+		html += '<i class="fas fa-info-circle"></i> Plugin has compatible versions for FPP Versions: <b>';
 		for (var i = 0; i < data.versions.length; i++)
 		{
 			if (i > 0)
@@ -270,9 +287,10 @@ function LoadPlugin(data, insert = false) {
                 }
             }
 		}
+		html += '</b></div>';
 	}
 
-	html += '</td></tr>';
+	
 
 	if (installed)
 	{
@@ -280,13 +298,11 @@ function LoadPlugin(data, insert = false) {
 
 		if (firstInstalled)
 			firstInstalled = 0;
-		else
-			$('#installedPlugins').append('<tr><td colspan="7"><hr></td></tr>');
 
 		$('#installedPlugins').append(html);
 
 		if (compatibleVersion == -1)
-			$('#installedPlugins').append('<tr><td colspan="7" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version or platform.</td></tr>');
+			$('#installedPlugins').append('<div class="row"><div class="col" class="bad">WARNING: This plugin is already installed, but may be incompatible with this FPP version or platform.</div></div>');
 	}
 	else if (data.repoName == 'fpp-plugin-Template')
 	{
@@ -300,8 +316,7 @@ function LoadPlugin(data, insert = false) {
 			$('#untestedPlugins').show();
 			firstUntested = 0;
 		}
-		else
-			$('#untestedPlugins').append('<tr><td colspan="7"><hr></td></tr>');
+
 
 		$('#untestedPlugins').append(html);
 	}
@@ -309,15 +324,10 @@ function LoadPlugin(data, insert = false) {
 	{
 		if (firstCompatible) {
 			firstCompatible = 0;
-		} else {
-			if (insert)
-				$('#pluginTable').find('tr:nth-child(2)').after('<tr><td colspan="7"><hr></td></tr>');
-			else
-				$('#pluginTable').append('<tr><td colspan="7"><hr></td></tr>');
 		}
 
 		if (insert) {
-			$('#pluginTable').find('tr:nth-child(2)').after(html);
+			$('#pluginTable').find('.row:nth-child(2)').after(html);
 			document.getElementById("pluginTable").scrollIntoView();
 		} else {
 			$('#pluginTable').append(html);
@@ -330,8 +340,7 @@ function LoadPlugin(data, insert = false) {
 			$('#incompatiblePlugins').show();
 			firstIncompatible = 0;
 		}
-		else
-			$('#incompatiblePlugins').append('<tr><td colspan="7"><hr></td></tr>');
+
 
 		$('#incompatiblePlugins').append(html);
 	}
@@ -423,7 +432,7 @@ $(document).ready(function() {
 		
 		<div id="plugins" class="settings">
 
-		<div class="backdrop" id='pluginTableHead'>
+		<div id='pluginTableHead'>
 
 			If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
 		
@@ -436,29 +445,24 @@ $(document).ready(function() {
 
 
 		</div>
-		<table class='pluginTable' border=0 cellpadding=0>
+		<div class='plugindiv'>
 
-		<tbody id='installedPlugins' style='display: none;'>
-			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgBlue'><h2>Installed Plugins</h2></td></tr>
-		</tbody>
-		<tbody id='pluginTable'>
-			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgGreen'><h2>Available Plugins</h2></td></tr>
-		</tbody>
-		<tbody id='untestedPlugins' style='display: none;'>
-			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgGreen'><h2>Plugins not tested with this FPP version</h2></td></tr>
-		</tbody>
-		<tbody id='templatePlugin' style='display: none;'>
-			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgDarkOrange'><h2>Template Plugin</h2></td></tr>
-		</tbody>
-		<tbody id='incompatiblePlugins' style='display: none;'>
-			<tr><td colspan=7>&nbsp;</td></tr>
-			<tr><td colspan=7 class='pluginsHeader bgRed'><h2>Incompatible Plugins</h2></td></tr>
-		</tbody>
-		</table>
+			<div id='installedPlugins' class="" style='display: none;'>
+				<div class='pluginsHeader'><h2>Installed Plugins</h2></div>
+			</div>
+			<div id='pluginTable' class="">
+				<div class='pluginsHeader '><h2>Available Plugins</h2></div>
+			</div>
+			<div id='untestedPlugins' class="" style='display: none;'>
+				<div class='pluginsHeader '><h2>Plugins not tested with this FPP version</h2></div>
+			</div>
+			<div id='templatePlugin' class="" style='display: none;'>
+				<div class='pluginsHeader '><h2>Template Plugin</h2></div>
+			</div>
+			<div id='incompatiblePlugins' class="" style='display: none;'>
+				<div class='pluginsHeader '><h2>Incompatible Plugins</h2></div>
+			</div>
+		</div>
 		
 		<div id="overlay">
 		</div>

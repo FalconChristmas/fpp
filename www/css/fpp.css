@@ -1400,6 +1400,71 @@ body .sm-clean a .sub-arrow {
 .playlistEdit{
 
 }
+.fppPluginEntry {
+	position: relative;
+	padding-left: 2.5em;
+	margin-bottom: 0.8em;
+}
+.fppPluginEntry.has-previous-compatible-version{
+	margin-bottom: 0;
+}
+.fppPluginEntry:before{
+	display: block;
+	content:'';
+	position: absolute;
+	background-color: gray;
+	border-radius: 4px;
+	width: 5px;
+	top: 0.75em;
+	bottom: 0.75em;
+	left: 0.5em;
+}
+.fppPluginEntry .fppPluginEntryFooter{
+	border-top:1px solid #ced4da;
+	margin-right: 1px;
+	padding-top: 1em;
+	font-size: 0.9em;
+	margin-bottom: 0;
+}
+.fppPluginEntryFooter a{
+	text-decoration: none;
+	color:#717171;
+}
+.fppPluginEntryActions .buttons{
+	width:200px;
+	margin-bottom: 0.5em;
+}
+.fppPluginEntryInstallStatus{
+	font-size: 1.1em;
+}
+.fppPluginEntryUpdateStatus{
+	text-align: center;
+	margin-bottom: 0.5em;
+}
+.fppPluginEntryCompatibilityStatus{
+	margin-top: 0.5em;
+}
+#installedPlugins .fppPluginEntry:before{
+	background-color: #56B760;
+}
+#pluginTable .fppPluginEntry:before{
+	background-color: #6B95EC;
+}
+#untestedPlugins .fppPluginEntry:before{
+	background-color: #F2BC5F;
+}
+#incompatiblePlugins .fppPluginEntry:before{
+	background-color: #F63939;
+}
+.fppPluginEntryCompatibilityStatus{
+	margin-bottom: 1.5em;
+	font-size: 0.9em;
+	padding-left: 0.8em;
+}
+.pluginsHeader {
+	margin-top: 2em;
+	margin-bottom: 1em;
+}
 .fppScriptEntry>.row{
 	margin-bottom: 0;
 }
