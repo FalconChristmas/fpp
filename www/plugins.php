@@ -187,7 +187,7 @@ function LoadPlugin(data, insert = false) {
 		}
 	}
 	var compatibleVersionClass= (compatibleVersion == -1) ? " has-previous-compatible-version":'';
-	html += '<div id="row-' + data.repoName + '" class="backdrop fppPluginEntry'+compatibleVersionClass+'"><div class="row">';
+	html += '<div id="row-' + data.repoName + '" class="fppPluginEntry'+compatibleVersionClass+'"><div class="backdrop fppPluginEntryBackdrop"><div class="row">';
 	html += '<div class="col-lg-3"><h3 class="pluginTitle">' + data.name + '</h3>';
 	
 	if (installed){
@@ -196,7 +196,7 @@ function LoadPlugin(data, insert = false) {
 
 	html += '</div>';
 	html += '<div class="col-lg-2 text-muted"><div class="labelHeading">Author:</div>' + data.author + '</div>';
-	html += '<div class="col-lg text-muted"><div class="labelHeading">Description:</div>' + data.description ;
+	html += '<div class="col-lg text-muted"><div class="labelHeading">Description:</div><div class="fppPluginEntryDescription">' + data.description + '</div>' ;
 	
 	html += '</div>';
 	html += '<div class="col-lg-auto fppPluginEntryActions">';
@@ -287,7 +287,7 @@ function LoadPlugin(data, insert = false) {
                 }
             }
 		}
-		html += '</b></div>';
+		html += '</b></div></div>';
 	}
 
 	
@@ -355,6 +355,7 @@ function LoadInstalledPlugins() {
 			dataType: 'json',
 			success: function(data) {
 				LoadPlugin(data);
+				FilterPlugins();
 			},
 			error: function() {
 				alert('Error, failed to fetch ' + installedPlugins[i]);
@@ -379,6 +380,9 @@ function LoadPlugins(pluginList) {
 				success: function(data) {
 					$('html,body').css('cursor','auto');
 					LoadPlugin(data);
+					$('#pluginInput').on('input',FilterPlugins);
+					FilterPlugins();
+					
 				},
 				error: function() {
 					$('html,body').css('cursor','auto');
@@ -390,7 +394,7 @@ function LoadPlugins(pluginList) {
 }
 
 function ManualLoadInfo() {
-	var url = $('#pluginInfoURL').val();
+	var url = $('#pluginInput').val();
 
 	if (url.indexOf('://') > -1)
 	{
@@ -414,9 +418,41 @@ function ManualLoadInfo() {
 		alert('Invalid pluginInfo.json URL');
 	}
 }
-
+function FilterPlugins(){
+	if($('#pluginInput').val().indexOf('://') > -1){
+		$('.fppPluginInput').addClass('is-url');
+		$('.fppPluginEntry').addClass('pluginFilterVisible');
+		$('.fppPluginSection').addClass('pluginFilterSectionVisible');
+	}else{
+		$('.fppPluginInput').removeClass('is-url');
+		var value = $('#pluginInput').val().toLowerCase();
+		if(value==''){
+			$('.fppPluginEntry').addClass('pluginFilterVisible');
+			$('.fppPluginSection').addClass('pluginFilterSectionVisible');
+		}else{
+			$('.fppPluginSection').each(function(){
+				var filterMatchesInSection = 0;
+				$(this).children('.fppPluginEntry').each(function( index ) {
+					if($( ".pluginTitle", this ).text().toLowerCase().indexOf(value) > -1){ 
+						$(this).addClass('pluginFilterVisible');
+						filterMatchesInSection++;
+					}else{
+						$(this).removeClass('pluginFilterVisible');
+					}
+				});
+				if(filterMatchesInSection>0){
+					$(this).addClass('pluginFilterSectionVisible');
+				}else{
+					$(this).removeClass('pluginFilterSectionVisible');
+				}
+			});
+		}
+	}
+	
+}
 $(document).ready(function() {
 	GetInstalledPlugins();
+	
 });
 </script>
 <title><? echo $pageTitle; ?></title>
@@ -434,32 +470,32 @@ $(document).ready(function() {
 
 		<div id='pluginTableHead'>
 
-			If you do not see the plugin you are looking for, you can manually add a plugin to the list by providing the URL for the plugin's pluginInfo.json file below and clicking the 'Retrieve Plugin Info' button:<br>
-		
-		
-		<div class="form-row align-items-center">
-			<div class="col-auto"><label for="pluginInfoURL">pluginInfo.json URL:</label></div>
-			<div class="col-auto"><input id='pluginInfoURL' type="text" size=90 maxlength=255></div>
-			<div class="col-auto"><input type='button' class="buttons" onClick='ManualLoadInfo();' value='Retrieve Plugin Info'></div>
-		</div>
+		<div class="row fppPluginInput">
+			<div class="col">
+				<input type="text" id="pluginInput" class="form-control form-control-lg form-control-rounded has-shadow" placeholder="Find a Plugin or Enter a plugininfo.json URL" />
 
+			</div>
+			<div class="col-auto fppPluginInputActionCol">
+				<div class="buttons btn-lg btn-rounded btn-outline-success" onClick='ManualLoadInfo();'><i class="fas fa-download"></i> Get Plugin Info</div>
+			</div>
+		</div>
 
 		</div>
 		<div class='plugindiv'>
 
-			<div id='installedPlugins' class="" style='display: none;'>
+			<div id='installedPlugins' class="fppPluginSection" style='display: none;'>
 				<div class='pluginsHeader'><h2>Installed Plugins</h2></div>
 			</div>
-			<div id='pluginTable' class="">
+			<div id='pluginTable' class="fppPluginSection">
 				<div class='pluginsHeader '><h2>Available Plugins</h2></div>
 			</div>
-			<div id='untestedPlugins' class="" style='display: none;'>
+			<div id='untestedPlugins' class="fppPluginSection" style='display: none;'>
 				<div class='pluginsHeader '><h2>Plugins not tested with this FPP version</h2></div>
 			</div>
-			<div id='templatePlugin' class="" style='display: none;'>
+			<div id='templatePlugin' class="fppPluginSection" style='display: none;'>
 				<div class='pluginsHeader '><h2>Template Plugin</h2></div>
 			</div>
-			<div id='incompatiblePlugins' class="" style='display: none;'>
+			<div id='incompatiblePlugins' class="fppPluginSection" style='display: none;'>
 				<div class='pluginsHeader '><h2>Incompatible Plugins</h2></div>
 			</div>
 		</div>
