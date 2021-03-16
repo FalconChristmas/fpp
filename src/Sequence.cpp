@@ -262,12 +262,12 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
 
     char tmpFilename[2048];
     unsigned char tmpData[2048];
-    strcpy(tmpFilename,(const char *)getSequenceDirectory());
+    strcpy(tmpFilename,FPP_DIR_SEQUENCE);
     strcat(tmpFilename,"/");
     strcat(tmpFilename, filename.c_str());
 
     if (getFPPmode() == REMOTE_MODE)
-        CheckForHostSpecificFile(getSetting("HostName"), tmpFilename);
+        CheckForHostSpecificFile(getSetting("HostName").c_str(), tmpFilename);
 
     if (!FileExists(tmpFilename)) {
         if (getFPPmode() == REMOTE_MODE)
@@ -555,6 +555,8 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
 }
 
 void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
+    static unsigned int controlChannel = (unsigned int)getSettingInt("PresetControlChannel");
+
     if (m_dataProcessed) {
         // we shouldn't normally be reprocessing the same data, so
         // if we are then see if we can start with a pristine copy
@@ -581,9 +583,9 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
         PixelOverlayManager::INSTANCE.doOverlays((uint8_t*)m_seqData);
     }
 
-    if (checkControlChannels && !m_dataProcessed && getControlChannel())
+    if (checkControlChannels && !m_dataProcessed && controlChannel)
     {
-        unsigned char thisValue = (unsigned char)m_seqData[getControlChannel()-1];
+        unsigned char thisValue = (unsigned char)m_seqData[controlChannel - 1];
 
         if (m_seqLastControlValue != thisValue) {
             m_seqLastControlValue = thisValue;

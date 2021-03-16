@@ -224,12 +224,12 @@ VLCOutput::VLCOutput(const std::string &mediaFilename, MediaOutputStatus *status
     
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullMediaPath = getMusicDirectory();
+        fullMediaPath = FPP_DIR_MUSIC;
         fullMediaPath += "/";
         fullMediaPath += mediaFilename;
     }
     if (!FileExists(fullMediaPath)) {
-        fullMediaPath = getVideoDirectory();
+        fullMediaPath = FPP_DIR_VIDEO;
         fullMediaPath += "/";
         fullMediaPath += mediaFilename;
     }

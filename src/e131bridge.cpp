@@ -112,22 +112,19 @@ void LoadInputUniversesFromFile(void)
 	char *s;
 	InputUniverseCount=0;
 	char active =0;
-	char filename[1024];
+    std::string filename(FPP_DIR_CONFIG "/ci-universes.json");
 
-	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/config/ci-universes.json");
-
-	LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename);
+	LogDebug(VB_E131BRIDGE, "Opening File Now %s\n", filename.c_str());
 
 	if (!FileExists(filename)) {
 		LogErr(VB_E131BRIDGE, "Universe file %s does not exist\n",
-			filename);
+			filename.c_str());
 		return;
 	}
 
 	Json::Value root;
     if (!LoadJsonFromFile(filename, root)) {
-		LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename);
+		LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename.c_str());
 		return;
 	}
 

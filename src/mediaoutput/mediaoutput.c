@@ -99,11 +99,7 @@ void setVolume(int vol)
         vol = 100;
     volume = vol;
 
-    const char *mixerDeviceC = getSetting("AudioMixerDevice");
-    std::string mixerDevice = "PCM";
-    if (mixerDeviceC) {
-        mixerDevice = mixerDeviceC;
-    }
+    std::string mixerDevice = getSetting("AudioMixerDevice");
     int   audioOutput = getSettingInt("AudioOutput");
     std::string audio0Type = getSetting("AudioCard0Type");
     
@@ -157,9 +153,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
     std::string oext = filename.substr(found + 1);
     std::string lext = toLowerCopy(oext);
     std::string bfile = filename.substr(0, found + 1);
-    std::string videoPath(getVideoDirectory());
-    videoPath += "/";
-    videoPath += bfile;
+    std::string videoPath = std::string(FPP_DIR_VIDEO) + "/" + bfile;
 
     if (IsExtensionVideo(lext)) {
         if (FileExists(videoPath + oext)) {
@@ -184,7 +178,7 @@ std::string GetVideoFilenameForMedia(const std::string &filename, std::string &e
 bool HasAudio(const std::string &mediaFilename) {
     std::string fullMediaPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullMediaPath = getMusicDirectory();
+        fullMediaPath = FPP_DIR_MUSIC;
         fullMediaPath += "/";
         fullMediaPath += mediaFilename;
     }

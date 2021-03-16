@@ -127,10 +127,9 @@ int VirtualDisplayOutput::Init(Json::Value config)
  */
 int VirtualDisplayOutput::InitializePixelMap(void)
 {
-	std::string virtualDisplayMapFilename(getMediaDirectory());
-	virtualDisplayMapFilename += "/config/virtualdisplaymap";
+	std::string virtualDisplayMapFilename(FPP_DIR_CONFIG "/virtualdisplaymap");
 
-	if (!FileExists(virtualDisplayMapFilename.c_str()))
+	if (!FileExists(virtualDisplayMapFilename))
 	{
 		LogErr(VB_CHANNELOUT, "Error: %s does not exist\n",
 			virtualDisplayMapFilename.c_str());

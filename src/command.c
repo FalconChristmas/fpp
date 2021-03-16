@@ -407,7 +407,7 @@ char *ProcessCommand(char *command, char *response)
             strcpy(name, s);
             s = strtok(NULL,",");
             if (s)
-                parseSetting(name, s);
+                SetSetting(name, s);
         }
     } else if (!strcmp(CommandStr, "StopAllEffects")) {
         StopAllEffects();

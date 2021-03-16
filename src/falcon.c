@@ -51,7 +51,7 @@ int FalconReadConfig(char *filename, char *buf)
 	char  fullFilename[1024];
 	FILE *fp = NULL;
 
-	sprintf(fullFilename, "%s/config/%s", getMediaDirectory(), filename);
+	sprintf(fullFilename, "%s/%s", FPP_DIR_CONFIG, filename);
 
 	fp = fopen(fullFilename, "r");
 	if (!fp)
@@ -77,7 +77,7 @@ int FalconWriteConfig(char *filename, char *buf, int size)
 	char  fullFilename[1024];
 	FILE *fp = NULL;
 
-	sprintf(fullFilename, "%s/config/%s", getMediaDirectory(), filename);
+	sprintf(fullFilename, "%s/%s", FPP_DIR_CONFIG, filename);
 
 	fp = fopen(fullFilename, "w");
 	if (!fp)

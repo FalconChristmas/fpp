@@ -636,7 +636,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
 
     int mode = getFPPmode();
     result["fppd"] = "running";
-	result["uuid"] = getSystemUUID();
+	result["uuid"] = getSetting("SystemUUID");
     result["mode"] = mode;
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = Player::INSTANCE.GetStatus();
@@ -677,11 +677,11 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     std::string str = sstr.str();
     result["time"] = str;
 
-    std::string fmt = getSetting("TimeFormat", DEF_TIME_FORMAT);
+    std::string fmt = getSetting("TimeFormat");
     replaceAll(fmt, "%M", "%M:%S");
     result["timeStrFull"] = GetTimeStr(fmt.c_str());
-    result["timeStr"] = GetTimeStr(getSetting("TimeFormat", DEF_TIME_FORMAT));
-    result["dateStr"] = GetDateStr(getSetting("DateFormat", DEF_DATE_FORMAT));
+    result["timeStr"] = GetTimeStr(getSetting("TimeFormat"));
+    result["dateStr"] = GetDateStr(getSetting("DateFormat"));
 
     std::time_t timeDiff = std::time(nullptr) - startupTime;
 	int totalseconds = (int)timeDiff;

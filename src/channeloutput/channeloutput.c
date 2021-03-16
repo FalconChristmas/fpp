@@ -239,11 +239,11 @@ int InitializeChannelOutputs(void) {
     
 	// FIXME, build this list dynamically
 	const char *configFiles[] = {
-        "/config/co-universes.json",
-		"/config/co-other.json",
-		"/config/co-pixelStrings.json",
-        "/config/co-bbbStrings.json",
-        "/config/channeloutputs.json",
+        "co-universes.json",
+        "co-other.json",
+        "co-pixelStrings.json",
+        "co-bbbStrings.json",
+        "channeloutputs.json",
 		NULL
 		};
 
@@ -255,7 +255,7 @@ int InitializeChannelOutputs(void) {
 	// Parse the JSON channel outputs config files
 	for (int f = 0; configFiles[f]; f++)
 	{
-		strcpy(filename, getMediaDirectory());
+		strcpy(filename, FPP_DIR_CONFIG "/");
 		strcat(filename, configFiles[f]);
 
 		LogDebug(VB_CHANNELOUT, "Loading %s\n", filename);
@@ -389,8 +389,8 @@ int InitializeChannelOutputs(void) {
         LogInfo(VB_CHANNELOUT, "OutputProcessor:  Determined range needed %d - %d\n", m1, m2);
         addRange(m1, m2);
     });
-    if (getControlChannel()) {
-        int val = getControlChannel();
+    if (getSettingInt("PresetControlChannel")) {
+        int val = getSettingInt("PresetControlChannel");
         addRange(val, val);
     }
     sortRanges();
@@ -516,11 +516,8 @@ void CloseChannelOutputs(void) {
 
 
 int LoadOutputProcessors(void) {
-	char filename[1024];
 	Json::Value root;
-
-	strcpy(filename, getMediaDirectory());
-	strcat(filename, "/config/outputprocessors.json");
+    std::string filename(FPP_DIR_CONFIG "/outputprocessors.json");
     
 	if (!FileExists(filename))
 		return 0;
@@ -529,7 +526,7 @@ int LoadOutputProcessors(void) {
 
 	if (!LoadJsonFromFile(filename, root))
 	{
-		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename);
+		LogErr(VB_CHANNELOUT, "Error parsing %s\n", filename.c_str());
 		return 0;
 	}
 

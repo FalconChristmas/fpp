@@ -379,7 +379,7 @@ void MosquittoClient::SetReady() {
         m_canProcessMessages = true;
         mosquitto_message_callback_set(m_mosq, mosq_msg_callback);
         
-       int frequency = atoi(getSetting("MQTTFrequency"));
+       int frequency = getSettingInt("MQTTFrequency");
        if (frequency > 0) {
             // create  background Publish Thread
             int result = pthread_create(&m_mqtt_publish_t, NULL, &RunMqttPublishThread, (void*) this);
@@ -573,7 +573,7 @@ void *RunMqttPublishThread(void *data) {
 	sleep(3); // Give everything time to start up
 
 	MosquittoClient *me = (MosquittoClient *) data;
-	int frequency = atoi(getSetting("MQTTFrequency"));
+	int frequency = getSettingInt("MQTTFrequency");
 	if (frequency < 0) {
 		frequency = 0;
 	} 

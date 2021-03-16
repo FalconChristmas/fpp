@@ -208,13 +208,13 @@ void Scheduler::AddScheduledItems(ScheduleEntry *entry, int index)
         std::string warning = "Scheduled ";
 
         if (entry->sequence) {
-            playlistFile = getSequenceDirectory();
+            playlistFile = FPP_DIR_SEQUENCE;
             playlistFile += "/";
             playlistFile += entry->playlist;
 
             warning = "Sequence";
         } else {
-            playlistFile = getPlaylistDirectory();
+            playlistFile = FPP_DIR_PLAYLIST;
             playlistFile += "/";
             playlistFile += entry->playlist + ".json";
 
@@ -643,13 +643,13 @@ void Scheduler::LoadScheduleFromFile(void)
     std::string warning = "Scheduled ";
 
     if (scheduleEntry.sequence) {
-        playlistFile = getSequenceDirectory();
+        playlistFile = FPP_DIR_SEQUENCE;
         playlistFile += "/";
         playlistFile += scheduleEntry.playlist;
 
         warning += "Sequence";
     } else {
-        playlistFile = getPlaylistDirectory();
+        playlistFile = FPP_DIR_PLAYLIST;
         playlistFile += "/";
         playlistFile += scheduleEntry.playlist + ".json";
 
@@ -760,11 +760,7 @@ std::string Scheduler::GetNextPlaylistStartStr()
     if (m_schedulerDisabled)
         return "";
 
-    char timeFmt[20];
-    strcpy(timeFmt, getSetting("DateFormat", DEF_DATE_FORMAT));
-    strcat(timeFmt, " @ ");
-    strcat(timeFmt, getSetting("TimeFormat", DEF_TIME_FORMAT));
-
+    std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
     std::string result;
     ScheduledItem *item = GetNextScheduledPlaylist();
 
@@ -777,7 +773,7 @@ std::string Scheduler::GetNextPlaylistStartStr()
     time_t currTime = time(NULL);
 
     localtime_r(&item->startTime, &timeStruct);
-    strftime(timeStr, 32, timeFmt, &timeStruct);
+    strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
 
     // Thursday @ 11:00:00 - (Everyday)
     result = timeStr;
@@ -828,13 +824,9 @@ std::string Scheduler::GetDayTextFromDayIndex(const int index)
 
 Json::Value Scheduler::GetInfo(void)
 {
-    char timeFmt[20];
     Json::Value result;
 
-    strcpy(timeFmt, getSetting("DateFormat", DEF_DATE_FORMAT));
-    strcat(timeFmt, " @ ");
-    strcat(timeFmt, getSetting("TimeFormat", DEF_TIME_FORMAT));
-
+    std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
     Json::Value np;
     np["playlistName"] = GetNextPlaylistName();
     np["scheduledStartTime"] = 0;
@@ -855,31 +847,31 @@ Json::Value Scheduler::GetInfo(void)
             time_t currTime = time(NULL);
 
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             cp["currentTime"] = (Json::UInt64)currTime;
             cp["currentTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetOrigStartTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             cp["scheduledStartTime"] = (Json::UInt64)timeT;
             cp["scheduledStartTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetStartTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             cp["actualStartTime"] = (Json::UInt64)timeT;
             cp["actualStartTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetOrigStopTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             cp["scheduledEndTime"] = (Json::UInt64)timeT;
             cp["scheduledEndTimeStr"] = timeStr;
 
             timeT = Player::INSTANCE.GetStopTime();
             localtime_r(&timeT, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             cp["actualEndTime"] = (Json::UInt64)timeT;
             cp["actualEndTimeStr"] = timeStr;
             cp["secondsRemaining"] = (int)(timeT - currTime);
@@ -907,11 +899,7 @@ Json::Value Scheduler::GetInfo(void)
 
 Json::Value Scheduler::GetSchedule()
 {
-    char timeFmt[20];
-    strcpy(timeFmt, getSetting("DateFormat", DEF_DATE_FORMAT));
-    strcat(timeFmt, " @ ");
-    strcat(timeFmt, getSetting("TimeFormat", DEF_TIME_FORMAT));
-
+    std::string timeFmt = getSetting("DateFormat") + " @ " + getSetting("TimeFormat");
     Json::Value result;
     Json::Value entries(Json::arrayValue);
     Json::Value entry;
@@ -954,13 +942,13 @@ Json::Value Scheduler::GetSchedule()
 
         tmpTime = Player::INSTANCE.GetOrigStartTime();
         localtime_r(&tmpTime, &timeStruct);
-        strftime(timeStr, 32, timeFmt, &timeStruct);
+        strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
         scheduledItem["startTimeStr"] = timeStr;
         scheduledItem["startTime"] = (Json::UInt64)tmpTime;
 
         tmpTime = Player::INSTANCE.GetStopTime();
         localtime_r(&tmpTime, &timeStruct);
-        strftime(timeStr, 32, timeFmt, &timeStruct);
+        strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
         scheduledItem["endTimeStr"] = timeStr;
         scheduledItem["endTime"] = (Json::UInt64)tmpTime;
 
@@ -982,12 +970,12 @@ Json::Value Scheduler::GetSchedule()
             scheduledItem["id"] = item->entryIndex;
 
             localtime_r(&item->startTime, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             scheduledItem["startTimeStr"] = timeStr;
             scheduledItem["startTime"] = (Json::UInt64)item->startTime;
 
             localtime_r(&item->endTime, &timeStruct);
-            strftime(timeStr, 32, timeFmt, &timeStruct);
+            strftime(timeStr, 32, timeFmt.c_str(), &timeStruct);
             scheduledItem["endTimeStr"] = timeStr;
             scheduledItem["endTime"] = (Json::UInt64)item->endTime;
 

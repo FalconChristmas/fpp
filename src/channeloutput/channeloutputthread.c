@@ -60,6 +60,7 @@ volatile int     RunThread = 0;
 volatile int     ThreadIsRunning = 0;
 volatile int     ThreadIsExiting = 0;
 volatile int     outputForced = 0;
+volatile int     alwaysTransmit = 0;
 
 std::mutex outputThreadLock;
 std::mutex outputThreadStatusLock;
@@ -102,7 +103,7 @@ static inline bool forceOutput() {
         PixelOverlayManager::INSTANCE.hasActiveOverlays() ||
         SDLOutput::IsOverlayingVideo() ||
         ChannelTester::INSTANCE.Testing() ||
-        getAlwaysTransmit() ||
+        alwaysTransmit ||
         outputForced;
 }
 
@@ -120,6 +121,8 @@ void *RunChannelOutputThread(void *data)
 	struct timespec ts;
     struct timeval tv;
     int slowFrameCount = 0;
+
+    alwaysTransmit = getSettingInt("alwaysTransmit");
 
 	LogDebug(VB_CHANNELOUT, "RunChannelOutputThread() starting\n");
 

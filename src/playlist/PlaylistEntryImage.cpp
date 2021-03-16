@@ -90,8 +90,8 @@ int PlaylistEntryImage::Init(Json::Value &config)
     if (startsWith(m_imagePath,"/")) {
         m_imageFullPath = m_imagePath;
     } else {
-        m_imageFullPath = getMediaDirectory();
-        m_imageFullPath += "/images/";
+        m_imageFullPath = FPP_DIR_IMAGE;
+        m_imageFullPath += "/";
         m_imageFullPath += m_imagePath;
     }
 

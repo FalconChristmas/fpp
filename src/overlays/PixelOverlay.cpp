@@ -120,9 +120,7 @@ void PixelOverlayManager::loadModelMap() {
     modelNames.clear();
     ConvertCMMFileToJSON();
 
-    char filename[1024];
-    strcpy(filename, getMediaDirectory());
-    strcat(filename, "/config/model-overlays.json");
+    std::string filename(FPP_DIR_CONFIG "/model-overlays.json");
     if (FileExists(filename)) {
         Json::Value root;
         bool result = LoadJsonFromFile(filename, root);
@@ -142,23 +140,21 @@ void PixelOverlayManager::loadModelMap() {
 void PixelOverlayManager::ConvertCMMFileToJSON() {
     
     FILE *fp;
-    char filename[1024];
     char buf[64];
     char *s;
     int startChannel;
     int channelCount;
-    
-    strcpy(filename, getMediaDirectory());
-    strcat(filename, "/channelmemorymaps");
+    std::string filename(FPP_DIR_MEDIA "/channelmemorymaps");
+
     if (!FileExists(filename)) {
         return;
     }
     Json::Value result;
     
     LogDebug(VB_CHANNELOUT, "Loading Channel Memory Map data.\n");
-    fp = fopen(filename, "r");
+    fp = fopen(filename.c_str(), "r");
     if (fp == NULL) {
-        LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename);
+        LogErr(VB_CHANNELOUT, "Could not open Channel Memory Map config file %s\n", filename.c_str());
         return;
     }
     
@@ -220,9 +216,9 @@ void PixelOverlayManager::ConvertCMMFileToJSON() {
         result["models"].append(model);
     }
     fclose(fp);
-    remove(filename);
-    strcpy(filename, getMediaDirectory());
-    strcat(filename, "/config/model-overlays.json");
+    remove(filename.c_str());
+
+    filename = FPP_DIR_CONFIG "/model-overlays.json";
     SaveJsonToFile(result, filename);
 }
 
@@ -459,8 +455,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
         if (p2 == "raw") {
             //upload of raw file
             char filename[512];
-            strcpy(filename, getMediaDirectory());
-            strcat(filename, "/channelmemorymaps");
+            strcpy(filename, FPP_DIR_MEDIA "/channelmemorymaps");
             
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {
@@ -474,8 +469,7 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_POS
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response("{ \"Status\": \"OK\", \"Message\": \"\"}", 200));
         } else if (req.get_path_pieces().size() == 1) {
             char filename[512];
-            strcpy(filename, getMediaDirectory());
-            strcat(filename, "/config/model-overlays.json");
+            strcpy(filename, FPP_DIR_CONFIG "/model-overlays.json");
             
             int fp = open(filename, O_CREAT | O_TRUNC | O_RDWR, 0666);
             if (fp == -1) {

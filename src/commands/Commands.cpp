@@ -363,8 +363,7 @@ void CommandManager::LoadPresets()
     char id[6];
     memset(id, 0, sizeof(id));
 
-    std::string commandsFile = getMediaDirectory();
-    commandsFile += "/config/commandPresets.json";
+    std::string commandsFile(FPP_DIR_CONFIG "/commandPresets.json");
 
     Json::Value allCommands;
 

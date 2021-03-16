@@ -330,9 +330,9 @@ void SendFPDConfig()
 int FPD_Open(const char *configStr, void **privDataPtr) {
 	LogDebug(VB_CHANNELOUT, "FPD_Open()\n");
 
-	if (!FileExists(getPixelnetFile())) {
+	if (!FileExists(FPP_FILE_PIXELNET)) {
 		LogDebug(VB_CHANNELOUT, "FPD config file does not exist, creating it.\n");
-		CreatePixelnetDMXfile(getPixelnetFile());
+		CreatePixelnetDMXfile(FPP_FILE_PIXELNET);
 	}
 
 	if (!InitializePixelnetDMX())

@@ -47,14 +47,14 @@ void MediaDetails::ParseMedia(const char *mediaFilename)
 
     LogDebug(VB_MEDIAOUT, "ParseMedia(%s)\n", mediaFilename);
 
-    if (snprintf(fullMediaPath, 1024, "%s/%s", getMusicDirectory(), mediaFilename) >= 1024) {
+    if (snprintf(fullMediaPath, 1024, "%s/%s", FPP_DIR_MUSIC, mediaFilename) >= 1024) {
         LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
             mediaFilename);
         return;
     }
 
     if (!FileExists(fullMediaPath)) {
-		if (snprintf(fullMediaPath, 1024, "%s/%s", getVideoDirectory(), mediaFilename) >= 1024) {
+		if (snprintf(fullMediaPath, 1024, "%s/%s", FPP_DIR_VIDEO, mediaFilename) >= 1024) {
 			LogErr(VB_MEDIAOUT, "Unable to parse media details for %s, full path name too long\n",
 				mediaFilename);
 			return;

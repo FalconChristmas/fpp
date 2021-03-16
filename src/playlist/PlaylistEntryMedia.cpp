@@ -411,9 +411,9 @@ int PlaylistEntryMedia::GetFileList(void)
     m_files.clear();
 
     if (m_fileMode == "randomVideo")
-        dir = getVideoDirectory();
+        dir = FPP_DIR_VIDEO;
     else if (m_fileMode == "randomAudio")
-        dir = getMusicDirectory();
+        dir = FPP_DIR_MUSIC;
 
     for (auto &cp : recursive_directory_iterator(dir)) {
         std::string entry = cp.path().string();

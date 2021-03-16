@@ -66,8 +66,8 @@
 
 long long GetTime(void);
 long long GetTimeMS(void);
-std::string GetTimeStr(const char *fmt);
-std::string GetDateStr(const char *fmt);
+std::string GetTimeStr(std::string fmt);
+std::string GetDateStr(std::string fmt);
 
 int       DirectoryExists(const char * Directory);
 int       FileExists(const char * File);

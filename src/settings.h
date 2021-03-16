@@ -28,9 +28,22 @@
 #include <map>
 #include <string>
 
-#define MAXBUF 1024
-#define DEF_TIME_FORMAT "%I:%M %p"
-#define DEF_DATE_FORMAT "%a %b %e"
+#include <jsoncpp/json/json.h>
+
+#define FPP_DIR                    "/opt/fpp"
+#define FPP_DIR_MEDIA              "/home/fpp/media"
+#define FPP_DIR_CONFIG             "/home/fpp/media/config"
+#define FPP_DIR_EFFECT             FPP_DIR_MEDIA "/effects"
+#define FPP_DIR_IMAGE              FPP_DIR_MEDIA "/images"
+#define FPP_DIR_MUSIC              FPP_DIR_MEDIA "/music"
+#define FPP_DIR_PLAYLIST           FPP_DIR_MEDIA "/playlists"
+#define FPP_DIR_PLUGIN             FPP_DIR_MEDIA "/plugins"
+#define FPP_DIR_SCRIPT             FPP_DIR_MEDIA "/scripts"
+#define FPP_DIR_SEQUENCE           FPP_DIR_MEDIA "/sequences"
+#define FPP_DIR_VIDEO              FPP_DIR_MEDIA "/videos"
+#define FPP_FILE_LOG               FPP_DIR_MEDIA "/logs/fppd.log"
+#define FPP_FILE_PIXELNET          FPP_DIR_MEDIA "/config/Falcon.FPDV1"
+#define FPP_FILE_SETTINGS          FPP_DIR_MEDIA "/settings"
 
 typedef enum fppMode {
 	UNKNOWN_MODE = 0x00,
@@ -42,76 +55,37 @@ typedef enum fppMode {
 } FPPMode;
 
 class SettingsConfig {
-public:
-    SettingsConfig() {}
+  public:
+    SettingsConfig();
     ~SettingsConfig();
     
-    int        daemonize;
-    int        restarted;
+    void Init();
+
     FPPMode    fppMode;
-    int        alwaysTransmit;
-    char    *binDirectory = nullptr;
-    char    *fppDirectory = nullptr;
-    char    *mediaDirectory = nullptr;
-    char    *musicDirectory = nullptr;
-    char    *sequenceDirectory = nullptr;
-    char    *eventDirectory = nullptr;
-    char    *videoDirectory = nullptr;
-    char    *effectDirectory = nullptr;
-    char    *scriptDirectory = nullptr;
-    char    *pluginDirectory = nullptr;
-    char    *playlistDirectory = nullptr;
-    char    *pixelnetFile = nullptr;
-    char    *logFile = nullptr;
-    char    *silenceMusic = nullptr;
-    char    *settingsFile = nullptr;
-    char    *E131interface = nullptr;
-    char    *systemUUID = nullptr;
     
-    unsigned int controlChannel;
-    
-    std::map<std::string, char *> keyVal;
+    Json::Value settingsInfo;
+    Json::Value settings;
+
+  private:
+    void LoadSettingsInfo();
 };
 
 // Helpers
-void initSettings(int argc, char **argv);
 char *trimwhitespace(const char *str, int quotesAlso = 1);
 char *modeToString(int mode);
 const std::string getFPPmodeStr(FPPMode mode = UNKNOWN_MODE);
-void usage(char *appname);
 
 
 // Action functions
-int loadSettings(const char *filename);
-void CreateSettingsFile(char * file);
-void CheckExistanceOfDirectoriesAndFiles(void);
-int parseSetting(char *key, char *value);
+int LoadSettings();
+int SaveSettings();
+void UpgradeSettings();
+int SetSetting(const std::string key, const std::string value);
+int SetSetting(const std::string key, const int value);
 
-// Getters
-const char *getSetting(const char *setting, const char *defaultval = "");
+// Setters & Getters
+std::string getSetting(const char *setting, const char *defaultVal = "");
 int   getSettingInt(const char *setting, int defaultVal = 0);
 
-int getDaemonize(void);
-int getRestarted(void);
 FPPMode getFPPmode(void);
-int  getAlwaysTransmit(void);
-char *getBinDirectory(void);
-char *getFPPDirectory(void);
-char *getMediaDirectory(void);
-char *getMusicDirectory(void);
-char *getSequenceDirectory(void);
-char *getEventDirectory(void);
-char *getVideoDirectory(void);
-char *getEffectDirectory(void);
-char *getScriptDirectory(void);
-char *getPluginDirectory(void);
-char *getPlaylistDirectory(void);
-char *getUniverseFile(void);
-char *getPixelnetFile(void);
-char *getLogFile(void);
-char *getSilenceMusic(void);
-char *getSettingsFile(void);
-char *getE131interface(void);
-unsigned int getControlChannel(void);
-char *getSystemUUID(void);
 

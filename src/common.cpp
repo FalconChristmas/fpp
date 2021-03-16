@@ -79,22 +79,22 @@ long long GetTimeMS(void) {
     return now_tv.tv_sec * 1000LL + now_tv.tv_usec / 1000;
 }
 
-std::string GetTimeStr(const char *fmt)
+std::string GetTimeStr(std::string fmt)
 {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
     std::stringstream sstr;
-    sstr << std::put_time(&tm, fmt);
+    sstr << std::put_time(&tm, fmt.c_str());
 
     return sstr.str();
 }
 
-std::string GetDateStr(const char *fmt)
+std::string GetDateStr(std::string fmt)
 {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
     std::stringstream sstr;
-    sstr << std::put_time(&tm, fmt);
+    sstr << std::put_time(&tm, fmt.c_str());
 
     return sstr.str();
 }

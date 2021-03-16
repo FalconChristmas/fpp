@@ -329,13 +329,7 @@ void usage(char *appname)
 {
 printf("Usage: %s [OPTION...]\n"
 "\n"
-"fppd is the Falcon Player daemon.  It runs and handles playback of sequences,\n"
-"audio, etc.  Normally it is kicked off by a startup task and daemonized,\n"
-"however you can optionally kill the automatically started daemon and invoke it\n"
-"manually via the command line or via the web interface.  Configuration is\n"
-"supported for developers by specifying command line options, or editing a\n"
-"config file that controls most settings.  For more information on that, read\n"
-"the source code, it will not likely be documented any time soon.\n"
+"fppd is the Falcon Player daemon.\n"
 "\n"
 "Options:\n"
 "  -c, --config-file FILENAME    - Location of alternate configuration file\n"
@@ -346,14 +340,7 @@ printf("Usage: %s [OPTION...]\n"
 "  -v, --volume VOLUME           - Set a volume (over-written by config file)\n"
 "  -m, --mode MODE               - Set the mode: \"player\", \"bridge\",\n"
 "                                  \"master\", or \"remote\"\n"
-"  -B, --media-directory DIR     - Set the media directory\n"
-"  -M, --music-directory DIR     - Set the music directory\n"
-"  -S, --sequence-directory DIR  - Set the sequence directory\n"
-"  -P, --playlist-directory DIR  - Set the playlist directory\n"
-"  -p, --pixelnet-file FILENAME  - Set the pixelnet file\n"
-"  -s, --schedule-file FILENAME  - Set the schedule-file\n"
 "  -l, --log-file FILENAME       - Set the log file\n"
-"  -b, --bytes-file FILENAME     - Set the bytes received file\n"
 "  -H  --detect-hardware         - Detect Falcon hardware on SPI port\n"
 "  -C  --configure-hardware      - Configured detected Falcon hardware on SPI\n"
 "  -h, --help                    - This menu.\n"
@@ -389,6 +376,9 @@ int parseArguments(int argc, char **argv)
 {
 	char *s = NULL;
 	int c;
+
+    SetSetting("logFile", FPP_FILE_LOG);
+
 	while (1)
 	{
 		int this_option_optind = optind ? optind : 1;
@@ -396,25 +386,16 @@ int parseArguments(int argc, char **argv)
 		static struct option long_options[] =
 		{
 			{"displayvers",			no_argument,		0, 'V'},
-			{"config-file",			required_argument,	0, 'c'},
 			{"foreground",			no_argument,		0, 'f'},
 			{"daemonize",			no_argument,		0, 'd'},
 			{"restarted",			no_argument,		0, 'r'},
 			{"volume",				required_argument,	0, 'v'},
 			{"mode",				required_argument,	0, 'm'},
-			{"media-directory",		required_argument,	0, 'B'},
-			{"music-directory",		required_argument,	0, 'M'},
-			{"sequence-directory",	required_argument,	0, 'S'},
-			{"playlist-directory",	required_argument,	0, 'P'},
-			{"video-directory",		required_argument,	0, 'F'},
-			{"pixelnet-file",		required_argument,	0, 'p'},
-			{"schedule-file",		required_argument,	0, 's'},
 			{"log-file",			required_argument,	0, 'l'},
 			{"detect-hardware",		no_argument,		0, 'H'},
 			{"detect-piface",		no_argument,		0, 4},
 			{"configure-hardware",		no_argument,		0, 'C'},
 			{"help",				no_argument,		0, 'h'},
-			{"silence-music",		required_argument,	0,	1 },
 			{"log-level",			required_argument,	0,  2 },
 			{0,						0,					0,	0}
 		};
@@ -429,40 +410,20 @@ int parseArguments(int argc, char **argv)
 			case 'V':
 				printVersionInfo();
 				exit(0);
-			case 1: //silence-music
-				free(settings.silenceMusic);
-				settings.silenceMusic = strdup(optarg);
-				break;
 			case 2: // log-level
 				if (SetLogLevelComplex(optarg)) {
 					std::cout << FPPLogger::INSTANCE.GetLogLevelString() << std::endl;
 					LogInfo(VB_SETTING, "Log Level set to %d (%s)\n", FPPLogger::INSTANCE.MinimumLogLevel(), optarg);
 				}
 				break;
-			case 'c': //config-file
-				if (FileExists(optarg))
-				{
-					if (loadSettings(optarg) != 0 )
-					{
-						LogErr(VB_SETTING, "Failed to load settings file given as argument: '%s'\n", optarg);
-					}
-					else
-					{
-						free(settings.settingsFile);
-						settings.settingsFile = strdup(optarg);
-					}
-				} else {
-					fprintf(stderr, "Settings file specified does not exist: '%s'\n", optarg);
-				}
-				break;
 			case 'f': //foreground
-				settings.daemonize = 0;
+                SetSetting("daemonize", 0);
 				break;
 			case 'd': //daemonize
-				settings.daemonize = 1;
+                SetSetting("daemonize", 1);
 				break;
 			case 'r': //restarted
-				settings.restarted = 1;
+                SetSetting("restarted", 1);
 				break;
 			case 'v': //volume
 				setVolume (atoi(optarg));
@@ -482,34 +443,8 @@ int parseArguments(int argc, char **argv)
 					exit(EXIT_FAILURE);
 				}
 				break;
-			case 'B': //media-directory
-				free(settings.mediaDirectory);
-				settings.mediaDirectory = strdup(optarg);
-				break;
-			case 'M': //music-directory
-				free(settings.musicDirectory);
-				settings.musicDirectory = strdup(optarg);
-				break;
-			case 'S': //sequence-directory
-				free(settings.sequenceDirectory);
-				settings.sequenceDirectory = strdup(optarg);
-				break;
-			case 'F': //video-directory
-				free(settings.videoDirectory);
-				settings.videoDirectory = strdup(optarg);
-				break;
-			case 'P': //playlist-directory
-				free(settings.playlistDirectory);
-				settings.playlistDirectory = strdup(optarg);
-				break;
-			case 'p': //pixelnet-file
-				free(settings.pixelnetFile);
-				settings.pixelnetFile = strdup(optarg);
-				break;
 			case 'l': //log-file
-				free(settings.logFile);
-				settings.logFile = strdup(optarg);
-				SetLogFile(settings.logFile, !getDaemonize());
+                SetSetting("logFile", optarg);
 				break;
 			case 'H': //Detect Falcon hardware
 			case 'C': //Configure Falcon hardware
@@ -531,7 +466,8 @@ int parseArguments(int argc, char **argv)
 		}
 	}
 
-    SetLogFile(getLogFile(), !getDaemonize());
+	SetLogFile(getSetting("logFile").c_str(), !getSettingInt("daemonize"));
+
 	return 0;
 }
 
@@ -539,9 +475,7 @@ int main(int argc, char *argv[])
 {
     setupExceptionHandlers();
     FPPLogger::INSTANCE.Init();
-	initSettings(argc, argv);
-
-	loadSettings("/home/fpp/media/settings");
+	LoadSettings();
 
 	curl_global_init(CURL_GLOBAL_ALL);
 
@@ -553,14 +487,14 @@ int main(int argc, char *argv[])
     // Check to see if we were restarted and should skip sending blanking data at startup
     if (FileExists("/home/fpp/media/tmp/fppd_restarted")) {
         unlink("/home/fpp/media/tmp/fppd_restarted");
-        settings.restarted = 1;
+        SetSetting("restarted", 1);
     }
 
 	if (loggingToFile())
 		logVersionInfo();
 
 	// Start functioning
-    if (getDaemonize()) {
+    if (getSettingInt("daemonize")) {
 		CreateDaemon();
     }
     PinCapabilities::InitGPIO();
@@ -568,11 +502,11 @@ int main(int argc, char *argv[])
     std::srand(std::time(nullptr));
     
     CommandManager::INSTANCE.Init();
-	if (strcmp(getSetting("MQTTHost"),"")) {
+	if (getSetting("MQTTHost") != "") {
                 LogInfo(VB_GENERAL, "Creating MQTT\n");
-		mqtt = new MosquittoClient(getSetting("MQTTHost"), getSettingInt("MQTTPort",1883), getSetting("MQTTPrefix"));
+		mqtt = new MosquittoClient(getSetting("MQTTHost").c_str(), getSettingInt("MQTTPort"), getSetting("MQTTPrefix").c_str());
 
-		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername"), getSetting("MQTTPassword"), getSetting("MQTTCaFile")))
+		if (!mqtt || !mqtt->Init(getSetting("MQTTUsername").c_str(), getSetting("MQTTPassword").c_str(), getSetting("MQTTCaFile").c_str()))
 		{
         		LogWarn(VB_CONTROL, "MQTT Init failed. Starting without MQTT. -- Maybe MQTT host doesn't resolve\n");
 
@@ -603,19 +537,13 @@ int main(int argc, char *argv[])
 	Player::INSTANCE.Init();
 	PluginManager::INSTANCE.init();
 
-	CheckExistanceOfDirectoriesAndFiles();
-    if(!FileExists(getPixelnetFile())) {
-        LogWarn(VB_SETTING, "Pixelnet file does not exist, creating it.\n");
-        CreatePixelnetDMXfile(getPixelnetFile());
-    }
-
 	if (getFPPmode() != BRIDGE_MODE) {
 		InitMediaOutput();
 	}
 
 	InitializeChannelOutputs();
 
-	if (!getRestarted())
+	if (!getSettingInt("restarted"))
 		sequence->SendBlankingData();
 
 	InitEffects();
@@ -668,10 +596,7 @@ int main(int argc, char *argv[])
 
 	if (restartFPPD)
 	{
-		char darg[3] = "-d";
-		if (!getDaemonize())
-			strcpy(darg, "-f");
-		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", darg, "--log-level", logLevelString.c_str(), NULL);
+		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), NULL);
 	}
 
 	return 0;
@@ -714,7 +639,7 @@ void MainLoop(void)
     }
 	if (getFPPmode() & PLAYER_MODE) {
 		scheduler->CheckIfShouldBePlayingNow();
-        if (getAlwaysTransmit()) {
+        if (getSettingInt("alwaysTransmit")) {
 			StartChannelOutputThread();
         }
 	}
@@ -766,6 +691,7 @@ void MainLoop(void)
     epoll_event events[MAX_EVENTS];
     memset(events, 0, sizeof(events));
     int idleCount = 0;
+    bool alwaysTransmit = (bool)getSettingInt("alwaysTransmit");
     
 	while (runMainFPPDLoop) {
         int epollresult = epoll_wait(epollf, events, MAX_EVENTS, sleepms);
@@ -791,7 +717,7 @@ void MainLoop(void)
             (!ChannelOutputThreadIsRunning()) &&
             ((PixelOverlayManager::INSTANCE.hasActiveOverlays()) ||
              (ChannelTester::INSTANCE.Testing()) ||
-			 (getAlwaysTransmit()))) {
+			 (alwaysTransmit))) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 			if (!E131BridgingInterval)
 				E131BridgingInterval = 50;
@@ -950,13 +876,12 @@ void PublishStatsBackground(std::string reason)
 
     // Check 10 days
     if (hours.count() >= (10*24)) {
-        const char *settingsValue = getSetting("statsPublish");
         lastPublish = now_ts;
-        if (strcmp("Enabled", settingsValue) == 0 ) {
+        if (getSetting("statsPublish") == "Enabled") {
             std::thread t(PublishStatsForce, reason);
             t.detach();
         } else {
-            LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", settingsValue);
+            LogInfo(VB_GENERAL, "Not Publishing statistics as mode is '%s'\n", getSetting("statsPublish").c_str());
         }
     } else {
         LogDebug(VB_GENERAL, "PublishStats called, but not been 10 days yet.\n");

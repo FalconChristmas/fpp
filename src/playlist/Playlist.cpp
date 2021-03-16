@@ -134,10 +134,7 @@ int Playlist::LoadJSONIntoPlaylist(std::vector<PlaylistEntryBase*> &playlistPart
 		if (entries[c]["type"].asString() == "playlist") {
 			m_subPlaylistDepth++;
 			if (m_subPlaylistDepth < 5) {
-				std::string filename = getPlaylistDirectory();
-				filename += "/";
-				filename += entries[c]["name"].asString();
-				filename += ".json";
+				std::string filename = std::string(FPP_DIR_PLAYLIST) + "/" + entries[c]["name"].asString() + ".json";
 
 				Json::Value subPlaylist = LoadJSON(filename.c_str());
 
@@ -266,7 +263,7 @@ int Playlist::Load(const char *filename)
     std::unique_lock<std::recursive_mutex> lck (m_playlistMutex);
 
     if (endsWith(tmpFilename, ".fseq")) {
-        m_filename = getSequenceDirectory();
+        m_filename = FPP_DIR_SEQUENCE;
         m_filename += "/";
         m_filename += tmpFilename;
 
@@ -286,12 +283,10 @@ int Playlist::Load(const char *filename)
                     } else {
                         mediaName = (const char *)&head.data[0];
                     }
-                    std::string tmpMedia = getMusicDirectory();
-                    tmpMedia += "/";
-                    tmpMedia += mediaName;
+                    std::string tmpMedia = std::string(FPP_DIR_MUSIC) + "/" + mediaName;
 
                     if (!FileExists(tmpMedia)) {
-                        tmpMedia = getVideoDirectory();
+                        tmpMedia = FPP_DIR_VIDEO;
                         tmpMedia += "/";
                         tmpMedia += mediaName;
 
@@ -326,7 +321,7 @@ int Playlist::Load(const char *filename)
         mp.append(pe);
         root["mainPlaylist"] = mp;
     } else {
-        m_filename = getPlaylistDirectory();
+        m_filename = FPP_DIR_PLAYLIST;
         m_filename += "/";
         m_filename += filename;
         m_filename += ".json";
@@ -1041,7 +1036,7 @@ int Playlist::Play(const char *filename, const int position, const int repeat, c
 		(m_status == FPP_STATUS_STOPPING_GRACEFULLY) ||
 		(m_status == FPP_STATUS_STOPPING_GRACEFULLY_AFTER_LOOP)) {
         
-        std::string fullfilename = getPlaylistDirectory();
+        std::string fullfilename = FPP_DIR_PLAYLIST;
         fullfilename += "/";
         fullfilename += filename;
         fullfilename += ".json";

@@ -806,12 +806,12 @@ SDLOutput::SDLOutput(const std::string &mediaFilename,
     }
     std::string fullAudioPath = mediaFilename;
     if (!FileExists(mediaFilename)) {
-        fullAudioPath = getMusicDirectory();
+        fullAudioPath = FPP_DIR_MUSIC;
         fullAudioPath += "/";
         fullAudioPath += mediaFilename;
     }
     if (!FileExists(fullAudioPath)) {
-        fullAudioPath = getVideoDirectory();
+        fullAudioPath = FPP_DIR_VIDEO;
         fullAudioPath += "/";
         fullAudioPath += mediaFilename;
     }

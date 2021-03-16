@@ -285,7 +285,7 @@ int UDPOutput::Init(Json::Value config) {
         e131Interface = config["interface"].asString();
     }
     if (e131Interface == "") {
-        e131Interface = getE131interface();
+        e131Interface = "eth0";
     }
 
     std::set<std::string> myIps;

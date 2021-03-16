@@ -40,104 +40,15 @@ const char *fpp_bool_to_string[] = { "false", "true", "default" };
 
 SettingsConfig settings;
 
-SettingsConfig::~SettingsConfig() {
-    if (binDirectory) free(binDirectory);
-    if (fppDirectory) free(fppDirectory);
-    if (mediaDirectory) free(mediaDirectory);
-    if (musicDirectory) free(musicDirectory);
-    if (sequenceDirectory) free(sequenceDirectory);
-    if (eventDirectory) free(eventDirectory);
-    if (videoDirectory) free(videoDirectory);
-    if (effectDirectory) free(effectDirectory);
-    if (scriptDirectory) free(scriptDirectory);
-    if (pluginDirectory) free(pluginDirectory);
-    if (playlistDirectory) free(playlistDirectory);
-    if (pixelnetFile) free(pixelnetFile);
-    if (logFile) free(logFile);
-    if (silenceMusic) free(silenceMusic);
-    if (settingsFile) free(settingsFile);
-    if (E131interface) free(E131interface);
-	if (systemUUID) free(systemUUID);
-    
-    for (auto &a :keyVal) {
-        if (a.second) {
-            free(a.second);
-        }
-    }
+SettingsConfig::SettingsConfig() {
+    LoadSettingsInfo();
 }
 
-/*
- *
- */
-void initSettings(int argc, char **argv)
-{
-    char tmpDir[256];
-    char mediaDir[256];
-    
-    memset(tmpDir, 0, sizeof(tmpDir));
-    memset(mediaDir, 0, sizeof(mediaDir));
-    
-	settings.binDirectory = strdup(dirname(argv[0]));
-    if (strlen(settings.binDirectory) == 1 && settings.binDirectory[0] == '.') {
-        getcwd(tmpDir, sizeof(tmpDir));
-        free(settings.binDirectory);
-        settings.binDirectory = strdup(tmpDir);
-    }
+SettingsConfig::~SettingsConfig() {
+}
 
-	settings.fppMode = PLAYER_MODE;
-    
-    strcpy(tmpDir, settings.binDirectory);
-
-    // trim off src/ or bin/
-    char *offset = NULL;
-    int size = strlen(tmpDir);
-
-    if ((size > 4) && (!strcmp(&tmpDir[size - 4], "/src")))
-        offset = &tmpDir[size - 4];
-    else if ((size > 4) && (!strcmp(&tmpDir[size - 4], "/bin")))
-        offset = &tmpDir[size - 4];
-    else if ((size > 8) && (!strcmp(&tmpDir[size - 8], "/scripts")))
-        offset = &tmpDir[size - 8];
-
-    if (offset != NULL)
-        *offset = 0;
-    
-    settings.fppDirectory = strdup(tmpDir);
-
-	strcpy(mediaDir, "/home/fpp/media");
-	settings.mediaDirectory = strdup(mediaDir);
-
-	strcpy(tmpDir, mediaDir);
-	settings.musicDirectory = strdup(strcat(tmpDir, "/music"));
-	strcpy(tmpDir, mediaDir);
-	settings.sequenceDirectory = strdup(strcat(tmpDir, "/sequences"));
-	strcpy(tmpDir, mediaDir);
-	settings.playlistDirectory = strdup(strcat(tmpDir, "/playlists"));
-	strcpy(tmpDir, mediaDir);
-	settings.eventDirectory = strdup(strcat(tmpDir, "/events"));
-	strcpy(tmpDir, mediaDir);
-	settings.videoDirectory = strdup(strcat(tmpDir, "/videos"));
-	strcpy(tmpDir, mediaDir);
-	settings.effectDirectory = strdup(strcat(tmpDir, "/effects"));
-	strcpy(tmpDir, mediaDir);
-	settings.scriptDirectory = strdup(strcat(tmpDir, "/scripts"));
-	strcpy(tmpDir, mediaDir);
-	settings.pluginDirectory = strdup(strcat(tmpDir, "/plugins"));
-	strcpy(tmpDir, mediaDir);
-	settings.pixelnetFile = strdup(strcat(tmpDir, "/config/Falcon.FPDV1"));
-	strcpy(tmpDir, mediaDir);
-	settings.logFile = strdup(strcat(tmpDir, "/logs/fppd.log"));
-	strcpy(tmpDir, mediaDir);
-	settings.silenceMusic = strdup(strcat(tmpDir, "/silence.ogg"));
-	strcpy(tmpDir, mediaDir);
-	settings.settingsFile = strdup(strcat(tmpDir, "/settings"));
-	settings.daemonize = 1;
-	settings.restarted = 0;
-	settings.E131interface = strdup("eth0");
-	settings.controlChannel = 0;
-
-	// Default all to info
-	SetLogLevel("info");
+void SettingsConfig::Init() {
+	fppMode = PLAYER_MODE;
 
 	// load UUID File
 	if( access( "/opt/fpp/scripts/get_uuid", F_OK ) == 0 ) {
@@ -145,7 +56,7 @@ void initSettings(int argc, char **argv)
   		char temp_uuid[500];
 		uuid_fp = popen("/opt/fpp/scripts/get_uuid", "r");
 		if (uuid_fp == NULL) {
-			LogWarn(VB_SETTING, "Couldn't execute get_uuid");
+			LogWarn(VB_SETTING, "Couldn't execute get_uuid\n");
 		}
 		if (fgets(temp_uuid, sizeof(temp_uuid), uuid_fp) != NULL) {
 			int pos = strlen(temp_uuid) - 1;
@@ -153,7 +64,7 @@ void initSettings(int argc, char **argv)
 			if ('\n' == temp_uuid[pos]) {
 				temp_uuid[pos] = '\0';
 			}
-			settings.systemUUID = strdup(temp_uuid);
+			settings["SystemUUID"] = temp_uuid;
 		}
 
 		if (uuid_fp != NULL){
@@ -162,10 +73,38 @@ void initSettings(int argc, char **argv)
 	}
 
 	// Set to unknown if not found
-	if (settings.systemUUID == nullptr) {
-		settings.systemUUID = strdup("UNKNONW");
-		LogWarn(VB_SETTING, "Couldn't find UUID");
+	if (!settings.isMember("SystemUUID")) {
+		settings["SystemUUID"] = "Unknown";
+		LogWarn(VB_SETTING, "Couldn't find UUID\n");
 	}
+}
+
+void SettingsConfig::LoadSettingsInfo() {
+    settingsInfo = LoadJsonFromFile("/opt/fpp/www/settings.json");
+
+    Json::Value s = settingsInfo["settings"];
+    Json::Value::Members memberNames = s.getMemberNames();
+
+    for (int i = 0; i < memberNames.size(); i++) {
+        std::string type = s[memberNames[i]]["type"].asString();
+        std::string def = "";
+
+        if (s[memberNames[i]].isMember("default")) {
+            def = s[memberNames[i]]["default"].asString();
+        } else {
+            if ((type == "checkbox") ||
+                (type == "number")) {
+                def = "0";
+            } else {
+                def = "";
+            }
+        }
+
+        settings[memberNames[i]] = def;
+        // The following will never be logged due to startup order
+        LogExcess(VB_SETTING, "Setting default for '%s' setting to '%s'\n",
+            memberNames[i].c_str(), def.c_str());
+    }
 }
 
 // Returns a string that's the white-space trimmed version
@@ -227,27 +166,24 @@ char *modeToString(int mode)
 	return NULL;
 }
 
-int parseSetting(char *key, char *value)
+int SetSetting(const std::string key, const int value)
 {
-    const char *logLevelPrefix = "LogLevel_";
-    if (settings.keyVal[key]) {
-        free(settings.keyVal[key]);
-        settings.keyVal[key] = strdup(value);
-    }
+    return SetSetting(key, std::to_string(value));
+}
 
-	if ( strcmp(key, "daemonize") == 0 )
+int SetSetting(const std::string key, const std::string value)
+{
+    settings.settings[key] = value;
+
+	if (key == "fppMode")
 	{
-		settings.daemonize = atoi(value);
-	}
-	else if ( strcmp(key, "fppMode") == 0 )
-	{
-		if ( strcmp(value, "player") == 0 )
+		if (value == "player")
 			settings.fppMode = PLAYER_MODE;
-		else if ( strcmp(value, "bridge") == 0 )
+		else if (value == "bridge")
 			settings.fppMode = BRIDGE_MODE;
-		else if ( strcmp(value, "master") == 0 )
+		else if (value == "master")
 			settings.fppMode = MASTER_MODE;
-		else if ( strcmp(value, "remote") == 0 )
+		else if (value == "remote")
 			settings.fppMode = REMOTE_MODE;
 		else
 		{
@@ -255,175 +191,29 @@ int parseSetting(char *key, char *value)
 			exit(EXIT_FAILURE);
 		}
 	}
-	else if ( strcmp(key, "alwaysTransmit") == 0 )
-	{
-		if ( strlen(value) )
-			settings.alwaysTransmit = atoi(value);
-		else
-			fprintf(stderr, "Failed to apply alwaysTransmit setting\n");
-	}
-	else if ( strcmp(key, "mediaDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.mediaDirectory);
-			settings.mediaDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply mediaDirectory\n");
-	}
-	else if ( strcmp(key, "musicDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.musicDirectory);
-			settings.musicDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply musicDirectory\n");
-	}
-	else if ( strcmp(key, "sequenceDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.sequenceDirectory);
-			settings.sequenceDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply sequenceDirectory\n");
-	}
-	else if ( strcmp(key, "eventDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.eventDirectory);
-			settings.eventDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply eventDirectory\n");
-	}
-	else if ( strcmp(key, "videoDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.videoDirectory);
-			settings.videoDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply videoDirectory\n");
-	}
-	else if ( strcmp(key, "effectDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.effectDirectory);
-			settings.effectDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply effectDirectory\n");
-	}
-	else if ( strcmp(key, "scriptDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.scriptDirectory);
-			settings.scriptDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply scriptDirectory\n");
-	}
-	else if ( strcmp(key, "pluginDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.pluginDirectory);
-			settings.pluginDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply pluginDirectory\n");
-	}
-	else if ( strcmp(key, "playlistDirectory") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.playlistDirectory);
-			settings.playlistDirectory = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply playlistDirectory\n");
-	}
-	else if ( strcmp(key, "pixelnetFile") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.pixelnetFile);
-			settings.pixelnetFile = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply pixelnetFile\n");
-	}
 	// Starts with LogLevel_
-	else if ( strncmp(key, logLevelPrefix, strlen(logLevelPrefix)) == 0 )
+	else if (startsWith(key, "LogLevel_"))
 	{
-		if (strlen(value))
-			FPPLogger::INSTANCE.SetLevel(key, value);
+		if (value != "")
+			FPPLogger::INSTANCE.SetLevel(key.c_str(), value.c_str());
 		else
-			FPPLogger::INSTANCE.SetLevel(key, (char *)"warn");
-	}
-	else if ( strcmp(key, "logFile") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.logFile);
-			settings.logFile = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply logFile\n");
-	}
-	else if ( strcmp(key, "silenceMusic") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.silenceMusic);
-			settings.silenceMusic = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply silenceMusic\n");
-	}
-	else if ( strcmp(key, "E131interface") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			free(settings.E131interface);
-			settings.E131interface = strdup(value);
-		}
-		else
-			fprintf(stderr, "Failed to apply E131interface\n");
-	}
-	else if ( strcmp(key, "PresetControlChannel") == 0 )
-	{
-		if ( strlen(value) )
-		{
-			int ivalue = atoi(value);
-			if (ivalue >= 0)
-				settings.controlChannel = (unsigned int)ivalue;
-			else
-				fprintf(stderr, "Error, PresetControlChannel value negative\n");
-		}
+			FPPLogger::INSTANCE.SetLevel(key.c_str(), "warn");
 	}
 
 	return 1;
 }
 
-int loadSettings(const char *filename)
+int LoadSettings()
 {
-	if (!FileExists(filename)) {
+    settings.Init();
+
+	if (!FileExists(FPP_FILE_SETTINGS)) {
 		LogWarn(VB_SETTING,
-			"Attempted to load settings file %s which does not exist!", filename);
+			"Attempted to load settings file %s which does not exist!\n", FPP_FILE_SETTINGS);
 		return -1;
 	}
 
-	FILE *file = fopen(filename, "r");
+	FILE *file = fopen(FPP_FILE_SETTINGS, "r");
 
 	if (file != NULL)
 	{
@@ -461,9 +251,7 @@ int loadSettings(const char *filename)
 			}
 			value = trimwhitespace(token);
 
-			parseSetting(key, value);
-
-            settings.keyVal[key] = strdup(value);
+			SetSetting(key, value);
 
 			if ( key )
 			{
@@ -485,52 +273,60 @@ int loadSettings(const char *filename)
 	}
 	else
 	{
-		LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", filename);
+		LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", FPP_FILE_SETTINGS);
 		return -1;
 	}
 
-    SetLogFile(getLogFile(), !getDaemonize());
+    UpgradeSettings();
+
 	return 0;
 }
 
-const char *getSetting(const char *setting, const char *defaultval)
+int SaveSettings() {
+    // When SaveSettings() is implemented, it should only save settings
+    // defined in settings.json since there are other ephemeral values
+    // stored in the settings Json::Value.
+    return 0;
+}
+
+void UpgradeSettings() {
+// FIXME, upgrade existing fppMode setting to:
+// - fppMode
+// - MultiSyncMaster
+// - BridgeMode
+}
+
+std::string getSetting(const char *setting, const char *defaultVal)
 {
-	if (!setting) {
-		LogErr(VB_SETTING, "getSetting() called with NULL value\n");
-		return defaultval;
+    std::string result;
+
+	if ((!setting) || (setting[0] == 0x00)) {
+		LogErr(VB_SETTING, "getSetting() called with NULL or empty value\n");
+		return defaultVal;
 	}
 
-    if (settings.keyVal[setting] != nullptr) {
-        return settings.keyVal[setting];
-	}
+    if (settings.settings.isMember(setting))
+        result = settings.settings[setting].asString().c_str();
 
-	if (defaultval[0] == 0x0)
-		LogExcess(VB_SETTING, "getSetting(%s) returned setting not found and no default supplied\n", setting);
-
-	return defaultval;
+	LogExcess(VB_SETTING, "getSetting(%s) returning %d\n", setting, result.c_str());
+    return result;
 }
 
 int getSettingInt(const char *setting, int defaultVal)
 {
-	const char *valueStr = getSetting(setting);
-    if (!valueStr || *valueStr == 0) {
-        return defaultVal;
-    }
-	int   value = strtol(valueStr, NULL, 10);
+    int result = defaultVal;
 
-	LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, value);
+	if ((!setting) || (setting[0] == 0x00)) {
+		LogErr(VB_SETTING, "getSettingInt() called with NULL or empty value\n");
+		return defaultVal;
+	}
 
-	return value;
-}
+    if (settings.settings.isMember(setting))
+        result = atoi(settings.settings[setting].asString().c_str());
 
-int getDaemonize(void)
-{
-	return settings.daemonize;
-}
+	LogExcess(VB_SETTING, "getSettingInt(%s) returning %d\n", setting, result);
 
-int getRestarted(void)
-{
-	return settings.restarted;
+	return result;
 }
 
 #ifndef __GNUG__
@@ -558,196 +354,3 @@ const std::string getFPPmodeStr(FPPMode mode)
     return result;
 }
 
-#ifndef __GNUG__
-inline
-#endif
-int getAlwaysTransmit(void)
-{
-	return settings.alwaysTransmit;
-}
-
-char *getBinDirectory(void)
-{
-	return settings.binDirectory;
-}
-
-char *getFPPDirectory(void)
-{
-	return settings.fppDirectory;
-}
-char *getMediaDirectory(void)
-{
-	return settings.mediaDirectory;
-}
-char *getMusicDirectory(void)
-{
-	return settings.musicDirectory;
-}
-char *getSequenceDirectory(void)
-{
-	return settings.sequenceDirectory;
-}
-char *getEventDirectory(void)
-{
-	return settings.eventDirectory;
-}
-char *getVideoDirectory(void)
-{
-	return settings.videoDirectory;
-}
-char *getEffectDirectory(void)
-{
-	return settings.effectDirectory;
-}
-char *getScriptDirectory(void)
-{
-	return settings.scriptDirectory;
-}
-char *getPluginDirectory(void)
-{
-	return settings.pluginDirectory;
-}
-char *getPlaylistDirectory(void)
-{
-	return settings.playlistDirectory;
-}
-char *getPixelnetFile(void)
-{
-	return settings.pixelnetFile;
-}
-char *getLogFile(void)
-{
-	return settings.logFile;
-}
-char *getSilenceMusic(void)
-{
-	return settings.silenceMusic;
-}
-char *getSystemUUID(void)
-{
-	return settings.systemUUID;
-}
-
-char *getSettingsFile(void)
-{
-	return settings.settingsFile;
-}
-
-char *getE131interface(void)
-{
-	return settings.E131interface;
-}
-
-unsigned int getControlChannel(void)
-{
-	return settings.controlChannel;
-}
-
-static inline bool createFile(const char *file) {
-    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
-    int i = open(file, O_RDWR | O_CREAT | O_TRUNC, mode);
-    if (i < 0) {
-        return false;
-    }
-    struct passwd *pwd = getpwnam("fpp");
-    fchown(i, pwd->pw_uid, pwd->pw_gid);
-    close(i);
-    return true;
-}
-
-void CheckExistanceOfDirectoriesAndFiles(void)
-{
-	if(!DirectoryExists(getMediaDirectory()))
-	{
-		LogWarn(VB_SETTING, "FPP directory does not exist, creating it.\n");
-
-		if ( mkdir(getMediaDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create media directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getMusicDirectory()))
-	{
-		LogWarn(VB_SETTING, "Music directory does not exist, creating it.\n");
-
-		if ( mkdir(getMusicDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create music directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getSequenceDirectory()))
-	{
-		LogWarn(VB_SETTING, "Sequence directory does not exist, creating it.\n");
-
-		if ( mkdir(getSequenceDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create sequence directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getEventDirectory()))
-	{
-		LogWarn(VB_SETTING, "Event directory does not exist, creating it.\n");
-
-		if ( mkdir(getEventDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create event directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getVideoDirectory()))
-	{
-		LogWarn(VB_SETTING, "Video directory does not exist, creating it.\n");
-
-		if ( mkdir(getVideoDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create video directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getEffectDirectory()))
-	{
-		LogWarn(VB_SETTING, "Effect directory does not exist, creating it.\n");
-
-		if ( mkdir(getEffectDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create effect directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getScriptDirectory()))
-	{
-		LogWarn(VB_SETTING, "Script directory does not exist, creating it.\n");
-
-		if ( mkdir(getScriptDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create script directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-	if(!DirectoryExists(getPlaylistDirectory()))
-	{
-		LogWarn(VB_SETTING, "Playlist directory does not exist, creating it.\n");
-
-		if ( mkdir(getPlaylistDirectory(), 0777) != 0 )
-		{
-			LogErr(VB_SETTING, "Error: Unable to create playlist directory.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if(!FileExists(getSettingsFile()))
-	{
-		LogWarn(VB_SETTING, "Settings file does not exist, creating it.\n");
-        if (!createFile(getSettingsFile())) {
-			LogErr(VB_SETTING, "Error: Unable to create settings file.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-  
-
-
-  
-}

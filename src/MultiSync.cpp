@@ -1593,10 +1593,10 @@ int MultiSync::OpenControlSockets()
         }
     }
 
-    if (getSettingInt("MultiSyncBroadcast", 0))
+    if (getSettingInt("MultiSyncBroadcast"))
         m_sendBroadcast = true;
 
-    if (getSettingInt("MultiSyncMulticast", 1))
+    if (getSettingInt("MultiSyncMulticast"))
         m_sendMulticast = true;
 
     for (auto &s : remotes) {
@@ -2397,7 +2397,7 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stat
     }
 
     if (isInstance) {
-        std::string localUUID(isLocal ? getSystemUUID() : "Unknown");
+        std::string localUUID(isLocal ? getSetting("SystemUUID") : "Unknown");
         multiSync->UpdateSystem(type, majorVersion, minorVersion,
                                 systemMode, address, hostname, version,
                                 typeStr, ranges, localUUID.c_str(), true);
