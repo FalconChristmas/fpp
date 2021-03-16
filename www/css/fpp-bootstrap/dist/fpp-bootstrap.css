@@ -7475,7 +7475,7 @@ a.text-pleasant:hover, a.text-pleasant:focus {
 
 .alert {
   position: relative;
-  padding: 1.05rem 1.35rem;
+  padding: 1.35rem 1.8rem;
   margin-bottom: 1rem;
   border: 1px solid transparent;
   border-radius: 8px; }
@@ -7487,13 +7487,13 @@ a.text-pleasant:hover, a.text-pleasant:focus {
   font-weight: 700; }
 
 .alert-dismissible {
-  padding-right: 4.125rem; }
+  padding-right: 5.025rem; }
   .alert-dismissible .close {
     position: absolute;
     top: 0;
     right: 0;
     z-index: 2;
-    padding: 1.05rem 1.35rem;
+    padding: 1.35rem 1.8rem;
     color: inherit; }
 
 .alert-primary {

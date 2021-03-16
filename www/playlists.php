@@ -108,6 +108,7 @@ if (isset($_GET['playlist'])) {
            
             $('#playlistEntryProperties').fppDialog({
                 title:'New Entry',
+                width:800,
                 buttons:{
                     "Add":{
                         click: function(){
