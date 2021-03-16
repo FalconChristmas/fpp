@@ -342,13 +342,21 @@ function SetupDatePicker(item)
                         .find( ".ui-datepicker-buttonpane" );
 
                     $( "<button>", {
-                        text: "Select from Holidays",
+                        text: "Holidays",
                         click: function() {
                             $('.ui-datepicker').hide();
                             $(input).hide();
                             $(input).val('Christmas');
                             $(input).parent().find('.holidays').val('Christmas');
                             $(input).parent().find('.holidays').show();
+                        }
+                    }).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
+
+                    $( "<button>", {
+                        text: "Today",
+                        click: function() {
+                            $(input).datepicker('setDate', new Date());
+                            $('.ui-datepicker').hide();
                         }
                     }).appendTo( buttonPane ).addClass("ui-datepicker-clear ui-state-default ui-priority-primary ui-corner-all");
                 }, 1 );
@@ -415,6 +423,7 @@ function HolidaySelected(item)
     if ($(item).val() == 'SpecifyDate') {
         $(item).hide();
         $(item).parent().find('.date').show();
+        $(item).parent().find('.date').datepicker('setDate', new Date());
     } else {
         $(item).parent().find('.date').val($(item).val());
         $(item).parent().find('.date').hide();
@@ -636,6 +645,10 @@ tr.rowScheduleDetails select.selPlaylist option {
 }
 .center {
 	text-align: center;
+}
+
+button.ui-datepicker-current {
+    display: none;
 }
 </style>
 </head>
