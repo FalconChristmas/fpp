@@ -6,11 +6,6 @@ FPPDIR=${FPPDIR:-/opt/fpp}
 FPPHOME="/home/fpp"
 FPPUSER="fpp"
 
-if [ -f "${FPPHOME}/fpp/scripts/common" ]
-then
-	FPPDIR="${FPPHOME}/fpp"
-fi
-
 FPPPLATFORM=$(cat /etc/fpp/platform 2> /dev/null)
 FPPBINDIR="${FPPDIR}/src"
 if [ "x${FPPPLATFORM}" = "xBeagleBone Black" ]
