@@ -48,7 +48,7 @@ typedef enum {
 class FPPLoggerInstance {
    public:
       FPPLoggerInstance(std::string name) { this->name = name; }
-      LogLevel level = LOG_WARN;
+      LogLevel level = LOG_INFO;
       std::string name;
 };
 
