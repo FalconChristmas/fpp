@@ -440,10 +440,15 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
 }
 .form-actions, .modal-actions{
     display: flex;
+    flex-flow: wrap;
     margin-top: 1em;
     margin-bottom: 1em;
     >*:not(:last-child){
         margin-right: 0.5rem;
+        
+    }
+    >*{
+        margin-bottom:0.5rem ;
     }
 }
 .form-actions, .modal-actions{

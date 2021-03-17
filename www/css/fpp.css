@@ -1802,7 +1802,8 @@ input[type=search].tablesorter-filter:disabled{
 	background-color: #ECECEC;
 	border-radius: 8px;
 	padding: 0.65em;
-
+	max-height: 300px;
+	overflow: auto;
 }
 .fileManagerDivData>table{
 	width: 100%;

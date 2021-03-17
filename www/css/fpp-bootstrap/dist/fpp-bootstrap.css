@@ -9476,10 +9476,13 @@ input[type=checkbox]:checked {
 
 .form-actions, .modal-actions {
   display: flex;
+  flex-flow: wrap;
   margin-top: 1em;
   margin-bottom: 1em; }
   .form-actions > *:not(:last-child), .modal-actions > *:not(:last-child) {
     margin-right: 0.5rem; }
+  .form-actions > *, .modal-actions > * {
+    margin-bottom: 0.5rem; }
 
 .form-actions, .modal-actions {
   margin-top: 1em;
