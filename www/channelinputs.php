@@ -258,7 +258,8 @@ $(document).ready(function(){
 		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
 		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
 		                <thead id='tblUniversesHead'>
-		                    <th title='Input Number'>Input</th>
+					<th class="tblScheduleHeadGrip"></th>
+				        <th title='Input Number'>Input</th>
 		                        <th title='Input Enabled/Disabled status'>Active</th>
 		                        <th title='User Description'>Description</th>
 		                        <th title='Input Type'>Input Type</th>
