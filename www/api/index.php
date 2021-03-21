@@ -132,6 +132,9 @@ dispatch_get   ('/system/status', 'SystemGetStatus');
 dispatch_get   ('/system/volume', 'SystemGetAudio');
 dispatch_post  ('/system/volume', 'SystemSetAudio');
 
+dispatch_get   ('/testmode', 'testMode_Get');
+dispatch_post  ('/testmode', 'testMode_Set');
+
 dispatch_get   ('/time', 'GetTime');
 
 run();

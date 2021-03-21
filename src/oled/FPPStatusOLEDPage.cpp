@@ -549,8 +549,7 @@ void FPPStatusOLEDPage::runTest(const std::string &test) {
     
     buffer.clear();
     CURL *curl = curl_easy_init();
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/fppjson.php");
-    data = "command=setTestMode&data=" + data;
+    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost/api/testmode");
     
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 50);

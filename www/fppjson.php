@@ -48,8 +48,8 @@ $command_array = Array(
     "getPluginJSON"       => 'GetPluginJSON',
     "setPluginJSON"       => 'SetPluginJSON',
 	"saveScript"          => 'SaveScript',
-	"setTestMode"         => 'SetTestMode',
-	"getTestMode"         => 'GetTestMode',
+	// "setTestMode"         => 'SetTestMode', // PUT /testmode
+	// "getTestMode"         => 'GetTestMode', // GET //testmode
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
 	"extGPIO"             => 'ExtGPIOJson',
     "getSysInfo"          => 'GetSystemInfoJson',
@@ -769,20 +769,6 @@ function SaveScript()
 	}
 
 	returnJSON($result);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-function SetTestMode()
-{
-	global $args;
-
-	SendCommand(sprintf("SetTestMode,%s", $args['data']));
-}
-
-function GetTestMode()
-{
-	returnJSONStr(SendCommand("GetTestMode"));
 }
 
 /////////////////////////////////////////////////////////////////////////////

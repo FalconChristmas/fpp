@@ -2279,6 +2279,38 @@
                     }
                 }
             }
+        },
+        {
+            "endpoint": "testmode",
+            "methods": {
+                "GET": {
+                    "desc": "Returns information about the current state of the Test Mode for this instance",
+                    "output": {
+                        "mode": "RGBChase",
+                        "subMode": "RGBChase-RGB",
+                        "cycleMS": 1000,
+                        "colorPattern": "FF000000FF000000FF",
+                        "enabled": 1,
+                        "channelSet": "1-520",
+                        "channelSetType": "channelRange"
+                    }
+                },
+                "POST": {
+                    "desc": "Sets the current Testing model on this instance",
+                    "input": {
+                        "mode": "RGBChase",
+                        "subMode": "RGBChase-RGB",
+                        "cycleMS": 1000,
+                        "colorPattern": "FF000000FF000000FF",
+                        "enabled": 1,
+                        "channelSet": "1-520",
+                        "channelSetType": "channelRange"
+                    },
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
         }
     ]
 }

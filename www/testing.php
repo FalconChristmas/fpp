@@ -102,7 +102,7 @@ function UpdateStartEndFromModel()
 
 function GetTestMode()
 {
-	$.ajax({ url: "fppjson.php?command=getTestMode",
+	$.ajax({ url: "api/testmode",
 		async: false,
 		dataType: 'json',
 		success: function(data) {
@@ -323,9 +323,9 @@ function SetTestMode()
 		data.channelSet = channelSet;
 		data.channelSetType = channelSetType;
 
-		var postData = "command=setTestMode&data=" + JSON.stringify(data);
+		var postData = JSON.stringify(data);
 		console.log(postData);
-		$.post("fppjson.php", postData).done(function(data) {
+		$.post("api/testmode", postData).done(function(data) {
 			//$.jGrowl("Test Mode Set");
 			//console.log(data);
 		}).fail(function(data) {
