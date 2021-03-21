@@ -696,6 +696,12 @@ function StreamURL(url, id, doneCallback = '', errorCallback = '', reqType = 'GE
             }
         }
     }).done(function(data) {
+        // Because xhrFields.onprogress is not guarenteed to fire on the last chunk
+        // any scripts at the end may be missed.  This will execute those, but has
+        // the side effecting of running all other streamScripts again.
+        $("script.streamScript").each(function() {
+            eval($(this).html());
+        });
         if (doneCallback != '') {
             window[doneCallback](id);
         }
