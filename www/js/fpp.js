@@ -4544,10 +4544,9 @@ function PlayFileInBrowser(dir, file)
 function CopyFile(dir, file)
 {
 	var newFile = prompt("New Filename:", file);
+    var url = "api/file/" + dir + "/copy/" + file + "/" + newFile;
 
-	var postData = "command=copyFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
-
-	$.post("fppjson.php", postData).done(function(data) {
+	$.post(url, "").done(function(data) {
 		if (data.status == 'success')
 			GetFiles(dir);
 		else

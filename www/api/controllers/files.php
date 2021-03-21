@@ -20,6 +20,33 @@ function MapExtention($filename)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+// GET /file/:DirName/copy/:source/:dest
+function files_copy()
+{
+	$filename = params("source");
+	$newfilename = params("dest");
+	$dir = params("DirName");
+
+	$dir = GetDirSetting($dir);
+
+	if ($dir == "")
+		return json(Array("status" => "Invalid Directory"));
+
+	$result = Array();
+
+	if (copy($dir . '/' . $filename, $dir . '/' . $newfilename))
+		$result['status'] = 'success';
+	else
+		$result['status'] = 'failure';
+
+	$result['original'] = $filename;
+	$result['new'] = $newfilename;
+
+	return json($result);
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 // GET /api/files/:DirName
 function GetFiles()
 {

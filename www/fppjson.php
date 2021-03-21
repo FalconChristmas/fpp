@@ -41,7 +41,7 @@ $command_array = Array(
 	"getSequenceInfo"     => 'GetSequenceInfo',
 	"getMediaDuration"    => 'getMediaDurationInfo',
 	"getFileSize"         => 'getFileSize',
-	"copyFile"            => 'CopyFile',
+	//"copyFile"            => 'CopyFile', // POST /file/:DirName/copy/:source/:dest
 	"renameFile"          => 'RenameFile',
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
@@ -52,8 +52,8 @@ $command_array = Array(
 	// "getTestMode"         => 'GetTestMode', // GET //testmode
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
 	"extGPIO"             => 'ExtGPIOJson',
-    "getSysInfo"          => 'GetSystemInfoJson',
-    "getHostNameInfo"     => 'GetSystemHostInfo',
+    "getSysInfo"          => 'GetSystemInfoJson', // Still used by MultiSync
+    "getHostNameInfo"     => 'GetSystemHostInfo', // Still used by MultiSync
     // "clearPersistentNetNames" => 'ClearPersistentNetNames', // use DELETE /api/network/presisentName
     // "createPersistentNetNames" => 'CreatePersistentNetNames' // use POST /api/network/presisentName
 );
@@ -274,35 +274,6 @@ function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
 	}
 
     return $data;
-}
-
-function CopyFile()
-{
-	$filename = $_POST['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$newfilename = $_POST['newfilename'];
-	check($newfilename, "newfilename", __FUNCTION__);
-
-	$dir = $_POST['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
-	$result = Array();
-
-	if (copy($dir . '/' . $filename, $dir . '/' . $newfilename))
-		$result['status'] = 'success';
-	else
-		$result['status'] = 'failure';
-
-	$result['original'] = $_POST['filename'];
-	$result['new'] = $_POST['newfilename'];
-
-	returnJSON($result);
 }
 
 function RenameFile()
