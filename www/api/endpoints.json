@@ -294,6 +294,19 @@
             }
         },
         {
+            "endpoint": "file/:DirName/rename/:source/:dest",
+            "methods": {
+                "POST": {
+                    "desc": "Renames the specified file from :source to :dest where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos').",
+                    "output": {
+                        "status": "success",
+                        "original": "test.py",
+                        "new": "test2.py"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "file/:DirName/:Filename",
             "methods": {
                 "GET": {

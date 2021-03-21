@@ -37,6 +37,7 @@ dispatch_get   ('/files/:DirName', 'GetFiles');
 dispatch_get   ('/file/move/:fileName', 'MoveFile'); // keep above file/:DirName
 dispatch_get   ('/files/zip/:DirName', 'GetZipDir');
 dispatch_post  ('/file/:DirName/copy/:source/:dest', 'files_copy');
+dispatch_post  ('/file/:DirName/rename/:source/:dest', 'files_rename');
 dispatch_get   ('/file/:DirName/:Name', 'GetFile');
 dispatch_delete('/file/:DirName/:Name', 'DeleteFile');
 

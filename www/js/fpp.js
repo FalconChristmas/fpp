@@ -4559,10 +4559,9 @@ function CopyFile(dir, file)
 function RenameFile(dir, file)
 {
 	var newFile = prompt("New Filename:", file);
+    var url = "api/file/" + dir + "/rename/" + file + "/" + newFile;
 
-	var postData = "command=renameFile&dir=" + dir + "&filename=" + encodeURIComponent(file) + "&newfilename=" + encodeURIComponent(newFile);
-
-	$.post("fppjson.php", postData).done(function(data) {
+	$.post(url, "").done(function(data) {
 		if (data.status == 'success')
 			GetFiles(dir);
 		else

@@ -23,28 +23,54 @@ function MapExtention($filename)
 // GET /file/:DirName/copy/:source/:dest
 function files_copy()
 {
-	$filename = params("source");
-	$newfilename = params("dest");
-	$dir = params("DirName");
+    $filename = params("source");
+    $newfilename = params("dest");
+    $dir = params("DirName");
 
-	$dir = GetDirSetting($dir);
+    $dir = GetDirSetting($dir);
 
-	if ($dir == "")
-		return json(Array("status" => "Invalid Directory"));
+    if ($dir == "") {
+        return json(array("status" => "Invalid Directory"));
+    }
 
-	$result = Array();
+    $result = array();
 
-	if (copy($dir . '/' . $filename, $dir . '/' . $newfilename))
-		$result['status'] = 'success';
-	else
-		$result['status'] = 'failure';
+    if (copy($dir . '/' . $filename, $dir . '/' . $newfilename)) {
+        $result['status'] = 'success';
+    } else {
+        $result['status'] = 'failure';
+    }
 
-	$result['original'] = $filename;
-	$result['new'] = $newfilename;
+    $result['original'] = $filename;
+    $result['new'] = $newfilename;
 
-	return json($result);
+    return json($result);
 }
 
+function files_rename()
+{
+    $filename = params("source");
+    $newfilename = params("dest");
+    $dir = params("DirName");
+    $dir = GetDirSetting($dir);
+
+    if ($dir == "") {
+        return json(array("status" => "Invalid Directory"));
+    }
+
+    $result = array();
+
+    if (rename($dir . '/' . $filename, $dir . '/' . $newfilename)) {
+        $result['status'] = 'success';
+    } else {
+        $result['status'] = 'failure';
+    }
+
+    $result['original'] = $filename;
+    $result['new'] = $newfilename;
+
+    return json($result);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // GET /api/files/:DirName

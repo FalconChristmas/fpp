@@ -42,7 +42,7 @@ $command_array = Array(
 	"getMediaDuration"    => 'getMediaDurationInfo',
 	"getFileSize"         => 'getFileSize',
 	//"copyFile"            => 'CopyFile', // POST /file/:DirName/copy/:source/:dest
-	"renameFile"          => 'RenameFile',
+	// "renameFile"          => 'RenameFile', // POST /file/:DirName/rename/:source/:dest
 	"getPluginSetting"    => 'GetPluginSetting',
 	"setPluginSetting"    => 'SetPluginSetting',
     "getPluginJSON"       => 'GetPluginJSON',
@@ -274,35 +274,6 @@ function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
 	}
 
     return $data;
-}
-
-function RenameFile()
-{
-	$filename = $_POST['filename'];
-	check($filename, "filename", __FUNCTION__);
-
-	$newfilename = $_POST['newfilename'];
-	check($newfilename, "newfilename", __FUNCTION__);
-
-	$dir = $_POST['dir'];
-	check($dir, "dir", __FUNCTION__);
-
-	$dir = GetDirSetting($dir);
-
-	if ($dir == "")
-		return;
-
-	$result = Array();
-
-	if (rename($dir . '/' . $filename, $dir . '/' . $newfilename))
-		$result['status'] = 'success';
-	else
-		$result['status'] = 'failure';
-
-	$result['original'] = $_POST['filename'];
-	$result['new'] = $_POST['newfilename'];
-
-	returnJSON($result);
 }
 
 /**
