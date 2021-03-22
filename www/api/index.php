@@ -139,5 +139,37 @@ dispatch_post  ('/testmode', 'testMode_Set');
 
 dispatch_get   ('/time', 'GetTime');
 
+addPluginEndpoints();
+
 run();
+
+///////////////////////////////////////////////////////////////////////////
+
+function addPluginEndpoints()
+{
+    $baseDir = '/home/fpp/media/plugins/';
+    if ($dir = opendir($baseDir)) {
+        while (($file = readdir($dir)) !== false) {
+            if (!in_array($file, array('.', '..')) && is_dir($baseDir . $file) && is_file($baseDir . $file . '/api.php')) {
+                require_once($baseDir . $file . '/api.php');
+
+                $sfile = preg_replace('/-/', '', $file);
+
+                $endpoints = call_user_func("getEndpoints$sfile");
+                foreach ($endpoints as $ep) {
+                    if ($ep['method'] == 'GET') {
+                        dispatch_get('/plugin/' . $file . '/' . $ep['endpoint'], $ep['callback']);
+                    } else if ($ep['method'] == 'POST') {
+                        dispatch_post('/plugin/' . $file . '/' . $ep['endpoint'], $ep['callback']);
+                    } else if ($ep['method'] == 'PUT') {
+                        dispatch_put('/plugin/' . $file . '/' . $ep['endpoint'], $ep['callback']);
+                    } else if ($ep['method'] == 'DELETE') {
+                        dispatch_delete('/plugin/' . $file . '/' . $ep['endpoint'], $ep['callback']);
+                    }
+                }
+            }
+        }
+    }
+}
+
 ?>
