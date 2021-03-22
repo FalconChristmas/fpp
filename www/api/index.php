@@ -90,6 +90,8 @@ dispatch_post  ('/plugin/:RepoName/settings/:SettingName', 'PluginSetSetting');
 dispatch_post  ('/plugin/:RepoName/updates', 'CheckForPluginUpdates');
 dispatch_get   ('/plugin/:RepoName/upgrade', 'UpgradePlugin');
 dispatch_post  ('/plugin/:RepoName/upgrade', 'UpgradePlugin');
+// NOTE: Plugins may also implement their own /plugin/:RepoName/* endpoints
+// which are added after the above endpoints via addPluginEndpoints() below.
 
 dispatch_get   ('/proxies', 'GetProxies');
 dispatch_post  ('/proxies/:ProxyIp', 'AddProxy');
