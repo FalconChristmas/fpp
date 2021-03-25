@@ -266,8 +266,8 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     {
         result += "<td class='vsPortLabel' align='center'>" + (port+1) + "" + portPfx + ")</td>";
         result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
-        result += "<td><a href='#' ";
-        result += "class='addButton' onClick='addVirtualString(this);'></td>";
+        result += "<td ><a href='#' ";
+        result += "class='addButton' onClick='addVirtualString(this);'><i class='fas fa-plus-circle'></i></td>";
     }
     
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";

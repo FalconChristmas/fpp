@@ -464,6 +464,17 @@ body legend{
 	border-bottom:1px solid #DADADA;
 	margin-bottom: 1.0em;
 }
+.piPixelOutputTableWrapper{
+	padding-bottom: 0.85em;
+	border-bottom:1px solid #DADADA;
+	margin-bottom: 1.0em;	
+}
+
+.piPixelOutputTableWrapper:last-child{
+	padding-bottom:0;
+	border-bottom:none;
+	margin-bottom: 0;	
+}
 
 .volume{
 	display: block;
@@ -1287,6 +1298,7 @@ body .sm-clean a .sub-arrow {
     vertical-align: top;
     white-space: nowrap;
     width: 10%;
+	min-width: 100px;
 }
 
 .psiDuration {
@@ -1603,7 +1615,7 @@ body .sm-clean a .sub-arrow {
 }
 .tablePageHeader .form-actions{
 	margin-top: 0;
-	margin-bottom: 1.4em;
+	margin-bottom: 0.7em;
 }
 
 
@@ -1615,6 +1627,14 @@ body .sm-clean a .sub-arrow {
 }
 .tableOptionsForm .form-inline input, .tableOptionsForm .form-inline select{
 	margin-left: 0.6em;
+}
+.tableOptionsFormHeadingCol{
+	display: flex;
+	align-items: center;
+}
+.tableOptionsFormHeadingCol h3{
+	margin-bottom: 0;
+	margin-left: 0.4em;
 }
 .enableCheckboxWrapper {
 	padding: 0.65em 1em;
@@ -1652,6 +1672,13 @@ body .sm-clean a .sub-arrow {
 }
 .tablesorter thead>tr>:last-child{
 	padding-right: 1em;
+}
+.addButton{
+	color:#56B760;
+	font-size: 1.65em;
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+	line-height: 1.1;
 }
 .fppTableWrapper.backdrop {
 	padding:0.75em;
@@ -1914,6 +1941,9 @@ input[type=search].tablesorter-filter:disabled{
 @media (min-width: 991px){
 	.tablePageHeader .btn-success, .tablePageHeader .btn-outline-success{
 		min-width: 100px;
+	}
+	.tablePageHeader .dropdown-toggle{
+		min-width: 34px;
 	}
 	.smallonly{
 		display: none;

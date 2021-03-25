@@ -47,7 +47,7 @@ function addPixelOutput()
 		return;
 	}
 
-	var str = "<hr>\n";
+	var str = "<div class='piPixelOutputTableWrapper'>\n";
 
 	var protocols = '';
 	var protocol = '';
@@ -85,13 +85,22 @@ function addPixelOutput()
 		protocol = 'X11';
 		protocols = 'X11';
 	}
-
-	str += '<b>' + type + ' Output</b><br>';
-	str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable' checked><br>";
-
+	str += "<div class='backdrop tableOptionsForm'>"
+	str += '<div class="row">';
+	str += '<div class="col-md-auto tableOptionsFormHeadingCol">';
+	str += '<h3>' + type + ' Output</h3>';
+	str += '</div>';
+	str += '<div class="col-md-auto">';
+	str += "<div class='backdrop-dark form-inline enableCheckboxWrapper'>";
+	str += "<b>Output Enabled:</b> <input type='checkbox' id='" + type + "_Output_0_enable' checked>";
+	str += '</div>';
+	str += '</div>';
+	str += '</div>';
+	str += '</div>';
+	str += '<small class="text-muted text-right pt-2 d-block">Press F2 to auto set the start channel on the next row.</small>';
     str += "<div class='fppTableWrapper'>" +
         "<div class='fppTableContents' role='region' aria-labelledby='" + type + "_Output_0' tabindex='0'>";
-	str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + portCount + "'>";
+	str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + portCount + "' class='fppSelectableRowTable'>";
 	str += pixelOutputTableHeader();
 	str += "<tbody>";
 
@@ -106,6 +115,7 @@ function addPixelOutput()
 	str += "</table>";
     str += "</div>";
     str += "</div>";
+	str += "</div>";
 
 	$('#pixelOutputs').append(str);
 
@@ -127,10 +137,15 @@ function populatePixelStringOutputs(data)
             var output = data.channelOutputs[i];
 
             var type = output.type;
-            var str = "<hr>\n";
+            var str = "<div class='piPixelOutputTableWrapper'>\n";
             var protocols = '';
             var protocol = '';
-
+			str += "<div class='backdrop tableOptionsForm'>"
+			str += '<div class="row">';
+			str += '<div class="col-md-auto tableOptionsFormHeadingCol">';
+			str += '<h3>' + type + ' Output</h3>';
+			str += '</div>';
+			str += '<div class="col-md-auto">';
             if (type == 'RPIWS281X')
             {
                 protocols = 'ws281x';
@@ -157,18 +172,22 @@ function populatePixelStringOutputs(data)
                 protocol = 'X11';
                 protocols = 'X11';
             }
-
-            str += "Output Enabled: <input type='checkbox' id='" + type + "_Output_0_enable'";
+			str += "<div class='backdrop-dark form-inline enableCheckboxWrapper'>";
+            str += "<b>Output Enabled:</b> <input type='checkbox' id='" + type + "_Output_0_enable'";
 
             if (output.enabled)
                 str += " checked";
 
-            str += "><br>";
+            str += ">";
+			str += '</div>';
+			str += '</div>';
+			str += '</div>';
+			str += '</div>';
+			str += '<small class="text-muted text-right pt-2 d-block">Press F2 to auto set the start channel on the next row.</small>';
 
-            str += '<b>' + type + ' Output</b><br>';
             str += "<div class='fppTableWrapper'>" +
                 "<div class='fppTableContents' role='region' aria-labelledby='" + type + "_Output_0' tabindex='0'>";
-            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "'>";
+            str += "<table id='" + type + "_Output_0' type='" + type + "' ports='" + output.outputCount + "' class='fppSelectableRowTable'>";
             str += pixelOutputTableHeader();
             str += "<tbody>";
 
@@ -201,6 +220,7 @@ function populatePixelStringOutputs(data)
             str += "</table>";
             str += "</div>";
             str += "</div>";
+			str += "</div>";
 
             $('#pixelOutputs').append(str);
 
@@ -233,44 +253,54 @@ function savePixelStringOutputs() {
 
 $(document).ready(function() {
 	loadPixelStringOutputs();
+	$('#addPixelOutputTypeSelector>a').click(function(e){
+		$('#pixelOutputType').val($(this).data('value'));
+		addPixelOutput();
+	})
 });
 
 </script>
 
 <div id='tab-PixelStrings'>
 	<div id='divPixelStrings'>
-		<b>New Type:</b>
-		<select id='pixelOutputType'>
-<?
-if ($settings['Platform'] == "Raspberry Pi") {
-?>
-			<option value='RPIWS281X'>RPIWS281X</option>
-			<option value='spixels'>spixels</option>
-<!--
-			<option value='SPI-WS2801'>SPI-WS2801</option>
--->
-<? } else { ?>
-			<option value='X11PixelStrings'>X11 Pixel Strings</option>
-<?
-}
-?>
-		</select>
 
-		<input type='button' onClick='addPixelOutput();' value='Add Output'>
-		<br>
+        <div class="row tablePageHeader">
+			<div class="col-md">
+				<h2>Pi Pixel Strings</h2>
+			</div>
+            <div class="col-md-auto ml-lg-auto">
+                <div class="form-actions">
+                    
+                        <input type='button' class="buttons" onClick='loadPixelStringOutputs();' value='Revert'>
+                        <input type='button' class="buttons" onClick='cloneSelectedString();' value='Clone String'>
+						<div class="btn-group">
+							<!-- <button type="button" class="buttons btn-outline-success" onclick="addPixelOutput();"><i class="fas fa-plus"></i> Add Output</button> -->
+							<button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<i class="fas fa-plus"></i> Add Output
+							</button>
+							<div class="dropdown-menu dropdown-menu-right" id="addPixelOutputTypeSelector">
+								<?
+								if ($settings['Platform'] == "Raspberry Pi") {
+								?>
+									<a class="dropdown-item" href="#" data-value="RPIWS281X" data-output-name="RPIWS281X"><i class="fas fa-plus"></i> Add RPIWS281X Output</a>
+									<a class="dropdown-item" href="#" data-value="spixels" data-output-name="spixels"><i class="fas fa-plus"></i> Add spixels Output</a>
+								<? } else { ?>
+									<a class="dropdown-item" href="#" data-value="X11PixelStrings" data-output-name="X11 Pixel Strings"><i class="fas fa-plus"></i> Add X11 Pixel Strings Output</a>
 
-		<table style='width: 100%;'>
-			<tr>
-				<td align='left'>
-					<input type='button' onClick='cloneSelectedString();' value='Clone String'>
-					<input type='button' onClick='savePixelStringOutputs();' value='Save'>
-					<input type='button' onClick='loadPixelStringOutputs();' value='Revert'>
-				</td>
-				<td align='right'>
-					Press F2 to auto set the start channel on the next row.
-				</td>
-			</tr>
-		</table>
+								<?
+								}
+								?>
+								<input type="hidden" id="pixelOutputType" value="RPIWS281X">
+
+
+							</div>
+						</div>
+                        <input type='button' class="buttons btn-success ml-1" onClick='savePixelStringOutputs();' value='Save'>
+                </div>
+            </div>
+        </div>
+
+
 		<div id='pixelOutputs'>
 		</div>
 	</div>

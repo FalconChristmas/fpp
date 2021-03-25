@@ -9610,10 +9610,10 @@ table.settingsTable div.th {
   margin-top: 1em; }
 
 .fppSelectableRowTable > tbody > tr > td {
-  padding-top: 0.65em;
-  padding-bottom: 0.5em;
+  padding-top: 0.25em;
+  padding-bottom: 0.25em;
   background-color: #F5F5F5;
-  border-bottom: 1px solid #dee2e6; }
+  border-bottom: 1px solid #d5d7da; }
 
 .fppSelectableRowTable > tbody > tr:first-child > td {
   padding-top: 0.85em; }
