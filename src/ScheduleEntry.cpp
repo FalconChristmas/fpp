@@ -300,9 +300,6 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
 
     if (repeatInterval) {
         time_t newEnd = startTime + repeatInterval - 1;
-        if (newEnd > (24*60*60*7)) {
-            newEnd -= 24*60*60*7;
-        }
         while (endTime < startTime) {
             // case where we eventually wrap around on sat->sunday...
             // this handles all the intervals on Saturday until start
@@ -315,17 +312,6 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
             startEndTimes.push_back(std::pair<int, int>(startTime, newEnd));
             newEnd += repeatInterval;
             startTime += repeatInterval;
-            if (newEnd >= (24*60*60*7)) {
-                newEnd -= 24*60*60*7;
-            }
-            if (startTime >= (24*60*60*7)) {
-                startTime -= 24*60*60*7;
-                // Break out of while loop if start loops around and let
-                // normal start<end code handle the rest.  The end<start
-                // above may be true forever depending on the relative
-                // positions of start and end when start wraps.
-                break;
-            }
         }
         while (startTime < endTime) {
             if (startTimeStr.find(":") == std::string::npos)
@@ -336,11 +322,6 @@ void ScheduleEntry::pushStartEndTimes(int dow) {
             startEndTimes.push_back(std::pair<int, int>(startTime, newEnd));
             newEnd += repeatInterval;
             startTime += repeatInterval;
-
-            // allow for starting on Saturday night and ending on Sunday morning
-            if (newEnd >= (24*60*60*7)) {
-                newEnd -= 24*60*60*7;
-            }
         }
     } else {
         if (startTimeStr.find(":") == std::string::npos)
