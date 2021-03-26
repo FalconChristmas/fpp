@@ -1361,15 +1361,16 @@ function multiActionChanged() {
                 </table>
             </div>
         </div>
-        <?
-        if ($advancedView) {
-        ?>
+
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
             <i class="fas fa-cog"></i> View Options</button><button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
                 
             </div>
+            <?
+            if ($advancedView) {
+            ?>
             <div class="col-md-auto">
                 <div class="form-actions multisyncBulkActions  ">
                     <b>Action for selected systems:</b>
@@ -1389,7 +1390,11 @@ function multiActionChanged() {
                     <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
                 </div>
             </div>
+            <? } ?>
         </div>
+        <?
+        if ($advancedView) {
+        ?>
         <div style='text-align: left;'>
             <span class='actionOptions' id='copyOptions'>
                 <br>
