@@ -762,8 +762,7 @@ border-top-color: transparent;
 	height: 28px;
 
     padding-left: 6px;
-    padding-bottom: 6px;
-	margin-top: 6px;
+
 }
 
 #footer{
@@ -1618,6 +1617,29 @@ body .sm-clean a .sub-arrow {
 	margin-bottom: 0.7em;
 }
 
+.settingsGroupTable .row>:last-child:after {
+	content:'';
+	width: 0;
+	height: 0;
+	opacity: 0;	
+}
+.settingsGroupTable .row.loading>:last-child:after {
+	content:'';
+	display: inline-block;
+	color: #F63939;
+    width: 22px;
+    height: 22px;
+	opacity: 1;	
+    vertical-align:middle;
+	margin-left: 0.5em;
+    border: .25em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    -webkit-animation: spinner-border .75s linear infinite;
+    animation: spinner-border .75s linear infinite;
+	transition:0.3s opacity ease-out;
+	transition-delay: 0.5s;
+}
 
 #uifppsystems #multiAction{
 	width: 235px;

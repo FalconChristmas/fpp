@@ -520,6 +520,7 @@ function PrintSettingCheckbox($title, $setting, $restart = 1, $reboot = 0, $chec
 function " . $changedFunction . "() {
 	var value = '$uncheckedValue';
 	var checked = 0;
+	$('#$escSetting').parent().parent().addClass('loading');
 	if ($('#$escSetting').is(':checked')) {
 		checked = 1;
 		value = '$checkedValue';
@@ -545,7 +546,7 @@ if (isset($sData['children'])) {
 
 echo "
 			$callbackName
-
+			$('#$escSetting').parent().parent().removeClass('loading');
             if (checked)
                 $('.$escSetting' + 'Child').show();
             else
