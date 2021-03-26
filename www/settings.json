@@ -561,14 +561,16 @@
             "type": "text",
             "size": 30,
             "maxlength": 64,
-            "children": [
-                "emailport",
-                "emailuser",
-                "emailpass",
-                "emailfromuser",
-                "emailtoemail",
-                "emailfromtext"
-            ]
+            "children":{ 
+                    "*":[
+                    "emailport",
+                    "emailuser",
+                    "emailpass",
+                    "emailfromuser",
+                    "emailtoemail",
+                    "emailfromtext"
+                ]
+            }
         },
         "emailtoemail": {
             "name": "emailtoemail",
