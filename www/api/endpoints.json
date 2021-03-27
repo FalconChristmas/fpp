@@ -1736,6 +1736,14 @@
                 "GET": {
                     "desc": "View the source code of an already installed script",
                     "output": "The content of the script as a string"
+                },
+                "POST": {
+                    "desc": "Takes the body of the POST requests and writes it to the file specified by :scriptName",
+                    "output": {
+                        "status": "OK",
+                        "scriptName": "test.py",
+                        "scriptBody": "#!\/usr\/bin\/python\n\nprint(\"hi There Matt!\");\n"
+                    }
                 }
             }
         },

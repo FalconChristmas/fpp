@@ -125,6 +125,7 @@ dispatch_get   ('/scripts', 'scripts_list');
 dispatch_get   ('/scripts/installRemote/:category/:filename', 'scripts_install_remote');
 dispatch_get   ('/scripts/viewRemote/:category/:filename', 'scripts_view_remote');
 dispatch_get   ('/scripts/:scriptName', 'script_get');
+dispatch_post  ('/scripts/:scriptName', 'script_save');
 dispatch_get   ('/scripts/:scriptName/run', 'script_run');
 
 dispatch_get   ('/statistics/usage', 'stats_get_last_file');

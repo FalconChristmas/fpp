@@ -28,6 +28,40 @@ function script_get()
     file_read($filename, false);
 }
 
+function script_save()
+{
+    global $settings;
+    $scriptName = params("scriptName");
+    $json = strval(file_get_contents('php://input'));
+    $content = json_decode($json, true);
+    $filename = $settings['scriptDirectory'] . '/' . $scriptName;
+    $result = array();
+
+    if (file_exists($filename)) {
+        //error output is silenced by @, function returns false on failure, it doesn't return true
+        $script_save_result = @file_put_contents($filename, $content);
+        //check result is not a error
+        if ($script_save_result !== false) {
+            $result['status'] = "OK";
+            $result['scriptName'] = $scriptName;
+            $result['scriptBody'] = $content;
+        } else {
+            $script_writable = is_writable($filename);
+            $script_directory_writable = is_writable($settings['scriptDirectory']);
+
+            $result['status'] = "Error updating file";
+            error_log("SaveScript: Error updating file - " . $scriptName . " ($filename) ");
+            error_log("SaveScript: Error updating file - " . $scriptName . " ($filename) " . " -> isWritable: " . $script_writable);
+            error_log("SaveScript: Error updating file - " . $scriptName . " ($filename) " . " -> Scripts directory is writable: " . $script_directory_writable);
+        }
+    } else {
+        $result['status'] = "Error, file does not exist";
+        error_log("SaveScript: Error, file does not exist - " . $scriptName . " -> " . $filename);
+    }
+
+    return json($result);
+}
+
 function script_run()
 {
     global $settings;

@@ -213,22 +213,18 @@ $(function() {
 	function SaveScript(scriptName)
 	{
 		var contents = $('#scriptText').val();
-		var info = {
-				scriptName: scriptName,
-				scriptBody: contents
-			};
+    var url = 'api/scripts/' + scriptName;
+		var postData = JSON.stringify(contents);
 
-		postData = "command=saveScript&data=" + encodeURIComponent(JSON.stringify(info));
-
-		$.post("fppjson.php", postData).done(function(data) {
-			if (data.saveStatus == "OK")
+		$.post(url, postData).done(function(data) {
+			if (data.status == "OK")
 			{
 				$('#fileViewer').fppDialog('close');
 				$.jGrowl("Script saved.",{themeState:'success'});
 			}
 			else
 			{
-				DialogError("Save Failed", "Save Failed: " + data.saveStatus);
+				DialogError("Save Failed", "Save Failed: " + data.status);
 			}
 		}).fail(function() {
 			DialogError("Save Failed", "Save Failed!");

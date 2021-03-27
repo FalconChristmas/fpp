@@ -47,7 +47,7 @@ $command_array = Array(
 	"setPluginSetting"    => 'SetPluginSetting',
     "getPluginJSON"       => 'GetPluginJSON',
     "setPluginJSON"       => 'SetPluginJSON',
-	"saveScript"          => 'SaveScript',
+	// "saveScript"          => 'SaveScript', // POST /api/scripts/:scriptName
 	// "setTestMode"         => 'SetTestMode', // PUT /testmode
 	// "getTestMode"         => 'GetTestMode', // GET //testmode
 	"setupExtGPIO"        => 'SetupExtGPIOJson',
@@ -445,64 +445,6 @@ function SetChannelOutputs()
 
 /////////////////////////////////////////////////////////////////////////////
 
-function SaveScript()
-{
-	global $args;
-	global $settings;
-
-	$result = Array();
-
-	if (!isset($args['data']))
-	{
-		$result['saveStatus'] = "Error, incorrect info";
-		returnJSON($result);
-	}
-
-	$data = json_decode($args['data'], true);
-
-	if (isset($data['scriptName']) && isset($data['scriptBody']))
-	{
-		$filename = $settings['scriptDirectory'] . '/' . $data['scriptName'];
-		$content = $data['scriptBody'];
-
-		if (file_exists($filename))
-		{
-            //error output is silenced by @, function returns false on failure, it doesn't return true
-            $script_save_result = @file_put_contents($filename, $content);
-            //check result is not a error
-			if ($script_save_result !== false)
-			{
-				$result['saveStatus'] = "OK";
-				$result['scriptName'] = $data['scriptName'];
-				$result['scriptBody'] = $data['scriptBody'];
-			}
-			else
-			{
-                $script_writable = is_writable($filename);
-                $script_directory_writable = is_writable($settings['scriptDirectory']);
-
-				$result['saveStatus'] = "Error updating file";
-                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) ");
-                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> isWritable: " . $script_writable);
-                error_log("SaveScript: Error updating file - " . $data['scriptName'] . " ($filename) " . " -> Scripts directory is writable: " . $script_directory_writable);
-            }
-		}
-		else
-		{
-			$result['saveStatus'] = "Error, file does not exist";
-            error_log("SaveScript: Error, file does not exist - " . $data['scriptName'] . " -> " . $filename);
-        }
-	}
-	else
-	{
-		if (!isset($data['scriptName']))
-			$result['saveStatus'] = "Error, missing scriptName";
-		else if (!isset($data['scriptBody']))
-			$result['saveStatus'] = "Error, missing scriptBody";
-	}
-
-	returnJSON($result);
-}
 
 /////////////////////////////////////////////////////////////////////////////
 
