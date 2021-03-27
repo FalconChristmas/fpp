@@ -80,14 +80,126 @@ function playlist_insert()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+function LoadSubPlaylist(&$playlist, &$i, $plentry)
+{
+	$data = GetPlaylist($plentry->name);
+
+    $subPlaylist = Array();
+
+	if (isset($data->leadIn))
+		$subPlaylist = array_merge($subPlaylist, $data->leadIn);
+	if (isset($data->mainPlaylist))
+		$subPlaylist = array_merge($subPlaylist, $data->mainPlaylist);
+	if (isset($data->leadOut))
+		$subPlaylist = array_merge($subPlaylist, $data->leadOut);
+
+    $li = 0;
+	foreach ($subPlaylist as $entry)
+	{
+		if ($entry->type == "playlist")
+		{
+			LoadSubPlaylist($subPlaylist, $li, $entry);
+		}
+
+        $li++;
+	}
+
+    array_splice($playlist, $i, 1, $subPlaylist);
+
+    $i += count($subPlaylist) - 1;
+}
+
+function LoadPlayListDetails($file, $mergeSubs)
+{
+	global $settings;
+
+	$playListEntriesLeadIn = NULL;
+	$playListEntriesMainPlaylist = NULL;
+	$playListEntriesLeadOut = NULL;
+	$playlistInfo = NULL;
+
+	$jsonStr = "";
+
+	if (!file_exists($settings['playlistDirectory'] . '/' . $file . ".json"))
+	{
+		return "";
+	}
+
+	$data = GetPlaylist($file);
+
+	if (!$mergeSubs)
+		return $data;
+
+	if (isset($data->leadIn))
+	{
+		$i = 0;
+		foreach ($data->leadIn as $entry)
+		{
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($data->leadIn, $i, $entry);
+			}
+            $i++;
+		}
+	}
+
+	if (isset($data->mainPlaylist))
+	{
+		$i = 0;
+		foreach ($data->mainPlaylist as $entry)
+		{
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($data->mainPlaylist, $i, $entry);
+			}
+            $i++;
+		}
+	}
+
+	if (isset($data->leadOut))
+	{
+		$i = 0;
+		foreach ($data->leadOut as $entry)
+		{
+			if ($mergeSubs && $entry->type == "playlist")
+			{
+				LoadSubPlaylist($data->leadOut, $i, $entry);
+			}
+            $i++;
+		}
+	}
+
+    return $data;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
+function GetPlaylist($playlistName)
+{
+	global $settings;
+	$jsonStr = file_get_contents($settings['playlistDirectory'] . '/' . $playlistName . ".json");
+
+	return json_decode($jsonStr);
+}
+
+
+/////////////////////////////////////////////////////////////////////////////
 function playlist_get()
 {
 	global $settings;
 
 	$playlistName = params('PlaylistName');
-	$filename = $settings['playlistDirectory'] . '/' . $playlistName . '.json';
+	$mergeSubs = 0;
+	if ((isset($_GET['mergeSubs'])) && ($_GET['mergeSubs'] == 1)) {
+		$mergeSubs = 1;
+	}
 
-	render_file($filename);
+	$data = LoadPlayListDetails($playlistName, $mergeSubs);
+
+    if (isset($data->playlistInfo->total_duration))
+        $data->playlistInfo->total_duration = human_playtime($data->playlistInfo->total_duration);
+
+	return json($data);
 }
 
 /////////////////////////////////////////////////////////////////////////////

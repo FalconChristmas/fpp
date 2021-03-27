@@ -4352,27 +4352,26 @@ function PopulatePlaylistDetails(data, editMode, name = "")
 
 function PopulatePlaylistDetailsEntries(playselected,playList)
 {
-    var type;
     var pl;
-    var xmlhttp=new XMLHttpRequest();
-    var innerHTML="";
     var fromMemory = "";
+    var url = "";
 
     if (playselected == true)
     {
         pl = $('#playlistSelect :selected').text();
+        url = "api/playlist/" + pl + '?mergeSubs=1';
     }
     else
     {
         pl = playList;
-        fromMemory = '&fromMemory=1';
+        url = "api/fppd/playlist/config/"; // In Memory URL
     }
 
     PlayEntrySelected = 0;
     PlaySectionSelected = '';
 
     $.ajax({
-        url: 'fppjson.php?command=getPlayListEntries&pl=' + pl + '&mergeSubs=1' + fromMemory,
+        url: url,
         dataType: 'json',
         success: function(data, reqStatus, xhr) {
             PopulatePlaylistDetails(data, 0, pl);

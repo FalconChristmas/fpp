@@ -1499,7 +1499,7 @@
             "endpoint": "playlist/:PlaylistName",
             "methods": {
                 "GET": {
-                    "desc": "Get Playlist named :PlaylistName.  Returns a normal FPP playlist in JSON format.",
+                    "desc": "Get Playlist named :PlaylistName in FPP JSON format. If ?mergeSubs=1 is specified, then any sub playlist will be recursively merged into the parent playlist.",
                     "output": {
                         "name": "UploadTest",
                         "mainPlaylist": [
