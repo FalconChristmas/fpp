@@ -40,7 +40,7 @@ $command_array = Array(
 	"getPlayListEntries"  => 'GetPlayListEntries',
 	"getSequenceInfo"     => 'GetSequenceInfo',
 	"getMediaDuration"    => 'getMediaDurationInfo',
-	"getFileSize"         => 'getFileSize',
+	// "getFileSize"         => 'getFileSize', // GET /media/:MediaName/meta
 	//"copyFile"            => 'CopyFile', // POST /file/:DirName/copy/:source/:dest
 	// "renameFile"          => 'RenameFile', // POST /file/:DirName/rename/:source/:dest
 	"getPluginSetting"    => 'GetPluginSetting',
@@ -241,46 +241,6 @@ function LoadPlayListDetails($file, $mergeSubs, $fromMemory)
 	}
 
     return $data;
-}
-
-/**
- * Returns filesize for the specified file
- */
-function getFileSize()
-{
-	//Get Info
-	global $args;
-	global $settings;
-
-	$mediaType = $args['type'];
-	$mediaName = $args['filename'];
-	check($mediaType, "mediaType", __FUNCTION__);
-	check($mediaName, "mediaName", __FUNCTION__);
-
-	$returnStr = [];
-	$filesize = 0;
-	if (strtolower($mediaType) == 'sequence') {
-		//Sequences
-		if (file_exists($settings['sequenceDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize($settings['sequenceDirectory'] . "/" . $mediaName);
-		}
-	} else if (strtolower($mediaType) == 'effect') {
-		if (file_exists($settings['effectDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize($settings['effectDirectory'] . "/" . $mediaName);
-		}
-	} else if (strtolower($mediaType) == 'music') {
-		if (file_exists($settings['musicDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize($settings['musicDirectory'] . "/" . $mediaName);
-		}
-	} else if (strtolower($mediaType) == 'video') {
-		if (file_exists($settings['videoDirectory'] . "/" . $mediaName)) {
-			$filesize = human_filesize($settings['videoDirectory'] . "/" . $mediaName);
-		}
-	}
-
-	$returnStr[$mediaName]['filesize '] = $filesize;
-
-	returnJSONStr($returnStr);
 }
 
 // FIXME, this should use the API instead, need to add the subplaylist ability to the existing endpoint
