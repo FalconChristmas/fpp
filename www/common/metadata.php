@@ -112,33 +112,6 @@ function getMediaDurationInfo($mediaName = "", $returnArray = false)
 	}
 }
 
-/**
- * Returns sequence header info
- *
- * @return array
- */
-function GetSequenceInfo()
-{
-	global $args;
-	global $settings;
-	$return_arr = array();
-
-	$sequence = $args['seq'];
-	//if the file extension is missing, add it on
-	if (strpos($sequence, '.fseq') === FALSE) {
-		$sequence = $sequence . ".fseq";
-	}
-
-	if (file_exists($settings['sequenceDirectory'] . '/' . $sequence)) {
-		$return_arr = get_sequence_file_info($sequence);
-	} else {
-		$return_arr[$sequence]['error'] = "GetSequenceInfo:: Unable find sequence :: " . $sequence;
-		error_log("GetSequenceInfo:: Unable find sequence :: " . $sequence);
-	}
-
-	returnJSON($return_arr);
-}
-
 function GetMetaDataFromFFprobe($filename)
 {
     global $settings;
