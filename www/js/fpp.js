@@ -3670,18 +3670,40 @@ function GetUniverseBytesReceived() {
 
 	function ToggleSequencePause()
 	{
-		$.get("fppjson.php?command=toggleSequencePause");
+		var url = 'api/sequence/current/togglePause';
+
+        $.get(url
+        ).done(function() {
+            $.jGrowl("Pause/Resume" ,{themeState:'success'});
+        }).fail(function() {
+            DialogError("Failed to Pause / Resume", "Start failed");
+        });
+    
 	}
 
 	function SingleStepSequence()
 	{
-		$.get("fppjson.php?command=singleStepSequence");
+		var url = 'api/sequence/current/step';
+
+        $.get(url
+        ).done(function() {
+            $.jGrowl("Sequence Step" ,{themeState:'success'});
+        }).fail(function() {
+            DialogError("Failed Step Current Sequence", "Step failed");
+        });
+    
 	}
 
 	function SingleStepSequenceBack()
 	{
-		$.get("fppjson.php?command=singleStepSequenceBack");
-	}
+        var url = 'api/sequence/current/stepBack';
+        $.get(url
+            ).done(function() {
+                $.jGrowl("Sequence StepBack" ,{themeState:'success'});
+            }).fail(function() {
+                DialogError("Failed Step Current Sequence Back", "Step failed");
+            });
+        }
 
 	function StopFPPD()
 	{

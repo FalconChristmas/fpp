@@ -393,11 +393,9 @@ function PlaySequence()
 	var sequence = $('#selSequence').val();
 	var startSecond = $('#startSecond').val();
 
-	$.get("fppjson.php?command=startSequence&sequence=" + sequence + "&startSecond=" + startSecond
+	$.get("api/sequence/" + sequence + "/start/" + startSecond
 	).done(function() {
 		$.jGrowl("Started sequence " + sequence,{themeState:'success'});
-		//$('#playSequence').hide();
-		//$('#stopSequence').show();
 	}).fail(function() {
 		DialogError("Failed to start sequence", "Start failed");
 	});
@@ -405,14 +403,16 @@ function PlaySequence()
 
 function StopSequence()
 {
-	$.get("fppjson.php?command=stopSequence"
+	var url = "api/sequence/current/stop";
+	var sequence = $('#selSequence').val();
+
+	$.get(url
 	).done(function() {
-		$.jGrowl("Stopped sequence",{themeState:'danger'});
-		//$('#stopSequence').hide();
-		//$('#playSequence').show();
+		$.jGrowl("Stop sequence " + sequence,{themeState:'danger'});
 	}).fail(function() {
 		DialogError("Failed to stop sequence", "Stop failed");
 	});
+
 }
 function UpdateTestModeFillColors(){
 	var rgb = {

@@ -32,11 +32,11 @@ $command_array = Array(
 	"getFPPstatus"		  => 'GetFPPStatusJson', // Kept for Multisync but replacement is /api/system/status
 	"getSetting"          => 'GetSetting', // GET /api/settings:settingKey -- Restored. Somethings still use this
 	"setSetting"          => 'SetSetting', // PUT /api/settings:settingKey -- Restored. Somethings still use this 
-	"startSequence"       => 'StartSequence',
-	"stopSequence"        => 'StopSequence',
-	"toggleSequencePause" => 'ToggleSequencePause',
-	"singleStepSequence"  => 'SingleStepSequence',
-	"singleStepSequenceBack" => 'SingleStepSequenceBack',
+	// "startSequence"       => 'StartSequence', // GET /api/sequence/:SequenceName/start/:startSecond
+	// "stopSequence"        => 'StopSequence', // GET /api/sequence/current/stop
+	//"toggleSequencePause" => 'ToggleSequencePause', // GET /api/sequence/current/togglePause
+	//"singleStepSequence"  => 'SingleStepSequence', // GET /api/sequence/current/step
+	// "singleStepSequenceBack" => 'SingleStepSequenceBack', // GET //api/sequence/current/stepBack
 	"getPlayListEntries"  => 'GetPlayListEntries',
 	"getSequenceInfo"     => 'GetSequenceInfo',
 	"getMediaDuration"    => 'getMediaDurationInfo',
@@ -136,39 +136,6 @@ function getTimeRemaining($seconds) {
 
 }
 
-
-function StartSequence()
-{
-	global $args;
-
-	$sequence = $args['sequence'];
-	$startSecond = $args['startSecond'];
-
-	check($sequence, "sequence", __FUNCTION__);
-	check($startSecond, "startSecond", __FUNCTION__);
-
-	SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
-}
-
-function StopSequence()
-{
-	SendCommand("StopSequence");
-}
-
-function ToggleSequencePause()
-{
-	SendCommand("ToggleSequencePause");
-}
-
-function SingleStepSequence()
-{
-	SendCommand("SingleStepSequence");
-}
-
-function SingleStepSequenceBack()
-{
-	SendCommand("SingleStepSequenceBack");
-}
 
 function GetPlaylist($playlistName, $fromMemory)
 {

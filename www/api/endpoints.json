@@ -1762,6 +1762,50 @@
             }
         },
         {
+            "endpoint": "sequence/current/step",
+            "methods": {
+                "GET": {
+                    "desc": "If the sequence was paused by sequence/current/togglePause, then will step the sequence forward one frame",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "sequence/current/stepBack",
+            "methods": {
+                "GET": {
+                    "desc": "If the sequence was paused by sequence/current/togglePause, then will step the sequence backward one frame",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "sequence/current/stop",
+            "methods": {
+                "GET": {
+                    "desc": "Stops the current playing sequence. Only valid if sequence started by /api/sequence/:SequenceName/start/:startSecond",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "sequence/current/togglePause",
+            "methods": {
+                "GET": {
+                    "desc": "Pauses or Resumes thecurrent playing sequence. Only valid if sequence started by /api/sequence/:SequenceName/start/:startSecond",
+                    "output": {
+                        "status": "OK"
+                    }
+                }
+            }
+        },
+        {
             "endpoint": "sequence/:SequenceName",
             "methods": {
                 "GET": {
@@ -1798,6 +1842,19 @@
                         "NumFrames": 10750,
                         "MaxChannel": 84992,
                         "ChannelCount": 84992
+                    }
+                }
+            }
+        },
+        {
+            "endpoint": "sequence/:SequenceName/start/:startSecond",
+            "methods": {
+                "GET": {
+                    "desc": "Starts the given sequence at the specified time frame. Only intended for testing. In most situations, it is best to use \"Start Playlist\" from the command API and pass the sequence name as the playlist name.",
+                    "output": {
+                        "status": "OK",
+                        "SequenceName": "single_line.fseq",
+                        "startSecond": "9"
                     }
                 }
             }

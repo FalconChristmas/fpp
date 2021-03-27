@@ -102,8 +102,13 @@ dispatch_get   (array('/proxy/*/**', array("Ip", "urlPart")), 'GetProxiedURL');
 dispatch_get   ('/remotes', 'GetRemotes');
 
 dispatch_get   ('/sequence', 'GetSequences');
+dispatch_get   ('/sequence/current/step', 'GetSequenceStep');
+dispatch_get   ('/sequence/current/stepBack', 'GetSequenceStepBack');
+dispatch_get   ('/sequence/current/stop', 'GetSequenceStop');
+dispatch_get   ('/sequence/current/togglePause', 'GetSequenceTogglePause');
 dispatch_get   ('/sequence/:SequenceName', 'GetSequence');
 dispatch_get   ('/sequence/:SequenceName/meta', 'GetSequenceMetaData');
+dispatch_get   ('/sequence/:SequenceName/start/:startSecond', 'GetSequenceStart');
 dispatch_post  ('/sequence/:SequenceName', 'PostSequence');
 dispatch_delete('/sequence/:SequenceName', 'DeleteSequence');
 

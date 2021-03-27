@@ -123,5 +123,54 @@ function DeleteSequences() {
     return json($resp);
 }
 
+// GET api/sequence/:SequenceName/start/:startSecond
+function GetSequenceStart()
+{
+    $sequence = params('SequenceName');
+	$startSecond = params('startSecond');
+
+	SendCommand(sprintf("StartSequence,%s,%d", $sequence, $startSecond));
+
+    $rc = array("status" => "OK", "SequenceName" => $sequence, "startSecond" => $startSecond);
+    return json($rc);
+
+}
+
+// GET api/sequence/current/step
+function GetSequenceStep()
+{
+	SendCommand("SingleStepSequence");
+
+    $rc = array("status" => "OK");
+    return json($rc);
+
+}
+
+// GET api/sequence/current/togglePause
+function GetSequenceTogglePause()
+{
+	SendCommand("ToggleSequencePause");
+    $rc = array("status" => "OK");
+    return json($rc);
+}
+
+// GET api/sequence/current/stop
+function GetSequenceStop()
+{
+	SendCommand("StopSequence");
+    $rc = array("status" => "OK");
+    return json($rc);
+
+}
+
+// GET api/sequence/current/step
+function GetSequenceStepBack()
+{
+	SendCommand("SingleStepSequenceBack");
+    $rc = array("status" => "OK");
+    return json($rc);
+
+}
+
 
 ?>
