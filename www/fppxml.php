@@ -31,8 +31,8 @@ $command_array = Array(
 	//"setUniverseCount" => 'SetUniverseCount', 
 	//"getUniverses" => 'GetUniverses',
 	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
-	"deleteUniverse" => 'DeleteUniverse',
-	"cloneUniverse" => 'CloneUniverse',
+	// "deleteUniverse" => 'DeleteUniverse', // Moved to UI
+	// "cloneUniverse" => 'CloneUniverse', //Moved to UI
 	// "viewReleaseNotes" => 'ViewReleaseNotes',  // use GET /api/system/releaseNotes/:version
 	// "viewRemoteScript" => 'ViewRemoteScript', // GET /api/scripts/viewRemote/:category/:filename
 	//"installRemoteScript" => 'InstallRemoteScript', //GET /api/script/install/:category/:filename
@@ -53,7 +53,7 @@ $command_array = Array(
 	//"gitStatus" => 'GitStatus', // use GET /api/git/status instead
 	// "resetGit" => 'ResetGit', // use GET /api/git/reset
 	// "setVolume" => 'SetVolume', // use POST /api/system/volume
-	"setFPPDmode" => 'SetFPPDmode', // Legacy. Should use PUT /api/settings/fppMode
+	"setFPPDmode" => 'SetFPPDmode', // Legacy. used by MultiSync Future should use PUT /api/settings/fppMode
 	// "getVolume" => 'GetVolume', // use GET /api/system/volume
 	//"getBridgeInputDelayBeforeBlack" => 'GetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
 	//"setBridgeInputDelayBeforeBlack" =>'SetBridgeInputDelayBeforeBlack', // Replaced by /api/settings/
@@ -365,92 +365,6 @@ function SaveFPDv1()
 	SendCommand('w');
 }
 
-function CloneUniverse()
-{
-	$index = $_GET['index'];
-	$numberToClone = $_GET['numberToClone'];
-	check($index, "index", __FUNCTION__);
-	check($numberToClone, "numberToClone", __FUNCTION__);
-
-	if($index < count($_SESSION['UniverseEntries']) && ($index + $numberToClone) < count($_SESSION['UniverseEntries']))
-	{
-			$desc = $_SESSION['UniverseEntries'][$index]->desc;
-			$universe = $_SESSION['UniverseEntries'][$index]->universe+1;
-			$size = $_SESSION['UniverseEntries'][$index]->size;
-			$startAddress = $_SESSION['UniverseEntries'][$index]->startAddress+$size;
-			$type = $_SESSION['UniverseEntries'][$index]->type;
-			$unicastAddress = $_SESSION['UniverseEntries'][$index]->unicastAddress;
-			$priority = $_SESSION['UniverseEntries'][$index]->priority;
-
-			for($i=$index+1;$i<$index+1+$numberToClone;$i++,$universe++)
-			{
-				 	$_SESSION['UniverseEntries'][$i]->desc	= $desc;
-				 	$_SESSION['UniverseEntries'][$i]->universe	= $universe;
-				 	$_SESSION['UniverseEntries'][$i]->size	= $size;
-				 	$_SESSION['UniverseEntries'][$i]->startAddress	= $startAddress;
-				 	$_SESSION['UniverseEntries'][$i]->type	= $type;
-					$_SESSION['UniverseEntries'][$i]->unicastAddress	= $unicastAddress;
-				 	$_SESSION['UniverseEntries'][$i]->priority	= $priority;
-					$startAddress += $size;
- 			}
-	}
-	EchoStatusXML('Success');
-}
-
-function DeleteUniverse()
-{
-	$index = $_GET['index'];
-	check($index, "index", __FUNCTION__);
-
-	if($index < count($_SESSION['UniverseEntries']) && count($_SESSION['UniverseEntries']) > 0 )
-	{
-		unset($_SESSION['UniverseEntries'][$index]);
-		$_SESSION['UniverseEntries'] = array_values($_SESSION['UniverseEntries']);
-
-	}
-	EchoStatusXML('Success');
-}
-
-function LoadUniverseFile($input)
-{
-	global $settings;
-
-	$_SESSION['UniverseEntries']=NULL;
-
-	$filename = $settings['universeOutputs'];
-	if ($input)
-		$filename = $settings['universeInputs'];
-
-	if(!file_exists($filename))
-	{
-		$_SESSION['UniverseEntries'][] = new UniverseEntry(1,"",1,1,512,0,"",0,0);
-		return;
-	}
-
-	$jsonStr = file_get_contents($filename);
-
-	$data = json_decode($jsonStr);
-	$universes = 0;
-	
-	if ($input)
-		$universes = $data->channelInputs[0]->universes;
-	else
-		$universes = $data->channelOutputs[0]->universes;
-
-	foreach ($universes as $univ)
-	{
-		$active = $univ->active;
-		$desc = $univ->description;
-		$universe = $univ->id;
-		$startAddress = $univ->startChannel;
-		$size = $univ->channelCount;
-		$type = $univ->type;
-		$unicastAddress = $univ->address;
-		$priority = $univ->priority;
-		$_SESSION['UniverseEntries'][] = new UniverseEntry($active,$desc,$universe,$startAddress,$size,$type,$unicastAddress,$priority,0);
-	}
-}
-
 function LoadPixelnetDMXFile()
 {
   global $settings;
@@ -518,8 +432,6 @@ function SavePixelnetDMXoutputsToFile()
 
 	EchoStatusXML('Success');
 }
-
-
 
 function GetPixelnetDMXoutputs()
 {
