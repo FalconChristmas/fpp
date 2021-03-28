@@ -1,7 +1,6 @@
 <?php
 
-require_once('../pixelnetdmxentry.php');
-
+require_once '../pixelnetdmxentry.php';
 
 //GET /api/channel/input/stats
 function channel_input_get_stats()
@@ -18,6 +17,127 @@ function channel_input_get_stats()
     }
 
     return json($rc);
+}
+
+//POST /api/channel/output/PixelnetDMX
+function channel_put_pixelnetDMX()
+{
+    $json = strval(file_get_contents('php://input'));
+    $input = json_decode($json, true);
+    $status = "OK";
+
+    if (!isset($input['model'])) {
+        $status = 'Failure, no model supplied';
+        return json(array("status" => $status));
+    }
+
+    $model = $input['model'];
+    $firmware = $input['firmware'];
+
+    if ($model == "F16V2-alpha") {
+        SaveF16v2Alpha($input["pixels"]);
+    } else if ($model == "FPDv1") {
+        SaveFPDv1($input["pixels"]);
+    } else {
+        $status = 'Failure, Unknown Model';
+        return json(array("status" => $status));
+    }
+
+    return json(array("status" => "OK"));
+}
+
+function SaveF16v2Alpha($pixels)
+{
+    global $settings;
+    $outputCount = 16;
+
+    $carr = array();
+    for ($i = 0; $i < 1024; $i++) {
+        $carr[$i] = 0x0;
+    }
+
+    $i = 0;
+
+    // Header
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0xCD;
+
+    // Some byte
+    $carr[$i++] = 0x01;
+
+    for ($o = 0; $o < $outputCount; $o++) {
+        $cur = $pixels[$o];
+        $nodeCount = $cur['nodeCount'];
+        $carr[$i++] = intval($nodeCount % 256);
+        $carr[$i++] = intval($nodeCount / 256);
+
+        $startChannel = $cur['startChannel'] - 1; // 0-based values in config file
+        $carr[$i++] = intval($startChannel % 256);
+        $carr[$i++] = intval($startChannel / 256);
+
+        // Node Type is set on groups of 4 ports
+        $carr[$i++] = intval($cur['nodeType']);
+
+        $carr[$i++] = intval($cur['rgbOrder']);
+        $carr[$i++] = intval($cur['direction']);
+        $carr[$i++] = intval($cur['groupCount']);
+        $carr[$i++] = intval($cur['nullNodes']);
+    }
+
+    $f = fopen($settings['configDirectory'] . "/Falcon.F16V2-alpha", "wb");
+    fwrite($f, implode(array_map("chr", $carr)), 1024);
+    fclose($f);
+    SendCommand('w');
+}
+
+function SaveFPDv1($pixels)
+{
+    global $settings;
+    $outputCount = 12;
+
+    $carr = array();
+    for ($i = 0; $i < 1024; $i++) {
+        $carr[$i] = 0x0;
+    }
+
+    $i = 0;
+    // Header
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0x55;
+    $carr[$i++] = 0xCC;
+
+    for ($o = 0; $o < $outputCount; $o++) {
+        $cur = $pixels[$o];
+
+        // Active
+        $active = 0;
+        $carr[$i++] = 0;
+        if ($cur['active']) {
+            $active = 1;
+            $carr[$i - 1] = 1;
+        }
+
+        // Start Address
+        $startAddress = intval($cur['address']);
+        $carr[$i++] = $startAddress % 256;
+        $carr[$i++] = $startAddress / 256;
+
+        // Type
+        $type = intval($cur['type']);
+        $carr[$i++] = $type;
+    }
+    $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "wb");
+    fwrite($f, implode(array_map("chr", $carr)), 1024);
+
+    fclose($f);
+    SendCommand('w');
 }
 
 //GET /api/channel/output/processor
@@ -75,7 +195,7 @@ function channel_get_pixelnetDMX()
 {
     global $settings;
     $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
-    $dataFile = NULL;
+    $dataFile = null;
 
     if ($f == false) {
         fclose($f);
@@ -105,7 +225,7 @@ function channel_get_pixelnetDMX()
 
     $rc = array();
     $i = 0;
-    for($i=0; $i<count($dataFile); $i++) {
+    for ($i = 0; $i < count($dataFile); $i++) {
         $cur = array();
         $cur["active"] = $dataFile[$i]->active;
         $cur["type"] = $dataFile[$i]->type;

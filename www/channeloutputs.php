@@ -36,8 +36,6 @@ if (!isset($currentCapeInfo['provides'])) {
     $currentCapeInfo['provides'][] = "fpd";
 }
 
-// DEBUG
-$currentCapeInfo['provides'][] = "fpd";
 ?>
 
 <script language="Javascript">

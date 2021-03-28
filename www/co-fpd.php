@@ -13,12 +13,36 @@ $(document).ready(function(){
 
 	$('#frmPixelnetDMX').submit(function(event) {
 		 event.preventDefault();
-		 dataString = $("#frmPixelnetDMX").serializeArray();
+		 var msg = {
+			model: $("#model").val(),
+			firmware: $("#firmware").val(),
+			pixels: []
+		 };
+
+		 $("#tblOutputs .rowUniverseDetails").each(function(){
+			 var obj = {
+				 active: false,
+				 type: "",
+				 address: ""
+			 };
+			 msg.pixels.push(obj);
+			 $(this).find("input").each(function() {
+				var id = $(this).attr('id');
+				if (id.startsWith('FPDchkActive')) {
+					obj.active = $(this).is(':checked');
+				} else if (id.startsWith('FPDtxtStartAddress')) {
+					obj.address = $(this).val();
+				}
+			 });
+
+			 obj.type = $(this).find("select").val();
+		 });
+
 		 $.ajax({
 			type: "post",
-			url: "fppxml.php",
+			url: "api/channel/output/PixelnetDMX",
 			dataType:"text",
-			data: dataString
+			data: JSON.stringify(msg)
 		}).done(function() {
 			getPixelnetDMXoutputs();
 			$.jGrowl("FPD Config Saved",{themeState:'success'});
