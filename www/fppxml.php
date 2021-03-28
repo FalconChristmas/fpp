@@ -228,27 +228,4 @@ function RestartFPPD()
 	EchoStatusXML('true');
 }
 
-
-function GetLocalTime()
-{
-	return exec("date");
-}
-
-
-function cmp_index($a, $b)
-{
-	if ($a->index == $b->index) {
-		return 0;
-	}
-	return ($a->index < $b->index) ? -1 : 1;
-}
-    
-function universe_cmp($a, $b)
-{
-    if ($a->startAddress == $b->startAddress) {
-        return 0;
-    }
-    return ($a->startAddress < $b->startAddress) ? -1 : 1;
-}
-
 ?>
