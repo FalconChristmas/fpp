@@ -9,7 +9,7 @@ $(function() {
 });
 
 $(document).ready(function(){
-	getPixelnetDMXoutputs('TRUE');
+	getPixelnetDMXoutputs();
 
 	$('#frmPixelnetDMX').submit(function(event) {
 		 event.preventDefault();
@@ -20,7 +20,7 @@ $(document).ready(function(){
 			dataType:"text",
 			data: dataString
 		}).done(function() {
-			getPixelnetDMXoutputs('TRUE');
+			getPixelnetDMXoutputs();
 			$.jGrowl("FPD Config Saved",{themeState:'success'});
 			SetRestartFlag(2);
 		}).fail(function() {

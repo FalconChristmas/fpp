@@ -2591,59 +2591,45 @@ function updateUniverseEndChannel(row) {
                       })
         }
 
-		function getPixelnetDMXoutputs(reload)
+		function getPixelnetDMXoutputs()
 		{
-    	var xmlhttp=new XMLHttpRequest();
-			var url = "fppxml.php?command=getPixelnetDMXoutputs&reload=" + reload;
-			xmlhttp.open("GET",url,false);
-			xmlhttp.setRequestHeader('Content-Type', 'text/xml');
- 			var innerHTML="";
-			xmlhttp.onreadystatechange = function () {
-				if (xmlhttp.readyState == 4 && xmlhttp.status==200)
-				{
-					var xmlDoc=xmlhttp.responseXML;
-					var entries = xmlDoc.getElementsByTagName('PixelnetDMXentries')[0];
-					if(entries.childNodes.length> 0)
-					{
-						innerHTML = "<tr>" +
-                            "<th>#</th>" +
-                            "<th>Active</th>" +
-                            "<th>Type</th>" +
-                            "<th>Start</th>" +
-                            "</tr>";
+            $.get("api/channel/output/PixelnetDMX"
+            ).done(function(data){
+                var innerHTML="";
+                if (data.length > 0) {
+                    innerHTML = "<tr>" +
+                    "<th>#</th>" +
+                    "<th>Active</th>" +
+                    "<th>Type</th>" +
+                    "<th>Start</th>" +
+                    "</tr>";
 
-							PixelnetDMXcount = entries.childNodes.length;
-							for(i=0;i<PixelnetDMXcount;i++)
-							{
-								var active = entries.childNodes[i].childNodes[0].textContent;
-								var type = entries.childNodes[i].childNodes[1].textContent;
-								var startAddress = entries.childNodes[i].childNodes[2].textContent;
+                    for (var i=0; i<data.length; i++) {
+                        var active = data[i].active;
+                        var type = data[i].type;
+                        var startAddress = data[i].startAddress;
 
-								var activeChecked = active == 1  ? "checked=\"checked\"" : "";
-								var pixelnetChecked = type == 0 ? "selected" : "";
-								var dmxChecked = type == 1 ? "selected" : "";
+                        var activeChecked = active == 1  ? "checked=\"checked\"" : "";
+                        var pixelnetChecked = type == 0 ? "selected" : "";
+                        var dmxChecked = type == 1 ? "selected" : "";
 
-								innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
-								              "<td>" + (i+1).toString() + "</td>" +
-															"<td><input name=\"FPDchkActive[" + i.toString() + "]\" id=\"FPDchkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
-															"<td><select id=\"pixelnetDMXtype[" + i.toString() + "]\" name=\"pixelnetDMXtype[" + i.toString() + "]\" style=\"width:150px\">" +
-															      "<option value=\"0\" " + pixelnetChecked + ">Pixelnet</option>" +
-															      "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" +
-															"<td><input name=\"FPDtxtStartAddress[" + i.toString() + "]\" id=\"FPDtxtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
-															"</tr>";
-
-							}
-					}
-					else
-					{
-						innerHTML = "No Results Found";
-					}
-					var results = document.getElementById("tblOutputs");
-					results.innerHTML = innerHTML;
-				}
-			};
-
-			xmlhttp.send();
+                        innerHTML += 	"<tr class=\"rowUniverseDetails\">" +
+                        "<td>" + (i+1).toString() + "</td>" +
+                                      "<td><input name=\"FPDchkActive[" + i.toString() + "]\" id=\"FPDchkActive[" + i.toString() + "]\" type=\"checkbox\" " + activeChecked +"/></td>" +
+                                      "<td><select id=\"pixelnetDMXtype[" + i.toString() + "]\" name=\"pixelnetDMXtype[" + i.toString() + "]\" style=\"width:150px\">" +
+                                            "<option value=\"0\" " + pixelnetChecked + ">Pixelnet</option>" +
+                                            "<option value=\"1\" " + dmxChecked + ">DMX</option></select></td>" +
+                                      "<td><input name=\"FPDtxtStartAddress[" + i.toString() + "]\" id=\"FPDtxtStartAddress[" + i.toString() + "]\" type=\"text\" size=\"8\" value=\"" + startAddress.toString() + "\"/></td>" +
+                                      "</tr>";
+                    }
+                } else {
+                    innerHTML = "No Results Found";
+                }
+                var results = document.getElementById("tblOutputs");
+                results.innerHTML = innerHTML;
+            }).fail(function() {
+                DialogError('DMX Read Failed', "Failed to read PixelnetDMX outputs");
+            });
 		}
 
         function SetUniverseRowInputNames(row, id) {

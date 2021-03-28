@@ -1,5 +1,8 @@
 <?php
 
+require_once('../pixelnetdmxentry.php');
+
+
 //GET /api/channel/input/stats
 function channel_input_get_stats()
 {
@@ -57,11 +60,57 @@ function channel_get_output()
 
     $jsonStr = "";
 
-    if (! isset($settings[$file])) {
+    if (!isset($settings[$file])) {
         $rc['status'] = "Invalid file $file";
     } else if (file_exists($settings[$file])) {
         $rc = json_decode(file_get_contents($settings[$file]), true);
         $rc["status"] = "OK";
+    }
+
+    return json($rc);
+}
+
+// GET /api/channel/output/PixelnetDMX
+function channel_get_pixelnetDMX()
+{
+    global $settings;
+    $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
+    $dataFile = NULL;
+
+    if ($f == false) {
+        fclose($f);
+        //No file exists add one and save to new file.
+        $address = 1;
+        for ($i; $i < 12; $i++) {
+            $dataFile[] = new PixelnetDMXentry(1, 0, $address);
+            $address += 4096;
+        }
+    } else {
+        $s = fread($f, 1024);
+        fclose($f);
+        $sarr = unpack("C*", $s);
+
+        $dataOffset = 7;
+
+        $i = 0;
+        for ($i = 0; $i < 12; $i++) {
+            $outputOffset = $dataOffset + (4 * $i);
+            $active = $sarr[$outputOffset + 0];
+            $startAddress = $sarr[$outputOffset + 1];
+            $startAddress += $sarr[$outputOffset + 2] * 256;
+            $type = $sarr[$outputOffset + 3];
+            $dataFile[] = new PixelnetDMXentry($active, $type, $startAddress);
+        }
+    }
+
+    $rc = array();
+    $i = 0;
+    for($i=0; $i<count($dataFile); $i++) {
+        $cur = array();
+        $cur["active"] = $dataFile[$i]->active;
+        $cur["type"] = $dataFile[$i]->type;
+        $cur["startAddress"] = $dataFile[$i]->startAddress;
+        array_push($rc, $cur);
     }
 
     return json($rc);

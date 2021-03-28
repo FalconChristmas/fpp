@@ -30,7 +30,7 @@ $command_array = Array(
 	// "deleteFile" => 'DeleteFile', // use DELETE /api/file/:DirName/:filename
 	//"setUniverseCount" => 'SetUniverseCount', 
 	//"getUniverses" => 'GetUniverses',
-	"getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs',
+	// "getPixelnetDMXoutputs" => 'GetPixelnetDMXoutputs', // GET /api/channel/output/PixelnetDMX
 	// "deleteUniverse" => 'DeleteUniverse', // Moved to UI
 	// "cloneUniverse" => 'CloneUniverse', //Moved to UI
 	// "viewReleaseNotes" => 'ViewReleaseNotes',  // use GET /api/system/releaseNotes/:version
@@ -365,44 +365,6 @@ function SaveFPDv1()
 	SendCommand('w');
 }
 
-function LoadPixelnetDMXFile()
-{
-  global $settings;
-
-	$_SESSION['PixelnetDMXentries']=NULL;
-
-  $f = fopen($settings['configDirectory'] . "/Falcon.FPDV1", "rb");
-	if($f == FALSE)
-  {
-  	fclose($f);
-		//No file exists add one and save to new file.
-		$address=1;
-		for($i;$i<12;$i++)
-		{
-			$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry(1,0,$address);
-			$address+=4096;
-		}
-		return;
-  }
-
-	$s = fread($f, 1024);
-	fclose($f);
-	$sarr = unpack("C*", $s);
-
-	$dataOffset = 7;
-
-	$i = 0;
-	for ($i = 0; $i < 12; $i++)
-	{
-		$outputOffset  = $dataOffset + (4 * $i);
-		$active        = $sarr[$outputOffset + 0];
-		$startAddress  = $sarr[$outputOffset + 1];
-		$startAddress += $sarr[$outputOffset + 2] * 256;
-		$type          = $sarr[$outputOffset + 3];
-		$_SESSION['PixelnetDMXentries'][] = new PixelnetDMXentry($active,$type,$startAddress);
-  }
-}
-
 function SavePixelnetDMXoutputsToFile()
 {
 	global $pixelnetFile;
@@ -431,42 +393,6 @@ function SavePixelnetDMXoutputsToFile()
 	fclose($f);
 
 	EchoStatusXML('Success');
-}
-
-function GetPixelnetDMXoutputs()
-{
-	$reload = $_GET['reload'];
-	check($reload, "reload", __FUNCTION__);
-
-	if($reload == "TRUE")
-	{
-		LoadPixelnetDMXFile();
-	}
-
-	$doc = new DomDocument('1.0');
-	$root = $doc->createElement('PixelnetDMXentries');
-	$root = $doc->appendChild($root);
-	for($i=0;$i<count($_SESSION['PixelnetDMXentries']);$i++)
-	{
-		$PixelnetDMXentry = $doc->createElement('PixelnetDMXentry');
-		$PixelnetDMXentry = $root->appendChild($PixelnetDMXentry);
-		// active
-		$active = $doc->createElement('active');
-		$active = $PixelnetDMXentry->appendChild($active);
-		$value = $doc->createTextNode($_SESSION['PixelnetDMXentries'][$i]->active);
-		$value = $active->appendChild($value);
-		// type
-		$type = $doc->createElement('type');
-		$type = $PixelnetDMXentry->appendChild($type);
-		$value = $doc->createTextNode($_SESSION['PixelnetDMXentries'][$i]->type);
-		$value = $type->appendChild($value);
-		// startAddress
-		$startAddress = $doc->createElement('startAddress');
-		$startAddress = $PixelnetDMXentry->appendChild($startAddress);
-		$value = $doc->createTextNode($_SESSION['PixelnetDMXentries'][$i]->startAddress);
-		$value = $startAddress->appendChild($value);
-	}
-	echo $doc->saveHTML();
 }
 
 
