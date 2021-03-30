@@ -232,7 +232,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         LoadPluginSettingInfos($plugin);
 
     if (!isset($settingInfos[$setting])) {
-        echo "<div class='row'><div class='td td-colspan-2' colspan='2'><b>Invalid Setting: $setting</b></div></div>\n";
+        echo "<div class='row'><div class='col td-colspan-2' colspan='2'><b>Invalid Setting: $setting</b></div></div>\n";
         return;
     }
 
@@ -375,7 +375,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
             echo $suffix . ' ';
 
         if ($textOnRight) {
-            echo "</div><div class='th'><span>" . $s['description'] . "</span> ";
+            echo "</div><div class='col-md-auto'><span>" . $s['description'] . "</span> ";
 			PrintIcon($level);
 		}
 
@@ -454,7 +454,7 @@ function PrintPluginSettingGroupTable($plugin, $group, $appendData = "", $prepen
 }
 
 function PrintSettingGroupTable($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "") {
-    echo "<div class='settingsTable'>\n";
+    echo "<div class='settingsTable ".$group."SettingsTable'>\n";
     PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
     echo "</div>\n";
 }
