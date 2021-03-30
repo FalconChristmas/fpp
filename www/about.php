@@ -371,7 +371,7 @@ tr.rowScheduleDetails td {
         <div class="row">
             <div class="aboutAll col-md">
             <h2>About Cape/Hat</h2>
-            <div class="container">
+            <div class="container-fluid">
             <div class="row">
             <div class='<? if (isSet($currentCapeInfo['vendor'])) { echo "aboutLeft col-md"; } else { echo "aboutAll";} ?> '>
             <table class='tblAbout'>
@@ -448,7 +448,7 @@ tr.rowScheduleDetails td {
         <div class="row">
             <div class="aboutAll col-md">
             <h2>Cape/Hat Firmware Upgrade</h2>
-            <div class="container"><div class="row"><div class="aboutAll col-md">
+            <div class="container-fluid"><div class="row"><div class="aboutAll col-md">
             Firmware file: <input type="file" name="firmware" id="firmware"/>&nbsp;<input type='button' value='Upgrade' onClick='UpgradeFirmware();'  id='UpdateFirmware'>
             </div>
             </div>

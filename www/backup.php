@@ -1811,7 +1811,7 @@ GetBackupDevices();
                         ?>
                         <div class="backdrop">
                             <h2>Backup Configuration</h2>
-                            <div class="container">
+                            <div class="container-fluid">
                                 <div class="row">
                                     <div class="col-md-5">
                                         <span>Protect sensitive data?</span>
@@ -1840,7 +1840,7 @@ GetBackupDevices();
                             <div class="callout callout-danger">
                                 <b class="text-danger">JSON Backups made from FPP v1.x are not compatible with FPP 3.x and higher.</b>
                             </div>
-                            <div class="container">
+                            <div class="container-fluid">
                                 <div class="row">
                                     <div class="col-md-5">Keep Existing Network Settings</div>
                                     <div class="col-md-7">

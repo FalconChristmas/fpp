@@ -8646,6 +8646,9 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   .callout-warning h4 {
     color: #F2BC5F; }
 
+.callout.mt-1 {
+  margin-top: 0.375rem; }
+
 .buttons, .ui-dialog-buttonset button {
   color: #171720;
   background-color: transparent;
@@ -9535,8 +9538,26 @@ input[type=checkbox]:checked {
 div.settingsTable div.row {
   margin-top: .33em; }
 
+.printSettingLabelCol {
+  display: flex;
+  align-items: center; }
+
+.printSettingLabelCol.align-top {
+  align-items: start; }
+
 div.settingsTable div.description {
-  margin-top: 10px; }
+  padding-left: 15px; }
+  @media (max-width: 768px) {
+    div.settingsTable div.description {
+      padding-left: 0; } }
+
+.settingsTable .description > i:first-child {
+  margin-left: -26px; }
+  @media (max-width: 768px) {
+    .settingsTable .description > i:first-child {
+      margin-left: 0; }
+      .settingsTable .description > i:first-child.fa-nbsp {
+        display: none; } }
 
 div.settingsTable div.td, div.settingsTable div.th {
   margin-left: 1em;

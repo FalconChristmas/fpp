@@ -1412,7 +1412,7 @@ function multiActionChanged() {
 
         <div id="fppSystemsUiSettingsDrawer" class="collapse">
             <div id="multisyncViewOptions" class="fppSystemsUiSettings card ">
-                <div class="container">
+                <div class="container-fluid">
                     <div class="row">
                             <div class="col-2">
                             <div class="labelHeading">

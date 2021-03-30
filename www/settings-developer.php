@@ -74,25 +74,48 @@ $( document ).ready(function() {
 });
 
 </script>
-
-<table class='settingsTable'>
-    <tr><th valign='top'>Git Branch:</th>
-        <td><select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? PrintToolTip('gitBranch'); ?>
-            <div class="callout callout-danger">
+<h2>Developer Settings</h2>
+<div class="settingsTable container-fluid">
+    <?
+    PrintSetting('masqUIPlatform');
+    PrintSetting("FPP_UUID");
+    ?>
+    <div class="row">
+        <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>
+            <div class="description"><i class='fas fa-fw fa-nbsp ui-level-0'></i>Git Branch:</div>
+        </div>
+        <div class='printSettingFieldCol col-md'>
+            <select id='gitBranch' onChange="ChangeGitBranch($('#gitBranch').val());"><? PrintGitBranchOptions(); ?></select> <? PrintToolTip('gitBranch'); ?>
+            <div class="callout callout-danger mt-1">
             <b>Note: </b>Changing branches may take a couple minutes to recompile and may not work if you have any modified source files.
-            <br class="mt-1"><b class="txt-danger">WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing development, you may want to backup the source directory before switching branches using this page.</b></td>
- 
+            <br class="mt-1"><b class="txt-danger">WARNING: Switching branches will run a "git clean -df" which will remove any untracked files. If you are doing development, you may want to backup the source directory before switching branches using this page.</b>
             </div>
-        </tr>
-    <tr><th valign='top'>Git Status:</th>
-        <td><input type='button' class="buttons btn-outline-danger" value='Reset Local Changes' onClick='GitReset();'> <b>WARNING:</b> This performs a "git reset --hard HEAD" to revert all local source code changes<br></td>
-    </tr>
-    <tr><th colspan='2'><pre id='gitStatusPre'>Loading</pre></th>
-    <tr><th valign='top'>FPP Rebuild:</th>
-        <td><input type='button' class="buttons btn-outline-danger" value='Rebuild FPP' onClick='RebuildFPPSource();'> <b>WARNING:</b> This recompiles the local source code<br></td>
-    </tr>
-<?
-PrintSetting('masqUIPlatform');
-PrintSetting("FPP_UUID");
-?>
-</table>
+        </div>
+    </div>
+    <div class="row">
+        <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>
+        <div class="description"><i class='fas fa-fw fa-nbsp ui-level-0'></i>Git Status:</div>
+        </div>
+        <div class='printSettingFieldCol col-md'>
+             <input type='button' class="buttons btn-outline-danger" value='Reset Local Changes' onClick='GitReset();'> 
+             
+             <div class="callout callout-danger mt-1">
+             <b>WARNING:</b> Resetting local changes performs a "git reset --hard HEAD" to revert all local source code changes            </div>
+                <div class="backdrop">
+                <pre id='gitStatusPre'>Loading</pre>
+                </div>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>
+        <div class="description"><i class='fas fa-fw fa-nbsp ui-level-0'></i>FPP Rebuild</div>
+        </div>
+        <div class='printSettingFieldCol col-md'>
+            <input type='button' class="buttons btn-outline-danger" value='Rebuild FPP' onClick='RebuildFPPSource();'>
+             
+             <div class="callout callout-danger mt-1">
+             <b>WARNING:</b> This recompiles the local source code           </div>
+             
+        </div>
+    </div>
+</div>

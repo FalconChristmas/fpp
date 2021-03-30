@@ -507,10 +507,30 @@ background: linear-gradient(90deg, $gray-100 0%, $gray-300 39%, $gray-300 57%, $
 div.settingsTable div.row {
     margin-top: .33em;
 }
-
-div.settingsTable div.description {
-    margin-top: 10px;
+.printSettingLabelCol {
+    display: flex;
+    align-items: center;
 }
+.printSettingLabelCol.align-top{
+    align-items: start;
+}
+div.settingsTable div.description {
+    padding-left: 15px;
+    @media (max-width:768px){
+        padding-left: 0;
+    }
+}
+.settingsTable .description>i:first-child{
+  margin-left: -26px;
+  @media (max-width:768px){
+      margin-left: 0;
+      &.fa-nbsp{
+        display: none;
+    }
+  }
+}
+
+
 
 div.settingsTable div.td, div.settingsTable div.th{
     margin-left: 1em;

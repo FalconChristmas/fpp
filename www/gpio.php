@@ -118,7 +118,7 @@ extraCommands = [
         $activeParentMenuItem = 'input-output';
         include 'menu.inc'; ?>
 		
-<div class="container">
+<div class="container-fluid">
     <h1 class="title">GPIO Input Triggers </h1>
     <div class="pageContent">
         

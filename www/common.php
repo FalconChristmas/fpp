@@ -268,11 +268,11 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
 
         if ($textOnRight)
-            echo "<div class='row' id='" . $setting . "Row'><div class='col-md-5'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'>";
         else {
-            echo "<div class='row' id='" . $setting . "Row'><div class='col-md-5'><div class='description'>";
+            echo "<div class='row' id='" . $setting . "Row'><div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2'><div class='description'>";
 			PrintIcon($level);
-			echo $s['description']."</div></div><div class='col-md-7'>";
+			echo $s['description']."</div></div><div class='printSettingFieldCol col-md'>";
 		}
 
         switch ($s['type']) {
@@ -417,7 +417,7 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
         echo "<h2>" . $g['description'] . "</h2>\n";
-        echo "<div class='container settingsTable ";
+        echo "<div class='container-fluid settingsTable ";
 
         if ($indent)
             echo "settingsGroupTable'>\n";

@@ -48,7 +48,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 
         <button id='btnStartHealthCheck' class='buttons wideButton disabled' onClick='StartHealthCheck();'>Restart Health Check</button>
 
-        <div name='shouldUseCSSInstead' class='container' style='width: 90%; height: 90%;' disabled id='healthCheckOutput'></div>
+        <div name='shouldUseCSSInstead' class='container-fluid' style='width: 90%; height: 90%;' disabled id='healthCheckOutput'></div>
     </div>
 </div>
 <?php	include 'common/footer.inc'; ?>

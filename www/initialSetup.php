@@ -42,7 +42,7 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 ?>
         <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
 
-        <div class='container'>
+        <div class='container-fluid'>
             <div class='form-actions'><input type='button' class='buttons' value='Skip Initial Setup' onClick='skipSetup();'></div>
 <?
 
