@@ -10,7 +10,13 @@ function RebootDevice()
     global $settings;
     global $SUDO;
 
-    $status = exec($SUDO . " shutdown -r now");
+    if (file_exists("/.dockerenv")) {
+        // apache is container's long-running process, send it a SIGTERM
+        $status = exec($SUDO . " killall -15 apache2");
+    } else {
+        $status = exec($SUDO . " shutdown -r now");
+    }
+
     $output = array("status" => "OK");
     return json($output);
 }
@@ -20,7 +26,13 @@ function SystemShutdownOS()
 {
     global $SUDO;
 
-    $status = exec($SUDO . " shutdown -h now");
+    if (file_exists("/.dockerenv")) {
+        // apache is container's long-running process, send it a SIGTERM
+        $status = exec($SUDO . " killall -15 apache2");
+    } else {
+        $status = exec($SUDO . " shutdown -h now");
+    }
+
     $output = array("status" => "OK");
     return json($output);
 }

@@ -1,0 +1,53 @@
+version: '3'
+services:
+  fpp-docker:
+    container_name: fpp-docker
+    image: falconchristmas/fpp:latest
+    restart: always
+
+    # FPP will report this hostname via MultiSync
+    hostname: fpp-docker
+
+    volumes:
+      # Comment out these volume lines to use the directory in the container.
+      # You likely will want a local media directory for persistence.
+      # fpp directory should be owned by root, media by fpp uid/gid 500/500.
+      - ./fpp:/opt/fpp
+      - ./media:/home/fpp/media
+
+    environment:
+      # To allow the instance to report its external IP, you can optionally
+      # define a FPP_DOCKER_IP environment variable with the external IP
+      - FPP_DOCKER_IP=192.168.1.10
+      - TZ=America/Los_Angeles
+
+    # Include the IP in the port list to bind to a specific IP or leave off
+    # the IP and just use port:port to allow traffic on any IP.  If you are
+    # running multiple FPP containers all listening on port 80, you will
+    # need each to have its own external IP configured as a secondary on
+    # the physical host.
+    ports:
+      - "192.168.1.10:80:80/tcp"        # Web UI
+      - "192.168.1.10:4048:4048/udp"    # DDP
+      - "192.168.1.10:5568:5568/udp"    # sACN/E1.31
+      - "192.168.1.10:32320:32320/udp"  # FPP MultiSync
+      - "192.168.1.10:32322:32322/tcp"  # FPP fppd API
+      - "192.168.1.10:32328:32328/tcp"  # FPP HTTP Virtual Display
+
+    # Uncomment BOTH networks sections below to create a second container
+    # interface tied to a physical network interface which is connected
+    # to a ColorLight
+    #
+    # NOTE: For networking, the networks defined are assigned to the eth*
+    #       interfaces in alphanumeric order.  In order to function
+    #       correctly, 'default' should sort first so it is assigned to eth0.
+#    networks:
+#      default:
+#      net-colorlight:
+
+#networks:
+#  net-colorlight:
+#    driver: macvlan
+#    driver_opts:
+#      parent: eno3  # dedicated physical interface connected to a ColorLight
+

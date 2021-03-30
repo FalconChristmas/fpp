@@ -32,6 +32,12 @@
                 "HostDescription"
             ]
         },
+        "hostDocker": {
+            "description": "Host Settings",
+            "settings": [
+                "HostDescription"
+            ]
+        },
         "log-levels": {
             "description": "Log Levels",
             "settings": [

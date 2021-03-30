@@ -81,15 +81,34 @@ if [ "x${SKIPNETWORKRESET}" != "x1" ]; then
     SetupFPPNetworkConfig
 fi
 
-HOSTNAME=$(getSetting HostName)
-if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
+if [ -f "/.dockerenv" ]
 then
-	echo "FPP - Setting hostname to ${HOSTNAME}"
-	echo ${HOSTNAME} > /etc/hostname
-	sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts
-	sed -i "\$a127.0.1.1 ${HOSTNAME}" /etc/hosts
-	hostname ${HOSTNAME}
-	/etc/init.d/avahi-daemon restart
+	OURHOSTNAME=$(getSetting HostName)
+	CID=$(head -1 /proc/1/cgroup | sed -e "s/.*docker-//" | cut -c1-12)
+
+	if [ "x${OURHOSTNAME}" != "x${HOSTNAME}" -a "x${HOSTNAME}" != "x${CID}" ]
+	then
+		sed -i '/^HostName =/d' /home/fpp/media/settings
+		echo "HostName = \"${HOSTNAME}\"" >> /home/fpp/media/settings
+	fi
+
+	OURHOSTDESC=$(getSetting HostDescription | grep -v "^Docker ID:")
+	if [ "x${OURHOSTDESC}" = "x" ]
+	then
+		sed -i '/^HostDescription =/d' /home/fpp/media/settings
+		echo "HostDescription = \"Docker ID: ${CID}\"" >> /home/fpp/media/settings
+	fi
+else
+	HOSTNAME=$(getSetting HostName)
+	if [ "x${HOSTNAME}" != "x" -a "x$(hostname)" != "x${HOSTNAME}" ]
+	then
+		echo "FPP - Setting hostname to ${HOSTNAME}"
+		echo ${HOSTNAME} > /etc/hostname
+		sed -i '/^127.0.1.1[^0-9]/d' /etc/hosts
+		sed -i "\$a127.0.1.1 ${HOSTNAME}" /etc/hosts
+		hostname ${HOSTNAME}
+		/etc/init.d/avahi-daemon restart
+	fi
 fi
 
 # Clear any restart/reboot flags

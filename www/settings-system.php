@@ -35,6 +35,10 @@ function CloseKioskDialog() {
 
 </script>
 <?
+if (file_exists("/.dockerenv")) {
+    PrintSettingGroup('hostDocker');
+}
+
 $extraData = "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
 PrintSettingGroup('system', $extraData);
 PrintSettingGroup('BBBLeds');

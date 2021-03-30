@@ -342,6 +342,11 @@ bool MultiSync::FillLocalSystemInfo(void)
 	std::string multiSyncInterface = getSetting("MultiSyncInterface");
     char addressBuf[128];
     std::list<std::string> addresses;
+
+    if ((FileExists("/.dockerenv")) && getenv("FPP_DOCKER_IP")) {
+        addresses.push_back(getenv("FPP_DOCKER_IP"));
+    }
+
     if (multiSyncInterface == "") {
         //get all the addresses
         struct ifaddrs *interfaces,*tmp;
