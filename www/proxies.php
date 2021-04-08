@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
-<?php include 'common/menuHead.inc'; ?>
-<?php
+<?php 
+require_once('config.php');
+include 'common/menuHead.inc'; 
 require_once("common.php");
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $newht = "RewriteEngine on\nRewriteBase /proxy/\n\n";

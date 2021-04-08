@@ -155,7 +155,7 @@ include 'menu.inc'; ?>
                                 </button>
                                 <div class="dropdown-menu" aria-labelledby="commandPresetsMobileActions">
                                     <input class="buttons" type="button" value="Clear Selection" onClick="$('#tblCommandsBody tr').removeClass('selectedEntry'); DisableButtonClass('deleteCmdButton'); DisableButtonClass('cloneCmdButton');"/>
-                                    <button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteCmdButton');">Delete</button>
+                                    <button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblCommandsBody'); DisableButtonClass('deleteCmdButton');">Delete</button>
                                     <button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button>
                                 </div>
                             </div>
@@ -167,7 +167,7 @@ include 'menu.inc'; ?>
                 <div class="col-auto ml-auto">
                     <div class="form-actions form-actions-primary">
 
-                        <div class='largeonly'><button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblScheduleBody'); DisableButtonClass('deleteCmdButton');">Delete</button></div>
+                        <div class='largeonly'><button class="disableButtons deleteCmdButton" data-btn-enabled-class="btn-outline-danger" type="button" value="Delete" onClick="DeleteSelectedEntries('tblCommandsBody'); DisableButtonClass('deleteCmdButton');">Delete</button></div>
                         <div class='largeonly'><button class="disableButtons cloneCmdButton" type="button" value="Clone" onClick="CloneCommand();">Clone</button></div>
                         <div><button class="buttons btn-outline-success form-actions-button-primary ml-1" type="button"  onClick="AddCommand();"><i class="fas fa-plus"></i> Add</button></div>
                         <div><button class="buttons btn-success form-actions-button-primary" type='button' value="Save" onClick='SaveCommands();' >Save</button></div>
