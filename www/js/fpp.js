@@ -1273,10 +1273,12 @@ function GetPlaylistRowHTML(ID, entry, editMode)
     var HTML = "";
     var rowNum = ID + 1;
 
-    if (editMode)
+    if (editMode){
         HTML += "<tr class='playlistRow'>";
-    else
+        HTML += "<td class='center' valign='middle'> <div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>";
+    } else {    
         HTML += "<tr id='playlistRow" + rowNum + "' class='playlistRow'>";
+    }
 
     HTML += "<td class='colPlaylistNumber";
 

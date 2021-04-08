@@ -28,55 +28,58 @@ function playlistEditorDocReady() {
 			}
 		});
 	});
+    
+    //make table rows sortable
+    var sortableOptions = {
+        start: function (event, ui) {
+            start_pos = ui.item.index();
 
-
-	//make table rows sortable
-    if (window.innerWidth > 600) {
-        $('.playlistEntriesBody').sortable({
-            start: function (event, ui) {
-                start_pos = ui.item.index();
-
-                start_parent = $(ui.item).parent().attr('id');
-                start_id = start_parent.replace(/tblPlaylist/i, "");
-            },
-            update: function(event, ui) {
-                if (this === ui.item.parent()[0]) {
-                    var parent = $(ui.item).parent().attr('id');
-                    $('#' + parent + 'PlaceHolder').remove();
-                    var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
-                if (rowsLeft == 0)
-                    $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
-
-
-                    RenumberPlaylistEditorEntries();
-                    UpdatePlaylistDurations();
-                }
-            },
-            over:function(){
+            start_parent = $(ui.item).parent().attr('id');
+            start_id = start_parent.replace(/tblPlaylist/i, "");
+        },
+        update: function(event, ui) {
+            if (this === ui.item.parent()[0]) {
+                var parent = $(ui.item).parent().attr('id');
+                $('#' + parent + 'PlaceHolder').remove();
                 var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
-                if (rowsLeft == 1)
-                    $('#' + start_parent).append("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
-               // console.log(rowsLeft)
-            },
+            if (rowsLeft == 0)
+                $('#' + start_parent).html("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
 
-            beforeStop: function (event, ui) {
-                //undo the firefox fix.
-                if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-                    $(window).unbind('scroll.sortableplaylist');
-                    ui.helper.css('margin-top', 0);
-                }
-            },
-            helper: function (e, ui) {
-                ui.children().each(function () {
-                    $(this).width($(this).width());
-                });
-                return ui;
-            },
-            item: '> tr',
-            connectWith: '.playlistEntriesBody',
-            scroll: true
-        }).disableSelection();
+
+                RenumberPlaylistEditorEntries();
+                UpdatePlaylistDurations();
+            }
+        },
+        over:function(){
+            var rowsLeft = $('#' + start_parent + ' .playlistRow').length;
+            if (rowsLeft == 1)
+                $('#' + start_parent).append("<tr id='" + start_parent + "PlaceHolder' class='unselectable'><td colspan=4>&nbsp;</td></tr>");
+            // console.log(rowsLeft)
+        },
+
+        beforeStop: function (event, ui) {
+            //undo the firefox fix.
+            if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+                $(window).unbind('scroll.sortableplaylist');
+                ui.helper.css('margin-top', 0);
+            }
+        },
+        helper: function (e, ui) {
+            ui.children().each(function () {
+                $(this).width($(this).width());
+            });
+            return ui;
+        },
+        item: '> tr',
+        connectWith: '.playlistEntriesBody',
+        scroll: true
     }
+	
+    if(hasTouch){
+        $.extend(sortableOptions,{handle:'.rowGrip'});
+    }
+    $('.playlistEntriesBody').sortable(sortableOptions).disableSelection();
+
     function selectPlaylistEntryRow($row){
 		$('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
 		$row.addClass('playlistSelectedEntry');
