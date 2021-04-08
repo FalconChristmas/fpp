@@ -370,7 +370,7 @@ if (!$wrapped)
         </div>
     </div>
     <h2>FPP Commands</h2>
-<b>NOTE: FPPD Commands are require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/Command" endpoint listed above.</b><br>
+<b>NOTE: FPPD Commands are require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/command" endpoint listed above.</b><br>
     <div class='fppTableWrapper fppTableWrapperAsTable'>
         <div class='fppTableContents' role="region" aria-labelledby="commandTable" tabindex="0">
             <table class='commandTable' id='commands' border=1 cellspacing=0 cellpadding=2 width='100%'>
