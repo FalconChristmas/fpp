@@ -6,7 +6,7 @@ require_once("config.php");
 require_once("common.php");
 include 'common/menuHead.inc';
 
-$advancedView = false;
+$advancedView = true;
 if ((isset($settings['MultiSyncAdvancedView'])) &&
     ($settings['MultiSyncAdvancedView'] == 1)) {
 	$advancedView = true;
@@ -28,7 +28,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script>
     var hostRows = new Object();
     var rowSpans = new Object();
-    var advancedView = <? echo $advancedView == true ? 'true' : 'false'; ?>;
+    var advancedView = true;
 
     function rowSpanSet(rowID) {
         var rowSpan = 1;
@@ -201,8 +201,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} else {
         ips = "&ip[]=" + ipAddresses;
     }
-		$.get("api/system/status?ip=" + ips + (advancedView == true ? '&advancedView=true' : '')
-		).done(function(alldata) {
+		$.get("api/system/status?ip=" + ips + '&advancedView=true')
+		.done(function(alldata) {
             jQuery.each(alldata, function(ip, data) {
 			var status = 'Idle';
 			var statusInfo = "";
@@ -341,7 +341,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             rowSpanSet(rowID);
                
 	    //Expert View Rows
-	    if(advancedView === true && data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
+	    if( data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
 		if (data.advancedView.hasOwnProperty('Platform')) {
 			$('#' + rowID + '_platform').html(data.advancedView.Platform);
 	        }
@@ -433,7 +433,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 $('#fppSystems').trigger('update', true);
 		}).always(function() {
 			if (Array.isArray(ipAddresses) && $('#MultiSyncRefreshStatus').is(":checked")) {
-				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, <? if ($advancedView) echo '2000'; else echo '1000'; ?>);
+				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, 2000);
             }
 		});
 	}
@@ -574,14 +574,13 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 if (data[i].version != 'Unknown')
                     majorVersion = parseInt(versionParts[0]);
 
-                if ((advancedView === true) &&
-                    (isFPP(data[i].typeId))) {
+                if ((isFPP(data[i].typeId))) {
                     newRow += "<td><table class='multiSyncVerboseTable'><tr><td>FPP:</td><td id='" + rowID + "_version'>" + data[i].version + "</td></tr><tr><td>OS:</td><td id='" + rowID + "_osversion'></td></tr></table></td>";
                 } else {
                     newRow += "<td id='" + rowID + "_version'>" + data[i].version + "</td>";
                 }
 
-                if (advancedView === true) {
+
                     newRow +=
                         "<td id='advancedViewGitVersions_" + rowID + "'></td>" +
                         "<td id='advancedViewUtilization_" + rowID + "'></td>";
@@ -592,7 +591,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                         newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
 
                     newRow += "</td>";
-                }
+          
 
                 newRow = newRow + "</tr>";
                 $('#fppSystems').append(newRow);
@@ -1331,7 +1330,7 @@ function multiActionChanged() {
         	<div id="uifppsystems" class="settings">
     
         
-                    <div id='fppSystemsTableWrapper' class='fppTableWrapper<? if ($advancedView != true) { echo " fppTableWrapperAsTable"; }?> backdrop'>
+                    <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
         			<table id='fppSystemsTable' cellpadding='3'>
         				<thead>
@@ -1343,16 +1342,11 @@ function multiActionChanged() {
         						<th data-placeholder="Status">Status</th>
         						<th data-sorter='false' data-filter='false'>Elapsed</th>
         						<th data-placeholder="Version">Version</th>
-        						<?php
-                                //Only show expert view is requested
-        						if ($advancedView == true) {
-        							?>
-                                    <th data-sorter='false' data-filter='false'>Git Versions</th>
-                                    <th data-sorter='false' data-filter='false'>Utilization</th>
-                                    <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox multisyncRowCheckbox' onChange='selectAllChanged();' /></th>
-                                <?php
-                            }
-                            ?>
+        					
+                                <th data-sorter='false' data-filter='false'>Git Versions</th>
+                                <th data-sorter='false' data-filter='false'>Utilization</th>
+                                <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox multisyncRowCheckbox' onChange='selectAllChanged();' /></th>
+            
                         </tr>
                     </thead>
                     <tbody id='fppSystems'>
@@ -1365,12 +1359,12 @@ function multiActionChanged() {
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
-            <i class="fas fa-cog"></i> View Options</button><button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
-                
+            <i class="fas fa-cog"></i> View Options</button>
+            <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
+            <div class="ml-2">
+            <span  class="pr-1">Auto Refresh Stats</span> <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
             </div>
-            <?
-            if ($advancedView) {
-            ?>
+            </div>
             <div class="col-md-auto">
                 <div class="form-actions multisyncBulkActions  ">
                     <b>Action for selected systems:</b>
@@ -1390,11 +1384,9 @@ function multiActionChanged() {
                     <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
                 </div>
             </div>
-            <? } ?>
+         
         </div>
-        <?
-        if ($advancedView) {
-        ?>
+   
         <div style='text-align: left;'>
             <span class='actionOptions' id='copyOptions'>
                 <br>
@@ -1406,24 +1398,13 @@ function multiActionChanged() {
 
             <div id='exitWarning' class='alert alert danger' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b></div>
   
-        <? } ?>
-
+ 
    
-
+            
         <div id="fppSystemsUiSettingsDrawer" class="collapse">
             <div id="multisyncViewOptions" class="fppSystemsUiSettings card ">
-                <div class="container-fluid">
-                    <div class="row">
-                            <div class="col-2">
-                            <div class="labelHeading">
-                            Auto Refresh Status
-                            </div>
-                            
-                                <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
+                <div class="container-fluid settingsTable">
 
-                            </div>
-                            <div class="col">
-                            <div class='settingsTable'>
                                 <?
                                 PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
@@ -1432,17 +1413,15 @@ function multiActionChanged() {
                                 PrintSetting('MultiSyncHide10', 'getFPPSystems');
                                 PrintSetting('MultiSyncHide172', 'getFPPSystems');
                                 PrintSetting('MultiSyncHide192', 'getFPPSystems');
-                                PrintSetting('MultiSyncAdvancedView', 'reloadMultiSyncPage');
                                 ?>
                                             </div>
                                     
                                 <?
                                 if ($uiLevel > 0) {
-                                    echo "<b>* - Advanced Level Setting</b>\n";
+                                    echo "<b><i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i> - Advanced Level Setting</b>\n";
                                 }
                                 ?>
-                            </div>
-                        </div>
+
                 </div>
                    
      
