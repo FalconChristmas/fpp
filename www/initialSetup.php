@@ -41,9 +41,20 @@ if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settin
 }
 ?>
         <div id="warningsRow" class="alert alert-danger"><div id="warningsTd"><div id="warningsDiv"></div></div></div>
-
+        <div class="row tablePageHeader">
+            <div class="col-md">
+                <h2>Initial Setup</h2>
+            </div>
+            <div class="col-md-auto ml-lg-auto">
+                <div class="form-actions">
+                    <input type='button' class='buttons' value='Skip Initial Setup' onClick='skipSetup();'>
+                    <input type='button' class='buttons btn-success' value='Finish Setup' onClick='skipSetup();'>
+                </div>
+            </div>
+        </div>
+        <hr>
         <div class='container-fluid'>
-            <div class='form-actions'><input type='button' class='buttons' value='Skip Initial Setup' onClick='skipSetup();'></div>
+
 <?
 
 $extraData = "<div class='form-actions'>" .
@@ -53,9 +64,9 @@ $extraData = "<div class='form-actions'>" .
     "<input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'> " .
     "</div>";
 
-PrintSettingGroup('initialSetup', $extraData, '', 1, '', 'initialSetupChanged');
+PrintSettingGroup('initialSetup', $extraData, '', 1, '', 'initialSetupChanged',false);
 ?>
-<div class='form-actions'><input type='button' class='buttons' value='Close Initial Setup' onClick='skipSetup();'></div>
+
         </div>
     </div>
 </div>

@@ -392,7 +392,7 @@ function PrintPluginSettingGroup($plugin, $group, $appendData = "", $prependData
     PrintSettingGroup($group, $appendData, $prependData, $indent, $plugin);
 }
 
-function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "", $callback = "") {
+function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent = 1, $plugin = "", $callback = "", $heading=true) {
     global $settings;
     global $settingGroups;
 
@@ -416,7 +416,9 @@ function PrintSettingGroup($group, $appendData = "", $prependData = "", $indent 
         ((!isset($g['platforms'])) ||
          (in_array('ALL', $g['platforms'])) ||
          (in_array($settings['Platform'], $g['platforms'])))) {
-        echo "<h2>" . $g['description'] . "</h2>\n";
+		if($heading==true){
+			echo "<h2>" . $g['description'] . "</h2>\n";
+		}
         echo "<div class='container-fluid settingsTable ";
 
         if ($indent)
