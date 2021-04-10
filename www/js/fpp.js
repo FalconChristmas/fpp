@@ -43,10 +43,10 @@ $(function() {
         $('body').addClass('has-touch');
         var swipeHandler = new SwipeHandler($('.header').get(0));
         swipeHandler.onLeft(function() {
-            $('.header').addClass('swiped');
+            $('.header').toggleClass('swiped');
         });
         swipeHandler.onRight(function() {
-            $('.header').addClass('swiped');
+            $('.header').toggleClass('swiped');
         });
         swipeHandler.run();
     }else{
@@ -156,7 +156,6 @@ $(function() {
             if(!$(this).hasClass('modal')){
                 var $dialogBody = $('<div class="modal-body"/>');
                 var modalDialogSizeClass = '';
-
                 if(settings.width){
                     if(settings.width<400){
                         modalDialogSizeClass='modal-sm';
@@ -164,10 +163,10 @@ $(function() {
                     if(settings.width>500){
                         modalDialogSizeClass='modal-lg';
                     }
-                    if(settings.width>800){
+                    if(settings.width>799){
                         modalDialogSizeClass='modal-xl';
                     }
-                    if(settings.width>1100){
+                    if(settings.width>1099){
                         modalDialogSizeClass='modal-xxl';
                     }
                 }

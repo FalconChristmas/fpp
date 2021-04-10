@@ -1855,7 +1855,8 @@ input[type=search].tablesorter-filter:not(:placeholder-shown){
 input[type=search].tablesorter-filter:disabled{
 	background-image: none;
 }
-.schDay{
+
+/* #tblSchedule .schDay{
 	width: 138px;
 }
 .schPlaylist{
@@ -1863,7 +1864,7 @@ input[type=search].tablesorter-filter:disabled{
 }
 .schStopType{
 	width: 138px;
-}
+} */
 .modal.no-close button.close{
 	display: none;
 }
@@ -1976,8 +1977,9 @@ input[type=search].tablesorter-filter:disabled{
 #tblSchedule input[type=text], #tblSchedule select {
 	width: 100%;
 }
-#tblSchedule select.cmdTmplCommand {
-	width: auto;
+
+.tblScheduleHeadPlaylist,#tblSchedule select.cmdTmplCommand{
+	width: 300px;
 }
 #tblSchedule tr td table.dayMaskTable {
 	margin-top: 0.5em;

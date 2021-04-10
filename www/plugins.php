@@ -483,19 +483,19 @@ $(document).ready(function() {
 		</div>
 		<div class='plugindiv'>
 
-			<div id='installedPlugins' class="fppPluginSection" style='display: none;'>
+			<div id='installedPlugins' class="fppPluginSection">
 				<div class='pluginsHeader'><h2>Installed Plugins</h2></div>
 			</div>
 			<div id='pluginTable' class="fppPluginSection">
 				<div class='pluginsHeader '><h2>Available Plugins</h2></div>
 			</div>
-			<div id='untestedPlugins' class="fppPluginSection" style='display: none;'>
+			<div id='untestedPlugins' class="fppPluginSection">
 				<div class='pluginsHeader '><h2>Plugins not tested with this FPP version</h2></div>
 			</div>
-			<div id='templatePlugin' class="fppPluginSection" style='display: none;'>
+			<div id='templatePlugin' class="fppPluginSection">
 				<div class='pluginsHeader '><h2>Template Plugin</h2></div>
 			</div>
-			<div id='incompatiblePlugins' class="fppPluginSection" style='display: none;'>
+			<div id='incompatiblePlugins' class="fppPluginSection">
 				<div class='pluginsHeader '><h2>Incompatible Plugins</h2></div>
 			</div>
 		</div>

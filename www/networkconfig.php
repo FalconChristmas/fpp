@@ -723,7 +723,7 @@ PrintSettingGroup('host');
                 </tr>
               </table>
               <br>
-              <input name="btnSetDNS" type=""  class = "buttons " value="Update DNS" onClick="SaveDNSConfig();">
+              <input name="btnSetDNS" type=""  class = "buttons btn-success" value="Update DNS" onClick="SaveDNSConfig();">
     
        
 
