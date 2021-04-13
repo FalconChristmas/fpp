@@ -1,4 +1,38 @@
 version: '3'
+
+# This docker-compose.yml file is suited for end users wishing to run
+# FPP in a docker container for testing or production use.  Read the
+# comments throughout the file for optional configurations.
+
+# To use, you will need to create a directory to hold the FPP docker
+# container files.  This config uses /docker/fpp-docker as an example.
+# Under this directory, you will need to create a 'media' subdirectory
+# to house persistent data and configuration for FPP.  The media directory
+# will be mounted on /home/fpp/media inside the container.  To use a
+# local copy of the FPP git repository to allow modification of the
+# files, clone the FPP repository into a 'fpp' subdirectory and uncomment
+# the fpp line in the volumes section below.  This will cause the local fpp
+# subdirectory to be mounted on /opt/fpp inside the container.
+
+# Setup:
+#
+# mkdir /docker/fpp-docker
+# cd /docker/fpp-docker
+# wget -O ./docker-compose.yml https://raw.githubusercontent.com/FalconChristmas/fpp/master/Docker/docker-compose.yml
+# mkdir media
+# chmod 770 media
+# chown 500.500 media
+
+# To start the container and keep it running:
+#
+# cd /docker/fpp-docker
+# docker-compose up -d
+
+# To stop the running container:
+#
+# cd /docker/fpp-docker
+# docker-compose down
+
 services:
   fpp-docker:
     container_name: fpp-docker
@@ -9,17 +43,28 @@ services:
     hostname: fpp-docker
 
     volumes:
-      # Comment out these volume lines to use the directory in the container.
-      # You likely will want a local media directory for persistence.
-      # fpp directory should be owned by root, media by fpp uid/gid 500/500.
-      - ./fpp:/opt/fpp
       - ./media:/home/fpp/media
+      # Uncomment the following line if you create a 'fpp' subdirectory
+      # containing a git clone of the FPP code repository.  This is mainly
+      # for developer use
+      #- ./fpp:/opt/fpp
 
     environment:
       # To allow the instance to report its external IP, you can optionally
       # define a FPP_DOCKER_IP environment variable with the external IP
       - FPP_DOCKER_IP=192.168.1.10
       - TZ=America/Los_Angeles
+
+    devices:
+      # To pass through an audio card, entries similar to the following
+      # should work.  The device names may be different depending on
+      # how many sound cards are present in the host system.  The 'C0'
+      # portion of the file names is Card 0, 'D0' is Device 0.
+      - /dev/snd/controlC0
+      - /dev/snd/pcmC0D0c
+      - /dev/snd/pcmC0D0p
+      - /dev/snd/seq
+      - /dev/snd/timer
 
     # Include the IP in the port list to bind to a specific IP or leave off
     # the IP and just use port:port to allow traffic on any IP.  If you are
@@ -36,7 +81,9 @@ services:
 
     # Uncomment BOTH networks sections below to create a second container
     # interface tied to a physical network interface which is connected
-    # to a ColorLight
+    # to a ColorLight.  You can also use this example config to create a
+    # 'show network' on a dedicated interface with its own subnet and use
+    # this network for sACN/E1.31, DDP, or ArtNet.
     #
     # NOTE: For networking, the networks defined are assigned to the eth*
     #       interfaces in alphanumeric order.  In order to function
@@ -46,8 +93,19 @@ services:
 #      net-colorlight:
 
 #networks:
+   # uncomment the default network and its ipam section to use a specific subnet
+#  default:
+#    ipam:
+#      driver: default
+#      config:
+#      - subnet: 10.0.254.0/24
 #  net-colorlight:
 #    driver: macvlan
 #    driver_opts:
-#      parent: eno3  # dedicated physical interface connected to a ColorLight
+#      parent: eno4   # dedicated physical interface connected to a ColorLight
+     # uncomment the ipam section to assign a specific subnet
+#    ipam:
+#      driver: default
+#      config:
+#      - subnet: 10.0.255.0/24
 
