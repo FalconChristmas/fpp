@@ -1,5 +1,11 @@
 version: "3.8"
 
+# This docker-compose-dev.yml file is suited for developers wishing to
+# build or develop FPP without using the docker container image on
+# dockerhub.  docker-compose-dev.yml is run directly from the cloned
+# fpp source.  To use the pre-built image, use docker-compose.yml and
+# read the notes included at the top of that file for setup.
+
 # The `context` and 'volumes' directives are relative to THIS directory, while
 # the `dockerfile` directive is relative to the `context` directory.  For best
 # results, run the `docker-compose` command in the fpp/ root directory.
@@ -7,7 +13,7 @@ version: "3.8"
 # Additionally, you should NOT have a node_modules folder under www/ as the
 # node_nodules binaries need to be from the container.
 #
-# fpp> docker-compose -f Docker/docker-compose.yml up
+# fpp> docker-compose -f Docker/docker-compose-dev.yml up
 
 services:
   fpp:
