@@ -160,10 +160,8 @@ char *modeToString(int mode)
 		return strdup("master");
 	else if ( mode == REMOTE_MODE )
 		return strdup("remote");
-	else if ( mode == UNKNOWN_MODE )
-		return strdup("unknown");
-	
-	return NULL;
+
+	return strdup("unknown");
 }
 
 int SetSetting(const std::string key, const int value)
