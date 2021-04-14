@@ -334,8 +334,8 @@ function SaveNetworkConfig()
 
 	if (iface.substr(0,4) == "wlan")
 	{
-		data.SSID = encodeURIComponent($('#eth_ssid').val());
-		data.PSK = encodeURIComponent($('#eth_psk').val());
+		data.SSID = $('#eth_ssid').val();
+		data.PSK = ($('#eth_psk').val();
         data.HIDDEN = $('#eth_hidden').is(':checked');
 	}
 
