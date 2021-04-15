@@ -19,6 +19,9 @@ body .ui-tooltip{
 	box-shadow: 3px 3px 8px rgba(0,0,0,0.1) ;
 	border-radius: 5px;
 }
+.pin-parent{
+	position: relative;
+}
 .fppOuterContainer{
 	max-width: 1800px;
 	margin: auto;
@@ -1640,7 +1643,14 @@ body .sm-clean a .sub-arrow {
 	margin-top: 0;
 	margin-bottom: 0.7em;
 }
-
+.tablePageHeader.Zebra_Pin{
+	background-color: #fff;
+	box-shadow: 0px 5px 4px -5px rgba(0,0,0,0.2);
+	padding-top: 0.5em;
+}
+.tablePageHeader.Zebra_Pin .form-actions {
+	margin-bottom: 0;
+}
 .settingsGroupTable .row>:last-child:after {
 	content:'';
 	width: 0;

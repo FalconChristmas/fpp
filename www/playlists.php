@@ -105,20 +105,30 @@ if (isset($_GET['playlist'])) {
             RenamePlaylist();
         })
         $('.playlistEntriesAddNewBtn').click(function(){
-           
+            var playlistEntriesAddNewFooter = $('<div class="modal-actions"/>');
+                    //  <a href="#" onclick="AddPlaylistEntry(2);" class="dropdown-item" value="Insert Before">Insert Before</a>
+                    // <a href="#" onclick="AddPlaylistEntry(3);" class="dropdown-item" value="Insert After">Insert After</a>
+            var playlistEntriesAddNewAddBtn = $('<button class="buttons btn-success">Add</button>').click(function(){
+                AddPlaylistEntry();
+                $('#playlistEntryProperties').fppDialog('close');
+            })
+            var playlistEntriesAddNewInsertBeforeBtn = $('<a href="#" class="dropdown-item" value="Insert Before">Before Selection</a>').click(function(){
+                AddPlaylistEntry(2);
+                $('#playlistEntryProperties').fppDialog('close');
+            })
+            var playlistEntriesAddNewInsertAfterBtn = $('<a href="#" class="dropdown-item" value="Insert After">After Selection</a>').click(function(){
+                AddPlaylistEntry(3);
+                $('#playlistEntryProperties').fppDialog('close');
+            })
+            var playlistEntriesAddNewInsertBtn = $('<div class="dropdown"><button class="btn btn-outline-success dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Insert</button></div>');
+            var playlistEntriesAddNewInsertBtnMenu = $('<div class="dropdown-menu" aria-labelledby="dropdownMenuButton"></div>').append(playlistEntriesAddNewInsertBeforeBtn).append(playlistEntriesAddNewInsertAfterBtn);
+            playlistEntriesAddNewInsertBtn.append(playlistEntriesAddNewInsertBtnMenu);
+
+            playlistEntriesAddNewFooter.append(playlistEntriesAddNewInsertBtn).append(playlistEntriesAddNewAddBtn);
             $('#playlistEntryProperties').fppDialog({
                 title:'New Entry',
                 width:800,
-                buttons:{
-                    "Add":{
-                        click: function(){
-                            AddPlaylistEntry();
-                            $('#playlistEntryProperties').fppDialog('close');
-                            //CreateNewPlaylist();
-                        },
-                        class:'btn-success'
-                    }
-                }
+                footer: playlistEntriesAddNewFooter
             });
         });
         

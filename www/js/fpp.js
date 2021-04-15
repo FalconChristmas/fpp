@@ -39,6 +39,12 @@ $(function() {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
+    new $.Zebra_Pin($('.tablePageHeader'), {
+        contained: true,
+        top_spacing: $('.header').outerHeight()
+    });
+
+
     if(hasTouch==true){
         $('body').addClass('has-touch');
         var swipeHandler = new SwipeHandler($('.header').get(0));

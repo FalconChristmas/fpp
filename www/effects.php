@@ -13,6 +13,10 @@ include 'common/menuHead.inc';
     var RunningEffectSelectedName = "";
 
     $(function() {
+    new $.Zebra_Pin($('#divRunningEffects'), {
+        contained: true,
+        top_spacing: $('.header').outerHeight() + 10
+    });
     $('#tblEffectLibraryBody').on('click', '.buttons', function(event,ui){
           $('#tblEffectLibraryBody tr').removeClass('effectSelectedEntry');
           var $selectedEntry = $(this).parent().parent();
@@ -179,7 +183,7 @@ function StartSelectedEffect() {
                   </div>
 
                 </div>
-                <div class="col">
+                <div class="col pin-parent">
                   <div id= "divRunningEffects" class="backdrop-disabled">
                     <h2>Running Effects</h2>
                     <!-- <input id="btnStopEffect" type="button" class="disableButtons" value="Stop Effect" onclick="StopEffect();" /><br> -->

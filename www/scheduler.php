@@ -663,7 +663,7 @@ button.ui-datepicker-current {
       <div class="pageContent"> 
           <div>
 
-            <div class="row tablePageHeader tablePageHeader">
+            <div class="row tablePageHeader">
                 <div class="col">
                     <div class="form-actions form-actions-secondary">
 
