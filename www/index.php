@@ -28,7 +28,7 @@ include 'common/menuHead.inc';
         $('.playlistEntriesBody').on('mousedown', 'tr', function(event,ui){
             $('#tblPlaylistDetails tr').removeClass('playlistSelectedEntry');
             $(this).addClass('playlistSelectedEntry');
-            PlayEntrySelected = parseInt($(this).attr('id').substr(11)) - 1;
+            PlayEntrySelected = parseInt($(this).attr('id').substr(11));
             PlaySectionSelected = $(this).parent().attr('id').substr(11);
         });
 

@@ -478,8 +478,8 @@ include 'menu.inc'; ?>
           </div>
         </div>
         
-        <div id='fileUploader' class='ui-tabs-panel'>
-            <div id='fileuploader'>Select Files</div>
+        <div id='fileuploader' class='ui-tabs-panel'>
+            <div>Select Files</div>
         </div>
       </div>
     </div>
@@ -528,7 +528,10 @@ $(document).ready(function()
 			for (var i = 0; i < files.length; i++) {
 				moveFile(files[i]);
 			}
-			GetAllFiles();
+      setTimeout(function(){
+        GetAllFiles();
+      }, 100);
+			
 		},
 		onError: function(files, status, errMsg) {
 			alert("Error uploading file");

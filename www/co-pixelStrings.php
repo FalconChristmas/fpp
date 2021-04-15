@@ -283,7 +283,7 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     result += "<td><input type='number' class='vsNullNodes' size='2' value='" + nullCount + "' min='0' max='100'></td>";
     result += "<td><input type='number' class='vsZigZag' size='3' value='" + zigZag + "' min='0' max='1600'></td>";
     result += pixelOutputTableInputBrightness(brightness);
-    result += "<td><input type='number' class='vsGamma' size='5' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
+    result += "<td><input type='number' class='vsGamma' size='3' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
     result += "</tr>\n";
     
     return result;

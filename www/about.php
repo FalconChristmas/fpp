@@ -277,7 +277,7 @@ tr.rowScheduleDetails td {
       if (($git_remote_version != "") &&
           ($git_remote_version != "Unknown") &&
           ($git_version != $git_remote_version))
-        echo " <font color='#FF0000'>(Update is available)</font>";
+        echo " <b class='text-success'>(Update is available)</b>";
     ?>
                     </td></tr>
                 <tr><td>Remote Git Version:</td><td id='remoteGitVersion'>
@@ -344,20 +344,48 @@ tr.rowScheduleDetails td {
                 <tr><td>&nbsp;</td><td>&nbsp;</td></tr>
     
                 <tr><td><b>Disk Utilization</b></td><td>&nbsp;</td></tr>
-                <tr><td>Root Free Space:</td><td>
     <?
       $diskTotal = disk_total_space("/");
       $diskFree  = disk_free_space("/");
+      $percentageUsed = 100-($diskFree * 100 / $diskTotal);
+      $progressClass = "bg-success";
+      if($percentageUsed>60){ $progressClass = "bg-warning"; }
+      if($percentageUsed>80){ $progressClass = "bg-danger"; }
+    ?>
+                <tr>
+                  <td colspan="2">
+                  <div class="progress">
+                    <div class="progress-bar <? echo $progressClass;?>" role="progressbar" style="width: <?  printf( "%2.0f%%", $percentageUsed); ?>;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"><?  printf( "%2.0f%%", $percentageUsed); ?></div>
+                  </div>
+                  </td>
+                </tr>
+                <tr><td>Root Free Space:</td><td>
+             
+    <?
       printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
     ?>
                   </td></tr>
-                <tr><td>Media Free Space:</td><td>
     <?
       $diskTotal = disk_total_space($mediaDirectory);
       $diskFree  = disk_free_space($mediaDirectory);
+      $percentageUsed = 100-($diskFree * 100 / $diskTotal);
+      $progressClass = "bg-success";
+      if($percentageUsed>60){ $progressClass = "bg-warning"; }
+      if($percentageUsed>80){ $progressClass = "bg-danger"; }
+    ?>
+                  <tr>
+                  <td colspan="2">
+                  <div class="progress mt-2">
+                    <div class="progress-bar <? echo $progressClass;?>" role="progressbar" style="width:<?  printf( "%2.0f%%", $percentageUsed); ?>;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"><?  printf( "%2.0f%%", $percentageUsed); ?></div>
+                  </div>
+                  </td>
+                </tr>
+                <tr><td>Media Free Space:</td><td>
+    <?
       printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
     ?>
                   </td></tr>
+
                 <tr><td></td><td></td></tr>
               </table>
             </div>

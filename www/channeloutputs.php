@@ -156,8 +156,9 @@ if ($channelOutputs != null && $channelOutputs['channelOutputs'] != null && $cha
 function handleCOKeypress(e)
 {
 	if (e.keyCode == 113) {
-		if (currentTabType == 'strings')
+		if ( $('.nav-link.active').attr('tabtype')=='strings' ){
 			setPixelStringsStartChannelOnNextRow();
+		}
 	}
 }
 
@@ -173,19 +174,6 @@ $(document).ready(function(){
 		channelOutputs.channelOutputs = [];
 
 	UpdateChannelOutputLookup();
-
-	// Init tabs
-  $tabs = $("#tabs").tabs({
-  		activate: function(e, ui) {
-			currentTabType = $(ui.newTab).find('a').attr('tabType');
-		},
-  		cache: true,
-		spinner: "",
-		fx: {
-			opacity: 'toggle',
-			height: 'toggle'
-		}
-	});
 
 });
 

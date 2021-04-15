@@ -1691,6 +1691,7 @@ body .sm-clean a .sub-arrow {
 #outputOffWarning{
 	margin-top: 0;
 }
+
 .tablesorter thead td,.tablesorter thead th{
 	background-color: #ECECEC;
 }
@@ -1917,6 +1918,9 @@ input[type=search].tablesorter-filter:disabled{
 	height: calc(100vh - 132px);
 	margin-bottom: 0;
 }
+#storageText{
+	height: calc(100vh - 350px);
+}
 #tab-jsonBackup td, #tab-fileCopy td{
 	padding-top: 0.8em;
 	padding-bottom: 0.8em;
@@ -2053,6 +2057,9 @@ input[type=search].tablesorter-filter:disabled{
 @media (max-width:1440px){
 	.fppOuterContainer {
 		max-width: 97%;
+	}
+	.vsDescription {
+		max-width: 175px;
 	}
 }
 
