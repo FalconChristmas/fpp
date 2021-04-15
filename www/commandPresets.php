@@ -110,22 +110,22 @@ $(document).ready(function() {
         }
     });
 
-    if (window.innerWidth > 600) {
-        $('#tblCommandsBody').sortable({
-            start: function (event, ui) {
-                start_pos = ui.item.index();
-            },
-            helper: function (e, ui) {
-                ui.children().each(function () {
-                    $(this).width($(this).width());
-                });
-                return ui;
-            },
-            scroll: true
-        }).disableSelection();
+    var sortableOptions = {
+        start: function (event, ui) {
+            start_pos = ui.item.index();
+        },
+        helper: function (e, ui) {
+            ui.children().each(function () {
+                $(this).width($(this).width());
+            });
+            return ui;
+        },
+        scroll: true
     }
-
-
+	if(hasTouch){
+		$.extend(sortableOptions,{handle:'.rowGrip'});
+	}
+    $('#tblCommandsBody').sortable(sortableOptions).disableSelection();
     $(document).tooltip();
 });
 </script>
@@ -179,6 +179,7 @@ include 'menu.inc'; ?>
                 <div class='fppTableContents' role="region" aria-labelledby="tblUniversesHead" tabindex="0">
                     <table class='fppTableRowTemplate template-tblCommandsBody'>
                         <tr>
+                            <td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>
                             <td><input type='text' size='32' maxlength='64' class='cmdTmplName' list='PresetTriggerNames'></td>
                             <td><select class='cmdTmplCommand' onChange='EditCommandTemplate($(this).parent().parent());'><? echo $commandOptions; ?></select>
                                 <input type='button' class='buttons reallySmallButton' value='Edit' onClick='EditCommandTemplate($(this).parent().parent());'>
@@ -195,6 +196,7 @@ include 'menu.inc'; ?>
                     <table class="fppSelectableRowTable">
                         <thead>
                             <tr>
+                                <th class="tblCommandsHeadGrip"></th>
                                 <th>Preset Name</th>
                                 <th>FPP Command</th>
                                 <th>Preset<br>Slot # <img id='presetSlot_img' title="The Preset Slot number is used along with the Command Preset Control Channel to allow FPP Command Presets to be triggered by sequence or incoming network data.  Set to '0' to disable."  width=22 height=22 src='images/redesign/help-icon.svg'></th>

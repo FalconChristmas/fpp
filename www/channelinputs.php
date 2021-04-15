@@ -73,31 +73,36 @@ $(document).ready(function() {
 	});
 
     if (window.innerWidth > 600) {
-        $('#tblUniversesBody').sortable({
-            start: function (event, ui) {
-                start_pos = ui.item.index();
-            },
-            update: function(event, ui) {
-                SetUniverseInputNames();
-            },
-            beforeStop: function (event, ui) {
-                //undo the firefox fix.
-                // Not sure what this is, but copied from playlists.php to here
-                if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
-                    $(window).unbind('scroll.sortableplaylist');
-                    ui.helper.css('margin-top', 0);
-                }
-            },
-            helper: function (e, ui) {
-                ui.children().each(function () {
-                    $(this).width($(this).width());
-                });
-                return ui;
-            },
-            scroll: true
-        }).disableSelection();
-    }
 
+    }
+	var sortableOptions = {
+		start: function (event, ui) {
+			start_pos = ui.item.index();
+		},
+		update: function(event, ui) {
+			SetUniverseInputNames();
+		},
+		beforeStop: function (event, ui) {
+			//undo the firefox fix.
+			// Not sure what this is, but copied from playlists.php to here
+			if (navigator.userAgent.toLowerCase().match(/firefox/) && ui.offset !== undefined) {
+				$(window).unbind('scroll.sortableplaylist');
+				ui.helper.css('margin-top', 0);
+			}
+		},
+		helper: function (e, ui) {
+			ui.children().each(function () {
+				$(this).width($(this).width());
+			});
+			return ui;
+		},
+		scroll: true
+	}
+	if(hasTouch){
+		$.extend(sortableOptions,{handle:'.rowGrip'});
+	}
+	$('#tblUniversesBody').sortable(sortableOptions).disableSelection();
+	
 	$('#tblUniverses').on('mousedown', 'tr', function(event,ui){
 		$('#tblUniverses tr').removeClass('selectedEntry');
 		$(this).addClass('selectedEntry');
@@ -258,8 +263,8 @@ $(document).ready(function(){
 		        <div class='fppTableContents' role="region" aria-labelledby="tblUniverses" tabindex="0">
 		            <table id="tblUniverses" class='universeTable fullWidth fppSelectableRowTable'>
 		                <thead id='tblUniversesHead'>
-					<th class="tblScheduleHeadGrip"></th>
-				        <th title='Input Number'>Input</th>
+								<th class="tblScheduleHeadGrip"></th>
+				        		<th title='Input Number'>Input</th>
 		                        <th title='Input Enabled/Disabled status'>Active</th>
 		                        <th title='User Description'>Description</th>
 		                        <th title='Input Type'>Input Type</th>

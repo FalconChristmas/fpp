@@ -67,6 +67,7 @@ function PopulateChannelMemMapTable(data) {
             ChannelCountPerNode = 3;
         }
 		postr = "<tr id='row'" + i + " class='fppTableRow'>" +
+			"<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>" +
 			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'></td>" +
 			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
             "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
@@ -159,6 +160,7 @@ function AddNewMemMap() {
 
 	$('#channelMemMaps tbody').append(
 		"<tr id='row'" + currentRows + " class='fppTableRow'>" +
+			"<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>"  +
 			"<td><input class='blk' type='text' size='31' maxlength='31' value=''></td>" +
 			"<td><input class='start' type='text' size='7' maxlength='7' value=''></td>" +
 			"<td><input class='cnt' type='text' size='6' maxlength='6' value=''></td>" +
@@ -217,7 +219,7 @@ $(document).tooltip();
 					<div class="col-md-auto ml-lg-auto">
 						<div class="form-actions">
 			
-								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' id='btnDelete' class='disableButtons'>
+								<input type=button value='Delete' onClick='DeleteSelectedMemMap();' data-btn-enabled-class="btn-outline-danger" id='btnDelete' class='disableButtons'>
 								<button type=button value='Add' onClick='AddNewMemMap();' class='buttons btn-outline-success'><i class="fas fa-plus"></i> Add</button>
 								<input type=button value='Save' onClick='SetChannelMemMaps();' class='buttons btn-success ml-1'>
 
@@ -230,6 +232,7 @@ $(document).tooltip();
                         <table id="channelMemMaps" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
+									<th class="tblChannelMemMapsHeadGrip"></th>
                                     <th title='Name of Model'>Model Name</th>
                                     <th title='Start Channel'>Start Ch.</th>
                                     <th title='Channel Count'>Ch. Count</th>

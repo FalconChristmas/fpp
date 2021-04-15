@@ -1266,7 +1266,7 @@ $(document).ready(function(){
 					<input name="command" type="hidden" value="saveOtherOutputs" />
 					<div class="form-actions">
 							
-							<input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete" onClick="DeleteOtherOutput();">
+							<input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete"  data-btn-enabled-class="btn-outline-danger" onClick="DeleteOtherOutput();">
 							<button id="btnAddOther" class="buttons btn-outline-success" type="button" value = "Add" onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
 							<input id="btnSaveOther" class="buttons btn-success ml-1" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' />
 
