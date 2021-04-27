@@ -2548,7 +2548,7 @@ function updateUniverseEndChannel(row) {
 
                 bodyHTML += "</select></td>";
                 bodyHTML += "<td " + inputStyle + "><input class='txtIP' type='text' value='" + unicastAddress + "' size='16' maxlength='32' " + ipDisabled + "></td>";
-                bodyHTML += "<td><input class='txtStartAddress singleDigitInput' type='number' min='1' max='1048576' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
+                bodyHTML += "<td><input class='txtStartAddress singleDigitInput' type='number' min='1' max='8388608' value='" + startAddress.toString() + "' onChange='updateUniverseEndChannel($(this).parent().parent());' onkeypress='this.onchange();' onpaste='this.onchange();' oninput='this.onchange();'/></td><td><span class='numEndChannel'>" + endChannel.toString() + "</span></td>";
 
                 bodyHTML += "<td><input class='txtUniverse singleDigitInput' type='number' min='" + minNum + "' max='63999' value='" + uid.toString() + "'" + universeNumberDisable + "/></td>";
 
