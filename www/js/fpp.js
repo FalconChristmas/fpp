@@ -39,11 +39,13 @@ $(function() {
     $(document).on('click', '.navbar-toggler', ToggleMenu);
     $(document).on('keydown', handleKeypress);
 
-    new $.Zebra_Pin($('.tablePageHeader'), {
+    var zp = new $.Zebra_Pin($('.tablePageHeader'), {
         contained: true,
-        top_spacing: $('.header').outerHeight()
+        top_spacing: $('.header').css('position') == 'fixed'?$('.header').outerHeight():0
     });
-
+    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
+        zp.update();
+    });
 
     if(hasTouch==true){
         $('body').addClass('has-touch');

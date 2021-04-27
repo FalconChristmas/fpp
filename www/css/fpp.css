@@ -1645,7 +1645,7 @@ body .sm-clean a .sub-arrow {
 }
 .tablePageHeader.Zebra_Pin{
 	background-color: #fff;
-	box-shadow: 0px 5px 4px -5px rgba(0,0,0,0.2);
+	box-shadow: 0px 5px 4px -5px rgba(0,0,0,0.2), 5px 0px 0px 0px #fff;
 	padding-top: 0.5em;
 }
 .tablePageHeader.Zebra_Pin .form-actions {
