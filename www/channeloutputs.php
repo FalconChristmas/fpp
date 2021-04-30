@@ -210,47 +210,22 @@ $(document).ready(function(){
 						</li>
 					<?
 				}
-				if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-					?>
-						<li class="nav-item">
-							<a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-								Pi Pixel Strings
-							</a>
-						</li>
-
-					<?
-				}
 			}
-			if ($settings['Platform'] == "BeagleBone Black") {
-				if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-				$bbbTabText="BBB Strings";
-				if ($currentCape != "") {
-					if (isset($currentCapeInfo["name"]))
-						$bbbTabText=$currentCapeInfo["name"];
-					else
-						$bbbTabText=$currentCape;
-				}
-				?>
-						<li class="nav-item">
-							<a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-								<? echo $bbbTabText; ?>
-							</a>
-						</li>
-
-				<?
-				}
-			}
-			if ((file_exists('/usr/include/X11/Xlib.h')) &&
-				($settings['Platform'] == "Linux")) {
-				?>
-						<li class="nav-item">
-							<a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
-								X11 Pixel Strings
-							</a>
-						</li>
-
-				<?
-			}
+            if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+                ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+                if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+                    $stringTabText="Pixel Strings";
+                    if (isset($currentCapeInfo["name"]))
+                        $stringTabText=$currentCapeInfo["name"];
+                    ?>
+                    <li class="nav-item">
+                        <a class="nav-link" id="stringTab-tab" tabType='strings' data-toggle="pill" href='#stringTab' role="tab" aria-controls="stringTab">
+                            <? echo $stringTabText; ?>
+                        </a>
+                    </li>
+                    <?
+                }
+            }
 			if (in_array('all', $currentCapeInfo["provides"])
 			|| in_array('panels', $currentCapeInfo["provides"])
 			|| !in_array('strings', $currentCapeInfo["provides"])) {
@@ -291,15 +266,19 @@ $(document).ready(function(){
 					</div>
 				<?
 		    }
-		    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-				?>
-					<div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
-						<? include_once('co-piPixelString.php'); ?>			
-					</div>
-				<? 
-		    }
 		}
-		
+
+        if ($settings['Platform'] == "BeagleBone Black" || $settings['Platform'] == "Raspberry Pi" ||
+            ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
+            if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
+            ?>
+                <div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
+                    <? include_once('co-pixelStrings.php'); ?>
+                </div>
+            <?
+            }
+        }
+
 		if (in_array('all', $currentCapeInfo["provides"]) 
 		    || in_array('panels', $currentCapeInfo["provides"])
 		    || !in_array('strings', $currentCapeInfo["provides"])) {
@@ -307,31 +286,9 @@ $(document).ready(function(){
 				<div class="tab-pane fade" id="tab-LEDPanels" role="tabpanel" aria-labelledby="tab-LEDPanels-tab">
 					<? include_once('co-ledPanels.php'); ?>			
 				</div>
-			<? 
-		    
+			<?
 		}
 		
-		if ($settings['Platform'] == "BeagleBone Black")
-		{
-		    if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
-				?>
-					<div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
-						<? include_once('co-bbbStrings.php'); ?>			
-					</div>
-				<? 
-		        
-		    }
-		}
-		
-		if ((file_exists('/usr/include/X11/Xlib.h')) &&
-		    ($settings['Platform'] == "Linux")) {
-				?>
-					<div class="tab-pane fade" id="stringTab" role="tabpanel" aria-labelledby="stringTab-tab">
-						<? include_once('co-piPixelString.php'); ?>			
-					</div>
-				<? 
-		    
-		}
 		?>
 			<div class="tab-pane fade" id="tab-other" role="tabpanel" aria-labelledby="tab-other-tab">
 				<? include_once("co-other.php"); ?>			

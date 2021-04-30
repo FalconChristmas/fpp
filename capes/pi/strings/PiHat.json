@@ -1,0 +1,17 @@
+{
+    "name": "PiHat",
+    "longName": "PiHat",
+    "driver": "RPIWS281X",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "P1-12" },
+        {  "pin": "P1-35" }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 2
+        }
+    ]
+}
+

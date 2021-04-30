@@ -1,0 +1,33 @@
+{
+    "name": "spixels",
+    "longName": "spixels",
+    "driver": "spixels",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "P1-12" },
+        {  "pin": "P1-16" },
+        {  "pin": "P1-15" },
+        {  "pin": "P1-29" },
+        {  "pin": "P1-32" },
+        {  "pin": "P1-36" },
+        {  "pin": "P1-35" },
+        {  "pin": "P1-40" },
+        {  "pin": "P1-7" },
+        {  "pin": "P1-11" },
+        {  "pin": "P1-18" },
+        {  "pin": "P1-22" },
+        {  "pin": "P1-31" },
+        {  "pin": "P1-33" },
+        {  "pin": "P1-37" },
+        {  "pin": "P1-38" }
+    ],
+    "clock": { "pin": "p1-13" },
+    "protocols": ["APA102", "LPD6803", "LPD8806", "WS2801"],
+    "groups": [
+        {
+            "start": 1,
+            "count": 16
+        }
+    ]
+}
+

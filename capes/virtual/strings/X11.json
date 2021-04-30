@@ -1,0 +1,57 @@
+{
+    "name": "X11",
+    "longName": "X11 Pixel Strings",
+    "driver": "X11PixelStrings",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" },
+        {  "pin": "" }
+    ],
+    "clock": { "pin": "p1-13" },
+    "protocols": ["X11"],
+    "groups": [
+        {
+            "start": 1,
+            "count": 16
+        },
+        {
+            "start": 17,
+            "count": 32
+        }
+
+    ]
+}
+
