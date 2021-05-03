@@ -36,6 +36,7 @@ extern "C" {
 
 #include "ThreadedChannelOutputBase.h"
 #include "PixelString.h"
+#include "util/SPIUtils.h"
 
 class RPIWS281xOutput : public ThreadedChannelOutputBase {
   public:
@@ -55,11 +56,14 @@ class RPIWS281xOutput : public ThreadedChannelOutputBase {
   private:
 	void SetupCtrlCHandler(void);
 
-	int          m_ledstringNumber;
-	int          m_string1GPIO;
-	int          m_string2GPIO;
-	int          m_pixels;
-
 	std::vector<PixelString*> m_strings;
+    
+    int offsets[4];
+    SPIUtils       *m_spi0;
+    SPIUtils       *m_spi1;
+    uint8_t        *m_spi0Data;
+    uint8_t        *m_spi1Data;
+    uint32_t       m_spi0DataCount;
+    uint32_t       m_spi1DataCount;
 };
 

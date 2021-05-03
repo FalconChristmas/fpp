@@ -1,0 +1,22 @@
+{
+    "name": "rPi-28D",
+    "longName": "rPi-28D+",
+    "driver": "RPIWS281X",
+    "numSerial": 0,
+    "outputs": [
+        {  "pin": "P1-12" },
+        {  "pin": "P1-35" },
+        {  "pin": "spidev0.0", "protocols": [ "ws2801" ] }
+    ],
+    "groups": [
+        {
+            "start": 1,
+            "count": 2
+        },
+        {
+            "start": 3,
+            "count": 1
+        }
+    ]
+}
+

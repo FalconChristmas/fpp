@@ -680,20 +680,26 @@ function GetBBB48StringRows()
     var val = KNOWN_CAPES[subType];
     return val["outputs"].length;
 }
-function GetBBB48StringProtocols() {
+function GetBBB48StringProtocols(p) {
     var subType = GetBBB48StringCapeFileName();
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
+        if (val["outputs"][p]["protocols"]) {
+            return val["outputs"][p]["protocols"].join(",");
+        }
         if (val["protocols"]) {
             return val["protocols"].join(",");
         }
     }
     return "ws2811";
 }
-function GetBBB48StringDefaultProtocol() {
+function GetBBB48StringDefaultProtocol(p) {
     var subType = GetBBB48StringCapeFileName();
     if (KNOWN_CAPES[subType]) {
         var val = KNOWN_CAPES[subType];
+        if (val["outputs"][p]["protocols"]) {
+            return val["outputs"][p]["protocols"][0];
+        }
         if (val["protocols"]) {
             return val["protocols"][0];
         }
@@ -911,8 +917,8 @@ function BBB48StringDifferentialTypeChanged(port) {
     BBB48StringDifferentialTypeChangedTo(port, val);
 }
 function BBB48StringDifferentialTypeChangedTo(port, val) {
-    var protocols = GetBBB48StringProtocols();
-    var protocol = GetBBB48StringDefaultProtocol();
+    var protocols = GetBBB48StringProtocols(port);
+    var protocol = GetBBB48StringDefaultProtocol(port);
     if (val <= 2) {
         if ($('#ROW_RULER_DIFFERENTIAL_' + port + '_1').length) {
             var tr = $('#ROW_RULER_DIFFERENTIAL_' + port + '_1');
@@ -967,7 +973,7 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
                     break;
                 }
             }
-            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='13'><hr></td></tr>";
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='14'><hr></td></tr>";
             for (var x = 0; x < 4; x++) {
                 str += pixelOutputTableRow("BBB48String", protocols, protocol, 1, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "B");
             }
@@ -984,7 +990,7 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
                     break;
                 }
             }
-            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='13'><hr></td></tr>";
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='14'><hr></td></tr>";
             for (var x = 0; x < 4; x++) {
                 str += pixelOutputTableRow("BBB48String", protocols, protocol, 2, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "C");
             }
@@ -1057,11 +1063,11 @@ function populatePixelStringOutputs(data) {
                     sourceOutputCount = output.outputs.length;
                 }
                 
-                var protocols = GetBBB48StringProtocols();
-                var defProtocol = GetBBB48StringDefaultProtocol();
                 
                 for (var o = 0; o < outputCount; o++)
                 {
+                    var protocols = GetBBB48StringProtocols(o);
+                    var defProtocol = GetBBB48StringDefaultProtocol(o);
                     var port = {"differentialType" : 0, "expansionType" : 0};
                     var loops = 1;
                     if (o < sourceOutputCount) {
@@ -1112,7 +1118,7 @@ function populatePixelStringOutputs(data) {
                                 loops = diffType;
                             }
                         } else if (!inExpansion) {
-                            str += "<tr><td colSpan='13'><hr></td></tr>";
+                            str += "<tr><td colSpan='14'><hr></td></tr>";
                         }
                     }
                     if (loops > 1) {
@@ -1155,7 +1161,7 @@ function populatePixelStringOutputs(data) {
                                 }
                             }
                             if (l != (loops-1)) {
-                                str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "_" + l + "'><td colSpan='13'><hr></td></tr>";
+                                str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "_" + l + "'><td colSpan='14'><hr></td></tr>";
                             }
                         }
                         o+= 3;
