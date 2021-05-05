@@ -1733,12 +1733,8 @@ body .sm-clean a .sub-arrow {
 .tablesorter thead>tr>:last-child{
 	padding-right: 1em;
 }
-.addButton{
-	color:#56B760;
-	font-size: 1.65em;
-	padding-left: 0.5em;
-	padding-right: 0.5em;
-	line-height: 1.1;
+.circularVirtualStringButton {
+	display: block;
 }
 .fppTableWrapper.backdrop {
 	padding:0.75em;

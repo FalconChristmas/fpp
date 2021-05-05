@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generator: Adobe Illustrator 25.2.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
 <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 width="20.5px" height="20.5px" viewBox="0 0 20.5 20.5" style="enable-background:new 0 0 20.5 20.5;" xml:space="preserve">
+	 width="14.5px" height="14.5px" viewBox="0 0 14.5 14.5" style="enable-background:new 0 0 14.5 14.5;" xml:space="preserve">
 <style type="text/css">
 	.st0{fill:#FFFFFF;}
 </style>
 <g id="icon-plus-white" transform="translate(-5 -5)">
 	<g id="Group_97" transform="translate(5 5)">
-		<path id="Path_37" class="st0" d="M19,11.7h-7.3V19c0,0.8-0.7,1.5-1.5,1.5l0,0c-0.8,0-1.5-0.7-1.5-1.5v-7.3H1.5
-			c-0.8,0-1.5-0.7-1.5-1.5l0,0c0-0.8,0.7-1.5,1.5-1.5h7.3V1.5C8.8,0.7,9.4,0,10.2,0l0,0c0.8,0,1.5,0.7,1.5,1.5v7.3H19
-			c0.8,0,1.5,0.7,1.5,1.5l0,0C20.5,11.1,19.8,11.7,19,11.7z"/>
+		<path id="Path_37" class="st0" d="M13,8.7H8.7V13c0,0.8-0.7,1.5-1.5,1.5l0,0c-0.8,0-1.5-0.7-1.5-1.5V8.7H1.5C0.7,8.7,0,8.1,0,7.2
+			l0,0c0-0.8,0.7-1.5,1.5-1.5h4.3V1.5C5.8,0.7,6.4,0,7.2,0l0,0c0.8,0,1.5,0.7,1.5,1.5v4.3H13c0.8,0,1.5,0.7,1.5,1.5l0,0
+			C14.5,8.1,13.8,8.7,13,8.7z"/>
 	</g>
 </g>
 </svg>

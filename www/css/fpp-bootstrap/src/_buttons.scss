@@ -115,6 +115,18 @@ margin-right: 0.2em;
       background-position: center;
     } 
   }
+  .circularButton-visible{
+    transform: scale(1);
+    opacity: 1;
+  }
+  .circularButton-sm{
+    width: 28px;
+    height: 28px;
+    &:before{
+      width: 28px;
+      height: 28px; 
+    }
+  }
   .circularEditButton{
     background-color: $yellow;
     color:$yellow;
@@ -122,15 +134,30 @@ margin-right: 0.2em;
       background-image: img('create-24px-white.svg');
     }    
   }
+  .circularAddButton{
+    &:before{
+      background-image: img('icon-plus-white-14px.svg');
+    }
+    &.circularButton-sm{
+      &:before{
+        background-size: 16px;
+      }
+    }
+  }
   .circularDeleteButton{
     background-color: $danger;
     color:$danger;
     &:before{
       background-image: img('icon-trash.svg');
       background-size: 14px;
-    }    
+    }
+    &.circularButton-sm{
+      &:before{
+        background-size: 12px;
+      }
+    }
   }
-  .playlistRow:hover, .playlistEditorHeaderTitleWrapper:hover {
+  .playlistRow:hover, .playlistEditorHeaderTitleWrapper:hover, .fppSelectableRowTable tr:hover {
     .circularButton{
       transform: scale(1);
       opacity: 1;

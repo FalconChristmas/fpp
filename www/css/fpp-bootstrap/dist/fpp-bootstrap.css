@@ -9104,11 +9104,28 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
     background-repeat: no-repeat;
     background-position: center; }
 
+.circularButton-visible {
+  transform: scale(1);
+  opacity: 1; }
+
+.circularButton-sm {
+  width: 28px;
+  height: 28px; }
+  .circularButton-sm:before {
+    width: 28px;
+    height: 28px; }
+
 .circularEditButton {
   background-color: #F2BC5F;
   color: #F2BC5F; }
   .circularEditButton:before {
     background-image: url("/images/redesign/create-24px-white.svg"); }
+
+.circularAddButton:before {
+  background-image: url("/images/redesign/icon-plus-white-14px.svg"); }
+
+.circularAddButton.circularButton-sm:before {
+  background-size: 16px; }
 
 .circularDeleteButton {
   background-color: #F63939;
@@ -9116,11 +9133,13 @@ a.close.disabled, .pageContent a.close.disableButtons, .ui-dialog a.close.disabl
   .circularDeleteButton:before {
     background-image: url("/images/redesign/icon-trash.svg");
     background-size: 14px; }
+  .circularDeleteButton.circularButton-sm:before {
+    background-size: 12px; }
 
-.playlistRow:hover .circularButton, .playlistEditorHeaderTitleWrapper:hover .circularButton {
+.playlistRow:hover .circularButton, .playlistEditorHeaderTitleWrapper:hover .circularButton, .fppSelectableRowTable tr:hover .circularButton {
   transform: scale(1);
   opacity: 1; }
-  .playlistRow:hover .circularButton:hover, .playlistEditorHeaderTitleWrapper:hover .circularButton:hover {
+  .playlistRow:hover .circularButton:hover, .playlistEditorHeaderTitleWrapper:hover .circularButton:hover, .fppSelectableRowTable tr:hover .circularButton:hover {
     transform: scale(1.1); }
 
 .dropdown-menu .buttons, .dropdown-menu .ui-dialog-buttonset button, .ui-dialog-buttonset .dropdown-menu button, .dropdown-menu .disableButtons {

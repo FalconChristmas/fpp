@@ -342,15 +342,15 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     {
         result += "<td>&nbsp;</td>";
         result += "<td><input type='hidden' class='vsProtocol' value='" + protocol + "'</td>";
-        result += "<td><a href='#' ";
-        result += "class='deleteButton' onClick='removeVirtualString(this);'></td>";
+        result += "<td><button ";
+        result += "class='circularButton circularButton-sm circularVirtualStringButton circularDeleteButton' onClick='removeVirtualString(this);'></button></td>";
     }
     else
     {
         result += "<td class='vsPortLabel' align='center'>" + (port+1) + "" + portPfx + ")</td>";
         result += "<td>" + pixelOutputProtocolSelect(protocols, protocol) + "</td>";
-        result += "<td ><a href='#' ";
-        result += "class='addButton' onClick='addVirtualString(this);'><i class='fas fa-plus-circle'></i></td>";
+        result += "<td ><button ";
+        result += "class='circularButton circularButton-sm circularButton-visible circularVirtualStringButton circularAddButton' onClick='addVirtualString(this);'></button></td>";
     }
     
     result += "<td><input type='text' class='vsDescription' size='25' maxlength='60' value='" + description + "'></td>";
