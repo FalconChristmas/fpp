@@ -29,7 +29,7 @@ Ping
 <pre>
 ==========================================================================
 <?php
-	system("ping -c $count -n $ip");
+	system("ping -c ".escapeshellarg($count)." -n ".escapeshellarg($ip));
 	#echo "==================================================================================\n";
 	#system("traceroute -n $ip");
 ?>
