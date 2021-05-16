@@ -211,21 +211,21 @@ function MoveFile()
 // This old method is for xLights and multisync
 function RestartFPPD()
 {
-	header( "Access-Control-Allow-Origin: *");
-	$url = "http://localhost/api/system/fppd/restart";
+    header( "Access-Control-Allow-Origin: *");
+    $url = "http://localhost/api/system/fppd/restart";
 
     if ((isset($_GET['quick'])) && ($_GET['quick'] == 1))
     {
-		$url = $url + "?quick=1";
-	}
+ 	$url = $url . "?quick=1";
+    }
 
-	$curl = curl_init($url);
+    $curl = curl_init($url);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 2000);
     $request_content = curl_exec($curl);
-	EchoStatusXML('true');
+    EchoStatusXML('true');
 }
 
 ?>
