@@ -593,8 +593,8 @@ int main(int argc, char *argv[])
 
 	CloseOpenFiles();
 
-	if (restartFPPD)
-	{
+	if (restartFPPD) {
+        remove("/home/fpp/media/fpp-info.json");
 		execlp("/opt/fpp/src/fppd", "/opt/fpp/src/fppd", getSettingInt("daemonize") ? "-d" : "-f", "--log-level", logLevelString.c_str(), NULL);
 	}
 
