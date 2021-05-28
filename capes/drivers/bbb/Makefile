@@ -1,22 +1,9 @@
-
-BASEURL=https://raw.githubusercontent.com/beagleboard/linux/4.19
-
-
-obj-m := pcm5102a.o
-KDIR := /lib/modules/$(shell uname -r)/build
-PWD := $(shell pwd)
-
-all: pcm5102a.c BBB-AUDIO-PCM5012A-00A0.dtbo bbb-fpp-reserve-memory.dtbo
-	make -C $(KDIR) M=$(PWD) modules
+all: BBB-AUDIO-PCM5012A-00A0.dtbo bbb-fpp-reserve-memory.dtbo
 
 clean:
-	make -C $(KDIR) M=$(PWD) clean
-	rm -f pcm5102a.c BBB-AUDIO-PCM5012A-00A0.dtbo  bbb-fpp-reserve-memory.dtbo
+	rm -f BBB-AUDIO-PCM5012A-00A0.dtbo  bbb-fpp-reserve-memory.dtbo
 
 install:
-	sudo mkdir -p /lib/modules/$(shell uname -r)/extra/
-	sudo cp *.ko /lib/modules/$(shell uname -r)/extra/
-	sudo depmod -a
 	cp BBB-AUDIO-PCM5012A-00A0.dtbo /lib/firmware
 	cp bbb-fpp-reserve-memory.dtbo /lib/firmware
 
@@ -31,7 +18,4 @@ bbb-fpp-reserve-memory.dtbo: bbb-fpp-reserve-memory.dts
 	touch /opt/source/bb.org-overlays/src/arm/bbb-fpp-reserve-memory.dts
 	cd /opt/source/bb.org-overlays ; make src/arm/bbb-fpp-reserve-memory.dtbo
 	cp /opt/source/bb.org-overlays/src/arm/bbb-fpp-reserve-memory.dtbo .
-
-pcm5102a.c:
-	curl ${BASEURL}/sound/soc/codecs/pcm5102a.c -o pcm5102a.c
 

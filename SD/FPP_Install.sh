@@ -52,9 +52,9 @@
 #       hardware which does not support Buster may have issues.
 #
 #############################################################################
-SCRIPTVER="4.4"
+SCRIPTVER="5.0"
 FPPBRANCH=${FPPBRANCH:-"master"}
-FPPIMAGEVER="4.4"
+FPPIMAGEVER="5.0-alpha"
 FPPCFGVER="63"
 FPPPLATFORM="UNKNOWN"
 FPPDIR=/opt/fpp
@@ -431,7 +431,7 @@ case "${OSVER}" in
 
 
 		echo "FPP - Installing libhttpserver 0.17.5"
-		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.17.5 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
+		(cd /opt/ && git clone https://github.com/etr/libhttpserver && cd libhttpserver && git checkout 0.18.2 && ./bootstrap && mkdir build && cd build && ../configure --prefix=/usr && make -j ${CPUS} && make install && cd /opt/ && rm -rf /opt/libhttpserver)
 
         echo "FPP - Configuring shellinabox to use /var/tmp"
         echo "SHELLINABOX_DATADIR=/var/tmp/" >> /etc/default/shellinabox

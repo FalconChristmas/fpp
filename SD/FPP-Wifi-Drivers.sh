@@ -110,6 +110,18 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
+git clone https://github.com/lwfinger/rtl8188eu
+cd rtl8188eu
+for i in "${KVERS[@]}"; do
+    KVER=$i ARCH=arm make
+    KVER=$i ARCH=arm make install
+    KVER=$i ARCH=arm make clean
+done
+cp rtl8188eufw.bin /lib/firmware/
+mkdir -p /lib/firmware/rtlwifi
+cp rtl8188eufw.bin /lib/firmware/rtlwifi/
+
+cd /opt/wifi
 git clone https://github.com/kelebek333/rtl8188fu
 cd rtl8188fu
 patch -p1 < /opt/wifi/patches/rtl8188fu
@@ -126,6 +138,7 @@ cd /opt
 rm -rf /opt/wifi
 
 echo "options 8192cu rtw_power_mgnt=0 rtw_enusbss=0" > /etc/modprobe.d/wifi-disable-power-management.conf
+echo "options 8188eu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8192eu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8723au rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
 echo "options 8723bu rtw_power_mgnt=0 rtw_enusbss=0" >> /etc/modprobe.d/wifi-disable-power-management.conf
@@ -141,6 +154,7 @@ echo "blacklist rtl8192cu" > /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtl8192c_common" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-native-wifi.conf
 echo "blacklist rtl8xxxu" >> /etc/modprobe.d/blacklist-native-wifi.conf
+echo "blacklist r8188eu" >> /etc/modprobe.d/blacklist-native-wifi.conf
 
 rm -f /etc/modprobe.d/blacklist-8192cu.conf
 

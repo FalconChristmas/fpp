@@ -1,8 +1,8 @@
 # FPP BBB Images creation notes (work in progress)
 #
 # FPP images are currently based on the following Debian BeagleBone images:
-# bone-debian-10.4-console-armhf-2020-06-01-1gb.img
-# from  https://rcn-ee.com/rootfs/bb.org/testing/2020-06-01/buster-console/
+# bone-debian-10.9-console-armhf-2021-05-28-1gb.img.xz
+# from https://rcn-ee.net/rootfs/bb.org/testing/2021-05-28/buster-console/
 #
 # The below steps (much can be run via copy/paste into a terminal) will
 # prepare the "clean image" from above to have the appropriate 
@@ -51,8 +51,8 @@ git pull
 
 #check
 cd /root
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-4.19.94fpp_4.19.94fpp-1_armhf.deb
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-4.19.94fpp_4.19.94fpp-1_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-5.4.106fpp_5.4.106fpp-1_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-5.4.106fpp_5.4.106fpp-1_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
 
@@ -64,15 +64,11 @@ rm -rf /lib/modules/$(uname -r)
 rm -rf /boot/dtbs/$(uname -r)
 rm -rf /boot/initrd.img*
 
-
-cd /opt/scripts/tools/developers/
-sudo ./update_bootloader.sh
+cd /opt/u-boot/bb-u-boot-am335x-evm
+./install.sh
 
 cd /opt/backup/uboot
-export BOOTLOADERVER=v2019.04-r16
-curl --output MLO  https://rcn-ee.com/repos/bootloader/am335x_evm/MLO-am335x_evm-${BOOTLOADERVER}
-curl --output u-boot.img https://rcn-ee.com/repos/bootloader/am335x_evm/u-boot-am335x_evm-${BOOTLOADERVER}.img
-echo "$BOOTLOADERVER" > version.txt
+cp /opt/u-boot/bb-u-boot-am335x-evm/* .
 
 
 # remove a bunch of source that is not needed, free's up space
