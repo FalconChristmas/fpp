@@ -23,19 +23,19 @@ FPP OS Uprade
 </head>
 <body>
 <h2>FPP OS Upgrade</h2>
-Image: <? echo $_GET['os']; ?><br>
+Image: <? echo strip_tags($_GET['os']); ?><br>
 <pre>
 <?
 } else {
     echo "FPP OS Upgrade\n";
-    echo "Image: " . $_GET['os'] . "\n";
+    echo "Image: " . strip_tags($_GET['os']) . "\n";
 }
 
 if (preg_match('/^https?:/', $_GET['os'])) {
     echo "==========================================================================\n";
     $baseFile = preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']);
     echo "Downloading OS Image:\n";
-    $cmd = "curl -f --fail-early " . $_GET['os'] . " --output /home/fpp/media/upload/$baseFile 2>&1";
+    $cmd = "curl -f --fail-early " . escapeshellcmd($_GET['os']) . " --output /home/fpp/media/upload/$baseFile 2>&1";
     system($cmd);
     $_GET['os'] = $baseFile;
 }
