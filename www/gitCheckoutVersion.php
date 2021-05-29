@@ -15,6 +15,7 @@ require_once("common.php");
 DisableOutputBuffering();
 
 if (!$wrapped) {
+    $version = strip_tags(escapeshellcmd($_GET['version']))
 ?>
 <head>
 <title>
@@ -23,19 +24,19 @@ Checkout specific Git version
 </head>
 <body>
 <h2>Checkout specific Git version</h2>
-Version: <? echo $_GET['version']; ?><br>
+Version: <? echo ($version); ?><br>
 <pre>
 <?
 } else {
     echo "Checkout specific Git version\n";
-    echo "Version: " . $_GET['version'] . "\n";
+    echo "Version: $version\n";
 }
 
 ?>
 ==========================================================================
 Switching versions:
 <?
-system($SUDO . " $fppDir/scripts/git_checkout_version " . escapeshellcmd($_GET['version']));
+system($SUDO . " $fppDir/scripts/git_checkout_version $version");
 ?>
 ==========================================================================
 <?
