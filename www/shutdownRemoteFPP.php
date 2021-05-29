@@ -12,6 +12,11 @@ if (!isset($_GET['ip'])) {
 
 $ip = $_GET['ip'];
 
+if(! filter_var($ip, FILTER_VALIDATE_IP)) {
+    echo "$ip is not a valid IP address\n";
+    exit(0);
+}
+
 echo "Shutting down FPP system @ $ip\n";
 
 $curl = curl_init('http://' . $ip . '/fppxml.php?command=shutdownPi');
