@@ -24,7 +24,7 @@ Copy Settings
 
 		echo "==================================================================================\n";
 
-    $command = "sudo /opt/fpp/scripts/copy_settings_to_storage.sh " . $_GET['storageLocation'] . " " . $path . " " . $_GET['direction']  . " " . $_GET['delete'] . " " . $_GET['flags'] . " 2>&1";
+    $command = "sudo /opt/fpp/scripts/copy_settings_to_storage.sh " . escapeshellcmd($_GET['storageLocation']) . " " . $path . " " . escapeshellcmd($_GET['direction'])  . " " . escapeshellcmd($_GET['delete']) . " " . escapeshellcmd($_GET['flags']) . " 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
