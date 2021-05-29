@@ -1210,8 +1210,8 @@
         },
         "MultiSyncHide172": {
             "name": "MultiSyncHide172",
-            "description": "Hide 172.16.x.x/20 Subnets in systems list",
-            "tip": "Hide subnets in private 172.16.0.0/20 IP space.",
+            "description": "Hide 172.16.x.x/12 Subnets in systems list",
+            "tip": "Hide subnets in private 172.16.0.0/12 IP space.",
             "type": "checkbox"
         },
         "MultiSyncHide192": {
