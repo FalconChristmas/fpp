@@ -2,7 +2,7 @@
 header( "Access-Control-Allow-Origin: *");
 
 $wrapped = 1;
-$version = $_GET['version'];
+$version = escapeshellcmd($_GET['version']);
 
 if (isset($_GET['wrapped']))
     $wrapped = 1;
