@@ -21,7 +21,7 @@ Reformat Storage Filesystem
 <?php
 		echo "==================================================================================\n";
 
-		$command = "sudo /opt/fpp/scripts/format_storage.sh " . $_GET['fs'] . " " . $_GET['storageLocation'] . " 2>&1";
+		$command = "sudo /opt/fpp/scripts/format_storage.sh " . escapeshellcmd($_GET['fs']) . " " . escapeshellcmd($_GET['storageLocation']) . " 2>&1";
 
 		echo "Command: $command\n";
 		echo "----------------------------------------------------------------------------------\n";
