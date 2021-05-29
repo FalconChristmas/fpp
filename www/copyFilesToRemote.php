@@ -10,7 +10,7 @@ if (!isset($_GET['ip'])) {
     exit(0);
 }
 
-$ip = $_GET['ip'];
+$ip = escapeshellcmd($_GET['ip']);
 
 $dirs = Array();
 
