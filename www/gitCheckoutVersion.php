@@ -35,7 +35,7 @@ Version: <? echo $_GET['version']; ?><br>
 ==========================================================================
 Switching versions:
 <?
-system($SUDO . " $fppDir/scripts/git_checkout_version " . $_GET['version']);
+system($SUDO . " $fppDir/scripts/git_checkout_version " . escapeshellcmd($_GET['version']));
 ?>
 ==========================================================================
 <?
