@@ -13,7 +13,7 @@ $ip = $_GET['ip'];
 
 $postfix = '';
 if (isset($_GET['mode'])) {
-    echo "Setting FPPD mode @ $ip\n";
+    echo "Setting FPPD mode @ ".htmlspecialchars($ip)."\n";
     $mode = $_GET['mode'];
     $curl = curl_init('http://' . $ip . '/fppxml.php?command=setFPPDmode&mode=' . $mode);
     curl_setopt($curl, CURLOPT_FAILONERROR, true);
@@ -25,7 +25,7 @@ if (isset($_GET['mode'])) {
     $postfix = '&quick=1';
 }
 
-echo "Restarting FPPD @ $ip\n";
+echo "Restarting FPPD @ ".htmlspecialchars($ip)."\n";
 
 $curl = curl_init('http://' . $ip . '/fppxml.php?command=restartFPPD' . $postfix);
 curl_setopt($curl, CURLOPT_FAILONERROR, true);
