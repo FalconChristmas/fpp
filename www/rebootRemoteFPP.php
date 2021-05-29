@@ -12,7 +12,7 @@ if (!isset($_GET['ip'])) {
 
 $ip = $_GET['ip'];
 
-echo "Rebooting FPP system @ $ip\n";
+echo "Rebooting FPP system @ ".htmlspecialchars($ip)."\n";
 
 // FPP 5.0+
 $curl = curl_init('http://' . $ip . '/api/system/reboot');
