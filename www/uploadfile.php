@@ -501,7 +501,7 @@ include 'menu.inc'; ?>
 	var activeTabNumber = 
 <?php
 	if (isset($_GET['tab']))
-		print $_GET['tab'];
+		print urlencode($_GET['tab']);
 	else
 		print "0";
 ?>;
