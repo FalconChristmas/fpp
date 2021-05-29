@@ -283,7 +283,7 @@ if (!file_exists("/etc/fpp/desktop")) {
         Help
         </a>
         <div class="dropdown-menu dropdown-with-icons dropdown-menu-right" aria-labelledby="navbarDropdownMenuLink">
-          <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(4.6).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
+          <a class="dropdown-item" href="https://falconchristmas.github.io/FPP_Manual(5.0).pdf" target="_blank"><i class="fas fa-book"></i> FPP Manual <i class="fas fa-external-link-alt external-link"></i></a>
           <a class="dropdown-item" href="https://falconchristmas.com/forum" target="_blank"><i class="fas fa-comments"></i> Forums <i class="fas fa-external-link-alt external-link"></i></a>
           <a class="dropdown-item" href="http://falconchristmas.com/wiki/index.php/Falcon_FPP" target="_blank"><i class="fas fa-external-link-square-alt"></i> Wiki/Help <i class="fas fa-external-link-alt external-link"></i></a>
           <hr class="dropdown-divider">
