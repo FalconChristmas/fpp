@@ -43,7 +43,7 @@ if (preg_match('/^https?:/', $_GET['os'])) {
 ==========================================================================
 Upgrading OS:
 <?
-system($SUDO . " $fppDir/SD/upgradeOS-part1.sh /home/fpp/media/upload/" . $_GET['os']);
+system($SUDO . " $fppDir/SD/upgradeOS-part1.sh /home/fpp/media/upload/" . escapeshellcmd($_GET['os']));
 ?>
 ==========================================================================
 <?
