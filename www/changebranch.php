@@ -19,7 +19,7 @@ Change Branch
 <?php
     echo "==================================================================================\n";
 
-    $branch = $_GET['branch'];
+    $branch = escapeshellcmd($_GET['branch']);
 	$command = "sudo /opt/fpp/scripts/git_branch " . $branch . " 2>&1";
 
 	echo "Command: $command\n";
