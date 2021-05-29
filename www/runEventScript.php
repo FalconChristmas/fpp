@@ -38,7 +38,7 @@ else
 ?>
 ERROR: Unknown script:
 <?
-	echo $_GET['scriptName'];
+	echo htmlspecialchars($_GET['scriptName']);
 }
 ?>
 <br>

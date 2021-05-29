@@ -11,7 +11,7 @@ $canvasHeight = 450;
 
 if (isset($_GET['width']))
 {
-	$canvasWidth = $_GET['width'];
+	$canvasWidth = (int)($_GET['width']);
 	$canvasHeight = (int)($canvasWidth * 9.0 / 16.0);
 }
 ?>

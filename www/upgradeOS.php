@@ -33,7 +33,7 @@ Image: <? echo strip_tags($_GET['os']); ?><br>
 
 if (preg_match('/^https?:/', $_GET['os'])) {
     echo "==========================================================================\n";
-    $baseFile = preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']);
+    $baseFile = escapeshellcmd(preg_replace('/.*\/([^\/]*)$/', '$1', $_GET['os']));
     echo "Downloading OS Image:\n";
     $cmd = "curl -f --fail-early " . escapeshellcmd($_GET['os']) . " --output /home/fpp/media/upload/$baseFile 2>&1";
     system($cmd);
