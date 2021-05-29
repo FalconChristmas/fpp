@@ -23,12 +23,12 @@ FPP OS Uprade
 </head>
 <body>
 <h2>FPP OS Upgrade</h2>
-Image: <? echo htmlspecialchars($_GET['os']); ?><br>
+Image: <? echo strip_tags($_GET['os']); ?><br>
 <pre>
 <?
 } else {
     echo "FPP OS Upgrade\n";
-    echo "Image: " . htmlspecialchars($_GET['os']) . "\n";
+    echo "Image: " . strip_tags($_GET['os']) . "\n";
 }
 
 if (preg_match('/^https?:/', $_GET['os'])) {
