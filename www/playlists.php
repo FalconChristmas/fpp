@@ -16,7 +16,7 @@ error_reporting(E_ALL);
 if (isset($_GET['playlist'])) {
 ?>
 <script>
-    var initialPlaylist = "<? echo $_GET['playlist']; ?>";
+    var initialPlaylist = "<? echo htmlspecialchars($_GET['playlist']); ?>";
 </script>
 <?
 }
