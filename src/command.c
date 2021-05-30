@@ -128,7 +128,9 @@ char *ProcessCommand(char *command, char *response)
     char CommandStr[64];
     LogExcess(VB_COMMAND, "CMD: %s\n", command);
     s = strtok(command,",");
-    strcpy(CommandStr, s);
+    strncpy(CommandStr, s, sizeof(CommandStr)); //s can be 256 bytes long
+    CommandStr[sizeof(CommandStr)-1] = '\0';
+	
     if (!strcmp(CommandStr, "s")) {
         NextPlaylist = scheduler->GetNextPlaylistName();
         NextPlaylistStart = scheduler->GetNextPlaylistStartStr();
