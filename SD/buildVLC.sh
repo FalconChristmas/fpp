@@ -10,7 +10,7 @@ cd vlc
 git checkout 3d07a3d41fed1c4c8de779272e54b13a4e53c8c5
 # this commit is causing a segfault, logged as:
 # https://code.videolan.org/videolan/vlc/-/issues/25790
-git revert fbb54457118b61f56f4d2c12c5e7a170c04ea48d
+git revert --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d
 
 # mesa-common-dev ?
 
