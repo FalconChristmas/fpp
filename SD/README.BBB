@@ -51,8 +51,8 @@ git pull
 
 #check
 cd /root
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-5.4.106fpp_5.4.106fpp-1_armhf.deb
-wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-5.4.106fpp_5.4.106fpp-1_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-image-5.4.106fpp_5.4.106fpp-2_armhf.deb
+wget https://github.com/FalconChristmas/fpp-linux-kernel/raw/master/debs/linux-headers-5.4.106fpp_5.4.106fpp-2_armhf.deb
 dpkg -i *.deb
 rm -f *.deb
 
