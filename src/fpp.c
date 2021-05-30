@@ -61,7 +61,7 @@ int main (int argc, char *argv[])
     // Set Volume - example "fpp -v 50"
     else if(strncmp(argv[1],"-v",2)==0)
     {
-      sprintf(command,"v,%s,",argv[2]);
+      snprintf(command,sizeof(command),"v,%s,",argv[2]);
       SendCommand(command);
     }
     // Display version information
@@ -73,13 +73,13 @@ int main (int argc, char *argv[])
     // Play Playlist - example "fpp -p playlistFile"
     else if((strncmp(argv[1],"-p",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"p,%s,%s,",argv[2],argv[3]);
+      snprintf(command,sizeof(command),"p,%s,%s,",argv[2],argv[3]);
       SendCommand(command);
     }
     // Play Playlist only once- example "fpp -P playlistFile 1"
     else if((strncmp(argv[1],"-P",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"P,%s,%s,",argv[2],argv[3]);
+      snprintf(command,sizeof(command),"P,%s,%s,",argv[2],argv[3]);
       SendCommand(command);
     }
     // Stop gracefully - example "fpp -S"
@@ -140,9 +140,9 @@ int main (int argc, char *argv[])
     else if((strncmp(argv[1],"-e",2) == 0) &&  argc > 2)
     {
       if (strchr(argv[2], ','))
-        sprintf(command,"e,%s,",argv[2]);
+        snprintf(command,sizeof(command),"e,%s,",argv[2]);
       else
-        sprintf(command,"e,%s,1,0,",argv[2]);
+        snprintf(command,sizeof(command),"e,%s,1,0,",argv[2]);
       SendCommand(command);
     }
     // Stop an effect - example "fpp -e effectName"
@@ -151,13 +151,13 @@ int main (int argc, char *argv[])
       if (!strcmp(argv[2], "ALL"))
         strcpy(command,"StopAllEffects,");
       else
-        sprintf(command,"StopEffectByName,%s,",argv[2]);
+        snprintf(command,sizeof(command),"StopEffectByName,%s,",argv[2]);
       SendCommand(command);
     }
     // Trigger a FPP Command Preset Slot - example "fpp -t 12"
     else if((strncmp(argv[1],"-t",2) == 0) &&  argc > 2)
     {
-      sprintf(command,"t,%s,",argv[2]);
+      snprintf(command,sizeof(command),"t,%s,",argv[2]);
       SendCommand(command);
     }
     else if(strncmp(argv[1],"-h",2) == 0)
@@ -167,14 +167,15 @@ int main (int argc, char *argv[])
     // Set new log level - "fpp --log-level info"   "fpp --log-level debug"
     else if((strcmp(argv[1],"--log-level") == 0) &&  argc > 2)
     {
-      sprintf(command,"LogLevel,%s,", argv[2]);
+      snprintf(command,sizeof(command),"LogLevel,%s,", argv[2]);
       SendCommand(command);
     }
     // Set new log mask - "fpp --log-mask channel,mediaout"   "fpp --log-mask all"
     else if((strcmp(argv[1],"--log-mask") == 0) &&  argc > 2)
     {
       char newMask[128];
-      strcpy(newMask, argv[2]);
+      strncpy(newMask, argv[2], sizeof(newMask));
+      newMask[sizeof(newMask)-1] = '\0'; 
 
       char *s = strchr(argv[2], ',');
       while (s) {
@@ -187,17 +188,17 @@ int main (int argc, char *argv[])
     }
     // Configure the given GPIO to the given mode
     else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 3) {
-        sprintf(command,"SetupExtGPIO,%s,",argv[2]);
+        snprintf(command,sizeof(command),"SetupExtGPIO,%s,",argv[2]);
         SendCommand(command);
     } else if((strncmp(argv[1],"-G",2) == 0) &&  argc == 4) {
-        sprintf(command,"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
+        snprintf(command,sizeof(command),"SetupExtGPIO,%s,%s,",argv[2],argv[3]);
         SendCommand(command);
     // Set the given GPIO to the given value
     } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 3) {
-        sprintf(command,"ExtGPIO,%s",argv[2]);
+        snprintf(command,sizeof(command),"ExtGPIO,%s",argv[2]);
         SendCommand(command);
     } else if((strncmp(argv[1],"-g",2) == 0) &&  argc == 5) {
-        sprintf(command,"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
+        snprintf(command,sizeof(command),"ExtGPIO,%s,%s,%s",argv[2],argv[3],argv[4]);
         SendCommand(command);
     } else if((strncmp(argv[1],"-C",2) == 0)) {
         Json::Value val;
