@@ -69,7 +69,7 @@ function StartSelectedEffect() {
         background = 1;
 
     var url = '';
-    if (EffectSelectedType == 'ESEQ') {
+    if (EffectSelectedType == 'eseq') {
         url = 'api/command/Effect Start/' + EffectSelectedName + '/' + startChannel + '/' + loop + '/' + background;
     } else {
         url = 'api/command/FSEQ Effect Start/' + EffectSelectedName + '/' + loop + '/' + background;
