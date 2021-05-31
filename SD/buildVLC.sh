@@ -12,7 +12,13 @@ git checkout 3d07a3d41fed1c4c8de779272e54b13a4e53c8c5
 # https://code.videolan.org/videolan/vlc/-/issues/25790
 git revert --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d
 
-# mesa-common-dev ?
+# make sure symlink to libGL exists.  On Beagles, it won't unless
+# a BUNCH of dev packages are installed which we'd like to avoid
+if [ -f /usr/lib/arm-linux-gnueabihf/libGL.so.1 ]; then
+    if [ ! -f /usr/lib/arm-linux-gnueabihf/libGL.so ]; then
+        ln -s /usr/lib/arm-linux-gnueabihf/libGL.so /usr/lib/arm-linux-gnueabihf/libGL.so.1
+    fi
+fi
 
 DISABLES=""
 if [ -f /etc/fpp/desktop ]; then

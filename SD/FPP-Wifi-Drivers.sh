@@ -32,6 +32,8 @@ done
 cd /opt/wifi
 git clone https://github.com/pvaret/rtl8192cu-fixes
 cd rtl8192cu-fixes
+# broken compile
+git revert --no-edit 9ee39ceb169f78ac6fcc9efeba74cf80f90939bc
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_GENERIC = n/ARM_GENERIC = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
