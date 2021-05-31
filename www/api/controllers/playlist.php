@@ -29,7 +29,7 @@ function loadValidateFiles()
         closedir($d);
     }
 
-    if ($d = opendir($settings['mediaDirectory'])) {
+    if ($d = opendir($settings['musicDirectory'])) {
         while (($file = readdir($d)) !== false) {
             array_push($files, $file);
         }
