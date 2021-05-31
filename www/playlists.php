@@ -37,16 +37,18 @@ if (isset($_GET['playlist'])) {
         function onPlaylistArrayLoaded(){
             $('.playlistSelectBody').html('');
             $('.playlistSelectCount').html(playListArray.length);
-            $.each(playListArray,function(i,playListName){
+            $.each(playListArray,function(i,playList){
                 var $playlistCol = $('<div class="col-md-4"/>');
                 var $playlistCard = $('<div class="card has-shadow playlistCard"/>');
-                var $playlistCardHeading = $('<h3>'+playListName+'</h3>');
+                var $playlistName = String(playList.name);
+                var $playlistClass = playList.valid ? "" : 'class="playlist-warning" title="' + playList.messages.join(' ') + '"';
+                var $playlistCardHeading = $('<h3 ' + $playlistClass + '>'+$playlistName+'</h3>');
               //  var $playlistEditButton = $('<button class="playlistCardEditButton circularButton circularEditButton playlistCardEditButton">Edit</button>');
                 $playlistCol.append($playlistCard);
                 $playlistCard.append($playlistCardHeading);
                 //$playlistCard.append($playlistEditButton);
                 $playlistCard.click(function(){
-                    $('#playlistSelect').val(playListName).trigger('change');
+                    $('#playlistSelect').val($playlistName).trigger('change');
                 })
   
                 $('.playlistSelectBody').append($playlistCol)

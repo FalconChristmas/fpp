@@ -190,7 +190,7 @@ function getSchedule()
         var options = "";
         for(j = 0; j < playListArray.length; j++)
         {
-            options +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
+            options +=  "<option value=\"" + playListArray[j].name + "\">" + playListArray[j].name + "</option>";
         }
         $('.fppTableRowTemplate').find('.schPlaylist').html(options);
 

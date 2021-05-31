@@ -1456,6 +1456,65 @@
             }
         },
         {
+            "endpoint": "playlists/validate",
+            "methods": {
+                "GET": {
+                    "desc": "Returns a list of Playlist and any validation errors that are present",
+                    "output": [
+                        {
+                            "name": "Delete_Media",
+                            "valid": false,
+                            "message": [
+                                "Invalid Playlist Christmas Every Day.mp3"
+                            ]
+                        },
+                        {
+                            "name": "Delete_Sequence",
+                            "valid": false,
+                            "message": [
+                                "Invalid mediaName Christmas Every Day.mp3",
+                                "Invalid Sequence Christmas Every Day_128.fseq"
+                            ]
+                        },
+                        {
+                            "name": "Delete_Sequence2",
+                            "valid": false,
+                            "message": [
+                                "Invalid Sequence Christmas Every Day_128.fseq"
+                            ]
+                        },
+                        {
+                            "name": "Parent_delete_test",
+                            "valid": false,
+                            "message": [
+                                "Invalid Playlist deleted_playlist"
+                            ]
+                        },
+                        {
+                            "name": "Test1",
+                            "valid": true,
+                            "message": []
+                        },
+                        {
+                            "name": "Test2",
+                            "valid": true,
+                            "message": []
+                        },
+                        {
+                            "name": "Test3",
+                            "valid": true,
+                            "message": []
+                        },
+                        {
+                            "name": "Test4",
+                            "valid": true,
+                            "message": []
+                        }
+                    ]
+                }
+            }
+        },
+        {
             "endpoint": "playlists/stop",
             "methods": {
                 "GET": {

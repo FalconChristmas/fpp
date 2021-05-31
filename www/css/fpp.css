@@ -1603,6 +1603,23 @@ body .sm-clean a .sub-arrow {
 	
 }
 
+.playlist-warning::after {
+	content:"\26a0";
+	background-color: rgb(251, 255, 7);
+	color:#000;
+	display: inline-block;
+	text-align: center;
+	vertical-align: middle;
+	width: 32px;
+	height: 32px;
+	border-radius: 17px;
+	font-family: "Font Awesome 5 Free";
+	font-weight: 900;
+	font-size: 1.2em;
+	padding-top: 0.0em;
+	margin-left: 0.8em;
+}
+
 .playlistCard{
 	margin-top: 0.5em;
 	cursor: pointer;

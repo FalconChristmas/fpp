@@ -1452,11 +1452,13 @@ function CreateNewPlaylist() {
     if (!PlaylistNameOK(name))
         return;
 
-    if (playListArray.includes(name)) {
-		DialogError('Playlist name conflict', "Found existing playlist named '" + name + "'.  Loading existing playlist.");
-        $('#playlistSelect option[value="' + name + '"]').prop('selected', true);
-        LoadPlaylistDetails(name);
-        return;
+    for (var i = 0; i < playListArray.length; i++) {
+        if (playListArray[i].name == name) {
+            DialogError('Playlist name conflict', "Found existing playlist named '" + name + "'.  Loading existing playlist.");
+            $('#playlistSelect option[value="' + name + '"]').prop('selected', true);
+            LoadPlaylistDetails(name);
+            return;
+        }
     }
 
     SetPlaylistName(name);
@@ -1636,12 +1638,16 @@ function SetPlaylistItemMetaData(row) {
     } else if (type == 'sequence') {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
     } else if (type == 'playlist') {
+        let playlistName = row.find('.field_name').html();
         $.ajax({
-            url: "api/playlist/" + row.find('.field_name').html(),
+            url: "api/playlist/" + playlistName,
             type: 'GET',
             async: false,
             dataType: 'json',
             success: function(data) {
+                if (! data.hasOwnProperty('name')) {
+                    row.find('.psiDataSimple').append('<span style="color: #FF0000; font-weight: bold;">ERROR: Playlist "' + playlistName + '" Not Found</span><br>');
+                }
                 if (data.hasOwnProperty('playlistInfo')) {
                     var duration = data.playlistInfo.total_duration;
                     var humanDuration = SecondsToHuman(duration);
@@ -1651,6 +1657,9 @@ function SetPlaylistItemMetaData(row) {
 
                     UpdatePlaylistDurations();
                 }
+            },
+            error: function() {
+                row.find('.psiDataSimple').append('<span style="color: #FF0000; font-weight: bold;">ERROR: Loading Playlist "' + playlistName + '" </span><br>');
             }
         });
     }
@@ -2997,7 +3006,7 @@ function GetPlaylistArray(callback)
 {
     $.ajax({
         dataType: "json",
-        url: "api/playlists",
+        url: "api/playlists/validate",
         async: false,
         success: function(data) {
             playListArray = data;
@@ -3971,7 +3980,7 @@ function PopulatePlaylists(sequencesAlso,options)
 
     for(j = 0; j < playListArray.length; j++)
     {
-        playlistOptionsText +=  "<option value=\"" + playListArray[j] + "\">" + playListArray[j] + "</option>";
+        playlistOptionsText +=  "<option value=\"" + playListArray[j].name + "\">" + playListArray[j].name + "</option>";
     }
 
     if (sequencesAlso) {
