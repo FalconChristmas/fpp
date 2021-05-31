@@ -89,6 +89,8 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     int startChannel = 0;
     bool loop = false;
     bool bg = false;
+    bool iNR = false;
+    bool isRunning = false;
     
     if (args.size() > 1) {
         startChannel = std::atoi(args[1].c_str());
@@ -99,9 +101,28 @@ std::unique_ptr<Command::Result> StartEffectCommand::run(const std::vector<std::
     if (args.size() > 3) {
         bg = args[3] == "true" || args[3] == "1";
     }
+    if (args.size() > 4) {
+        iNR = args[4] == "true" || args[4] == "1";
+    }
+
+
+    const Json::Value RunningEffects = GetRunningEffectsJson();
+
+    if (iNR) {
+      for (int x = 0; x < RunningEffects.size(); x++) {
+        Json::Value v = RunningEffects[x];
+        if (v["name"].asString() == args[0]) {
+          isRunning = true;
+          LogDebug(VB_COMMAND, "Effect Already running, configured not to start it again\n");
+          return std::make_unique<Command::Result>("Effect NOT Started");
+        }
+      }
+    }
+
     StartEffect(args[0], startChannel, loop, bg);
     return std::make_unique<Command::Result>("Effect Started");
 }
+
 std::unique_ptr<Command::Result> StartFSEQAsEffectCommand::run(const std::vector<std::string> &args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");
