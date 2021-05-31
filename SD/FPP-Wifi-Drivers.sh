@@ -6,7 +6,6 @@ cd wifi
 mkdir patches
 cd patches
 
-wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192cu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723bu
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8723au
 wget https://raw.githubusercontent.com/FalconChristmas/fpp/master/SD/patches/rtl8192eu
@@ -33,7 +32,9 @@ done
 cd /opt/wifi
 git clone https://github.com/pvaret/rtl8192cu-fixes
 cd rtl8192cu-fixes
-patch -p1 < /opt/wifi/patches/rtl8192cu
+sed -i 's/I386_PC = y/I386_PC = n/' Makefile
+sed -i 's/ARM_GENERIC = n/ARM_GENERIC = y/' Makefile
+sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
 for i in "${KVERS[@]}"; do
     KVER=$i ARCH=arm make clean
     KVER=$i ARCH=arm make
