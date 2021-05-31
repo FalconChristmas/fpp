@@ -16,7 +16,7 @@ git revert --no-edit fbb54457118b61f56f4d2c12c5e7a170c04ea48d
 # a BUNCH of dev packages are installed which we'd like to avoid
 if [ -f /usr/lib/arm-linux-gnueabihf/libGL.so.1 ]; then
     if [ ! -f /usr/lib/arm-linux-gnueabihf/libGL.so ]; then
-        ln -s /usr/lib/arm-linux-gnueabihf/libGL.so /usr/lib/arm-linux-gnueabihf/libGL.so.1
+        ln -s /usr/lib/arm-linux-gnueabihf/libGL.so.1 /usr/lib/arm-linux-gnueabihf/libGL.so
     fi
 fi
 
