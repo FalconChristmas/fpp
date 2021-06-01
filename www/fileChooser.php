@@ -4,7 +4,6 @@ var fileChooserTarget = '';
 function SetupFileChooser(dir, target)
 {
     $('#fileChooserDir').html(dir);
-
     fileChooserTarget = target;
 
     var file = $(fileChooserTarget).val();
@@ -13,13 +12,13 @@ function SetupFileChooser(dir, target)
 
     $.get('api/files/' + dir, function(data) {
         var options = "";
-        for (var i = 0; i < data.length; i++) {
-            options += "<option value='" + data[i].name + "'";
+        for (var i = 0; i < data.files.length; i++) {
+            options += "<option value='" + data.files[i].name + "'";
 
-            if (file == data[i].name)
+            if (file == data.files[i].name)
                 options += " selected";
 
-            options += ">" + data[i].name + "</option><br>";
+            options += ">" + data.files[i].name + "</option><br>";
         }
         $('#fileChooserSelect').html(options);
     });
