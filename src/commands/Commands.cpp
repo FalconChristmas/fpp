@@ -97,6 +97,7 @@ void CommandManager::Init() {
     addCommand(new StopRemoteEffectCommand());
     addCommand(new RunRemoteScriptEvent());
     addCommand(new StartRemoteFSEQEffectCommand());
+    addCommand(new StartRemotePlaylistCommand());
 }
 CommandManager::~CommandManager() {
     Cleanup();

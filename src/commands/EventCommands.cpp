@@ -193,6 +193,16 @@ std::unique_ptr<Command::Result> StopRemoteEffectCommand::run(const std::vector<
     }
     return CommandManager::INSTANCE.runRemoteCommand(args[0], "Effect Stop", newargs);
 }
+std::unique_ptr<Command::Result> StartRemotePlaylistCommand::run(const std::vector<std::string> &args) {
+    if (args.empty()) {
+        return std::make_unique<Command::ErrorResult>("Not found");
+    }
+    std::vector<std::string> newargs;
+    for (int x = 1; x < args.size(); x++) {
+        newargs.push_back(args[x]);
+    }
+    return CommandManager::INSTANCE.runRemoteCommand(args[0], "Start Playlist", newargs);
+}
 std::unique_ptr<Command::Result> RunRemoteScriptEvent::run(const std::vector<std::string> &args) {
     if (args.empty()) {
         return std::make_unique<Command::ErrorResult>("Not found");

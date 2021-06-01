@@ -166,6 +166,17 @@ public:
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
 };
 
+class StartRemotePlaylistCommand : public Command {
+public:
+    StartRemotePlaylistCommand() : Command("Remote Playlist Start") {
+        args.push_back(CommandArg("remote", "datalist", "Remote IP").setContentListUrl("api/remotes"));
+        args.push_back(CommandArg("playlist", "string", "Playlist Name"));
+        args.push_back(CommandArg("loop", "bool", "Loop Effect").setDefaultValue("true"));
+        args.push_back(CommandArg("ifNotRunning", "bool", "If Not Running", true).setDefaultValue("false"));
+    }
+
+    virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;
+};
 
 class AllLightsOffCommand : public Command {
 public:
