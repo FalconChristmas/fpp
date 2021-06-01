@@ -22,20 +22,15 @@ function loadValidateFiles()
 {
     global $settings;
     $files = array();
-    if ($d = opendir($settings['sequenceDirectory'])) {
-        while (($file = readdir($d)) !== false) {
-            array_push($files, $file);
+    $types = array("videoDirectory", "sequenceDirectory", "musicDirectory");
+    foreach ($types as $type) {
+        if ($d = opendir($settings[$type])) {
+            while (($file = readdir($d)) !== false) {
+                array_push($files, $file);
+            }
+            closedir($d);
         }
-        closedir($d);
     }
-
-    if ($d = opendir($settings['musicDirectory'])) {
-        while (($file = readdir($d)) !== false) {
-            array_push($files, $file);
-        }
-        closedir($d);
-    }
-
     return $files;
 }
 
