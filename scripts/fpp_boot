@@ -45,6 +45,8 @@ if [ ${HASSOUND} -eq 1 ]; then
     CARDID=0
     if [ -e /root/.asoundrc ]; then
         CARDID=$(grep card /root/.asoundrc | head -n 1 | awk '{print $2}')
+    else
+        cp /opt/fpp/etc/asoundrc.dmix /root/.asoundrc
     fi
 
     AUDIOOUTPUT=$(getSetting AudioOutput)

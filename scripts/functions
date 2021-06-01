@@ -593,17 +593,7 @@ detectFalconHardware() {
 checkAudioConfig() {
 	if [ ! -e /root/.asoundrc ]
 	then
-		cat <<EOF > /root/.asoundrc
-pcm.!default {
-	type hw
-	card 0
-}
-
-ctl.!default {
-	type hw
-	card 0
-}
-EOF
+		cp /opt/fpp/etc/asoundrc.dmix /root/.asoundrc
 	fi
 
 	if [ ! -e /root/.libao ]
