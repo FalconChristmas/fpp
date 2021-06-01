@@ -22,7 +22,7 @@ function loadValidateFiles()
 {
     global $settings;
     $files = array();
-    $types = array("videoDirectory", "sequenceDirectory", "musicDirectory");
+    $types = array("videoDirectory", "sequenceDirectory", "musicDirectory", "imageDirectory");
     foreach ($types as $type) {
         if ($d = opendir($settings[$type])) {
             while (($file = readdir($d)) !== false) {
@@ -55,6 +55,10 @@ function validatePlayListEntries(&$entries, &$media, &$playlist, &$rc)
         } else if ($e->type == "sequence") {
             if (!in_array($e->sequenceName, $media)) {
                 array_push($rc, "Invalid Sequence " . $e->sequenceName);
+            }
+        } else if ($e->type == "image") {
+            if (!in_array($e->imagePath, $media)) {
+                array_push($rc, "Invalid Image " . $e->imagePath);
             }
         }
     }
