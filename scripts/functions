@@ -591,11 +591,6 @@ detectFalconHardware() {
 #############################################################################
 # Check for audio control files
 checkAudioConfig() {
-	if [ ! -e /root/.asoundrc ]
-	then
-		cp /opt/fpp/etc/asoundrc.dmix /root/.asoundrc
-	fi
-
 	if [ ! -e /root/.libao ]
 	then
 		cat <<EOF > /root/.libao
