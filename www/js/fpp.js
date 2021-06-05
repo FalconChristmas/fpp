@@ -1637,6 +1637,23 @@ function SetPlaylistItemMetaData(row) {
         });
     } else if (type == 'sequence') {
         GetSequenceDuration(row.find('.field_sequenceName').html(), true, row);
+    } else if (type == 'image') {
+        let file = row.find('.field_imagePath').html();
+        $.ajax({
+            url: "api/files/images?nameOnly=1",
+            type: 'GET',
+            async: false,
+            dataType: 'json',
+            success: function(data) {
+                if (! Array.isArray(data) || !(data.includes(file))) {
+                    row.find('.psiDataSimple').append('<span style="color: #FF0000; font-weight: bold;">ERROR: Image File "' + file + '" Not Found</span><br>');
+                    row.find('.psiData').append('<div style="color: #FF0000; font-weight: bold;">ERROR: Image File "' + file + '" Not Found</div>');
+                }
+            },
+            error: function() {
+                DialogError('Failed to Query Image', "Error: Unable to query list of images");
+            }
+        });
     } else if (type == 'playlist') {
         let playlistName = row.find('.field_name').html();
         $.ajax({
