@@ -1,4 +1,7 @@
 <?php
+//Stop config.php spitting out any JS used in the UI, not needed on the backup page, if unset the JSON download will have the <script> tag in it due to
+//that data already being in the buffer
+$skipJSsettings = 1;
 //error_reporting(E_ALL);
 //ini_set('display_errors', 1);
 
