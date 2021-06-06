@@ -38,6 +38,7 @@ function SaveGPIOInputs() {
            gp["pin"] = val;
            gp["enabled"] = $("#gpio_" + key + "_enabled").is(':checked');
            gp["mode"] = $("#gpio_" + key + "_PullUpDown").val();
+	   gp["desc"] = $('#gpio_' + key + '_Desc').val();
            
            var rc = $('#gpio_' + key + '_RisingCommand').val();
            if (rc != "") {
@@ -148,6 +149,7 @@ extraCommands = [
                         <th >Hdr-Pin</th>
                         <th >GPIO# - GPIOD</th>
                         <th  id='pullHeader' >Pull Up/Down</th>
+                        <th >Description</th>
                         <th >Commands: Rising Edge</th>
                         <th >Commands: Falling Edge</th>
                     </tr>
@@ -188,7 +190,8 @@ extraCommands = [
             echo "<td></td>";
         }
         ?>
-                <td>
+                    <td><input id='gpio_<?= $pinNameClean ?>_Desc' type='text' size=30 maxlength=128 style='width: 6em'/></td>
+                    <td>
                     <table border=0 class='fppTable' id='tableRisingGPIO<?= $pinNameClean ?>'>
                     <tr>
         <td>Command:</td><td><select id='gpio_<?= $pinNameClean ?>_RisingCommand' onChange='CommandSelectChanged("gpio_<?= $pinNameClean ?>_RisingCommand", "tableRisingGPIO<?= $pinNameClean ?>", false);'><option value=""></option></select></td>
@@ -242,6 +245,8 @@ extraCommands = [
         
                 if (isset($gpio["mode"]))
                     echo "$('#gpio_" . $pinNameClean . "_PullUpDown').val(\"" . $gpio["mode"] . "\");\n";
+
+                echo "$('#gpio_" . $pinNameClean . "_Desc').val(\"" . $gpio["desc"] . "\");\n";
         
                 echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"falling\"], 'gpio_" . $pinNameClean . "_FallingCommand', 'tableFallingGPIO" . $pinNameClean . "', false);\n";
                 echo "PopulateExistingCommand(gpioConfig[" . $x . "][\"rising\"], 'gpio_" . $pinNameClean . "_RisingCommand', 'tableRisingGPIO" . $pinNameClean . "', false);\n";
