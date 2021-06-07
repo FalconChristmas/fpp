@@ -45,7 +45,8 @@ public:
 	int            groupCount;
 	int            reverse;
 	FPPColorOrder  colorOrder;
-	int            nullNodes;
+	int            startNulls;
+    int            endNulls;
 	int            zigZag;
 	int            brightness;
 	float          gamma;

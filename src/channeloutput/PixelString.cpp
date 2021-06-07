@@ -42,14 +42,14 @@ return 0; \
 VirtualString::VirtualString()
     : whiteOffset(-1), receiverNum(-1),
     startChannel(0), pixelCount(0), groupCount(0), reverse(0), colorOrder(kColorOrderRGB),
-    nullNodes(0), zigZag(0), brightness(100), gamma(1.0)
+    startNulls(0), endNulls(0), zigZag(0), brightness(100), gamma(1.0)
 {        
 }
 
 VirtualString::VirtualString(int r)
     : whiteOffset(-1), receiverNum(r),
     startChannel(0), pixelCount(0), groupCount(0), reverse(0), colorOrder(kColorOrderRGB),
-    nullNodes(0), zigZag(0), brightness(100), gamma(1.0)
+    startNulls(0), endNulls(0), zigZag(0), brightness(100), gamma(1.0)
 {
     switch (r) {
     case 0:
@@ -200,12 +200,15 @@ int PixelString::Init(Json::Value config)
 	m_brightnessMaps = (uint8_t **)calloc(1, sizeof(uint8_t*) * m_outputChannels);
 
 	for (int i = 0; i < m_virtualStrings.size(); i++) {
-		offset += m_virtualStrings[i].nullNodes * 3;
+		offset += m_virtualStrings[i].startNulls * m_virtualStrings[i].channelsPerNode();
 
 		SetupMap(offset, m_virtualStrings[i]);
 		offset += m_virtualStrings[i].pixelCount * m_virtualStrings[i].channelsPerNode();
+        offset += m_virtualStrings[i].endNulls * m_virtualStrings[i].channelsPerNode();
 
-		for (int j = 0; j < ((m_virtualStrings[i].nullNodes*3) + (m_virtualStrings[i].pixelCount*m_virtualStrings[i].channelsPerNode())); j++)
+		for (int j = 0; j < ((m_virtualStrings[i].startNulls*m_virtualStrings[i].channelsPerNode())
+                             + (m_virtualStrings[i].pixelCount*m_virtualStrings[i].channelsPerNode())
+                             + (m_virtualStrings[i].endNulls*m_virtualStrings[i].channelsPerNode())); j++)
 			m_brightnessMaps[mapIndex++] = m_virtualStrings[i].brightnessMap;
 	}
     //turn gpio off after all channels on this port are done
@@ -216,8 +219,9 @@ int PixelString::Init(Json::Value config)
 }
 
 void PixelString::AddVirtualString(const VirtualString &vs) {
-    m_outputChannels += vs.nullNodes * 3;
+    m_outputChannels += vs.startNulls * vs.channelsPerNode();
     m_outputChannels += vs.pixelCount * vs.channelsPerNode();
+    m_outputChannels += vs.startNulls * vs.channelsPerNode();
 
     m_virtualStrings.push_back(vs);
 }
@@ -227,7 +231,12 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
     vs.pixelCount = vsc["pixelCount"].asInt();
     vs.groupCount = vsc["groupCount"].asInt();
     vs.reverse = vsc["reverse"].asInt();
-    vs.nullNodes = vsc["nullNodes"].asInt();
+    vs.startNulls = vsc["nullNodes"].asInt();
+    if (vsc.isMember("endNulls")) {
+        vs.endNulls = vsc["endNulls"].asInt();
+    } else {
+        vs.endNulls = 0;
+    }
     vs.zigZag = vsc["zigZag"].asInt();
     vs.brightness = vsc["brightness"].asInt();
     vs.gamma = atof(vsc["gamma"].asString().c_str());
@@ -248,9 +257,11 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
         // only validate settings and such if there are pixels on this string
         CHECKPS_SETTING(vs.startChannel < 0);
         CHECKPS_SETTING(vs.startChannel > FPPD_MAX_CHANNELS);
-        CHECKPS_SETTING(vs.nullNodes < 0);
-        CHECKPS_SETTING(vs.nullNodes > MAX_PIXEL_STRING_LENGTH);
-        CHECKPS_SETTING((vs.nullNodes + vs.pixelCount) > MAX_PIXEL_STRING_LENGTH);
+        CHECKPS_SETTING(vs.startNulls < 0);
+        CHECKPS_SETTING(vs.startNulls > MAX_PIXEL_STRING_LENGTH);
+        CHECKPS_SETTING(vs.endNulls < 0);
+        CHECKPS_SETTING(vs.endNulls > MAX_PIXEL_STRING_LENGTH);
+        CHECKPS_SETTING((vs.startNulls + vs.pixelCount + vs.endNulls) > MAX_PIXEL_STRING_LENGTH);
         CHECKPS_SETTING(vs.reverse < 0);
         CHECKPS_SETTING(vs.reverse > 1);
         CHECKPS_SETTING(vs.groupCount < 0);
@@ -296,7 +307,8 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
         vs.groupCount = 1;
         vs.zigZag = 0;
         vs.reverse = 0;
-        vs.nullNodes = 0;
+        vs.startNulls = 0;
+        vs.endNulls = 0;
         vs.startChannel = 0;
         for (int x = 0; x < 256; x++) {
             vs.brightnessMap[x] = x;
@@ -513,7 +525,8 @@ void PixelString::DumpConfig(void)
             LogDebug(VB_CHANNELOUT, "        group count   : %d\n", vs.groupCount);
             LogDebug(VB_CHANNELOUT, "        reverse       : %d\n", vs.reverse);
             LogDebug(VB_CHANNELOUT, "        color order   : %s\n", ColorOrderToString(vs.colorOrder).c_str());
-            LogDebug(VB_CHANNELOUT, "        null nodes    : %d\n", vs.nullNodes);
+            LogDebug(VB_CHANNELOUT, "        start nulls   : %d\n", vs.startNulls);
+            LogDebug(VB_CHANNELOUT, "        end nulls     : %d\n", vs.endNulls);
             LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n", vs.zigZag);
             LogDebug(VB_CHANNELOUT, "        brightness    : %d\n", vs.brightness);
             LogDebug(VB_CHANNELOUT, "        gamma         : %.3f\n", vs.gamma);

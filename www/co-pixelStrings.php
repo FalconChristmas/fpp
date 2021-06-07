@@ -155,7 +155,8 @@ function pixelOutputTableHeader()
     result += "<th>End<br>Channel</th>";
     result += "<th>Direction</th>";
     result += "<th>Color<br>Order</th>";
-    result += "<th>Null<br>Nodes</th>";
+    result += "<th>Start<br>Nulls</th>";
+    result += "<th>End<br>Nulls</th>";
     result += "<th>Zig<br>Zag</th>";
     result += "<th>Bright-<br>ness</th>";
     result += "<th>Gamma</th>";
@@ -323,12 +324,12 @@ function addVirtualString(item)
     
     var sid = highest + 1;
     
-    str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 100, '1.0');
+    str += pixelOutputTableRow(type, protocols, protocol, oid, pid, sid, desc + sid, 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, '1.0');
     
     $('#' + highestId).after(str);
 }
 
-function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullCount, zigZag, brightness, gamma, portPfx = "")
+function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma, portPfx = "")
 {
     var result = "";
     var id = type + "_Output_" + oid + "_" + port + "_" + sid;
@@ -363,7 +364,8 @@ function pixelOutputTableRow(type, protocols, protocol, oid, port, sid, descript
     result += "<td align='center' class='vsEndChannel'>" + (startChannel + (pixelCount * colorOrder.length)/groupCount - 1) + "</td>";
     result += pixelOutputTableInputDirection(reverse);
     result += pixelOutputTableInputOrder(colorOrder);
-    result += "<td><input type='number' class='vsNullNodes' size='2' value='" + nullCount + "' min='0' max='100'></td>";
+    result += "<td><input type='number' class='vsStartNulls' size='2' value='" + startNulls + "' min='0' max='100'></td>";
+    result += "<td><input type='number' class='vsEndNulls' size='2' value='" + endNulls + "' min='0' max='100'></td>";
     result += "<td><input type='number' class='vsZigZag' size='3' value='" + zigZag + "' min='0' max='1600'></td>";
     result += pixelOutputTableInputBrightness(brightness);
     result += "<td><input type='number' class='vsGamma' size='3' value='" + gamma + "' min='0.1' max='5.0' step='0.01'></td>";
@@ -430,7 +432,7 @@ function updateItemEndChannel(item) {
     updateRowEndChannel(row);
 }
 
-function setRowData(row, protocol, description, startChannel, pixelCount, groupCount, reverse, colorOrder, nullNodes, zigZag, brightness, gamma)
+function setRowData(row, protocol, description, startChannel, pixelCount, groupCount, reverse, colorOrder, startNulls, endNulls, zigZag, brightness, gamma)
 {
     row.find('.vsProtocol').val(protocol);
     row.find('.vsDescription').val(description);
@@ -442,7 +444,8 @@ function setRowData(row, protocol, description, startChannel, pixelCount, groupC
     row.find('.vsGroupCount').val(groupCount);
     row.find('.vsReverse').val(reverse);
     row.find('.vsColorOrder').val(colorOrder);
-    row.find('.vsNullNodes').val(nullNodes);
+    row.find('.vsStartNulls').val(startNulls);
+    row.find('.vsEndNulls').val(endNulls);
     row.find('.vsZigZag').val(zigZag);
     row.find('.vsBrightness').val(brightness);
     row.find('.vsGamma').val(gamma);
@@ -489,7 +492,8 @@ function cloneSelectedString()
                    row.find('.vsGroupCount').val(),
                    row.find('.vsReverse').val(),
                    row.find('.vsColorOrder').val(),
-                   row.find('.vsNullNodes').val(),
+                   row.find('.vsStartNulls').val(),
+                   row.find('.vsEndNulls').val(),
                    row.find('.vsZigZag').val(),
                    row.find('.vsBrightness').val(),
                    row.find('.vsGamma').val());
@@ -572,6 +576,7 @@ function getPixelStringOutputJSON()
                             vs.reverse = 0;
                             vs.colorOrder = "RGB";
                             vs.nullNodes = 0;
+                            vs.endNulls = 0;
                             vs.zigZag = 0;
                             vs.brightness = 100;
                             vs.gamma = "1.0";
@@ -582,7 +587,8 @@ function getPixelStringOutputJSON()
                             vs.groupCount = parseInt(row.find('.vsGroupCount').val()) || 0;
                             vs.reverse = parseInt(row.find('.vsReverse').val());
                             vs.colorOrder = row.find('.vsColorOrder').val();
-                            vs.nullNodes = parseInt(row.find('.vsNullNodes').val()) || 0;
+                            vs.nullNodes = parseInt(row.find('.vsStartNulls').val()) || 0;
+                            vs.endNulls =  parseInt(row.find('.vsEndNulls').val()) || 0;
                             vs.zigZag = parseInt(row.find('.vsZigZag').val()) || 0;
                             vs.brightness = parseInt(row.find('.vsBrightness').val());
                             vs.gamma = row.find('.vsGamma').val();
@@ -975,7 +981,7 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
             }
             var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='14'><hr></td></tr>";
             for (var x = 0; x < 4; x++) {
-                str += pixelOutputTableRow("BBB48String", protocols, protocol, 1, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "B");
+                str += pixelOutputTableRow("BBB48String", protocols, protocol, 1, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", "B");
             }
             $("#BBB48String_Output_0_" + (port + 3) + "_" + j).after(str);
         }
@@ -992,7 +998,7 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
             }
             var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='14'><hr></td></tr>";
             for (var x = 0; x < 4; x++) {
-                str += pixelOutputTableRow("BBB48String", protocols, protocol, 2, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", "C");
+                str += pixelOutputTableRow("BBB48String", protocols, protocol, 2, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", "C");
             }
             $("#BBB48String_Output_1_" + (port + 3) + "_" + j).after(str);
         }
@@ -1151,13 +1157,14 @@ function populatePixelStringOutputs(data) {
                                         for (var v = 0; v < strings.length; v++) {
                                             var vs = strings[v];
                                             
-                                            str += pixelOutputTableRow(type, protocols, protocol, l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma, pfx);
+                                            var endNulls = vs.hasOwnProperty("endNulls") ? vs.endNulls : 0;
+                                            str += pixelOutputTableRow(type, protocols, protocol, l, o2, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma, pfx);
                                         }
                                     } else {
-                                        str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", pfx);
+                                        str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", pfx);
                                     }
                                 } else {
-                                    str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0", pfx);
+                                    str += pixelOutputTableRow(type, protocols, protocol, l, o2, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", pfx);
                                 }
                             }
                             if (l != (loops-1)) {
@@ -1175,10 +1182,11 @@ function populatePixelStringOutputs(data) {
                                 if (port["protocol"]) {
                                     protocol = port["protocol"];
                                 }
-                                str += pixelOutputTableRow(type, protocols, protocol, 0, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, vs.zigZag, vs.brightness, vs.gamma);
+                                var endNulls = vs.hasOwnProperty("endNulls") ? vs.endNulls : 0;
+                                str += pixelOutputTableRow(type, protocols, protocol, 0, o, v, vs.description, vs.startChannel + 1, vs.pixelCount, vs.groupCount, vs.reverse, vs.colorOrder, vs.nullNodes, endNulls, vs.zigZag, vs.brightness, vs.gamma);
                             }
                         } else {
-                            str += pixelOutputTableRow(type, protocols, defProtocol, 0, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 100, "1.0");
+                            str += pixelOutputTableRow(type, protocols, defProtocol, 0, o, 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0");
                         }
                     }
                 }
