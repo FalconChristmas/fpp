@@ -3,7 +3,9 @@ FROM debian:buster
 # if we get a bunch of these installed up front in one shot (assume a desktop so plenty of memory to do all at once)
 # then the FPP_Install step is faster.   In addition, docker will cache this result
 # so building docker containers will be faster
-RUN apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
+RUN DEBIAN_FRONTEND=noninteractive apt-get update
+RUN DEBIAN_FRONTEND=noninteractive apt-get -yq upgrade
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"  alsa-utils arping avahi-daemon avahi-utils locales nano net-tools \
     apache2 apache2-bin apache2-data apache2-utils libapache2-mod-php \
     bc bash-completion btrfs-progs exfat-fuse lsof ethtool curl zip unzip bzip2 wireless-tools dos2unix \
     fbi fbset file flite ca-certificates lshw \
@@ -15,7 +17,7 @@ RUN apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -yq -o Dpkg:
     libavcodec-dev libavformat-dev libswresample-dev libswscale-dev libavdevice-dev libavfilter-dev libtag1-dev \
     vorbis-tools libgraphicsmagick++1-dev graphicsmagick-libmagick-dev-compat libmicrohttpd-dev \
     libmosquitto-dev mosquitto-clients mosquitto libzstd-dev lzma zstd gpiod libgpiod-dev libjsoncpp-dev libcurl4-openssl-dev \
-    python-daemon python-smbus wget flex bison pkg-config libasound2-dev ; apt-get clean
+    python-daemon python-smbus wget flex bison pkg-config libasound2-dev mesa-common-dev ; apt-get clean
 
 # similar to above, do this once and Docker can cache the intermediary
 ADD SD/buildVLC.sh /root/buildVLC.sh
@@ -30,6 +32,7 @@ ARG EXTRA_INSTALL_FLAG=
 ADD ./ /opt/fpp/
 ADD SD/FPP_Install.sh /root/FPP_Install.sh
 RUN ( yes | /root/FPP_Install.sh $EXTRA_INSTALL_FLAG --skip-apt-install --skip-vlc ) || true
+RUN rm -rf /tmp/*
 
 # this will do additional updates and create the required directories
 # and set permissions
