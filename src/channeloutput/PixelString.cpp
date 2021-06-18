@@ -221,7 +221,7 @@ int PixelString::Init(Json::Value config)
 void PixelString::AddVirtualString(const VirtualString &vs) {
     m_outputChannels += vs.startNulls * vs.channelsPerNode();
     m_outputChannels += vs.pixelCount * vs.channelsPerNode();
-    m_outputChannels += vs.startNulls * vs.channelsPerNode();
+    m_outputChannels += vs.endNulls * vs.channelsPerNode();
 
     m_virtualStrings.push_back(vs);
 }
