@@ -536,10 +536,7 @@ int main(int argc, char *argv[])
 	Player::INSTANCE.Init();
 	PluginManager::INSTANCE.init();
 
-	if (getFPPmode() != BRIDGE_MODE) {
-		InitMediaOutput();
-	}
-
+    InitMediaOutput();
 	InitializeChannelOutputs();
 
 	if (!getSettingInt("restarted"))
@@ -565,13 +562,8 @@ int main(int argc, char *argv[])
         mqtt->PrepareForShutdown();
     }
 
-	if (getFPPmode() != BRIDGE_MODE) {
-		CleanupMediaOutput();
-	}
-
-	if (getFPPmode() & PLAYER_MODE) {
-		CloseEffects();
-	}
+    CleanupMediaOutput();
+    CloseEffects();
 	CloseChannelOutputs();
     CommandManager::INSTANCE.Cleanup();
     PluginManager::INSTANCE.Cleanup();
@@ -798,9 +790,9 @@ void MainLoop(void)
             if (getFPPmode() == BRIDGE_MODE) {
                 int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
                 if (maxInputDelay) {
-                        double inputDelay = GetSecondsFromInputPacket();
+                    double inputDelay = GetSecondsFromInputPacket();
                     if (inputDelay > 2.0) {
-                    sequence->BlankSequenceData();
+                        sequence->BlankSequenceData();
                     }
                 }
             }
@@ -812,8 +804,7 @@ void MainLoop(void)
     LogInfo(VB_GENERAL, "Stopping channel output thread.\n");
 	StopChannelOutputThread();
 
-	if (getFPPmode() == BRIDGE_MODE)
-		Bridge_Shutdown();
+    Bridge_Shutdown();
 	LogInfo(VB_GENERAL, "Main Loop complete, shutting down.\n");
 }
 

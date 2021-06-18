@@ -50,6 +50,7 @@
 #include "channeloutput/channeloutputthread.h"
 #include "channeloutput/DDP.h"
 #include "channeloutput/Universe.h"
+#include "MultiSync.h"
 #include <ctime>
 
 
@@ -98,9 +99,35 @@ static UniverseEntry unknownUniverse;
 bool Bridge_StoreData(uint8_t *bridgeBuffer);
 bool Bridge_StoreDDPData(uint8_t *bridgeBuffer);
 bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer);
+bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
 inline void SetBridgeData(uint8_t *data, int startChannel, int len);
+
+
+static void CreateArtNetSocket() {
+    artnetSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+    if (artnetSock < 0) {
+        LogDebug(VB_E131BRIDGE, "ArtNet socket failed: %s", strerror(errno));
+        exit(1);
+    }
+    int enable = 1;
+    //need to be able to send broadcase for ArtPollReply
+    setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
+    enable = 1;
+    setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
+
+    memset((char *)&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(0x1936); //artnet port
+    addrlen = sizeof(addr);
+    // Bind the socket to address/port
+    if (bind(artnetSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        LogDebug(VB_E131BRIDGE, "ArtNet bind failed: %s", strerror(errno));
+        exit(1);
+    }
+}
 
 /*
  *
@@ -231,6 +258,17 @@ bool Bridge_ReceiveArtNetData(void) {
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
             sync |= Bridge_StoreArtNetData((uint8_t*)buffers[x]);
+        }
+        msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
+    }
+    return sync;
+}
+bool Bridge_ReceiveArtNetTimecodeOnly(void) {
+    int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
+    bool sync = false;
+    while (msgcnt > 0) {
+        for (int x = 0; x < msgcnt; x++) {
+            sync |= Bridge_ProcessArtNetTimeCode((uint8_t*)buffers[x]);
         }
         msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -374,27 +412,7 @@ void Bridge_Initialize_Internal()
     }
     
     if (hasArtNet) {
-        artnetSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-        if (artnetSock < 0) {
-            LogDebug(VB_E131BRIDGE, "ArtNet socket failed: %s", strerror(errno));
-            exit(1);
-        }
-        int enable = 1;
-        //need to be able to send broadcase for ArtPollReply
-        setsockopt(artnetSock, SOL_SOCKET, SO_BROADCAST, &enable, sizeof(enable));
-        enable = 1;
-        setsockopt(artnetSock, SOL_SOCKET, SO_NO_CHECK, (void*)&enable, sizeof enable);
-
-        memset((char *)&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port = htons(0x1936); //artnet port
-        addrlen = sizeof(addr);
-        // Bind the socket to address/port
-        if (bind(artnetSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-            LogDebug(VB_E131BRIDGE, "ArtNet bind failed: %s", strerror(errno));
-            exit(1);
-        }
+        CreateArtNetSocket();
     }
     
 	StartChannelOutputThread();
@@ -447,6 +465,57 @@ bool Bridge_StoreData(uint8_t *bridgeBuffer)
     } else {
         e131Errors++;
         LogDebug(VB_E131BRIDGE, "Unknown e1.31 packet type %d, start code %d\n", (int)bridgeBuffer[E131_VECTOR_INDEX], (int)bridgeBuffer[E131_START_CODE]);
+    }
+    return false;
+}
+bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
+    if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-'
+        || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
+        || bridgeBuffer[11] != 0xE   //version must be 14
+        ) {
+        return false;
+    }
+    if (bridgeBuffer[9] == 0x97 && bridgeBuffer[8] == 0x00) {
+        //ArtNet timecode
+        int frames = bridgeBuffer[14];
+        int seconds = bridgeBuffer[15];
+        int minutes = bridgeBuffer[16];
+        int hours = bridgeBuffer[17];
+        int type = bridgeBuffer[18];
+        int ms = 0;
+        switch (type) {
+            case 1: //ebu (25fps)
+                ms = frames * 40;
+                break;
+            case 2: //df (29.97fps)
+                ms = ((float)frames * 33.3667f);
+                break;
+            case 3: //smpte(30 fps)
+                ms = ((float)frames * 33.3333f);
+                break;
+            case 0: //film 24fps
+            default:
+                ms = ((float)frames * 41.6667f);
+                break;
+        }
+
+        ms += seconds * 1000;
+        ms += minutes * 60 * 1000;
+        ms += hours * 60 * 60 * 1000;
+        std::string pl = "";
+        std::string f = "artnet-sync-playlist";
+        if (FileExists("/home/fpp/media/playlists/" + f + ".json")) {
+            pl = f;
+        }
+        if (pl == "") {
+            pl = getSetting("ArtNetSyncPlaylist", "--none--");
+        }
+        if (pl == "--none--") {
+            pl = "";
+        }
+        if (pl != "") {
+            MultiSync::INSTANCE.SyncPlaylistToMS(ms, pl, false);
+        }
     }
     return false;
 }
@@ -585,8 +654,8 @@ bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
             tmp = tmp->ifa_next;
         }
         freeifaddrs(interfaces);
-
-        
+    } else {
+        return Bridge_ProcessArtNetTimeCode(bridgeBuffer);
     }
     return false;
 }
@@ -685,11 +754,12 @@ void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) {
 
 void Bridge_Shutdown(void)
 {
-    close(bridgeSock);
-    close(ddpSock);
-    close(artnetSock);
+    if (bridgeSock >= 0) close(bridgeSock);
+    if (ddpSock >= 0) close(ddpSock);
+    if (artnetSock >= 0) close(artnetSock);
     bridgeSock = -1;
     ddpSock = -1;
+    artnetSock = -1;
 }
 
 
@@ -897,4 +967,14 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) 
     }
     AddFakeListener(DDP_PORT, "DDP", callbacks);
     AddFakeListener(E131_DEST_PORT, "E1.31", callbacks);
+
+    if (getSettingInt("ARTNETTimeCodeSync", 0)) {
+        CreateArtNetSocket();
+        if (artnetSock > 0) {
+            std::function<bool(int)> f = [] (int i) {
+                return Bridge_ReceiveArtNetTimecodeOnly();
+            };
+            callbacks[artnetSock] = f;
+        }
+    }
 }
