@@ -41,7 +41,6 @@ extern "C" {
 RGBMatrixOutput::RGBMatrixOutput(unsigned int startChannel,
 	unsigned int channelCount)
   : ChannelOutputBase(startChannel, channelCount),
-	m_gpio(NULL),
 	m_canvas(NULL),
 	m_rgbmatrix(NULL),
 	m_colorOrder("RGB"),
@@ -130,25 +129,9 @@ int RGBMatrixOutput::Init(Json::Value config)
 
 	m_panels = m_panelMatrix->PanelCount();
 
-	m_gpio = new GPIO();
-	if (!m_gpio)
-	{
-		LogErr(VB_CHANNELOUT, "Unable to create GPIO instance\n");
-
-		return 0;
-	}
-
 	int gpioSlowdown = 1;
 	if (config.isMember("gpioSlowdown"))
 		gpioSlowdown = config["gpioSlowdown"].asInt();
-
-	if (!m_gpio->Init(gpioSlowdown))
-	{
-		LogErr(VB_CHANNELOUT, "GPIO->Init() failed\n");
-
-		delete m_gpio;
-		return 0;
-	}
 
 	m_rows = m_panelHeight;
 
@@ -158,6 +141,12 @@ int RGBMatrixOutput::Init(Json::Value config)
 	m_channelCount = m_width * m_height * 3;
 
 	RGBMatrix::Options options;
+    rgb_matrix::RuntimeOptions runtimeOptions;
+
+    runtimeOptions.gpio_slowdown = gpioSlowdown;
+    runtimeOptions.daemon = 0;
+    runtimeOptions.drop_privileges = 0;
+    runtimeOptions.do_gpio_init = true;
 
 	if (config["wiringPinout"].asString() != "")
 		options.hardware_mapping = strdup(config["wiringPinout"].asString().c_str());
@@ -203,13 +192,10 @@ int RGBMatrixOutput::Init(Json::Value config)
             options.multiplexing = 0;
         }
     }
-	m_rgbmatrix = new RGBMatrix(m_gpio, options);
+	m_rgbmatrix = RGBMatrix::CreateFromOptions(options, runtimeOptions);
 	if (!m_rgbmatrix)
 	{
 		LogErr(VB_CHANNELOUT, "Unable to create RGBMatrix instance\n");
-
-		delete m_gpio;
-		m_gpio = NULL;
 
 		return 0;
 	}
@@ -272,9 +258,6 @@ int RGBMatrixOutput::Close(void)
 	delete m_rgbmatrix;
     m_rgbmatrix = nullptr;
 	m_canvas = nullptr;
-
-	delete m_gpio;
-	m_gpio = nullptr;
 
 	return ChannelOutputBase::Close();
 }

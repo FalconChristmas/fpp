@@ -31,7 +31,6 @@
 
 #include "led-matrix.h"
 
-using rgb_matrix::GPIO;
 using rgb_matrix::RGBMatrix;
 using rgb_matrix::Canvas;
 using rgb_matrix::FrameCanvas;
@@ -55,7 +54,6 @@ class RGBMatrixOutput : public ChannelOutputBase {
     virtual void GetRequiredChannelRanges(const std::function<void(int, int)> &addRange) override;
 
   private:
-	GPIO        *m_gpio;
 	FrameCanvas *m_canvas;
 	RGBMatrix   *m_rgbmatrix;
 	std::string  m_layout;
