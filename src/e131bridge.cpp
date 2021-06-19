@@ -473,7 +473,7 @@ bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
         || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
         || bridgeBuffer[11] != 0xE   //version must be 14
         ) {
-        LogDebug(VB_E131BRIDGE, "Received Invlid ArtNet Packet\n");
+        LogDebug(VB_E131BRIDGE, "Received Invalid ArtNet Packet  %s    %X\n", bridgeBuffer, bridgeBuffer[11]);
         return false;
     }
     LogDebug(VB_E131BRIDGE, "Received ArtNet Packet:  %X   %X\n", bridgeBuffer[9], bridgeBuffer[8]);
@@ -515,7 +515,7 @@ bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
         if (pl == "--none--") {
             pl = "";
         }
-        LogDebug(VB_E131BRIDGE, "ArtNet Timestampe:  %d     Playlist: %s\n", ms, pl.c_str());
+        LogDebug(VB_E131BRIDGE, "ArtNet Timestamp:  %d     Playlist: %s\n", ms, pl.c_str());
 
         if (pl != "") {
             MultiSync::INSTANCE.SyncPlaylistToMS(ms, pl, false);
