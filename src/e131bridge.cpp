@@ -473,8 +473,10 @@ bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
         || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
         || bridgeBuffer[11] != 0xE   //version must be 14
         ) {
+        LogDebug(VB_E131BRIDGE, "Received Invlid ArtNet Packet\n");
         return false;
     }
+    LogDebug(VB_E131BRIDGE, "Received ArtNet Packet:  %X   %X\n", bridgeBuffer[9], bridgeBuffer[8]);
     if (bridgeBuffer[9] == 0x97 && bridgeBuffer[8] == 0x00) {
         //ArtNet timecode
         int frames = bridgeBuffer[14];
@@ -513,6 +515,8 @@ bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
         if (pl == "--none--") {
             pl = "";
         }
+        LogDebug(VB_E131BRIDGE, "ArtNet Timestampe:  %d     Playlist: %s\n", ms, pl.c_str());
+
         if (pl != "") {
             MultiSync::INSTANCE.SyncPlaylistToMS(ms, pl, false);
         }
@@ -971,6 +975,7 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) 
     if (getSettingInt("ARTNETTimeCodeSync", 0)) {
         CreateArtNetSocket();
         if (artnetSock > 0) {
+            LogDebug(VB_E131BRIDGE, "ArtNet TimeCode Sync Enabled");
             std::function<bool(int)> f = [] (int i) {
                 return Bridge_ReceiveArtNetTimecodeOnly();
             };
