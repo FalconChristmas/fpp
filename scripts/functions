@@ -544,16 +544,39 @@ runPostStopScripts() {
 #############################################################################
 # Configure Channel Outputs
 setupChannelOutputs() {
-
 	if  [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 	then
 		# Check for RGBMatrix channel output
-		cat ${FPPHOME}/media/config/channeloutputs.json 2> /dev/null | tr -d "\r\n" | egrep -q 'RGBMatrix",[ 	a-zA-Z0-9:",]*"enabled": 1'
-		RGBMatrix=$?
+        RGBMatrix=1
+        if [ -f ${FPPHOME}/media/config/channeloutputs.json ]; then
+cat ${FPPHOME}/media/config/channeloutputs.json  2> /dev/null | python -c '
+import json,sys;
+obj=json.load(sys.stdin);
+
+for output in obj["channelOutputs"]:
+        if output["subType"] == "RGBMatrix" and output["enabled"] == 1 :
+            exit(0)
+
+exit(1)
+'
+        RGBMatrix=$?
+        fi
 
 		# RPIWS281X and onboard sound are incompatible
-		cat ${FPPHOME}/media/config/co-pixelStrings.json 2> /dev/null | tr -d "\r\n" | egrep -q 'RPIWS281X",[ 	a-zA-Z0-9:",]*"enabled": 1'
+        RPIWS281X=1
+        if [ -f ${FPPHOME}/media/config/co-pixelStrings.json ]; then
+cat ${FPPHOME}/media/config/co-pixelStrings.json  2> /dev/null | python -c '
+import json,sys;
+obj=json.load(sys.stdin);
+
+for output in obj["channelOutputs"]:
+        if output["type"] == "RPIWS281X" and output["enabled"] == 1 :
+            exit(0)
+
+exit(1)
+'
 		RPIWS281X=$?
+        fi
 
 		if [ ${RGBMatrix} -eq 0 -o ${RPIWS281X} -eq 0 ]
 		then
