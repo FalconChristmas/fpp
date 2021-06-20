@@ -473,10 +473,14 @@ bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
         || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
         || bridgeBuffer[11] != 0xE   //version must be 14
         ) {
-        LogDebug(VB_E131BRIDGE, "Received Invalid ArtNet Packet  %s    %X\n", bridgeBuffer, bridgeBuffer[11]);
+        LogDebug(VB_E131BRIDGE, "Received Invalid ArtNet Packet:  %s\n", bridgeBuffer);
+        LogDebug(VB_E131BRIDGE, "      Version:    %X %X\n", bridgeBuffer[10], bridgeBuffer[11]);
+        LogDebug(VB_E131BRIDGE, "      OpCode:     %X %X\n", bridgeBuffer[8], bridgeBuffer[9]);
         return false;
     }
-    LogDebug(VB_E131BRIDGE, "Received ArtNet Packet:  %X   %X\n", bridgeBuffer[9], bridgeBuffer[8]);
+    LogDebug(VB_E131BRIDGE, "Received Valid ArtNet Packet:  %s\n", bridgeBuffer);
+    LogDebug(VB_E131BRIDGE, "      Version:    %X %X\n", bridgeBuffer[10], bridgeBuffer[11]);
+    LogDebug(VB_E131BRIDGE, "      OpCode:     %X %X\n", bridgeBuffer[8], bridgeBuffer[9]);
     if (bridgeBuffer[9] == 0x97 && bridgeBuffer[8] == 0x00) {
         //ArtNet timecode
         int frames = bridgeBuffer[14];
