@@ -2386,3 +2386,27 @@ body, #footer{
 	 color:#000;
  }
 }
+
+#troubleshooting-hot-links ul {
+    -moz-column-count: 4;
+    -moz-column-gap: 20px;
+    -webkit-column-count: 4;
+    -webkit-column-gap: 20px;
+    column-count: 2;
+    column-gap: 20px;
+}
+
+
+@media(min-width:768px){
+	#troubleshooting-hot-links ul {
+		column-count: 3;
+	}
+
+}
+
+@media(min-width:991px){
+	#troubleshooting-hot-links ul {
+		column-count: 4;
+	}
+
+}

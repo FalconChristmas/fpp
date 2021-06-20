@@ -68,14 +68,15 @@ $commands = array(
 	'Processes'          => 'ps -edaf --forest',  // Keep this last since it is so long
 
     // Boot
-    'FPP Cape Detect Log'   => $SUDO . ' journalctl -u fppcapedetect ',
-    'FPP RTC Log'          => $SUDO . ' journalctl -u fpprtc ',
-    'FPP Init Log'          => $SUDO . ' journalctl -u fppinit ',
-    'FPP Post Network Logs' => $SUDO . ' journalctl -u fpp_postnetwork ',
-    'FPP OLED Logs' => $SUDO . ' journalctl -u fppoled ',
-    'FPP FPPD Logs' => $SUDO . ' journalctl -u fppd '
+    'FPP Cape Detect Log'   => $SUDO . ' journalctl -u fppcapedetect | tail -20 ',
+    'FPP RTC Log'          => $SUDO . ' journalctl -u fpprtc | tail -20 ',
+    'FPP Init Log'          => $SUDO . ' journalctl -u fppinit | tail -20 ',
+    'FPP Post Network Logs' => $SUDO . ' journalctl -u fpp_postnetwork | tail -20 ',
+    'FPP OLED Logs' => $SUDO . ' journalctl -u fppoled | tail -20 ',
+    'FPP FPPD Logs' => $SUDO . ' journalctl -u fppd | tail -20 '
 	);
 
+/*
 $results = array();
 
 foreach ($commands as $title => $command)
@@ -86,5 +87,6 @@ foreach ($commands as $title => $command)
 		$results[$command] = implode("\n", $output) . "\n";
 	unset($output);
 }
+*/
 
 ?>
