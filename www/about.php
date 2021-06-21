@@ -351,6 +351,10 @@ tr.rowScheduleDetails td {
       $progressClass = "bg-success";
       if($percentageUsed>60){ $progressClass = "bg-warning"; }
       if($percentageUsed>80){ $progressClass = "bg-danger"; }
+      exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
+      $rootDevice = $output[0];
+      exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output, $return_val);
+      $mediaDevice = $output[0];
     ?>
                 <tr>
                   <td colspan="2">
@@ -359,13 +363,14 @@ tr.rowScheduleDetails td {
                   </div>
                   </td>
                 </tr>
-                <tr><td>Root Free Space:</td><td>
+                <tr><td>Root (<? echo $rootDevice;?>) Free Space:</td><td>
              
     <?
       printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
     ?>
                   </td></tr>
     <?
+if ($mediaDevice != $rootDevice) {
       $diskTotal = disk_total_space($mediaDirectory);
       $diskFree  = disk_free_space($mediaDirectory);
       $percentageUsed = 100-($diskFree * 100 / $diskTotal);
@@ -380,13 +385,13 @@ tr.rowScheduleDetails td {
                   </div>
                   </td>
                 </tr>
-                <tr><td>Media Free Space:</td><td>
+                <tr><td>Media (<? echo $mediaDevice;?>) Free Space:</td><td>
     <?
       printf( "%s (%2.0f%%)\n", getSymbolByQuantity($diskFree), $diskFree * 100 / $diskTotal);
     ?>
                   </td></tr>
-
                 <tr><td></td><td></td></tr>
+    <? } ?>
               </table>
             </div>
         <div class="clear"></div>
