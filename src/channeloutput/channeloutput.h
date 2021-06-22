@@ -72,4 +72,4 @@ void ResetChannelOutputFrameNumber(void);
 void StartOutputThreads(void);
 void StopOutputThreads(void);
 
-const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges();
+const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges(bool precise = true);

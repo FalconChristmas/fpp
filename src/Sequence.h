@@ -67,6 +67,8 @@ class Sequence {
 	void  SingleStepSequence(void);
 	void  SingleStepSequenceBack(void);
 	int   SequenceIsPaused(void);
+
+    bool  hasBridgeData();
     bool  isDataProcessed() const { return m_dataProcessed; }
     void  setDataNotProcessed() { m_dataProcessed = false; }
 
@@ -78,13 +80,24 @@ class Sequence {
 
     
     int  GetSeqStepTime() const { return m_seqStepTime;}
-    void  BlankSequenceData(void);
+    void  BlankSequenceData(bool clearBridge = false);
     
     
-    void SetBridgeData(uint8_t *data, int startChannel, int len);
+    void SetBridgeData(uint8_t *data, int startChannel, int len, uint64_t expireMS);
   private:
     void  SetLastFrameData(FSEQFile::FrameData *data);
-    
+
+
+    class BridgeRangeData {
+    public:
+        BridgeRangeData() : startChannel(0) {}
+        
+        uint32_t startChannel;
+        // map of len -> ms when it expires, in MOST cases, this will be a single len (like 512 for e1.31)
+        std::map<uint32_t, uint64_t> expires;
+    };
+    std::map<uint64_t, BridgeRangeData> m_bridgeRanges;
+    std::mutex   m_bridgeRangesLock;
     uint8_t      *m_bridgeData;
 
 	FSEQFile     *m_seqFile;

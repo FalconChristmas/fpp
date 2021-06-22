@@ -95,6 +95,7 @@ void EnableChannelOutput(void) {
 
 void ForceChannelOutputNow(void) {
     LogDebug(VB_CHANNELOUT, "ForceChannelOutputNow()\n");
+    outputThreadSatusCond.notify_all();
     outputThreadCond.notify_all();
 }
 
@@ -149,7 +150,7 @@ void *RunChannelOutputThread(void *data)
 			RunThread = 0;
 	}
 
-
+    bool doForceOutput = false;
 	while (RunThread) {
 		startTime = GetTime();
 		if ((getFPPmode() == MASTER_MODE) && sequence->IsSequenceRunning()) {
@@ -159,9 +160,9 @@ void *RunChannelOutputThread(void *data)
                     : 1.0 * channelOutputFrame / RefreshRate );
 		}
 
-        bool doForceOutput = forceOutput();
+        doForceOutput |= forceOutput();
         if (OutputFrames) {
-            if (!sequence->isDataProcessed()) {
+            if (!sequence->isDataProcessed() || sequence->hasBridgeData()) {
                 //first time through or immediately after sequence load, the data might not be
                 //processed yet, need to do it
                 int msTime = 1000.0 * channelOutputFrame / RefreshRate;
@@ -183,26 +184,24 @@ void *RunChannelOutputThread(void *data)
 
 		sendTime = GetTime();
 
-        if (getFPPmode() != BRIDGE_MODE) {
-            if (sequence->IsSequenceRunning() || (onceMore >= 1)) {
-                if (FrameSkip && sequence->IsSequenceRunning()) {
-                    sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
-                    FrameSkip = 0;
-                }
-                sequence->ReadSequenceData();
-            }
-            readTime = GetTime();
-            
-            int msTime = 1000.0 * channelOutputFrame / RefreshRate;
-            if (!sequence->IsSequenceRunning()) {
-                msTime = mediaElapsedSeconds * 1000;
-            }
-            sequence->ProcessSequenceData(msTime, 1);
-        } else {
-            sequence->setDataNotProcessed();
-            readTime = GetTime();
-        }
 
+        if (sequence->IsSequenceRunning() || (onceMore >= 1)) {
+            if (FrameSkip && sequence->IsSequenceRunning()) {
+                sequence->SeekSequenceFile(channelOutputFrame + FrameSkip + 1);
+                FrameSkip = 0;
+            }
+            sequence->ReadSequenceData();
+        }
+        readTime = GetTime();
+
+        int msTime = 1000.0 * channelOutputFrame / RefreshRate;
+        if (!sequence->IsSequenceRunning()) {
+            msTime = mediaElapsedSeconds * 1000;
+        }
+        if (!sequence->hasBridgeData()) {
+            //if bridging, we'll have to process later
+            sequence->ProcessSequenceData(msTime, 1);
+        }
 		processTime = GetTime();
         
         long long totalTime = processTime - startTime;
@@ -227,10 +226,7 @@ void *RunChannelOutputThread(void *data)
         }
 
         statusLock.lock();
-		if (sequence->IsSequenceRunning() ||
-			doForceOutput ||
-			(getFPPmode() == BRIDGE_MODE))
-		{
+		if (sequence->IsSequenceRunning() || doForceOutput || sequence->hasBridgeData()) {
             // REMOTE mode keeps looping a few extra times before we blank
             onceMore = (getFPPmode() == REMOTE_MODE) ? 20 : 1;
             int sleepTime = LightDelay - (processTime - startTime);
@@ -270,15 +266,17 @@ void *RunChannelOutputThread(void *data)
             }
 		}
         statusLock.unlock();
-
+        doForceOutput = false;
 		// Calculate how long we need to nanosleep()
 		long dt = (LightDelay - (GetTime() - startTime)) * 1000;
 		if (RunThread && dt > 0) {
             if (outputThreadCond.wait_for(lock, std::chrono::nanoseconds(dt)) == std::cv_status::no_timeout ) {
 				LogDebug(VB_CHANNELOUT, "Forced output\n");
+                doForceOutput = true;
 			}
         }
 	}
+
 	StopOutputThreads();
     statusLock.lock();
     ThreadIsRunning = 0;
@@ -315,11 +313,9 @@ void StartChannelOutputThread(void)
 
 
     DefaultLightDelay = 1000000 / RefreshRate;
-    if (getFPPmode() == BRIDGE_MODE) {
-        int E131BridgingInterval = getSettingInt("E131BridgingInterval");
-        if (E131BridgingInterval) {
-            DefaultLightDelay = E131BridgingInterval * 1000;
-        }
+    int E131BridgingInterval = getSettingInt("E131BridgingInterval");
+    if (E131BridgingInterval) {
+        DefaultLightDelay = E131BridgingInterval * 1000;
     }
 	LightDelay = DefaultLightDelay;
     outputThreadSatusCond.notify_all();

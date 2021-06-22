@@ -33,4 +33,5 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
 void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks);
 void Bridge_Shutdown(void);
 void ResetBytesReceived();
+bool HasBridgeData();
 Json::Value GetE131UniverseBytesReceived();

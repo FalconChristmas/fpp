@@ -2595,15 +2595,22 @@ function updateUniverseEndChannel(row) {
                             "</tr>";
             }
 
-            if (!input) {
-                var ecb = $('#E131Enabled');
-                if ( channelData.enabled == 1) {
-                    ecb.prop('checked', true);
+            var ecb = $('#E131Enabled');
+            if ( channelData.enabled == 1) {
+                ecb.prop('checked', true);
+                if (!input) {
                     $('#outputOffWarning').hide();
+                }
+            } else {
+                ecb.prop('checked', false);
+                if (!input && anyEnabled)
+                    $('#outputOffWarning').show();
+            }
+            if (input) {
+                if (channelData.timeout != null) {
+                    $('#bridgeTimeoutMS').val(channelData.timeout);
                 } else {
-                    ecb.prop('checked', false);
-                    if (anyEnabled)
-                        $('#outputOffWarning').show();
+                    $('#bridgeTimeoutMS').val(1000);
                 }
             }
             $('#tblUniversesBody').html(bodyHTML);
@@ -2821,12 +2828,14 @@ function postUniverseJSON(input) {
 
     var output = {};
     output.type = "universes";
+    output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
     if (!input) {
-        output.enabled = document.getElementById("E131Enabled").checked ? 1 : 0;
+        // output only properties
         output.interface = document.getElementById("selE131interfaces").value;
         output.threaded = document.getElementById("E131ThreadedOutput").checked ? 1 : 0;
     } else {
-        output.enabled = 1;
+        // input only properties
+        output.timeout =  parseInt(document.getElementById("bridgeTimeoutMS").value);
     }
     output.startChannel = 1;
     output.channelCount = -1;
@@ -3131,23 +3140,12 @@ function moveFile(file) {
 
 	function SetupUIForMode(fppMode)
 	{
-		if (fppMode == 1) // Bridge Mode
-		{
-            $("#playerModeInfo").hide();
-			$("#remoteModeInfo").hide();
-			$("#bridgeModeInfo").show();
-		}
-		else if (fppMode == 8) // Remote Mode
-		{
+        if (fppMode == 8) {// Remote Mode
 			$("#playerModeInfo").hide();
 			$("#remoteModeInfo").show();
-			$("#bridgeModeInfo").hide();
-		}
-		else // Player or Master Modes
-		{
+        } else { // Player or Master Modes
 			$("#playerModeInfo").show();
 			$("#remoteModeInfo").hide();
-			$("#bridgeModeInfo").hide();
 		}
         $("body").removeClass('is-loading');
 	}
@@ -3247,16 +3245,15 @@ function updateWarnings(jsonStatus) {
 }
 
 
-    function modeToString(mode) {
-        switch (mode) {
-            case 1: return "Bridge";
-            case 2: return "Player";
-            case 6: return "Master";
-            case 8: return "Remote";
-        }
-
-        return "Unknown Mode";
+function modeToString(mode) {
+    switch (mode) {
+        case 1: return "Bridge";
+        case 2: return "Player";
+        case 6: return "Master";
+        case 8: return "Remote";
     }
+    return "Unknown Mode";
+}
 
 function updateVolumeUI(Volume) {
     $('#volume').html(Volume);
@@ -3266,29 +3263,29 @@ function updateVolumeUI(Volume) {
     SetSpeakerIndicator(Volume);
 }
 
-    var firstStatusLoad = 1;
+var firstStatusLoad = 1;
 
-	function parseStatus(jsonStatus) {
-		var fppStatus = jsonStatus.status;
-		var fppMode = jsonStatus.mode;
-        var status = "Idle";
-        if (jsonStatus.status_name == "testing") {
-            status = "Testing";
-        }
-		if (fppStatus == STATUS_IDLE ||
-			fppStatus == STATUS_PLAYING ||
-            fppStatus == STATUS_PAUSED ||
-			fppStatus == STATUS_STOPPING_GRACEFULLY ||
-			fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
+function parseStatus(jsonStatus) {
+    var fppStatus = jsonStatus.status;
+    var fppMode = jsonStatus.mode;
+    var status = "Idle";
+    if (jsonStatus.status_name == "testing") {
+        status = "Testing";
+    }
+    if (fppStatus == STATUS_IDLE ||
+        fppStatus == STATUS_PLAYING ||
+        fppStatus == STATUS_PAUSED ||
+        fppStatus == STATUS_STOPPING_GRACEFULLY ||
+        fppStatus == STATUS_STOPPING_GRACEFULLY_AFTER_LOOP ) {
 
-			$("#btnDaemonControl").show();
-            $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
-			$('#daemonStatus').html("FPPD is running.");
-		}
+        $("#btnDaemonControl").show();
+        $("#btnDaemonControl").html("<i class='fas fa-fw fa-stop fa-nbsp'></i>Stop FPPD");
+        $('#daemonStatus').html("FPPD is running.");
+    }
 
-        updateVolumeUI(parseInt(jsonStatus.volume));
+    updateVolumeUI(parseInt(jsonStatus.volume));
 
-        AdjustFPPDModeFromStatus(fppMode);
+    AdjustFPPDModeFromStatus(fppMode);
 	if (jsonStatus.hasOwnProperty('MQTT')) {
 	   if (jsonStatus.MQTT.configured) {
               $('#mqttRow').show()
@@ -3302,14 +3299,16 @@ function updateVolumeUI(Volume) {
 	}
 
     updateWarnings(jsonStatus);
-
-        if (fppMode == 1) {
-			// Bridge Mode
-			$('#fppTime').html(jsonStatus.time);
-
-			if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
-				GetUniverseBytesReceived();
-		} else if (fppMode == 8) {
+    if (jsonStatus["bridging"]) {
+        // Bridging
+        $('#fppTime').html(jsonStatus.time);
+        $("#bridgeModeInfo").show();
+        if (firstStatusLoad || $('#e131statsLiveUpdate').is(':checked'))
+            GetUniverseBytesReceived();
+    } else {
+        $("#bridgeModeInfo").hide();
+    }
+        if (fppMode == 8) {
 			// Remote Mode
 			$('#fppTime').html(jsonStatus.time);
 
@@ -4451,21 +4450,15 @@ function AdjustFPPDModeFromStatus(mode) {
     var cur = $("#selFPPDmode").val();
     SetupUIForMode(mode);
     if (mode != cur) {
-        if(mode == 1) // Bridge Mode
-        {
-            $("#selFPPDmode").prop("selectedIndex",3);
-            $("#textFPPDmode").text("Bridge");
-        } else if (mode == 8) { // Remote Mode
+        if (mode == 8) { // Remote Mode
             $("#selFPPDmode").prop("selectedIndex",2);
             $("#textFPPDmode").text("Player (Remote)");
-        } else { // Player or Master modes
-            if (mode == 2) { // Player
-                $("#selFPPDmode").prop("selectedIndex",0);
-                $("#textFPPDmode").text("Player (Standalone)");
-            } else {
-                $("#selFPPDmode").prop("selectedIndex",1);
-                $("#textFPPDmode").text("Player (Master)");
-            }
+        } else if (mode == 2) { // Player
+            $("#selFPPDmode").prop("selectedIndex",0);
+            $("#textFPPDmode").text("Player (Standalone)");
+        } else {
+            $("#selFPPDmode").prop("selectedIndex",1);
+            $("#textFPPDmode").text("Player (Master)");
         }
     }
 }
@@ -4476,9 +4469,7 @@ function GetFPPDmode()
          ).done(function(data) {
             if ("value" in data) {
                 var mode = 0;
-                if (data.value == "bridge") {
-                    mode = 1;
-                } else if (data.value == "player") {
+                if (data.value == "player") {
                     mode = 2;
                 } else if (data.value == "master") {
                     mode = 4;
@@ -4486,21 +4477,15 @@ function GetFPPDmode()
                     mode = 8;
                 }
                 SetupUIForMode(mode);
-                if(mode == 1) // Bridge Mode
-                {
-                    $("#selFPPDmode").prop("selectedIndex",3);
-                    $("#textFPPDmode").text("Bridge");
-                } else if (mode == 8) { // Remote Mode
+                if (mode == 8) { // Remote Mode
                     $("#selFPPDmode").prop("selectedIndex",2);
                     $("#textFPPDmode").text("Player (Remote)");
-                } else { // Player or Master modes
-                    if (mode == 2) { // Player
-                        $("#selFPPDmode").prop("selectedIndex",0);
-                        $("#textFPPDmode").text("Player (Standalone)");
-                    } else {
-                        $("#selFPPDmode").prop("selectedIndex",1);
-                        $("#textFPPDmode").text("Player (Master)");
-                    }
+                } else if (mode == 2) { // Player
+                    $("#selFPPDmode").prop("selectedIndex",0);
+                    $("#textFPPDmode").text("Player (Standalone)");
+                } else {
+                    $("#selFPPDmode").prop("selectedIndex",1);
+                    $("#textFPPDmode").text("Player (Master)");
                 }
             } else {
                 DialogError("Invalid Mode", "Mode API returned unexpected value");

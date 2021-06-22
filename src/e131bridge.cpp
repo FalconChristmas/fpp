@@ -63,8 +63,8 @@ int bridgeSock = -1;
 int ddpSock = -1;
 int artnetSock = -1;
 
-std::time_t last_packet_time = std::time(NULL);
-
+long long last_packet_time = GetTimeMS();
+long long expireOffSet = 1000;  //expire after 1 second
 
 #define MAX_MSG 48
 #define BUFSIZE 1500
@@ -74,7 +74,6 @@ uint8_t buffers[MAX_MSG][BUFSIZE+1];
 struct sockaddr_in inAddress[MAX_MSG];
 
 unsigned int UniverseCache[65536];
-
 
 std::vector<UniverseEntry> InputUniverses;
 int InputUniverseCount;
@@ -92,17 +91,17 @@ static uint32_t e131Errors = 0;
 static uint32_t e131SyncPackets = 0;
 static UniverseEntry unknownUniverse;
 
-
+static bool bridgeDataReceived = false;
 
 
 // prototypes for functions below
-bool Bridge_StoreData(uint8_t *bridgeBuffer);
-bool Bridge_StoreDDPData(uint8_t *bridgeBuffer);
-bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer);
+bool Bridge_StoreData(uint8_t *bridgeBuffer, long long packetTime);
+bool Bridge_StoreDDPData(uint8_t *bridgeBuffer, long long packetTime);
+bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer, long long packetTime);
 bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer);
 int Bridge_GetIndexFromUniverseNumber(int universe);
 void InputUniversesPrint();
-inline void SetBridgeData(uint8_t *data, int startChannel, int len);
+inline void SetBridgeData(uint8_t *data, int startChannel, int len, long long packetTime);
 
 
 static void CreateArtNetSocket() {
@@ -132,7 +131,7 @@ static void CreateArtNetSocket() {
 /*
  *
  */
-void LoadInputUniversesFromFile(void)
+bool LoadInputUniversesFromFile(void)
 {
 	FILE *fp;
 	char buf[512];
@@ -146,13 +145,13 @@ void LoadInputUniversesFromFile(void)
 	if (!FileExists(filename)) {
 		LogErr(VB_E131BRIDGE, "Universe file %s does not exist\n",
 			filename.c_str());
-		return;
+		return false;
 	}
 
 	Json::Value root;
     if (!LoadJsonFromFile(filename, root)) {
 		LogErr(VB_E131BRIDGE, "Error parsing %s\n", filename.c_str());
-		return;
+		return false;
 	}
 
 	Json::Value outputs = root["channelInputs"];
@@ -161,6 +160,7 @@ void LoadInputUniversesFromFile(void)
 	int start = 0;
 	int count = 0;
 
+    bool enabled = false;
 	for (int c = 0; c < outputs.size(); c++) {
 		if (outputs[c]["type"].asString() != "universes")
 			continue;
@@ -168,8 +168,12 @@ void LoadInputUniversesFromFile(void)
 		if (outputs[c]["enabled"].asInt() == 0)
 			continue;
 
-		Json::Value univs = outputs[c]["universes"];
+        if (outputs[c].isMember("timeout")) {
+            expireOffSet = outputs[c]["timeout"].asInt();
+        }
 
+		Json::Value univs = outputs[c]["universes"];
+        enabled = true;
 		for (int i = 0; i < univs.size(); i++) {
 			Json::Value u = univs[i];
 
@@ -209,17 +213,22 @@ void LoadInputUniversesFromFile(void)
 			}
 		}
 	}
+    return enabled;
 }
 
-inline void SetBridgeData(uint8_t *data, int startChannel, int len){
-   last_packet_time = std::time(NULL);
-   sequence->SetBridgeData(data, startChannel, len);
+inline void SetBridgeData(uint8_t *data, int startChannel, int len, long long packetTime){
+    last_packet_time = packetTime;
+    packetTime += expireOffSet;
+    bridgeDataReceived = true;
+    sequence->SetBridgeData(data, startChannel, len, packetTime);
 }
 
 
 double GetSecondsFromInputPacket() {
-   std::time_t ts = std::time(NULL);
-   return difftime(ts, last_packet_time);
+    long long t = GetTimeMS();
+    double dt = t - last_packet_time;
+    dt /= 1000.0f;
+    return dt;
 }
 
 /*
@@ -231,9 +240,10 @@ bool Bridge_ReceiveE131Data(void)
 
     int msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     bool sync = false;
+    long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            sync |= Bridge_StoreData((uint8_t*)buffers[x]);
+            sync |= Bridge_StoreData((uint8_t*)buffers[x], packetTime);
         }
         msgcnt = recvmmsg(bridgeSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -244,9 +254,10 @@ bool Bridge_ReceiveDDPData(void)
     //    LogExcess(VB_E131BRIDGE, "Bridge_ReceiveData()\n");
     int msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
     bool sync = false;
+    long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            sync |= Bridge_StoreDDPData((uint8_t*)buffers[x]);
+            sync |= Bridge_StoreDDPData((uint8_t*)buffers[x], packetTime);
         }
         msgcnt = recvmmsg(ddpSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -255,9 +266,10 @@ bool Bridge_ReceiveDDPData(void)
 bool Bridge_ReceiveArtNetData(void) {
     int msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
     bool sync = false;
+    long long packetTime = GetTimeMS();
     while (msgcnt > 0) {
         for (int x = 0; x < msgcnt; x++) {
-            sync |= Bridge_StoreArtNetData((uint8_t*)buffers[x]);
+            sync |= Bridge_StoreArtNetData((uint8_t*)buffers[x], packetTime);
         }
         msgcnt = recvmmsg(artnetSock, msgs, MAX_MSG, 0, nullptr);
     }
@@ -275,7 +287,7 @@ bool Bridge_ReceiveArtNetTimecodeOnly(void) {
     return sync;
 }
 
-void Bridge_Initialize_Internal()
+bool Bridge_Initialize_Internal()
 {
 	LogExcess(VB_E131BRIDGE, "Bridge_Initialize()\n");
 
@@ -286,6 +298,8 @@ void Bridge_Initialize_Internal()
         iovecs[i].iov_len          = BUFSIZE;
         msgs[i].msg_hdr.msg_iov    = &iovecs[i];
         msgs[i].msg_hdr.msg_iovlen = 1;
+        msgs[i].msg_hdr.msg_namelen = sizeof(struct sockaddr_in);
+        msgs[i].msg_hdr.msg_name = &inAddress[i];
     }
     
 	/* Initialize our Universe Index lookup cache */
@@ -293,7 +307,9 @@ void Bridge_Initialize_Internal()
 		UniverseCache[i] = BRIDGE_INVALID_UNIVERSE_INDEX;
     }
 
-	LoadInputUniversesFromFile();
+	bool enabled = LoadInputUniversesFromFile();
+    bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
+
 	LogInfo(VB_E131BRIDGE, "Universe Count = %d\n",InputUniverseCount);
 	InputUniversesPrint();
     
@@ -305,36 +321,40 @@ void Bridge_Initialize_Internal()
     int i1 = socket(AF_INET, SOCK_DGRAM, 0);
     int i2 = socket(AF_INET, SOCK_DGRAM, 0);
     int i3 = socket(AF_INET, SOCK_DGRAM, 0);
-    
-    ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-    if (ddpSock < 0) {
-        LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
-        exit(1);
-    }
-    memset((char *)&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(DDP_PORT);
-    addrlen = sizeof(addr);
-    // Bind the socket to address/port
-    if (bind(ddpSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
-        exit(1);
+
+    if (enabled || !disableFakeBridges) {
+        ddpSock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+        if (ddpSock < 0) {
+            LogDebug(VB_E131BRIDGE, "e131bridge DDP socket failed: %s", strerror(errno));
+            exit(1);
+        }
+        memset((char *)&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(DDP_PORT);
+        addrlen = sizeof(addr);
+        // Bind the socket to address/port
+        if (bind(ddpSock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+            LogDebug(VB_E131BRIDGE, "e131bridge DDP bind failed: %s", strerror(errno));
+            exit(1);
+        }
     }
 
     bool hasArtNet = false;
     bool hase131 = false;
-    for(int i = 0; i < InputUniverseCount; i++)  {
-        if (InputUniverses[i].type == E131_TYPE_MULTICAST
-            || InputUniverses[i].type == E131_TYPE_UNICAST) {
-            hase131 = true;
-        } else if (InputUniverses[i].type == ARTNET_TYPE_BROADCAST
-                   || InputUniverses[i].type == ARTNET_TYPE_UNICAST) {
-            hasArtNet = true;
+    if (enabled) {
+        for(int i = 0; i < InputUniverseCount; i++)  {
+            if (InputUniverses[i].type == E131_TYPE_MULTICAST
+                || InputUniverses[i].type == E131_TYPE_UNICAST) {
+                hase131 = true;
+            } else if (InputUniverses[i].type == ARTNET_TYPE_BROADCAST
+                       || InputUniverses[i].type == ARTNET_TYPE_UNICAST) {
+                hasArtNet = true;
+            }
         }
     }
     
-    if (hase131) {
+    if (hase131 || !disableFakeBridges) {
         int            UniverseOctet[2];
         struct ip_mreq mreq;
         char           strMulticastGroup[16];
@@ -411,7 +431,7 @@ void Bridge_Initialize_Internal()
         freeifaddrs(interfaces);
     }
     
-    if (hasArtNet) {
+    if (hasArtNet || getSettingInt("ARTNETTimeCodeSync", 0)) {
         CreateArtNetSocket();
     }
     
@@ -420,9 +440,11 @@ void Bridge_Initialize_Internal()
     if (i1 >= 0) close(i1);
     if (i2 >= 0) close(i2);
     if (i3 >= 0) close(i3);
+
+    return enabled;
 }
 
-bool Bridge_StoreData(uint8_t *bridgeBuffer)
+bool Bridge_StoreData(uint8_t *bridgeBuffer, long long packetTime)
 {
     if ((bridgeBuffer[E131_VECTOR_INDEX] == VECTOR_ROOT_E131_DATA) &&
         (bridgeBuffer[E131_START_CODE] == 0x00)) {
@@ -443,8 +465,9 @@ bool Bridge_StoreData(uint8_t *bridgeBuffer)
             InputUniverses[universeIndex].lastSequenceNumber = sn;
             
             SetBridgeData(&bridgeBuffer[E131_HEADER_LENGTH],
-                                    InputUniverses[universeIndex].startAddress-1,
-                                    InputUniverses[universeIndex].size);
+                          InputUniverses[universeIndex].startAddress-1,
+                          InputUniverses[universeIndex].size,
+                          packetTime);
             InputUniverses[universeIndex].bytesReceived += InputUniverses[universeIndex].size;
             InputUniverses[universeIndex].packetsReceived++;
         } else {
@@ -527,7 +550,7 @@ bool Bridge_ProcessArtNetTimeCode(uint8_t *bridgeBuffer)  {
     }
     return false;
 }
-bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
+bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer, long long packetTime)  {
     
     if (bridgeBuffer[0] != 'A' || bridgeBuffer[1] != 'r' || bridgeBuffer[2] != 't' || bridgeBuffer[3] != '-'
         || bridgeBuffer[4] != 'N' || bridgeBuffer[5] != 'e' || bridgeBuffer[6] != 't' || bridgeBuffer[7] != 0
@@ -565,8 +588,9 @@ bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
             InputUniverses[universeIndex].packetsReceived++;
 
             SetBridgeData(&bridgeBuffer[18],
-                                    InputUniverses[universeIndex].startAddress-1,
-                                    std::min(InputUniverses[universeIndex].size, len));
+                          InputUniverses[universeIndex].startAddress-1,
+                          std::min(InputUniverses[universeIndex].size, len),
+                          packetTime);
 
         } else {
             unknownUniverse.packetsReceived++;
@@ -667,7 +691,7 @@ bool Bridge_StoreArtNetData(uint8_t *bridgeBuffer)  {
     }
     return false;
 }
-bool Bridge_StoreDDPData(uint8_t *bridgeBuffer)  {
+bool Bridge_StoreDDPData(uint8_t *bridgeBuffer, long long packetTime)  {
     bool push = false;
     if (bridgeBuffer[3] == 1) {
         ddpPacketsReceived++;
@@ -710,8 +734,9 @@ bool Bridge_StoreDDPData(uint8_t *bridgeBuffer)  {
         
         int offset = tc ? 14 : 10;
         SetBridgeData(&bridgeBuffer[offset],
-                                chan,
-                                len);
+                      chan,
+                      len,
+                      packetTime);
         ddpBytesReceived += len;
     } else {
         printf("Unknown packet: %d \n", (int)bridgeBuffer[3]);
@@ -737,28 +762,6 @@ inline int Bridge_GetIndexFromUniverseNumber(int universe)
 	return val;
 }
 
-
-void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) {
-    Bridge_Initialize_Internal();
-    if (bridgeSock > 0) {
-        std::function<bool(int)> f = [] (int i) {
-            return Bridge_ReceiveE131Data();
-        };
-        callbacks[bridgeSock] = f;
-    }
-    if (ddpSock > 0) {
-        std::function<bool(int)> f = [] (int i) {
-            return Bridge_ReceiveDDPData();
-        };
-        callbacks[ddpSock] = f;
-    }
-    if (artnetSock > 0) {
-        std::function<bool(int)> f = [] (int i) {
-            return Bridge_ReceiveArtNetData();
-        };
-        callbacks[artnetSock] = f;
-    }
-}
 
 void Bridge_Shutdown(void)
 {
@@ -920,65 +923,66 @@ void InputUniversesPrint()
 
 
 
-void AddFakeListener(int port, const std::string &protocol,
-                     std::map<int, std::function<bool(int)>> &callbacks) {
-    int sock = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
-    if (sock < 0) {
-        LogDebug(VB_E131BRIDGE, "e131bridge %s socket failed: %s", protocol.c_str(), strerror(errno));
-        exit(1);
-    }
-    memset((char *)&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
-    addrlen = sizeof(addr);
-    // Bind the socket to address/port
-    if (bind(sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        LogDebug(VB_E131BRIDGE, "e131bridge %s bind failed: %s", protocol.c_str(), strerror(errno));
-        exit(1);
-    }
-    
-    std::function<bool(int)> f = [sock, protocol](int i) {
-        std::map<in_addr_t, std::string> errrors;
-        int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
-        while (msgcnt > 0) {
-            for (int x = 0; x < msgcnt; x++) {
-                struct in_addr i = inAddress[x].sin_addr;
-                in_addr_t at = i.s_addr;
-                if (protocol == "DDP" && buffers[x][3] != 1) {
-                    //non pixel DDP data, possibly a broadcast discovery packet or sync packet or similar
-                    continue;
-                }
-                if (errrors[at] == "") {
-                    std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
-                    LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
-                    WarningHolder::AddWarningTimeout(ne, 30);
-                    errrors[at] = ne;
-                }
+bool AddWarningForProtocol(int sock, const std::string &protocol) {
+    std::map<in_addr_t, std::string> errrors;
+    int msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+    while (msgcnt > 0) {
+        for (int x = 0; x < msgcnt; x++) {
+            struct in_addr i = inAddress[x].sin_addr;
+            in_addr_t at = i.s_addr;
+            if (protocol == "DDP" && buffers[x][3] != 1) {
+                //non pixel DDP data, possibly a broadcast discovery packet or sync packet or similar
+                continue;
             }
-            msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
+            if (errrors[at] == "") {
+                std::string ne = "Received " + protocol + " data from " + inet_ntoa(inAddress[x].sin_addr);
+                LogDebug(VB_E131BRIDGE, "%s\n", ne.c_str());
+                WarningHolder::AddWarningTimeout(ne, 30);
+                errrors[at] = ne;
+            }
         }
-        return false;
-    };
-    callbacks[sock] = f;
-}
-void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) {
-    // prepare the msg receive buffers
-    memset(msgs, 0, sizeof(msgs));
-    for (int i = 0; i < MAX_MSG; i++) {
-        iovecs[i].iov_base         = buffers[i];
-        iovecs[i].iov_len          = BUFSIZE;
-        msgs[i].msg_hdr.msg_iov    = &iovecs[i];
-        msgs[i].msg_hdr.msg_iovlen = 1;
-        msgs[i].msg_hdr.msg_namelen = sizeof(struct sockaddr_in);
-        msgs[i].msg_hdr.msg_name = &inAddress[i];
+        msgcnt = recvmmsg(sock, msgs, MAX_MSG, 0, nullptr);
     }
-    AddFakeListener(DDP_PORT, "DDP", callbacks);
-    AddFakeListener(E131_DEST_PORT, "E1.31", callbacks);
+    return false;
+}
 
-    if (getSettingInt("ARTNETTimeCodeSync", 0)) {
-        CreateArtNetSocket();
-        if (artnetSock > 0) {
+void Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) {
+    bool enabled = Bridge_Initialize_Internal();
+    bool disableFakeBridges = getSettingInt("DisableFakeNetworkBridges");
+    int artnetTC = getSettingInt("ARTNETTimeCodeSync", 0);
+    if (bridgeSock > 0) {
+        if (enabled) {
+            std::function<bool(int)> f = [] (int i) {
+                return Bridge_ReceiveE131Data();
+            };
+            callbacks[bridgeSock] = f;
+        } else if (!disableFakeBridges) {
+            std::function<bool(int)> f = [] (int i) {
+                return AddWarningForProtocol(i, "E1.31");
+            };
+            callbacks[bridgeSock] = f;
+        }
+    }
+    if (ddpSock > 0) {
+        if (enabled) {
+            std::function<bool(int)> f = [] (int i) {
+                return Bridge_ReceiveDDPData();
+            };
+            callbacks[ddpSock] = f;
+        } else if (!disableFakeBridges) {
+            std::function<bool(int)> f = [] (int i) {
+                return AddWarningForProtocol(i, "DDP");
+            };
+            callbacks[ddpSock] = f;
+        }
+    }
+    if (artnetSock > 0) {
+        if (enabled) {
+            std::function<bool(int)> f = [] (int i) {
+                return Bridge_ReceiveArtNetData();
+            };
+            callbacks[artnetSock] = f;
+        } else if (artnetTC) {
             LogDebug(VB_E131BRIDGE, "ArtNet TimeCode Sync Enabled");
             std::function<bool(int)> f = [] (int i) {
                 return Bridge_ReceiveArtNetTimecodeOnly();
@@ -986,4 +990,8 @@ void Fake_Bridge_Initialize(std::map<int, std::function<bool(int)>> &callbacks) 
             callbacks[artnetSock] = f;
         }
     }
+}
+
+bool HasBridgeData() {
+    return bridgeDataReceived;
 }

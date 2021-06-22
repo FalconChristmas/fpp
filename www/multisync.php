@@ -1378,7 +1378,6 @@ function multiActionChanged() {
                         <option value='standaloneMode'>Set to Standalone</option>
                         <option value='masterMode'>Set to Master</option>
                         <option value='remoteMode'>Set to Remote</option>
-                        <option value='bridgeMode'>Set to Bridge</option>
                     </select>
                     <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>
                     <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>

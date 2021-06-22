@@ -59,6 +59,7 @@
                 "LogLevel_Sync"
 	    ]
 	},
+
         "geolocation": {
             "description": "Geographic Location",
             "settings": [
@@ -408,13 +409,6 @@
                 "30s": 30
             }
         },
-        "BridgeInputDelayBeforeBlack": {
-            "name": "BridgeInputDelayBeforeBlack",
-            "gatherStats" : true,
-            "description": "Number of seconds after e1.31 or DDP stops arriving before setting output to black.",
-            "restart": 2,
-            "type": "number"
-        },
         "ClockDate": {
             "name": "ClockDate",
             "description": "Set Date",
@@ -622,15 +616,14 @@
         "fppMode": {
             "name": "fppMode",
             "description": "FPP Player Mode",
-            "tip": "FPP can run in one of several modes including Standalone mode where it operates independently of other FPP systems, Master where it can control other FPP systems, and Remote where it acts as a remote controlled by another Master FPP instance.  FPP can also be set to receive data over the network when running in Bridge mode.",
+            "tip": "FPP can run in one of several modes including Standalone mode where it operates independently of other FPP systems, Master where it can control other FPP systems, and Remote where it acts as a remote controlled by another Master FPP instance.  ",
             "gatherStats" : true,
             "restart": 2,
             "type": "select",
             "options": {
                 "Standalone": "player",
                 "Master": "master",
-                "Remote": "remote",
-                "Bridge": "bridge"
+                "Remote": "remote"
             }
         },
         "ARTNETTimeCodeSync": {

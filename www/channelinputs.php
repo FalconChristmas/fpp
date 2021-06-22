@@ -217,46 +217,38 @@ $(document).ready(function(){
 
 
 		    <form id="frmUniverses">
-
-	
-	
-				<div class="row tablePageHeader">
-					<div class="col-lg">
-
-						<div class="backdrop d-inline-flex">
-	
-								<div class="row">
-									<div class="col-lg-auto">
-										Inputs Count:
-										<input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" />
-										<input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" />
-									</div>
-									<div class="col-lg-auto">
-										Timeout: <input id="txtBridgeInputDelayBeforeBlack" class="default-value" type="number" min="0" max="999" size="3" maxlength="2">
-										<img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
-										<span id="timeout_tip" class="tooltip" style="display: none">If in Bridge Mode and no DDP, E1.31, ArtNet input received within specified number of seconds, blank the output. (Zero to disable.)</span>
-									</div>
-								</div>
-	
-						</div>
-	
-	
-	
-					</div>
-					<div class="col-lg-auto ml-lg-auto">
-						<div class="form-actions">
-						<input name="input" type="hidden" value="1" />
-	
-	
-	
-						<input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
-						<input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
-						<input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
-						</div>
-					</div>
-				</div>
-
-
+                <div class="row tablePageHeader">
+                    <div class="col-md"><h2>E1.31 / ArtNet / DDP Bridge</h2></div>
+                    <div class="col-md-auto ml-lg-auto">
+                        <div class="form-actions">
+                                <input name="input" type="hidden" value="0" />
+                                <input id="btnDeleteUniverses" class="buttons btn-outline-danger" type="button" value = "Delete" onClick="DeleteUniverse(1);" />
+                                <input id="btnCloneUniverses" class="buttons" type="button" value = "Clone" onClick="CloneUniverse();" />
+                                <input id="btnSaveUniverses" class="buttons btn-success ml-1" type="submit" value = "Save" />
+                        </div>
+                    </div>
+                </div>
+                <div class="backdrop tableOptionsForm">
+                    <div class="row">
+                        <div class="col-md-auto">
+                            <div class="backdrop-dark form-inline enableCheckboxWrapper">
+                            <div><b>Enable Bridge:</b></div>
+                                <div> <input type="checkbox" id="E131Enabled"/></div>
+                            </div>
+                        </div>
+                            <div class="col-md-auto form-inline">
+                                <div><b>Timeout:</b></div>
+                                <div ><input id="bridgeTimeoutMS" type="number" min="0" max="9999" size="4" maxlength="4">
+                                        <img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
+                                        <span id="timeout_tip" class="tooltip" style="display: none">Timeout for Bridge data (in MS).  If no new data is received for this time, the bridge data is cleared.</span></div>
+                            </div>
+							<div class="col-md-auto form-inline">
+								<div><b>Inputs Count: </b></div>
+								<div ><input id="txtUniverseCount" class="default-value" type="text" value="Enter Universe Count" size="3" maxlength="3" /></div>
+								<div><input id="btnUniverseCount" onclick="SetUniverseCount(1);" type="button"  class="buttons" value="Set" /></div>
+							</div>
+                    </div>
+                </div>
 
 		
 		    <div class='fppTableWrapper'>

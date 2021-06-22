@@ -430,8 +430,6 @@ int parseArguments(int argc, char **argv)
 			case 'm': //mode
 				if ( strcmp(optarg, "player") == 0 )
 					settings.fppMode = PLAYER_MODE;
-				else if ( strcmp(optarg, "bridge") == 0 )
-					settings.fppMode = BRIDGE_MODE;
 				else if ( strcmp(optarg, "master") == 0 )
 					settings.fppMode = MASTER_MODE;
 				else if ( strcmp(optarg, "remote") == 0 )
@@ -634,11 +632,7 @@ void MainLoop(void)
 			StartChannelOutputThread();
         }
 	}
-    if (getFPPmode() == BRIDGE_MODE) {
-		Bridge_Initialize(callbacks);
-    } else if (!getSettingInt("DisableFakeNetworkBridges")) {
-        Fake_Bridge_Initialize(callbacks);
-    }
+    Bridge_Initialize(callbacks);
 
     APIServer apiServer;
     apiServer.Init();
@@ -702,13 +696,12 @@ void MainLoop(void)
                 pushBridgeData |= callbacks[events[x].data.fd](events[x].data.fd);
             }
         }
-        
 		// Check to see if we need to start up the output thread.
-		if ((getFPPmode() != BRIDGE_MODE) &&
-            (!ChannelOutputThreadIsRunning()) &&
+		if ((!ChannelOutputThreadIsRunning()) &&
             ((PixelOverlayManager::INSTANCE.hasActiveOverlays()) ||
              (ChannelTester::INSTANCE.Testing()) ||
-			 (alwaysTransmit))) {
+			 (alwaysTransmit) ||
+             pushBridgeData)) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 			if (!E131BridgingInterval)
 				E131BridgingInterval = 50;
@@ -760,7 +753,8 @@ void MainLoop(void)
 			if (mediaOutputStatus.status == MEDIAOUTPUTSTATUS_PLAYING) {
 				Player::INSTANCE.ProcessMedia();
 			}
-        } else if (getFPPmode() == BRIDGE_MODE && pushBridgeData) {
+        }
+        if (pushBridgeData) {
             ForceChannelOutputNow();
         }
         bool doPing = false;
@@ -785,16 +779,6 @@ void MainLoop(void)
                 // counting down is less CPU then the time check every cycle
                 publishCounter = 60480; 
                 publishReason = "normal";
-            }
-            
-            if (getFPPmode() == BRIDGE_MODE) {
-                int maxInputDelay= getSettingInt("BridgeInputDelayBeforeBlack");
-                if (maxInputDelay) {
-                    double inputDelay = GetSecondsFromInputPacket();
-                    if (inputDelay > 2.0) {
-                        sequence->BlankSequenceData();
-                    }
-                }
             }
         }
         GPIOManager::INSTANCE.CheckGPIOInputs();

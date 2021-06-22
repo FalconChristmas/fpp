@@ -178,7 +178,8 @@ int SetSetting(const std::string key, const std::string value)
 		if (value == "player")
 			settings.fppMode = PLAYER_MODE;
 		else if (value == "bridge")
-			settings.fppMode = BRIDGE_MODE;
+            // legacy, remap to PLAYER
+			settings.fppMode = PLAYER_MODE;
 		else if (value == "master")
 			settings.fppMode = MASTER_MODE;
 		else if (value == "remote")

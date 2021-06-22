@@ -583,7 +583,7 @@ Json::Value MultiSync::GetSystems(bool localOnly, bool timestamps)
 	Json::Value systems(Json::arrayValue);
     
     
-    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
+    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges(true);
     std::string range = createRanges(ranges, 999999);
 
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
@@ -947,7 +947,7 @@ void MultiSync::Ping(int discover, bool broadcast)
 	}
     
     //update the range for local systems so it's accurate
-    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges();
+    const std::vector<std::pair<uint32_t, uint32_t>> &ranges = GetOutputRanges(true);
     std::string range = createRanges(ranges, 120);
     char outBuf[768];
     

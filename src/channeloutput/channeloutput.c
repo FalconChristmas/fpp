@@ -60,19 +60,21 @@ static int LoadOutputProcessors(void);
 OutputProcessors         outputProcessors;
 
 static std::vector<std::pair<uint32_t, uint32_t>> outputRanges;
+static std::vector<std::pair<uint32_t, uint32_t>> preciseOutputRanges;
 
-const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges() {
+const std::vector<std::pair<uint32_t, uint32_t>> &GetOutputRanges(bool precise) {
     if (outputRanges.empty()) {
         outputRanges.push_back(std::pair<uint32_t, uint32_t>(0, FPPD_MAX_CHANNELS));
+        preciseOutputRanges.push_back(std::pair<uint32_t, uint32_t>(0, FPPD_MAX_CHANNELS));
     }
-    return outputRanges;
+    return precise ? preciseOutputRanges : outputRanges;
 }
 // we'll sort the ranges that the outputs have registered and combine any overlaps
 // or close ranges to keep the range list smaller
-static void sortRanges() {
+static void sortRanges(std::vector<std::pair<uint32_t, uint32_t>> rngs, bool gaps) {
     std::map<uint32_t, uint32_t> ranges;
     //sort
-    for (auto &a : outputRanges) {
+    for (auto &a : rngs) {
         uint32_t cur = ranges[a.first];
         if (cur) {
             ranges[a.first] = std::max(a.second, cur);
@@ -80,14 +82,14 @@ static void sortRanges() {
             ranges[a.first] = a.second;
         }
     }
-    outputRanges.clear();
+    rngs.clear();
     std::pair<uint32_t, uint32_t> cur(FPPD_MAX_CHANNELS, FPPD_MAX_CHANNELS);
     for (auto &a : ranges) {
         if (cur.first == FPPD_MAX_CHANNELS) {
             cur.first = a.first;
             cur.second = a.second;
         } else {
-            if (a.first <= (cur.first + cur.second + 1025)) {
+            if (!gaps && (a.first <= (cur.first + cur.second + 1025))) {
                 // overlap or within 1025 channels of an overlap, need to combine
                 // if the two ranges are "close" (wthin 1025 channels) we'll combine
                 // as the overhead of doing ranges wouldn't benefit with a small gap
@@ -96,32 +98,39 @@ static void sortRanges() {
                 max = std::max(max, amax);
                 cur.second = max - cur.first + 1;
             } else {
-                outputRanges.push_back(cur);
+                rngs.push_back(cur);
                 cur.first = a.first;
                 cur.second = a.second;
             }
         }
     }
     if (cur.first != FPPD_MAX_CHANNELS) {
-        outputRanges.push_back(cur);
+        rngs.push_back(cur);
     }
     
-    if (outputRanges.empty()) {
+    if (rngs.empty()) {
         cur.first = 0;
         cur.second = 8;
-        outputRanges.push_back(cur);
+        rngs.push_back(cur);
     }
 }
 static void addRange(uint32_t min, uint32_t max) {
+    for (auto &r : preciseOutputRanges) {
+        int rm = r.first + r.second - 1;
+        if (min >= r.first && max <= rm) {
+            //within the range, don't add it
+            return;
+        }
+    }
+    preciseOutputRanges.push_back(std::pair<uint32_t, uint32_t>(min, max - min + 1));
+
     // having the reads be aligned to intervals of 8 can help performance so
     // we'll expand the range a bit to align things better
     //round minimum down to interval of 8
-
     min &= 0xFFFFFFF8;
     max += 8;
     max &= 0xFFFFFFF8;
     max -= 1;
-    
     for (auto &r : outputRanges) {
         int rm = r.first + r.second - 1;
         if (min >= r.first && max <= rm) {
@@ -393,8 +402,9 @@ int InitializeChannelOutputs(void) {
         int val = getSettingInt("PresetControlChannel");
         addRange(val, val);
     }
-    sortRanges();
-    for (auto &r : outputRanges) {
+    sortRanges(outputRanges, false);
+    sortRanges(preciseOutputRanges, true);
+    for (auto &r : preciseOutputRanges) {
         LogInfo(VB_CHANNELOUT, "Determined range needed %d - %d\n", r.first, r.first + r.second - 1);
     }
 
@@ -438,7 +448,7 @@ int SendChannelData(const char *channelData) {
 	FPPChannelOutputInstance *inst;
 
 	if (WillLog(LOG_DEBUG, VB_CHANNELDATA)) {
-        	uint32_t minimumNeededChannel = GetOutputRanges()[0].first;
+        	uint32_t minimumNeededChannel = GetOutputRanges(false)[0].first;
         	char buf[128];
         	sprintf(buf, "Channel Data starting at channel %d", minimumNeededChannel);
 		HexDump(buf, &channelData[minimumNeededChannel], 16, VB_CHANNELDATA);

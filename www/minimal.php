@@ -171,8 +171,6 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 			echo "Player (Standalone)";
 		if ($settings['fppMode'] == 'remote')
 			echo "Remote <b>(Not fully supported in minimal UI)</b>";
-		if ($settings['fppMode'] == 'bridge')
-			echo "Bridge <b>(Not fully supported in minimal UI)</b>";
 	}
 ?>
 			</td>

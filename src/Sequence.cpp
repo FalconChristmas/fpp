@@ -419,15 +419,18 @@ int Sequence::IsSequenceRunning(const std::string &filename) {
     return result;
 }
 
-void Sequence::BlankSequenceData(void) {
+void Sequence::BlankSequenceData(bool clearBridge) {
     LogDebug(VB_SEQUENCE, "BlankSequenceData()\n");
     for (auto &a : GetOutputRanges()) {
         memset(&m_seqData[a.first], 0, a.second);
     }
-    if (m_bridgeData) {
+    if (m_bridgeData && clearBridge) {
         for (auto &a : GetOutputRanges()) {
             memset(&m_bridgeData[a.first], 0, a.second);
         }
+        std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
+        printf("Blanking so clearing bridges\n");
+        m_bridgeRanges.clear();
     }
 
     std::unique_lock<std::mutex> lock(frameCacheLock);
@@ -565,12 +568,59 @@ void Sequence::ProcessSequenceData(int ms, int checkControlChannels) {
             m_lastFrameData->readFrame((uint8_t*)m_seqData, FPPD_MAX_CHANNELS);
     }
 
-    if (m_bridgeData) {
+    std::unique_lock<std::mutex> bridgesLock(m_bridgeRangesLock);
+    if (m_bridgeData && !m_bridgeRanges.empty()) {
         // copy the latest bridge data to the sequence data
-        for (auto &a : GetOutputRanges()) {
-            memcpy(&m_seqData[a.first], &m_bridgeData[a.first], a.second);
+        uint64_t nt = GetTimeMS();
+        std::map<uint32_t, uint32_t> rngs;
+        for (auto &a : m_bridgeRanges) {
+            BridgeRangeData &rd = a.second;
+            auto it = rd.expires.begin();
+            uint32_t len = 0;
+            while (it != rd.expires.end()) {
+                if (it->second < nt) {
+                    rd.expires.erase(it);
+                    it = rd.expires.begin();
+                } else {
+                    len = std::max(len, it->first);
+                    ++it;
+                }
+            }
+            if (len > 0) {
+                rngs[rd.startChannel] = len;
+            }
+        }
+        auto it = m_bridgeRanges.begin();
+        while (it != m_bridgeRanges.end()) {
+            if (it->second.expires.empty()) {
+                m_bridgeRanges.erase(it);
+                it = m_bridgeRanges.begin();
+            } else {
+                ++it;
+            }
+        }
+
+        uint32_t curStart = 0xFFFFFFFF;
+        uint32_t nextStart = 0xFFFFFFFF;
+        for (auto &a : rngs) {
+            if (curStart == 0xFFFFFFFF) {
+                curStart = a.first;
+                nextStart = a.first + a.second;
+            } else if (a.first > nextStart) {
+                memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
+                curStart = a.first;
+                nextStart = a.first + a.second;
+            } else if (a.first == nextStart) {
+                nextStart += a.second;
+            } else {
+                nextStart += a.second - (nextStart - a.first);
+            }
+        }
+        if (curStart != 0xFFFFFFFF) {
+            memcpy(&m_seqData[curStart], &m_bridgeData[curStart], nextStart - curStart);
         }
     }
+    bridgesLock.unlock();
     PluginManager::INSTANCE.modifySequenceData(ms, (uint8_t*)m_seqData);
     
     if (IsEffectRunning())
@@ -616,7 +666,7 @@ void Sequence::SendBlankingData(void) {
     if (getFPPmode() == MASTER_MODE)
         multiSync->SendBlankingDataPacket();
 
-    BlankSequenceData();
+    BlankSequenceData(true);
     ProcessSequenceData(0, 0);
     SendSequenceData();
 }
@@ -665,10 +715,22 @@ void Sequence::CloseSequenceFile(void) {
     
 }
 
-void Sequence::SetBridgeData(uint8_t *data, int startChannel, int len) {
+void Sequence::SetBridgeData(uint8_t *data, int startChannel, int len, uint64_t expireMS) {
     if (!m_bridgeData) {
         m_bridgeData = (uint8_t*)calloc(1, FPPD_MAX_CHANNEL_NUM);
     }
     memcpy(&m_bridgeData[startChannel], data, len);
+
+    std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
+    auto &a = m_bridgeRanges[startChannel];
+    a.startChannel = startChannel;
+    a.expires[len] = expireMS;
+    lock.unlock();
+
     setDataNotProcessed();
+}
+
+bool Sequence::hasBridgeData() {
+    std::unique_lock<std::mutex> lock(m_bridgeRangesLock);
+    return !m_bridgeRanges.empty();
 }

@@ -290,24 +290,6 @@ include 'common/menuHead.inc';
                     <div></div>
                 </div>
             </div>
-            <!-- Bridge Mode stats -->
-            <div id="bridgeModeInfo" class="pageContent">
-                <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
-                <table style='width: 100%' class='statusTable'>
-                    <tr>
-                        <td align='left'>
-                            <input type='button' class="buttons" onClick='GetUniverseBytesReceived();' value='Update'>
-                        </td>
-                        <td align='right'>
-    <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
-                        </td>
-                    </tr>
-                </table>
-                <hr>
-                <div id="bridgeStatistics1"></div>
-                <div id="bridgeStatistics2"></div>
-                <div class="clear"></div>
-            </div>
 
             <!-- Remote Mode info -->
             <div id="remoteModeInfo" class='statusDiv pageContent'>
@@ -461,10 +443,25 @@ include 'common/menuHead.inc';
 
                 <div class="verbosePlaylistItemSetting">
                     <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
-        
-
-
                 </div>
+            </div>
+            <!-- Bridge Mode stats -->
+            <div id="bridgeModeInfo" class="pageContent" style="margin-top: 5px;">
+                <H3>E1.31/DDP/ArtNet Packets and Bytes Received</H3>
+                <table style='width: 100%' class='statusTable'>
+                    <tr>
+                        <td align='left'>
+                            <input type='button' class="buttons" onClick='GetUniverseBytesReceived();' value='Update'>
+                        </td>
+                        <td align='right'>
+    <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+                        </td>
+                    </tr>
+                </table>
+                <hr>
+                <div id="bridgeStatistics1"></div>
+                <div id="bridgeStatistics2"></div>
+                <div class="clear"></div>
             </div>
 
     </div>
