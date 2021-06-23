@@ -105,6 +105,7 @@ static inline bool forceOutput() {
         SDLOutput::IsOverlayingVideo() ||
         ChannelTester::INSTANCE.Testing() ||
         alwaysTransmit ||
+        sequence->hasBridgeData() ||
         outputForced;
 }
 
@@ -174,7 +175,7 @@ void *RunChannelOutputThread(void *data)
             if (getFPPmode() == REMOTE_MODE && !doForceOutput) {
                 // Sleep about 1 seconds waiting for the master
                 int loops = 0;
-                while ((MasterFramesPlayed < 0) && (loops < 1000) && !doForceOutput) {
+                while ((MasterFramesPlayed < 0) && (loops < 1000) && !sequence->hasBridgeData()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     loops++;
                 }

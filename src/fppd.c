@@ -700,7 +700,7 @@ void MainLoop(void)
 		if ((!ChannelOutputThreadIsRunning()) &&
             ((PixelOverlayManager::INSTANCE.hasActiveOverlays()) ||
              (ChannelTester::INSTANCE.Testing()) ||
-			 (alwaysTransmit) ||
+             (alwaysTransmit) || sequence->hasBridgeData() ||
              pushBridgeData)) {
 			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
 			if (!E131BridgingInterval)
