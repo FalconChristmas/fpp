@@ -738,6 +738,10 @@ bool Bridge_StoreDDPData(uint8_t *bridgeBuffer, long long packetTime)  {
                       len,
                       packetTime);
         ddpBytesReceived += len;
+    } else if (bridgeBuffer[0] & 0x02 && bridgeBuffer[3] == 250) {
+        printf("Query config packet: %d \n", (int)bridgeBuffer[3]);
+    } else if (bridgeBuffer[0] & 0x02 && bridgeBuffer[3] == 251) {
+        printf("Query status packet: %d \n", (int)bridgeBuffer[3]);
     } else {
         printf("Unknown packet: %d \n", (int)bridgeBuffer[3]);
     }

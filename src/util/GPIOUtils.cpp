@@ -128,6 +128,7 @@ void PinCapabilities::enableOledScreen(int i2cBus, bool enable) {
 //platform specific GPIO drivers
 static const std::set<std::string> PLATFORM_IGNORES {
     "pinctrl-bcm2835", //raspberry pi's
+    "pinctrl-bcm2711", // Pi4
     "raspberrypi-exp-gpio",
     "brcmvirt-gpio",
     "gpio-0-31", //beagles
