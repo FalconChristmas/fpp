@@ -7,7 +7,10 @@ if (!isset($apiDir))
     $wrapped = 0;
     $apiDir = "";
 ?>
-
+<html>
+<head>
+<script type='text/javascript' src='../js/jquery-latest.min.js'></script>
+<script type='text/javascript' src='../js/fpp.js'></script>
 <?
 }
 ?>
@@ -150,7 +153,7 @@ function loadEndpoints() {
             var d = data[tables[t]];
             for (var i = 0; i < d.length; i++) {
                 var methods = Object.keys(d[i].methods);
-                var row = "<tbody class='endpointRow'>";
+                var row = "";
                 var rs = methods.length + 1;
                 if (d[i].endpoint == 'help')
                     rs = methods.length;
@@ -164,9 +167,9 @@ function loadEndpoints() {
                             extraMethodClass = " deprecatedEndpoint"
                         }
                     }
-
+                    row += " class='endpointRow ";
                     if (m == 0) {
-                        row += " class='firstMethod" + extraMethodClass;
+                        row += "firstMethod" + extraMethodClass;
                         if (m == (methods.length - 1)) {
                             row += ' lastMethod';
                         }
@@ -185,9 +188,9 @@ function loadEndpoints() {
 
                         row += '</td>';
                     } else if (m == (methods.length - 1)) {
-                        row += " class='lastMethod" + extraMethodClass + "'>";
+                        row += "lastMethod" + extraMethodClass + "'>";
                     } else {
-                        row += " class='middleMethod" + extraMethodClass +"'>";
+                        row += "middleMethod" + extraMethodClass +"'>";
                     }
                     row += "<td style='text-align: center;'>" + methods[m] + "</td>";
                     row += '<td class="endpointDescription">' + d[i].methods[methods[m]].desc + '</td>';
@@ -222,7 +225,7 @@ function loadEndpoints() {
                     row += "<tr><td colspan=2 style='height: 100%;'><input type='button' class='buttons smallButton' value='Test' onClick='showTestInputs(this);'></td></tr>";
                 }
 
-                row += '</tbody>';
+                row += '';
                 $('#' + tables[t]).append(row);
             }
         }
@@ -336,7 +339,6 @@ pre {
     border-radius: 6px;
     -webkit-border-radius: 6px;
     min-height: 65px;
-    overflow: hidden;
 
    -moz-user-select: -moz-auto;
    -khtml-user-select: auto;
@@ -344,22 +346,24 @@ pre {
    -ms-user-select: auto;
    user-select: auto;
 }
+
 .fppTableWrapper td, .fppTableWrapper th {
     border-color: #E2E2E2;
     border-style:solid;
 }
-
 </style>
 <?
 if (!$wrapped)
 {
 ?>
-
+</head>
+<body>
+<div id='bodyWrapper'>
 <?
 }
 ?>
     <h2>FPP API Endpoints</h2>
-    <b>NOTE: FPPD endpoints are indicated by '<font color='red'>*</font>' and require FPPD to be running or a timeout error will occur</b><br>
+    <b>NOTE: FPPD endpoints are indicated by '<font color='red'>*</font>' and require FPPD to be running or a timeout error will occur</b>
     <div class='fppTableWrapper'>
         <div class='fppTableContents' role="region" aria-labelledby="endpointTable" tabindex="0">
             <table class='endpointTable' id='endpoints' border=1 cellspacing=0 cellpadding=2 width='100%'>
@@ -370,7 +374,7 @@ if (!$wrapped)
         </div>
     </div>
     <h2>FPP Commands</h2>
-<b>NOTE: FPPD Commands are require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/command" endpoint listed above.</b><br>
+<b>NOTE: FPPD Commands are require FPPD to be running or a timeout error will occur.   They can be invoked via the "/api/command" endpoint listed above.</b>
     <div class='fppTableWrapper fppTableWrapperAsTable'>
         <div class='fppTableContents' role="region" aria-labelledby="commandTable" tabindex="0">
             <table class='commandTable' id='commands' border=1 cellspacing=0 cellpadding=2 width='100%'>
@@ -385,7 +389,8 @@ if (!$wrapped)
 if (!$wrapped)
 {
 ?>
-
+</div>
+</body>
 <?
 }
 ?>
