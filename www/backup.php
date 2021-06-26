@@ -1970,7 +1970,7 @@ GetBackupDevices();
 
             var activeTabNumber =
 <?php
-    if (isset($_GET['tab']))
+    if (isset($_GET['tab']) and is_numeric($_GET['tab']))
         print $_GET['tab'];
     else
         print "0";
