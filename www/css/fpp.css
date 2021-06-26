@@ -2410,3 +2410,17 @@ body, #footer{
 	}
 
 }
+
+a.troubleshoot-anchor {
+	display: block;
+    position: relative;
+    top: -20px;
+    visibility: hidden;
+}
+
+@media(min-width:991px){
+	a.troubleshoot-anchor  {
+		top: -50px;
+	}
+
+}

@@ -37,7 +37,7 @@ require_once('troubleshootingCommands.php');
     $hotLinks .= "<li><a href=\"#$header\">$title</a></li>";
     $jsArray[$key] = $title;
   ?>
-          <a name="<? echo $header ?>"><h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3></a>
+          <a class="troubleshoot-anchor" name="<? echo $header ?>">.</a><h3><? echo $title . ':&nbsp;&nbsp;&nbsp;&nbsp;' . $command; ?></h3>
           <pre id="<? echo $key ?>"><i>Loading...</i></pre>
           <hr>
   <?
