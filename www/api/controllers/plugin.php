@@ -41,9 +41,9 @@ function InstallPlugin()
 
 	$pluginInfo = json_decode($pluginInfoJSON, true);
 
-	$plugin = $pluginInfo['repoName'];
+	$plugin = escapeshellcmd($pluginInfo['repoName']);
 	$srcURL = $pluginInfo['srcURL'];
-	$branch = $pluginInfo['branch'];
+	$branch = escapeshellcmd($pluginInfo['branch']);
 	$sha = $pluginInfo['sha'];
 	$infoURL = $pluginInfo['infoURL'];
 

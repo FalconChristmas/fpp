@@ -15,6 +15,12 @@ teeOutput
 
 echo "Installing plugin $1"
 cd ${PLUGINDIR} && $SUDO git clone --single-branch --branch $3 $2 $1
+rc=$?
+if [ $rc -ne 0 ]; then
+	echo "Failed to fetch $1 using $2 -- aborting"
+	exit 1
+fi
+
 if [ "x$4" != "x" ]
 then
 	(cd $1 && $SUDO git reset --hard $4)
