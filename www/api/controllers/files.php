@@ -219,6 +219,14 @@ function MoveFile()
         }
     }
 
+    if (! file_exists($uploadDirectory . "/" . $file)) {
+        $tempFile = sanitizeFilename($file);
+        if (file_exists($uploadDirectory . "/" . $tempFile)) {
+            // was sanitized during upload process
+            $file = $tempFile;
+        }
+    }
+
     $status = "OK";
 
     if (file_exists($uploadDirectory . "/" . $file)) {

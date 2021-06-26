@@ -18,6 +18,7 @@
 //////////////////////////////////////////////////////////////////////////////
 $skipJSsettings = 1; // need this so config doesn't print out JavaScrip arrays
 require_once('config.php');
+require_once('common.php');
 
 $output_dir = $uploadDirectory . "/";
 
@@ -36,7 +37,7 @@ if(isset($_FILES["myfile"]))
 	//If Any browser does not support serializing of multiple files using FormData() 
 	if(!is_array($_FILES["myfile"]["name"])) //single file
 	{
- 	 	$fileName = $_FILES["myfile"]["name"];
+ 	 	$fileName = sanitizeFilename($_FILES["myfile"]["name"]);
  		move_uploaded_file($_FILES["myfile"]["tmp_name"],$output_dir.$fileName);
     	$ret[]= $fileName;
 	}
@@ -45,7 +46,7 @@ if(isset($_FILES["myfile"]))
 	  $fileCount = count($_FILES["myfile"]["name"]);
 	  for($i=0; $i < $fileCount; $i++)
 	  {
-	  	$fileName = $_FILES["myfile"]["name"][$i];
+	  	$fileName = sanitizeFilename($_FILES["myfile"]["name"][$i]);
 		move_uploaded_file($_FILES["myfile"]["tmp_name"][$i],$output_dir.$fileName);
 	  	$ret[]= $fileName;
 	  }

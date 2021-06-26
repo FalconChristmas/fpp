@@ -1824,23 +1824,36 @@ function network_list_interfaces_obj()
 }
 
 // Return array of FPP Only systems
-function getKnownFPPSystems() {
-   $backupHosts = Array();
-   $data = file_get_contents('http://localhost/api/fppd/multiSyncSystems');
-   $arr = json_decode($data, true);
+function getKnownFPPSystems()
+{
+    $backupHosts = array();
+    $data = file_get_contents('http://localhost/api/fppd/multiSyncSystems');
+    $arr = json_decode($data, true);
 
-   if (array_key_exists("systems", $arr)) {
-      foreach ($arr["systems"] as $i) {
-        // FPP Systems are 0x01 to 0x80
-        if ($i["typeId"] >= 1 && $i["typeId"] < 128) {
-            $desc = $i["address"] . " - " . $i["hostname"];
-	    $backupHosts[$desc] = $i["address"];
-         }
-      }
-      ksort($backupHosts);
-   }
-   return $backupHosts;
+    if (array_key_exists("systems", $arr)) {
+        foreach ($arr["systems"] as $i) {
+            // FPP Systems are 0x01 to 0x80
+            if ($i["typeId"] >= 1 && $i["typeId"] < 128) {
+                $desc = $i["address"] . " - " . $i["hostname"];
+                $backupHosts[$desc] = $i["address"];
+            }
+        }
+        ksort($backupHosts);
+    }
+    return $backupHosts;
 }
+
+// Removes dangerious characters from file names
+// Original idea from https://stackoverflow.com/questions/2021624/string-sanitizer-for-filename
+function sanitizeFilename($file)
+{
+    $file = preg_replace("([^\w\s\d\-_~,;\[\]\(\).])", '', $file);
+    // Replace ".." with "." to provent problems
+    $file = preg_replace("([\.]{2,})", '.', $file);
+
+    return $file;
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////
