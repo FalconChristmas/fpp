@@ -13,7 +13,8 @@ if (!isset($_GET['ip'])) {
 $ip = $_GET['ip'];
 
 if(! filter_var($ip, FILTER_VALIDATE_IP)) {
-    echo "$ip is not a valid IP address\n";
+    $clean_ip = htmlspecialchars($ip, ENT_QUOTES, 'UTF-8');
+    echo "$clean_ip is not a valid IP address\n";
     exit(0);
 }
 
