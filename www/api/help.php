@@ -9,6 +9,12 @@ if (!isset($apiDir))
 ?>
 <html>
 <head>
+<link rel="stylesheet" href="../css/fpp.css">
+<style>
+    body {
+        background-color: white;
+    }
+</style>
 <script type='text/javascript' src='../js/jquery-latest.min.js'></script>
 <script type='text/javascript' src='../js/fpp.js'></script>
 <?
@@ -144,9 +150,20 @@ function showTestInputs(item) {
     $(item).parent().html(testInputs);
 }
 
+// Sort endpoints by name. (Becasue there are sort errors in the .json file)
+function sortByEndpoint(a,b) {
+    return a.endpoint.localeCompare(b.endpoint);
+}
+
+function endpointToheader(endpoint) {
+    return endpoint.replace(/[^a-zA-Z0-9]/g, "-");
+}
+
 var endpoints = {};
 function loadEndpoints() {
+    var menuTag = $('#api-list-hot-links ul');
     $.get('<? echo $apiDir; ?>endpoints.json', function(data) {
+        data.endpoints.sort(sortByEndpoint);
         endpoints = data;
         var tables = [ 'endpoints' ];
         for (var t = 0; t < tables.length; t++) {
@@ -157,6 +174,10 @@ function loadEndpoints() {
                 var rs = methods.length + 1;
                 if (d[i].endpoint == 'help')
                     rs = methods.length;
+
+                // Add to main menu
+                var headerId = endpointToheader(d[i].endpoint);
+                menuTag.append('<li><a href="#' + headerId + '">' + d[i].endpoint + '</a></li>');
 
                 var extraMethodClass = "";
                 for (var m = 0; m < methods.length; m++) {
@@ -176,6 +197,7 @@ function loadEndpoints() {
                         row += "'>";
 
                         row += "<td class='endpointName' rowspan=" + rs + ">";
+                        row += '<a class="api-anchor" name="' + headerId + '">.</a>'
 
                         if (d[i].hasOwnProperty('fppd')) {
                             if (d[i].fppd)
@@ -192,7 +214,7 @@ function loadEndpoints() {
                     } else {
                         row += "middleMethod" + extraMethodClass +"'>";
                     }
-                    row += "<td style='text-align: center;'>" + methods[m] + "</td>";
+                    row += "<td class ='endpointMethod'>" + methods[m] + "</td>";
                     row += '<td class="endpointDescription">' + d[i].methods[methods[m]].desc + '</td>';
 
                     var hasInput = 0;
@@ -229,6 +251,9 @@ function loadEndpoints() {
                 $('#' + tables[t]).append(row);
             }
         }
+        // Now data is loaded
+        fixScroll();
+
     });
 }
 
@@ -282,7 +307,26 @@ function loadCommands() {
            $('#commands').append(row);
     });
 }
-          
+
+/*
+ * Anchors are dynamiclly via ajax thus auto scrolling if anchor is in url
+ * will fail.  This will workaround that problem by forcing a scroll 
+ * afterward dynamic content is loaded.
+ */
+function fixScroll() {
+    // Remove the # from the hash, as different browsers may or may not include it
+    var hash = location.hash.replace('#','');
+
+    if(hash != ''){
+        console.log('Scrolling to ' + hash);
+        var elements = document.getElementsByName(hash);
+        console.log(elements.length);
+        if (elements.length > 0) {
+            elements[0].scrollIntoView();
+        }
+   }
+}
+
 $(document).ready(function() {
     loadEndpoints();
     loadCommands();
@@ -364,6 +408,7 @@ if (!$wrapped)
 ?>
     <h2>FPP API Endpoints</h2>
     <b>NOTE: FPPD endpoints are indicated by '<font color='red'>*</font>' and require FPPD to be running or a timeout error will occur</b>
+    <div id="api-list-hot-links"><ul></ul></div>
     <div class='fppTableWrapper'>
         <div class='fppTableContents' role="region" aria-labelledby="endpointTable" tabindex="0">
             <table class='endpointTable' id='endpoints' border=1 cellspacing=0 cellpadding=2 width='100%'>
