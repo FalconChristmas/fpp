@@ -1790,7 +1790,7 @@
             }
         },
         {
-            "endpoint": "/scripts/:scriptName",
+            "endpoint": "scripts/:scriptName",
             "methods": {
                 "GET": {
                     "desc": "View the source code of an already installed script",
@@ -1807,7 +1807,7 @@
             }
         },
         {
-            "endpoint": "/scripts/:scriptName/run",
+            "endpoint": "scripts/:scriptName/run",
             "methods": {
                 "GET": {
                     "desc": "Run a locally installed Script",
