@@ -76,7 +76,7 @@
 #include <sys/socket.h>
 
 #include "ColorLight-5a-75.h"
-
+#include "overlays/PixelOverlay.h"
 
 extern "C" {
     ColorLight5a75Output *createOutputColorLight5a75(unsigned int startChannel,
@@ -390,7 +390,22 @@ int ColorLight5a75Output::Init(Json::Value config)
         msg.msg_hdr.msg_iovlen = 2;
         m_msgs[m] = msg;
     }
-
+    if (PixelOverlayManager::INSTANCE.isAudoCreatePixelOverlayModels()) {
+        std::string dd = "LED Panels";
+        if (config.isMember("description")) {
+            dd = config["description"].asString();
+        }
+        std::string desc = dd;
+        int count = 0;
+        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
+            count++;
+            desc = dd + "-" + std::to_string(count);
+        }
+        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
+                                                     m_startChannel, m_channelCount, 3,
+                                                     "H", m_invertedData ? "BL" : "TL",
+                                                     m_height, 1);
+    }
     return ChannelOutputBase::Init(config);
 }
 

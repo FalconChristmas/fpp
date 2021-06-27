@@ -23,6 +23,7 @@
 #include "BBBMatrix.h"
 
 #include "util/BBBUtils.h"
+#include "overlays/PixelOverlay.h"
 
 extern "C" {
     BBBMatrix *createOutputLEDscapeMatrix(unsigned int startChannel,
@@ -943,6 +944,24 @@ int BBBMatrix::Init(Json::Value config)
     //make sure memory is flushed before command is set to 1
     __asm__ __volatile__("":::"memory");
     m_pruData->command = 1;
+
+
+    if (PixelOverlayManager::INSTANCE.isAudoCreatePixelOverlayModels()) {
+        std::string dd = "LED Panels";
+        if (config.isMember("description")) {
+            dd = config["description"].asString();
+        }
+        std::string desc = dd;
+        int count = 0;
+        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
+            count++;
+            desc = dd + "-" + std::to_string(count);
+        }
+        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
+                                                     m_startChannel, m_channelCount, 3,
+                                                     "H", m_invertedData ? "BL" : "TL",
+                                                     m_height, 1);
+    }
     return ChannelOutputBase::Init(config);
 }
 

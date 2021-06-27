@@ -68,7 +68,7 @@
 #include <sys/socket.h>
 
 #include "Linsn-RV9.h"
-
+#include "overlays/PixelOverlay.h"
 
 extern "C" {
     LinsnRV9Output *createOutputLinsnRV9(unsigned int startChannel,
@@ -352,6 +352,22 @@ int LinsnRV9Output::Init(Json::Value config)
 	// FIXME, this should use the MAC received during discovery
 	SetHostMACs(m_buffer);
 
+    if (PixelOverlayManager::INSTANCE.isAudoCreatePixelOverlayModels()) {
+        std::string dd = "LED Panels";
+        if (config.isMember("description")) {
+            dd = config["description"].asString();
+        }
+        std::string desc = dd;
+        int count = 0;
+        while (PixelOverlayManager::INSTANCE.getModel(desc) != nullptr) {
+            count++;
+            desc = dd + "-" + std::to_string(count);
+        }
+        PixelOverlayManager::INSTANCE.addAutoOverlayModel(desc,
+                                                     m_startChannel, m_channelCount, 3,
+                                                     "H", m_invertedData ? "BL" : "TL",
+                                                     m_height, 1);
+    }
 	return ChannelOutputBase::Init(config);
 }
 
