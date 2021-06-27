@@ -39,14 +39,9 @@ function getFieldsFromEndpoint(url) {
     return fields;
 }
 
-function testEndpoint(method, item) {
-    var url = $(item).closest('.endpointRow').find('.endpoint').html();
-<?
-    if ($wrapped)
-        echo "url = '$apiDir' + url;\n";
-?>
-    var fields = getFieldsFromEndpoint(url);
+function testEndpoint(method, item, url) {
 
+    var fields = getFieldsFromEndpoint(url);
     for (var i = 0; i < fields.length; i++) {
         var value = $(item).closest('.endpointRow').find('.input' + fields[i]).val();
         var regex = new RegExp(':' + fields[i], 'g');
@@ -57,14 +52,14 @@ function testEndpoint(method, item) {
     url = url.replace(/\(\/\)/g, '');      // Replace any empty optional inputs and their slash
     url = url.replace(/[\(\)]/g, '');      // Replace any parenthesis left over from optional inputs
 
-    $(item).closest('.endpointRow').find('.testDataTD').show();
-    $(item).closest('.endpointRow').find('.exampleDataTD').hide();
-
-    var testData = $(item).closest('.endpointRow').find('.testData');
+    var testData = $(item).closest('tr').prev().find('.testDataTD');
+    testData.show();
+    $(item).closest('tr').prev().find('.exampleDataTD').hide();
 
     if (method == 'GET') {
         $.get(url, function(data) {
-            testData.html('<b>GET /api/' + url + '</b><hr>' + getJson(data));
+            console.log
+            testData.html('<b>GET ' + url + '</b><hr>' + getJson(data));
             testData.addClass('preResponse');
         }).fail(function() {
             alert('Error GET-ing ' + url);
@@ -121,12 +116,12 @@ function testEndpoint(method, item) {
 
 function showTestInputs(item) {
     $(item).hide();
-    var methods = $(item).closest('.endpointRow').find('.methods').html().split(',');
+    var methods = $(item).closest('tr').find('.methods').html().split(',');
     $(item).closest('.endpointRow').find('.endpointName').attr('rowspan', methods.length + 1);
 
     var testInputs = "<table border=0 cellpadding=1><tbody style='border: 0px;'>";
 
-    var url = '/api/' + $(item).closest('.endpointRow').find('.endpoint').html();
+    var url = '/api/' + $(item).closest('tr').find('.hiddenEndpoint').html();
     var fields = [];
     url.replace(/:[-_a-zA-Z0-9]*/g, function(match) {
         match = match.replace(/:/, '');
@@ -144,7 +139,8 @@ function showTestInputs(item) {
     testInputs += '</tbody></table>';
 
     for (var m = 0; m < methods.length; m++) {
-        testInputs += "<input type='button' class='buttons' value='" + methods[m] + "' onClick='testEndpoint(\"" + methods[m] + "\", this);'>&nbsp;&nbsp;";
+        testInputs += "<input type='button' class='buttons' value='" + methods[m] + "' onClick='testEndpoint(\"" + methods[m] + "\", this, ";
+        testInputs += "\"" + url + "\");'>&nbsp;&nbsp;";        
     }
 
     $(item).parent().html(testInputs);
@@ -168,6 +164,8 @@ function loadEndpoints() {
         var tables = [ 'endpoints' ];
         for (var t = 0; t < tables.length; t++) {
             var d = data[tables[t]];
+            var hiddenMethods = "";
+            var hiddenEndpoint = "";
             for (var i = 0; i < d.length; i++) {
                 var methods = Object.keys(d[i].methods);
                 var row = "";
@@ -178,6 +176,7 @@ function loadEndpoints() {
                 // Add to main menu
                 var headerId = endpointToheader(d[i].endpoint);
                 menuTag.append('<li><a href="#' + headerId + '">' + d[i].endpoint + '</a></li>');
+                hiddenEndpoint = d[i].endpoint;
 
                 var extraMethodClass = "";
                 for (var m = 0; m < methods.length; m++) {
@@ -206,7 +205,8 @@ function loadEndpoints() {
 
                         row += "/api/" + d[i].endpoint;
 
-                        row += "<span class='methods' style='display: none;'>" + methods.join(',') + "</span>";
+                        hiddenMethods =  "<span class='methods' style='display: none;'>" + methods.join(',') + "</span>";
+                        hiddenMethods += "<span class='hiddenEndpoint' style='display: none;'>" + hiddenEndpoint + "</span>";
 
                         row += '</td>';
                     } else if (m == (methods.length - 1)) {
@@ -235,16 +235,18 @@ function loadEndpoints() {
                     }
                     row += '</td>';
 
-                    if (m == 0) {
+                    //if (m == 0) {
                         row += "<td class='testDataTD' style='display: none;' rowspan=" + rs + "><pre class='testData'></pre></td>";
-                    }
+                    //}
 
                     row += "<td style='display: none;' class='endpoint'>" + d[i].endpoint + "</td>";
                     row += '</tr>';
                 }
 
                 if (d[i].endpoint != 'help') {
-                    row += "<tr><td colspan=2 style='height: 100%;'><input type='button' class='buttons smallButton' value='Test' onClick='showTestInputs(this);'></td></tr>";
+                    row += "<tr><td colspan=2 style='height: 100%;'>";
+                    row += hiddenMethods;
+                    row += "<input type='button' class='buttons smallButton' value='Test' onClick='showTestInputs(this);'></td></tr>";
                 }
 
                 row += '';
