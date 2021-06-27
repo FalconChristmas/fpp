@@ -54,6 +54,24 @@ require_once('troubleshootingCommands.php');
 
 <script type="application/javascript">
 
+/*
+ * Anchors are dynamiclly via ajax thus auto scrolling if anchor is in url
+ * will fail.  This will workaround that problem by forcing a scroll 
+ * afterward dynamic content is loaded.
+ */
+function fixScroll() {
+    // Remove the # from the hash, as different browsers may or may not include it
+    var hash = location.hash.replace('#','');
+
+    if(hash != ''){
+        var elements = document.getElementsByName(hash);
+        if (elements.length > 0) {
+            elements[0].scrollIntoView();
+        }
+   }
+}
+
+
 $( document ).ready(function() {
 
   document.querySelector("#troubleshooting-hot-links").innerHTML = '<?php echo $hotLinks ?>';
@@ -68,6 +86,7 @@ $( document ).ready(function() {
             type: 'GET',
             success: function(data) {
                 document.querySelector("#<?php echo $key ?>").innerHTML = data;
+                fixScroll();
             },
             error: function() {
                 DialogError('Failed to query comand', "Error: Unable to query for <?php echo $command ?>");

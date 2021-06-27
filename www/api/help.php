@@ -318,9 +318,7 @@ function fixScroll() {
     var hash = location.hash.replace('#','');
 
     if(hash != ''){
-        console.log('Scrolling to ' + hash);
         var elements = document.getElementsByName(hash);
-        console.log(elements.length);
         if (elements.length > 0) {
             elements[0].scrollIntoView();
         }
