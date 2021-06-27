@@ -29,7 +29,13 @@ require_once("common.php");
 
 function UpdateLink(row) {
     var val = document.getElementById('ipRow' + row).value;
-    document.getElementById('linkRow' + row).innerHTML = "<a href='proxy/" + val + "'>" + val + "</a>";
+    var proxyLink = "";
+    if (! (isValidHostname(val)  || isValidIpAddress(val) ) ) {
+        proxyLink = "Must be either valid IP address or Valid Hostname"
+    } else {
+        proxyLink = "<a href='proxy/" + val + "'>" + val + "</a>";
+    }
+    document.getElementById('linkRow' + row).innerHTML = proxyLink;
 }
 
 function AddNewProxy() {
@@ -54,7 +60,7 @@ function AddProxyForHost(host) {
 }
 
 function RenumberColumns(tableName) {
-	var id = 1;
+	var id = 1; 
 	$('#' + tableName + ' tbody tr').each(function() {
 		$this = $(this);
 		$this.find("td:first").html(id);
@@ -73,11 +79,21 @@ function DeleteSelectedProxy() {
 function SetProxies() {
     var formStr = "<form action='proxies.php' method='post' id='proxyForm'>";
     var currentRows = $("#proxyTable > tbody > tr").length
-    for (row = 0; row < currentRows; row++) {
-        var val = document.getElementById('ipRow' + row).value;
-        formStr += "<input type='hidden' name='ip" + row + "' value='" + val + "'/>";
-    }
+    var row=0;
+
+    $("input[id^=ipRow]").each(function() {
+        var val = $(this).val();
+        if (! (isValidHostname(val)  || isValidIpAddress(val) ) ) {
+            var msg = "Skipping valid link: " + val;
+            $.jGrowl(msg,{themeState:'danger'});
+        } else {
+            formStr += "<input type='hidden' name='ip" + row + "' value='" + val + "'/>";
+            ++row;
+        }
+    });
+
     formStr += "</form>";
+    console.log(formStr);
     var form = $(formStr);
     $('body').append(form);
     form.submit();
