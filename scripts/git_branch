@@ -15,6 +15,12 @@ teeOutput
 
 echo "$0 running to switch branches to $1"
 
+CNT=`cd ${FPPDIR} && git show-ref | grep "refs/remotes/origin" | grep -i $1 | wc -l`
+if [ $CNT -eq 0 ]; then
+	echo "Invalid Branch Name: $1"
+	exit 1
+fi
+
 echo "Stopping fppd"
 ${SUDO} ${FPPDIR}/scripts/fppd_stop
 
