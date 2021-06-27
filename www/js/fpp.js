@@ -1761,7 +1761,7 @@ function AddPlaylistEntry(mode) {
             }
             pe[a.name] = arr;
         } else if ((a.type == 'string') || (a.type == 'file')) {
-            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).val();
+            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).val().replace(/<\/?[^>]+(>|$)/g, "");
         } else {
             pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).html();
         }
