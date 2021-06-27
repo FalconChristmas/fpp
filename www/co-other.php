@@ -124,8 +124,6 @@ function VirtualMatrixScalingSelect(scaling) {
     return result;
 }
 function VirtualMatrixConfig(config) {
-	var result = "";
-    
     if (config.xoff == null) {
         config.xoff = 0;
     }
@@ -133,15 +131,17 @@ function VirtualMatrixConfig(config) {
         config.yoff = 0;
     }
 
-	result += " Width:&nbsp;<input type='text' size='3' maxlength='3' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
-				" Height:&nbsp;<input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
+    var vmDesc = config.description == null ? "VirtualMatrix" : config.description;
+    var result = "Description:&nbsp;<input type='text' value='" + vmDesc + "' size='30' maxlength='50'/><br>";
+	result += "Width:&nbsp;<input type='text' size='3' maxlength='3' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
+				"&nbsp;Height:&nbsp;<input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
 
 	result += VirtualMatrixColorOrderSelect(config.colorOrder);
-	result += " Invert:&nbsp;<input type=checkbox class='invert'";
+	result += "<br>Invert:&nbsp;<input type=checkbox class='invert'";
 	if (config.invert)
 		result += " checked='checked'";
-	result += ">";
-	result += DeviceSelect(FBDevices, config.device);
+	result += ">&nbsp;";
+	result += DeviceSelect(FBDevices, config.device) + "&nbsp;";
     result += VirtualMatrixScalingSelect(config.scaling);
     
     result += "<br><span class='VirtualMatrixOffset' id='VirtualMatrixOffset' ";
@@ -167,6 +167,7 @@ function NewVirtualMatrixConfig() {
     config.scaling = "Hardware";
     config.xoff = 0;
     config.yoff = 0;
+    config.description = "";
 
 	return VirtualMatrixConfig(config);
 }
@@ -209,6 +210,7 @@ function GetVirtualMatrixOutputConfig(result, cell) {
     result.scaling = scaling;
     result.xoff = parseInt($cell.find("input.xoff").val());
     result.yoff = parseInt($cell.find("input.yoff").val());
+    result.description = $cell.find("input.description").val();
 
 	return result;
 }

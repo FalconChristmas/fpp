@@ -535,13 +535,13 @@ int main(int argc, char *argv[])
 	PluginManager::INSTANCE.init();
 
     InitMediaOutput();
-	InitializeChannelOutputs();
-
-	if (!getSettingInt("restarted"))
-		sequence->SendBlankingData();
-
-	InitEffects();
     PixelOverlayManager::INSTANCE.Initialize();
+    InitializeChannelOutputs();
+
+    if (!getSettingInt("restarted"))
+        sequence->SendBlankingData();
+    InitEffects();
+
 
     WriteRuntimeInfoFile(multiSync->GetSystems(true, false));
 

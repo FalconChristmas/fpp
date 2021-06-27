@@ -57,10 +57,18 @@ function GetStartingCornerInput(currentValue) {
 
 	return str;
 }
-
+function PopulatePixelOverlaySettings(data) {
+    if (data != null) {
+        $("#AutoCreatePixelOverlays").prop('checked', data["autoCreate"]);
+    }
+}
 function PopulateChannelMemMapTable(data) {
 	$('#channelMemMaps tbody').html("");
-    
+    $('#channelMemMapsAutoCreate tbody').html("");
+    if (data == null) {
+        return;
+    }
+
 	for (var i = 0; i < data.length; i++) {
         var ChannelCountPerNode = data[i].ChannelCountPerNode;
         if (ChannelCountPerNode == undefined) {
@@ -85,7 +93,11 @@ function PopulateChannelMemMapTable(data) {
         if (data[i].effectRunning) {
             postr += data[i].effectName;
         }
-		$('#channelMemMaps tbody').append(postr + "</td></tr>");
+        if (data[i].autoCreated) {
+            $('#channelMemMapsAutoCreate tbody').append(postr + "</td></tr>");
+        } else {
+            $('#channelMemMaps tbody').append(postr + "</td></tr>");
+        }
 	}
 }
 
@@ -95,6 +107,10 @@ function GetChannelMemMaps() {
 	}).fail(function() {
 		DialogError("Load Pixel Overlay Models", "Load Failed, is fppd running?");
 	});
+    $.get("api/overlays/settings", function(data) {
+        PopulatePixelOverlaySettings(data);
+    }).fail(function() {
+    });
 }
 
 function SetChannelMemMaps() {
@@ -145,6 +161,7 @@ function SetChannelMemMaps() {
 		return;
 
 	data.models = models;
+    data.autoCreate = $("#AutoCreatePixelOverlays").is(':checked');
 	postData = JSON.stringify(data, null, 2);
 
 	$.post("api/models", postData).done(function(data) {
@@ -215,6 +232,7 @@ $(document).tooltip();
 				<div class="row tablePageHeader">
 					<div class="col-md">
 						<h2>Pixel Overlay Models</h2>
+                        Create Overlays Automatically From Outputs: <input id="AutoCreatePixelOverlays" type="checkbox" checked/>
 					</div>
 					<div class="col-md-auto ml-lg-auto">
 						<div class="form-actions">
@@ -230,6 +248,34 @@ $(document).tooltip();
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
                         <table id="channelMemMaps" class="fppSelectableRowTable">
+                            <thead>
+                                <tr>
+									<th class="tblChannelMemMapsHeadGrip"></th>
+                                    <th title='Name of Model'>Model Name</th>
+                                    <th title='Start Channel'>Start Ch.</th>
+                                    <th title='Channel Count'>Ch. Count</th>
+                                    <th title='Chan Per Node'>Ch./Node</th>
+                                    <th title='String Orientation'>Orientation</th>
+                                    <th title='Starting Corner'>Start Corner</th>
+                                    <th title='Number of Strings'>Strings</th>
+                                    <th title='Number of Strands Per String'>Strands</th>
+                                    <th title='Running Effect'>Running Effect</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+				</div>
+
+                <div class="row tablePageHeader">
+                    <div class="col-md">
+                        <h2>Auto Created Pixel Overlay Models</h2>
+                    </div>
+                </div>
+				<div class='fppTableWrapper fppTableWrapperAsTable'>
+                    <div class='fppTableContents' role="region" aria-labelledby="channelMemMapsAutoCreate" tabindex="0">
+                        <table id="channelMemMapsAutoCreate" class="fppSelectableRowTable">
                             <thead>
                                 <tr>
 									<th class="tblChannelMemMapsHeadGrip"></th>

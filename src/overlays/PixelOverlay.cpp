@@ -129,6 +129,9 @@ void PixelOverlayManager::loadModelMap() {
             return;
         }
 
+        if (root.isMember("autoCreate")) {
+            autoCreate = root["autoCreate"].asBool();
+        }
         const Json::Value models = root["models"];
         for (int c = 0; c < models.size(); c++) {
             PixelOverlayModel *pmodel = new PixelOverlayModel(models[c]);
@@ -384,6 +387,8 @@ const std::shared_ptr<httpserver::http_response> PixelOverlayManager::render_GET
             for (auto & a : fonts) {
                 result.append(a.first);
             }
+        } else if (p2 == "settings") {
+            result["autoCreate"] = autoCreate;
         } else if (p2 == "models") {
             std::unique_lock<std::mutex> lock(modelsLock);
             for (auto & mn : modelNames) {
@@ -859,6 +864,32 @@ void PixelOverlayManager::RegisterCommands() {
     CommandManager::INSTANCE.addCommand(new TextOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new ClearOverlayCommand(this));
     CommandManager::INSTANCE.addCommand(new ApplyEffectOverlayCommand(this));
+}
+
+void PixelOverlayManager::addAutoOverlayModel(const std::string &name,
+                                              uint32_t startChannel, uint32_t channelCount, uint32_t channelPerNode,
+                                              const std::string &orientation, const std::string &startLocation,
+                                              uint32_t strings, uint32_t strands) {
+    bool wasEmpty = models.empty();
+
+    Json::Value val;
+    val["Name"] = name;
+    val["StartChannel"] = startChannel + 1;
+    val["ChannelCount"] = channelCount;
+    val["StringCount"] = strings;
+    val["StrandsPerString"] = strands;
+    val["Orientation"] = orientation;
+    val["StartCorner"] = startLocation;
+    val["ChannelCountPerNode"] = channelPerNode;
+    val["autoCreated"] = true;
+
+    PixelOverlayModel *pmodel = new PixelOverlayModel(val);
+    this->models[pmodel->getName()] = pmodel;
+    this->modelNames.push_back(pmodel->getName());
+
+    if (wasEmpty) {
+        RegisterCommands();
+    }
 }
 
 void PixelOverlayManager::doOverlayModelEffects() {

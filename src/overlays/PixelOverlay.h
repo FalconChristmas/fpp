@@ -44,6 +44,14 @@ public:
     PixelOverlayModel* getModel(const std::string &name);
     
     void Initialize();
+
+    bool isAudoCreatePixelOverlayModels() const {
+        return autoCreate;
+    }
+    void addAutoOverlayModel(const std::string &name,
+                             uint32_t startChannel, uint32_t channelCount, uint32_t channelsPerNode,
+                             const std::string &orientation, const std::string &startLocation,
+                             uint32_t strings, uint32_t strands);
     
     const std::string &mapFont(const std::string &f);
     static uint32_t mapColor(const std::string &c);
@@ -64,7 +72,6 @@ private:
     std::mutex activeModelsLock;
 
     
-    
     std::map<std::string, PixelOverlayModel*> models;
     std::list<std::string> modelNames;
     std::map<std::string, std::string> fonts;
@@ -80,6 +87,8 @@ private:
     std::list<PixelOverlayModel*> afterOverlayModels;
         
     void loadFonts();
+
+    bool autoCreate = true;
     
     friend class OverlayCommand;
 };
