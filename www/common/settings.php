@@ -57,6 +57,8 @@ function RestartNTPD()
     exec("sudo service ntp restart");
 }
 
+// Although the setting is removed, this is still used by 
+// scripts/handle_boot_actions
 function SetNTP($value)
 {
     if ($value == "1"){
@@ -70,16 +72,14 @@ function SetNTP($value)
 
 function SetNTPServer($value)
 {
-    $ntp = ReadSettingFromFile('ntp');
-
     if ($value != '') {
         exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver $value iburst/' /etc/ntp.conf");
     } else {
         exec("sudo sed -i '/^server.*/d' /etc/ntp.conf ; sudo sed -i '\$s/\$/\\nserver 0.debian.pool.ntp.org iburst\\nserver 1.debian.pool.ntp.org iburst\\nserver 2.debian.pool.ntp.org iburst\\nserver 3.debian.pool.ntp.org iburst\\n/' /etc/ntp.conf");
     }
 
-    if ($ntp == "1")
-        RestartNTPD();
+    // Note: Assume NTP is always enabled now.
+    RestartNTPD();
 }
 
 function SetupHtaccess($enablePW)
@@ -197,7 +197,7 @@ function ApplySetting($setting, $value) {
     switch ($setting) {
         case 'ClockDate':       SetDate($value);              break;
         case 'ClockTime':       SetTime($value);              break;
-        case 'ntp':             SetNTP($value);               break;
+        case 'ntp':             SetNTP($value);               break; // Still used by handle_boot_actions
         case 'ntpServer':       SetNTPServer($value);         break;
         case 'passwordEnable':  EnableUIPassword($value);     break;
         case 'password':        SetUIPassword($value);        break;

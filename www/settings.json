@@ -174,7 +174,6 @@
                 "ClockDate",
                 "ClockTime",
                 "piRTC",
-                "ntp",
                 "ntpServer",
                 "TimeZone"
             ]
@@ -1250,23 +1249,10 @@
             "tip": "Auto refresh status of FPP Systems.  The Simple View refreshes every second and Advanced View refreshes every 5 seconds.",
             "type": "checkbox"
         },
-        "ntp": {
-            "name": "ntp",
-            "description": "Enable NTP",
-            "gatherStats" : true,
-            "tip": "Enable the NTP client to allow this system to sync time with a NTP server elsewhere.",
-            "type": "checkbox",
-            "reboot": 1,
-            "children": {
-                "1": [
-                    "ntpServer"
-                ]
-            }
-        },
         "ntpServer": {
             "name": "ntpServer",
             "description": "NTP Server",
-            "tip": "Optional NTP Server to use to sync time.",
+            "tip": "NTP Server to use to sync time. Debian Pool will be used if not set.",
             "type": "text",
             "size": 30,
             "maxlength": 64
