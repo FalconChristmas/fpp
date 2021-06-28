@@ -41,9 +41,13 @@ function getFieldsFromEndpoint(url) {
 
 function testEndpoint(method, item, url) {
 
+    // This is the tr that holds the "Test" button as well as the one
+    // that eventually get the input table and POST/GET/PUSh buttons
+    var parentTr = $(item).closest('tr');
     var fields = getFieldsFromEndpoint(url);
+
     for (var i = 0; i < fields.length; i++) {
-        var value = $(item).closest('.endpointRow').find('.input' + fields[i]).val();
+        var value = parentTr.find('.input' + fields[i]).val();
         var regex = new RegExp(':' + fields[i], 'g');
         url = url.replace(regex, value);
     }
@@ -52,9 +56,9 @@ function testEndpoint(method, item, url) {
     url = url.replace(/\(\/\)/g, '');      // Replace any empty optional inputs and their slash
     url = url.replace(/[\(\)]/g, '');      // Replace any parenthesis left over from optional inputs
 
-    var testData = $(item).closest('tr').prev().find('.testDataTD');
+    var testData = parentTr.prev().find('.testDataTD');
     testData.show();
-    $(item).closest('tr').prev().find('.exampleDataTD').hide();
+    parentTr.prev().find('.exampleDataTD').hide();
 
     if (method == 'GET') {
         $.get(url, function(data) {
@@ -65,7 +69,7 @@ function testEndpoint(method, item, url) {
             alert('Error GET-ing ' + url);
         });
     } else if (method == 'POST') {
-        var postData = $(item).closest('.endpointRow').find('.inputPostData').val();
+        var postData = parentTr.find('.inputPostData').val();
         $.ajax({
             url: url,
             method: 'POST',
@@ -74,7 +78,7 @@ function testEndpoint(method, item, url) {
             dataType: 'json',
             data: postData,
             success: function(data) {
-                testData.html('<b>POST /api/' + url + '</b><br>' + postData + '<hr>' + getJson(data));
+                testData.html('<b>POST ' + url + '</b><br>' + postData + '<hr>' + getJson(data));
                 testData.addClass('preResponse');
             },
             error: function() {
@@ -82,7 +86,7 @@ function testEndpoint(method, item, url) {
             }
         });
     } else if (method == 'PUT') {
-        var putData = $(item).closest('.endpointRow').find('.inputPostData').val();
+        var putData = parentTr.find('.inputPostData').val();
         $.ajax({
             url: url,
             method: 'PUT',
@@ -91,7 +95,7 @@ function testEndpoint(method, item, url) {
             dataType: 'json',
             data: putData,
             success: function(data) {
-                testData.html('<b>PUT /api/' + url + '</b><br>' + putData + '<hr>' + getJson(data));
+                testData.html('<b>PUT ' + url + '</b><br>' + putData + '<hr>' + getJson(data));
                 testData.addClass('preResponse');
             },
             error: function() {
@@ -104,7 +108,7 @@ function testEndpoint(method, item, url) {
             method: 'DELETE',
             async: false,
             success: function(data) {
-                testData.html('<b>DELETE /api/' + url + '</b><hr>' + getJson(data));
+                testData.html('<b>DELETE ' + url + '</b><hr>' + getJson(data));
                 testData.addClass('preResponse');
             },
             error: function() {
@@ -235,9 +239,7 @@ function loadEndpoints() {
                     }
                     row += '</td>';
 
-                    //if (m == 0) {
-                        row += "<td class='testDataTD' style='display: none;' rowspan=" + rs + "><pre class='testData'></pre></td>";
-                    //}
+                    row += "<td class='testDataTD' style='display: none;' rowspan= 2><pre class='testData'></pre></td>";
 
                     row += "<td style='display: none;' class='endpoint'>" + d[i].endpoint + "</td>";
                     row += '</tr>';
