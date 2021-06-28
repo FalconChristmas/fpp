@@ -8,7 +8,7 @@ require_once("common.php");
 <?php include 'common/menuHead.inc'; ?>
 <script language="Javascript">
 
-function GetOrientationInput(currentValue) {
+function GetOrientationInput(currentValue, attr) {
 
 	var options = {
 		horizontal: "Horizontal",
@@ -19,6 +19,7 @@ function GetOrientationInput(currentValue) {
         str = "<b>Custom</b>";
     }
 	str += "<select class='orientation'";
+    str += attr;
     if (currentValue == "custom") {
         str += " style='visibility: hidden;'><option value='custom' selected>Custom</option";
     }
@@ -36,14 +37,14 @@ function GetOrientationInput(currentValue) {
 	return str;
 }
 
-function GetStartingCornerInput(currentValue) {
+function GetStartingCornerInput(currentValue, attr) {
 	var options = {
 		TL: "Top Left",
 		TR: "Top Right",
 		BL: "Bottom Left",
 		BR: "Bottom Right"
 		};
-	var str = "<select class='corner'>";
+	var str = "<select class='corner'" + attr + ">";
 
 	for (var key in options) {
 		str += "<option value='" + key + "'";
@@ -77,21 +78,23 @@ function PopulateChannelMemMapTable(data) {
 		postr = "<tr id='row'" + i + " class='fppTableRow'>" +
 			"<td class='center' valign='middle'>";
 
+        var attr = " ";
         if (data[i].autoCreated) {
-            postr += ""
+            postr += "";
+            attr = " disabled";
         } else {
-            postr += "<div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div>"
+            postr += "<div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div>";
         }
 
-        postr += "</td><td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'></td>" +
-			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
-            "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
-            "<td><input class='cpn' type='number' min='1' max='4' value='" + ChannelCountPerNode + "'></td>" +
-            "<td>" + GetOrientationInput(data[i].Orientation) + "</td>";
+        postr += "</td><td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'" + attr + "></td>" +
+			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'" + attr + "></td>" +
+            "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'" + attr + "></td>" +
+            "<td><input class='cpn' type='number' min='1' max='4' value='" + ChannelCountPerNode + "'" + attr + "></td>" +
+            "<td>" + GetOrientationInput(data[i].Orientation, attr) + "</td>";
         if (data[i].Orientation != "custom") {
-            postr += "<td>" + GetStartingCornerInput(data[i].StartCorner) + "</td>" +
-		    "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'></td>" +
-            "<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'></td><td>";
+            postr += "<td>" + GetStartingCornerInput(data[i].StartCorner, attr) + "</td>" +
+		    "<td><input class='strcnt' type='text' size='3' maxlength='3' value='" + data[i].StringCount + "'" + attr + "></td>" +
+            "<td><input class='strands' type='text' size='2' maxlength='2' value='" + data[i].StrandsPerString + "'" + attr + "></td><td>";
         } else {
             postr += "<td><input class='corner' type='hidden' value='" + data[i].StartCorner + "'><input class='data' type='hidden' value='" + data[i].data + "'></td>" +
                 "<td><input class='strcnt' type='hidden' value='" + data[i].StringCount + "'></td>" +
@@ -239,7 +242,6 @@ $(document).tooltip();
 				<div class="row tablePageHeader">
 					<div class="col-md">
 						<h2>Pixel Overlay Models</h2>
-                        Create Overlays Automatically From Outputs: <input id="AutoCreatePixelOverlays" type="checkbox" checked/>
 					</div>
 					<div class="col-md-auto ml-lg-auto">
 						<div class="form-actions">
@@ -251,7 +253,10 @@ $(document).tooltip();
 						</div>
 					</div>
 				</div>
-				<hr>
+                <div>
+                Create Overlays Automatically From Outputs: <input id="AutoCreatePixelOverlays" type="checkbox" checked/>
+                </div>
+                <hr>
 				<div class='fppTableWrapper fppTableWrapperAsTable'>
                     <div class='fppTableContents' role="region" aria-labelledby="channelMemMaps" tabindex="0">
                         <table id="channelMemMaps" class="fppSelectableRowTable">
@@ -275,7 +280,7 @@ $(document).tooltip();
                     </div>
 				</div>
 
-                <div class="row tablePageHeader">
+                <div class="row tableHeader">
                     <div class="col-md">
                         <h2>Auto Created Pixel Overlay Models</h2>
                     </div>

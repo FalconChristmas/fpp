@@ -570,6 +570,9 @@ void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*> &strin
             }
         }
         for (auto &m : vstrings) {
+            if (PixelOverlayManager::INSTANCE.getModel(m.first) != nullptr) {
+                continue;
+            }
             std::string name = m.first;
             auto &vs = m.second;
 
