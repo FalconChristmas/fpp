@@ -75,8 +75,15 @@ function PopulateChannelMemMapTable(data) {
             ChannelCountPerNode = 3;
         }
 		postr = "<tr id='row'" + i + " class='fppTableRow'>" +
-			"<td class='center' valign='middle'><div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div></td>" +
-			"<td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'></td>" +
+			"<td class='center' valign='middle'>";
+
+        if (data[i].autoCreated) {
+            postr += ""
+        } else {
+            postr += "<div class='rowGrip'><i class='rowGripIcon fpp-icon-grip'></i></div>"
+        }
+
+        postr += "</td><td><input class='blk' type='text' size='31' maxlength='31' value='" + data[i].Name + "'></td>" +
 			"<td><input class='start' type='text' size='6' maxlength='6' value='" + data[i].StartChannel + "'></td>" +
             "<td><input class='cnt' type='text' size='6' maxlength='6' value='" + data[i].ChannelCount + "'></td>" +
             "<td><input class='cpn' type='number' min='1' max='4' value='" + ChannelCountPerNode + "'></td>" +

@@ -352,7 +352,7 @@ int LinsnRV9Output::Init(Json::Value config)
 	// FIXME, this should use the MAC received during discovery
 	SetHostMACs(m_buffer);
 
-    if (PixelOverlayManager::INSTANCE.isAudoCreatePixelOverlayModels()) {
+    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
         if (config.isMember("description")) {
             dd = config["description"].asString();

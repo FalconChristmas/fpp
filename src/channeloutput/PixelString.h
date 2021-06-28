@@ -57,6 +57,7 @@ public:
     uint8_t        leadInCount;
     uint8_t        toggleCount;
     uint8_t        leadOutCount;
+    std::string    description;
 };
 
 class GPIOCommand {
@@ -90,6 +91,9 @@ class PixelString {
 	uint8_t         **m_brightnessMaps;
     
     bool m_isSmartReceiver;
+
+
+    static void AutoCreateOverlayModels(const std::vector<PixelString*> &strings);
   private:
 	void SetupMap(int vsOffset, const VirtualString &vs);
 	void FlipPixels(int offset1, int offset2, int chanCount);

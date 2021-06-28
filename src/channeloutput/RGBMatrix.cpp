@@ -241,7 +241,7 @@ int RGBMatrixOutput::Init(Json::Value config)
         }
         m_gammaCurve[x] = round(f);
     }
-    if (PixelOverlayManager::INSTANCE.isAudoCreatePixelOverlayModels()) {
+    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "LED Panels";
         if (config.isMember("description")) {
             dd = config["description"].asString();

@@ -25,6 +25,7 @@
 #include "fpp-pch.h"
 
 #include "PixelString.h"
+#include "overlays/PixelOverlay.h"
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -232,6 +233,9 @@ int PixelString::ReadVirtualString(Json::Value &vsc, VirtualString &vs) const {
     vs.groupCount = vsc["groupCount"].asInt();
     vs.reverse = vsc["reverse"].asInt();
     vs.startNulls = vsc["nullNodes"].asInt();
+    if (vsc.isMember("description")) {
+        vs.description = vsc["description"].asString();
+    }
     if (vsc.isMember("endNulls")) {
         vs.endNulls = vsc["endNulls"].asInt();
     } else {
@@ -530,6 +534,71 @@ void PixelString::DumpConfig(void)
             LogDebug(VB_CHANNELOUT, "        zig zag       : %d\n", vs.zigZag);
             LogDebug(VB_CHANNELOUT, "        brightness    : %d\n", vs.brightness);
             LogDebug(VB_CHANNELOUT, "        gamma         : %.3f\n", vs.gamma);
+        }
+    }
+}
+
+
+
+
+void PixelString::AutoCreateOverlayModels(const std::vector<PixelString*> &strings) {
+    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
+        std::map<std::string, std::vector<VirtualString*>> vstrings;
+        for (int s = 0; s < strings.size(); s++) {
+            for (int vs = 0; vs < strings[s]->m_virtualStrings.size(); vs++) {
+                std::string desc = strings[s]->m_virtualStrings[vs].description;
+                if (desc == "") {
+                    desc = "String-" + std::to_string(s+1);
+                    if (strings[s]->m_virtualStrings.size() > 1) {
+                        desc += "-" + std::to_string(vs+1);
+                    }
+                }
+                // xLights will name the individual strings of a matrix/prop/model with a -str-# postfix
+                // so we will try and detect this and recreate the original model
+                size_t found = desc.find("-str-");
+                if (found == std::string::npos) {
+                    vstrings[desc].push_back(&strings[s]->m_virtualStrings[vs]);
+                } else {
+                    int idx = std::stoi(desc.substr(found + 5));
+                    if (idx > 0) --idx;
+                    desc = desc.substr(0, found);
+                    if (vstrings[desc].size() <= idx) {
+                        vstrings[desc].resize(idx + 1);
+                    }
+                    vstrings[desc][idx] = &strings[s]->m_virtualStrings[vs];
+                }
+            }
+        }
+        for (auto &m : vstrings) {
+            std::string name = m.first;
+            auto &vs = m.second;
+
+            uint32_t startChannel = FPPD_MAX_CHANNELS;
+            uint32_t channelsPerNode = (*vs.begin())->channelsPerNode();
+            std::string orientation = "H";
+            std::string startLocation = "BL";
+            uint32_t strings = vs.size();
+            uint32_t strands = 1;
+            uint32_t maxChan = 0;
+            for (auto &a : vs) {
+                startChannel = std::min(startChannel, (uint32_t)a->startChannel);
+                maxChan = a->startChannel + a->pixelCount * a->channelsPerNode();
+            }
+            int32_t channelCount = maxChan - startChannel;
+
+            if (name.find("Tree") != std::string::npos
+                || name.find("TREE") != std::string::npos
+                || name.find("tree") != std::string::npos
+                || name.find("Vert") != std::string::npos
+                || name.find("vert") != std::string::npos) {
+                //some common names that are usually vertical oriented
+                orientation = "V";
+            }
+
+            if (channelCount > 0) {
+                PixelOverlayManager::INSTANCE.addAutoOverlayModel(name,  startChannel, channelCount, channelsPerNode, orientation,
+                                                                  startLocation, strings, strands);
+            }
         }
     }
 }

@@ -445,6 +445,7 @@ int BBB48StringOutput::Init(Json::Value config)
         m_pruData->timings[x] = 0;
         if (m_pru0Data) m_pru0Data->timings[x] = 0;
     }
+    PixelString::AutoCreateOverlayModels(m_strings);
     return retVal;
 }
 

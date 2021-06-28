@@ -401,7 +401,7 @@ int FBMatrixOutput::Init(Json::Value config) {
 			}
 		}
 	}
-    if (PixelOverlayManager::INSTANCE.isAudoCreatePixelOverlayModels()) {
+    if (PixelOverlayManager::INSTANCE.isAutoCreatePixelOverlayModels()) {
         std::string dd = "VirtualMatrix";
         if (config.isMember("description")) {
             dd = config["description"].asString();

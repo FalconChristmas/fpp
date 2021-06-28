@@ -198,7 +198,7 @@ int RPIWS281xOutput::Init(Json::Value config)
 		LogErr(VB_CHANNELOUT, "ws2811_init() failed with error: %d\n", res);
 		return 0;
 	}
-
+    PixelString::AutoCreateOverlayModels(m_strings);
 	return ThreadedChannelOutputBase::Init(config);
 }
 

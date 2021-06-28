@@ -169,7 +169,7 @@ int SpixelsOutput::Init(Json::Value config)
 	}
 
 	LogDebug(VB_CHANNELOUT, "   Found %d strings of pixels\n", m_strings.size());
-
+    PixelString::AutoCreateOverlayModels(m_strings);
 	return ThreadedChannelOutputBase::Init(config);
 }
 

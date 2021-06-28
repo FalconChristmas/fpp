@@ -45,7 +45,7 @@ public:
     
     void Initialize();
 
-    bool isAudoCreatePixelOverlayModels() const {
+    bool isAutoCreatePixelOverlayModels() const {
         return autoCreate;
     }
     void addAutoOverlayModel(const std::string &name,
