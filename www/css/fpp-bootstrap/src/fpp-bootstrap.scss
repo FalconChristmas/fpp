@@ -771,6 +771,13 @@ $fppTableExtraPadding:1.65em;
 	padding-bottom:1em;
 }
 
+.fppBridgeStatsTable > tbody > tr > td:last-child {
+  text-align: right; }
+
+.fppBridgeStatsTable > thead > tr > th {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
 
 .ui-dialog-buttonset button {
     @extend .buttons;

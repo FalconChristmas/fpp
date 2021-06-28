@@ -9905,6 +9905,14 @@ table.settingsTable div.th {
   font-weight: normal;
   padding-bottom: 1em; }
 
+.fppBridgeStatsTable > tbody > tr > td:last-child {
+  text-align: right; }
+
+.fppBridgeStatsTable > thead > tr > th {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
 .modal-dialog {
   margin-top: 70px; }
 

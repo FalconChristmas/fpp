@@ -3144,7 +3144,9 @@ function moveFile(file) {
 			$("#playerModeInfo").hide();
 			$("#remoteModeInfo").show();
         } else { // Player or Master Modes
-			$("#playerModeInfo").show();
+            if ($("#bridgeModeInfo").is(":hidden")) {
+                $("#playerModeInfo").show();
+            }
 			$("#remoteModeInfo").hide();
 		}
         $("body").removeClass('is-loading');
@@ -3595,23 +3597,30 @@ function GetMultiSyncStats()
 function GetUniverseBytesReceived() {
     var html = [];
     var html1 = '';
+    var html2 = '';
     $.get("api/channel/input/stats"
     ).done(function (data) {
         if (data.status == "OK") {
-            var maxRows = data.universes.length / 2;
+            var maxRows = data.universes.length / 3;
             if (maxRows < 32) {
                 maxRows = 32;
             }
+            var nextRows = maxRows;
             if (data.universes.length > 0) {
-                html.push('<table class="fppBasicTable">');
+                html.push('<table class="fppBridgeStatsTable fppSelectableRowTable">');
                 html.push("<thead><tr id=\"rowReceivedBytesHeader\"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>");
             }
             for (i = 0; i < data.universes.length; i++) {
-                if (i == maxRows) {
+                if (i == nextRows) {
+                    nextRows += maxRows;
                     html.push("</table>");
-                    html1 = html.join('');
+                    if (html1 == '') {
+                        html1 = html.join('');
+                    } else {
+                        html2 = html.join('');
+                    }
                     html = [];
-                    html.push('<table>');
+                    html.push('<table class="fppBridgeStatsTable fppSelectableRowTable">');
                     html.push("<thead><tr id=\"rowReceivedBytesHeader\"><th>Universe</th><th>Start Address</th><th>Packets</th><th>Bytes</th><th>Errors</th></tr></thead><tbody>");
                 }
                 html.push('<tr><td>');
@@ -3627,23 +3636,37 @@ function GetUniverseBytesReceived() {
                 html.push('</td></tr>');
             }
             html.push('</tbody></table>');
-            if (data.universes.length > 32) {
+            if (html1 != '') {
                 $("#bridgeStatistics1").html(html1);
-                $("#bridgeStatistics2").html(html.join(''));
+                if (html2 != '') {
+                    $("#bridgeStatistics2").html(html2);
+                    $("#bridgeStatistics3").html(html.join(''));
+                } else {
+                    $("#bridgeStatistics2").html(html.join(''));
+                    $("#bridgeStatistics3").html('');
+                }
             } else {
                 $("#bridgeStatistics1").html(html.join(''));
                 $("#bridgeStatistics2").html('');
-
+                $("#bridgeStatistics3").html('');
             }
 
+
+            if (playListArray.length == 0 && sequenceArray.length == 0) {
+                $("#playerModeInfo").hide();
+            } else {
+                $("#playerModeInfo").show();
+            }
         } else {
             // data.status != OK
             $("#bridgeStatistics1").html('Bridge Data not avaiable -- ' + data.status);
             $("#bridgeStatistics2").html('');
+            $("#bridgeStatistics3").html('');
         }
     }).fail(function () {
         $("#bridgeStatistics1").html('Failed to refresh Bridge Stats - Unknown Error');
         $("#bridgeStatistics2").html('');
+        $("#bridgeStatistics3").html('');
     });
 }
 

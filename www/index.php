@@ -459,9 +459,15 @@ include 'common/menuHead.inc';
                     </tr>
                 </table>
                 <hr>
-                <div id="bridgeStatistics1"></div>
-                <div id="bridgeStatistics2"></div>
-                <div class="clear"></div>
+                <div class="container-fluid">
+                    <div class="row">
+                        <div class="col-auto" id="bridgeStatistics1"></div>
+                        <div class="w-100"></div>
+                        <div class="col-auto" id="bridgeStatistics2"></div>
+                        <div class="w-100"></div>
+                        <div class="col-auto" id="bridgeStatistics3"></div>
+                    </div>
+                </div>
             </div>
 
     </div>
