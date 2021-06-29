@@ -629,6 +629,7 @@ V1FSEQFile::V1FSEQFile(const std::string &fn, FILE *file, const std::vector<uint
 V1FSEQFile::~V1FSEQFile() {
 }
 
+
 class UncompressedFrameData : public FSEQFile::FrameData {
 public:
     UncompressedFrameData(uint32_t frame,
@@ -644,6 +645,20 @@ public:
         }
     }
 
+    void skipBlackCopy(void * destination, const void * source, size_t num)
+    {
+        char *cSource = (char *)source;
+        char *cDestination = (char *)destination;
+
+        for (int i=0; i<num; i++) {
+            if (cSource[i] != 0) {
+                cDestination[i] = cSource[i];
+            } else {
+                cDestination[i] = cDestination[i];
+            }
+        }
+    }
+
     virtual bool readFrame(uint8_t *data, uint32_t maxChannels) override {
         if (m_data == nullptr) return false;
         uint32_t offset = 0;
@@ -651,7 +666,7 @@ public:
             uint32_t toRead = rng.second;
             if (offset + toRead <= m_size) {
                 uint32_t toCopy = std::min(toRead, maxChannels - rng.first);
-                memcpy(&data[rng.first], &m_data[offset], toCopy);
+                skipBlackCopy(&data[rng.first], &m_data[offset], toCopy);
                 offset += toRead;
             } else {
                 return false;
