@@ -385,6 +385,7 @@ static int open_codec_context(int *stream_idx,
                     av_get_media_type_string(type));
             return ret;
         }
+        (*dec_ctx)->thread_count = std::thread::hardware_concurrency() + 1;
         /* Init the decoders, with or without reference counting */
         av_dict_set(&opts, "refcounted_frames", "0", 0);
         if ((ret = avcodec_open2(*dec_ctx, dec, &opts)) < 0) {
@@ -734,7 +735,7 @@ bool SDLOutput::ProcessVideoOverlay(unsigned int msTimestamp) {
         }
         if (msTimestamp <= data->totalVideoLen) {
             VideoFrame *vf = (VideoFrame*)data->curVideoFrame;
-            
+
             long long t = GetTime() / 1000;
             int t2 = ((int)t) - data->videoStartTime;
             

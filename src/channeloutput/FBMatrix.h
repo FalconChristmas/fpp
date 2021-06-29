@@ -26,6 +26,7 @@
 
 #include <linux/fb.h>
 #include <string>
+#include <vector>
 
 #include "ChannelOutputBase.h"
 
@@ -60,5 +61,6 @@ class FBMatrixOutput : public ChannelOutputBase {
 	std::string  m_device;
     
 	uint16_t ***m_rgb565map;
-
+    std::vector<int> m_xpos;
+    std::vector<int> m_ypos;
 };

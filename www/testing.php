@@ -634,16 +634,21 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 													<option value='1,<?=$testEndChannel?>'>-- All Channels --</option>
 
 							<?
-							
-							if (file_exists($settings['model-overlays'])) {
-								$json = json_decode(file_get_contents($settings['model-overlays']));
-								foreach ($json->models as $entry) {
-									printf( "<option value='%d,%d'>%s</option>\n",
-											intval($entry->StartChannel),
-											intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
-								}
-							}
-							
+							$curl = curl_init('http://localhost:32322/models');
+                            curl_setopt($curl, CURLOPT_FAILONERROR, true);
+                            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+                            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+                            $request_content = curl_exec($curl);
+                            curl_close($curl);
+                            if ($request_content !== false) {
+                                $data = json_decode($request_content);
+                                foreach ($data as $entry) {
+                                    printf( "<option value='%d,%d'>%s</option>\n",
+                                            intval($entry->StartChannel),
+                                            intval($entry->StartChannel) + intval($entry->ChannelCount - 1), $entry->Name);
+                                }
+                            }							
 							?>
 							</select>
 							</div>

@@ -464,32 +464,47 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
     
     drow += m_yoff;
 
+    if (m_xpos.size() != (width + 1)) {
+        m_xpos.resize(width + 1);
+        m_ypos.resize(height + 1);
+        for (int vx = 0; vx < width+1; vx++) {
+            m_xpos[vx] = vx * m_width /  width;
+        }
+        for (int vy = 0; vy < height+1; vy++) {
+            m_ypos[vy] = vy * m_height /  height;
+        }
+    }
+
 	if (m_frameBuffer->m_bpp == 16) {
-		for (int y = 0; y < m_height; y++) {
+		for (int vy = 0; vy < height; vy++) {
 			d = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
             d += m_xoff * 2;
-			for (int x = 0; x < m_width; x++) {
+			for (int x = 0; x < width; x++) {
                 if (m_useRGB) // RGB data to BGR framebuffer
                     *((uint16_t*)d) = m_rgb565map[*sR >> 3][*sG >> 2][*sB >> 3];
                 else // BGR data to BGR framebuffer
                     *((uint16_t*)d) = m_rgb565map[*sB >> 3][*sG >> 2][*sR >> 3];
 
-                sG += 3;
-                sB += 3;
-                sR += 3;
+                if (m_frameBuffer->m_scaling != SOFTWARE || m_xpos[x] != m_xpos[x + 1]) {
+                    sR += 3;
+                    sG += 3;
+                    sB += 3;
+                }
                 d += 2;
 			}
-			drow += m_inverted ? -1 : 1;
+
+            if (m_frameBuffer->m_scaling == SOFTWARE) {
+                while ((m_ypos[vy] == m_ypos[vy+1]) && vy < height) {
+                    unsigned char *src = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
+                    drow += m_inverted ? -1 : 1;
+                    vy++;
+                    unsigned char *dst = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
+                    memcpy(dst, src, ostride);
+                }
+            }
+            drow += m_inverted ? -1 : 1;
 		}
 	} else if (m_useRGB || m_frameBuffer->m_bpp == 32 || m_frameBuffer->m_scaling == SOFTWARE) {
-        int *xpos = new int[width + 1];
-        for (int vx = 0; vx < width+1; vx++) {
-            xpos[vx] = vx * m_width /  width;
-        }
-        int *ypos = new int[height + 1];
-        for (int vy = 0; vy < height+1; vy++) {
-            ypos[vy] = vy * m_height /  height;
-        }
 		unsigned char *dR;
 		unsigned char *dG;
 		unsigned char *dB;
@@ -522,7 +537,7 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 				dB += add;
                 
                 if (m_frameBuffer->m_scaling == SOFTWARE) {
-                    if (xpos[vx] != xpos[vx + 1]) {
+                    if (m_xpos[vx] != m_xpos[vx + 1]) {
                         sR += 3;
                         sG += 3;
                         sB += 3;
@@ -535,7 +550,7 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
 			}
 
             if (m_frameBuffer->m_scaling == SOFTWARE) {
-                while ((ypos[vy] == ypos[vy+1]) && vy < height) {
+                while ((m_ypos[vy] == m_ypos[vy+1]) && vy < height) {
                     unsigned char *src = (unsigned char *)m_frameBuffer->m_frame + (drow * ostride);
                     drow += m_inverted ? -1 : 1;
                     vy++;
@@ -545,8 +560,6 @@ void FBMatrixOutput::PrepData(unsigned char *channelData) {
             }
             drow += m_inverted ? -1 : 1;
 		}
-        delete [] xpos;
-        delete [] ypos;
 	} else {
         int istride = m_width * 3;
         unsigned char *src = channelData;

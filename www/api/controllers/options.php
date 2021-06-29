@@ -155,15 +155,20 @@ function GetOptions_VideoOutput($playlist) {
         }
     }
     $VideoOutputModels['Disabled'] = "Disabled";
-    if (file_exists($settings['model-overlays'])) {
-        $json = json_decode(file_get_contents($settings['model-overlays']));
-        if (isset($json->models)) {
-            foreach ($json->models as $value) {
-                $VideoOutputModels[$value->Name] = $value->Name;
-            }
+
+    $curl = curl_init('http://localhost:32322/models');
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    curl_close($curl);
+    if ($request_content !== false) {
+        $data = json_decode($request_content);
+        foreach ($data as $value) {
+            $VideoOutputModels[$value->Name] = $value->Name;
         }
     }
-
     return json($VideoOutputModels);
 }
 
