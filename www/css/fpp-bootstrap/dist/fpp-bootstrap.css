@@ -9912,6 +9912,15 @@ table.settingsTable div.th {
   padding-left: 0.5em;
   padding-right: 0.5em; }
 
+#tblCommandEditor > tbody > tr > td .fppCommandColor {
+  padding: 2px;
+  height: 2em;
+  width: 5em; }
+
+#tblCommandEditor > tbody > tr > td .cmdArgSlider {
+  width: 80%;
+  height: 2em; }
+
 .modal-dialog {
   margin-top: 70px; }
 

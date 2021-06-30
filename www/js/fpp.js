@@ -5348,7 +5348,7 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
              }
             line += "></input>";
          } else if (val['type'] == "color") {
-            line += "<input type='color' class='arg_" + val['name'] + "' id='" + ID  + "' value='" + dv + "'></input>";
+            line += "<input type='color' class='fppCommandColor arg_" + val['name'] + "' id='" + ID  + "' value='" + dv + "'></input>";
          } else if (val['type'] == "time") {
             haveTime = 1;
             line += "<input class='time center arg_" + val['name'] + "' id='" + ID + "' type='text' size='8' value='00:00:00'/>";
@@ -5356,13 +5356,13 @@ function PrintArgInputs(tblCommand, configAdjustable, args, startCount = 1) {
             haveDate = 1;
             line += "<input class='date center arg_" + val['name'] + "' id='" + ID + "' type='text' size='10' value='2020-01-01'/>";
          } else if (val['type'] == "range") {
-             line += val['min'] + "<input type='range' class='arg_" + val['name'] + ",cmdArgSlider' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
+             line += "<span>" + val['min'] + "<input type='range' class='arg_" + val['name'] + " cmdArgSlider' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
              if (dv != "") {
                 line += " value='" + dv + "'";
              } else if (typeof val['min'] != "undefined") {
                 line += " value='" + val['min'] + "'";
              }
-             line += "></input>" + val['max'];
+             line += "></input>" + val['max'] + "</span>";
          } else if ((val['type'] == "int") || (val['type'] == "float")) {
              line += "<input type='number' class='arg_" + val['name'] + "' id='" + ID  + "' min='" + val['min'] + "' max='" + val['max'] + "'";
              if (dv != "") {

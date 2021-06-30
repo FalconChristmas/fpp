@@ -1,3 +1,4 @@
+
 @import '../../../node_modules/bootstrap/scss/functions';
 @import './variables';
 @import './mixins';
@@ -41,6 +42,7 @@
 @import './buttons';
 @import './uploadfile';
 // @import "./hamburger";
+
 
 .navbar{
     padding:0;
@@ -772,11 +774,22 @@ $fppTableExtraPadding:1.65em;
 }
 
 .fppBridgeStatsTable > tbody > tr > td:last-child {
-  text-align: right; }
+  text-align: right;
+}
 
 .fppBridgeStatsTable > thead > tr > th {
   padding-left: 0.5em;
   padding-right: 0.5em;
+}
+
+#tblCommandEditor>tbody>tr>td .fppCommandColor {
+  padding: 2px;
+  height: 2em;
+  width: 5em;
+}
+#tblCommandEditor>tbody>tr>td .cmdArgSlider {
+  width: 80%;
+  height: 2em;
 }
 
 .ui-dialog-buttonset button {

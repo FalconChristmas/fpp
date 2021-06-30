@@ -652,8 +652,9 @@ function PopulateEthernetInterfaces()
 	{
 		$iface = preg_replace("/:$/", "", $iface);
 		echo "<option value='" . $iface;
+        echo "'";
         if ($iface === "eth0") echo " selected";
-        echo "'>" . $iface . "</option>";
+        echo ">" . $iface . "</option>";
 	}
 }
 ?>
