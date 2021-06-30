@@ -9910,8 +9910,7 @@ table.settingsTable div.th {
 
 .fppBridgeStatsTable > thead > tr > th {
   padding-left: 0.5em;
-  padding-right: 0.5em;
-}
+  padding-right: 0.5em; }
 
 .modal-dialog {
   margin-top: 70px; }

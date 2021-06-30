@@ -18,7 +18,7 @@ $gulp watch-bs
 
 var gulp = require('gulp');
 var plumber = require('gulp-plumber');
-var sass = require('gulp-sass');
+var sass = require('gulp-sass')(require('node-sass'));
 var postcss = require('gulp-postcss');
 var touch = require('gulp-touch-fd');
 var browserSync = require('browser-sync').create();

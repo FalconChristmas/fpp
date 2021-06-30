@@ -43,3 +43,6 @@ services:
     restart: always
     volumes:
       - ../:/opt/fpp
+    ports:
+      - "3180:3180/tcp"
+      - "3181:3181/tcp"
