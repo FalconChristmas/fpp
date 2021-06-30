@@ -545,6 +545,16 @@ if (!isset($skipJSsettings)) {
 	}
 ?>
 
+    var FPP_FULL_VERSION = '<? echo getFPPVersion(); ?>';
+    var FPP_VERSION = '<? echo getFPPVersionFloatStr(); ?>';
+    var FPP_MAJOR_VERSION = <? echo getFPPMajorVersion(); ?>;
+    var FPP_MINOR_VERSION = <? echo getFPPMinorVersion(); ?>;
+    <? if (getFPPPatchVersion() == "") { ?>
+    var FPP_PATCH_VERSION = 0;
+    <? } else { ?>
+    var FPP_PATCH_VERSION = <? echo getFPPPatchVersion(); ?>;
+    <? } ?>
+        
 	var pageName = "<? echo str_ireplace('.php', '', basename($_SERVER['PHP_SELF'])) ?>";
 
   var helpPage = "<? echo basename($_SERVER['PHP_SELF']) ?>";

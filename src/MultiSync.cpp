@@ -720,8 +720,16 @@ void MultiSync::PerformHTTPDiscovery()
                         subnets.insert(ip);
                     }
                 } else {
-                    subnets.insert(token);
-                    exacts.insert(token);
+                    struct hostent* uhost = gethostbyname(token.c_str());
+                    if (uhost) {
+                        struct in_addr add = *((struct in_addr*)uhost->h_addr);
+                        std::string address2 = inet_ntoa(add);
+
+                        if (isSupportedForMultisync(address2.c_str(), "")) {
+                            subnets.insert(token);
+                            exacts.insert(token);
+                        }
+                    }
                 }
             }
         }
@@ -793,7 +801,19 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
         LogExcess(VB_SYNC, "IP: %s    Resp: %s\n", ip.c_str(), d.c_str());
     }
 
-    NetworkController *nc = NetworkController::DetectControllerViaHTML(ip, data);
+    NetworkController *nc = nullptr;
+
+
+    struct hostent* uhost = gethostbyname(ip.c_str());
+    std::string address2 = ip;
+    if (uhost) {
+        struct in_addr addLookup = *((struct in_addr*)uhost->h_addr);
+        address2 = inet_ntoa(addLookup);
+    }
+
+    if (isSupportedForMultisync(ip.c_str(), "") && isSupportedForMultisync(address2.c_str(), "")) {
+        nc = NetworkController::DetectControllerViaHTML(ip, data);
+    }
 
     if (nc) {
         // This block was designed to avoid updating from NetworkControl if
@@ -1888,6 +1908,9 @@ int MultiSync::OpenReceiveSocket(void)
 }
 bool MultiSync::isSupportedForMultisync(const char *address, const char *intface) {
     if (!strcmp(address, "127.0.0.1")) {
+        return false;
+    }
+    if (!strcmp(address, "127.0.1.1")) {
         return false;
     }
     if (!strncmp(intface, "usb", 3) || !strcmp(intface, "lo") || !strncmp(intface, "tether", 6) || !strncmp(intface, "SoftAp", 6)) {
