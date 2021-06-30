@@ -87,7 +87,14 @@ bool NetworkController::DetectFPP(const std::string &ip, const std::string &html
         version = v["Version"].asString();
         typeStr = v["Variant"].asString();
         typeId = MultiSync::ModelStringToType(typeStr);
-        
+        if (typeId == kSysTypeFPP) {
+            //Pi's tend to have a just the model in the Variant, we'll try mapping those
+            typeId = MultiSync::ModelStringToType("Raspberry " + typeStr);
+            if (typeId != kSysTypeFPP) {
+                typeStr = "Raspberry " + typeStr;
+            }
+        }
+
         std::string md = v["Mode"].asString();
         if (md == "bridge") {
             systemMode = BRIDGE_MODE;

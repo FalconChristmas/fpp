@@ -283,28 +283,28 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
  */
 MultiSyncSystemType MultiSync::ModelStringToType(std::string model)
 {
-	if (startsWith(model, "Raspberry Pi Model A Rev"))
+	if (startsWith(model, "Raspberry Pi Model A Rev") || (model == "Raspberry Pi Model A"))
 		return kSysTypeFPPRaspberryPiA;
-	if (startsWith(model, "Raspberry Pi Model B Rev"))
+	if (startsWith(model, "Raspberry Pi Model B Rev") || (model == "Raspberry Pi Model B"))
 		return kSysTypeFPPRaspberryPiB;
-	if (startsWith(model, "Raspberry Pi Model A Plus"))
+	if (startsWith(model, "Raspberry Pi Model A Plus") || (model == "Raspberry Pi Model A+"))
 		return kSysTypeFPPRaspberryPiAPlus;
-	if (startsWith(model, "Raspberry Pi Model B Plus"))
+	if (startsWith(model, "Raspberry Pi Model B Plus") || (model == "Raspberry Pi Model B+"))
 		return kSysTypeFPPRaspberryPiBPlus;
 	if ((startsWith(model, "Raspberry Pi 2 Model B 1.1")) ||
 		(startsWith(model, "Raspberry Pi 2 Model B 1.0")))
 		return kSysTypeFPPRaspberryPi2B;
 	if (startsWith(model, "Raspberry Pi 2 Model B"))
 		return kSysTypeFPPRaspberryPi2BNew;
-	if (startsWith(model, "Raspberry Pi 3 Model B Rev"))
+	if (startsWith(model, "Raspberry Pi 3 Model B Rev") || (model == "Raspberry Pi 3 Model B"))
 		return kSysTypeFPPRaspberryPi3B;
-	if (startsWith(model, "Raspberry Pi 3 Model B Plus"))
+	if (startsWith(model, "Raspberry Pi 3 Model B Plus") || (model == "Raspberry Pi 3 Model B+"))
 		return kSysTypeFPPRaspberryPi3BPlus;
 	if (startsWith(model, "Raspberry Pi Zero Rev"))
 		return kSysTypeFPPRaspberryPiZero;
 	if (startsWith(model, "Raspberry Pi Zero W"))
 		return kSysTypeFPPRaspberryPiZeroW;
-    if (startsWith(model, "Raspberry Pi 3 Model A Plus"))
+    if (startsWith(model, "Raspberry Pi 3 Model A Plus") || (model == "Raspberry Pi 3 Model A+"))
         return kSysTypeFPPRaspberryPi3APlus;
     if (startsWith(model, "Raspberry Pi 4"))
         return kSysTypeFPPRaspberryPi4;
