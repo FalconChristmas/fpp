@@ -67,6 +67,16 @@ NetInterfaceInfo::~NetInterfaceInfo() {
 }
 
 
+static bool GetIPForHost(std::string &target) {
+    struct hostent* uhost = gethostbyname(target.c_str());
+    if (uhost) {
+        struct in_addr add = *((struct in_addr*)uhost->h_addr);
+        target = inet_ntoa(add);
+        return true;
+    }
+    return false;
+}
+
 void MultiSyncSystem::update(MultiSyncSystemType type,
                              unsigned int majorVersion, unsigned int minorVersion,
                              FPPMode fppMode,
@@ -78,8 +88,8 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string &uuid,
                              const bool multiSync) {
     // Always update uuid if not Unknown
-    if (uuid != "Unknown") {
-        this->uuid         = uuid;
+    if (uuid != "Unknown" && uuid != "") {
+        this->uuid = uuid;
     }
 
     // If this record is from info learned via the MultiSync protocol,
@@ -103,16 +113,13 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
 
     std::vector<std::string> parts = split(address, '.');
     if (parts.size() != 4) {
-        struct hostent* uhost = gethostbyname(address.c_str());
-        if (!uhost) {
+        if (!GetIPForHost(this->address)) {
             LogErr(VB_SYNC, "Error looking up hostname: %s\n", address.c_str());
             this->ipa = 0;
             this->ipb = 0;
             this->ipc = 0;
             this->ipd = 0;
         } else {
-            struct in_addr add = *((struct in_addr*)uhost->h_addr);
-            this->address = inet_ntoa(add);
             parts = split(this->address, '.');
         }
     }
@@ -246,11 +253,15 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
     sprintf(timeStr,"%4d-%.2d-%.2d %.2d:%.2d:%.2d",
         1900+tm.tm_year, tm.tm_mon+1, tm.tm_mday,
         tm.tm_hour, tm.tm_min, tm.tm_sec);
-    
+
+
+    std::string ipForAddress = address;
+    GetIPForHost(ipForAddress);
+
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
     bool found = false;
     for (auto & sys : m_remoteSystems) {
-        if ((address == sys.address) &&
+        if ((address == sys.address || ipForAddress == sys.address) &&
             ((hostname == sys.hostname) ||
              (address == sys.hostname) ||
              (hostname == sys.address))) {
@@ -720,15 +731,11 @@ void MultiSync::PerformHTTPDiscovery()
                         subnets.insert(ip);
                     }
                 } else {
-                    struct hostent* uhost = gethostbyname(token.c_str());
-                    if (uhost) {
-                        struct in_addr add = *((struct in_addr*)uhost->h_addr);
-                        std::string address2 = inet_ntoa(add);
-
-                        if (isSupportedForMultisync(address2.c_str(), "")) {
-                            subnets.insert(token);
-                            exacts.insert(token);
-                        }
+                    std::string address2 = token;
+                    GetIPForHost(address2);
+                    if (isSupportedForMultisync(address2.c_str(), "")) {
+                        subnets.insert(token);
+                        exacts.insert(token);
                     }
                 }
             }
@@ -806,10 +813,7 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
 
     struct hostent* uhost = gethostbyname(ip.c_str());
     std::string address2 = ip;
-    if (uhost) {
-        struct in_addr addLookup = *((struct in_addr*)uhost->h_addr);
-        address2 = inet_ntoa(addLookup);
-    }
+    GetIPForHost(address2);
 
     if (isSupportedForMultisync(ip.c_str(), "") && isSupportedForMultisync(address2.c_str(), "")) {
         nc = NetworkController::DetectControllerViaHTML(ip, data);
