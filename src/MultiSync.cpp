@@ -2095,7 +2095,7 @@ void MultiSync::ProcessControlPacket(bool pingOnly)
                         }
                         break;
                     case CTRL_PKT_PING:
-                        ProcessPingPacket(pkt, len, stats);
+                        ProcessPingPacket(pkt, len, sourceIP, stats);
                         break;
                     case CTRL_PKT_PLUGIN:
                         ProcessPluginPacket(pkt, len, stats);
@@ -2347,7 +2347,7 @@ void MultiSync::ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *s
 /*
  *
  */
-void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stats)
+void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, const std::string &srcIp, MultiSyncStats *stats)
 {
 	LogDebug(VB_SYNC, "ProcessPingPacket()\n");
 
@@ -2446,6 +2446,9 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stat
             rand = std::rand() % 1000;
             std::this_thread::sleep_for(std::chrono::microseconds(rand));
             multiSync->PingSingleRemote(addrStr, 0);
+            if (address != srcIp) {
+                multiSync->PingSingleRemote(srcIp.c_str(), 0);
+            }
         }
     }
 

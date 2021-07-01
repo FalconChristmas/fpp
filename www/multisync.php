@@ -76,7 +76,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             }
 
             //Mark FPPD as needing restart
-            $.put('api/settings/restart', '2');
+            SetRestartFlag(2);
             settings['restartFlag'] = 2;
             //Get the resart banner showing
             CheckRestartRebootFlags();
@@ -201,16 +201,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} else {
         ips = "&ip[]=" + ipAddresses;
     }
-		$.get("api/system/status?ip=" + ips + '&advancedView=true')
-		.done(function(alldata) {
-            jQuery.each(alldata, function(ip, data) {
+    $.get("api/system/status?ip=" + ips + '&advancedView=true')
+    .done(function(alldata) {
+        jQuery.each(alldata, function(ip, data) {
 			var status = 'Idle';
 			var statusInfo = "";
 			var elapsed = "";
 			var files = "";
-                        if (data == null || data == "" || data == "null") {
-                            return;
-                        }
+            if (data == null || data == "" || data == "null") {
+                return;
+            }
 
 			if (data.status_name == 'playing') {
 				status = 'Playing';
@@ -241,11 +241,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 				status = 'Testing';
             } else if (data.status_name == 'unreachable') {
                 unavailables[ip]++;
-                if (unavailables[ip] > 3) {
-                    status = '<font color="red">Unreachable</font>';
-                } else {
-                    status = "";
-                }
+                status = "unreachable";
             } else if (data.status_name == 'password') {
                 status = '<font color="red">Protected</font>';
 			} else if (data.status_name == 'unknown') {
@@ -288,33 +284,33 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 (!refreshing)) {
                 // Don't replace an existing status via a different IP
                 return;
-	    }
-
-        if (status != "") {
-            $('#' + rowID + '_status').html(status);
-        }
-
-        if (status == 'unreachable')
-            return;
-
-        $('#' + rowID + '_mode').html(modeToString(data.mode));
-
-        
-	    if (data.hasOwnProperty('wifi')) {
-		    var wifi_html = [];
-		    data.wifi.forEach(function(w) {
-			    wifi_html.push('<span title="');
-			    wifi_html.push(w.level);
-			    wifi_html.push('dBm" class="wifi-icon wifi-');
-			    wifi_html.push(w.desc);
-			    wifi_html.push('"></span>');
-		    });
-            if (wifi_html.length > 0) {
-		    	$('#' + rowID + "_ip").find(".wifi-icon").remove();
-                //$(wifi_html.join('')).appendTo($('#' + rowID + "_ip > a[ip='" + ip + "']"));
-                $(wifi_html.join('')).appendTo('td[ip="' + ip + '"]');
-		    }
-	    }
+            }
+            if (status == 'unreachable') {
+                if (unavailables[ip] < 4) {
+                    return;
+                }
+                $('#' + rowID + '_mode').html("<font color='red'>Unreachable</font>");
+            } else if (status != "") {
+                $('#' + rowID + '_status').html(status);
+                $('#' + rowID + '_mode').html(modeToString(data.mode));
+            } else {
+                $('#' + rowID + '_mode').html(modeToString(data.mode));
+            }
+            if (data.hasOwnProperty('wifi')) {
+                var wifi_html = [];
+                data.wifi.forEach(function(w) {
+                    wifi_html.push('<span title="');
+                    wifi_html.push(w.level);
+                    wifi_html.push('dBm" class="wifi-icon wifi-');
+                    wifi_html.push(w.desc);
+                    wifi_html.push('"></span>');
+                });
+                if (wifi_html.length > 0) {
+                    $('#' + rowID + "_ip").find(".wifi-icon").remove();
+                    //$(wifi_html.join('')).appendTo($('#' + rowID + "_ip > a[ip='" + ip + "']"));
+                    $(wifi_html.join('')).appendTo('td[ip="' + ip + '"]');
+                }
+            }
 
             if ($('#' + rowID).attr('ip') != ip)
                 $('#' + rowID).attr('ip', ip);
@@ -621,23 +617,36 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         }
         getFPPSystemStatus(fppIpAddresses, false);
 
-        var extras = "";
+
+
+        var extraRemotes = [];
+        var origExtra = "";
+        if (typeof settings['MultiSyncExtraRemotes'] === 'string') {
+            origExtra = settings['MultiSyncExtraRemotes'];
+            extraRemotes = origExtra.split(',');
+        }
         for (var x in remotes) {
-            if (extras != "") {
-                extras += ",";
+            if (!extraRemotes.includes(x)) {
+                extraRemotes.push(x);
             }
-            extras += x;
         }
-<?php
-if ($uiLevel >= 1) {
-?>
-        var inp = document.getElementById("MultiSyncExtraRemotes");
-        if (extras != '' && inp && inp.value != extras) {
-			$('#MultiSyncExtraRemotes').val(extras).trigger('change');
+        extraRemotes.sort();
+        var extras = extraRemotes.join(',');
+        settings['MultiSyncExtraRemotes'] = extras;
+
+        if (extras != '' && origExtra != extras) {
+            <?php
+            if ($uiLevel >= 1) {
+            ?>
+            var inp = document.getElementById("MultiSyncExtraRemotes");
+            if (inp) {
+                $('#MultiSyncExtraRemotes').val(extras);
+            }
+            <?
+            }
+            ?>
+            SetSetting("MultiSyncExtraRemotes", extras, 0, 0);
         }
-<?
-}
-?>
 
         $('#fppSystems').trigger('update', true);
 	}

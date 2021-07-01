@@ -27,13 +27,27 @@ if (isset($_GET['mode'])) {
 
 echo "Restarting FPPD @ ".htmlspecialchars($ip)."\n";
 
-$curl = curl_init('http://' . $ip . '/fppxml.php?command=restartFPPD' . $postfix);
-curl_setopt($curl, CURLOPT_FAILONERROR, true);
+// FPP 5.0+
+$curl = curl_init('http://' . $ip . '/api/system/fppd/restart?quick=true');
+curl_setopt($curl, CURLOPT_FAILONERROR, false);  // don't fail hard if not 5.0+
 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 300);
+curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
 $request_content = curl_exec($curl);
+$rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 curl_close($curl);
+
+// If 5.0+ method failed, try old method.
+if (! $request_content || $rc != 200 ) {
+    $curl = curl_init('http://' . $ip . '/fppxml.php?command=restartFPPD');
+    curl_setopt($curl, CURLOPT_FAILONERROR, true);
+    curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT_MS, 200);
+    $request_content = curl_exec($curl);
+    $rc = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+}
 
 echo "Waiting for fppd to come back up:\n";
 
@@ -51,7 +65,9 @@ while ((time() < $endTime) && ($request_content === FALSE)) {
     $request_content = curl_exec($curl);
     curl_close($curl);
 
-    sleep(1);
+    if ($request_content === FALSE) {
+        sleep(1);
+    }
 }
 
 if ($request_content === FALSE) {

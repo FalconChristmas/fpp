@@ -311,7 +311,7 @@ class MultiSync {
 
     void ProcessSyncPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
     void ProcessCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
-    void ProcessPingPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
+    void ProcessPingPacket(ControlPkt *pkt, int len, const std::string &src, MultiSyncStats *stats);
     void ProcessPluginPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
     void ProcessFPPCommandPacket(ControlPkt *pkt, int len, MultiSyncStats *stats);
 
