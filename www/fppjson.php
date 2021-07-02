@@ -153,9 +153,9 @@ function SetPluginSetting()
 {
 	global $args;
 
-	$setting = $args['key'];
-	$value   = $args['value'];
-	$plugin  = $args['plugin'];
+	$setting = htmlspecialchars($args['key']);
+	$value   = htmlspecialchars($args['value']);
+	$plugin  = htmlspecialchars($args['plugin']);
 
 	check($setting, "setting", __FUNCTION__);
 	check($value, "value", __FUNCTION__);
@@ -659,8 +659,8 @@ function SetSetting()
 {
 	global $args, $SUDO;
 
-	$setting = $args['key'];
-	$value   = $args['value'];
+	$setting = htmlspecialchars($args['key']);
+	$value   = htmlspecialchars($args['value']);
 
 	check($setting, "setting", __FUNCTION__);
 	check($value, "value", __FUNCTION__);
