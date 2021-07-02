@@ -25,7 +25,7 @@ Ping
 </title>
 </head>
 <body>
-<h2>Ping <? echo $ip; ?></h2>
+<h2>Ping <? echo htmlspecialchars($ip); ?></h2>
 <pre>
 ==========================================================================
 <?php
