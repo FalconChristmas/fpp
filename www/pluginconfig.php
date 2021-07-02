@@ -1,11 +1,14 @@
 <?
 $pluginSettings = array();
 
-$pluginConfigFile = $settings['configDirectory'] . "/plugin." . $_GET['plugin'];
+$pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
+
+$pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
+echo ($pluginConfigFile);
 if (file_exists($pluginConfigFile))
     $pluginSettings = parse_ini_file($pluginConfigFile);
 
-$pluginSettings['plugin'] = $_GET['plugin'];
+$pluginSettings['plugin'] = $pluginName;
 
 if (!isset($skipJSsettings))
 {
