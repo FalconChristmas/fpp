@@ -8,7 +8,7 @@ include 'common/menuHead.inc';
 ?>
 <script language="Javascript">
 
-var currentTabTitle = "E1.31 Bridge";
+var currentTabTitle = "E1.31/DDP Input";
 
 /////////////////////////////////////////////////////////////////////////////
 // E1.31 support functions here
@@ -200,7 +200,7 @@ $(document).ready(function(){
 		<ul class="nav nav-pills pageContent-tabs" id="channelInputTabs" role="tablist">
               <li class="nav-item">
                 <a class="nav-link active" id="tab-e131-tab" tabType='UDP' data-toggle="pill" href="#tab-e131" role="tab" aria-controls="tab-e131" aria-selected="true">
-				E1.31/ArtNet Bridge
+				E1.31/ArtNet/DDP Inputs
 				</a>
               </li>
 		</ul>
@@ -218,7 +218,7 @@ $(document).ready(function(){
 
 		    <form id="frmUniverses">
                 <div class="row tablePageHeader">
-                    <div class="col-md"><h2>E1.31 / ArtNet / DDP Bridge</h2></div>
+                    <div class="col-md"><h2>E1.31 / ArtNet / DDP Inputs</h2></div>
                     <div class="col-md-auto ml-lg-auto">
                         <div class="form-actions">
                                 <input name="input" type="hidden" value="0" />
@@ -232,7 +232,7 @@ $(document).ready(function(){
                     <div class="row">
                         <div class="col-md-auto">
                             <div class="backdrop-dark form-inline enableCheckboxWrapper">
-                            <div><b>Enable Bridge:</b></div>
+                            <div><b>Enable Input:</b></div>
                                 <div> <input type="checkbox" id="E131Enabled"/></div>
                             </div>
                         </div>
@@ -240,7 +240,7 @@ $(document).ready(function(){
                                 <div><b>Timeout:</b></div>
                                 <div ><input id="bridgeTimeoutMS" type="number" min="0" max="9999" size="4" maxlength="4">
                                         <img id="timeout_img" title="Blank Timeout" src="images/redesign/help-icon.svg" width=22 height=22>
-                                        <span id="timeout_tip" class="tooltip" style="display: none">Timeout for Bridge data (in MS).  If no new data is received for this time, the bridge data is cleared.</span></div>
+                                        <span id="timeout_tip" class="tooltip" style="display: none">Timeout for input channel data (in MS).  If no new data is received for this time, the input data is cleared.</span></div>
                             </div>
 							<div class="col-md-auto form-inline">
 								<div><b>Inputs Count: </b></div>
