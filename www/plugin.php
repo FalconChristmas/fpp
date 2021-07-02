@@ -1,4 +1,5 @@
 <?php
+$pluginName = "";
 
 if ( !isset($_GET['nopage']) ):
 
@@ -7,14 +8,17 @@ require_once("common.php");
 
 $pluginSettings = array();
 
+
+
 if (isset($_GET['plugin']))
 {
-	$pluginConfigFile = $settings['configDirectory'] . "/plugin." . $_GET['plugin'];
+	$pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
+	$pluginConfigFile = $settings['configDirectory'] . "/plugin." . $pluginName;
 	if (file_exists($pluginConfigFile))
 		$pluginSettings = parse_ini_file($pluginConfigFile);
 }
 
-$infoFile = $pluginDirectory . '/' . $_GET['plugin'] . '/pluginInfo.json';
+$infoFile = $pluginDirectory . '/' . $pluginName . '/pluginInfo.json';
 
 if (file_exists($infoFile))
 {
@@ -42,7 +46,7 @@ if (file_exists($infoFile))
 
 <?
 
-$jsDir = $pluginDirectory . "/" . $_GET['plugin'] . "/js/";
+$jsDir = $pluginDirectory . "/" . $pluginName . "/js/";
 if ( file_exists($jsDir))
 {
 	if ($handle = opendir($jsDir))
@@ -52,13 +56,13 @@ if ( file_exists($jsDir))
 			if (!in_array($file, array('.', '..')) && !is_dir($jsDir . $file))
 			{
 				printf( "<script type='text/javascript' src='plugin.php?plugin=%s&file=js/%s&nopage=1'></script>\n",
-					$_GET['plugin'], $file);
+					$pluginName , $file);
 			}
 		}
 	}
 }
 
-$cssDir = $pluginDirectory . "/" . $_GET['plugin'] . "/css/";
+$cssDir = $pluginDirectory . "/" . $pluginName . "/css/";
 if ( file_exists($cssDir))
 {
 	if ($handle = opendir($cssDir))
@@ -68,7 +72,7 @@ if ( file_exists($cssDir))
 			if (!in_array($file, array('.', '..')) && !is_dir($cssDir . $file))
 			{
 				printf( "<link rel='stylesheet' type='text/css' href='/plugin.php?plugin=%s&file=css/%s&nopage=1'>\n",
-					$_GET['plugin'], $file);
+					$pluginName, $file);
 			}
 		}
 	}
@@ -91,6 +95,11 @@ $skipJSsettings = 1;
 require_once("config.php");
 endif;
 
+if (isset($_GET['plugin']))
+{
+	$pluginName = htmlspecialchars($_GET['plugin'], ENT_QUOTES, 'UTF-8');
+}
+
 if ( !isset($_GET['plugin']) )
 {
 	echo "Please don't access this page directly";
@@ -101,18 +110,22 @@ elseif ( empty($_GET['plugin']) )
 }
 elseif ( isset($_GET['page']) && !empty($_GET['page']) )
 {
-	if ( file_exists($pluginDirectory."/".$_GET['plugin']."/".$_GET['page']) )
+	$pageName = htmlspecialchars($_GET['page'], ENT_QUOTES, 'UTF-8');
+
+	if ( file_exists($pluginDirectory."/". $pluginName ."/". $pageName) )
 	{
-		-include_once($pluginDirectory."/".$_GET['plugin']."/".$_GET['page']);
+		-include_once($pluginDirectory."/".$pluginName ."/". $pageName);
 	}
 	else
 	{
-		echo "Error with plugin, requesting a page that doesn't exist";
+		echo "Error with plugin, requesting a page that doesn't exist: $pluginName/$pageName";
 	}
 }
 elseif ( isset($_GET['file']) && !empty($_GET['file']) )
 {
-	$file = $pluginDirectory . "/" . $_GET['plugin'] . "/" . $_GET['file'];
+	$fileName = htmlspecialchars($_GET['file'], ENT_QUOTES, 'UTF-8');
+
+	$file = $pluginDirectory . "/" . $pluginName . "/" . $fileName;
 
 	if (file_exists($file))
 	{
@@ -146,9 +159,9 @@ elseif ( isset($_GET['file']) && !empty($_GET['file']) )
 		echo "Error with plugin, requesting a file that doesn't exist";
 	}
 }
-elseif ( file_exists($pluginDirectory."/".$_GET['plugin']."/plugin.php") )
+elseif ( file_exists($pluginDirectory."/" . $pluginName ."/plugin.php") )
 {
-	-include_once($pluginDirectory."/".$_GET['plugin']."/plugin.php");
+	-include_once($pluginDirectory."/". $pluginName ."/plugin.php");
 }
 else
 {
