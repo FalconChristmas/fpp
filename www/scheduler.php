@@ -8,6 +8,8 @@ error_reporting(E_ALL);
 <head>
 <?php
 require_once('config.php');
+require_once('common.php');
+
 include 'common/menuHead.inc';
 
 $commandOptions = "";
@@ -662,7 +664,6 @@ button.ui-datepicker-current {
       <h1 class="title">Scheduler</h1>
       <div class="pageContent"> 
           <div>
-
             <div class="row tablePageHeader">
                 <div class="col">
                     <div class="form-actions form-actions-secondary">
@@ -698,7 +699,6 @@ button.ui-datepicker-current {
                     </div>
                 </div>
             </div>
-
             <div class='fppTableWrapper'>
                 <div class='fppTableContents'  role="region" aria-labelledby="tblSchedule" tabindex="0">
                     
@@ -828,6 +828,7 @@ button.ui-datepicker-current {
                 </div>
     	    </div>
     	<div>
+        <div style="margin-bottom:10px;"><?php PrintSetting('DisableScheduler'); ?></div>
      
 
             <div class="backdrop">
