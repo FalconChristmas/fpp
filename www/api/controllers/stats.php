@@ -1,6 +1,6 @@
 <?php
 
-function stats_genereate($statsFile)
+function stats_generate($statsFile)
 {
 //////////// MAIN ////////////
     $tasks = array(
@@ -53,12 +53,12 @@ function stats_get_last_file()
     if (file_exists($statsFile)) {
         // No reason to regenereate if less than 2 hours old
         if (time() - filemtime($statsFile) > 2 * 3600) {
-            stats_genereate($statsFile);
+            stats_generate($statsFile);
         } else if (isset($_GET['force']) && $_GET['force'] == 1) {
-            stats_genereate($statsFile);
+            stats_generate($statsFile);
         }
     } else {
-        stats_genereate($statsFile);
+        stats_generate($statsFile);
     }
 
     $obj = json_decode(file_get_contents($statsFile), true);
