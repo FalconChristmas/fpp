@@ -24,7 +24,7 @@ function growSDCardFS() {
             buttons: {
             "Yes" : function() {
                 $(this).fppDialog("close");
-                $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "Storage Expand", dialogClass: 'no-close' });
+                $('#storageSettingsProgressPopup').fppDialog({  height: 500, width: 900, title: "Storage Expand", dialogClass: 'no-close' });
                 $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                 document.getElementById('storageText').value = '';
                 StreamURL('growsd.php?wrapped=1', 'storageText', 'StorageDialogDone');
