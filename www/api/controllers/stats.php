@@ -14,6 +14,8 @@ function stats_genereate($statsFile)
         "plugins" => 'stats_getPlugins',
         "schedule" => 'stats_getSchedule',
         "settings" => 'stats_getSettings',
+        "network" => 'stats_network',
+        "memory" => 'stats_memory',
         "universe_input" => 'stats_universe_in',
         "output_e131" => 'stats_universe_out',
         "output_panel" => 'stats_panel_out',
@@ -64,6 +66,48 @@ function stats_get_last_file()
     return json($obj, JSON_PRETTY_PRINT);
 }
 
+// If it can't access github, probably can't report stats either
+// but lets still try
+function stats_network()
+{
+    $rc = array();
+    $output = array();
+
+    exec("ping -c 1 -q -W 2 github.com", $output, $exitCode);
+    $rc['github_access'] = ($exitCode == 0 ? true : false);
+
+    return $rc;
+}
+
+function stats_memory()
+{
+    $rc = array('meminfoAvailable' => false);
+    $interesting = array('MemTotal', 'MemFree', 'MemAvailable', 'Active', 'Inactive', 'Cached');
+    $output = array();
+    exec("cat /proc/meminfo", $output, $exitCode);
+
+    if ($exitCode == 0) {
+        $rc['meminfoAvailable'] = true;
+        $key = 'unknown';
+        $value = 0;
+        foreach ($output as $row) {
+            $matches = array();
+            if (preg_match("/^(.*):/", $row, $matches) == 1) {
+                $key = $matches[1];
+            }
+
+            if (preg_match("/\s+([0-9]*) kB/", $row, $matches) == 1) {
+                $value = $matches[1];
+            }
+
+            if (in_array($key, $interesting)) {
+                $rc[$key] = $value;
+            }
+        }
+    }
+    return $rc;
+}
+
 function stats_publish_stats_file()
 {
     global $settings;
@@ -96,7 +140,7 @@ function stats_delete_last_file()
 function stats_get_filename()
 {
     global $settings;
-    
+
     return $settings['statsFile'];
 }
 
@@ -343,7 +387,7 @@ function stats_getCapeInfo()
         "id" => "id",
         "name" => "name",
         "serialNumber" => "serialNumber",
-        "designer" => "designer"
+        "designer" => "designer",
     );
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
