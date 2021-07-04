@@ -1,12 +1,7 @@
 <!DOCTYPE html>
 <html>
 <?php
-
-$skipJSsettings = 1;
-require_once("common.php");
-
-DisableOutputBuffering();
-
+require_once('common.php');
 ?>
 <head>
 <?php include 'common/menuHead.inc'; ?>
@@ -20,7 +15,7 @@ DisableOutputBuffering();
   $activeParentMenuItem = 'help';  
   include 'menu.inc'; ?>
   <div class="mainContainer">
-	  <div class="title">Troubleshooting Commands</div>
+	  <div class="title">CLI Commands</div>
 	  <div class="pageContent">
 	  	  
 	  	    <div style="margin:0 auto;"> <br />
