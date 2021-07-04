@@ -19,9 +19,6 @@ require_once('config.php');
 <script src="jquery/jQuery-Form-Plugin/js/jquery.form.js"></script>
 <script src="jquery/jQuery-Upload-File/js/jquery.uploadfile.js"></script>
 
-<script type="text/javascript" src="jquery/Spin.js/spin.js"></script>
-<script type="text/javascript" src="jquery/Spin.js/jquery.spin.js"></script>
-
 <script>
 
 function ButtonHandler(table, button) {
