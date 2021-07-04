@@ -91,68 +91,103 @@ void mosq_msg_callback(struct mosquitto *mosq, void *userdata, const struct mosq
  *
  */
 MosquittoClient::MosquittoClient(const std::string &host, const int port,
-	const std::string &topicPrefix)
-  : m_port(port),
-	m_keepalive(60),
-	m_mosq(NULL),
-    m_host(host),
-    m_canProcessMessages(false),
-    m_isConnected(false),
-    m_topicPrefix(topicPrefix)
-{
-	LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
-		host.c_str(), port, topicPrefix.c_str());
+                                 const std::string &topicPrefix)
+    : m_port(port), m_keepalive(60), m_mosq(NULL), m_host(host),
+      m_canProcessMessages(false), m_isConnected(false),
+      m_topicPrefix(topicPrefix) {
+  LogDebug(VB_CONTROL, "MosquittoClient::MosquittoClient('%s', %d, '%s')\n",
+           host.c_str(), port, topicPrefix.c_str());
 
-        WarningHolder::AddWarning("MQTT Disconnected");
-	if (m_topicPrefix.size()) {
-		m_topicPrefix += "/";
-	}
-		
-	m_baseTopic = m_topicPrefix;
-	m_baseTopic += FALCON_TOPIC;
-	m_baseTopic += "/";
-    
-	std::string hostname = getSetting("HostName");
-	if (hostname == "") {
-		hostname = "FPP";
-	}
-	m_baseTopic += hostname;
+  WarningHolder::AddWarning("MQTT Disconnected");
+  if (m_topicPrefix.size()) {
+    m_topicPrefix += "/";
+  }
 
-	pthread_mutex_init(&m_mosqLock, NULL);
+  m_baseTopic = m_topicPrefix;
+  m_baseTopic += FALCON_TOPIC;
+  m_baseTopic += "/";
 
-    std::function<void(const std::string &, const std::string &)> f = [] (const std::string &topic, const std::string &payload) {
+  std::string hostname = getSetting("HostName");
+  if (hostname == "") {
+    hostname = "FPP";
+  }
+  m_baseTopic += hostname;
+
+  pthread_mutex_init(&m_mosqLock, NULL);
+
+  /*
+   * Command Callback
+   */
+  std::function<void(const std::string &, const std::string &)> f =
+      [](const std::string &topic, const std::string &payload) {
         if (topic.size() <= 13) {
-            Json::Value val = LoadJsonFromString(payload);
-            CommandManager::INSTANCE.run(val);
+          Json::Value val = LoadJsonFromString(payload);
+          CommandManager::INSTANCE.run(val);
         } else {
-            std::vector<std::string> args;
-            std::string command;
-            
-            std::string ntopic = topic.substr(13); //wrip off /set/command/
-            args = splitWithQuotes(ntopic, '/');
-            command = args[0];
-            args.erase(args.begin());
-            bool foundp = false;
-            for (int x = 0; x < args.size(); x++) {
-                if (args[x] == "{Payload}") {
-                    args[x] = payload;
-                    foundp = true;
-                }
-            }
-            if (payload != "" && !foundp)  {
-                args.push_back(payload);
-            }
-            if (args.size() == 0 && payload != "") {
-                Json::Value val = LoadJsonFromString(payload);
-                CommandManager::INSTANCE.run(command, val);
-            } else {
-                CommandManager::INSTANCE.run(command, args);
-            }
-        }
-    };
-    AddCallback("/set/command", f);
-    AddCallback("/set/command/#", f);
+          std::vector<std::string> args;
+          std::string command;
 
+          std::string ntopic = topic.substr(13); // wrip off /set/command/
+          args = splitWithQuotes(ntopic, '/');
+          command = args[0];
+          args.erase(args.begin());
+          bool foundp = false;
+          for (int x = 0; x < args.size(); x++) {
+            if (args[x] == "{Payload}") {
+              args[x] = payload;
+              foundp = true;
+            }
+          }
+          if (payload != "" && !foundp) {
+            args.push_back(payload);
+          }
+          if (args.size() == 0 && payload != "") {
+            Json::Value val = LoadJsonFromString(payload);
+            CommandManager::INSTANCE.run(command, val);
+          } else {
+            CommandManager::INSTANCE.run(command, args);
+          }
+        }
+      };
+  AddCallback("/set/command", f);
+  AddCallback("/set/command/#", f);
+
+  /*
+   * Start Playlist Callback
+   */
+  std::function<void(const std::string &, const std::string &)>
+      playlist_callback = [](const std::string &topic_in,
+                             const std::string &payload) {
+        std::string emptyStr;
+        std::string topic = topic_in;
+        topic.replace(0, 14, emptyStr); // Replace until /#
+
+        int pos = topic.find("/");
+        if (pos == std::string::npos) {
+          LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n",
+                  topic.c_str());
+          return 0;
+        }
+
+        std::string newPlaylistName = topic.substr(0, pos);
+        std::string topicEnd = topic.substr(pos);
+
+        if (topicEnd == "/start") {
+
+          pos = 0;
+          if (!payload.empty()) {
+            pos = std::atoi(payload.c_str());
+          }
+
+          LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
+                   newPlaylistName.c_str(), payload.c_str());
+          Player::INSTANCE.StartPlaylist(newPlaylistName.c_str(), pos);
+        } else {
+            playlist->MQTTHandler(topic, payload);
+        };
+
+      };
+  AddCallback("/set/playlist/#", playlist_callback);
 }
 /*
  *

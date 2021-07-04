@@ -96,13 +96,6 @@ Playlist::Playlist(Playlist *parent)
         mqtt->AddCallback("/playlist/repeat/set", f1);
         mqtt->AddCallback("/playlist/sectionPosition/set", f1);
 
-        std::function<void(const std::string &t, const std::string &payload)> f2 = [this] (const std::string &t, const std::string &payload) {
-            std::string emptyStr;
-            std::string topic = t;
-            topic.replace(0, 14, emptyStr); // Replace until /#
-            this->MQTTHandler(topic, payload);
-        };
-        mqtt->AddCallback("/set/playlist/#", f2);
     } else {
             LogDebug(VB_CONTROL, "Not registered MQTT Callbacks for Playlist. MQTT Not configured. \n");
     }
@@ -1619,14 +1612,6 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 	} else if (topic == "ALLPLAYLISTS/stop/afterloop") {
 		StopGracefully(1,1);
 
-	// Playlist specific versions
-	} else if (topicEnd == "/start") {
-		// Play from begging keeping previous value of repeate
-        int pos = 0;
-        if (!msg.empty()) {
-            pos = std::atoi(msg.c_str());
-        }
-		Play(newPlaylistName.c_str(), pos, m_repeat);
 	} else if (topicEnd == "/next") {
 		NextItem();
 
@@ -1650,7 +1635,7 @@ int Playlist::MQTTHandler(std::string topic, std::string msg)
 
 	// These three are depgrecated and should be removed
 	} else if (topic == "name/set") {
-	        LogInfo(VB_PLAYLIST, "playlist/%s is deprecated and will be removed in a future release\n",
+	        LogInfo(VB_CONTROL, "playlist/%s is deprecated and will be removed in a future release\n",
 		topic.c_str());
 		Play(msg.c_str(), m_sectionPosition, m_repeat);
 
