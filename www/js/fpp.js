@@ -3662,8 +3662,7 @@ function GetUniverseBytesReceived() {
                 $("#bridgeStatistics3").html('');
             }
 
-
-            if (playListArray.length == 0 && sequenceArray.length == 0) {
+            if (playListArray.length == 0 && sequenceArray.length == 0 ||  (GetFPPDmodeLocal() == 8)) {
                 $("#playerModeInfo").hide();
             } else {
                 $("#playerModeInfo").show();
@@ -4497,6 +4496,19 @@ function AdjustFPPDModeFromStatus(mode) {
     }
 }
 
+// Returns the FPP Model from Local Status
+function GetFPPDmodeLocal() {
+    if (! lastStatusJSON) {
+        return 0;
+    }
+    if (! ("mode" in lastStatusJSON)) {
+        return 0;
+    }
+    return lastStatusJSON.mode;
+}
+
+
+// Calls ajax to get the mode
 function GetFPPDmode()
 {
     $.get("api/settings/fppMode"
