@@ -16,7 +16,8 @@ alone allows for web development with FPP.
 Follow video shows how to use the VS Code visual debugger along with the
 [GDB Debugger - Beyond](https://marketplace.visualstudio.com/items?itemName=coolchyni.beyond-debug) extension
 to preform interactive debugging of the *fppd* process on a remote
-Raspberry Pi. 
+Raspberry Pi. Note, launch.json is now part of the fppd code base.  There you shouldn't need to manually copy it
+any more. 
 
 [![Remote C/C++ Debugging](https://img.youtube.com/vi/bix6WzRrbEQ/0.jpg)](https://www.youtube.com/watch?v=bix6WzRrbEQ) 
 

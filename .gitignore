@@ -8,7 +8,6 @@ build/
 SD/*.xz
 lib/librgbmatrix.so
 node_modules
-.vscode
 .env
 src/fpp
 src/fppmm
@@ -42,5 +41,4 @@ plugins/
 .idea/
 ._*
 
-.vscode/sftp.json
 .vscode/sftp.json
