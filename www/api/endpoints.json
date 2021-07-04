@@ -328,7 +328,7 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Gets the current bridge mode input statistics",
+                    "desc": "Gets the current e131/DDP/ArtNet input statistics",
                     "output": {
                         "Message": "",
                         "Status": "OK",
@@ -349,6 +349,14 @@
                                 "startChannel": 513
                             }
                         ]
+                    }
+                },
+                "DELETE": {
+                    "desc": "Clear the e131/DDP/ArtNet input statistics",
+                    "output": {
+                        "Message": "Stats Cleared",
+                        "Status": "OK",
+                        "respCode": 200
                     }
                 }
             }

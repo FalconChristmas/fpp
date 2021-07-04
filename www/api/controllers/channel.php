@@ -19,6 +19,24 @@ function channel_input_get_stats()
     return json($rc);
 }
 
+//GET /api/channel/input/stats
+function channel_input_delete_stats()
+{
+    $url = 'http://127.0.0.1:32322/fppd/e131stats';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FAILONERROR, true);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 400);
+    $result = curl_exec($ch);
+    $result = json_decode($result);
+    curl_close($ch);
+
+    return json($result);
+}
+
+
 //POST /api/channel/output/PixelnetDMX
 function channel_put_pixelnetDMX()
 {

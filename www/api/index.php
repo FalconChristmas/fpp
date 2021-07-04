@@ -12,6 +12,7 @@ dispatch_get   ('/backups/devices', 'GetAvailableBackupsDevices');
 dispatch_get   ('/cape', 'GetCapeInfo');
 
 dispatch_get   ('/channel/input/stats', 'channel_input_get_stats');
+dispatch_delete('/channel/input/stats', 'channel_input_delete_stats'); 
 dispatch_get   ('/channel/output/processors', 'channel_get_output_processors');
 dispatch_post  ('/channel/output/processors', 'channel_save_output_processors');
 dispatch_get   ('/channel/output/PixelnetDMX', 'channel_get_pixelnetDMX');

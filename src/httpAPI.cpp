@@ -468,9 +468,11 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(c
 	LogDebug(VB_HTTP, "DELETE URL: %s %s\n", url.c_str(), req.get_querystring().c_str());
 
 	// Keep IF statement in alphabetical order
-	if (replaceStart(url, "somethingaturlbeginninghere/"))
+	if (url == "e131stats")
 	{
-		LogDebug(VB_HTTP, "API - Deleting somethingaturlbeginninghere/\n");
+		LogDebug(VB_HTTP, "Resetting E131 Statistics");
+		ResetBytesReceived();
+		SetOKResult(result, "Stats Cleared");
 	}
 	else
 	{
@@ -482,7 +484,7 @@ const std::shared_ptr<httpserver::http_response> PlayerResource::render_DELETE(c
 	}
 
 
-	if (!result.isMember("status"))
+	if (!result.isMember("Status"))
 	{
 		result["Status"] = "ERROR";
 		result["respCode"] = 400;

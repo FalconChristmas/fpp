@@ -3594,6 +3594,17 @@ function GetMultiSyncStats()
     });
 }
 
+function ResetUniverseBytesReceived() {
+    $.ajax({
+        url: "api/channel/input/stats",
+        type: 'DELETE'
+    }).done(function(data) {
+        $.jGrowl("Stat Reset Complete" ,{themeState:'success'});
+    }).fail(function () {
+        DialogError("Stat Reset Failed", "Stat Reset failed. Check if FPPD is running.");
+    });
+}
+
 function GetUniverseBytesReceived() {
     var html = [];
     var html1 = '';
