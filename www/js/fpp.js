@@ -3651,12 +3651,6 @@ function GetUniverseBytesReceived() {
                 $("#bridgeStatistics3").html('');
             }
 
-
-            if (playListArray.length == 0 && sequenceArray.length == 0) {
-                $("#playerModeInfo").hide();
-            } else {
-                $("#playerModeInfo").show();
-            }
         } else {
             // data.status != OK
             $("#bridgeStatistics1").html('Bridge Data not avaiable -- ' + data.status);
