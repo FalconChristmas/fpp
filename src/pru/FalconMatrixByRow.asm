@@ -46,7 +46,7 @@ STILLON:
         MOV tmp_reg4, statOffset
         LSL tmp_reg4, tmp_reg4, 2
         ADD tmp_reg4, tmp_reg4, 28
-        SBCO tmp_reg1, CONST_PRUDRAM, tmp_reg4, 12
+        SBCO &tmp_reg1, CONST_PRUDRAM, tmp_reg4, 12
         ADD statOffset, statOffset, 3
 #endif
 

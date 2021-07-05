@@ -711,7 +711,7 @@ int BBBMatrix::Init(Json::Value config)
             m_dataOffset = root["dataOffset"].asInt();
             m_dataOffset *= 1024; // dataOffset is in KB
         }
-
+        
         configureControlPin("latch", root, outputFile);
         outputFile << "\n";
         isPWM = configureControlPin("oe", root, outputFile);

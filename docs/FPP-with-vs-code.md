@@ -3,7 +3,15 @@ This document outlines how to setup Visual Studio Code on your laptop
 to enable remote development of fpp on a Raspberry Pi3+.
 
 _While technically this works on the BBB, this process is not recommend on the BBB due to limited resources (memory, CPU)
-on the device. The extra processes tend to cause the device to crash._ 
+on the device. The extra processes tend to cause the device to crash._    If using it on a BBB, it might be advised to add
+a swapfile:
+```
+sudo fallocate -l 512M /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+sudo sysctl vm.swappiness=10
+```
 
 ## Setup Remote-SSH
 Follow the video shows how to setup the remote-ssh plugin in Visual Studio
