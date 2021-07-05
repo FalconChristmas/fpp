@@ -76,6 +76,8 @@ class BBBMatrix : public ChannelOutputBase {
     BBBPruMatrixData *m_pruData;
     Matrix      *m_matrix;
     PanelMatrix *m_panelMatrix;
+    bool         m_singlePRU = false;
+    size_t       m_dataOffset = 0;
     
     int          m_panelWidth;
     int          m_panelHeight;

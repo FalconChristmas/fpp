@@ -399,8 +399,6 @@ DONETIMES:
     LDI statOffset, 0
 
 READ_LOOP:
-
-
     ; Load the pointer to the buffer from PRU DRAM into r1
     ; command into r2
     LBCO &data_addr, CONST_PRUDRAM, 0, 8

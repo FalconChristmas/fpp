@@ -703,6 +703,15 @@ int BBBMatrix::Init(Json::Value config)
         m_timing = root["timing"].asInt();
         
         pru = root["pru"].asInt();
+
+        if (root.isMember("singlePRU")) {
+            m_singlePRU = root["singlePRU"].asBool();
+        }
+        if (root.isMember("dataOffset")) {
+            m_dataOffset = root["dataOffset"].asInt();
+            m_dataOffset *= 1024; // dataOffset is in KB
+        }
+
         configureControlPin("latch", root, outputFile);
         outputFile << "\n";
         isPWM = configureControlPin("oe", root, outputFile);
@@ -758,6 +767,9 @@ int BBBMatrix::Init(Json::Value config)
     }
     
     char buf[200];
+    if (m_singlePRU) {
+        compileArgs.push_back("-DSINGLEPRU");
+    }
     sprintf(buf, "-DRUNNING_ON_PRU%d", pru);
     compileArgs.push_back(buf);
     sprintf(buf, "-DRUNNING_ON_PRU=%d", pru);
@@ -803,12 +815,14 @@ int BBBMatrix::Init(Json::Value config)
     compilePRUMatrixCode(compileArgs);
     std::string pru_program = "/tmp/FalconMatrix.out";
 
-    m_pruCopy = new BBBPru(pru ? 0 : 1);
-    memset(m_pruCopy->data_ram, 0, 24);
+    if (!m_singlePRU) {
+        m_pruCopy = new BBBPru(pru ? 0 : 1);
+        memset(m_pruCopy->data_ram, 0, 24);
+    }
 
     m_pru = new BBBPru(pru);
     m_pruData = (BBBPruMatrixData*)m_pru->data_ram;
-    m_pruData->address_dma = m_pru->ddr_addr;
+    m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
     m_pruData->command = 0;
     m_pruData->response = 0;
 
@@ -821,7 +835,9 @@ int BBBMatrix::Init(Json::Value config)
         m_pruData->stats[x * 3 + 1] = 0;
         m_pruData->stats[x * 3 + 1] = 0;
     }
-    m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out");
+    if (!m_singlePRU) {
+        m_pruCopy->run("/tmp/FalconMatrixPRUCpy.out");
+    }
     m_pru->run(pru_program);
     
     if (m_interleave && ((m_panelScan * 2) != m_panelHeight)) {
@@ -925,9 +941,9 @@ int BBBMatrix::Init(Json::Value config)
     int alignedLen = m_fullFrameLen + 8192;
     alignedLen -= (alignedLen & 0xFFF);
     
-    m_frames[0] = (uint8_t*)m_pru->ddr;
+    m_frames[0] = (uint8_t*)m_pru->ddr + m_dataOffset;
     uint8_t *maxPtr = m_frames[0];
-    maxPtr += m_pru->ddr_size;
+    maxPtr += (m_pru->ddr_size - m_dataOffset);
     m_numFrames = 0;
     for (int x = 1; x < 8; x++) {
         m_frames[x] = m_frames[x-1] + alignedLen;
@@ -939,8 +955,8 @@ int BBBMatrix::Init(Json::Value config)
         m_numFrames++;
     }
     m_curFrame = m_numFrames-1;
-    memset(m_pru->ddr, 0, m_pru->ddr_size);
-    m_pruData->address_dma = m_pru->ddr_addr;
+    memset(m_pru->ddr + m_dataOffset, 0, m_pru->ddr_size - m_dataOffset);
+    m_pruData->address_dma = m_pru->ddr_addr + m_dataOffset;
     //make sure memory is flushed before command is set to 1
     __asm__ __volatile__("":::"memory");
     m_pruData->command = 1;
@@ -1132,7 +1148,7 @@ int BBBMatrix::SendData(unsigned char *channelData)
 {
     LogExcess(VB_CHANNELOUT, "BBBMatrix::SendData(%p)\n", channelData);
     //long long startTime = GetTime();
-    uint8_t *addr = (uint8_t*)m_pru->ddr_addr;
+    uint8_t *addr = (uint8_t*)m_pru->ddr_addr + m_dataOffset;
     addr += (m_frames[m_curFrame] - m_frames[0]);
     uint8_t *ptr = m_frames[m_curFrame];
     if (m_numFrames < 3) {

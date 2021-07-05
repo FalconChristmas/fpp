@@ -17,18 +17,9 @@ ROW_LOOP:
         LDI pixelCount, ROW_LEN
 NEXT_PIXEL:
 
-			; Load the 8 GPIO bit flags (4 for each of 2 pixels)
-			; consecutive registers, starting at pixel_data
-            ; we do this by transfering the data_addr to the other PRU via XOUT
-            ; which will LBBO the data and then transfer it back via XIN
-REREAD:
-                CHECK_FOR_DISPLAY_OFF
-                XIN 11, &data_from_other_pru, (32 + 4)
-                QBNE REREAD, data_from_other_pru, data_addr
-            ADD data_addr, data_addr, 32
-            ; XOUT the new data_addr so the other RPU can start working
-            ; on loading it while we process this data
-            XOUT 10, &data_addr, 4
+	; Load the 8 GPIO bit flags (4 for each of 2 pixels)
+	; consecutive registers, starting at pixel_data
+        READ_DATA
 
             CLOCK_LO
             OUTPUT_GPIOS r18, r19, r20, r21

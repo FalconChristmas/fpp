@@ -187,4 +187,25 @@ ADJUST_SETTINGS .macro
     .endm
 
 
+
+READ_DATA .macro
+#ifdef SINGLEPRU
+    CHECK_FOR_DISPLAY_OFF
+    LBBO    &pixel_data, data_addr, 0, 32
+    ADD     data_addr, data_addr, 32
+#else
+REREAD:
+        ; we do this by transfering the data_addr to the other PRU via XOUT
+        ; which will LBBO the data and then transfer it back via XIN
+    CHECK_FOR_DISPLAY_OFF
+    XIN 11, &data_from_other_pru, (32 + 4)
+    QBNE REREAD, data_from_other_pru, data_addr
+    ADD data_addr, data_addr, 32
+    ; XOUT the new data_addr so the other RPU can start working
+    ; on loading it while we process this data
+    XOUT 10, &data_addr, 4
+#endif
+    .endm
+
+
 #endif

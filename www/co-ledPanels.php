@@ -1229,7 +1229,7 @@ $(document).ready(function(){
                     </div>
                 </div>
                 <div class="col-md-auto form-inline">
-                    <div><b>Connection:&nbsp;</b></div><div>
+                    <div id='LEDPanelsConnectionLabel'><b>Connection:&nbsp;</b></div><div>
                     <select id='LEDPanelsConnection' onChange='LEDPanelsConnectionChanged();'>
 <?
                     if (in_array('all', $currentCapeInfo["provides"])
