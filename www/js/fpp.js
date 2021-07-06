@@ -2407,6 +2407,8 @@ function RemovePlaylistEntry()	{
 
                 var universe = $(item).parent().parent().find("input.txtUniverse");
                 universe.prop('min', 1);
+
+                $(item).parent().parent().find("input.txtIP").prop('disabled', false);
             } else { // 0,1 = E1.31, 2,3 = Artnet, 6,7 = KiNet
                 var univ = $(item).parent().parent().find("input.txtUniverse");
                 univ.prop('disabled', false);
