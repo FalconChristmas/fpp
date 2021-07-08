@@ -1608,6 +1608,15 @@ int MultiSync::OpenControlSockets()
 	}
 
     std::string remotesString = getSetting("MultiSyncRemotes");
+    std::string extraRemotes = getSetting("MultiSyncExtraRemotes");
+    if (extraRemotes != "") {
+        if (remotesString == "") {
+            remotesString = extraRemotes;
+        } else {
+            remotesString += ",";
+            remotesString += extraRemotes;
+        }
+    }
     if (remotesString == "" || getFPPmode() != MASTER_MODE) {
         remotesString += ",";
         remotesString += MULTISYNC_MULTICAST_ADDRESS;
