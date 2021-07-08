@@ -1761,7 +1761,11 @@ function AddPlaylistEntry(mode) {
             }
             pe[a.name] = arr;
         } else if ((a.type == 'string') || (a.type == 'file')) {
-            pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).val().replace(/<\/?[^>]+(>|$)/g, "");
+            var inp = $('#playlistEntryOptions').find('.arg_' + a.name)
+            var val = inp.val();
+            if (val !== undefined) {
+                pe[a.name] = val.replace(/<\/?[^>]+(>|$)/g, "");
+            }
         } else {
             pe[a.name] = $('#playlistEntryOptions').find('.arg_' + a.name).html();
         }
@@ -5033,9 +5037,9 @@ function CommandSelectChanged(commandSelect, tblCommand, configAdjustable = fals
         line += "style='display:none'";
     }
     line += "><td>Multicast:</td><td><input type='checkbox' id='" + tblCommand
-        + "_multisync' onChange='OnMultisyncChanged(this, \"" +  tblCommand + "\");'></input></td></tr>";
+        + "_multisync' class='arg_multisync' onChange='OnMultisyncChanged(this, \"" +  tblCommand + "\");'></input></td></tr>";
     $('#' + tblCommand).append(line);
-    line = "<tr id='" + tblCommand + "_multisyncHosts_row' style='display:none'><td>Hosts:</td><td><input style='width:100%;' type='text' id='" + tblCommand + "_multisyncHosts'";
+    line = "<tr id='" + tblCommand + "_multisyncHosts_row' style='display:none'><td>Hosts:</td><td><input style='width:100%;' type='text' id='" + tblCommand + "_multisyncHosts' class='arg_multisyncHosts'";
     line += " list='" + tblCommand + "_multisyncHosts_list'></input>";
     line += "<datalist id='"+ tblCommand + "_multisyncHosts_list'>";
     remotes = GetRemotes();
@@ -5531,7 +5535,9 @@ function PopulateExistingCommand(json, commandSelect, tblCommand, configAdjustab
                 $("#" + tblCommand + "_multisync").prop("checked", val);
                 if (val) {
                     val = json['multisyncHosts']
-                    baseUrl = val;
+                    if (val !== undefined) {
+                        baseUrl = val;
+                    }
                     $("#" + tblCommand + "_multisyncHosts_row").show();
                     $("#" + tblCommand + "_multisyncHosts").val(val);
                 }
