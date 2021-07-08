@@ -314,9 +314,9 @@ void StartChannelOutputThread(void)
 
 
     DefaultLightDelay = 1000000 / RefreshRate;
-    int E131BridgingInterval = getSettingInt("E131BridgingInterval");
-    if (E131BridgingInterval) {
-        DefaultLightDelay = E131BridgingInterval * 1000;
+    int E131BridgingInterval = getSettingInt("E131BridgingInterval") * 1000;
+    if (E131BridgingInterval < DefaultLightDelay) {
+        DefaultLightDelay = E131BridgingInterval;
     }
 	LightDelay = DefaultLightDelay;
     outputThreadSatusCond.notify_all();
