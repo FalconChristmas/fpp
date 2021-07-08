@@ -522,6 +522,7 @@ int Playlist::Start(void)
 	m_currentSection->at(m_sectionPosition)->StartPlaying();
 
 
+	LogDebug(VB_PLAYLIST, "Exiting Playlist::Start()\n");
 	return 1;
 }
 

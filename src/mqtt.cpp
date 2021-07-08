@@ -166,7 +166,7 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
         if (pos == std::string::npos) {
           LogWarn(VB_PLAYLIST, "Ignoring Invalid playlist topic: playlist/%s\n",
                   topic.c_str());
-          return 0;
+          return;
         }
 
         std::string newPlaylistName = topic.substr(0, pos);
@@ -181,11 +181,13 @@ MosquittoClient::MosquittoClient(const std::string &host, const int port,
 
           LogDebug(VB_CONTROL, "Starting Playlist '%s' with message '%s'\n",
                    newPlaylistName.c_str(), payload.c_str());
-          Player::INSTANCE.StartPlaylist(newPlaylistName.c_str(), pos);
+          Player::INSTANCE.StartPlaylist(newPlaylistName, pos);
+          LogDebug(VB_CONTROL, "Call to Player::INSTANCE.StartPlaylist complete\n");
         } else {
             playlist->MQTTHandler(topic, payload);
         };
-
+          
+        LogDebug(VB_CONTROL, "exit playlist_callback (MQTT)\n");
       };
   AddCallback("/set/playlist/#", playlist_callback);
 }
@@ -517,11 +519,13 @@ void MosquittoClient::MessageCallback(void *obj, const struct mosquitto_message 
     
     for (auto &a : callbacks) {
         std::string s = m_baseTopic + a.first;
+	    LogDebug(VB_CONTROL, "Testing Callback '%s'\n", s.c_str());
         mosquitto_topic_matches_sub(s.c_str(), message->topic, &match);
         if (match) {
             std::string tp = message->topic;
             tp.replace(0, m_baseTopic.size(), emptyStr);
             a.second(tp, payload);
+	        LogDebug(VB_CONTROL, "Found and Completed Callback for '%s'\n", s.c_str());
             return;
         }
     }
