@@ -130,7 +130,11 @@ $(function() {
             if(settings.buttons){
               if(!$(this).hasClass('has-buttons')){
                 $(this).addClass('has-buttons');
-                $buttons=$('<div class="modal-footer"/>');
+                if($(this).hasClass('has-footer')){
+                    $(this).removeClass('has-footer');
+                } else {
+                    $buttons=$('<div class="modal-footer"/>');   
+                }
               }
               $.each(settings.buttons,function(buttonKey,buttonProps){
                 var buttonText=buttonKey;
@@ -156,7 +160,11 @@ $(function() {
             }else if(settings.footer){
                 if(!$(this).hasClass('has-footer')){
                     $(this).addClass('has-footer');
-                    $buttons=$('<div class="modal-footer"/>');
+                    if($(this).hasClass('has-buttons')){
+                        $(this).removeClass('has-buttons');
+                    } else {
+                        $buttons=$('<div class="modal-footer"/>');   
+                    }        
                 }
                 $buttons.append(settings.footer);
             }
