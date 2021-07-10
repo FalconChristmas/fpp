@@ -76,6 +76,9 @@ function stats_network()
     exec("ping -c 1 -q -W 2 github.com", $output, $exitCode);
     $rc['github_access'] = ($exitCode == 0 ? true : false);
 
+    $rc['wifi'] = json_decode(file_get_contents("http://localhost/api/network/wifi/strength"), true);
+
+
     return $rc;
 }
 
