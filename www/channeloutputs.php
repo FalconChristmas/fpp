@@ -215,7 +215,7 @@ $(document).ready(function(){
                 ((file_exists('/usr/include/X11/Xlib.h')) && ($settings['Platform'] == "Linux"))) {
                 if (in_array('all', $currentCapeInfo["provides"]) || in_array('strings', $currentCapeInfo["provides"])) {
                     $stringTabText="Pixel Strings";
-                    if (isset($currentCapeInfo["name"]))
+                    if (isset($currentCapeInfo["name"]) && $currentCapeInfo["name"] != "Unknown")
                         $stringTabText=$currentCapeInfo["name"];
                     ?>
                     <li class="nav-item">

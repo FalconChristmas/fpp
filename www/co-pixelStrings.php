@@ -1411,7 +1411,7 @@ function populateCapeList() {
 }
 
 $(document).ready(function(){
-    if (currentCapeName != "") {
+    if (currentCapeName != "" && currentCapeName != "Unknown") {
         $('.capeName').html(currentCapeName);
     }
 
