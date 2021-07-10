@@ -675,6 +675,7 @@
         "gitBranch": {
             "name": "gitBranch",
             "description": "Git Branch",
+            "gatherStats" : true,
             "tip": "Switch code branches to test features outside the current release branch.  The 'master' branch is the main development branch for the next version of FPP.  There may also be a 'master-vY.x' branch were 'Y' is the major FPP version.  These master-v* branches are created to allow development on the next major release to continue in the master branch while bugfixes for the 'Y' release are applied only to the master-vY.x branch.",
             "level": 2
         },
@@ -750,6 +751,7 @@
         "LogLevel_General": {
             "name": "LogLevel_General",
             "description": "General",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for General Functions. ",
             "default": "info",
             "type": "select",
@@ -764,6 +766,7 @@
         "LogLevel_ChannelOut": {
             "name": "LogLevel_ChannelOut",
             "description": "ChannelOut",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for Channel Testing and Overlays. ",
             "default": "info",
             "type": "select",
@@ -778,6 +781,7 @@
         "LogLevel_ChannelData": {
             "name": "LogLevel_ChannelData",
             "description": "ChannelData",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for Serial and LOR output. ",
             "default": "info",
             "type": "select",
@@ -792,6 +796,7 @@
         "LogLevel_Command": {
             "name": "LogLevel_Command",
             "description": "Command",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for Commands. ",
             "default": "info",
             "type": "select",
@@ -805,6 +810,7 @@
         },
         "LogLevel_E131Bridge": {
             "name": "LogLevel_E131Bridge",
+            "gatherStats" : true,
             "description": "E131Bridge",
             "tip": "The Log Level controls the detail amount included in the FPP logs for E131 and DDP input Bridge. ",
             "default": "info",
@@ -819,6 +825,7 @@
         },
         "LogLevel_Effect": {
             "name": "LogLevel_Effect",
+            "gatherStats" : true,
             "description": "Effect",
             "tip": "The Log Level controls the detail amount included in the FPP logs for Effects. ",
             "default": "info",
@@ -833,6 +840,7 @@
         },
         "LogLevel_MediaOut": {
             "name": "LogLevel_MediaOut",
+            "gatherStats" : true,
             "description": "MediaOut",
             "tip": "The Log Level controls the detail amount included in the FPP logs for Audio and Video Output. ",
             "default": "info",
@@ -847,6 +855,7 @@
         },
         "LogLevel_Playlist": {
             "name": "LogLevel_Playlist",
+            "gatherStats" : true,
             "description": "Playlist",
             "tip": "The Log Level controls the detail amount included in the FPP logs for Playlis . ",
             "default": "info",
@@ -862,6 +871,7 @@
         "LogLevel_Schedule": {
             "name": "LogLevel_Schedule",
             "description": "Schedule",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for the Scheduler. ",
             "default": "info",
             "type": "select",
@@ -876,6 +886,7 @@
         "LogLevel_Sequence": {
             "name": "LogLevel_Sequence",
             "description": "Sequence",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for Sequence Parsing. ",
             "default": "info",
             "type": "select",
@@ -890,6 +901,7 @@
         "LogLevel_Settings": {
             "name": "LogLevel_Settings",
             "description": "Settings",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs when parsing Settings. ",
             "default": "info",
             "type": "select",
@@ -904,6 +916,7 @@
         "LogLevel_Control": {
             "name": "LogLevel_Control",
             "description": "Control",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for MQTT input ",
             "default": "info",
             "type": "select",
@@ -919,6 +932,7 @@
             "name": "LogLevel_Sync",
             "description": "Sync",
             "tip": "The Log Level controls the detail amount included in the FPP logs for MultiSync. ",
+            "gatherStats" : true,
             "default": "info",
             "type": "select",
             "options": {
@@ -932,6 +946,7 @@
         "LogLevel_Plugin": {
             "name": "LogLevel_Plugin",
             "description": "Plugin",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for Plugin Management. ",
             "default": "info",
             "type": "select",
@@ -946,6 +961,7 @@
         "LogLevel_GPIO": {
             "name": "LogLevel_GPIO",
             "description": "GPIO",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for GPIO Input/Output. ",
             "default": "info",
             "type": "select",
@@ -960,6 +976,7 @@
         "LogLevel_HTTP": {
             "name": "LogLevel_HTTP",
             "description": "HTTP",
+            "gatherStats" : true,
             "tip": "The Log Level controls the detail amount included in the FPP logs for fppd Rest API. ",
             "default": "info",
             "type": "select",
@@ -1089,6 +1106,7 @@
             "name": "MQTTPort",
             "description": "Broker Port",
             "tip": "TCP Port number on which your MQTT broker is listening",
+            "gatherStats" : true,
             "default": 1883,
             "type": "number",
             "min": 1,
@@ -1130,6 +1148,7 @@
         "MultiSyncAdvancedView": {
             "name": "MultiSyncAdvancedView",
             "description": "Advanced View",
+            "gatherStats" : true,
             "tip": "Show additional information about each FPP system.",
             "type": "checkbox"
         },
@@ -1196,7 +1215,6 @@
         "MultiSyncExtraRemotes": {
             "name": "MultiSyncExtraRemotes",
             "description": "MultiSync Unicast Discovery IPs (CSV list)",
-            "gatherStats" : true,
             "tip": "FPP will send unicast MultiSync discovery messages to the IPs in this list to allow discovery of devices which are unable to be discovered via FPP's normal multicast discovery.  This may include systems on remote networks or connected to certain routers which do not pass multicast packets between wired and wireless interfaces.",
             "level": 1,
             "restart": 2,
@@ -1206,18 +1224,21 @@
         },
         "MultiSyncHide10": {
             "name": "MultiSyncHide10",
+            "gatherStats" : true,
             "description": "Hide 10.x.x.x/8 Subnets in systems list",
             "tip": "Hide subnets in private 10.0.0.0/8 IP space.",
             "type": "checkbox"
         },
         "MultiSyncHide172": {
             "name": "MultiSyncHide172",
+            "gatherStats" : true,
             "description": "Hide 172.16.x.x/12 Subnets in systems list",
             "tip": "Hide subnets in private 172.16.0.0/12 IP space.",
             "type": "checkbox"
         },
         "MultiSyncHide192": {
             "name": "MultiSyncHide192",
+            "gatherStats" : true,
             "description": "Hide 192.168.x.x/16 Subnets in systems list",
             "tip": "Hide subnets in private 192.168.0.0/16 IP space.",
             "type": "checkbox"
@@ -1295,6 +1316,7 @@
             "name": "passwordEnable",
             "description": "Enable UI password",
             "tip": "Enable password protection on the FPP UI",
+            "gatherStats" : true,
             "type": "checkbox",
             "onChange": "ConfirmPasswordEnable",
             "children": {
@@ -1387,6 +1409,7 @@
         "showAllOptions": {
             "name": "showAllOptions",
             "description": "Display all hardware options/settings",
+            "gatherStats" : true,
             "tip": "If FPPD can detect what hardware (cape/hat/etc...) is connected, certain options that are either incompatible with the hardware or are rarely used may not be displayed.  This setting forces FPP to display to display all options even for hardware that was not detected.",
             "level": 1,
             "reboot": 0,
