@@ -49,18 +49,28 @@ NetworkController *NetworkController::DetectControllerViaHTML(const std::string 
         return nc;
     }
     
-    if (nc->DetectFalconController(ip, html))
+    if (nc->DetectFalconController(ip, html)) {
         return nc;
-    if (nc->DetectSanDevicesController(ip, html))
+    }
+    if (nc->DetectSanDevicesController(ip, html)) {
         return nc;
-    if (nc->DetectESPixelStickController(ip, html))
+    }
+    if (nc->DetectESPixelStickController(ip, html)) {
         return nc;
-    if (nc->DetectAlphaPixController(ip, html))
+    }
+    if (nc->DetectAlphaPixController(ip, html)) {
         return nc;
-    if (nc->DetectHinksPixController(ip, html))
+    }
+    if (nc->DetectHinksPixController(ip, html)) {
         return nc;
-    if (nc->DetectDIYLEDExpressController(ip, html))
+    }
+    if (nc->DetectDIYLEDExpressController(ip, html)) {
         return nc;
+    }
+    if (nc->DetectWLEDController(ip, html)) {
+        return nc;
+    }
+
 
     delete nc;
 
@@ -358,6 +368,39 @@ bool NetworkController::DetectDIYLEDExpressController(const std::string &ip,
         return true;
     }
 
+    return false;
+}
+
+bool NetworkController::DetectWLEDController(const std::string &ip, const std::string &html) {
+    if (html.find("WLED UI") == std::string::npos) {
+        return false;
+    }
+    std::string url = "http://" + ip + "/json/info";
+    std::string resp;
+
+    if (urlGet(url, resp)) {
+        Json::Value v = LoadJsonFromString(resp);
+
+        vendor = "WLED";
+        vendorURL = "https://github.com/Aircoookie/WLED";
+
+        version = v["ver"].asString();
+        typeStr = v["arch"].asString();
+        typeId = kSysTypeWLED;
+        systemMode = BRIDGE_MODE;
+
+        if (version != "") {
+            std::size_t verDot = version.find(".");
+            if (verDot != std::string::npos) {
+                majorVersion = atoi(version.substr(0, verDot).c_str());
+                std::size_t verDot2 = version.find(".", verDot + 1);
+                if (verDot2 != std::string::npos) {
+                    minorVersion = atoi(version.substr(verDot + 1,verDot2 - (verDot + 1)).c_str());
+                }
+            }
+        }
+        return true;
+    }
     return false;
 }
 
