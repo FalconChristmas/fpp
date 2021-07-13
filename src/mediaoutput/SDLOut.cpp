@@ -610,10 +610,12 @@ bool SDL::openAudio() {
         SDL_memset(&_wanted_spec, 0, sizeof(_wanted_spec));
         switch (tp) {
             case 0:
-#if defined(PLATFORM_BBB) || defined(PLATFORM_PI)
-                _wanted_spec.freq = 48000;
-#else
                 _wanted_spec.freq = 44100;
+#if defined(PLATFORM_PI)
+		if ((getSettingInt("AudioOutput", 0) == 0)
+                     && contains(getSetting("AudioCard0Type"), "bcm")) {
+                    _wanted_spec.freq = 48000;
+                }
 #endif
                 _wanted_spec.format = AUDIO_S16;
                 break;

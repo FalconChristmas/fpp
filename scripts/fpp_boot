@@ -72,6 +72,7 @@ if [ ${HASSOUND} -eq 1 ]; then
     # Pi needs a volume adjustment, in reality a lot of sound cards do, but we
     # don't want to put in a lot of special cases here so only handle the Pi
     CARD0STR=""
+    CARDRATE=$(getSetting AudioFormat)
     if [ "${FPPPLATFORM}" = "Raspberry Pi" ]; then
         if [ "$CARDID" = "0" ]; then
             CARD0STR=$(aplay -l | grep '^card 0' | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq | colrm 1 2 | colrm 5)
@@ -105,6 +106,17 @@ if [ ${HASSOUND} -eq 1 ]; then
     
     echo "Setting /root/.asoundrc to use card id ${CARDID}"
     sed -i "s/card [0-9]/card ${CARDID}/" /root/.asoundrc
+    case "${CARDRATE}" in
+    "1" | "2" | "3")
+       sed -ie 's/rate *44100/rate 44100/' /root/.asoundrc
+       ;;
+    "4" | "5" | "6")
+       sed -ie 's/rate *44100/rate 48000/' /root/.asoundrc
+       ;;
+    "7" | "8" | "9")
+       sed -ie "s/rate *44100/rate 96000/" /root/.asoundrc
+       ;;
+    esac
 
     MIXERDEVICES=$(amixer -c $CARDID scontrols | head -1 | cut -f2 -d"'")
     if [ "x${MIXERDEVICES}" == "x" ]; then
@@ -131,9 +143,8 @@ if [ ${HASSOUND} -eq 1 ]; then
 
     amixer -c ${CARDID} set ${MIXERDEVICE} ${VOLUME}% > /dev/null 2>&1
     
-    
-    CARDTYPE=$(aplay -l | grep "^card $CARDID" | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//' | uniq | colrm 1 2)
-    echo "Found card type: $CARDTYPE \n"
+    CARDTYPE=$(aplay -l | grep "^card $CARDID" | sed -e 's/^card //' -e 's/:[^\[]*\[/:/' -e 's/\].*\[.*\].*//'  -e 's@/@@' -e 's/=//' | uniq | colrm 1 2)
+    echo "Found card type: $CARDTYPE"
     setSetting AudioCardType "$CARDTYPE"
 fi
 
@@ -141,7 +152,7 @@ fi
 
 if [ "${FPPPLATFORM}" = "Raspberry Pi" ]
 then
-	echo "FPP - Setting up SPI"
+    echo "FPP - Setting up SPI"
     modprobe spidev
 
     if [ ! -e /dev/spidev0.0 ]; then
@@ -165,12 +176,7 @@ then
         then
             arrHost=(${_IP// / })
             FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
-            if [ "${FPPPLATFORM}" = "BeagleBone Black" ]
-            then
-                (flite -voice awb -o /var/tmp/flite.wav "${FLITESTR}" && mplayer -ao alsa /var/tmp/flite.wav) &
-            else
-                flite -voice awb "${FLITESTR}" &
-            fi
+            flite -voice awb -t "${FLITESTR}" &
         fi
     else
         echo "FPP - No IP(s) found"

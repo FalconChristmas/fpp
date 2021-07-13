@@ -7,7 +7,14 @@ pcm.dmixer {
 	type dmix
 	ipc_key 1024
 	ipc_perm 0666 # allow other users
-	slave.pcm "pcmdev"
+	slave {
+		pcm "pcmdev"
+		period_time 0
+		period_size 128
+		buffer_size 1024
+		rate 44100
+	}
+	slowptr false
 }
 pcm.pcmdev {
 	type hw
