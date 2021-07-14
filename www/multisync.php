@@ -149,6 +149,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return false;
     }
 
+    function isWLED(typeId) {
+        typeId = parseInt(typeId);
+
+        if (typeId == 0xFB)
+            return true;
+
+        return false;
+    }
+
     function getLocalVersionLink(ip, data) {
         var updatesAvailable = 0;
         if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -612,6 +621,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     }
                 } else if (isFalcon(data[i].typeId)) {
                     getFalconControllerStatus(ip);
+                } else if (isWLED(data[i].typeId)) {
+                    getWLEDControllerStatus(ip);
                 }
             }
         }
@@ -833,6 +844,43 @@ function getFalconControllerStatus(ip) {
     });
 }
 
+function getWLEDControllerStatus(ip) {
+
+$.ajax({
+        url: 'http://' + ip + '/json/info',
+            method: 'GET',
+            contentType: 'application/json',
+            dataType: 'json',
+            success: function(data) {
+            var ips = ip.replace(/\./g, '_');
+
+            var result = JSON.stringify(data);
+            var s = JSON.parse(result);
+
+            var rssi = s.wifi.rssi;
+            var quality = s.wifi.signal;
+
+            var t=parseInt(s.uptime);
+            var days=Math.floor(t/86400);
+            var hours=Math.floor((t-86400*days)/3600);
+            var mins=Math.floor((t-86400*days-3600*hours)/60);
+
+            var uptime = '';
+
+            uptime += (days + " days, ");
+            uptime += ("0" + hours).slice(-2) + ":";
+            uptime += ("0" + mins ).slice(-2);
+
+            var u = "<table class='multiSyncVerboseTable'>";
+            u += "<tr><td>RSSI:</td><td>" + rssi + "dBm / " + quality + "%</td></tr>";
+            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+            u += "</table>";
+
+            $('#advancedViewUtilization_fpp_' + ips).html(u);
+        }
+    });
+}
+
 function RefreshStats() {
     var keys = Object.keys(hostRows);
     var ips = [];
@@ -858,6 +906,8 @@ function RefreshStats() {
             }
         } else if (isFalcon(typeId)) {
             getFalconControllerStatus(ip);
+        } else if (isWLED(typeId)) {
+            getWLEDControllerStatus(ip);
         }
     }
     getFPPSystemStatus(ips, true);
@@ -1510,6 +1560,9 @@ $(document).ready(function() {
                             },
                     "SanDevices": function(e,n,f,i,$r,c,data) {
                                 return isSanDevices($r.find('span.typeId').html());
+                            },
+                    "WLED": function(e,n,f,i,$r,c,data) {
+                                return isWLED($r.find('span.typeId').html());
                             },
                     "Unknown": function(e,n,f,i,$r,c,data) {
                                 return isUnknownController($r.find('span.typeId').html());
