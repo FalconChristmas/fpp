@@ -174,9 +174,18 @@ then
         DISABLEIPANN=$(getSetting disableIPAnnouncement)
         if [ "x${DISABLEIPANN}" != "x1" ]
         then
-            arrHost=(${_IP// / })
-            FLITESTR="I Have Found The Following I P Addresses, ${arrHost[0]}, ${arrHost[1]},  ${arrHost[2]}"
+            FLITESTR="I Have Found The Following I P Addresses"
+            for ELEMENT in ${_IP// / }; do
+                case "${ELEMENT}" in
+                "192.168.6.2" | "192.168.7.2" | "192.168.8.1" )
+                    ;;
+                * )
+                    FLITESTR+=", ${ELEMENT} "
+                    ;;
+                esac
+            done
             flite -voice awb -t "${FLITESTR}" &
+            echo "${FLITESTR}"
         fi
     else
         echo "FPP - No IP(s) found"

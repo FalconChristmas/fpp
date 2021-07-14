@@ -3,6 +3,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "fppd (gdb) Foreground",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/opt/fpp/src/fppd",
+            "args": [ "-f"],
+            "stopAtEntry": false,
+            "cwd": "/opt/fpp/src",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "type": "by-gdb",
             "request": "launch",
             "name": "fppd(gdb)",
