@@ -475,6 +475,9 @@ if ($mediaDevice != $rootDevice) {
         $eepromFile  = "/sys/bus/i2c/devices/1-0050/eeprom";
         if ($settings['Platform'] == "BeagleBone Black") {
             $eepromFile = "/sys/bus/i2c/devices/2-0050/eeprom";
+	    if (!file_exists($eepromFile)) {
+                $eepromFile  = "/sys/bus/i2c/devices/1-0050/eeprom";
+            }
         }
         if (file_exists($eepromFile)) {
         ?>
