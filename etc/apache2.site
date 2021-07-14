@@ -18,8 +18,7 @@
                 Options Indexes FollowSymLinks
                 AllowOverride All
                 Require all granted
-		SetOutputFilter INFLATE
-		SetEnv no-gzip 1
+		SetOutputFilter INFLATE;DEFLATE
 		ProxyHTMLBufSize 32768
 		# ProxyHTMLEnable On
 		ProxyHTMLStripComments Off
