@@ -366,14 +366,58 @@ static void removeIfExist(const std::string &src) {
         unlink(src.c_str());
     }
 }
+
+#ifdef PLATFORM_BBB
+bool isPocketBeagle() {
+    bool ret = false;
+    FILE *file = fopen("/proc/device-tree/model", "r");
+    if (file) {
+        char buf[256];
+        fgets(buf , 256 , file);
+        fclose(file);
+        if (strcmp(&buf[10], "PocketBeagle") == 0) {
+            ret = true;
+        }
+    }
+    return ret;
+}
+void ConfigurePin(const char *pin, const char *mode) {
+    char dir_name[255];
+    snprintf(dir_name, sizeof(dir_name),
+             "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
+             pin);
+    FILE *dir = fopen(dir_name, "w");
+    if (!dir) {
+        return;
+    }
+    fprintf(dir, "%s\n", mode);
+    fclose(dir);
+}
+#endif
+void ConfigureI2C1BusPins(bool enable) {
+#ifdef PLATFORM_BBB
+    if (isPocketBeagle()) {
+        ConfigurePin("P2_09", enable ? "i2c" : "default");
+        ConfigurePin("P2_11", enable ? "i2c" : "default");
+    } else {
+        ConfigurePin("P9_17", enable ? "i2c" : "default");
+        ConfigurePin("P9_18", enable ? "i2c" : "default");
+    }
+#endif    
+}
+
+
 bool fpp_detectCape() {
     int bus = I2C_DEV;
     waitForI2CBus(bus);
     std::string EEPROM;
     if (bus == 2 && !HasI2CDevice(0x50, bus)) {
         printf("Did not find 0x50 on i2c2, trying i2c1.\n");
+        ConfigureI2C1BusPins(true);
         if (HasI2CDevice(0x50, 1)) {
             bus = 1;
+        } else {
+            ConfigureI2C1BusPins(false);
         }
     }
     if (HasI2CDevice(0x50, bus)) {
