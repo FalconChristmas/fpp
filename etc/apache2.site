@@ -18,7 +18,7 @@
                 Options Indexes FollowSymLinks
                 AllowOverride All
                 Require all granted
-		RequestHeader unset Accept-Encoding
+		SetOutputFilter INFLATE
 		SetEnv no-gzip 1
 		ProxyHTMLBufSize 32768
 		# ProxyHTMLEnable On
