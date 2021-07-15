@@ -1,13 +1,20 @@
-<!DOCTYPE html>
-<html>
 <?php
+header( "Access-Control-Allow-Origin: *");
+
+$wrapped = 0;
+
+if (isset($_GET['wrapped']))
+    $wrapped = 1;
+
+if (!$wrapped)
+  echo "<!DOCTYPE html>\n";
+  echo "<html>\n";
 
 $skipJSsettings = 1;
 require_once("common.php");
 
 DisableOutputBuffering();
-
-
+if (!$wrapped) {
 ?>
 
 <head>
@@ -19,6 +26,7 @@ Copy Settings
 <h2>Copy Settings</h2>
 <pre>
 <?php
+}
     $date = date("Ymd-Hi");
     $path = preg_replace('/{DATE}/', $date, $_GET['path']);
 
@@ -30,7 +38,7 @@ Copy Settings
 		echo "----------------------------------------------------------------------------------\n";
         system($command);
 		echo "\n";
-
+if (!$wrapped) {
 ?>
 
 ==========================================================================
@@ -38,3 +46,4 @@ Copy Settings
 <a href='index.php'>Go to FPP Main Status Page</a><br>
 </body>
 </html>
+<? } ?>

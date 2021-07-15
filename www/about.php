@@ -353,8 +353,10 @@ tr.rowScheduleDetails td {
       if($percentageUsed>80){ $progressClass = "bg-danger"; }
       exec('findmnt -n -o SOURCE / | colrm 1 5', $output, $return_val);
       $rootDevice = $output[0];
+      unset($output);
       exec('findmnt -n -o SOURCE ' . $mediaDirectory . ' | colrm 1 5', $output, $return_val);
       $mediaDevice = $output[0];
+      unset($output);
     ?>
                 <tr>
                   <td colspan="2">

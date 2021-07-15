@@ -64,10 +64,10 @@ function checkForStorageCopy() {
              buttons: [{ value: "Yes" }, { value: "No" }],
              success: function (result) {
                  if (result == "Yes") {
-                    $('#storageSettingsProgressPopup').fppDialog({  width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
+                    $('#storageSettingsProgressPopup').fppDialog({  height: 500, width: 900, title: "Copy Settings", fppDialogClass: 'no-close' });
                     $('#storageSettingsProgressPopup').fppDialog( "moveToTop" );
                     document.getElementById('storageText').value = '';
-                    StreamURL("copystorage.php?storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
+                    StreamURL("copystorage.php?wrapped=1&storageLocation=" + $('#storageDevice').val() + "&direction=TOUSB&delete=no&path=/&flags=All", 'storageText', 'StorageDialogDone');
                  }
             }
         });
