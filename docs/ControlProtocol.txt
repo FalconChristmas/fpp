@@ -123,6 +123,8 @@ buf[9] = App/Hardware Type
            - 0x85 - F16v3
            - 0x86 - F4v3
            - 0x87 - F48
+           - 0x88 - F16v4
+           - 0x89 - F48v4
          - 0xC0-0xFF = Other systems
            - 0xC1 - xSchedule
            - 0xC2 - ESPixelStick - ESP8266
