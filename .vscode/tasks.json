@@ -1,0 +1,42 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+        {
+            "type": "shell",
+            "label": "Make FPPD (debug)",
+            "command": "/usr/bin/make",
+            "args": [
+                "debug"
+            ],
+            "options": {
+                "cwd": "/opt/fpp/src"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Make FPPD (debug)"
+        },
+        {
+            "type": "shell",
+            "label": "make clean",
+            "command": "/usr/bin/make",
+            "args": [
+                "clean"
+            ],
+            "options": {
+                "cwd": "/opt/fpp/src"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build"
+            },
+            "detail": "make clean"
+        }
+    ]
+}
