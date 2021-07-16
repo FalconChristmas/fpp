@@ -372,7 +372,7 @@ tr.rowScheduleDetails td {
     ?>
                   </td></tr>
     <?
-if ($mediaDevice != $rootDevice) {
+    if (isset($mediaDevice) && $mediaDevice != "" && $mediaDevice != $rootDevice) {
       $diskTotal = disk_total_space($mediaDirectory);
       $diskFree  = disk_free_space($mediaDirectory);
       $percentageUsed = 100-($diskFree * 100 / $diskTotal);
