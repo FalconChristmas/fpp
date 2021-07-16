@@ -702,10 +702,6 @@ void MainLoop(void)
              (ChannelTester::INSTANCE.Testing()) ||
              (alwaysTransmit) || sequence->hasBridgeData() ||
              pushBridgeData)) {
-			int E131BridgingInterval = getSettingInt("E131BridgingInterval");
-			if (!E131BridgingInterval)
-				E131BridgingInterval = 50;
-			SetChannelOutputRefreshRate(1000 / E131BridgingInterval);
 			StartChannelOutputThread();
 		}
 

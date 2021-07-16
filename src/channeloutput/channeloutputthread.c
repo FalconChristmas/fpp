@@ -47,8 +47,9 @@
 
 /* used by external sync code */
 float   RefreshRate = 20;
-int   DefaultLightDelay = 0;
-int   LightDelay = 0;
+int   SequenceLightDelay = 50000;
+int   BridgeLightDelay = 50000;
+int   LightDelay = 50000;
 volatile int FrameSkip = 0;
 int   MasterFramesPlayed = -1;
 int   OutputFrames = 1;
@@ -246,7 +247,7 @@ void *RunChannelOutputThread(void *data)
                     sleepTime, channelOutputFrame);
 			}
 		} else {
-			LightDelay = DefaultLightDelay;
+			LightDelay = BridgeLightDelay;
 
             if (onceMore) {
 				onceMore--;
@@ -299,7 +300,8 @@ void *RunChannelOutputThread(void *data)
 void SetChannelOutputRefreshRate(float rate)
 {
 	RefreshRate = rate;
-	DefaultLightDelay = 1000000 / RefreshRate;
+	SequenceLightDelay = 1000000 / RefreshRate;
+    LightDelay = SequenceLightDelay;
 }
 float GetChannelOutputRefreshRate() {
     return RefreshRate;
@@ -313,15 +315,20 @@ void StartChannelOutputThread(void)
 	LogDebug(VB_CHANNELOUT, "StartChannelOutputThread()\n");
 
 
-    DefaultLightDelay = 1000000 / RefreshRate;
-    int E131BridgingInterval = getSettingInt("E131BridgingInterval") * 1000;
-    if (E131BridgingInterval < DefaultLightDelay) {
-        DefaultLightDelay = E131BridgingInterval;
+    BridgeLightDelay = getSettingInt("E131BridgingInterval", 50) * 1000;
+    if (getFPPmode() & PLAYER_MODE) {
+        int mediaOffsetInt = getSettingInt("mediaOffset");
+        if (mediaOffsetInt) {
+            mediaOffset = (float)mediaOffsetInt * 0.001;
+        } else {
+            mediaOffset = 0.0;
+        }
+        LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
     }
-	LightDelay = DefaultLightDelay;
+
     outputThreadSatusCond.notify_all();
-	if (ChannelOutputThreadIsRunning()) {
-		// Give a little time in case we were shutting down
+    if (ChannelOutputThreadIsRunning()) {
+        // Give a little time in case we were shutting down
         std::unique_lock<std::mutex> lock(outputThreadStatusLock);
         if (ThreadIsExiting) {
             outputThreadSatusCond.wait_for(lock, std::chrono::milliseconds(10));
@@ -332,24 +339,14 @@ void StartChannelOutputThread(void)
         }
 	}
 
-	if (getFPPmode() & PLAYER_MODE) {
-		int mediaOffsetInt = getSettingInt("mediaOffset");
-		if (mediaOffsetInt)
-			mediaOffset = (float)mediaOffsetInt * 0.001;
-		else
-			mediaOffset = 0.0;
-
-		LogDebug(VB_MEDIAOUT, "Using mediaOffset of %.3f\n", mediaOffset);
-	}
-
 	RunThread = 1;
     ThreadIsExiting = 0;
 	int result = pthread_create(&ChannelOutputThreadID, NULL, &RunChannelOutputThread, NULL);
 
 	if (result) {
-		char msg[256];
+        char msg[256];
 
-		RunThread = 0;
+        RunThread = 0;
 		switch (result) {
 			case EAGAIN: strcpy(msg, "Insufficient Resources");
 				break;
@@ -474,7 +471,7 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
                 LogDebug(VB_CHANNELOUT, "Skipping many frames - We are at %d, master is at: %d\n", channelOutputFrame, expectedFramesSent);
                 //more than 1/2 second behind, just jump
                 FrameSkip = expectedFramesSent - channelOutputFrame;
-                LightDelay = DefaultLightDelay;
+                LightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay : BridgeLightDelay;
                 return;
             }
         } else if (diff > 2) {
@@ -483,10 +480,10 @@ void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
             diff--;
         }
     }
+    int DefaultLightDelay = sequence->IsSequenceRunning() ? SequenceLightDelay : BridgeLightDelay;
 	if (diff > 1 || diff < -1) {
 		int timerOffset = diff * (DefaultLightDelay / 100);
 		int newLightDelay = LightDelay;
-
 		if (channelOutputFrame >  expectedFramesSent) {
 			// correct if we slingshot past 0, otherwise offset further
 			if (LightDelay < DefaultLightDelay)
