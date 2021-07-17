@@ -894,11 +894,11 @@ $.ajax({
             u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
             u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
 
-            if (testmode || overtemp) {
+            if (testmode == true || overtemp == true) {
               u += "</table>";
             }
-            if (testmode) u += "</table><br><font color='red'>Controller Test mode is active</font><br>";
-            if (overtemp) u += "</table><br><font color='red'>Pixel brightness reduced due to high temperatures</font><br>";
+            if (testmode == true) u += "</table><br><font color='red'>Controller Test mode is active</font><br>";
+            if (overtemp == true) u += "</table><br><font color='red'>Pixel brightness reduced due to high temperatures</font><br>";
 
               u += "</table>";
 
