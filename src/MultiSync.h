@@ -102,6 +102,8 @@ typedef enum systemType {
 	kSysTypeFalconF16v3                  = 0x85,
 	kSysTypeFalconF4v3                   = 0x86,
 	kSysTypeFalconF48                    = 0x87,
+	kSysTypeFalconF16v4                  = 0x88,
+	kSysTypeFalconF48v4                  = 0x89,
 	kSysTypeOtherSystem                  = 0xC0,
 	kSysTypexSchedule                    = 0xC1,
     kSysTypeESPixelStick                 = 0xC2,
