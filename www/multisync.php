@@ -125,7 +125,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     function isFalcon(typeId) {
         typeId = parseInt(typeId);
 
-        if ((typeId >= 0x80) && (typeId <= 0x8F))
+        if ((typeId >= 0x80) && (typeId <= 0x87))
+            return true;
+
+        return false;
+    }
+
+    function isFalconV4(typeId) {
+        typeId = parseInt(typeId);
+
+        if ((typeId >= 0x88) && (typeId <= 0x89))
             return true;
 
         return false;
@@ -621,6 +630,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     }
                 } else if (isFalcon(data[i].typeId)) {
                     getFalconControllerStatus(ip);
+                } else if (isFalconV4(data[i].typeId)) {
+                    getFalconV4ControllerStatus(ip);
                 } else if (isWLED(data[i].typeId)) {
                     getWLEDControllerStatus(ip);
                 }
@@ -844,6 +855,58 @@ function getFalconControllerStatus(ip) {
     });
 }
 
+function getFalconV4ControllerStatus(ip) {
+$.ajax({
+        url: '/proxy/' + ip + '/api',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}',
+            success: function(data) {
+            var ips = ip.replace(/\./g, '_');
+
+            var result = JSON.stringify(data);
+	    var s = JSON.parse(result);
+
+            var tempthreshold = s.P.BS;
+            var t1temp = s.P.T1 / 10;
+            var t2temp = s.P.T2 / 10;
+
+            var v1voltage = s.P.V1 / 10;
+            var v2voltage = s.P.V2 / 10;
+
+            var testmode = new Boolean(s.P.TS);
+            var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
+
+            var t=parseInt(s.P.U);
+            var days=Math.floor(t/86400);
+            var hours=Math.floor((t-86400*days)/3600);
+            var mins=Math.floor((t-86400*days-3600*hours)/60);
+
+            var uptime = '';
+
+            uptime += (days + " days, ");
+            uptime += ("0" + hours).slice(-2) + ":";
+            uptime += ("0" + mins ).slice(-2);
+
+            var u = "<table class='multiSyncVerboseTable'>";
+            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+            u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
+            u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
+
+            if (testmode || overtemp) {
+              u += "</table>";
+            }
+            if (testmode) u += "</table><br><font color='red'>Controller Test mode is active</font><br>";
+            if (overtemp) u += "</table><br><font color='red'>Pixel brightness reduced due to high temperatures</font><br>";
+
+              u += "</table>";
+
+            $('#advancedViewUtilization_fpp_' + ips).html(u);
+        }
+    });
+}
+
 function getWLEDControllerStatus(ip) {
 
 $.ajax({
@@ -906,6 +969,8 @@ function RefreshStats() {
             }
         } else if (isFalcon(typeId)) {
             getFalconControllerStatus(ip);
+        } else if (isFalconV4(typeId)) {
+            getFalconV4ControllerStatus(ip);
         } else if (isWLED(typeId)) {
             getWLEDControllerStatus(ip);
         }
@@ -1554,6 +1619,9 @@ $(document).ready(function() {
                             },
                     "Falcon": function(e,n,f,i,$r,c,data) {
                                 return isFalcon($r.find('span.typeId').html());
+                            },
+                    "FalconV4": function(e,n,f,i,$r,c,data) {
+                                return isFalconV4($r.find('span.typeId').html());
                             },
                     "ESPixelStick": function(e,n,f,i,$r,c,data) {
                                 return isESPixelStick($r.find('span.typeId').html());
