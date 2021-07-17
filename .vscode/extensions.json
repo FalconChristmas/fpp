@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "kokororin.vscode-phpfmt",
+        "davidanson.vscode-markdownlint",
+        "yzhang.markdown-all-in-one",
+        "coolchyni.beyond-debug",
+        "streetsidesoftware.code-spell-checker",
+        "xaver.clang-format",
+        "austin.code-gnu-global"
+    ]
+}
