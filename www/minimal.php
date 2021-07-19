@@ -165,10 +165,8 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 <?
     if (isset($settings['fppMode']))
 	{
-		if ($settings['fppMode'] == 'master')
-			echo "Master";
 		if ($settings['fppMode'] == 'player')
-			echo "Player (Standalone)";
+			echo "Player";
 		if ($settings['fppMode'] == 'remote')
 			echo "Remote <b>(Not fully supported in minimal UI)</b>";
 	}

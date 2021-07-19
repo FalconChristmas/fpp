@@ -222,6 +222,8 @@ class MultiSync {
 
 	int  Init(void);
 
+    bool isMultiSyncEnabled() { return m_multiSyncEnabled; }
+
 	int  GetControlSocket(void) { return m_receiveSock; }
 	void ProcessControlPacket(bool pingOnly = false);
 
@@ -365,6 +367,7 @@ class MultiSync {
     std::recursive_mutex                    m_statsLock;
     std::map<std::string, MultiSyncStats *> m_syncStats;
     std::string                             m_syncMaster;
+    bool                                    m_multiSyncEnabled = false;
 };
 
 extern MultiSync *multiSync;

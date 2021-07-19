@@ -155,7 +155,7 @@ void *RunChannelOutputThread(void *data)
     bool doForceOutput = false;
 	while (RunThread) {
 		startTime = GetTime();
-		if ((getFPPmode() == MASTER_MODE) && sequence->IsSequenceRunning()) {
+		if (multiSync->isMultiSyncEnabled() && sequence->IsSequenceRunning()) {
             multiSync->SendSeqSyncPacket(
                 sequence->m_seqFilename, channelOutputFrame,
                 (mediaElapsedSeconds > 0) ? mediaElapsedSeconds
@@ -457,7 +457,7 @@ void CalculateNewChannelOutputDelay(float mediaPosition)
 void CalculateNewChannelOutputDelayForFrame(int expectedFramesSent)
 {
 	int diff = channelOutputFrame - expectedFramesSent;
-    if (getFPPmode() != MASTER_MODE) {
+    if (!multiSync->isMultiSyncEnabled()) {
         if (diff < -4) {
             // pretty far behind master, lets just skip forward
             if (diff > -(RefreshRate/2)) {

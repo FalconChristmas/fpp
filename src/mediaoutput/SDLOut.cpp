@@ -1075,7 +1075,7 @@ int SDLOutput::Process(void)
             m_mediaOutputStatus->status = MEDIAOUTPUTSTATUS_IDLE;
         }
     }
-    if (getFPPmode() == MASTER_MODE) {
+    if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaSyncPacket(m_mediaFilename,
                             m_mediaOutputStatus->mediaSeconds);
     }

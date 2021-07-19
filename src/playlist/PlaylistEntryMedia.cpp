@@ -136,7 +136,7 @@ int PlaylistEntryMedia::PreparePlay() {
         return 0;
     }
 
-    if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaOpenPacket(m_mediaFilename);
 
     m_openTime = GetTimeMS();
@@ -155,7 +155,7 @@ int PlaylistEntryMedia::StartPlaying(void)
 {
     LogDebug(VB_PLAYLIST, "PlaylistEntryMedia::StartPlaying()\n");
 
-    if (getFPPmode() == MASTER_MODE && m_openTime) {
+    if (multiSync->isMultiSyncEnabled() && m_openTime) {
         long long st = GetTimeMS() - m_openTime;
         if (st < m_openStartDelay) {
             std::this_thread::sleep_for(std::chrono::milliseconds(m_openStartDelay - st));
@@ -177,7 +177,7 @@ int PlaylistEntryMedia::StartPlaying(void)
     }
     pthread_mutex_lock(&m_mediaOutputLock);
 
-    if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaSyncStartPacket(m_mediaFilename);
     
     if (!m_mediaOutput->Start()) {
@@ -384,7 +384,7 @@ int PlaylistEntryMedia::CloseMediaOutput(void)
 		return 0;
 	}
 
-    if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaSyncStopPacket(m_mediaFilename);
 
 	if (m_mediaOutput->m_childPID) {
@@ -502,7 +502,7 @@ void PlaylistEntryMedia::Resume() {
         PreparePlay();
 
         pthread_mutex_lock(&m_mediaOutputLock);
-        if (getFPPmode() == MASTER_MODE)
+        if (multiSync->isMultiSyncEnabled())
             multiSync->SendMediaSyncStartPacket(m_mediaFilename);
 
         if (!m_mediaOutput->Start(m_pausedTime)) {

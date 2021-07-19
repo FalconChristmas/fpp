@@ -26,6 +26,7 @@
 #include "fpp-pch.h"
 #include "PlaylistEntryBoth.h"
 #include "mediadetails.h"
+#include "MultiSync.h"
 
 PlaylistEntryBoth::PlaylistEntryBoth(Playlist *playlist, PlaylistEntryBase *parent)
   : PlaylistEntryBase(playlist, parent),
@@ -97,7 +98,8 @@ int PlaylistEntryBoth::StartPlaying(void)
     if (!m_sequenceEntry->PreparePlay()) {
         LogDebug(VB_PLAYLIST, "Problems starting sequence: %s\n", m_sequenceEntry->GetSequenceName().c_str());
     }
-    if (getFPPmode() == MASTER_MODE && m_mediaEntry && m_mediaEntry->m_openTime) {
+
+    if (multiSync->isMultiSyncEnabled() && m_mediaEntry && m_mediaEntry->m_openTime) {
         long long st = GetTimeMS() - m_mediaEntry->m_openTime;
         if (st < PlaylistEntryMedia::m_openStartDelay) {
             std::this_thread::sleep_for(std::chrono::milliseconds(PlaylistEntryMedia::m_openStartDelay - st - 2));

@@ -193,6 +193,8 @@ MultiSync::~MultiSync()
  */
 int MultiSync::Init(void)
 {
+    m_multiSyncEnabled = getSettingInt("MultiSyncEnabled", 0);
+
     FillInInterfaces();
 	FillLocalSystemInfo();
 
@@ -202,7 +204,7 @@ int MultiSync::Init(void)
 	if (!OpenBroadcastSocket())
 		return 0;
 
-	if (getFPPmode() == MASTER_MODE) {
+	if (m_multiSyncEnabled) {
 		if (!OpenControlSockets())
 			return 0;
 	}
@@ -1620,7 +1622,7 @@ int MultiSync::OpenControlSockets()
             remotesString += extraRemotes;
         }
     }
-    if (remotesString == "" || getFPPmode() != MASTER_MODE) {
+    if (remotesString == "" || m_multiSyncEnabled) {
         remotesString += ",";
         remotesString += MULTISYNC_MULTICAST_ADDRESS;
     }

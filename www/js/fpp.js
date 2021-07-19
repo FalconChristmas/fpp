@@ -3157,7 +3157,7 @@ function moveFile(file) {
         if (fppMode == 8) {// Remote Mode
 			$("#playerModeInfo").hide();
 			$("#remoteModeInfo").show();
-        } else { // Player or Master Modes
+        } else { // Player Mode
             if ($("#bridgeModeInfo").is(":hidden")) {
                 $("#playerModeInfo").show();
             }
@@ -3330,7 +3330,7 @@ function parseStatus(jsonStatus) {
 
 			if (((jsonStatus.time_elapsed != '00:00') && (jsonStatus.time_elapsed != '')) ||
 			    ((jsonStatus.time_remaining != '00:00') && (jsonStatus.time_remaining != ''))) {
-				status = "Syncing to Master: Elapsed: " + jsonStatus.time_elapsed + "&nbsp;&nbsp;&nbsp;&nbsp;Remaining: " + jsonStatus.time_remaining;
+				status = "Syncing to Player: Elapsed: " + jsonStatus.time_elapsed + "&nbsp;&nbsp;&nbsp;&nbsp;Remaining: " + jsonStatus.time_remaining;
 			} else {
                 status = "Waiting for MultiSync commands";
             }
@@ -3342,7 +3342,7 @@ function parseStatus(jsonStatus) {
 			if (firstStatusLoad || $('#syncStatsLiveUpdate').is(':checked'))
 				GetMultiSyncStats();
 		} else {
-			// Player/Master Mode
+			// Player Mode
 			var nextPlaylist = jsonStatus.next_playlist;
 			var nextPlaylistStartTime = jsonStatus.next_playlist_start_time;
 			var currentPlaylist = jsonStatus.current_playlist;
@@ -4498,14 +4498,11 @@ function AdjustFPPDModeFromStatus(mode) {
     SetupUIForMode(mode);
     if (mode != cur) {
         if (mode == 8) { // Remote Mode
-            $("#selFPPDmode").prop("selectedIndex",2);
-            $("#textFPPDmode").text("Player (Remote)");
-        } else if (mode == 2) { // Player
-            $("#selFPPDmode").prop("selectedIndex",0);
-            $("#textFPPDmode").text("Player (Standalone)");
-        } else {
             $("#selFPPDmode").prop("selectedIndex",1);
-            $("#textFPPDmode").text("Player (Master)");
+            $("#textFPPDmode").text("Player (Remote)");
+        } else { // Player
+            $("#selFPPDmode").prop("selectedIndex",0);
+            $("#textFPPDmode").text("Player (Player)");
         }
     }
 }
@@ -4540,12 +4537,9 @@ function GetFPPDmode()
                 if (mode == 8) { // Remote Mode
                     $("#selFPPDmode").prop("selectedIndex",2);
                     $("#textFPPDmode").text("Player (Remote)");
-                } else if (mode == 2) { // Player
+                } else { // Player
                     $("#selFPPDmode").prop("selectedIndex",0);
-                    $("#textFPPDmode").text("Player (Standalone)");
-                } else {
-                    $("#selFPPDmode").prop("selectedIndex",1);
-                    $("#textFPPDmode").text("Player (Master)");
+                    $("#textFPPDmode").text("Player (Player)");
                 }
             } else {
                 DialogError("Invalid Mode", "Mode API returned unexpected value");
@@ -6044,7 +6038,7 @@ function RefreshHeaderBar(){
         }
     }
     if(data.mode_name != undefined){
-        $("#fppModeDropdownButtonModeText").html( data.mode_name =="player"?"Standalone" : data.mode_name );
+        $("#fppModeDropdownButtonModeText").html( data.mode_name =="player" ? "Player" : data.mode_name );
     }
 
     if(data.advancedView.HostDescription){

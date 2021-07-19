@@ -145,6 +145,7 @@
             "description": "System Settings",
             "settings": [
                 "fppMode",
+                "MultiSyncEnabled",
                 "DisableScheduler",
                 "ScheduleSeconds",
                 "ARTNETTimeCodeSync",
@@ -210,11 +211,6 @@
             "description": "Always transmit channel data",
             "tip": "Always transmit channel output data even when no sequence or effect is playing.  Some controllers may need constant data coming in to prevent them from going into a built in test mode.",
             "level": 1,
-            "fppModes": [
-                "master",
-                "player",
-                "remote"
-            ],
             "gatherStats" : true,
             "restart": 2,
             "reboot": 0,
@@ -456,11 +452,6 @@
             "gatherStats" : true,
             "tip": "FPP normally listens on the network bridge ports for incoming data even when not running in Bridge mode to monitor for and identify misconfigurations in the environment.  The disable setting is provided to allow the user to disable these listeners if they need to spin up their own listener software.",
             "level": 1,
-            "fppModes": [
-                "master",
-                "player",
-                "remote"
-            ],
             "restart": 2,
             "reboot": 0,
             "checkedValue": "1",
@@ -617,13 +608,12 @@
         "fppMode": {
             "name": "fppMode",
             "description": "FPP Player Mode",
-            "tip": "FPP can run in one of several modes including Standalone mode where it operates independently of other FPP systems, Master where it can control other FPP systems, and Remote where it acts as a remote controlled by another Master FPP instance.  ",
+            "tip": "FPP can run either as a Player where it can schedule and run various playlists, sequences, etc... or in Remote mode where another FPP instance will be in control of scheduling.",
             "gatherStats" : true,
             "restart": 2,
             "type": "select",
             "options": {
-                "Standalone": "player",
-                "Master": "master",
+                "Player": "player",
                 "Remote": "remote"
             }
         },
@@ -1034,7 +1024,6 @@
             "level": 1,
             "restart": 2,
             "fppModes": [
-                "master",
                 "player"
             ],
             "default": 0,
@@ -1147,6 +1136,17 @@
                 ]
             }
         },
+        "MultiSyncEnabled": {
+            "name": "MultiSyncEnabled",
+            "description": "Send MultiSync Packets",
+            "tip": "When enabled, FPP will send packets to FPP remotes to keep them in sync.",
+            "gatherStats" : true,
+            "restart": 2,
+            "type": "checkbox",
+            "fppModes": [
+                "player"
+            ]
+        },
         "MultiSyncAdvancedView": {
             "name": "MultiSyncAdvancedView",
             "description": "Advanced View",
@@ -1160,16 +1160,13 @@
             "description": "Send MultiSync to ALL remotes via Broadcast",
             "tip": "Use a network broadcast to send MultiSync messages to all remotes.",
             "type": "checkbox",
-            "fppModes": [
-                "master"
-            ],
             "restart": 2
         },
         "MultiSyncCopyEffects": {
             "name": "MultiSyncCopyEffects",
             "gatherStats" : true,
             "description": "Copy Effects",
-            "tip": "Copy Effects from Master to Remote.",
+            "tip": "Copy Effects from this FPP instance to Remote.",
             "type": "checkbox",
             "textOnRight": 1
         },
@@ -1177,7 +1174,7 @@
             "name": "MultiSyncCopyEvents",
             "description": "Copy Events",
             "gatherStats" : true,
-            "tip": "Copy Events from Master to Remote.",
+            "tip": "Copy Events from this FPP instance to Remote.",
             "type": "checkbox",
             "textOnRight": 1
         },
@@ -1185,7 +1182,7 @@
             "name": "MultiSyncCopyScripts",
             "description": "Copy Scripts",
             "gatherStats" : true,
-            "tip": "Copy Scripts from Master to Remote.",
+            "tip": "Copy Scripts from this FPP instance to Remote.",
             "type": "checkbox",
             "textOnRight": 1
         },
@@ -1193,7 +1190,7 @@
             "name": "MultiSyncCopySequences",
             "description": "Copy Sequences",
             "gatherStats" : true,
-            "tip": "Copy FSEQ sequence files from Master to Remote.  WARNING: Newer xLights versions create host-specific .fseq files which only contain the channels for each individual FPP instance.  If you are using these newer files, the .fseq on the FPP Master may not contain all the channel data needed to properly play on each FPP Remote instance",
+            "tip": "Copy FSEQ sequence files from this FPP instance to Remotes.  WARNING: Newer xLights versions create host-specific .fseq files which only contain the channels for each individual FPP instance.  If you are using these newer files, the .fseq on the FPP player may not contain all the channel data needed to properly play on each FPP Remote instance",
             "type": "checkbox",
             "default": "1",
             "textOnRight": 1
@@ -1202,7 +1199,7 @@
             "name": "MultiSyncCopyVideos",
             "description": "Copy Videos",
             "gatherStats" : true,
-            "tip": "Copy Videos from Master to Remote.",
+            "tip": "Copy Videos from this FPP instance to Remote.",
             "type": "checkbox",
             "textOnRight": 1
         },
@@ -1210,7 +1207,7 @@
             "name": "MultiSyncCopyMusic",
             "description": "Copy Music",
             "gatherStats" : true,
-            "tip": "Copy Music from Master to Remote.",
+            "tip": "Copy Music from this FPP instance to Remote.",
             "type": "checkbox",
             "textOnRight": 1
         },
@@ -1260,9 +1257,6 @@
             "description": "Send MultiSync to ALL remotes via Multicast (239.70.80.80)",
             "tip": "Send MultiCast to 239.70.80.80 to send MultiSync messages to all remotes.",
             "type": "checkbox",
-            "fppModes": [
-                "master"
-            ],
             "restart": 2,
             "default": 1
         },
@@ -1284,11 +1278,11 @@
             "name": "openStartDelay",
             "description": "Open/Start Delay",
             "gatherStats" : true,
-            "tip": "An extra delay (in ms) between the master sending the 'Open' command and actually starting the sequence.  This can be used to allow the remotes to have extra time to open the sequence, process videos, etc...   This requires master and remote to both be running FPP 3.2 or newer.  For complex MP4 files on remotes, a value of around 650-800 is likely needed for the remote video to be loaded and buffers filled prior to first frame being displayed.",
+            "tip": "An extra delay (in ms) between the Player sending the 'Open' command and actually starting the sequence.  This can be used to allow the remotes to have extra time to open the sequence, process videos, etc...   This requires master and remote to both be running FPP 3.2 or newer.  For complex MP4 files on remotes, a value of around 650-800 is likely needed for the remote video to be loaded and buffers filled prior to first frame being displayed.",
             "level": 1,
             "restart": 2,
             "fppModes": [
-                "master"
+                "player"
             ],
             "default": 0,
             "type": "number",
@@ -1363,7 +1357,7 @@
             "name": "remoteIgnoreSync",
             "description": "Ignore Media Sync Packets",
             "gatherStats" : true,
-            "tip": "When enabled, videos/music played on the remote will be started and stopped when the master sends the start/stop events, but no attempt will be made to keep the media in sync with the master during playback.  The media will run smoother, but may get out of sync with the master.",
+            "tip": "When enabled, videos/music played on the remote will be started and stopped when the main player sends the start/stop events, but no attempt will be made to keep the media in sync with the player during playback.  The media will run smoother, but may get out of sync with the main player.",
             "level": 1,
             "restart": 2,
             "fppModes": [

@@ -46,12 +46,13 @@
 #define FPP_FILE_SETTINGS          FPP_DIR_MEDIA "/settings"
 
 typedef enum fppMode {
-	UNKNOWN_MODE = 0x00,
-	BRIDGE_MODE = 0x01,
-	PLAYER_MODE = 0x02,
-	/* Skip 0x04 since MASTER_MODE is a bitmask of player 0x02 & master 0x04 */
-	MASTER_MODE = 0x06,
-	REMOTE_MODE = 0x08
+    UNKNOWN_MODE = 0x00,
+    BRIDGE_MODE = 0x01, //deprecated, not used by FPP 5.x+, but external controllers
+                        //may report this mode
+    PLAYER_MODE = 0x02,
+    MASTER_MODE = 0x06, //deprecated, FPP <=4.x instance may report
+                        //this mode
+    REMOTE_MODE = 0x08
 } FPPMode;
 
 class SettingsConfig {

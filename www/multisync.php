@@ -61,7 +61,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             (!$('#MultiSyncMulticast').is(":checked")) &&
             (!$('#MultiSyncBroadcast').is(":checked"))) {
             $('#MultiSyncMulticast').prop('checked', true);
-            alert('FPP will use multicast if no other sync methods are chosen.  To disable sync entirely, switch FPP to standalone player mode instead of Master mode.');
+            alert('FPP will use multicast if no other sync methods are chosen.');
         }
         
 		$.put("api/settings/MultiSyncRemotes", remotes
@@ -1014,7 +1014,7 @@ function syncModeUpdated(setting = '') {
 
     if (!anyUnicast && !multicastChecked && !broadcastChecked) {
         $('#MultiSyncMulticast').prop('checked', true);
-        alert('FPP will use multicast if no other sync methods are chosen.  To disable sync entirely, switch FPP to standalone player mode instead of Master mode.');
+        alert('FPP will use multicast if no other sync methods are chosen.');
     }
 }
 
@@ -1415,15 +1415,13 @@ function performMultiAction() {
     var action = $('#multiAction').val();
 
     switch (action) {
-        case 'upgradeFPP':     upgradeSelectedSystems();      break;
-        case 'restartFPPD':    restartSelectedSystems();      break;
-        case 'copyFiles':      copyFilesToSelectedSystems();  break;
-        case 'reboot':         rebootSelectedSystems();       break;
-        case 'shutdown':       shutdownSelectedSystems();     break;
-        case 'bridgeMode':     setSelectedSystemsMode('1');     break;
+        case 'upgradeFPP':     upgradeSelectedSystems();        break;
+        case 'restartFPPD':    restartSelectedSystems();        break;
+        case 'copyFiles':      copyFilesToSelectedSystems();    break;
+        case 'reboot':         rebootSelectedSystems();         break;
+        case 'shutdown':       shutdownSelectedSystems();       break;
         case 'remoteMode':     setSelectedSystemsMode('8');     break;
-        case 'standaloneMode': setSelectedSystemsMode('2'); break;
-        case 'masterMode':     setSelectedSystemsMode('6');     break;
+        case 'playerMode':     setSelectedSystemsMode('2');     break;
         default:               alert('You must select an action first.'); break;
     }
 
@@ -1499,8 +1497,7 @@ function multiActionChanged() {
                         <option value='reboot'>Reboot</option>
                         <option value='shutdown'>Shutdown</option>
                         <option value='copyFiles'>Copy Files</option>
-                        <option value='standaloneMode'>Set to Standalone</option>
-                        <option value='masterMode'>Set to Master</option>
+                        <option value='playerMode'>Set to Player</option>
                         <option value='remoteMode'>Set to Remote</option>
                     </select>
                     <button id='performActionButton' type='button' class='buttons btn-success' value='Run' onClick='performMultiAction();'><i class="fas fa-chevron-right"></i> Run</button>

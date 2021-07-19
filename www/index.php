@@ -301,7 +301,7 @@ include 'common/menuHead.inc';
                             <div id="txtRemoteStatus" class="labelValue txtRemoteStatusLabelValue"></div>
                         </div>
                         <div class="col-md-3">
-                            <div class="playerStatusLabel">Master System:</div>
+                            <div class="playerStatusLabel">Player IP:</div>
                             <div id="syncMaster" class="labelValue syncMasterLabelValue"></div>
                         </div>
                         <div class="col-md-3">

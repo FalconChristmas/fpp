@@ -278,7 +278,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
         m_seqStarting = 0;
         return 0;
     }
-    if (getFPPmode() == MASTER_MODE) {
+    if (multiSync->isMultiSyncEnabled()) {
         seqLock.unlock();
         multiSync->SendSeqOpenPacket(filename);
         seqLock.lock();
@@ -333,7 +333,7 @@ int Sequence::OpenSequenceFile(const std::string &filename, int startFrame, int 
 
 void Sequence::StartSequence() {
     if (!IsSequenceRunning() && m_seqFile) {
-        if (getFPPmode() == MASTER_MODE) {
+        if (multiSync->isMultiSyncEnabled()) {
             multiSync->SendSeqSyncStartPacket(m_seqFilename);
         }
         m_seqStarting = 0;
@@ -550,7 +550,7 @@ void Sequence::ReadSequenceData(bool forceFirstFrame) {
             }
         } else if (!Player::INSTANCE.IsPlaying()
                    && (getFPPmode() & PLAYER_MODE)) {
-            //Standalone or Master, but not playlist running (so not between sequences)
+            //Player, but not playlist running (so not between sequences)
             //yet we are likely outputting something (overlay, etc...)  Need to blank
             BlankSequenceData();
         }
@@ -663,7 +663,7 @@ void Sequence::SendBlankingData(void) {
     LogDebug(VB_SEQUENCE, "SendBlankingData()\n");
     std::this_thread::sleep_for(5ms);
 
-    if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
         multiSync->SendBlankingDataPacket();
 
     BlankSequenceData(true);
@@ -680,7 +680,7 @@ void Sequence::CloseIfOpen(const std::string &filename) {
 void Sequence::CloseSequenceFile(void) {
     LogDebug(VB_SEQUENCE, "CloseSequenceFile() %s\n", m_seqFilename.c_str());
 
-    if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
         multiSync->SendSeqSyncStopPacket(m_seqFilename);
 
     std::unique_lock<std::recursive_mutex> seqLock(m_sequenceLock);

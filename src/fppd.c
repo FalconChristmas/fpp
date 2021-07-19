@@ -365,7 +365,7 @@ printf("Usage: %s [OPTION...]\n"
 "                                    Schedule    - Playlist scheduling\n"
 "                                    Sequence    - Sequence parsing\n"
 "                                    Setting     - Settings parsing\n"
-"                                    Sync        - Master/Remote Synchronization\n"
+"                                    Sync        - Player/Remote Synchronization\n"
 "                                  The default logging is read from settings\n"
 	, appname);
 }
@@ -430,9 +430,10 @@ int parseArguments(int argc, char **argv)
 			case 'm': //mode
 				if ( strcmp(optarg, "player") == 0 )
 					settings.fppMode = PLAYER_MODE;
-				else if ( strcmp(optarg, "master") == 0 )
-					settings.fppMode = MASTER_MODE;
-				else if ( strcmp(optarg, "remote") == 0 )
+                else if ( strcmp(optarg, "master") == 0 ) {
+					settings.fppMode = PLAYER_MODE;
+                    SetSetting("MultiSyncEnabled", 1);
+                } else if ( strcmp(optarg, "remote") == 0 )
 					settings.fppMode = REMOTE_MODE;
 				else
 				{

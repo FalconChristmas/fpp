@@ -154,12 +154,12 @@ char *modeToString(int mode)
 {
 	if ( mode == PLAYER_MODE )
 		return strdup("player");
-	else if ( mode == BRIDGE_MODE )
-		return strdup("bridge");
-	else if ( mode == MASTER_MODE )
-		return strdup("master");
 	else if ( mode == REMOTE_MODE )
 		return strdup("remote");
+    else if ( mode == BRIDGE_MODE )
+        return strdup("bridge");
+    else if ( mode == MASTER_MODE )
+        return strdup("master");
 
 	return strdup("unknown");
 }
@@ -180,19 +180,19 @@ int SetSetting(const std::string key, const std::string value)
 		else if (value == "bridge")
             // legacy, remap to PLAYER
 			settings.fppMode = PLAYER_MODE;
-		else if (value == "master")
-			settings.fppMode = MASTER_MODE;
-		else if (value == "remote")
+        else if (value == "master") {
+            // legacy, remap to player, but turn on MultiSync setting
+			settings.fppMode = PLAYER_MODE;
+            settings.settings[key] = "player";
+            settings.settings["MultiSyncEnabled"] = "1";
+        } else if (value == "remote")
 			settings.fppMode = REMOTE_MODE;
-		else
-		{
+        else {
 			fprintf(stderr, "Error parsing mode\n");
 			exit(EXIT_FAILURE);
 		}
-	}
-	// Starts with LogLevel_
-	else if (startsWith(key, "LogLevel_"))
-	{
+	} else if (startsWith(key, "LogLevel_")) {
+        // Starts with LogLevel_
 		if (value != "")
 			FPPLogger::INSTANCE.SetLevel(key.c_str(), value.c_str());
 		else
@@ -291,7 +291,6 @@ int SaveSettings() {
 void UpgradeSettings() {
 // FIXME, upgrade existing fppMode setting to:
 // - fppMode
-// - MultiSyncMaster
 // - BridgeMode
 }
 
@@ -328,9 +327,6 @@ int getSettingInt(const char *setting, int defaultVal)
 	return result;
 }
 
-#ifndef __GNUG__
-inline
-#endif
 FPPMode getFPPmode(void)
 {
 	return settings.fppMode;

@@ -272,18 +272,12 @@ void FPPMainMenu::itemSelected(const std::string &item) {
     } else if (item == "FPP Mode") {
         FPPStatusOLEDPage *sp = statusPage;
         std::vector<std::string> options = {
-            " Standalone",
-            " Master",
+            " Player",
             " Remote",
-            " Bridge",
             " Back"
         };
         std::string mode = statusPage->getCurrentMode();
-        if (mode == "Bridge") {
-            options[3][0] = '*';
-        } else if (mode == "Remote") {
-            options[2][0] = '*';
-        } else if (mode == "Master") {
+        if (mode == "Remote") {
             options[1][0] = '*';
         } else {
             options[0][0] = '*';
@@ -292,11 +286,7 @@ void FPPMainMenu::itemSelected(const std::string &item) {
             if (item != " Back") {
                 std::string nitem = item.substr(1);
                 std::string nv = "http://127.0.0.1/fppxml.php?command=setFPPDmode&mode=";
-                if (nitem == "Bridge") {
-                    nv += "1";
-                } else if (nitem == "Master") {
-                    nv += "6";
-                } else if (nitem == "Remote") {
+                if (nitem == "Remote") {
                     nv += "8";
                 } else {
                     nv += "2";

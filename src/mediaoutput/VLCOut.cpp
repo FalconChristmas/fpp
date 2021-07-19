@@ -322,7 +322,7 @@ int VLCOutput::Process(void) {
     }
     
     
-    if (getFPPmode() == MASTER_MODE) {
+    if (multiSync->isMultiSyncEnabled()) {
         multiSync->SendMediaSyncPacket(m_mediaFilename, m_mediaOutputStatus->mediaSeconds);
     }
     LogExcess(VB_MEDIAOUT,

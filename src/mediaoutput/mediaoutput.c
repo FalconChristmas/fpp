@@ -270,7 +270,7 @@ int OpenMediaOutput(const char *filename) {
             return 0;
         } else {
             LogDebug(VB_MEDIAOUT,
-                     "Master is playing %s audio, remote will try %s\n",
+                     "Player is playing %s audio, remote will try %s\n",
                      filename, tmpFile.c_str());
         }
 	}
@@ -311,8 +311,9 @@ int OpenMediaOutput(const char *filename) {
     MediaDetails::INSTANCE.ParseMedia(mediaOutput->m_mediaFilename.c_str());
     PluginManager::INSTANCE.mediaCallback(root, MediaDetails::INSTANCE);
 
-	if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled()) {
 		multiSync->SendMediaOpenPacket(mediaOutput->m_mediaFilename);
+    }
     
 	pthread_mutex_unlock(&mediaOutputLock);
 
@@ -351,7 +352,7 @@ int StartMediaOutput(const char *filename) {
         return 0;
     }
     pthread_mutex_lock(&mediaOutputLock);
-    if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
         multiSync->SendMediaSyncStartPacket(mediaOutput->m_mediaFilename);
 
     if (!mediaOutput->Start()) {
@@ -388,7 +389,7 @@ void CloseMediaOutput() {
 		pthread_mutex_lock(&mediaOutputLock);
 	}
 
-	if (getFPPmode() == MASTER_MODE)
+    if (multiSync->isMultiSyncEnabled())
 		multiSync->SendMediaSyncStopPacket(mediaOutput->m_mediaFilename);
 
     std::map<std::string, std::string> keywords;
