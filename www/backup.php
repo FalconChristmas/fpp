@@ -1990,7 +1990,7 @@ GetBackupDevices();
                                     </div>
                                 </div>
                                 <div class="row">
-                                    <div class="col-md-5">Keep Existing Master/Slave Settings</div>
+                                    <div class="col-md-5">Keep Existing Master/Remote Settings</div>
                                     <div class="col-md-7">
                                         <input name="keepMasterSlave"
                                                type="checkbox"
