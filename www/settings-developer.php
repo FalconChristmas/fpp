@@ -78,7 +78,6 @@ $( document ).ready(function() {
 <div class="settingsTable container-fluid">
     <?
     PrintSetting('masqUIPlatform');
-    PrintSetting("FPP_UUID");
     ?>
     <div class="row">
         <div class='printSettingLabelCol col-md-4 col-lg-3 col-xxxl-2 align-top'>
