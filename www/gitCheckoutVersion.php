@@ -14,8 +14,8 @@ require_once("common.php");
 
 DisableOutputBuffering();
 
+$version = strip_tags(escapeshellcmd($_GET['version']))
 if (!$wrapped) {
-    $version = strip_tags(escapeshellcmd($_GET['version']))
 ?>
 <head>
 <title>
