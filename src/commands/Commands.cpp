@@ -231,7 +231,15 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(cons
             allCommands = LoadJsonFromFile(commandsFile);
         }
         if (plen > 1) {
-
+            if (allCommands.isMember("commands")) {
+                std::string p2 = req.get_path_pieces()[1];
+                for (int x = 0; x < allCommands["commands"].size(); x++) {
+                    if (allCommands["commands"][x]["name"].asString() == p2) {
+                        std::string resultStr = SaveJsonToString(allCommands["commands"][x], "  ");
+                        return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
+                    }
+                }
+            }
         } else {
             if (req.get_arg("names") == "true") {
                 Json::Value names;
