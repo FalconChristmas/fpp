@@ -345,6 +345,11 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
     $result['Platform'] = $settings['Platform'];
     $result['Variant'] = isset($settings['Variant']) ? $settings['Variant'] : '';
     $result['Mode'] = $settings['fppMode'];
+    $result['multisync'] = isset($settings['MultiSyncEnabled']) ? ($settings['MultiSyncEnabled'] == '1') : false;
+    if ($result['Mode'] == "master") {
+        $result['Mode'] = "player";
+        $result['multisync'] = true;
+    }
     $result['Version'] = getFPPVersion();
     $result['Branch'] = getFPPBranch();
     $result['OSVersion'] = trim(file_get_contents('/etc/fpp/rfs_version'));

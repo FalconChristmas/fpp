@@ -222,6 +222,47 @@ function PrintIcon($level) {
 		echo " <i class='fas fa-fw fa-nbsp ui-level-0'></i>";
 }
 
+
+function ShouldPrintSetting($s) {
+    global $settings;
+    $level = isset($s['level']) ? $s['level'] : 0;
+
+    if ($settings['uiLevel'] < $level) {
+        return false;
+    }
+    if (isset($s['checkFile'])) {
+        $checkFileOK = 0;
+        foreach ($s['checkFile'] as $f) {
+            if (file_exists($f)) {
+                $checkFileOK = 1;
+            }
+        }
+        if ($checkFileOK == 0) {
+            return false;
+        }
+    }
+    if (isset($s['fppModes'])) {
+        if (!in_array('ALL', $s['fppModes']) &&
+            !in_array($settings['fppMode'], $s['fppModes'])) {
+            return false;
+        }    
+    }
+    if (isset($s['platforms'])) {
+        if (!in_array('ALL', $s['platforms']) &&
+            !in_array($settings['Platform'], $s['platforms'])) {
+            return false;
+        }    
+    }
+    if (isset($s['settingValues'])) {
+        foreach ($s['settingValues'] as $key => $value) {
+            if ($settings[$key] != $value) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 function PrintSetting($setting, $callback = '', $options = Array(), $plugin = '') {
     global $settings;
     global $settingInfos;
@@ -244,25 +285,7 @@ function PrintSetting($setting, $callback = '', $options = Array(), $plugin = ''
     if (($callback == '') && ($reloadUI == 1))
         $callback = 'reloadSettingsPage';
 
-    $checkFileOK = 0;
-    if (isset($s['checkFile'])) {
-        foreach ($s['checkFile'] as $f) {
-            if (file_exists($f)) {
-                $checkFileOK = 1;
-            }
-        }
-    } else {
-        $checkFileOK = 1;
-    }
-
-    if (($settings['uiLevel'] >= $level) &&
-        ($checkFileOK) &&
-        ((!isset($s['fppModes'])) ||
-         (in_array('ALL', $s['fppModes'])) ||
-         (in_array($settings['fppMode'], $s['fppModes']))) &&
-        ((!isset($s['platforms'])) ||
-         (in_array('ALL', $s['platforms'])) ||
-         (in_array($settings['Platform'], $s['platforms'])))) {
+    if (ShouldPrintSetting($s)) {
         $restart = isset($s['restart']) ? $s['restart'] : 0;
         $reboot = isset($s['reboot']) ? $s['reboot'] : 0;
         $suffix = isset($s['suffix']) ? $s['suffix'] : '';
@@ -1820,8 +1843,12 @@ function network_list_interfaces_obj()
 				$rec["wifi"] = $wifi;
 			}
 		}
+        $ifname = $rec["ifname"];
+        if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0") {
+            unset($rc[array_search($rec,$rc)]);
+        }
 	}
-	return $rc;
+	return array_values($rc);
 }
 
 // Return array of FPP Only systems

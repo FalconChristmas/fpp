@@ -86,7 +86,8 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
                              const std::string &model,
                              const std::string &ranges,
                              const std::string &uuid,
-                             const bool multiSync) {
+                             const bool multiSync,
+                             const bool sendingMultiSync) {
     // Always update uuid if not Unknown
     if (uuid != "Unknown" && uuid != "") {
         this->uuid = uuid;
@@ -98,12 +99,18 @@ void MultiSyncSystem::update(MultiSyncSystemType type,
     if (this->multiSync && !multiSync)
         return;
 
+    this->fppMode      = fppMode;
+    this->sendingMultiSync = sendingMultiSync;
+    if (fppMode == MASTER_MODE) {
+        this->fppMode = PLAYER_MODE;
+        this->sendingMultiSync = true;
+    }
+
     this->type         = type;
     this->majorVersion = majorVersion;
     this->minorVersion = minorVersion;
     this->address      = address;
     this->hostname     = hostname;
-    this->fppMode      = fppMode;
     this->version      = version;
     this->model        = model;
     this->ranges       = ranges;
@@ -142,6 +149,7 @@ Json::Value MultiSyncSystem::toJSON(bool local, bool timestamps) {
     system["minorVersion"] = minorVersion;
     system["uuid"]         = uuid;
     system["fppMode"]      = fppMode;
+    system["multisync"]    = sendingMultiSync;
     
     char *s = modeToString(fppMode);
     system["fppModeString"] = s;
@@ -193,7 +201,11 @@ MultiSync::~MultiSync()
  */
 int MultiSync::Init(void)
 {
-    m_multiSyncEnabled = getSettingInt("MultiSyncEnabled", 0);
+    if (getFPPmode() == REMOTE_MODE) {
+        m_multiSyncEnabled = false;
+    } else {
+        m_multiSyncEnabled = getSettingInt("MultiSyncEnabled", 0);
+    }
 
     FillInInterfaces();
 	FillLocalSystemInfo();
@@ -239,7 +251,8 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
                              const std::string &model,
                              const std::string &ranges,
                              const std::string &uuid,
-                             const bool multiSync
+                             const bool multiSync,
+                             const bool sendingMultiSync
                              )
 {
     LogDebug(VB_SYNC, "UpdateSystem(%d, %u, %u, %d, '%s', '%s', '%s', '%s', '%s', '%s', %s)\n",
@@ -268,7 +281,7 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
              (address == sys.hostname) ||
              (hostname == sys.address))) {
             found = true;
-            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync);
+            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
             sys.lastSeenStr = timeStr;
             sys.lastSeen = t;
         }
@@ -277,14 +290,14 @@ void MultiSync::UpdateSystem(MultiSyncSystemType type,
         if ((address == sys.address) &&
             (hostname == sys.hostname)) {
             found = true;
-            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync);
+            sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
             sys.lastSeen = t;
             sys.lastSeenStr = timeStr;
         }
     }
     if (!found) {
         MultiSyncSystem sys;
-        sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync);
+        sys.update(type, majorVersion, minorVersion, fppMode, address, hostname, version, model, ranges, uuid, multiSync, sendingMultiSync);
         sys.lastSeenStr = timeStr;
         sys.lastSeen = t;
         m_remoteSystems.push_back(sys);
@@ -403,6 +416,7 @@ bool MultiSync::FillLocalSystemInfo(void)
 	newSystem.minorVersion = atoi(getFPPMinorVersion());
 	newSystem.hostname     = m_hostname;
 	newSystem.fppMode      = getFPPmode();
+    newSystem.sendingMultiSync = m_multiSyncEnabled;
 	newSystem.version      = getFPPVersion();
 	newSystem.model        = model;
     newSystem.ipa          = 0;
@@ -854,11 +868,11 @@ void MultiSync::DiscoverIPViaHTTP(const std::string &ip, bool allowUnknown)
         if (nc) {
             UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
                 nc->systemMode, nc->ip, nc->hostname, nc->version,
-                nc->typeStr, nc->ranges, nc->uuid, false);
+                nc->typeStr, nc->ranges, nc->uuid, false, nc->sendingMultiSync);
             delete nc;
         }
     } else if (allowUnknown) {
-        UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, ip, ip, "Unknown", "Unknown", "0-0", "Unknown", false);
+        UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, ip, ip, "Unknown", "Unknown", "0-0", "Unknown", false, false);
     }
 
 }
@@ -1068,11 +1082,11 @@ void MultiSync::PingSingleRemoteViaHTTP(const std::string &address) {
             if (nc) {
                 UpdateSystem(nc->typeId, nc->majorVersion, nc->minorVersion,
                     nc->systemMode, nc->ip, nc->hostname, nc->version,
-                    nc->typeStr, nc->ranges, nc->uuid, false);
+                    nc->typeStr, nc->ranges, nc->uuid, false, nc->sendingMultiSync);
                 delete nc;
             } else {
                 UpdateSystem(kSysTypeUnknown, 0, 0, UNKNOWN_MODE, address,
-                    address, "Unknown", "Unknown", "0-0", "Unknown", false);
+                    address, "Unknown", "Unknown", "0-0", "Unknown", false, nc->sendingMultiSync);
             }
         }
     }
@@ -1130,6 +1144,9 @@ int MultiSync::CreatePingPacket(MultiSyncSystem &sysInfo, char* outBuf, int disc
     ed[5]  = (sysInfo.minorVersion & 0xFF00) >> 8;
     ed[6]  = (sysInfo.minorVersion & 0x00FF);
     ed[7]  = sysInfo.fppMode;
+    if (sysInfo.sendingMultiSync) {
+        ed[7] |= 0x04;
+    }
     ed[8]  = sysInfo.ipa;
     ed[9]  = sysInfo.ipb;
     ed[10] = sysInfo.ipc;
@@ -2446,7 +2463,8 @@ void MultiSync::ProcessPingPacket(ControlPkt *pkt, int len, const std::string &s
         std::string localUUID(isLocal ? getSetting("SystemUUID") : "Unknown");
         multiSync->UpdateSystem(type, majorVersion, minorVersion,
                                 systemMode, address, hostname, version,
-                                typeStr, ranges, localUUID.c_str(), true);
+                                typeStr, ranges, localUUID.c_str(), true,
+                                systemMode & 0x04 ? true : false);
     }
     if (discover) {
         lock.unlock();

@@ -113,7 +113,11 @@ bool NetworkController::DetectFPP(const std::string &ip, const std::string &html
         } else if (md == "remote") {
             systemMode = REMOTE_MODE;
         } else if (md == "master") {
-            systemMode = MASTER_MODE;
+            systemMode = PLAYER_MODE;
+            sendingMultiSync = true;
+        }
+        if (v.isMember("multisync")) {
+            sendingMultiSync = v["multisync"].asBool();
         }
         majorVersion = v["majorVersion"].asInt();
         minorVersion = v["minorVersion"].asInt();

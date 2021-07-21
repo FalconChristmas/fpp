@@ -643,6 +643,7 @@ void PlayerResource::GetCurrentStatus(Json::Value &result)
     result["mode_name"] = toStdStringAndFree(modeToString(getFPPmode()));
     result["status"] = Player::INSTANCE.GetStatus();
     result["bridging"] = HasBridgeData();
+    result["multisync"] = multiSync->isMultiSyncEnabled();
     
     if (ChannelTester::INSTANCE.Testing()) {
         result["status_name"] = "testing";

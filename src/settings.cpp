@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <filesystem>
 
 const char *fpp_bool_to_string[] = { "false", "true", "default" };
 
@@ -169,34 +170,40 @@ int SetSetting(const std::string key, const int value)
     return SetSetting(key, std::to_string(value));
 }
 
+static std::map<std::string, std::string> UPDATES;
+
 int SetSetting(const std::string key, const std::string value)
 {
     settings.settings[key] = value;
 
-	if (key == "fppMode")
-	{
-		if (value == "player")
+	if (key == "fppMode") {
+		if (value == "player") {
 			settings.fppMode = PLAYER_MODE;
-		else if (value == "bridge")
+		} else if (value == "bridge") {
             // legacy, remap to PLAYER
 			settings.fppMode = PLAYER_MODE;
-        else if (value == "master") {
+            UPDATES[key] = "player";
+        } else if (value == "master") {
             // legacy, remap to player, but turn on MultiSync setting
 			settings.fppMode = PLAYER_MODE;
             settings.settings[key] = "player";
             settings.settings["MultiSyncEnabled"] = "1";
-        } else if (value == "remote")
+
+            UPDATES[key] = "fppMode = \"player\"";
+            UPDATES["MultiSyncEnabled"] = "MultiSyncEnabled = \"1\"";
+        } else if (value == "remote") {
 			settings.fppMode = REMOTE_MODE;
-        else {
+        } else { 
 			fprintf(stderr, "Error parsing mode\n");
 			exit(EXIT_FAILURE);
 		}
 	} else if (startsWith(key, "LogLevel_")) {
         // Starts with LogLevel_
-		if (value != "")
+		if (value != "") {
 			FPPLogger::INSTANCE.SetLevel(key.c_str(), value.c_str());
-		else
+		} else {
 			FPPLogger::INSTANCE.SetLevel(key.c_str(), "warn");
+        }
 	}
 
 	return 1;
@@ -214,15 +221,13 @@ int LoadSettings()
 
 	FILE *file = fopen(FPP_FILE_SETTINGS, "r");
 
-	if (file != NULL)
-	{
+	if (file != NULL) {
 		char * line = (char*)calloc(256, 1);
 		size_t len = 256;
 		ssize_t read;
 		int sIndex = 0;
 
-		while ((read = getline(&line, &len, file)) != -1)
-		{
+		while ((read = getline(&line, &len, file)) != -1) {
 			if (( ! line ) || ( ! read ) || ( read == 1 ))
 				continue;
 
@@ -235,15 +240,13 @@ int LoadSettings()
 				continue;
 
 			key = trimwhitespace(token);
-			if ( !strlen(key) )
-			{
+			if (!strlen(key)) {
 				free(key);
 				continue;
 			}
 
 			token = strtok(NULL, "=");
-			if ( !token )
-			{
+			if (!token) {
 				fprintf(stderr, "Error tokenizing value for %s setting\n", key);
 				free(key);
 				continue;
@@ -252,26 +255,23 @@ int LoadSettings()
 
 			SetSetting(key, value);
 
-			if ( key )
-			{
+			if (key) {
 				free(key);
 				key = NULL;
 			}
 
-			if ( value )
-			{
+			if ( value ) {
 				free(value);
 				value = NULL;
 			}
 		}
 
-		if (line)
+		if (line) {
 			free(line);
+        }
 	
 		fclose(file);
-	}
-	else
-	{
+	} else {
 		LogWarn(VB_SETTING, "Warning: couldn't open settings file: '%s'!\n", FPP_FILE_SETTINGS);
 		return -1;
 	}
@@ -289,9 +289,32 @@ int SaveSettings() {
 }
 
 void UpgradeSettings() {
-// FIXME, upgrade existing fppMode setting to:
-// - fppMode
-// - BridgeMode
+    if (!UPDATES.empty()) {
+        std::string inbuf;
+        std::fstream input_file(FPP_FILE_SETTINGS, std::ios::in);
+        std::ofstream output_file("/tmp/upgradedsettings.txt");
+
+        while (!input_file.eof()) {
+            getline(input_file, inbuf);
+            int spot = inbuf.find(" = ");
+            if (spot >= 0) {
+                std::string tmpstring = inbuf.substr(0,spot);
+                if (UPDATES.find(tmpstring) != UPDATES.end()) {
+                    inbuf = UPDATES[tmpstring];
+                    UPDATES.erase(tmpstring);
+                }
+            }
+            if (inbuf != "") {
+                output_file << inbuf << std::endl;
+            }
+        }
+        for (auto &e : UPDATES) {
+            output_file << e.second << std::endl;
+        }
+        output_file.close();
+        input_file.close();
+        std::filesystem::copy("/tmp/upgradedsettings.txt",  FPP_FILE_SETTINGS, std::filesystem::copy_options::overwrite_existing);
+    }
 }
 
 std::string getSetting(const char *setting, const char *defaultVal)

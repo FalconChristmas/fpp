@@ -612,6 +612,7 @@
             "gatherStats" : true,
             "restart": 2,
             "type": "select",
+            "reloadUI": 1,
             "options": {
                 "Player": "player",
                 "Remote": "remote"
@@ -1143,6 +1144,7 @@
             "gatherStats" : true,
             "restart": 2,
             "type": "checkbox",
+            "reloadUI": 1,
             "fppModes": [
                 "player"
             ]
@@ -1160,7 +1162,13 @@
             "description": "Send MultiSync to ALL remotes via Broadcast",
             "tip": "Use a network broadcast to send MultiSync messages to all remotes.",
             "type": "checkbox",
-            "restart": 2
+            "restart": 2,
+            "fppModes": [
+                "player"
+            ],
+            "settingValues": {
+                "MultiSyncEnabled": 1
+            }
         },
         "MultiSyncCopyEffects": {
             "name": "MultiSyncCopyEffects",
@@ -1258,7 +1266,13 @@
             "tip": "Send MultiCast to 239.70.80.80 to send MultiSync messages to all remotes.",
             "type": "checkbox",
             "restart": 2,
-            "default": 1
+            "default": 1,
+            "fppModes": [
+                "player"
+            ],
+            "settingValues": {
+                "MultiSyncEnabled": 1
+            }
         },
         "MultiSyncRefreshStatus": {
             "name": "MultiSyncRefreshStatus",
@@ -1284,6 +1298,9 @@
             "fppModes": [
                 "player"
             ],
+            "settingValues": {
+                "MultiSyncEnabled": 1
+            },
             "default": 0,
             "type": "number",
             "min": 0,

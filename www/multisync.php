@@ -464,7 +464,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
         var fppIpAddresses = [];
 		var remotes = [];
-		if (settings['fppMode'] == 'master') {
+		if ((settings['MultiSyncEnabled'] == '1') &&
+            (settings['fppMode'] == 'player')) {
             if (typeof settings['MultiSyncRemotes'] === 'string') {
                 var tarr = settings['MultiSyncRemotes'].split(',');
                 for (var i = 0; i < tarr.length; i++) {
@@ -526,7 +527,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             if (data[i].local) {
                 hostname = "<b>" + hostname + "</b>";
             } else {
-                if ((settings['fppMode'] == 'master') &&
+                if ((settings['MultiSyncEnabled'] == '1') &&
+                    (settings['fppMode'] == 'player') &&
                         (data[i].fppModeString == "remote"))
                 {
                     star = "<input type='checkbox' class='syncCheckbox' name='" + data[i].address + "'";

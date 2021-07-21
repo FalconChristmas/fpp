@@ -42,6 +42,7 @@ class NetworkController {
     unsigned int majorVersion;
     unsigned int minorVersion;
     FPPMode systemMode;
+    bool sendingMultiSync = false;
 
   private:
     bool DetectFalconController(const std::string &ip, const std::string &html);

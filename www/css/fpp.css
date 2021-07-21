@@ -228,11 +228,11 @@ input#backup\.Path {
 }
 
 input#MultiSyncExtraRemotes {
-	width: 100%;
+	width: 90%;
 }
 
 input#MultiSyncHTTPSubnets {
-	width: 100%;
+	width: 90%;
 }
 
 @media(max-width:990px){

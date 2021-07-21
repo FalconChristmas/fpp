@@ -127,6 +127,7 @@ public:
 	unsigned int         majorVersion = 0;
 	unsigned int         minorVersion = 0;
 	FPPMode              fppMode = FPPMode::PLAYER_MODE;
+    bool                 sendingMultiSync = false;
 	std::string          address;
 	std::string          hostname;
 	std::string          version;
@@ -148,7 +149,8 @@ public:
                 const std::string &model,
                 const std::string &ranges,
                 const std::string &uuid,
-                const bool multiSync);
+                const bool multiSync,
+                const bool sendingMultiSync);
     Json::Value toJSON(bool local, bool timestamps);
 };
 
@@ -237,7 +239,8 @@ class MultiSync {
                       const std::string &model,
                       const std::string &range,
                       const std::string &uuid,
-                      const bool multiSync);
+                      const bool multiSync,
+                      const bool sendingMultiSync);
 
 	Json::Value GetSystems(bool localOnly = false, bool timestamps = true);
     Json::Value GetSyncStats();

@@ -335,7 +335,16 @@ if ( $fd )
 		switch ($key)
 		{
 			case "fppMode":
-				$fppMode = $value;
+                if ($value == "master") {
+				    $fppMode = "player";
+                    $settings["MultiSyncEnabled"] = "1";
+                    $settings[$key] = "player";
+                } else if ($value == "bridge") {
+                    $fppMode = "player";
+                    $settings[$key] = "player";
+                } else {
+				    $fppMode = $value;
+                }
 				break;
 			case "volume":
 				$volume = $value;
