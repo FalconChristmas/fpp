@@ -208,6 +208,7 @@ std::unique_ptr<Command::Result> CommandManager::run(const Json::Value &cmd) {
 const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(const httpserver::http_request &req) {
     int plen = req.get_path_pieces().size();
     std::string p1 = req.get_path_pieces()[0];
+
     if (p1 == "commands") {
         if (plen > 1) {
             std::string command = req.get_path_pieces()[1];
@@ -220,6 +221,29 @@ const std::shared_ptr<httpserver::http_response> CommandManager::render_GET(cons
         } else {
             Json::Value result = getDescriptions();
             std::string resultStr = SaveJsonToString(result, "  ");
+            return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
+        }
+    } else if (p1 == "commandPresets") {
+        std::string commandsFile(FPP_DIR_CONFIG "/commandPresets.json");
+        Json::Value allCommands;
+        if (FileExists(commandsFile)) {
+            // Load new config file
+            allCommands = LoadJsonFromFile(commandsFile);
+        }
+        if (plen > 1) {
+
+        } else {
+            if (req.get_arg("names") == "true") {
+                Json::Value names;
+                if (allCommands.isMember("commands")) {
+                    for (int x = 0; x < allCommands["commands"].size(); x++) {
+                        names.append(allCommands["commands"][x]["name"].asString());
+                    }
+                }
+                std::string resultStr = SaveJsonToString(names, "  ");
+                return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
+            }
+            std::string resultStr = SaveJsonToString(allCommands, "  ");
             return std::shared_ptr<httpserver::http_response>(new httpserver::string_response(resultStr, 200, "application/json"));
         }
     } else if (p1 == "command" && plen > 1) {

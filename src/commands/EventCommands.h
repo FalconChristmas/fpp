@@ -19,7 +19,7 @@
 class TriggerPresetCommand : public Command {
 public:
     TriggerPresetCommand() : Command("Trigger Command Preset") {
-        args.push_back(CommandArg("name", "string", "Preset Name"));
+        args.push_back(CommandArg("name", "datalist", "Preset Name").setContentListUrl("api/commandPresets?names=true"));
     }
     
     virtual std::unique_ptr<Command::Result> run(const std::vector<std::string> &args) override;

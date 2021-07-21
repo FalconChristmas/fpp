@@ -68,6 +68,7 @@ APIServer::~APIServer()
     m_ws->unregister_resource("/overlays");
     m_ws->unregister_resource("/command");
     m_ws->unregister_resource("/commands");
+    m_ws->unregister_resource("/commandPresets");
     m_ws->unregister_resource("/gpio");
 
 	delete m_pr;
@@ -91,6 +92,7 @@ void APIServer::Init(void)
     m_ws->register_resource("/overlays", &PixelOverlayManager::INSTANCE, true);
     m_ws->register_resource("/command", &CommandManager::INSTANCE, true);
     m_ws->register_resource("/commands", &CommandManager::INSTANCE, true);
+    m_ws->register_resource("/commandPresets", &CommandManager::INSTANCE, true);
     m_ws->register_resource("/gpio", &GPIOManager::INSTANCE, true);
     m_ws->register_resource("/player", &Player::INSTANCE, true);
 
