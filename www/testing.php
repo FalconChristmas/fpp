@@ -736,7 +736,7 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 						</div>
 
 
-
+						<h2>Solid Color Test Pattern</h2>
 						<div class="backdrop mt-3">
 						<div class="row">
 							<div class="col-auto displayTestingFillOptionBoxHeader">
