@@ -698,7 +698,9 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 					<div class="col-md-9">
 
 						<h2>RGB Test Patterns</h2>
-
+						<div class="callout callout-primary">
+							<p><b>Note:</b> RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</p>
+						</div>
 						<div class="row">
 							<div class="col-md-6">
 								<div class="backdrop">
@@ -759,9 +761,6 @@ if (file_exists("/home/fpp/media/fpp-info.json")) {
 	
 							</div>
 						</div>
-						<div class="callout callout-primary">
-								<p><b>Note:</b> RGB patterns have NO knowledge of output setups, models, etc...  "R" is the first channel, "G" is the second, etc... If channels do not line up, the colors displayed on pixels may not match.</p>
-							</div>
 						<hr class="mt-4 mb-4">
 						<h2>Single Channel Patterns:</h2>
 							<div class="backdrop">
