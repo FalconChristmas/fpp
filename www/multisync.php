@@ -11,6 +11,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     ($settings['MultiSyncAdvancedView'] == 1)) {
 	$advancedView = true;
 }
+
 ?>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
@@ -165,6 +166,16 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             return true;
 
         return false;
+    }
+
+    function isProxied(ip,result) {
+        $.get("/api/proxies", function(data) {
+            let proxied = false;
+            if (data.includes(ip)) {
+                proxied = true;
+            }
+            result(proxied);
+        });
     }
 
     function getLocalVersionLink(ip, data) {
@@ -678,7 +689,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     var systemsList = [];
 	function getFPPSystems() {
 		if (streamCount) {
-			alert("FPP Systems are being udpated, you will need to manually refresh once these updates are complete.");
+			alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
 			return;
 		}
 
@@ -858,54 +869,61 @@ function getFalconControllerStatus(ip) {
 }
 
 function getFalconV4ControllerStatus(ip) {
-$.ajax({
-        url: '/proxy/' + ip + '/api',
+    isProxied(ip, function(proxied) {
+        if (proxied) {
+          v4url = '/proxy/' + ip + '/api';
+        } else {
+          v4url = 'http://' + ip + '/api';
+        }
+        $.ajax({
+            url: v4url,
             method: 'POST',
             contentType: 'application/json',
             dataType: 'json',
             data: '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}',
             success: function(data) {
-            var ips = ip.replace(/\./g, '_');
-
-            var result = JSON.stringify(data);
-	    var s = JSON.parse(result);
-
-            var tempthreshold = s.P.BS;
-            var t1temp = s.P.T1 / 10;
-            var t2temp = s.P.T2 / 10;
-
-            var v1voltage = s.P.V1 / 10;
-            var v2voltage = s.P.V2 / 10;
-
-            var testmode = new Boolean(s.P.TS);
-            var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
-
-            var t=parseInt(s.P.U);
-            var days=Math.floor(t/86400);
-            var hours=Math.floor((t-86400*days)/3600);
-            var mins=Math.floor((t-86400*days-3600*hours)/60);
-
-            var uptime = '';
-
-            uptime += (days + " days, ");
-            uptime += ("0" + hours).slice(-2) + ":";
-            uptime += ("0" + mins ).slice(-2);
-
-            var u = "<table class='multiSyncVerboseTable'>";
-            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-            u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
-            u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
-
-            if (testmode == true || overtemp == true) {
-              u += "</table>";
+                var ips = ip.replace(/\./g, '_');
+    
+                var result = JSON.stringify(data);
+                var s = JSON.parse(result);
+        
+                var tempthreshold = s.P.BS;
+                var t1temp = s.P.T1 / 10;
+                var t2temp = s.P.T2 / 10;
+        
+                var v1voltage = s.P.V1 / 10;
+                var v2voltage = s.P.V2 / 10;
+        
+                var testmode = new Boolean(s.P.TS);
+                var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
+        
+                var t=parseInt(s.P.U);
+                var days=Math.floor(t/86400);
+                var hours=Math.floor((t-86400*days)/3600);
+                var mins=Math.floor((t-86400*days-3600*hours)/60);
+        
+                var uptime = '';
+        
+                uptime += (days + " days, ");
+                uptime += ("0" + hours).slice(-2) + ":";
+                uptime += ("0" + mins ).slice(-2);
+    
+                var u = "<table class='multiSyncVerboseTable'>";
+                u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+                u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
+                u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
+    
+                if (testmode == true || overtemp == true) {
+                    u += "</table>";
+                }
+                if (testmode == true) u += "</table><br><font color='red'>Controller Test mode is active</font><br>";
+                if (overtemp == true) u += "</table><br><font color='red'>Pixel brightness reduced due to high temperatures</font><br>";
+        
+                u += "</table>";
+        
+                $('#advancedViewUtilization_fpp_' + ips).html(u);
             }
-            if (testmode == true) u += "</table><br><font color='red'>Controller Test mode is active</font><br>";
-            if (overtemp == true) u += "</table><br><font color='red'>Pixel brightness reduced due to high temperatures</font><br>";
-
-              u += "</table>";
-
-            $('#advancedViewUtilization_fpp_' + ips).html(u);
-        }
+        });
     });
 }
 
@@ -988,7 +1006,7 @@ function autoRefreshToggled() {
 
 function reloadMultiSyncPage() {
 	if (streamCount) {
-		alert("FPP Systems are being udpated, you will need to manually refresh once these updates are complete.");
+		alert("FPP Systems are being updated, you will need to manually refresh once these updates are complete.");
 		return;
 	}
 
