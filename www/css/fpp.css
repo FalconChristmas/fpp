@@ -134,7 +134,7 @@ body .ui-tabs .ui-tabs-nav li {
 }
 
 .statusHostname {
-	display: none;
+	display: inline;
 }
 
 @media(min-width:991px){
