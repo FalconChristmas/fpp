@@ -134,7 +134,8 @@ body .ui-tabs .ui-tabs-nav li {
 }
 
 .statusHostname {
-	display: inline;
+	/*display: inline;*/
+	display:none;
 }
 
 @media(min-width:991px){
@@ -278,6 +279,10 @@ input#MultiSyncHTTPSubnets {
 .headerHost{
 	display: flex;
 	align-items: center;
+}
+#header_host a{
+	color: #fff ;
+
 }
 .headerHostName {
 	display: flex;
@@ -2194,9 +2199,6 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media(max-width:480px){
-	.statusHostname {
-		display:inline;
-	}
 	.header.swiped .headerHostName{
 		display: flex;
 	}
@@ -2331,10 +2333,18 @@ input[type=search].tablesorter-filter:disabled{
 	}
 
 }
-@media(max-width:400px){
+@media(max-width:450px){
     .headerLeft {
         display: none;
     }
+
+	.headerCenter>div {
+		margin-left: 0.0em;
+	}
+
+	.header>div {
+		padding-left: 0.0em;
+	}
 }
 @media(min-width:481px) and (max-width:1440px){
 	.statusDivTopRow {
