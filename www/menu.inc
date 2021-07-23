@@ -82,9 +82,9 @@ function list_plugin_entries($menu)
       <div class="headerCenterRow headerHost">
 <?
     if (!file_exists("/etc/fpp/desktop")) {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></small></span></span>");
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><a href='networkconfig.php?tab=tab-host-dns' class='nonULLink'>".$settings['HostName']."</a></span></span>");
     } else {
-        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\"><b>Host</b><small>".gethostname()."</small></span></span>");
+        echo("<span class=\"headerHostName headerBox\" id=\"header_host\"><span title=\"Host: ".gethostname()."\">".gethostname()."</span></span>");
     }
 
     $currentHeaderSensor = "1";
