@@ -235,7 +235,7 @@ input#MultiSyncHTTPSubnets {
 	width: 90%;
 }
 
-@media(max-width:990px){
+@media(max-width:820px){
 	.fppBrand .versionHead{
 		display: none;
 	}
@@ -2178,7 +2178,15 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media (max-width:768px){
-	.fpp-logo, .headerHostName, .headerRight{
+	.headerRight{
+		display: none;
+	}
+	.fppOuterContainer {
+		max-width: 95%;
+	}
+}
+@media (max-width:560px){
+	.fpp-logo, .headerRight{
 		display: none;
 	}
 	.fppOuterContainer {
@@ -2186,7 +2194,6 @@ input[type=search].tablesorter-filter:disabled{
 	}
 }
 @media(max-width:480px){
-
 	.statusHostname {
 		display:inline;
 	}
@@ -2323,6 +2330,11 @@ input[type=search].tablesorter-filter:disabled{
 		margin-bottom: 0.4em;
 	}
 
+}
+@media(max-width:400px){
+    .headerLeft {
+        display: none;
+    }
 }
 @media(min-width:481px) and (max-width:1440px){
 	.statusDivTopRow {
