@@ -2007,7 +2007,7 @@
                     }
                 },
                 "PUT": {
-                    "desc": "Sets the value for a specifc setting",
+                    "desc": "Sets the value for a specific setting",
                     "input": "0",
                     "output": {
                         "status": "OK"
@@ -2032,7 +2032,7 @@
             "endpoint": "statistics/usage",
             "methods": {
                 "GET": {
-                    "desc": "Returns the statics file that will be shared with the development team if sharing statistics is enabled.  Generally a cached file is returned, but if ?force=1 is sent then it will be regenereated.",
+                    "desc": "Returns the statics file that will be shared with the development team if sharing statistics is enabled.  Generally a cached file is returned, but if ?force=1 is sent then it will be regenerated.",
                     "output": {
                         "uuid": "6ba176e7-da7f-49f4-8b27-edb5bd9ff616",
                         "systemInfo": {
@@ -2264,7 +2264,7 @@
             "endpoint": "system/status",
             "methods": {
                 "GET": {
-                    "desc": "Gives a fppd, network, current playlist, schedule, utalization, host, version, and mqtt information.  Can also pass an optional array of ip addresses like &ip[]=192.168.0.1&ip[]=192.168.0.2 to get information on a remote.",
+                    "desc": "Gives a fppd, network, current playlist, schedule, utilization, host, version, and mqtt information.  Can also pass an optional array of ip addresses like &ip[]=192.168.0.1&ip[]=192.168.0.2 to get information on a remote.",
                     "output": {
                         "MQTT": {
                             "configured": true,
