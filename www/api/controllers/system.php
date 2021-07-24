@@ -226,6 +226,8 @@ function SystemGetStatus()
                 //Make the request - also send across whether advancedView data is requested so it's returned all in 1 request
 
                 // TODO: For FPPD 6.0, this should be moved to the new API.
+                // On 5.0 Boxes it is just a redirect back to http://localhost/api/system/status
+                // Retained for backwards compatibility
                 $curl = curl_init("http://" . $ip . "/fppjson.php?command=getFPPstatus&advancedView=true");
                 curl_setopt($curl, CURLOPT_FAILONERROR, true);
                 curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
@@ -290,6 +292,7 @@ function SystemGetStatus()
         }
         return json($result);
     } else {
+        // If IP[] was not provided, then status of the local machine is desired.
         //go through the new API to get the status
         // use curl so we can set a low connect timeout so if fppd isn't running we detect that quickly
         $curl = curl_init('http://localhost:32322/fppd/status');
@@ -313,6 +316,10 @@ function SystemGetStatus()
     }
 }
 
+//
+// This function adds some local information to the multi-sync result
+// That doesn't come from fppd
+//
 function finalizeStatusJson($obj)
 {
     $obj['wifi'] = network_wifi_strength_obj();
@@ -379,6 +386,13 @@ function GetSystemInfoJsonInternal($return_array = false, $simple = false)
         $result['Utilization']['CPU'] = get_server_cpu_usage();
         $result['Utilization']['Memory'] = get_server_memory_usage();
         $result['Utilization']['Uptime'] = get_server_uptime(true);
+
+        $uploadDir = GetDirSetting("uploads"); // directory under media
+        $result['Utilization']['Disk']["Media"]['Free'] = disk_free_space($uploadDir);
+        $result['Utilization']['Disk']["Media"]['Total'] = disk_total_space($uploadDir);
+        $result['Utilization']['Disk']["Root"]['Free'] = disk_free_space("/");
+        $result['Utilization']['Disk']["Root"]['Total'] = disk_total_space("/");
+
 
         $result['Kernel'] = get_kernel_version();
         $result['LocalGitVersion'] = get_local_git_version();
