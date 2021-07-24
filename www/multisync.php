@@ -457,6 +457,27 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 var u = "<table class='multiSyncVerboseTable'>";
                 if (typeof (data.advancedView.Utilization) !== 'undefined') {
+                    let diskHtml = "";
+                    try {
+                        let row = data.advancedView.Utilization.Disk;
+                        for (const [type, data] of Object.entries(row)) {
+                            let used = bytesToHuman(data["Total"] - data["Free"]);
+                            let total = bytesToHuman(data["Total"]);
+                            if (diskHtml == "") {
+                                diskHtml += "<b>Disk Usage:</b> "
+                            } else {
+                                diskHtml += ", "
+                            }
+                            diskHtml += type + ": " + used + "/" + total;
+                        }
+                    } catch(error) {
+                        // This feature may not exists on older devices
+                    }
+                    console.log(diskHtml);
+
+                    if (diskHtml == "") {
+                        diskHtml = "<b>Disk Usage:</b> unknown";
+                    } 
                     if (data.advancedView.Utilization.hasOwnProperty("CPU")) {
                         u += "<tr><td>CPU:</td><td>" + Math.round(data.advancedView.Utilization.CPU) + "%</td></tr>";
                     }
@@ -496,7 +517,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                          ut = hours.toString() + ":" + min.toString();
                 
                        }
-                       u += "<tr><td>Uptime:&nbsp;</td><td>" + ut + "</td></tr>";
+                       u += '<tr><td colspan=2><span data-html="true" title="' + diskHtml + '<br><b>Uptime:</b> ' + ut;
+                       u += '">More...</td></tr>'
+                       //u += "<tr><td>Uptime:&nbsp;</td><td>" + ut + "</td></tr>";
                     }
                }
                u += "</table>";

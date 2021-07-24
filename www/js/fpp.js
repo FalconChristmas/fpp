@@ -6131,3 +6131,24 @@ function isValidHostname(value) {
   
     return isValid
   }
+
+  function bytesToHuman(bytes) {
+      size = bytes;
+      if (size < 1024) {
+          return "" + Math.round(size) + "B"
+      }
+      size = size /1024;
+      if (size < 1024) {
+          return "" + Math.round(size) + "KB"
+      }
+      size = size / 1024;
+      if (size < 1024) {
+          return "" + Math.round(size) + "MB"
+      }
+      size = size / 1024;
+      if (size < 1024) {
+          return "" + Math.round(size) + "GB"
+      }
+      size  = size / 1024;
+      return "" + Math.round(size) + "TB"
+  }
