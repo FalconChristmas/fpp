@@ -30,6 +30,56 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     var hostRows = new Object();
     var rowSpans = new Object();
     var advancedView = true;
+    var systemStatusCache = {}; // Cache of api/system/status?ip[]=
+    var localFpposFiles = [];
+
+    function getLocalFpposFiles() {
+        $.get('api/files/uploads', function(data) {
+            if (data.hasOwnProperty("files")) {
+                data.files.forEach(function(f) {
+                    if (f.hasOwnProperty("name")) {
+                        if (f.name.endsWith(".fppos")) {
+                            let type = "UNKNOWN";
+                            if (f.name.startsWith("BBB-")) {
+                                type = "BBB";
+                            } else if (f.name.startsWith("Pi-")) {
+                                type = "PI";
+                            }
+
+                            if (type != "UNKNOWN") {
+                                localFpposFiles.push({
+                                    type: type,
+                                    name: f.name,
+                                    sizeBytes: f.sizeBytes,
+                                    sizeHuman: f.sizeHuman
+                                });
+                            }
+                        } // check if .fppos
+                    } // Verify has name
+                }); // loop over files
+
+                if (localFpposFiles.length > 0) {
+                    let html = [];
+                    localFpposFiles.forEach(function(f) {
+                        html.push('<div class="row">');
+                        html.push('<div class="col-2 col-sm-1"><input id="');
+                        html.push(f.name);
+                        html.push('" type="checkbox"></div>')
+                        html.push('<div class="col-7 col-sm-5 col-md-4 col-lg-3 col-xl-2">');
+                        html.push(f.name);
+                        html.push('</div><div class="col-2 col-sm-1">');
+                        html.push(f.type);
+                        html.push('</div><div class="col-2" col-md-1>');
+                        html.push(f.sizeHuman);
+                        html.push('</div>');
+                        html.push("</div>");
+                    });
+                    $("#copyOSOptionsDetails").html(html.join(''));
+                    }
+            } // hasOwnProperty("files");
+        });
+    }
+
 
     function rowSpanSet(rowID) {
         var rowSpan = 1;
@@ -232,6 +282,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
     $.get("api/system/status?ip=" + ips + '&advancedView=true')
     .done(function(alldata) {
+        systemStatusCache = alldata;
         jQuery.each(alldata, function(ip, data) {
 			var status = 'Idle';
 			var statusInfo = "";
@@ -318,7 +369,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 if (unavailables[ip] < 4) {
                     return;
                 }
-                $('#' + rowID + '_mode').html("<font color='red'>Unreachable</font>");
+                $('#' + rowID + '_mode').html("<span class=\"warning-text\">Unreachable</span>");
             } else if (status != "") {
                 $('#' + rowID + '_status').html(status);
                 $('#' + rowID + '_mode').html(modeToString(data.mode));
@@ -356,7 +407,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                var wHTML = "";
                for(var i = 0; i < data.warnings.length; i++) {
-                wHTML += "<font color='red'>" + data.warnings[i] + "</font><br>";
+                wHTML += "<span class='warning-text'>" + data.warnings[i] + "</span><br>";
                }
                $('#' + rowID + '_warningCell').html(wHTML);
             } else {
@@ -916,8 +967,8 @@ function getFalconV4ControllerStatus(ip) {
                 if (testmode == true || overtemp == true) {
                     u += "</table>";
                 }
-                if (testmode == true) u += "</table><br><font color='red'>Controller Test mode is active</font><br>";
-                if (overtemp == true) u += "</table><br><font color='red'>Pixel brightness reduced due to high temperatures</font><br>";
+                if (testmode == true) u += "</table><br><span class='warning-text'>Controller Test mode is active</span><br>";
+                if (overtemp == true) u += "</table><br><span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
         
                 u += "</table>";
         
@@ -1377,6 +1428,97 @@ function copyFilesToSelectedSystems() {
     });
 }
 
+function copyOSFilesToSelectedSystems() {
+    let files=[];
+    let targets=[];
+    $("#copyOSOptionsDetails input").each(function() {
+		if ($(this).is(":checked")) {
+            let name = $(this).attr('id');
+            localFpposFiles.forEach(function(f){
+                if (name === f.name) {
+                    files.push(f);
+                }
+            });
+        }
+    });
+
+    $('input.remoteCheckbox').each(function() {
+		if ($(this).is(":checked")) {
+            var rowID = $(this).closest('tr').attr('id');
+            if ($('#' + rowID).hasClass('filtered')) {
+                return true;
+            }
+
+            $(this).prop('checked', false);
+            targets.push(rowID);
+        }
+    });
+
+    if (files.length == 0 ) {
+        $.jGrowl("No OS Upgrade files were selected",{themeState:'danger'});
+    } else if (targets.length == 0) {
+        $.jGrowl("No remote FPP systems were selected",{themeState:'danger'});
+    } else {
+        targets.forEach(function(rowID) {
+            files.forEach(function(f) {
+                ip = ipFromRowID(rowID);
+                osType = "UNKNOWN";
+                freeSpace = 0;
+                if (systemStatusCache.hasOwnProperty(ip)) {
+                    rec = systemStatusCache[ip];
+                    try {
+                        let platform = rec["advancedView"]["Platform"];
+                        if (platform == "BeagleBone Black") {
+                            osType = "BBB";
+                        } else if (platform == "Raspberry Pi") {
+                            osType = "PI";
+                        }
+                    } catch(error) {
+                        // Eat it
+                    }
+ 
+                    try {
+                        freeSpace = rec.advancedView.Utilization.Disk.Media.Free
+                    } catch(error) {
+                        // Eat it
+                    }
+
+                    // 0.95 is to not completely fill it.                    
+                    if (freeSpace != 0 && ( (f.sizeBytes) > (freeSpace *0.95) )) {
+                        $.jGrowl("Insufficient free disk space on remote " + ip + ". Skipping",{themeState:'danger'});
+                    } else if (osType != f.type) {
+                        let msg = f.name + " isn't compatible with " + ip + ". Skipping";
+                        $.jGrowl(msg, {themeState:'danger'});
+                    } else {
+                        copyFilesToSystem(f, rowID);
+
+                    }
+
+                } else {
+                    $.jGrowl("Unable to locate data for " + ip + ". Skipping",{themeState:'danger'});
+                }
+
+            });
+        });
+    }
+}
+
+function copyFilesToSystem(file, rowID) {
+
+    EnableDisableStreamButtons();
+    streamCount++;
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = getReachableIPFromRowID(rowID);
+    if (ip == "") {
+        ip = ipFromRowID(rowID);
+        $('#' + rowID + '_logText').append('No IPs appear reachable for ' + ip);
+    } else {
+        StreamURL('remotePush.php?dir=uploads&raw=1&filename=' + file.name + '&remoteHost=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
+    }
+}
 
 
 function copyDone(id) {
@@ -1438,6 +1580,7 @@ function performMultiAction() {
         case 'upgradeFPP':     upgradeSelectedSystems();        break;
         case 'restartFPPD':    restartSelectedSystems();        break;
         case 'copyFiles':      copyFilesToSelectedSystems();    break;
+        case 'copyOSFiles':    copyOSFilesToSelectedSystems();  break;
         case 'reboot':         rebootSelectedSystems();         break;
         case 'shutdown':       shutdownSelectedSystems();       break;
         case 'remoteMode':     setSelectedSystemsMode('8');     break;
@@ -1455,6 +1598,7 @@ function multiActionChanged() {
     
     switch (action) {
         case 'copyFiles':      $('#copyOptions').show();      break;
+        case 'copyOSFiles' :   $('#copyOSOptions').show();      break;
     }
 }
 
@@ -1516,7 +1660,8 @@ function multiActionChanged() {
                         <option value='restartFPPD'>Restart FPPD</option>
                         <option value='reboot'>Reboot</option>
                         <option value='shutdown'>Shutdown</option>
-                        <option value='copyFiles'>Copy Files</option>
+                        <option value='copyFiles'>Copy Show Files</option>
+                        <option value='copyOSFiles'>Copy OS Upgrade Files</option>
                         <option value='playerMode'>Set to Player</option>
                         <option value='remoteMode'>Set to Remote</option>
                     </select>
@@ -1528,6 +1673,12 @@ function multiActionChanged() {
         </div>
    
         <div style='text-align: left;'>
+            <div id = 'copyOSOptions' class='actionOptions'>
+                <h2>Copy OS Upgrade Files</h2>
+                <div class="container-fluid" id = 'copyOSOptionsDetails'>
+                    <span class="warning-text">No .fppos files found on this system.</span>
+                </div>
+            </div>
             <span class='actionOptions' id='copyOptions'>
                 <br>
         <?php
@@ -1581,6 +1732,7 @@ function multiActionChanged() {
 $(document).ready(function() {
     //SetupToolTips();
 	getFPPSystems();
+    getLocalFpposFiles();
 
     var $table = $('#fppSystemsTable');
 

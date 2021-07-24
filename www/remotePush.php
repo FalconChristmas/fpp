@@ -1,5 +1,3 @@
-<!DOCTYPE html>
-<html>
 <?php
 
 /*
@@ -12,8 +10,16 @@ require_once "common.php";
 
 DisableOutputBuffering();
 
-?>
+global $raw;
+$raw = 0;
+if (isset($_GET["raw"]) || $_GET["raw"] == 1) {
+    $raw = 1;
+}
 
+if ($raw == 0) {
+?>
+<!DOCTYPE html>
+<html>
 <head>
 <title>
 Remote Push
@@ -26,11 +32,11 @@ Remote Push
 
 
 <?php
-
+}
 $lastUpdate = time();
 
 if (!(isset($_GET['filename']) && isset($_GET['remoteHost']) && isset($_GET['dir']))) {
-    echo ("<b>ERROR:</b> filename, remoteHost, and dir are required parameters.<br>");
+    echo ("ERROR: filename, remoteHost, and dir are required parameters.\n");
 } else {
     $is_valid = true;
     $filename = sanitizeFilename($_GET["filename"]);
@@ -43,21 +49,21 @@ if (!(isset($_GET['filename']) && isset($_GET['remoteHost']) && isset($_GET['dir
 
     if ($dir == "") {
         $is_valid = false;
-        echo ("<b>Error: Invalid Directory.<br>");
+        echo ("Error: Invalid Directory.\n");
     }
 
     if (!(is_valid_domain_name($remoteHost) || filter_var($remoteHost, FILTER_VALIDATE_IP))) {
         $is_valid = false;
-        echo ("<b>Error:</b>: Invalid Remote Host<br>");
+        echo ("Error:: Invalid Remote Host\n");
     }
 
     if (!file_exists($fullPath)) {
         $is_valid = false;
-        echo ("<b>Error:</b>: Supplied File not found. - $fullPath<br>");
+        echo ("Error:: Supplied File not found. - $fullPath\n");
     }
 
     if ($is_valid) {
-        echo ("Uploading $fullPath to $remoteHost...<br>");
+        echo ("Uploading $fullPath to $remoteHost...\n");
 
         $cfile = new CURLFile(realpath($fullPath));
         $post = array(
@@ -83,15 +89,17 @@ if (!(isset($_GET['filename']) && isset($_GET['remoteHost']) && isset($_GET['dir
             curl_close($ch);
         } else {
             curl_close($ch);
+            echo "Complete:" . $result . "\n";
             move($remoteHost, $filename);
-            echo "Complete:" . $result;
         }
+        echo("\n");
     }
 }
 
 function progress($resource, $download_size, $downloaded, $upload_size, $uploaded)
 {
     global $lastUpdate;
+    global $filename;
     $now = time();
     if ($now <= $lastUpdate) {
         return;
@@ -100,7 +108,7 @@ function progress($resource, $download_size, $downloaded, $upload_size, $uploade
     }
 
     if ($upload_size > 0) {
-        echo("Progress: ");
+        echo("Progress($filename): ");
         echo intval($uploaded / $upload_size * 100);
         echo("%");
     } else {
@@ -125,16 +133,18 @@ function move($remoteHost, $file) {
     $result = curl_exec($ch);
 
     if ($result === false) {
-        echo "Error calling move URL";
+        echo "ERROR calling move URL";
         curl_close($ch);
     } else {
         curl_close($ch);
-        echo "Complete:" . $result;
+        echo "File Move Complete";
     }
 
     echo("\n");
-
 }
+
+global $raw;
+if ($raw == 0) {
 
 ?>
 
@@ -142,3 +152,7 @@ Done!
 </pre>
 </body>
 </html>
+
+<?php
+}
+?>

@@ -1634,6 +1634,10 @@ body .sm-clean a .sub-arrow {
 	
 }
 
+.warning-text {
+	color:red;
+}
+
 .playlist-warning::after {
 	content:"\26a0";
 	background-color: rgb(251, 255, 7);
