@@ -473,7 +473,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                     } catch(error) {
                         // This feature may not exists on older devices
                     }
-                    console.log(diskHtml);
 
                     if (diskHtml == "") {
                         diskHtml = "<b>Disk Usage:</b> unknown";
