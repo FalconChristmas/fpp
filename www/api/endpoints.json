@@ -36,7 +36,7 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Returns the E1.31 or DDP statistics for inbound packets. Attempts to return a meaniful error if connection to FPPD fails.",
+                    "desc": "Returns the E1.31 or DDP statistics for inbound packets. Attempts to return a meaningful error if connection to FPPD fails.",
                     "output": {
                         "status": "OK",
                         "universes": [
@@ -237,7 +237,7 @@
             "endpoint": "files/:DirName",
             "methods": {
                 "GET": {
-                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'upload', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
+                    "desc": "Get list of files in :DirName where :DirName is one of ('config', 'effects', 'events', 'images', 'logs', 'music', 'playlists', 'plugins', 'scripts', 'sequences', 'tmp', 'uploads', 'videos'). If ?nameOnly=1 is supplied then the array will only contain filenames",
                     "output": {
                         "status": "ok",
                         "files": [
@@ -264,7 +264,7 @@
             "endpoint": "files/zip/:DirName",
             "methods": {
                 "GET": {
-                    "desc": "Dowloads all files in the specified directory in zip format. (Currently only supported where DirName == Logs)",
+                    "desc": "Downloads all files in the specified directory in zip format. (Currently only supported where DirName == Logs)",
                     "output": "A Zip file"
                 }
             }
@@ -273,7 +273,7 @@
             "endpoint": "file/move/:Filename",
             "methods": {
                 "GET": {
-                    "desc": "Moves the specified file from the uploads directory to the correct subfolder returning a status of \"OK\" or an Error message if not sucessful",
+                    "desc": "Moves the specified file from the uploads directory to the correct subfolder returning a status of \"OK\" or an Error message if not successful",
                     "output": {
                         "status": "OK"
                     }
@@ -522,7 +522,7 @@
             "fppd": true,
             "methods": {
                 "GET": {
-                    "desc": "Returns a projection of Playlists and other events that are scheculed to start in the near future.",
+                    "desc": "Returns a projection of Playlists and other events that are scheduled to start in the near future.",
                     "output": {
                         "Message": "",
                         "Status": "OK",
@@ -1125,7 +1125,7 @@
             "endpoint": "network/dns",
             "methods": {
                 "GET": {
-                    "desc": "returns informationon DNS configuration. If not configured, status will be 'Not Configured'",
+                    "desc": "returns information DNS configuration. If not configured, status will be 'Not Configured'",
                     "output": {
                         "DNS1": "192.168.50.1",
                         "DNS2": "192.168.1.1",
@@ -1277,7 +1277,7 @@
             "endpoint": "network/interface/:interfaceName",
             "methods": {
                 "GET": {
-                    "desc": "Retreieves the current network interface configuration",
+                    "desc": "Retrieves the current network interface configuration",
                     "output": {
                         "INTERFACE": "eth0",
                         "PROTO": "static",
@@ -1338,7 +1338,7 @@
             "endpoint": "network/wifi/scan/:interface",
             "methods": {
                 "GET": {
-                    "desc": "Returns informationa about wifi networks that can be discovered via the specified interface. (NOTE: It is possible a network without a SSID will be in the list.) ",
+                    "desc": "Returns information about wifi networks that can be discovered via the specified interface. (NOTE: It is possible a network without a SSID will be in the list.) ",
                     "output": {
                         "status": "OK",
                         "networks": [
@@ -1716,7 +1716,7 @@
             "endpoint": "plugin/:RepoName/settings/:SettingName",
             "methods": {
                 "GET": {
-                    "desc": "Returns the value of a given setting fromt the Plugin specified as :RepoName",
+                    "desc": "Returns the value of a given setting from the Plugin specified as :RepoName",
                     "output": {
                         "status": "OK",
                         "SettingName": "SettingValue"
@@ -1873,7 +1873,7 @@
             "endpoint": "sequence/current/togglePause",
             "methods": {
                 "GET": {
-                    "desc": "Pauses or Resumes thecurrent playing sequence. Only valid if sequence started by /api/sequence/:SequenceName/start/:startSecond",
+                    "desc": "Pauses or Resumes the current playing sequence. Only valid if sequence started by /api/sequence/:SequenceName/start/:startSecond",
                     "output": {
                         "status": "OK"
                     }

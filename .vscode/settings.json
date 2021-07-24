@@ -1,12 +1,26 @@
 {
     "cSpell.words": [
+        "Avidemux",
         "ESEQ",
         "FPP's",
+        "Gadgetoid",
+        "Helvetica",
+        "Lavf",
+        "Leds",
         "Linsn",
+        "Multisync",
         "Pixelnet",
         "Renard",
+        "SSID",
+        "configfile",
         "fppcapedetect",
-        "fppd"
+        "fppd",
+        "isom",
+        "isomiso",
+        "spixels",
+        "wifi",
+        "wlan",
+        "xbkp"
     ],
     "files.associations": {
         "*.tcc": "c",
