@@ -208,9 +208,11 @@ var tableInfo = {
     sortable: 1
 	};
 
+
 function DeleteSelectedMemMap() {
 	if (tableInfo.selected >= 0) {
-		$('#channelMemMaps tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
+		//$('#channelMemMaps tbody tr:nth-child(' + (tableInfo.selected+1) + ')').remove();
+		$('#channelMemMaps .selectedEntry').remove();
 		tableInfo.selected = -1;
 		SetButtonState("#btnDelete", "disable");
 	}
@@ -319,6 +321,22 @@ $(document).tooltip();
 			return $(this).attr('title');
 		}
 	});
+
+	$(function() {
+		$('#channelMemMaps').on('mousedown', 'tr', function(event,ui) {
+			HandleTableRowMouseClick(event, $(this));
+
+			console.log(event.target.nodeName);
+
+			if ($('#channelMemMaps > tr.selectedEntry').length > 0) {
+				EnableButtonClass('btnDelete');
+			} else {
+				DisableButtonClass('btnDelete');
+			}
+		});
+	});
+
+
 </script>
 
 </body>
