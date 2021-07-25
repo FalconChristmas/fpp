@@ -1796,9 +1796,6 @@ function multiActionChanged() {
 <script>
 
 $(document).ready(function() {
-    //SetupToolTips();
-	getFPPSystems();
-    getLocalFpposFiles();
 
     $.get("/api/proxies", function(data) {
         proxies = data;
@@ -1809,6 +1806,9 @@ $(document).ready(function() {
             let ip = $(this).attr('ip');
             $(this).attr('href', wrapUrlWithProxy(ip));
         });
+
+        getFPPSystems();
+        getLocalFpposFiles();
     });
 
 
