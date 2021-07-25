@@ -1711,7 +1711,7 @@ function multiActionChanged() {
         <div class="multisyncAdvancedFormActions row">
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
-            <i class="fas fa-cog"></i> View Options</button>
+            <i class="fas fa-cog"></i> Settings</button>
             <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
             <div class="ml-2">
             <span  class="pr-1">Auto Refresh Stats</span> <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
@@ -1763,6 +1763,7 @@ function multiActionChanged() {
                 <div class="container-fluid settingsTable">
 
                                 <?
+                                PrintSetting('MultiSyncEnabled');
                                 PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncExtraRemotes');
