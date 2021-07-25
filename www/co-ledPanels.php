@@ -1404,7 +1404,7 @@ $(document).ready(function(){
 
 
 			<div id='divLEDPanelsData'>
-				<div style="overflow: hidden; padding: 10px;">
+				<div style="padding: 10px;">
 
 					<br>
 					<b>LED Panel Layout:</b><br>
@@ -1417,50 +1417,52 @@ $(document).ready(function(){
 					</span>
                     <span class='ledPanelCanvasUI'>Front View</span>
                     <br>
-                    <table class='ledPanelCanvasUI' style='display:none;'><tr><td>
-                        <canvas id='ledPanelCanvas' width='900' height='400' style='border: 2px solid rgb(0,0,0);'></canvas>
-                        </td><td width='10px'></td><td valign='top'>
-                            <b>Selected Panel:</b><br>
-                            <table>
-                                <tr><td>Output:</td><td>
-                                    <select id='cpOutputNumber' onChange='cpOutputNumberChanged();'>
-                                    </select></td></tr>
-                                <tr><td>Panel:</td><td>
-                                    <select id='cpPanelNumber' onChange='cpPanelNumberChanged();'>
-                                    </select></td></tr>
-                                <tr><td>Color:</td><td>
-                                    <select id='cpColorOrder' onChange='cpColorOrderChanged();'>
-                                        <option value=''>Def</option>
-                                        <option value='RGB'>RGB</option>
-                                        <option value='RBG'>RBG</option>
-                                        <option value='GBR'>GBR</option>
-                                        <option value='GRB'>GRB</option>
-                                        <option value='BGR'>BGR</option>
-                                        <option value='BRG'>BRG</option>
-                                    </select></td></tr>
-                                <tr><td>X Pos:</td><td><span id='cpXOffset'></span></td></tr>
-                                <tr><td>Y Pos:</td><td><span id='cpYOffset'></span></td></tr>
-                                <tr><td colspan=2><input type='button' onclick='RotateCanvasPanel();' value='Rotate'></td></tr>
-                                <!--
-                                <tr><td>Snap:</td><td><input type='checkbox' id='cpSnap'></td></tr>
-                                -->
-                                </table>
-                        </td></tr>
-                        <tr><td colspan=3>
-                            <table>
-                                <tr><td><b>UI Layout Size:</b></td>
-                                    <td>Pixels Wide:</td><td><? PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize"); ?></td>
-                                    <td width='10px'></td>
-                                    <td>Pixels High:</td><td><? PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize"); ?></td>
-                                    </tr>
-                            </table>
+                    <div style='overflow: auto;'>
+                        <table class='ledPanelCanvasUI' style='display:none;'><tr><td>
+                            <canvas id='ledPanelCanvas' width='900' height='400' style='border: 2px solid rgb(0,0,0);'></canvas>
+                            </td><td width='10px'></td><td valign='top'>
+                                <b>Selected Panel:</b><br>
+                                <table>
+                                    <tr><td>Output:</td><td>
+                                        <select id='cpOutputNumber' onChange='cpOutputNumberChanged();'>
+                                        </select></td></tr>
+                                    <tr><td>Panel:</td><td>
+                                        <select id='cpPanelNumber' onChange='cpPanelNumberChanged();'>
+                                        </select></td></tr>
+                                    <tr><td>Color:</td><td>
+                                        <select id='cpColorOrder' onChange='cpColorOrderChanged();'>
+                                            <option value=''>Def</option>
+                                            <option value='RGB'>RGB</option>
+                                            <option value='RBG'>RBG</option>
+                                            <option value='GBR'>GBR</option>
+                                            <option value='GRB'>GRB</option>
+                                            <option value='BGR'>BGR</option>
+                                            <option value='BRG'>BRG</option>
+                                        </select></td></tr>
+                                    <tr><td>X Pos:</td><td><span id='cpXOffset'></span></td></tr>
+                                    <tr><td>Y Pos:</td><td><span id='cpYOffset'></span></td></tr>
+                                    <tr><td colspan=2><input type='button' onclick='RotateCanvasPanel();' value='Rotate'></td></tr>
+                                    <!--
+                                    <tr><td>Snap:</td><td><input type='checkbox' id='cpSnap'></td></tr>
+                                    -->
+                                    </table>
                             </td></tr>
-                    </table>
-                    <div class='ledPanelSimpleUI'>
-					<table id='LEDPanelTable' border=1>
-						<tbody>
-						</tbody>
-					</table>
+                            <tr><td colspan=3>
+                                <table>
+                                    <tr><td><b>UI Layout Size:</b></td>
+                                        <td>Pixels Wide:</td><td><? PrintSettingTextSaved("LEDPanelUIPixelsWide", 2, 0, 4, 4, "", "256", "SetCanvasSize"); ?></td>
+                                        <td width='10px'></td>
+                                        <td>Pixels High:</td><td><? PrintSettingTextSaved("LEDPanelUIPixelsHigh", 2, 0, 4, 4, "", "128", "SetCanvasSize"); ?></td>
+                                        </tr>
+                                </table>
+                                </td></tr>
+                        </table>
+                        <div class='ledPanelSimpleUI'></div>
+                        <table id='LEDPanelTable' border=1>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
 					- O-# is physical output number.<br>
 					- P-# is panel number on physical output.<br>
 					- C-(color) is color order if panel has different color order than default (C-Def).<br>
