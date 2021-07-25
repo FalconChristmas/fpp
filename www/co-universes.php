@@ -154,7 +154,7 @@ function PopulateInterfaces()
 
 								</div>
 								<div class="col-md-auto form-inline" <? if ($uiLevel < 1) { ?> style="display:none;" <? } ?>>
-									<div><b>Multi-Threaded:</b><b>*</b></div>
+									<div><i class="fas fa-fw fa-graduation-cap ui-level-1"></i><b> Multi-Threaded:</b></div>
 									<div>
 										<input id="E131ThreadedOutput" type="checkbox" checked />
 									</div>
