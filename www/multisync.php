@@ -93,6 +93,49 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         $('#' + rowID + ' > td:nth-child(1)').attr('rowspan', rowSpan);
     }
 
+    // Updates the warning information for multi-sync
+    // Also handles if warnings row should be displayed in general.
+    function validateMultiSyncSettings() {
+        var multicastChecked = $('#MultiSyncMulticast').is(":checked");
+        var broadcastChecked = $('#MultiSyncBroadcast').is(":checked");
+        // Remove any Multisync warnings
+        $(document).find(".multisync-warning").remove();
+
+        // check if Warnings window should be shown
+        $(document).find('tr[id*="_warnings"').each(function(){
+            let cnt = $(this).find('td[id*="_warningCell"').children().length;
+            if (cnt ==0) {
+                $(this).hide();
+            } else {
+                $(this).show();
+            }
+        });
+
+
+        // If these are unchecked, than each remote can be set either way
+        // no need to check anything
+        if (! (multicastChecked || broadcastChecked)) {
+            return;
+        }
+
+        $("input.syncCheckbox").each(function() {
+			if ($(this).is(":checked")) {
+                let name = $(this).attr('name');
+                let msg = "";
+                if (multicastChecked) {
+                    msg = "Having Unicast checked when Multicast is enabled (view options below) is discouraged: " + name;
+                } else {
+                    msg = "Having Unicast checked when Broadcast is enabled (view options below) is discouraged: " + name;
+                }
+                msg = '<div class="warning-text multisync-warning">' + msg + '</div>';
+                $(this).closest('.systemRow').next(".warning-row").each(function(){
+                    $(this).find("td").append(msg);
+                    $(this).show();
+                })
+            }
+        });
+    }
+
     function updateMultiSyncRemotes(verbose = false) {
 		var remotes = "";
 
@@ -131,6 +174,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             settings['restartFlag'] = 2;
             //Get the resart banner showing
             CheckRestartRebootFlags();
+            validateMultiSyncSettings();
         }).fail(function() {
 			DialogError("Save Remotes", "Save Failed");
 		});
@@ -256,6 +300,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	function getFPPSystemInfo(ip) {
 		$.get("http://" + ip + "/fppjson.php?command=getHostNameInfo", function(data) {
 			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
+            validateMultiSyncSettings();
 		});
 	}
 
@@ -412,7 +457,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                $('#' + rowID + '_warningCell').html(wHTML);
             } else {
                var result_style = document.getElementById(rowID + '_warnings').style;
-               result_style.display = 'none';
             }
             rowSpanSet(rowID);
                
@@ -534,7 +578,9 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 				refreshTimer = setTimeout(function() {getFPPSystemStatus(ipAddresses, true);}, 2000);
             }
 		});
-	}
+
+        validateMultiSyncSettings();
+	} // end of "api/system/status?ip=" + ips + '&advancedView=true'
 
     function ipLink(ip) {
         return "<a href='http://" + ip + "/' ip='" + ip + "'>" + ip + "</a>";
@@ -698,7 +744,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                 var colspan = (advancedView === true) ? 9 : 7;
 
-                newRow = "<tr id='" + rowID + "_warnings' style='display:none' class='tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
+                newRow = "<tr id='" + rowID + "_warnings' class='tablesorter-childRow warning-row'><td colspan='" + colspan + "' id='" + rowID + "_warningCell'></td></tr>";
                 $('#fppSystems').append(newRow);
 
                 newRow = "<tr id='" + rowID + "_logs' style='display:none' class='logRow tablesorter-childRow'><td colspan='" + colspan + "' id='" + rowID + "_logCell'><table class='multiSyncVerboseTable' width='100%'><tr><td>Log:</td><td width='100%'><textarea id='" + rowID + "_logText' style='width: 100%;' rows='8' disabled></textarea></td></tr><tr><td></td><td><div class='right' id='" + rowID + "_doneButtons' style='display: none;'><input type='button' class='buttons' value='Restart FPPD' onClick='restartSystem(\"" + rowID + "\");' style='float: left;'><input type='button' class='buttons' value='Reboot' onClick='rebootRemoteFPP(\"" + rowID + "\", \"" + ip + "\");' style='float: left;'><input type='button' class='buttons' value='Close Log' onClick='$(\"#" + rowID +"_logs\").hide(); rowSpanSet(\"" + rowID + "\");'></div></td></tr></table></td></tr>";
@@ -1757,6 +1803,9 @@ $(document).ready(function() {
     getLocalFpposFiles();
 
     var $table = $('#fppSystemsTable');
+
+    $("#MultiSyncBroadcast").change(validateMultiSyncSettings);
+    $("#MultiSyncMulticast").change(validateMultiSyncSettings);
 
     $.tablesorter.addParser({
         id: 'FPPIPParser',
