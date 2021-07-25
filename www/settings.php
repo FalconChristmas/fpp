@@ -118,6 +118,11 @@ include 'menu.inc'; ?>
                                 MQTT
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="settings-privacy-tab" data-toggle="tab" href="#settings-privacy" data-option="Privacy" role="tab" aria-controls="settings-privacy" aria-selected="true">
+                                Privacy
+                            </a>
+                        </li>
                         <? if ($uiLevel >= 1 || $tabId == "Output"){?>
                         <li class="nav-item">
                             <a class="nav-link" id="settings-output-tab" data-toggle="tab" href="#settings-output" data-option="Output" role="tab" aria-controls="settings-output" aria-selected="true">
@@ -189,6 +194,7 @@ var activeTabNumber =
     $tabIDs["UI"] = $id++;
     $tabIDs["Email"] = $id++;
     $tabIDs["MQTT"] = $id++;
+    $tabIDs["Privacy"] = $id++;
     if ($uiLevel >= 1 || $tabId == "Output") $tabIDs["Output"] = $id++;
     $tabIDs["Logging"] = $id++;
     if ($uiLevel >= 1 || $tabId == "Storage") $tabIDs["Storage"] = $id++;

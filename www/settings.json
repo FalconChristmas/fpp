@@ -95,6 +95,8 @@
                 "HostName",
                 "HostDescription",
                 "statsPublish",
+                "FetchVendorLogos",
+                "SendVendorSerial",
                 "Locale",
                 "TimeZone",
                 "Latitude",
@@ -141,6 +143,14 @@
                 "E131BridgingInterval"
             ]
         },
+        "privacy": {
+            "description": "Privacy",
+            "settings": [
+                "statsPublish",
+                "FetchVendorLogos",
+                "SendVendorSerial"
+            ]
+        },
         "system": {
             "description": "System Settings",
             "settings": [
@@ -155,8 +165,7 @@
                 "ForceHDMIResolution",
                 "ForceHDMIResolutionPort2",
                 "LEDDisplayType",
-                "bootDelay",
-                "statsPublish"
+                "bootDelay"
             ]
         },
         "tethering": {
@@ -625,6 +634,17 @@
             "gatherStats" : true,
             "restart": 2,
             "level": 1,
+            "type": "checkbox"
+        },
+	"FetchVendorLogos": {
+            "name": "FetchVendorLogos",
+            "description": "Fetch cape logos from vendors",
+            "gatherStats" : true,
+            "tip": "Some capes fetch the vendor logo from their website when using the FPP gui.  This discloses your IP address to the vendor.",
+            "platforms": [
+                "BeagleBone Black",
+                "Raspberry Pi"
+            ],
             "type": "checkbox"
         },
         "ForceHDMI": {
@@ -1415,6 +1435,17 @@
             "tip": "Enable screensaver to blank the Raspberry Pi display after startup.  This is useful when you have a projector attached to the HDMI/composite output and do not want the boot screen text console to display on the projector when no video is playing.",
             "reboot": 1,
             "platforms": [
+                "Raspberry Pi"
+            ],
+            "type": "checkbox"
+        },
+	"SendVendorSerial": {
+            "name": "SendVendorSerial",
+            "description": "Send cape serial numbers to vendors",
+            "gatherStats" : true,
+            "tip": "Some capes send a identifying serial number to the vendor each time you load the FPP GUI.  The vendor can use this information to personally identify you.  Enable this option to prevent it.",
+            "platforms": [
+                "BeagleBone Black",
                 "Raspberry Pi"
             ],
             "type": "checkbox"
