@@ -32,6 +32,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     var advancedView = true;
     var systemStatusCache = {}; // Cache of api/system/status?ip[]=
     var localFpposFiles = [];
+    var proxies = [];
 
     function getLocalFpposFiles() {
         $.get('api/files/uploads', function(data) {
@@ -262,14 +263,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         return false;
     }
 
-    function isProxied(ip,result) {
-        $.get("/api/proxies", function(data) {
-            let proxied = false;
-            if (data.includes(ip)) {
-                proxied = true;
-            }
-            result(proxied);
-        });
+    function isProxied(ip) {
+        return proxies.includes(ip);
     }
 
     function getLocalVersionLink(ip, data) {
@@ -282,7 +277,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             updatesAvailable = 1;
         }
 
-        var localVer = "<a href='http://" + ip + "/about.php' target='_blank'><b><font color='";
+        var localVer = "<a href='" + wrapUrlWithProxy(ip) + "/about.php' target='_blank' ip='" + ip + "'><b><font color='";
         if (updatesAvailable) {
             localVer += 'red';
         } else if ((typeof (data.advancedView.RemoteGitVersion) !== 'undefined') &&
@@ -298,7 +293,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
     }
 
 	function getFPPSystemInfo(ip) {
-		$.get("http://" + ip + "/fppjson.php?command=getHostNameInfo", function(data) {
+		$.get(wrapUrlWithProxy(ip) + "/fppjson.php?command=getHostNameInfo", function(data) {
 			$('#fpp_' + ip.replace(/\./g,'_') + '_desc').html(data.HostDescription);
             validateMultiSyncSettings();
 		});
@@ -432,7 +427,6 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 });
                 if (wifi_html.length > 0) {
                     $('#' + rowID + "_ip").find(".wifi-icon").remove();
-                    //$(wifi_html.join('')).appendTo($('#' + rowID + "_ip > a[ip='" + ip + "']"));
                     $(wifi_html.join('')).appendTo('td[ip="' + ip + '"]');
                 }
             }
@@ -583,7 +577,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 	} // end of "api/system/status?ip=" + ips + '&advancedView=true'
 
     function ipLink(ip) {
-        return "<a href='http://" + ip + "/' ip='" + ip + "'>" + ip + "</a>";
+        return "<a href='" + wrapUrlWithProxy(ip) + "/' ip='" + ip + "'>" + ip + "</a>";
     }
 
     function parseFPPSystems(data) {
@@ -966,7 +960,7 @@ function getFalconControllerStatus(ip) {
     // Need to update this once Falcon controllers support
     // FPP MultiSync discovery
     $.ajax({
-        url: 'api/proxy/' + ip + '/status.xml',
+        url: wrapUrlWithProxy(ip) + '/status.xml',
         dataType: 'xml',
         success: function(data) {
             var ips = ip.replace(/\./g, '_');
@@ -987,69 +981,73 @@ function getFalconControllerStatus(ip) {
     });
 }
 
+function wrapUrlWithProxy(ip) {
+    if (isProxied(ip)) {
+        return 'proxy/' + ip;
+    } else {
+        return 'http://' + ip;
+    }
+}
+
 function getFalconV4ControllerStatus(ip) {
-    isProxied(ip, function(proxied) {
-        if (proxied) {
-          v4url = '/proxy/' + ip + '/api';
-        } else {
-          v4url = 'http://' + ip + '/api';
-        }
-        $.ajax({
-            url: v4url,
-            method: 'POST',
-            contentType: 'application/json',
-            dataType: 'json',
-            data: '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}',
-            success: function(data) {
-                var ips = ip.replace(/\./g, '_');
+    let v4url = wrapUrlWithProxy(ip) + '/api';
+    console.log('Posting to ', v4url);
+
+    $.ajax({
+        url: v4url,
+        method: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: '{"T":"Q","M":"ST","B":0,"E":0,"I":0,"P":{}}',
+        success: function(data) {
+            var ips = ip.replace(/\./g, '_');
+
+            var result = JSON.stringify(data);
+            var s = JSON.parse(result);
     
-                var result = JSON.stringify(data);
-                var s = JSON.parse(result);
-        
-                var tempthreshold = s.P.BS;
-                var t1temp = s.P.T1 / 10;
-                var t2temp = s.P.T2 / 10;
-        
-                var v1voltage = s.P.V1 / 10;
-                var v2voltage = s.P.V2 / 10;
-        
-                var testmode = new Boolean(s.P.TS);
-                var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
-        
-                var t=parseInt(s.P.U);
-                var days=Math.floor(t/86400);
-                var hours=Math.floor((t-86400*days)/3600);
-                var mins=Math.floor((t-86400*days-3600*hours)/60);
-        
-                var uptime = '';
-        
-                uptime += (days + " days, ");
-                uptime += ("0" + hours).slice(-2) + ":";
-                uptime += ("0" + mins ).slice(-2);
+            var tempthreshold = s.P.BS;
+            var t1temp = s.P.T1 / 10;
+            var t2temp = s.P.T2 / 10;
     
-                var u = "<table class='multiSyncVerboseTable'>";
-                u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
-                u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
-                u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
+            var v1voltage = s.P.V1 / 10;
+            var v2voltage = s.P.V2 / 10;
     
-                if (testmode == true || overtemp == true) {
-                    u += "</table>";
-                }
-                if (testmode == true) u += "</table><br><span class='warning-text'>Controller Test mode is active</span><br>";
-                if (overtemp == true) u += "</table><br><span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
-        
+            var testmode = new Boolean(s.P.TS);
+            var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
+    
+            var t=parseInt(s.P.U);
+            var days=Math.floor(t/86400);
+            var hours=Math.floor((t-86400*days)/3600);
+            var mins=Math.floor((t-86400*days-3600*hours)/60);
+    
+            var uptime = '';
+    
+            uptime += (days + " days, ");
+            uptime += ("0" + hours).slice(-2) + ":";
+            uptime += ("0" + mins ).slice(-2);
+
+            var u = "<table class='multiSyncVerboseTable'>";
+            u += "<tr><td>Uptime:</td><td>" + uptime + "</td></tr>";
+            u += "<tr><td>V1 Voltage:</td><td> " + v1voltage + "v</td></tr>";
+            u += "<tr><td>V2 Voltage:</td><td> " + v2voltage + "v</td></tr>";
+
+            if (testmode == true || overtemp == true) {
                 u += "</table>";
-        
-                $('#advancedViewUtilization_fpp_' + ips).html(u);
             }
-        });
+            if (testmode == true) u += "</table><br><span class='warning-text'>Controller Test mode is active</span><br>";
+            if (overtemp == true) u += "</table><br><span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
+    
+            u += "</table>";
+    
+            $('#advancedViewUtilization_fpp_' + ips).html(u);
+        }
     });
 }
 
 function getWLEDControllerStatus(ip) {
 
 $.ajax({
-        url: 'http://' + ip + '/json/info',
+        url: wrapUrlWithProxy(ip) + '/json/info',
             method: 'GET',
             contentType: 'application/json',
             dataType: 'json',
@@ -1278,7 +1276,7 @@ function upgradeSystem(rowID) {
     addLogsDivider(rowID);
 
     var ip = ipFromRowID(rowID);
-    StreamURL('http://' + ip + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
+    StreamURL(wrapUrlWithProxy(ip) + '/manualUpdate.php?wrapped=1', rowID + '_logText', 'upgradeDone', 'upgradeFailed');
 }
 
 function showWaitingOnOriginUpdate(rowID, origin) {
@@ -1801,6 +1799,18 @@ $(document).ready(function() {
     //SetupToolTips();
 	getFPPSystems();
     getLocalFpposFiles();
+
+    $.get("/api/proxies", function(data) {
+        proxies = data;
+
+        // Update any existing links now that proxies
+        // are loaded
+        $("a[ip]").each(function() {
+            let ip = $(this).attr('ip');
+            $(this).attr('href', wrapUrlWithProxy(ip));
+        });
+    });
+
 
     var $table = $('#fppSystemsTable');
 
