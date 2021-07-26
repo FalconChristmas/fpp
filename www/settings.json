@@ -640,7 +640,7 @@
             "name": "FetchVendorLogos",
             "description": "Fetch cape logos from vendors",
             "gatherStats" : true,
-            "tip": "Some capes fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
+            "tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
             "platforms": [
                 "BeagleBone Black",
                 "Raspberry Pi"
