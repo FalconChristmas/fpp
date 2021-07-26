@@ -18,28 +18,28 @@
  *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array>
 #include <cstdio>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <array>
 #include <thread>
-#include <map>
 
 #include <fstream>
 
+#include <sys/reboot.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/reboot.h>
-#include <fcntl.h>
 
+#include <dirent.h>
 #include <libgen.h>
 #include <string.h>
-#include <dirent.h>
 
 #include <jsoncpp/json/json.h>
 
@@ -51,19 +51,18 @@
 #define I2C_DEV 0
 #endif
 
-
-template< typename... Args >
-std::string string_sprintf( const char* format, Args... args ) {
-    int length = std::snprintf( nullptr, 0, format, args... );
+template<typename... Args>
+std::string string_sprintf(const char* format, Args... args) {
+    int length = std::snprintf(nullptr, 0, format, args...);
     char* buf = new char[length + 1];
-    std::snprintf( buf, length + 1, format, args... );
-    
-    std::string str( buf );
+    std::snprintf(buf, length + 1, format, args...);
+
+    std::string str(buf);
     delete[] buf;
     return std::move(str);
 }
 
-static std::string exec(const std::string &cmd) {
+static std::string exec(const std::string& cmd) {
     std::array<char, 128> buffer;
     std::string result;
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
@@ -76,43 +75,45 @@ static std::string exec(const std::string &cmd) {
     return result;
 }
 
-static bool file_exists(const std::string &f) {
-    return access(f.c_str(), F_OK ) != -1;
+static bool file_exists(const std::string& f) {
+    return access(f.c_str(), F_OK) != -1;
 }
 static std::string trim(std::string str) {
     // remove trailing white space
-    while( !str.empty() && (std::isspace( str.back() ) || str.back() == 0)) str.pop_back() ;
-    
+    while (!str.empty() && (std::isspace(str.back()) || str.back() == 0))
+        str.pop_back();
+
     // return residue after leading white space
-    std::size_t pos = 0 ;
-    while( pos < str.size() && std::isspace( str[pos] ) ) ++pos ;
-    return str.substr(pos) ;
+    std::size_t pos = 0;
+    while (pos < str.size() && std::isspace(str[pos]))
+        ++pos;
+    return str.substr(pos);
 }
-static std::string read_string(FILE *file, int len) {
+static std::string read_string(FILE* file, int len) {
     std::string buf;
     buf.reserve(len + 1);
     buf.resize(len);
     fread(&buf[0], 1, len, file);
     return trim(buf);
 }
-static void put_file_contents(const std::string &path, const uint8_t *data, int len) {
-    FILE *f = fopen(path.c_str(), "wb");
+static void put_file_contents(const std::string& path, const uint8_t* data, int len) {
+    FILE* f = fopen(path.c_str(), "wb");
     fwrite(data, 1, len, f);
     fclose(f);
 
-    struct passwd *pwd = getpwnam("fpp");
+    struct passwd* pwd = getpwnam("fpp");
     chown(path.c_str(), pwd->pw_uid, pwd->pw_gid);
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
     chmod(path.c_str(), mode);
 }
-static uint8_t *get_file_contents(const std::string &path, int &len) {
-    FILE *fp = fopen(path.c_str(), "rb");
+static uint8_t* get_file_contents(const std::string& path, int& len) {
+    FILE* fp = fopen(path.c_str(), "rb");
     fseek(fp, 0L, SEEK_END);
     len = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
 
-    uint8_t *data = (uint8_t*)malloc(len);
+    uint8_t* data = (uint8_t*)malloc(len);
     fread(data, 1, len, fp);
     fclose(fp);
     return data;
@@ -121,16 +122,16 @@ static uint8_t *get_file_contents(const std::string &path, int &len) {
 static bool waitForI2CBus(int i2cBus) {
     char buf[256];
     sprintf(buf, "/sys/bus/i2c/devices/i2c-%d/new_device", i2cBus);
-    
-    bool has0 = access("/sys/bus/i2c/devices/i2c-0/new_device", F_OK ) != -1;
-    
+
+    bool has0 = access("/sys/bus/i2c/devices/i2c-0/new_device", F_OK) != -1;
+
     //wait for up to 15 seconds for the i2c bus to appear
     //if it's already there, this should be nearly immediate
     for (int x = 0; x < 1500; x++) {
-        if (access(buf, F_OK ) != -1) {
+        if (access(buf, F_OK) != -1) {
             return true;
         }
-        
+
         // after 1/10 of a second, if there is a 0 bus, then it's likely
         // that the wanted bus won't exist
         if (x > 100 && has0) {
@@ -147,8 +148,8 @@ static bool HasI2CDevice(int i, int i2cBus) {
     std::string result = exec(buf);
     return result != "" && result.find("--") == std::string::npos;
 }
-static FILE * DoSignatureVerify(FILE *file, const std::string &fKeyId, const std::string &path, bool &validSignature, bool &deleteEpromFile) {
-    uint8_t *b = new uint8_t[32768];
+static FILE* DoSignatureVerify(FILE* file, const std::string& fKeyId, const std::string& path, bool& validSignature, bool& deleteEpromFile) {
+    uint8_t* b = new uint8_t[32768];
     size_t pos = ftell(file);
     int flen = std::stoi(read_string(file, 6));
     while (flen != 0) {
@@ -163,21 +164,21 @@ static FILE * DoSignatureVerify(FILE *file, const std::string &fKeyId, const std
     fseek(file, pos, SEEK_SET);
     int len = fread(b, 1, end - pos, file);
     fclose(file);
-    
+
     file = fopen("/home/fpp/media/tmp/eeprom", "wb");
     fwrite(b, 1, len, file);
     fclose(file);
     delete[] b;
-    
+
     std::string cmd = "openssl dgst -sha256 -verify /opt/fpp/scripts/keys/" + fKeyId + "_pub.pem -signature " + path + " /home/fpp/media/tmp/eeprom";
     std::string result = exec(cmd);
     validSignature = result.find("OK") != std::string::npos;
-    
+
     file = fopen("/home/fpp/media/tmp/eeprom", "rb");
     deleteEpromFile = true;
     return file;
 }
-static std::string checkUnsupported(const std::string &orig, int i2cbus) {
+static std::string checkUnsupported(const std::string& orig, int i2cbus) {
     if (HasI2CDevice(0x3c, i2cbus)) {
         // there is an oled so some sort of cape is present, we just don't know anything about it
         return "/opt/fpp/capes/other/Unknown-eeprom.bin";
@@ -185,7 +186,7 @@ static std::string checkUnsupported(const std::string &orig, int i2cbus) {
     return orig;
 }
 
-static void readSettingsFile(std::vector<std::string> &lines) {
+static void readSettingsFile(std::vector<std::string>& lines) {
     std::string line;
     std::ifstream settingsIstream("/home/fpp/media/settings");
     if (settingsIstream.good()) {
@@ -197,18 +198,18 @@ static void readSettingsFile(std::vector<std::string> &lines) {
     }
     settingsIstream.close();
 }
-static void writeSettingsFile(const std::vector<std::string> &lines) {
+static void writeSettingsFile(const std::vector<std::string>& lines) {
     std::ofstream settingsOstream("/home/fpp/media/settings");
     for (auto l : lines) {
         settingsOstream << l << "\n";
     }
     settingsOstream.close();
 }
-static void getFileList(const std::string &basepath, const std::string &path, std::vector<std::string> &files) {
+static void getFileList(const std::string& basepath, const std::string& path, std::vector<std::string>& files) {
     DIR* dir = opendir(basepath.c_str());
     if (dir) {
         files.push_back(path + "/");
-        struct dirent *ep;
+        struct dirent* ep;
         while ((ep = readdir(dir))) {
             std::string v = ep->d_name;
             if (v != "." && v != "..") {
@@ -223,7 +224,7 @@ static void getFileList(const std::string &basepath, const std::string &path, st
     }
 }
 
-static void disableOutputs(Json::Value &disables) {
+static void disableOutputs(Json::Value& disables) {
     for (int x = 0; x < disables.size(); x++) {
         std::string file = disables[x]["file"].asString();
         std::string type = disables[x]["type"].asString();
@@ -235,22 +236,20 @@ static void disableOutputs(Json::Value &disables) {
         if (file_exists(fullFile)) {
             Json::Value result;
             Json::CharReaderBuilder builder;
-            Json::CharReader *reader = builder.newCharReader();
+            Json::CharReader* reader = builder.newCharReader();
             std::string errors;
             std::ifstream istream(fullFile);
             std::stringstream buffer;
             buffer << istream.rdbuf();
             istream.close();
-            
+
             std::string str = buffer.str();
             bool success = reader->parse(str.c_str(), str.c_str() + str.size(), &result, &errors);
             if (success) {
                 bool changed = false;
                 if (result.isMember("channelOutputs")) {
                     for (int co = 0; co < result["channelOutputs"].size(); co++) {
-                        if (result["channelOutputs"][co]["type"].asString() == type
-                            && (subType == ""
-                                || (result["channelOutputs"][co].isMember("subType") && result["channelOutputs"][co]["subType"].asString() == subType))) {
+                        if (result["channelOutputs"][co]["type"].asString() == type && (subType == "" || (result["channelOutputs"][co].isMember("subType") && result["channelOutputs"][co]["subType"].asString() == subType))) {
                             if (result["channelOutputs"][co]["enabled"].asInt() == 1) {
                                 result["channelOutputs"][co]["enabled"] = 0;
                                 changed = true;
@@ -267,7 +266,7 @@ static void disableOutputs(Json::Value &disables) {
         }
     }
 }
-static void processBootConfig(Json::Value &bootConfig) {
+static void processBootConfig(Json::Value& bootConfig) {
 #if defined(PLATFORM_PI)
     const std::string fileName = "/boot/config.txt";
 #elif defined(PLATFORM_BBB)
@@ -281,18 +280,18 @@ static void processBootConfig(Json::Value &bootConfig) {
         return;
 
     int len = 0;
-    uint8_t *data = get_file_contents(fileName, len);
+    uint8_t* data = get_file_contents(fileName, len);
     if (len == 0) {
         remove("/.fppcapereboot");
         return;
     }
-    std::string current = (char *)data;
+    std::string current = (char*)data;
     std::string orig = current;
     if (bootConfig.isMember("remove")) {
         for (int x = 0; x < bootConfig["remove"].size(); x++) {
             std::string v = bootConfig["remove"][x].asString();
             size_t pos = std::string::npos;
-            while ((pos  = current.find(v) )!= std::string::npos) {
+            while ((pos = current.find(v)) != std::string::npos) {
                 // If found then erase it from string
                 current.erase(pos, v.length());
             }
@@ -315,7 +314,7 @@ static void processBootConfig(Json::Value &bootConfig) {
         put_file_contents(fileName, (const uint8_t*)current.c_str(), current.size());
         sync();
         if (!file_exists("/.fppcapereboot")) {
-            const uint8_t data[2] = {32, 0};
+            const uint8_t data[2] = { 32, 0 };
             put_file_contents("/.fppcapereboot", data, 1);
             sync();
             setuid(0);
@@ -326,7 +325,7 @@ static void processBootConfig(Json::Value &bootConfig) {
         remove("/.fppcapereboot");
     }
 }
-static void copyFile(const std::string &src, const std::string &target) {
+static void copyFile(const std::string& src, const std::string& target) {
     int s, t;
     s = open(src.c_str(), O_RDONLY);
     if (s == -1) {
@@ -355,13 +354,13 @@ static void copyFile(const std::string &src, const std::string &target) {
         write(t, buf, l);
     }
 }
-static void copyIfNotExist(const std::string &src, const std::string &target) {
+static void copyIfNotExist(const std::string& src, const std::string& target) {
     if (file_exists(target)) {
         return;
     }
     copyFile(src, target);
 }
-static void removeIfExist(const std::string &src) {
+static void removeIfExist(const std::string& src) {
     if (file_exists(src)) {
         unlink(src.c_str());
     }
@@ -370,10 +369,10 @@ static void removeIfExist(const std::string &src) {
 #ifdef PLATFORM_BBB
 bool isPocketBeagle() {
     bool ret = false;
-    FILE *file = fopen("/proc/device-tree/model", "r");
+    FILE* file = fopen("/proc/device-tree/model", "r");
     if (file) {
         char buf[256];
-        fgets(buf , 256 , file);
+        fgets(buf, 256, file);
         fclose(file);
         if (strcmp(&buf[10], "PocketBeagle") == 0) {
             ret = true;
@@ -381,12 +380,12 @@ bool isPocketBeagle() {
     }
     return ret;
 }
-void ConfigurePin(const char *pin, const char *mode) {
+void ConfigurePin(const char* pin, const char* mode) {
     char dir_name[255];
     snprintf(dir_name, sizeof(dir_name),
              "/sys/devices/platform/ocp/ocp:%s_pinmux/state",
              pin);
-    FILE *dir = fopen(dir_name, "w");
+    FILE* dir = fopen(dir_name, "w");
     if (!dir) {
         return;
     }
@@ -403,9 +402,8 @@ void ConfigureI2C1BusPins(bool enable) {
         ConfigurePin("P9_17", enable ? "i2c" : "default");
         ConfigurePin("P9_18", enable ? "i2c" : "default");
     }
-#endif    
+#endif
 }
-
 
 bool fpp_detectCape() {
     int bus = I2C_DEV;
@@ -427,14 +425,14 @@ bool fpp_detectCape() {
             int f = open(newDevFile.c_str(), O_WRONLY);
             write(f, "24c256 0x50", 11);
             close(f);
-            
+
             for (int x = 0; x < 50; x++) {
                 if (file_exists(EEPROM)) {
                     break;
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            
+
             if (!file_exists(EEPROM)) {
                 //try again
                 newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
@@ -467,11 +465,10 @@ bool fpp_detectCape() {
         return false;
     }
     printf("Using %s\n", EEPROM.c_str());
-    FILE *file = fopen(EEPROM.c_str(), "rb");
-    uint8_t *buffer = new uint8_t[32768]; //32K is the largest eeprom we support, more than enough
+    FILE* file = fopen(EEPROM.c_str(), "rb");
+    uint8_t* buffer = new uint8_t[32768]; //32K is the largest eeprom we support, more than enough
     int l = fread(buffer, 1, 6, file);
-    if (buffer[0] != 'F' || buffer[1] != 'P' || buffer[2] != 'P'
-        || buffer[3] != '0' || buffer[4] != '2') {
+    if (buffer[0] != 'F' || buffer[1] != 'P' || buffer[2] != 'P' || buffer[3] != '0' || buffer[4] != '2') {
         fclose(file);
         EEPROM = "/home/fpp/media/config/cape-eeprom.bin";
         if (file_exists(EEPROM)) {
@@ -479,14 +476,14 @@ bool fpp_detectCape() {
             l = fread(buffer, 1, 6, file);
         } else {
             printf("Could not detect any cape\n");
-            delete [] buffer;
+            delete[] buffer;
             return false;
         }
     }
     bool validSignature = false;
     bool hasSignature = false;
     bool validEpromLocation = true;
-    
+
     bool deleteEpromFile = false;
     std::string fkeyId;
     std::string cape;
@@ -494,13 +491,11 @@ bool fpp_detectCape() {
     std::string capesn;
     std::map<std::string, std::string> extras;
 
-    if (buffer[0] == 'F' && buffer[1] == 'P' && buffer[2] == 'P'
-        && buffer[3] == '0' && buffer[4] == '2') {
-        
-        cape = read_string(file, 26); // cape name + nulls
-        capev = read_string(file, 10); // cape version + nulls
+    if (buffer[0] == 'F' && buffer[1] == 'P' && buffer[2] == 'P' && buffer[3] == '0' && buffer[4] == '2') {
+        cape = read_string(file, 26);   // cape name + nulls
+        capev = read_string(file, 10);  // cape version + nulls
         capesn = read_string(file, 16); // cape serial# + nulls
-        
+
         std::string flenStr = read_string(file, 6); //length of the section
         printf("Found cape %s, Version %s, Serial Number: %s\n", cape.c_str(), capev.c_str(), capesn.c_str());
         int flen = std::stoi(flenStr);
@@ -512,75 +507,75 @@ bool fpp_detectCape() {
                 path += read_string(file, 64);
             }
             switch (flag) {
-                case 0:
-                case 1:
-                case 2:
-                case 3: {
-                    int l = fread(buffer, 1, flen, file);
-                    put_file_contents(path, buffer, flen);
-                    char *s1 = strdup(path.c_str());
-                    std::string dir = dirname(s1);
-                    free(s1);
-                    if (flag == 1) {
-                        std::string cmd = "cd " + dir + "; unzip " + path + " 2>&1";
-                        exec(cmd);
-                        unlink(path.c_str());
-                    } else if (flag == 2) {
-                        std::string cmd = "cd " + dir + "; tar -xzf " + path + " 2>&1";
-                        exec(cmd);
-                        unlink(path.c_str());
-                    } else if (flag == 3) {
-                        std::string cmd = "cd " + dir + "; tar -xjf " + path + " 2>&1";
-                        exec(cmd);
-                        unlink(path.c_str());
-                    }
-                    break;
+            case 0:
+            case 1:
+            case 2:
+            case 3: {
+                int l = fread(buffer, 1, flen, file);
+                put_file_contents(path, buffer, flen);
+                char* s1 = strdup(path.c_str());
+                std::string dir = dirname(s1);
+                free(s1);
+                if (flag == 1) {
+                    std::string cmd = "cd " + dir + "; unzip " + path + " 2>&1";
+                    exec(cmd);
+                    unlink(path.c_str());
+                } else if (flag == 2) {
+                    std::string cmd = "cd " + dir + "; tar -xzf " + path + " 2>&1";
+                    exec(cmd);
+                    unlink(path.c_str());
+                } else if (flag == 3) {
+                    std::string cmd = "cd " + dir + "; tar -xjf " + path + " 2>&1";
+                    exec(cmd);
+                    unlink(path.c_str());
                 }
-                case 97: {
-                    std::string eKey = read_string(file, 12);
-                    std::string eValue = read_string(file, flen - 12);
-                    extras[eKey] = eValue;
-                    break;
-                }
-                case 98: {
-                    std::string type = read_string(file, 2);
-                    if (type == "1") {
-                        if (EEPROM.find("/i2c") == std::string::npos) {
-                            validEpromLocation = false;
-                        }
-                    } else if (type == "2") {
-                        if (EEPROM.find("cape-eeprom.bin") == std::string::npos) {
-                            validEpromLocation = false;
-                        }
-                    } else if (type != "0") {
+                break;
+            }
+            case 97: {
+                std::string eKey = read_string(file, 12);
+                std::string eValue = read_string(file, flen - 12);
+                extras[eKey] = eValue;
+                break;
+            }
+            case 98: {
+                std::string type = read_string(file, 2);
+                if (type == "1") {
+                    if (EEPROM.find("/i2c") == std::string::npos) {
                         validEpromLocation = false;
                     }
-                    break;
+                } else if (type == "2") {
+                    if (EEPROM.find("cape-eeprom.bin") == std::string::npos) {
+                        validEpromLocation = false;
+                    }
+                } else if (type != "0") {
+                    validEpromLocation = false;
                 }
-                case 99: {
-                    hasSignature = true;
-                    fkeyId = read_string(file, 6);
-                    fread(buffer, 1, flen - 6, file);
-                    path = "/home/fpp/media/tmp/eeprom.sig";
-                    put_file_contents(path, buffer, flen - 6);
-                    file = DoSignatureVerify(file, fkeyId, path, validSignature, deleteEpromFile);
-                    unlink(path.c_str());
-                    break;
-                }
-                default:
-                    fseek(file, flen, SEEK_CUR);
-                    printf("Don't know how to handle -%s- with type %d and length %d\n", path.c_str(), flag, flen);
+                break;
+            }
+            case 99: {
+                hasSignature = true;
+                fkeyId = read_string(file, 6);
+                fread(buffer, 1, flen - 6, file);
+                path = "/home/fpp/media/tmp/eeprom.sig";
+                put_file_contents(path, buffer, flen - 6);
+                file = DoSignatureVerify(file, fkeyId, path, validSignature, deleteEpromFile);
+                unlink(path.c_str());
+                break;
+            }
+            default:
+                fseek(file, flen, SEEK_CUR);
+                printf("Don't know how to handle -%s- with type %d and length %d\n", path.c_str(), flag, flen);
             }
             flenStr = read_string(file, 6); //length of the section
             flen = std::stoi(flenStr);
         }
     }
     fclose(file);
-    delete [] buffer;
+    delete[] buffer;
     if (deleteEpromFile) {
         unlink("/home/fpp/media/tmp/eeprom");
     }
-    
+
     if (!validEpromLocation) {
         //if the eeprom location is not valid, treat like an invalid signature
         validSignature = false;
@@ -601,7 +596,7 @@ bool fpp_detectCape() {
         // in common.o and other dependencies.
         Json::Value result;
         Json::CharReaderBuilder builder;
-        Json::CharReader *reader = builder.newCharReader();
+        Json::CharReader* reader = builder.newCharReader();
         std::string errors;
         std::ifstream istream("/home/fpp/media/tmp/cape-info.json");
         std::stringstream buffer;
@@ -620,15 +615,18 @@ bool fpp_detectCape() {
             std::vector<std::string> lines;
             bool settingsChanged = false;
             if (!validSignature) {
-                if (result.isMember("vendor")) result.removeMember("vendor");
-                if (result.isMember("provides")) result.removeMember("provides");
-                if (result.isMember("verifiedKeyId")) result.removeMember("verifiedKeyId");
+                if (result.isMember("vendor"))
+                    result.removeMember("vendor");
+                if (result.isMember("provides"))
+                    result.removeMember("provides");
+                if (result.isMember("verifiedKeyId"))
+                    result.removeMember("verifiedKeyId");
             } else {
                 result["verifiedKeyId"] = fkeyId;
             }
             if ((!hasSignature || validSignature) && result.isMember("defaultSettings")) {
                 readSettingsFile(lines);
-                
+
                 std::map<std::string, std::string> defaults;
                 for (auto a : result["defaultSettings"].getMemberNames()) {
                     std::string v = result["defaultSettings"][a].asString();
@@ -679,7 +677,7 @@ bool fpp_detectCape() {
                 //if the cape requires certain files copied into place (asoundrc for example)
                 for (auto src : result["copyFiles"].getMemberNames()) {
                     std::string target = result["copyFiles"][src].asString();
-                    
+
                     if (src[0] != '/') {
                         src = "/home/fpp/media/" + src;
                     }
@@ -693,7 +691,6 @@ bool fpp_detectCape() {
                 //if the cape has i2c devices on it that need to be registered, load them at this
                 //time so they will be available later
                 for (int x = 0; x < result["i2cDevices"].size(); x++) {
-                    
                     std::string v = result["i2cDevices"][x].asString();
 
                     std::string newDevFile = string_sprintf("/sys/bus/i2c/devices/i2c-%d/new_device", bus);
@@ -725,7 +722,7 @@ bool fpp_detectCape() {
         for (auto a : files) {
             std::string src = "/home/fpp/media/tmp/defaults" + a;
             std::string target = "/home/fpp/media" + a;
-            
+
             if (target[target.length() - 1] == '/') {
                 mkdir(target.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
             } else {
@@ -733,7 +730,5 @@ bool fpp_detectCape() {
             }
         }
     }
-
     return !validSignature;
 }
-
