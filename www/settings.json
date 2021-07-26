@@ -640,12 +640,13 @@
             "name": "FetchVendorLogos",
             "description": "Fetch cape logos from vendors",
             "gatherStats" : true,
-            "tip": "Some capes fetch the vendor logo from their website when using the FPP gui.  This discloses your IP address to the vendor.",
+            "tip": "Some capes fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
             "platforms": [
                 "BeagleBone Black",
                 "Raspberry Pi"
             ],
-            "type": "checkbox"
+            "type": "checkbox",
+            "default": 0
         },
         "ForceHDMI": {
             "name": "ForceHDMI",
@@ -1443,12 +1444,13 @@
             "name": "SendVendorSerial",
             "description": "Send cape serial numbers to vendors",
             "gatherStats" : true,
-            "tip": "Some capes send a identifying serial number to the vendor each time you load the FPP GUI.  The vendor can use this information to personally identify you.  Enable this option to prevent it.",
+            "tip": "Some capes/hats send an identifying serial number to the vendor each time you load the FPP UI.  The vendor can use this information to personally identify you.",
             "platforms": [
                 "BeagleBone Black",
                 "Raspberry Pi"
             ],
-            "type": "checkbox"
+            "type": "checkbox",
+            "default": 0
         },
         "showAllOptions": {
             "name": "showAllOptions",
