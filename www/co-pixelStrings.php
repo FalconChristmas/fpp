@@ -911,7 +911,7 @@ function BBB48StringExpansionTypeChanged(port) {
             str += "<option value='1'>1 Smart Receiver</option>";
             str += "<option value='2'>2 Smart Receivers</option>";
             str += "<option value='3'>3 Smart Receivers</option>";
-            str += "</select></td><td colSpan='10'><hr></td>";
+            str += "</select></td><td colSpan='11'><hr></td>";
             str += "</tr>";
             $("#BBB48String_Output_0_" + o + "_0").before(str);
         }
@@ -979,7 +979,7 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
                     break;
                 }
             }
-            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='14'><hr></td></tr>";
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_0'><td colSpan='15'><hr></td></tr>";
             for (var x = 0; x < 4; x++) {
                 str += pixelOutputTableRow("BBB48String", protocols, protocol, 1, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", "B");
             }
@@ -996,7 +996,7 @@ function BBB48StringDifferentialTypeChangedTo(port, val) {
                     break;
                 }
             }
-            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='14'><hr></td></tr>";
+            var str = "<tr id='ROW_RULER_DIFFERENTIAL_" + port + "_1'><td colSpan='15'><hr></td></tr>";
             for (var x = 0; x < 4; x++) {
                 str += pixelOutputTableRow("BBB48String", protocols, protocol, 2, (port + x), 0, '', 1, 0, 1, 0, 'RGB', 0, 0, 0, 100, "1.0", "C");
             }
@@ -1097,7 +1097,7 @@ function populatePixelStringOutputs(data) {
                             str += "<option value='-1'" + (expansionType == -1 ? " selected" : "") + ">None</option>";
                             str += "<option value='0'" + (expansionType == 0 ? " selected" : "") + ">Standard</option>";
                             str += "<option value='1'" + (expansionType == 1 ? " selected" : "") + ">Differential</option>";
-                            str += "</select></td><td colSpan='10'><hr></td>";
+                            str += "</select></td><td colSpan='11'><hr></td>";
                             str += "</tr>";
                             if (expansionType == -1) {
                                 expansions.push(o);
@@ -1117,14 +1117,14 @@ function populatePixelStringOutputs(data) {
                             str += "<option value='1'" + (diffType == 1 ? " selected" : "") + ">1 Smart Receiver</option>";
                             str += "<option value='2'" + (diffType == 2 ? " selected" : "") + ">2 Smart Receivers</option>";
                             str += "<option value='3'" + (diffType == 3 ? " selected" : "") + ">3 Smart Receivers</option>";
-                            str += "</select></td><td colSpan='10'><hr></td>";
+                            str += "</select></td><td colSpan='11'><hr></td>";
                             str += "</tr>";
                             
                             if (diffType >= 2) {
                                 loops = diffType;
                             }
                         } else if (!inExpansion) {
-                            str += "<tr><td colSpan='14'><hr></td></tr>";
+                            str += "<tr><td colSpan='15'><hr></td></tr>";
                         }
                     }
                     if (loops > 1) {
@@ -1168,7 +1168,7 @@ function populatePixelStringOutputs(data) {
                                 }
                             }
                             if (l != (loops-1)) {
-                                str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "_" + l + "'><td colSpan='14'><hr></td></tr>";
+                                str += "<tr id='ROW_RULER_DIFFERENTIAL_" + o + "_" + l + "'><td colSpan='15'><hr></td></tr>";
                             }
                         }
                         o+= 3;
