@@ -20,7 +20,20 @@
         "spixels",
         "wifi",
         "wlan",
-        "xbkp"
+        "xbkp",
+        "fppoled",
+        "OLED",
+        "GPIO",
+        "gpiod",
+        "gpiodChips",
+        "HASGPIOD",
+        "smfd",
+        "gpioline",
+        "libgpiod",
+        "vbuffer",
+        "ntime",
+        "ntimeus",
+        "MQTT"
     ],
     "files.associations": {
         "*.tcc": "c",
@@ -35,5 +48,6 @@
         "tuple": "c",
         "type_traits": "c",
         "utility": "c"
-    }
+    },
+    "editor.formatOnSave": true
 }
