@@ -105,16 +105,22 @@ function list_plugin_entries($menu)
 		    if ($settings['Logo'] != "") {
            echo "<img src='images/" . $settings['Logo'] . "' class='logo'>"; }
 		    if ($settings['LogoLink'] != "") echo "</a>";
-            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image'])) {
+            if (isSet($settings['cape-info']) && isSet($settings['cape-info']['vendor']) && isSet($settings['cape-info']['vendor']['image']) && $settings['FetchVendorLogos'] == 1) {
                 $landing = $settings['cape-info']['vendor']['url'];
                 if (isSet($settings['cape-info']['vendor']['landingPage'])) {
                     $landing = $settings['cape-info']['vendor']['landingPage'];
                 }
-                $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
-                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "") {
+                if ($settings['SendVendorSerial'] == 1) {
+                     $iurl = $settings['cape-info']['vendor']['image'] . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                } else {
+                     $iurl = $settings['cape-info']['vendor']['image']; 
+                }
+
+                if ($settings['SendVendorSerial'] == 1) {
+                    $landing = $landing . "?sn=" . $settings['cape-info']['serialNumber'] . "&id=" . $settings['cape-info']['id'];
+                }
+                if (isset($settings['cape-info']['cs']) && $settings['cape-info']['cs'] != "" && $settings['SendVendorSerial'] == 1) {
                     $iurl = $iurl . "&cs=" . $settings['cape-info']['cs'];
-                    $landing = $landing . "&cs=" . $settings['cape-info']['cs'];
                 }
                 ?>
                       <div class="capeVendor">

@@ -443,8 +443,10 @@ tr.rowScheduleDetails td {
                     if (isSet($currentCapeInfo['vendor']['landingPage'])) {
                         $landing = $currentCapeInfo['vendor']['landingPage'];
                     }
-                    $landing = $landing  . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-                    if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "") {
+                    if ($settings['SendVendorSerial'] == 1) {
+                         $landing = $landing  . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
+                    }
+                    if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
                         $landing = $landing . "&cs=" . $currentCapeInfo['cs'];
                     }
                     echo "<tr><td><b>Vendor&nbsp;URL:</b></td><td><a href=\"" . $landing . "\">" . $url . "</a></td></tr>";
@@ -455,9 +457,12 @@ tr.rowScheduleDetails td {
                 if (isSet($currentCapeInfo['vendor']['email'])) {
                     echo "<tr><td><b>E-mail:</b></td><td><a href=\"mailto:" . $currentCapeInfo['vendor']['email'] . "\">" . $currentCapeInfo['vendor']['email'] . "</td></tr>";
                 }
+              
                 if (isSet($currentCapeInfo['vendor']['image'])) {
-                    $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
-                    if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "") {
+                    if ($settings['SendVendorSerial'] == 1) {
+                        $iurl = $currentCapeInfo['vendor']['image'] . "?sn=" . $currentCapeInfo['serialNumber'] . "&id=" . $currentCapeInfo['id'];
+                    } 
+                    if (isset($currentCapeInfo['cs']) && $currentCapeInfo['cs'] != "" && $settings['SendVendorSerial'] == 1) {
                         $iurl = $iurl . "&cs=" . $currentCapeInfo['cs'];
                     }
                     echo "<tr><td colspan=\"2\"><a href=\"" . $landing . "\"><img style='max-height: 90px; max-width: 300px;' src=\"" . $iurl . "\" /></a></td></tr>";

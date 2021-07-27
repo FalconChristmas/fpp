@@ -95,6 +95,8 @@
                 "HostName",
                 "HostDescription",
                 "statsPublish",
+                "FetchVendorLogos",
+                "SendVendorSerial",
                 "Locale",
                 "TimeZone",
                 "Latitude",
@@ -141,6 +143,14 @@
                 "E131BridgingInterval"
             ]
         },
+        "privacy": {
+            "description": "Privacy",
+            "settings": [
+                "statsPublish",
+                "FetchVendorLogos",
+                "SendVendorSerial"
+            ]
+        },
         "system": {
             "description": "System Settings",
             "settings": [
@@ -155,8 +165,7 @@
                 "ForceHDMIResolution",
                 "ForceHDMIResolutionPort2",
                 "LEDDisplayType",
-                "bootDelay",
-                "statsPublish"
+                "bootDelay"
             ]
         },
         "tethering": {
@@ -626,6 +635,18 @@
             "restart": 2,
             "level": 1,
             "type": "checkbox"
+        },
+	"FetchVendorLogos": {
+            "name": "FetchVendorLogos",
+            "description": "Fetch cape logos from vendors",
+            "gatherStats" : true,
+            "tip": "Some capes/hats fetch the vendor logo from their website when using the FPP UI.  This discloses your IP address to the vendor.",
+            "platforms": [
+                "BeagleBone Black",
+                "Raspberry Pi"
+            ],
+            "type": "checkbox",
+            "default": 0
         },
         "ForceHDMI": {
             "name": "ForceHDMI",
@@ -1418,6 +1439,18 @@
                 "Raspberry Pi"
             ],
             "type": "checkbox"
+        },
+	"SendVendorSerial": {
+            "name": "SendVendorSerial",
+            "description": "Send cape serial numbers to vendors",
+            "gatherStats" : true,
+            "tip": "Some capes/hats send an identifying serial number to the vendor each time you load the FPP UI.  The vendor can use this information to personally identify you.",
+            "platforms": [
+                "BeagleBone Black",
+                "Raspberry Pi"
+            ],
+            "type": "checkbox",
+            "default": 0
         },
         "showAllOptions": {
             "name": "showAllOptions",

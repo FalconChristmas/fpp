@@ -384,14 +384,21 @@ function stats_getUUID()
 function stats_getCapeInfo()
 {
     $rc = array("name" => "None");
-    $mapping = array(
+    if (SendVendorSerial == 1) {
+        $mapping = array(
         "type" => "type",
         "cs" => "cs",
         "id" => "id",
         "name" => "name",
         "serialNumber" => "serialNumber",
-        "designer" => "designer",
-    );
+        "designer" => "designer");
+    } else {
+        $mapping = array(
+        "type" => "type",
+        "id" => "id",
+        "name" => "name",
+        "designer" => "designer");
+    }
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
     if ($data != false) {
