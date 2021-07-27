@@ -9932,3 +9932,24 @@ table.settingsTable div.th {
 
 #settingsManagerTabsContent #ClockDate, #settingsManagerTabsContent #ClockTime {
   width: 8em; }
+
+input[type=file]::file-selector-button {
+  color: #171720;
+  border-color: #171720;
+  background-color: transparent;
+  border-color: #171720;
+  padding-top: 0.33rem;
+  padding-bottom: 0.33rem;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+  font-size: 0.95rem;
+  font-weight: bold;
+  line-height: 1.5;
+  border-radius: 0.25rem;
+  border: 1px solid; }
+
+input[type=file]::file-selector-button:hover {
+  background-color: #171720;
+  color: #FFFFFF; }
+
+  
