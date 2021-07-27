@@ -1764,6 +1764,7 @@ function multiActionChanged() {
 
                                 <?
                                 PrintSetting('MultiSyncEnabled');
+                                PrintSetting('MultiSyncExternalIPAddress');
                                 PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
                                 PrintSetting('MultiSyncExtraRemotes');

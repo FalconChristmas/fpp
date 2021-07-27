@@ -361,11 +361,21 @@ bool MultiSync::FillLocalSystemInfo(void) {
     char addressBuf[128];
     std::list<std::string> addresses;
 
-    if ((FileExists("/.dockerenv")) && getenv("FPP_DOCKER_IP")) {
-        addresses.push_back(getenv("FPP_DOCKER_IP"));
+    std::string dockerAddress;
+    if (FileExists("/.dockerenv")) {
+        if (getenv("FPP_DOCKER_IP")) {
+            dockerAddress = getenv("FPP_DOCKER_IP");
+            addresses.push_back(dockerAddress);
+        }
+
+        std::string a = getSetting("MultiSyncExternalIPAddress");
+        if (a != "" && a != dockerAddress) {
+            addresses.push_back(a);
+            dockerAddress = a;
+        }
     }
 
-    if (multiSyncInterface == "") {
+    if (multiSyncInterface == "" && dockerAddress == "") {
         //get all the addresses
         struct ifaddrs *interfaces, *tmp;
         getifaddrs(&interfaces);
@@ -388,7 +398,7 @@ bool MultiSync::FillLocalSystemInfo(void) {
             tmp = tmp->ifa_next;
         }
         freeifaddrs(interfaces);
-    } else {
+    } else if (dockerAddress == "") {
         memset(addressBuf, 0, sizeof(addressBuf));
         GetInterfaceAddress(multiSyncInterface.c_str(), addressBuf, NULL, NULL);
         addresses.push_back(addressBuf);
@@ -424,6 +434,7 @@ bool MultiSync::FillLocalSystemInfo(void) {
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
 
     for (auto address : addresses) {
+        printf("Address %s\n", address.c_str());
         bool found = false;
         for (auto& sys : m_localSystems) {
             if (sys.address == address) {

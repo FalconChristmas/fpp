@@ -1169,6 +1169,17 @@
                 "player"
             ]
         },
+        "MultiSyncExternalIPAddress": {
+            "name": "MultiSyncExternalIPAddress",
+            "description": "External IP Address For Multisync Packets",
+            "tip": "The External IP address that other hosts see for this FPP instance.  Leave blank for default.",
+            "gatherStats": true,
+            "restart": 2,
+            "type": "text",
+            "platforms": [
+                "Docker"
+            ]
+        },
         "MultiSyncAdvancedView": {
             "name": "MultiSyncAdvancedView",
             "description": "Advanced View",

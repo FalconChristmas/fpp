@@ -1844,7 +1844,8 @@ function network_list_interfaces_obj()
 			}
 		}
         $ifname = $rec["ifname"];
-        if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0") {
+        $add = $rec["address"];
+        if ($ifname == "lo" || $ifname == "usb0" || $ifname == "usb1" || $ifname == "SoftAp0" || $add == "0.0.0.0" || $add == "::") {
             unset($rc[array_search($rec,$rc)]);
         }
 	}
