@@ -434,7 +434,6 @@ bool MultiSync::FillLocalSystemInfo(void) {
     std::unique_lock<std::recursive_mutex> lock(m_systemsLock);
 
     for (auto address : addresses) {
-        printf("Address %s\n", address.c_str());
         bool found = false;
         for (auto& sys : m_localSystems) {
             if (sys.address == address) {
