@@ -2527,3 +2527,8 @@ a.api-anchor {
 .endpointMethod {
 	text-align: center;
 }
+
+.pageContent .multiSelect {
+    background: #fff;
+    padding-right: 0.65rem;
+}

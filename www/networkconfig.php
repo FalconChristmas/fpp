@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-<?php require_once('common.php'); ?>
-<?php include 'common/menuHead.inc'; ?>
+<?php require_once 'common.php';?>
+<?php include 'common/menuHead.inc';?>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 </head>
 <body>
 
 
 <?php
-    
-$wifiDrivers = Array();
+
+$wifiDrivers = array();
 $wifiDrivers['External'] = "External";
 $wifiDrivers['Linux Kernel'] = "Kernel";
 $defaultWifiDrivers = "External";
@@ -19,103 +19,102 @@ if (isset($settings['wifiDrivers']) && $settings['wifiDrivers'] == "Realtek") {
     $settings['wifiDrivers'] == "External";
 }
 
-    // list from https://www.arubanetworks.com/techdocs/InstantWenger_Mobile/Advanced/Content/Instant%20User%20Guide%20-%20volumes/Country_Codes_List.htm#regulatory_domain_3737302751_1017918
-    $wifiDomains = Array();
-    $wifiDomains['United States'] = 'US';
-    $wifiDomains['Canada'] = 'CA';
-    $wifiDomains['Japan'] = 'JP3';
-    $wifiDomains['Germany'] = 'DE';
-    $wifiDomains['Netherlands'] = 'NL';
-    $wifiDomains['Italy'] = 'IT';
-    $wifiDomains['Portugal'] = 'PT';
-    $wifiDomains['Luxembourg'] = 'LU';
-    $wifiDomains['Norway'] = 'NO';
-    $wifiDomains['Finland'] = 'FI';
-    $wifiDomains['Denmark'] = 'DK';
-    $wifiDomains['Switzerland'] = 'CH';
-    $wifiDomains['Czech Republic'] = 'CZ';
-    $wifiDomains['Spain'] = 'ES';
-    $wifiDomains['United Kingdom'] = 'GB';
-    $wifiDomains['Republic of Korea (South Korea)'] = 'KR';
-    $wifiDomains['China'] = 'CN';
-    $wifiDomains['France'] = 'FR';
-    $wifiDomains['Hong Kong'] = 'HK';
-    $wifiDomains['Singapore'] = 'SG';
-    $wifiDomains['Taiwan'] = 'TW';
-    $wifiDomains['Brazil'] = 'BR';
-    $wifiDomains['Israel'] = 'IL';
-    $wifiDomains['Saudi Arabia'] = 'SA';
-    $wifiDomains['Lebanon'] = 'LB';
-    $wifiDomains['United Arab Emirates'] = 'AE';
-    $wifiDomains['South Africa'] = 'ZA';
-    $wifiDomains['Argentina'] = 'AR';
-    $wifiDomains['Australia'] = 'AU';
-    $wifiDomains['Austria'] = 'AT';
-    $wifiDomains['Bolivia'] = 'BO';
-    $wifiDomains['Chile'] = 'CL';
-    $wifiDomains['Greece'] = 'GR';
-    $wifiDomains['Iceland'] = 'IS';
-    $wifiDomains['India'] = 'IN';
-    $wifiDomains['Ireland'] = 'IE';
-    $wifiDomains['Kuwait'] = 'KW';
-    $wifiDomains['Liechtenstein'] = 'LI';
-    $wifiDomains['Lithuania'] = 'LT';
-    $wifiDomains['Mexico'] = 'MX';
-    $wifiDomains['Morocco'] = 'MA';
-    $wifiDomains['New Zealand'] = 'NZ';
-    $wifiDomains['Poland'] = 'PL';
-    $wifiDomains['Puerto Rico'] = 'PR';
-    $wifiDomains['Slovak Republic'] = 'SK';
-    $wifiDomains['Slovenia'] = 'SI';
-    $wifiDomains['Thailand'] = 'TH';
-    $wifiDomains['Uruguay'] = 'UY';
-    $wifiDomains['Panama'] = 'PA';
-    $wifiDomains['Russia'] = 'RU';
-    $wifiDomains['Egypt'] = 'EG';
-    $wifiDomains['Trinidad and Tobago'] = 'TT';
-    $wifiDomains['Turkey'] = 'TR';
-    $wifiDomains['Costa Rica'] = 'CR';
-    $wifiDomains['Ecuador'] = 'EC';
-    $wifiDomains['Honduras'] = 'HN';
-    $wifiDomains['Kenya'] = 'KE';
-    $wifiDomains['Ukraine'] = 'UA';
-    $wifiDomains['Vietnam'] = 'VN';
-    $wifiDomains['Bulgaria'] = 'BG';
-    $wifiDomains['Cyprus'] = 'CY';
-    $wifiDomains['Estonia'] = 'EE';
-    $wifiDomains['Mauritius'] = 'MU';
-    $wifiDomains['Romania'] = 'RO';
-    $wifiDomains['Serbia and Montenegro'] = 'CS';
-    $wifiDomains['Indonesia'] = 'ID';
-    $wifiDomains['Peru'] = 'PE';
-    $wifiDomains['Venezuela'] = 'VE';
-    $wifiDomains['Jamaica'] = 'JM';
-    $wifiDomains['Bahrain'] = 'BH';
-    $wifiDomains['Oman'] = 'OM';
-    $wifiDomains['Jordan'] = 'JO';
-    $wifiDomains['Bermuda'] = 'BM';
-    $wifiDomains['Colombia'] = 'CO';
-    $wifiDomains['Dominican Republic'] = 'DO';
-    $wifiDomains['Guatemala'] = 'GT';
-    $wifiDomains['Philippines'] = 'PH';
-    $wifiDomains['Sri Lanka'] = 'LK';
-    $wifiDomains['El Salvador'] = 'SV';
-    $wifiDomains['Tunisia'] = 'TN';
-    $wifiDomains['Islamic Republic of Pakistan'] = 'PK';
-    $wifiDomains['Qatar'] = 'QA';
-    $wifiDomains['Algeria'] = 'DZ';
+// list from https://www.arubanetworks.com/techdocs/InstantWenger_Mobile/Advanced/Content/Instant%20User%20Guide%20-%20volumes/Country_Codes_List.htm#regulatory_domain_3737302751_1017918
+$wifiDomains = array();
+$wifiDomains['United States'] = 'US';
+$wifiDomains['Canada'] = 'CA';
+$wifiDomains['Japan'] = 'JP3';
+$wifiDomains['Germany'] = 'DE';
+$wifiDomains['Netherlands'] = 'NL';
+$wifiDomains['Italy'] = 'IT';
+$wifiDomains['Portugal'] = 'PT';
+$wifiDomains['Luxembourg'] = 'LU';
+$wifiDomains['Norway'] = 'NO';
+$wifiDomains['Finland'] = 'FI';
+$wifiDomains['Denmark'] = 'DK';
+$wifiDomains['Switzerland'] = 'CH';
+$wifiDomains['Czech Republic'] = 'CZ';
+$wifiDomains['Spain'] = 'ES';
+$wifiDomains['United Kingdom'] = 'GB';
+$wifiDomains['Republic of Korea (South Korea)'] = 'KR';
+$wifiDomains['China'] = 'CN';
+$wifiDomains['France'] = 'FR';
+$wifiDomains['Hong Kong'] = 'HK';
+$wifiDomains['Singapore'] = 'SG';
+$wifiDomains['Taiwan'] = 'TW';
+$wifiDomains['Brazil'] = 'BR';
+$wifiDomains['Israel'] = 'IL';
+$wifiDomains['Saudi Arabia'] = 'SA';
+$wifiDomains['Lebanon'] = 'LB';
+$wifiDomains['United Arab Emirates'] = 'AE';
+$wifiDomains['South Africa'] = 'ZA';
+$wifiDomains['Argentina'] = 'AR';
+$wifiDomains['Australia'] = 'AU';
+$wifiDomains['Austria'] = 'AT';
+$wifiDomains['Bolivia'] = 'BO';
+$wifiDomains['Chile'] = 'CL';
+$wifiDomains['Greece'] = 'GR';
+$wifiDomains['Iceland'] = 'IS';
+$wifiDomains['India'] = 'IN';
+$wifiDomains['Ireland'] = 'IE';
+$wifiDomains['Kuwait'] = 'KW';
+$wifiDomains['Liechtenstein'] = 'LI';
+$wifiDomains['Lithuania'] = 'LT';
+$wifiDomains['Mexico'] = 'MX';
+$wifiDomains['Morocco'] = 'MA';
+$wifiDomains['New Zealand'] = 'NZ';
+$wifiDomains['Poland'] = 'PL';
+$wifiDomains['Puerto Rico'] = 'PR';
+$wifiDomains['Slovak Republic'] = 'SK';
+$wifiDomains['Slovenia'] = 'SI';
+$wifiDomains['Thailand'] = 'TH';
+$wifiDomains['Uruguay'] = 'UY';
+$wifiDomains['Panama'] = 'PA';
+$wifiDomains['Russia'] = 'RU';
+$wifiDomains['Egypt'] = 'EG';
+$wifiDomains['Trinidad and Tobago'] = 'TT';
+$wifiDomains['Turkey'] = 'TR';
+$wifiDomains['Costa Rica'] = 'CR';
+$wifiDomains['Ecuador'] = 'EC';
+$wifiDomains['Honduras'] = 'HN';
+$wifiDomains['Kenya'] = 'KE';
+$wifiDomains['Ukraine'] = 'UA';
+$wifiDomains['Vietnam'] = 'VN';
+$wifiDomains['Bulgaria'] = 'BG';
+$wifiDomains['Cyprus'] = 'CY';
+$wifiDomains['Estonia'] = 'EE';
+$wifiDomains['Mauritius'] = 'MU';
+$wifiDomains['Romania'] = 'RO';
+$wifiDomains['Serbia and Montenegro'] = 'CS';
+$wifiDomains['Indonesia'] = 'ID';
+$wifiDomains['Peru'] = 'PE';
+$wifiDomains['Venezuela'] = 'VE';
+$wifiDomains['Jamaica'] = 'JM';
+$wifiDomains['Bahrain'] = 'BH';
+$wifiDomains['Oman'] = 'OM';
+$wifiDomains['Jordan'] = 'JO';
+$wifiDomains['Bermuda'] = 'BM';
+$wifiDomains['Colombia'] = 'CO';
+$wifiDomains['Dominican Republic'] = 'DO';
+$wifiDomains['Guatemala'] = 'GT';
+$wifiDomains['Philippines'] = 'PH';
+$wifiDomains['Sri Lanka'] = 'LK';
+$wifiDomains['El Salvador'] = 'SV';
+$wifiDomains['Tunisia'] = 'TN';
+$wifiDomains['Islamic Republic of Pakistan'] = 'PK';
+$wifiDomains['Qatar'] = 'QA';
+$wifiDomains['Algeria'] = 'DZ';
 
 function PopulateInterfaces()
 {
-  $first = 1;
-  $interfaces = explode("\n",trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
-  foreach ($interfaces as $iface)
-  {
-    $iface = preg_replace("/:$/", "", $iface);
-    $ifaceChecked = $first ? " selected" : "";
-    echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
-    $first = 0;
-  }
+    $first = 1;
+    $interfaces = explode("\n", trim(shell_exec("/sbin/ifconfig -a | cut -f1 -d' ' | grep -v ^$ | grep -v lo | grep -v eth0:0 | grep -v usb | grep -v SoftAp | grep -v 'can.' | grep -v tether ")));
+    foreach ($interfaces as $iface) {
+        $iface = preg_replace("/:$/", "", $iface);
+        $ifaceChecked = $first ? " selected" : "";
+        echo "<option value='" . $iface . "'" . $ifaceChecked . ">" . $iface . "</option>";
+        $first = 0;
+    }
 }
 
 ?>
@@ -170,7 +169,7 @@ function validateNetworkFields()
 			$("#ipWarning").html('Invalid IP Address. Expect format like 192.168.0.101');
 			return false;
 		}
-    
+
 		if((validateIPaddress('eth_netmask')== false) || ($('#eth_netmask').val() == ""))
 		{
 			$.jGrowl("Invalid Netmask. Expect format like 255.255.255.0",{themeState:'danger'});
@@ -390,7 +389,7 @@ function ClearPersistentNames() {
                 $.ajax( {
                   type: "DELETE",
                   url: "api/network/presisentNames",
-                  data: "", 
+                  data: "",
                   success: function() {location.reload(true);},
                 });
             },
@@ -457,7 +456,7 @@ $(document).ready(function(){
     $('#dns_manual').prop('checked', true);
     DisableDNSFields(false);
   });
-  
+
   $("#eth_dhcp").click(function(){
     DisableNetworkFields(true);
     $('#eth_static').prop('checked', false);
@@ -470,7 +469,7 @@ $(document).ready(function(){
     DisableDNSFields(false);
     $('#dns_dhcp').prop('checked', false);
   });
-  
+
   $("#dns_dhcp").click(function(){
     DisableDNSFields(true);
     $('#dns_manual').prop('checked', false);
@@ -488,7 +487,7 @@ $(document).ready(function(){
 
 });
 
-function GetInterfaceInfo(data,status) 
+function GetInterfaceInfo(data,status)
 {
 	if(data.PROTO == "static")
 	{
@@ -578,9 +577,9 @@ function showHidePassword(id) {
 
 </script>
 <div id="bodyWrapper">
-<?php 
+<?php
 $activeParentMenuItem = 'status';
-include 'menu.inc'; ?>
+include 'menu.inc';?>
   <div class="mainContainer">
   <h1 class="title">Network Configuration</h1>
   <div class="pageContent">
@@ -609,35 +608,35 @@ include 'menu.inc'; ?>
   <div class="tab-content">
     <div class="tab-pane fade" id="interface-settings" role="tabpanel" aria-labelledby="interface-settings-tab">
     <div id="InterfaceSettings">
-     
+
               <h2> Interface Settings</h2>
     <?php
-    if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
+if (file_exists("/etc/modprobe.d/wifi-disable-power-management.conf")) {
     ?>
     <table>
     <tr>
     <td width = "45%">WIFI Drivers:</td>
     <td width = "55%">
-    <?php PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage"); ?>
+    <?php PrintSettingSelect("WIFI Drivers", "wifiDrivers", 0, 1, isset($settings['wifiDrivers']) ? $settings['wifiDrivers'] : $defaultWifiDrivers, $wifiDrivers, "", "reloadPage");?>
     </td>
     </tr>
     <tr>
     <td width = "45%">WIFI Regulatory Domain:</td>
     <td width = "55%">
-    <?php PrintSettingSelect("WIFI Regulatory Domain", "WifiRegulatoryDomain", 0, 1, isset($settings['WifiRegulatoryDomain']) ? $settings['WifiRegulatoryDomain'] : "US", $wifiDomains); ?>
+    <?php PrintSettingSelect("WIFI Regulatory Domain", "WifiRegulatoryDomain", 0, 1, isset($settings['WifiRegulatoryDomain']) ? $settings['WifiRegulatoryDomain'] : "US", $wifiDomains);?>
     </td>
     </tr>
     </table>
     <br>
     <?
-    }
-    ?>
-    
+}
+?>
+
               Select an interface name to configure the network information for that interface.<br><br>
               <table width = "100%" border="0" cellpadding="1" cellspacing="1">
                 <tr>
                   <td width = "25%" valign='top'>Interface Name:</td>
-                  <td width = "25%" valign='top'><select id ="selInterfaces" size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
+                  <td width = "25%" valign='top'><select id ="selInterfaces"  class='multiSelect' size='3' style="width:10em;"  onChange='LoadNetworkConfig();'><?php PopulateInterfaces();?></select></td>
                   <td width = "50%">&nbsp;</td>
                 </tr>
                 <tr>
@@ -684,16 +683,16 @@ include 'menu.inc'; ?>
               </table>
               </div>
               <br>
-              <input name="btnSetInterface" type="button" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">        
+              <input name="btnSetInterface" type="button" style="" class = "buttons btn-success" value="Update Interface" onClick="SaveNetworkConfig();">
               <input id="btnConfigNetwork" type="button" style="display: none;" class = "buttons" value="Restart Network" onClick="ApplyNetworkConfig();">
-    
+
             &nbsp; &nbsp; &nbsp;<input id="btnConfigNetworkPersist" type="button"  class = "buttons" value="Create Persistent Names" onClick="CreatePersistentNames();">
             &nbsp;<input id="btnConfigNetworkPersistClear" type="button" class = "buttons" value="Clear Persistent Names" onClick="ClearPersistentNames();">
-  
+
             </div>
     </div>
     <div class="tab-pane fade" id="tab-host-dns" role="tabpanel" aria-labelledby="tab-host-dns-tab">
-      
+
 
 <?
 PrintSettingGroup('host');
@@ -724,8 +723,8 @@ PrintSettingGroup('host');
               </table>
               <br>
               <input name="btnSetDNS" type=""  class = "buttons btn-success" value="Update DNS" onClick="SaveDNSConfig();">
-    
-       
+
+
 
     </div>
     <div class="tab-pane fade" id="tab-tethering" role="tabpanel" aria-labelledby="tab-tethering-tab">
@@ -739,16 +738,16 @@ PrintSettingGroup('tethering');
               tethering and will thus not be usable for normal network operations.   The WIFI tether IP address will be
       192.168.8.1 for Hostapd tethering, but unpredictable for ConnMan (although likely 192.168.0.1).
                       </p>
-          
+
       <p>
-      <? if ($settings['Platform'] == "BeagleBone Black") { ?>
+      <?if ($settings['Platform'] == "BeagleBone Black") {?>
           On BeagleBones, USB tethering is available unless ConnMan tethering is enabled.  The IP address for USB tethering would be 192.168.6.2
               (OSX/Linux) or 192.168.7.2 (Windows).
-      <? } ?>
-      <? if ($settings['Platform'] == "Raspberry Pi") { ?>
+      <?}?>
+      <?if ($settings['Platform'] == "Raspberry Pi") {?>
           On the Pi Zero and Pi Zero W devices, USB tethering is available if using an appropriate USB cable plugged into the USB port, not the power-only port.  Don't plug anything into the power port for this.  The IP address for USB tethering would be 192.168.7.2.
-      <? } ?>
-      
+      <?}?>
+
 
 
                       </div>
@@ -758,15 +757,15 @@ PrintSettingGroup('tethering');
 
     </div>
     <div class="tab-pane fade" id="tab-interface-routing" role="tabpanel" aria-labelledby="tab-interface-routing-tab">
-      
+
       <h2>Interface Routing</h2>
-          <? PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0"); ?> Enable Routing between
+          <?PrintSettingCheckbox("Enable Routing", "EnableRouting", 0, 0, "1", "0");?> Enable Routing between
                   network interfaces
     </div>
   </div>
 
 
-    
+
     <div id="dialog-confirm" style="display: none">
     	<p><span class="ui-icon ui-icon-alert" style="flat:left; margin: 0 7px 20px 0;"></span>Reconfiguring the network will cause you to lose your connection and have to reconnect if you have changed the IP address.  Do you wish to proceed?</p>
     </div>
@@ -778,7 +777,7 @@ PrintSettingGroup('tethering');
     </div>
 
 </div>
-<?php include 'common/footer.inc'; ?>
+<?php include 'common/footer.inc';?>
 </div>
 </div>
 </body>
