@@ -65,11 +65,11 @@ function NewUSBConfig() {
 // Framebuffer Devices
 var FBDevices = new Array();
 <?
-	foreach(scandir("/dev/") as $fileName) {
-		if (preg_match("/^fb[0-9]+/", $fileName)) {
-			echo "FBDevices['$fileName'] = '$fileName';\n";
-		}
-	}
+foreach (scandir("/dev/") as $fileName) {
+    if (preg_match("/^fb[0-9]+/", $fileName)) {
+        echo "FBDevices['$fileName'] = '$fileName';\n";
+    }
+}
 ?>
 
 function VirtualMatrixLayoutChanged(item) {
@@ -132,7 +132,7 @@ function VirtualMatrixConfig(config) {
     }
 
     var vmDesc = config.description == null ? "VirtualMatrix" : config.description;
-    var result = "Description:&nbsp;<input type='text' value='" + vmDesc + "' size='30' maxlength='50'/><br>";
+    var result = "Description:&nbsp;<input type='text' class='description' value='" + vmDesc + "' size='30' maxlength='50'/><br>";
 	result += "Width:&nbsp;<input type='text' size='3' maxlength='3' class='width' value='" + config.width + "' onChange='VirtualMatrixLayoutChanged(this);'>" +
 				"&nbsp;Height:&nbsp;<input type='text' size='3' maxlength='3' class='height' value='" + config.height + "' onChange='VirtualMatrixLayoutChanged(this);'>";
 
@@ -143,7 +143,7 @@ function VirtualMatrixConfig(config) {
 	result += ">&nbsp;";
 	result += DeviceSelect(FBDevices, config.device) + "&nbsp;";
     result += VirtualMatrixScalingSelect(config.scaling);
-    
+
     result += "<br><span class='VirtualMatrixOffset' id='VirtualMatrixOffset' ";
     if (config.scaling != "None") {
         result += "style='display: none;'";
@@ -525,7 +525,7 @@ function GetHTTPVirtualDisplayConfig(result, cell) {
         return "";
 
     result.height = parseInt(height);
-    
+
     var pixelSize = $cell.find("select.pixelSize").val();
     if (pixelSize == "")
         pixelSize = "1";
@@ -604,7 +604,7 @@ function RenardSpeedSelect(currentValue) {
 
 	for (var key in RenardSpeeds) {
 		result += "<option value='" + key + "'";
-	
+
 		if (currentValue == key) {
 			result += " selected";
 		}
@@ -733,7 +733,7 @@ function LOROutputConfig(config) {
 
 	result += DeviceSelect(SerialDevices, config.device) + "&nbsp;&nbsp;";
 	result += LORSpeedSelect(config.speed);
-    
+
     var val = config.firstControllerId;
     if (!val) {
         val = 1;
@@ -757,10 +757,10 @@ function GetLOROutputConfig(result, cell) {
 		return "";
 
 	result.speed = parseInt(value);
-    
+
     value = $cell.find("input.firstControllerId");
     var v2 = parseInt(value.val());
-    
+
     result.firstControllerId = v2;
 
 	return result;
@@ -820,7 +820,7 @@ function NewnRFSPIConfig() {
 // 'Other' Channel Outputs misc. functions
 function PopulateChannelOutputTable(data) {
 	$('#tblOtherOutputs > tbody').html("");
-    
+
     if ("channelOutputs" in data) {
         for (var i = 0; i < data.channelOutputs.length; i++) {
             var output = data.channelOutputs[i];
@@ -855,7 +855,7 @@ function PopulateChannelOutputTable(data) {
                 }
             }
 
-			newRow += "></td>" +	
+			newRow += "></td>" +
 					"<td class='type' style='vertical-align:top'>" + typeFriendlyName + "<input class='type' type='hidden' name='type' value='" +type+ "'></td>" +
                     "<td style='vertical-align:top'><input class='start' type=text size=7 maxlength=7 value='" + output.startChannel + "'></td>" +
                     "<td style='vertical-align:top'><input class='count' type=text size=7 maxlength=7 value='" + output.channelCount + "'" + countDisabled + "></td>" +
@@ -1178,13 +1178,13 @@ function OtherTypeSelected(selectbox) {
 function AddOtherOutput() {
 	var currentRows = $("#tblOtherOutputs > tbody > tr").length;
 
-	var newRow = 
+	var newRow =
 		"<tr class='rowUniverseDetails'><td style='vertical-align:top'>" + (currentRows + 1) + "</td>" +
 			"<td style='vertical-align:top'><input class='act' type=checkbox></td>" +
 			"<td style='vertical-align:top' class='type'><select id='outputType' class='type' onChange='OtherTypeSelected(this);'>" +
             "<option value=''>Select a type</option>";
- 
- 
+
+
 	if (Object.keys(SerialDevices).length > 0) {
         newRow += "<option value='DMX-Pro'>DMX-Pro</option>" +
 				"<option value='DMX-Open'>DMX-Open</option>" +
@@ -1196,15 +1196,14 @@ function AddOtherOutput() {
                 "<option value='Renard'>Renard</option>";
     }
 <?
-	if ($settings['Platform'] == "Raspberry Pi")
-	{
-?>
+if ($settings['Platform'] == "Raspberry Pi") {
+    ?>
         if (Object.keys(SPIDevices).length > 0) {
             newRow += "<option value='SPI-nRF24L01'>SPI-nRF24L01</option>" +
                 "<option value='MAX7219Matrix'>MAX7219 Matrix</option>";
         }
 <?
-	}
+}
 ?>
         if (Object.keys(FBDevices).length > 0) {
             newRow += "<option value='VirtualMatrix'>Virtual Matrix</option>" +
@@ -1260,14 +1259,14 @@ $(document).ready(function(){
 <div id='tab-other'>
 	<div id='divOther'>
 		<div class="row tablePageHeader">
-				
+
 				<div class="col-md">
 					<h2> Other Outputs </h2>
 				</div>
 				<div class="col-md-auto ml-lg-auto">
 					<input name="command" type="hidden" value="saveOtherOutputs" />
 					<div class="form-actions">
-							
+
 							<input id="btnDeleteOther" class="disableButtons" type="button" value = "Delete"  data-btn-enabled-class="btn-outline-danger" onClick="DeleteOtherOutput();">
 							<button id="btnAddOther" class="buttons btn-outline-success" type="button" value = "Add" onClick="AddOtherOutput();"><i class="fas fa-plus"></i> Add</button>
 							<input id="btnSaveOther" class="buttons btn-success ml-1" type="button" value = "Save" onClick='SaveOtherChannelOutputs();' />
@@ -1275,11 +1274,11 @@ $(document).ready(function(){
 						</div>
 				</div>
         </div>
-			
+
 			<div id='divOtherData'>
 				<div style="overflow: hidden; padding: 5px;">
 					<form id="frmOtherOutputs">
-						
+
 
                         <div class='fppTableWrapper'>
                             <div class='fppTableContents' role="region" aria-labelledby="tblOtherOutputs" tabindex="0">
@@ -1302,6 +1301,6 @@ $(document).ready(function(){
 					</form>
 				</div>
 			</div>
-	
+
 	</div>
 </div>
