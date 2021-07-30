@@ -39,8 +39,7 @@ if (file_exists("/.dockerenv")) {
     PrintSettingGroup('hostDocker');
 }
 
-$extraData = "<input type='button' class='buttons' value='Preview Statistics' onClick='PreviewStatistics();'> ";
-PrintSettingGroup('system', $extraData);
+PrintSettingGroup('system');
 PrintSettingGroup('BBBLeds');
 
 $extraData = "<div class='form-actions'><input type='button' class='buttons' value='Lookup Location' onClick='GetGeoLocation();'> <input type='button' class='buttons' value='Show On Map' onClick='ViewLatLon();'></div>";
