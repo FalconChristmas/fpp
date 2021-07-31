@@ -78,7 +78,6 @@ function stats_network()
 
     $rc['wifi'] = json_decode(file_get_contents("http://localhost/api/network/wifi/strength"), true);
 
-
     return $rc;
 }
 
@@ -386,18 +385,18 @@ function stats_getCapeInfo()
     $rc = array("name" => "None");
     if (SendVendorSerial == 1) {
         $mapping = array(
-        "type" => "type",
-        "cs" => "cs",
-        "id" => "id",
-        "name" => "name",
-        "serialNumber" => "serialNumber",
-        "designer" => "designer");
+            "type" => "type",
+            "cs" => "cs",
+            "id" => "id",
+            "name" => "name",
+            "serialNumber" => "serialNumber",
+            "designer" => "designer");
     } else {
         $mapping = array(
-        "type" => "type",
-        "id" => "id",
-        "name" => "name",
-        "designer" => "designer");
+            "type" => "type",
+            "id" => "id",
+            "name" => "name",
+            "designer" => "designer");
     }
 
     $data = json_decode(file_get_contents("http://localhost/api/cape"), true);
@@ -616,7 +615,7 @@ function stats_pixel_or_pi($file)
     validateAndAdd($rc, $data, $mapping);
 
     $pixelCount = 0;
-    $protoocols = array();
+    $protocols = array();
     if (isset($data['outputs'])) {
         foreach ($data['outputs'] as $row) {
             if (isset($row['protocol'])) {
