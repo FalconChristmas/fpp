@@ -4625,31 +4625,35 @@ function PlayFileInBrowser(dir, file)
 function CopyFile(dir, file)
 {
 	var newFile = prompt("New Filename:", file);
-    var url = "api/file/" + dir + "/copy/" + file + "/" + newFile;
+    if (newFile != null) {
+        var url = "api/file/" + dir + "/copy/" + file + "/" + newFile;
 
-	$.post(url, "").done(function(data) {
-		if (data.status == 'success')
-			GetFiles(dir);
-		else
-			DialogError("File Copy Failed", "Error: File Copy failed.");
-	}).fail(function() {
-		DialogError("File Copy Failed", "Error: File Copy failed.");
-	});
+        $.post(url, "").done(function(data) {
+            if (data.status == 'success')
+                GetFiles(dir);
+            else
+                DialogError("File Copy Failed", "Error: File Copy failed.");
+        }).fail(function() {
+            DialogError("File Copy Failed", "Error: File Copy failed.");
+        });
+    }
 }
 
 function RenameFile(dir, file)
 {
 	var newFile = prompt("New Filename:", file);
-    var url = "api/file/" + dir + "/rename/" + file + "/" + newFile;
+    if (newFile != null) {
+        var url = "api/file/" + dir + "/rename/" + file + "/" + newFile;
 
-	$.post(url, "").done(function(data) {
-		if (data.status == 'success')
-			GetFiles(dir);
-		else
-			DialogError("File Rename Failed", "Error: File Rename failed.");
-	}).fail(function() {
-		DialogError("File Rename Failed", "Error: File Rename failed.");
-	});
+        $.post(url, "").done(function(data) {
+            if (data.status == 'success')
+                GetFiles(dir);
+            else
+                DialogError("File Rename Failed", "Error: File Rename failed.");
+        }).fail(function() {
+            DialogError("File Rename Failed", "Error: File Rename failed.");
+        });
+    }
 }
 
 function DownloadFile(dir, file)
