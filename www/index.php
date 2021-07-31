@@ -2,8 +2,8 @@
 <html>
 <head>
 <?php
-require_once('config.php');
-require_once('common.php');
+require_once 'config.php';
+require_once 'common.php';
 
 if (!isset($settings['initialSetup'])) {
     echo "<meta http-equiv='refresh' content='0;url=initialSetup.php' />\n";
@@ -51,7 +51,7 @@ include 'common/menuHead.inc';
 
 </script>
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 
 	<script>
         function PageSetup() {
@@ -133,7 +133,7 @@ include 'common/menuHead.inc';
           var html = [];
           html.push("Please consider enabling the collection of anonymous statistics on the hardware and features used to ");
           html.push("help us improve FPP in the future. You may preview the data  ");
-          html.push("or disable this banner on the <a href=\"settings.php?tab=System\">Systems Settings Page</a>. ");
+          html.push("or disable this banner on the <a href=\"settings.php?tab=Privacy\">Privacy Settings Page</a>. ");
           html.push("<div style='margin-top:1em'><button class='buttons wideButton btn-outline-light' onClick='EnabledStats();'>Enable Stats</button></div>")
           $("#bannerRow").html(html.join(' ')).show();
        }
@@ -209,15 +209,15 @@ include 'common/menuHead.inc';
 <body class="is-loading" onLoad="PageSetup();GetFPPDmode();PopulatePlaylists(true);OnSystemStatusChange(GetFPPStatus);">
 <div id="bodyWrapper">
 <?php
-    $activeParentMenuItem = 'status';
-	include 'menu.inc';
-  ?>
+$activeParentMenuItem = 'status';
+include 'menu.inc';
+?>
 
 
 <div class="mainContainer">
-<h1 class="title statusTitle">Status <span class="statusHostname"><?php echo(gethostname())?></span></h1>
+<h1 class="title statusTitle">Status <span class="statusHostname"><?php echo (gethostname()) ?></span></h1>
 <?php
-    if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
+if (isset($settings["LastBlock"]) && $settings["LastBlock"] > 1000000 && $settings["LastBlock"] < 7400000) {
     ?>
 <div id='upgradeFlag' class="alert alert-danger" role="alert">
      SD card has unused space.  Go to <a href="settings.php?tab=Storage">Storage Settings</a> to expand the
@@ -225,7 +225,7 @@ include 'common/menuHead.inc';
 </div>
 
 <?php
-    }
+}
 ?>
 <div class="statusDivTopWrap">
     <div id="schedulerInfo" class="statusDiv statusDivTop">
@@ -266,7 +266,7 @@ include 'common/menuHead.inc';
                 </div>
             </div>
 
-                
+
         </div>
     </div>
 </div>
@@ -335,7 +335,7 @@ include 'common/menuHead.inc';
                         <input type='button' onClick='ResetMultiSyncStats();' value='Reset' class='buttons'>
                     </div>
                     <div class="col-auto ml-auto">
-                    <? PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+                    <?PrintSettingCheckbox("MultiSync Stats Live Update", "syncStatsLiveUpdate", 0, 0, "1", "0");?> Live Update Stats
 
                     </div>
                 </div>
@@ -431,8 +431,8 @@ include 'common/menuHead.inc';
                 </div>
                 <div id="playerStatusBottom">
                     <?
-                    include "playlistDetails.php";
-                    ?>
+include "playlistDetails.php";
+?>
 
 
                     <div id='deprecationWarning' class="hidden callout callout-danger">
@@ -442,7 +442,7 @@ include 'common/menuHead.inc';
                 </div>
 
                 <div class="verbosePlaylistItemSetting">
-                    <? PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled'); ?>
+                    <?PrintSetting('verbosePlaylistItemDetails', 'VerbosePlaylistItemDetailsToggled');?>
                 </div>
             </div>
             <!-- Bridge Mode stats -->
@@ -455,7 +455,7 @@ include 'common/menuHead.inc';
                             <input type='button' class="buttons" onClick='ResetUniverseBytesReceived();' value='Reset'>
                         </td>
                         <td align='right'>
-    <? PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0"); ?> Live Update Stats
+    <?PrintSettingCheckbox("E1.31 Live Update", "e131statsLiveUpdate", 0, 0, "1", "0");?> Live Update Stats
                         </td>
                     </tr>
                 </table>
@@ -473,7 +473,7 @@ include 'common/menuHead.inc';
 
     </div>
 </div>
-<?php	include 'common/footer.inc'; ?>
+<?php	include 'common/footer.inc';?>
 </div>
 <div id='upgradePopup' title='FPP Upgrade' style="display: none">
     <textarea style='width: 99%; height: 97%;' disabled id='upgradeText'>
