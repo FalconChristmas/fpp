@@ -12,53 +12,49 @@ if (!preg_match("/^$git_branch(-.*)?$/", $fpp_head_version))
 
 <?php require_once(dirname(__FILE__)."/config.php"); ?>
 <?php
-function list_plugin_entries($menu)
-{
+function list_plugin_entries($menu) {
 	global $pluginDirectory;
-	if ( $menu && file_exists($pluginDirectory))
-	{
+    $menukey = $menu;
+    if ($menu == "output") {
+        $menukey = "input-output";
+    }
+	if ($menu && file_exists($pluginDirectory)) {
 		$handle = opendir($pluginDirectory);
-		if ( $handle )
-		{
+		if ( $handle ) {
 			$first = 1;
-			while (($plugin = readdir($handle)) !== false)
-			{
-				if (!in_array($plugin, array('.', '..')))
-				{
+			while (($plugin = readdir($handle)) !== false) {
+				if (!in_array($plugin, array('.', '..'))) {
 					// Old naming convention ${MENU}_menu.inc
-					if ( file_exists($pluginDirectory."/".$plugin."/".$menu."_menu.inc") )
-					{
-						if ($first)
-						{
+					if ( file_exists($pluginDirectory."/".$plugin."/".$menu."_menu.inc") ) {
+						if ($first) {
 							$first = 0;
-              echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
+                            echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
 						}
 
-            ob_start();
-            -include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
-            $buffer = ob_get_clean();
-            $buffer = str_replace(array("<li>","</li>","</li\n>"),"",$buffer);
-            $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
-            echo $buffer;
-					}
+                        ob_start();
+                        -include_once($pluginDirectory."/".$plugin."/".$menu."_menu.inc");
+                        $buffer = ob_get_clean();
+                        $buffer = str_replace(array("<li>","</li>","</li\n>"),"",$buffer);
+                        $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
+                        $buffer = str_replace("plugin.php?plugin", "plugin.php?_menu=" . $menukey . "&plugin", $buffer);
+                        echo $buffer;
+                    }
 
 					// New single menu.inc file which has some logic in it to display relevant menus.
 					// See the example in the fpp-plugin-Template plugin
-					if ( file_exists($pluginDirectory."/".$plugin."/menu.inc") )
-					{
-            ob_start();
-            -include($pluginDirectory."/".$plugin."/menu.inc");
-            $buffer = ob_get_clean();
-            $buffer = str_replace(array("<li>","</li>"),"",$buffer);
-            $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
+					if ( file_exists($pluginDirectory."/".$plugin."/menu.inc") ) {
+                        ob_start();
+                        -include($pluginDirectory."/".$plugin."/menu.inc");
+                        $buffer = ob_get_clean();
+                        $buffer = str_replace(array("<li>","</li>"),"",$buffer);
+                        $buffer = str_replace("<a ","<a class=\"dropdown-item\" ",$buffer);
+                        $buffer = str_replace("plugin.php?plugin", "plugin.php?_menu=" . $menukey . "&plugin",  $buffer);
+                        if ($first && !empty($buffer)) {
+                            $first = 0;
+                            echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
+                        }
 
-            if ($first && !empty($buffer))
-						{
-							$first = 0;
-              echo '<h6 class="dropdown-header">- - - - - - - Plugins - - - - - - -</h6>';
-						}
-
-            echo $buffer;
+                        echo $buffer;
 					}
 				}
 			}
