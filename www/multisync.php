@@ -1559,6 +1559,22 @@ function copyFilesToSystem(rowID) {
     }
 }
 
+function copyFileToSystem(file, rowID) {
+    EnableDisableStreamButtons();
+    streamCount++;
+
+    showLogsRow(rowID);
+    addLogsDivider(rowID);
+
+    var ip = getReachableIPFromRowID(rowID);
+    if (ip == "") {
+        ip = ipFromRowID(rowID);
+        $('#' + rowID + '_logText').append('No IPs appear reachable for ' + ip);
+    } else {
+        StreamURL('remotePush.php?dir=uploads&raw=1&filename=' + file.name + '&remoteHost=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
+    }
+}
+
 function copyFilesToSelectedSystems() {
 	$('input.remoteCheckbox').each(function() {
 		if ($(this).is(":checked")) {
@@ -1635,8 +1651,7 @@ function copyOSFilesToSelectedSystems() {
                         let msg = f.name + " isn't compatible with " + ip + ". Skipping";
                         $.jGrowl(msg, {themeState:'danger'});
                     } else {
-                        copyFilesToSystem(f, rowID);
-
+                        copyFileToSystem(f, rowID);
                     }
 
                 } else {
@@ -1647,24 +1662,6 @@ function copyOSFilesToSelectedSystems() {
         });
     }
 }
-
-function copyFilesToSystem(file, rowID) {
-
-    EnableDisableStreamButtons();
-    streamCount++;
-
-    showLogsRow(rowID);
-    addLogsDivider(rowID);
-
-    var ip = getReachableIPFromRowID(rowID);
-    if (ip == "") {
-        ip = ipFromRowID(rowID);
-        $('#' + rowID + '_logText').append('No IPs appear reachable for ' + ip);
-    } else {
-        StreamURL('remotePush.php?dir=uploads&raw=1&filename=' + file.name + '&remoteHost=' + ip, rowID + '_logText', 'copyDone', 'copyFailed');
-    }
-}
-
 
 function copyDone(id) {
     id = id.replace('_logText', '');
