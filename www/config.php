@@ -46,6 +46,23 @@ function GetSettingValue($setting, $default = '', $prefix = '', $suffix = '')
     return $default;
 }
 
+$settingGroups = array();
+$settingInfos = array();
+$pluginSettingInfosLoaded = 0;
+
+function LoadSettingInfos()
+{
+    global $settings;
+    global $settingInfos;
+    global $settingGroups;
+
+    if (empty($settingInfos) || empty($settingGroups)) {
+        $data = json_decode(file_get_contents($settings['fppDir'] . '/www/settings.json'), true);
+        $settingInfos = $data['settings'];
+        $settingGroups = $data['settingGroups'];
+    }
+}
+
 function LoadLocale()
 {
     global $settings;
@@ -463,11 +480,19 @@ $settings['emailguser'] = $emailguser;
 $settings['emailfromtext'] = $emailfromtext;
 $settings['emailtoemail'] = $emailtoemail;
 $settings['outputProcessorsFile'] = $outputProcessorsFile;
-if (!isset($settings['SendVendorSerial'])) {
-    $settings['SendVendorSerial'] = 1;
-}
-if (!isset($settings['FetchVendorLogos'])) {
-    $settings['FetchVendorLogos'] = 1;
+
+/*
+ * Load default values from settings.json
+ */
+LoadSettingInfos();
+
+foreach ($settingInfos as $key => $obj) {
+    if (isset($obj['default'])) {
+        if (!isset($settings[$key])) {
+            #error_log($key . " " . $obj['default']);
+            $settings[$key] = $obj['default'];
+        }
+    }
 }
 
 if ((isset($settings['masqUIPlatform'])) && ($settings['masqUIPlatform'] != '')) {

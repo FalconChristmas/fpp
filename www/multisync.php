@@ -2,14 +2,14 @@
 <html>
 <head>
 <?php
-require_once("config.php");
-require_once("common.php");
+require_once "config.php";
+require_once "common.php";
 include 'common/menuHead.inc';
 
 $advancedView = true;
 if ((isset($settings['MultiSyncAdvancedView'])) &&
     ($settings['MultiSyncAdvancedView'] == 1)) {
-	$advancedView = true;
+    $advancedView = true;
 }
 
 ?>
@@ -18,7 +18,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
 
 
-<title><? echo $pageTitle; ?></title>
+<title><?echo $pageTitle; ?></title>
 <style>
 
 
@@ -158,7 +158,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
             $('#MultiSyncMulticast').prop('checked', true);
             alert('FPP will use multicast if no other sync methods are chosen.');
         }
-        
+
 		$.put("api/settings/MultiSyncRemotes", remotes
 		).done(function() {
 			settings['MultiSyncRemotes'] = remotes;
@@ -435,7 +435,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                 $('#' + rowID).attr('ip', ip);
 
 			$('#' + rowID + '_elapsed').html(elapsed);
-               
+
             if (data.warnings != null && data.warnings.length > 0) {
                var result_style = document.getElementById(rowID + '_warnings').style;
                result_style.display = 'table-row';
@@ -453,7 +453,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                var result_style = document.getElementById(rowID + '_warnings').style;
             }
             rowSpanSet(rowID);
-               
+
 	    //Expert View Rows
 	    if( data.hasOwnProperty('advancedView') && data.status_name !== 'unknown' && data.status_name !== 'unreachable' && data.status_name !== 'password') {
 		if (data.advancedView.hasOwnProperty('Platform')) {
@@ -514,7 +514,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
                     if (diskHtml == "") {
                         diskHtml = "<b>Disk Usage:</b> unknown";
-                    } 
+                    }
                     if (data.advancedView.Utilization.hasOwnProperty("CPU")) {
                         u += "<tr><td>CPU:</td><td>" + Math.round(data.advancedView.Utilization.CPU) + "%</td></tr>";
                     }
@@ -543,7 +543,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                        } else {
                          ut /= 1000;
                          ut = Math.round(ut);
-               
+
                          var min = Math.round(ut / 60);
                          var hours = Math.round(min / 60);
                          min = Math.round(min % 60);
@@ -552,11 +552,11 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                             min = "0" + min;
                         }
                          ut = hours.toString() + ":" + min.toString();
-                
+
                        }
-                       u += '<tr><td colspan=2><span data-html="true" title="' + diskHtml + '<br><b>Uptime:</b> ' + ut;
-                       u += '">More...</td></tr>'
-                       //u += "<tr><td>Uptime:&nbsp;</td><td>" + ut + "</td></tr>";
+                       u += "<tr><td>Up:&nbsp;</td><td>" + ut
+                       u += ' <span class="multisync-utilization-more" data-html="true" title="' + diskHtml + '<br><b>Uptime:</b> ' + ut;
+                       u += '">...</td></tr>'
                     }
                }
                u += "</table>";
@@ -731,7 +731,7 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
                         newRow += "<input type='checkbox' class='remoteCheckbox largeCheckbox multisyncRowCheckbox' name='" + data[i].address + "'>";
 
                     newRow += "</td>";
-          
+
 
                 newRow = newRow + "</tr>";
                 $('#fppSystems').append(newRow);
@@ -784,15 +784,15 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 
         if (extras != '' && origExtra != extras) {
             <?php
-            if ($uiLevel >= 1) {
-            ?>
+if ($uiLevel >= 1) {
+    ?>
             var inp = document.getElementById("MultiSyncExtraRemotes");
             if (inp) {
                 $('#MultiSyncExtraRemotes').val(extras);
             }
             <?
-            }
-            ?>
+}
+?>
             SetSetting("MultiSyncExtraRemotes", extras, 0, 0);
         }
 
@@ -1004,24 +1004,24 @@ function getFalconV4ControllerStatus(ip) {
 
             var result = JSON.stringify(data);
             var s = JSON.parse(result);
-    
+
             var tempthreshold = s.P.BS;
             var t1temp = s.P.T1 / 10;
             var t2temp = s.P.T2 / 10;
-    
+
             var v1voltage = s.P.V1 / 10;
             var v2voltage = s.P.V2 / 10;
-    
+
             var testmode = new Boolean(s.P.TS);
             var overtemp = new Boolean(Math.max(t1temp,t2temp) > tempthreshold);
-    
+
             var t=parseInt(s.P.U);
             var days=Math.floor(t/86400);
             var hours=Math.floor((t-86400*days)/3600);
             var mins=Math.floor((t-86400*days-3600*hours)/60);
-    
+
             var uptime = '';
-    
+
             uptime += (days + " days, ");
             uptime += ("0" + hours).slice(-2) + ":";
             uptime += ("0" + mins ).slice(-2);
@@ -1036,9 +1036,9 @@ function getFalconV4ControllerStatus(ip) {
             }
             if (testmode == true) u += "</table><br><span class='warning-text'>Controller Test mode is active</span><br>";
             if (overtemp == true) u += "</table><br><span class='warning-text'>Pixel brightness reduced due to high temperatures</span><br>";
-    
+
             u += "</table>";
-    
+
             $('#advancedViewUtilization_fpp_' + ips).html(u);
         }
     });
@@ -1084,7 +1084,7 @@ $.ajax({
 function RefreshStats() {
     var keys = Object.keys(hostRows);
     var ips = [];
-    
+
     for (var i = 0; i < keys.length; i++) {
         var rowID = hostRows[keys[i]];
         var ip = ipFromRowID(rowID);
@@ -1542,14 +1542,14 @@ function copyOSFilesToSelectedSystems() {
                     } catch(error) {
                         // Eat it
                     }
- 
+
                     try {
                         freeSpace = rec.advancedView.Utilization.Disk.Media.Free
                     } catch(error) {
                         // Eat it
                     }
 
-                    // 0.95 is to not completely fill it.                    
+                    // 0.95 is to not completely fill it.
                     if (freeSpace != 0 && ( (f.sizeBytes) > (freeSpace *0.95) )) {
                         $.jGrowl("Insufficient free disk space on remote " + ip + ". Skipping",{themeState:'danger'});
                     } else if (osType != f.type) {
@@ -1661,7 +1661,7 @@ function multiActionChanged() {
     var action = $('#multiAction').val();
 
     $('.actionOptions').hide();
-    
+
     switch (action) {
         case 'copyFiles':      $('#copyOptions').show();      break;
         case 'copyOSFiles' :   $('#copyOSOptions').show();      break;
@@ -1672,16 +1672,16 @@ function multiActionChanged() {
 </head>
 <body>
 <div id="bodyWrapper">
-	<?php 
-    $activeParentMenuItem = 'status';
-    include 'menu.inc'; ?>
+	<?php
+$activeParentMenuItem = 'status';
+include 'menu.inc';?>
     <div class="mainContainer">
     <h1 class="title">FPP MultiSync</h1>
         <div class="pageContent">
-            
+
         	<div id="uifppsystems" class="settings">
-    
-        
+
+
                     <div id='fppSystemsTableWrapper' class='fppTableWrapper fppTableWrapperAsTable backdrop'>
                         <div class='fppTableContents' role="region" aria-labelledby="fppSystemsTable" tabindex="0">
         			<table id='fppSystemsTable' cellpadding='3'>
@@ -1694,11 +1694,11 @@ function multiActionChanged() {
         						<th data-placeholder="Status">Status</th>
         						<th data-sorter='false' data-filter='false'>Elapsed</th>
         						<th data-placeholder="Version">Version</th>
-        					
+
                                 <th data-sorter='false' data-filter='false'>Git Versions</th>
                                 <th data-sorter='false' data-filter='false'>Utilization</th>
                                 <th data-sorter='false' data-filter='false'><input id='selectAllCheckbox' type='checkbox' class='largeCheckbox multisyncRowCheckbox' onChange='selectAllChanged();' /></th>
-            
+
                         </tr>
                     </thead>
                     <tbody id='fppSystems'>
@@ -1714,7 +1714,7 @@ function multiActionChanged() {
             <i class="fas fa-cog"></i> Settings</button>
             <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
             <div class="ml-2">
-            <span  class="pr-1">Auto Refresh Stats</span> <? PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled'); ?> 
+            <span  class="pr-1">Auto Refresh Stats</span> <?PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled');?>
             </div>
             </div>
             <div class="col-md-auto">
@@ -1735,9 +1735,9 @@ function multiActionChanged() {
                     <input type='button' class='buttons' value='Clear List' onClick='clearSelected();'>
                 </div>
             </div>
-         
+
         </div>
-   
+
         <div style='text-align: left;'>
             <div id = 'copyOSOptions' class='actionOptions'>
                 <h2>Copy OS Upgrade Files</h2>
@@ -1748,51 +1748,51 @@ function multiActionChanged() {
             <span class='actionOptions' id='copyOptions'>
                 <br>
         <?php
-        PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
-        ?>
+PrintSettingGroupTable('multiSyncCopyFiles', '', '', 0);
+?>
             </span>
         </div>
 
             <div id='exitWarning' class='alert alert danger' style='display: none;'>WARNING: Other FPP Systems are being updated from this interface. DO NOT reload or exit this page until these updates are complete.</b></div>
-  
- 
-   
-            
+
+
+
+
         <div id="fppSystemsUiSettingsDrawer" class="collapse">
             <div id="multisyncViewOptions" class="fppSystemsUiSettings card ">
                 <div class="container-fluid settingsTable">
 
                                 <?
-                                PrintSetting('MultiSyncEnabled');
-                                PrintSetting('MultiSyncExternalIPAddress');
-                                PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
-                                PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
-                                PrintSetting('MultiSyncExtraRemotes');
-                                PrintSetting('MultiSyncHTTPSubnets');
-                                PrintSetting('MultiSyncHide10', 'getFPPSystems');
-                                PrintSetting('MultiSyncHide172', 'getFPPSystems');
-                                PrintSetting('MultiSyncHide192', 'getFPPSystems');
-                                ?>
+PrintSetting('MultiSyncEnabled');
+PrintSetting('MultiSyncExternalIPAddress');
+PrintSetting('MultiSyncMulticast', 'syncModeUpdated');
+PrintSetting('MultiSyncBroadcast', 'syncModeUpdated');
+PrintSetting('MultiSyncExtraRemotes');
+PrintSetting('MultiSyncHTTPSubnets');
+PrintSetting('MultiSyncHide10', 'getFPPSystems');
+PrintSetting('MultiSyncHide172', 'getFPPSystems');
+PrintSetting('MultiSyncHide192', 'getFPPSystems');
+?>
                                             </div>
-                                    
+
                                 <?
-                                if ($uiLevel > 0) {
-                                    echo "<b><i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i> - Advanced Level Setting</b>\n";
-                                }
-                                ?>
+if ($uiLevel > 0) {
+    echo "<b><i class='fas fa-fw fa-graduation-cap fa-nbsp ui-level-1' title='Advanced Level Setting'></i> - Advanced Level Setting</b>\n";
+}
+?>
 
                 </div>
-                   
-     
+
+
             </div>
         </div>
 
-        
+
 
         	</div>
         </div>
     </div>
-	<?php include 'common/footer.inc'; ?>
+	<?php include 'common/footer.inc';?>
 </div>
 
 <script>
@@ -1831,7 +1831,7 @@ $(document).ready(function() {
     });
 
     $table
-<? if (0) { ?>
+<?if (0) {?>
     .bind('filterInit', function() {
         $table.find('.tablesorter-filter').hide().each(function(){
             var w, $t = $(this);
@@ -1844,7 +1844,7 @@ $(document).ready(function() {
                 });
         });
     })
-<? } ?>
+<?}?>
     .tablesorter({
         widthFixed: false,
         theme: 'fpp',

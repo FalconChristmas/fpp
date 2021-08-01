@@ -209,23 +209,6 @@ function IfSettingInListPrint($setting, $value, $print, $pluginName = "", $defau
     }
 }
 
-$settingGroups = array();
-$settingInfos = array();
-$pluginSettingInfosLoaded = 0;
-
-function LoadSettingInfos()
-{
-    global $settings;
-    global $settingInfos;
-    global $settingGroups;
-
-    if (empty($settingInfos) || empty($settingGroups)) {
-        $data = json_decode(file_get_contents($settings['fppDir'] . '/www/settings.json'), true);
-        $settingInfos = $data['settings'];
-        $settingGroups = $data['settingGroups'];
-    }
-}
-
 function LoadPluginSettingInfos($plugin)
 {
     global $settings;
