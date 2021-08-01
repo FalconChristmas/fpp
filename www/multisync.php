@@ -16,6 +16,8 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/jquery.tablesorter.widgets.js"></script>
 <script type="text/javascript" src="jquery/jquery.tablesorter/parsers/parser-network.js"></script>
+<script type="text/javascript" src="js/xlsx.full.min.js" async></script>
+<script type="text/javascript" src="js/FileSaver.min.js" async></script>
 
 
 <title><?echo $pageTitle; ?></title>
@@ -81,6 +83,83 @@ if ((isset($settings['MultiSyncAdvancedView'])) &&
         });
     }
 
+    /*
+     * Does a deep object flattening of "obj" using the specified base path
+     * setting new properties on rc to rc[path + "." + key] == value
+     */
+    function flattenObject(obj, path, rc) {
+        if( ((typeof obj != "object" && typeof obj != 'function')) || (obj == null) ) {
+            console.log("WARNING: Not an object", obj);
+            return;
+        }
+
+        for (const [key, value] of Object.entries(obj)) {
+            let newPath = (path === "" ? key : path + "." + key )
+            if (typeof value === "object") {
+                flattenObject(value, newPath, rc);
+            } else if (typeof value === "boolean" || typeof value === "string" || typeof value == "number") {
+                rc[newPath] = value;
+            } else {
+                console.log("Unable to handle path ", newPath, "of type", typeof value);
+            }
+        }
+
+    }
+
+    function exportMultisync() {
+        if (systemStatusCache == null || systemStatusCache == "" || systemStatusCache == "null") {
+            $.jGrowl("Please wait until the system statuses finish loading",{themeState:'danger'});
+            return;
+        }
+        const allKeys = new Set();
+        let finalData = {};
+        // Flatten the data
+        for (const [ip, data] of Object.entries(systemStatusCache)) {
+            let rc={};
+            flattenObject(data, "", rc);
+            finalData[ip] = rc;
+
+            for(const [key, junk] of Object.entries(rc)) {
+                allKeys.add(key);
+            }
+        }
+
+        // Create XLSX
+        const sortedKeys = Array.from(allKeys).sort();
+        let labels = ['ip'];
+        labels = labels.concat(sortedKeys);
+
+        let allRows = [];
+        allRows.push(labels);
+
+        for (const [ip, data] of Object.entries(finalData)) {
+            let row = [];
+            row.push(ip);
+            let value = "";
+            for (const key of sortedKeys) {
+                if (key in data) {
+                    value = data[key];
+                }
+                row.push(value);
+            }
+            allRows.push(row);
+        }
+
+        var wb = XLSX.utils.book_new();
+        wb.SheetNames.push("Data");
+        var ws = XLSX.utils.aoa_to_sheet(allRows);
+        wb.Sheets["Data"] = ws;
+        var wbout = XLSX.write(wb, {bookType:'xlsx',  type: 'binary'});
+        saveAs(new Blob([s2ab(wbout)],{type:"application/octet-stream"}), 'export.xlsx');
+
+    }
+
+    function s2ab(s) {
+        var buf = new ArrayBuffer(s.length); //convert s to arrayBuffer
+        var view = new Uint8Array(buf);  //create uint8array as viewer
+        for (var i=0; i<s.length; i++) view[i] = s.charCodeAt(i) & 0xFF; //convert to octet
+        return buf;
+    }
 
     function rowSpanSet(rowID) {
         var rowSpan = 1;
@@ -1712,6 +1791,7 @@ include 'menu.inc';?>
             <div class="form-actions col-md">
             <button class="fppSystemsUiSettingsToggle buttons dropdown-toggle"  type="button"data-toggle="collapse" data-target="#fppSystemsUiSettingsDrawer" aria-expanded="false" aria-controls="fppSystemsUiSettingsDrawer">
             <i class="fas fa-cog"></i> Settings</button>
+            <button id='exportStatsButton' type='button' class='buttons' value='Export' onClick='exportMultisync();'><i class="fas fa-scroll"></i> Export </button>
             <button id='refreshStatsButton' type='button' class='buttons' value='Refresh Stats' onClick='clearRefreshTimers(); RefreshStats();'><i class="fas fa-redo"></i> Refresh Stats</button>
             <div class="ml-2">
             <span  class="pr-1">Auto Refresh Stats</span> <?PrintSettingCheckbox('MultiSync Auto Refresh', 'MultiSyncRefreshStatus', 0, 0, '1', '0', '', 'autoRefreshToggled');?>
