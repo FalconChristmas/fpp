@@ -343,7 +343,11 @@ void ScheduleEntry::GetTimeFromSun(time_t& when, bool setStart) {
     else
         sunOffset = 0;
 
-    sunOffset += startTimeOffset;
+    if (setStart) {
+        sunOffset += startTimeOffset;
+    } else {
+        sunOffset += endTimeOffset;
+    }
 
     int daySecond = (local.tm_hour * SECONDS_PER_HOUR) + (local.tm_min * SECONDS_PER_MINUTE) + local.tm_sec;
 
