@@ -540,10 +540,6 @@ if ($debug) {
     error_log("emailtoemail: $emailtoemail");
 }
 
-if (!isset($settings['uiLevel'])) {
-    $settings['uiLevel'] = 0;
-}
-
 $uiLevel = $settings['uiLevel'];
 
 define('MINYEAR', date('Y') - 2);
