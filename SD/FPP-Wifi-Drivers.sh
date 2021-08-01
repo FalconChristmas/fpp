@@ -32,8 +32,6 @@ done
 cd /opt/wifi
 git clone https://github.com/pvaret/rtl8192cu-fixes
 cd rtl8192cu-fixes
-# broken compile
-git revert --no-edit 9ee39ceb169f78ac6fcc9efeba74cf80f90939bc
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_GENERIC = n/ARM_GENERIC = y/' Makefile
 sed -i 's/KVER *:= $(shell uname -r)/KVER ?= $(shell uname -r)/' Makefile
@@ -91,7 +89,8 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-git clone https://github.com/zebulon2/rtl8814au
+# git clone https://github.com/zebulon2/rtl8814au
+git clone  -b kernel-v5.8-support https://github.com/olegbuevich/rtl8814au
 cd rtl8814au
 patch -p1 < /opt/wifi/patches/rtl8814au
 for i in "${KVERS[@]}"; do
@@ -113,7 +112,8 @@ for i in "${KVERS[@]}"; do
 done
 
 cd /opt/wifi
-git clone https://github.com/whitebatman2/rtl8821CU
+# git clone https://github.com/whitebatman2/rtl8821CU
+git clone https://github.com/rastreus/cudy_wu700_ac650 rtl8821CU
 cd rtl8821CU
 sed -i 's/I386_PC = y/I386_PC = n/' Makefile
 sed -i 's/ARM_RPI = n/ARM_RPI = y/' Makefile
